@@ -1,13 +1,15 @@
 # supabase-py
 
-Supabase client for Python.
+Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
+
+## Usage
+
+`pip3 install gotrue`
+
 
 ### See issues for what to work on
 
 Rough roadmap:
-
 - [ ] Wrap [Postgrest-py](https://github.com/supabase/postgrest-py/)
-- [ ] Write Realtime-py (Use [realtime-js](https://github.com/supabase/realtime-js) as reference implementation) (implementation started by  @Jeffery Kwoh @Joel and @Lionell Loh)
-- [ ] Wrap Realtime-py (Use [supabase-js](https://github.com/supabase/supabase-js) as reference implementation)
-- [ ] Write Gotrue-py (for auth) (Use [gotrue-js](https://github.com/netlify/gotrue-js) as reference implementation)
-- [ ] Wrap Gotrue-py
+- [ ] Wrap [Realtime-py](https://github.com/supabase/realtime-py)
+- [ ] Wrap [Gotrue-py](https://github.com/J0/gotrue-py)
