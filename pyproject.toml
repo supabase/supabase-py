@@ -6,8 +6,11 @@ authors = ["Joel Lee <joel@joellee.org>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.7.1"
 postgrest-py = "^0.3.2"
+realtime-py="^0.1.0"
+gotrue="0.1.2"
+
 
 [tool.poetry.dev-dependencies]
 

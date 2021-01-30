@@ -1,6 +1,7 @@
 from postgrest_py import PostgrestClient
+import gotrue
 
-class SupabaseClient():
+class Client():
     def __init__(self, supabaseUrl: str, supabaseKey: str):
         if not supabaseUrl or not supabaseKey:
             raise("supabaseUrl is required")
@@ -13,6 +14,12 @@ class SupabaseClient():
         self.supabaseUrl = supabaseUrl
         self.supabaseKey = supabaseKey
         # self.auth = self._initSupabaseAuthClient(SETTINGS)
+
+    def _from(self, table: str):
+        """
+        Perform a table operation
+        """
+        pass
 
     def auth(self):
         pass

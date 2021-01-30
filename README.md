@@ -1,10 +1,20 @@
 # supabase-py
 
+[![Documentation Status](https://readthedocs.org/projects/gotrue-py/badge/?version=latest)](https://gotrue-py.readthedocs.io/en/latest/?badge=latest)
+
 Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
 
 ## Usage
 
 `pip3 install supabase`
+
+
+```
+import supabase
+supabaseUrl=""
+supabaseKey=""
+client = supabase.Client(supabaseUrl, supabaseKey)
+```
 
 
 ### See issues for what to work on
