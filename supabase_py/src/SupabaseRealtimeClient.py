@@ -7,4 +7,3 @@ class SupabaseRealtimeClient:
     
     def subscribe(self):
         pass
-        
