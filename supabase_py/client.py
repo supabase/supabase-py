@@ -6,25 +6,26 @@ from .src.SupabaseRealtimeClient import SupabaseRealtimeClient
 from .src.SupabaseQueryBuilder import SupabaseQueryBuilder
 
 
+DEFAULT_OPTIONS = {
+    "schema": "public",
+    "auto_refresh_token": True,
+    "persist_session": True,
+    "detect_session_in_url": True,
+    "headers": {},
+}
+
+
 class Client:
     def __init__(self, supabaseUrl: str, supabaseKey: str):
-        if not supabaseUrl or not supabaseKey:
-            raise("supabaseUrl is required")
-        DEFAULT_HEADERS = {}
+        if not supabaseUrl:
+            raise Exception("supabaseUrl is required")
+        if not supabaseKey:
+            raise Exception("supabaseKey is required")
 
-        SETTINGS = {
-            "schema": "public",
-            "autoRefreshToken": True,
-            "persistSession": True,
-            "detectSessionInUrl": True,
-            # TODO: Verify if the localStorage parameter is relevant in the python implementation
-            "localStorage": None,
-            "headers": DEFAULT_HEADERS,
-        }
+        settings = {**DEFAULT_OPTIONS, **options}
         self.restUrl = f"{supabaseUrl}/rest/v1"
-        self.realtimeUrl = f"{supabaseUrl}/realtime/v1".replace('http', 'ws')
+        self.realtimeUrl = f"{supabaseUrl}/realtime/v1".replace("http", "ws")
         self.authUrl = f"{supabaseUrl}/auth/v1"
-        # TODO: Allow user to pass in schema. This is hardcoded
         self.schema = SETTINGS["schema"]
         self.supabaseUrl = supabaseUrl
         self.supabaseKey = supabaseKey
@@ -43,10 +44,9 @@ class Client:
         rest = self._initPostgrestClient()
         return rest.rpc(fn, params)
 
-
     def removeSubscription(self):
         pass
-    
+
     def _closeSubscription(self, subscription):
         pass
 
@@ -56,21 +56,27 @@ class Client:
     def _initRealtimeClient(self):
         pass
 
-    def _initSupabaseAuthClient(self, autoRefreshToken, persistSession, 
-    detectSessionInUrl,localStorage):
-        return SupabaseAuthClient(self.authUrl, autoRefreshToken, persistSession, detectSessionInUrl, localStorage)
-    
+    def _initSupabaseAuthClient(
+        self, autoRefreshToken, persistSession, detectSessionInUrl, localStorage
+    ):
+        return SupabaseAuthClient(
+            self.authUrl,
+            autoRefreshToken,
+            persistSession,
+            detectSessionInUrl,
+            localStorage,
+        )
+
     def _initPostgrestClient(self):
         return PostgrestClient(self.restUrl)
-    
-    def  _getAuthHeaders(self):
+
+    def _getAuthHeaders(self):
         headers = {}
         # What's the corresponding method to get the token
         # authBearer = self.auth.session().token if self.auth.session().token else self.supabaseKey
-        headers['apiKey'] = self.supabaseKey
-        headers['Authorization'] = f"Bearer {self.supabaseKey}"
+        headers["apiKey"] = self.supabaseKey
+        headers["Authorization"] = f"Bearer {self.supabaseKey}"
         return headers
-    
+
     def _closeChannel(self):
         pass
-

@@ -4,6 +4,6 @@ class SupabaseRealtimeClient:
 
     def on(self):
         pass
-    
+
     def subscribe(self):
         pass
