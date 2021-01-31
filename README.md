@@ -10,10 +10,10 @@ Supabase client for Python. This mirrors the design of [supabase-js](https://git
 
 
 ```
-import supabase
+import supabase_py
 supabaseUrl=""
 supabaseKey=""
-client = supabase.Client(supabaseUrl, supabaseKey)
+client = supabase_py.Client(supabaseUrl, supabaseKey)
 ```
 
 

@@ -4,6 +4,7 @@ from postgrest_py import PostgrestClient
 from .src.SupabaseAuthClient import SupabaseAuthClient
 from .src.SupabaseRealtimeClient import SupabaseRealtimeClient
 from .src.SupabaseQueryBuilder import SupabaseQueryBuilder
+from typing import Optional
 
 
 DEFAULT_OPTIONS = {
@@ -16,7 +17,9 @@ DEFAULT_OPTIONS = {
 
 
 class Client:
-    def __init__(self, supabaseUrl: str, supabaseKey: str):
+    def __init__(
+        self, supabaseUrl: str, supabaseKey: str, options: Optional[dict] = {}
+    ):
         if not supabaseUrl:
             raise Exception("supabaseUrl is required")
         if not supabaseKey:
@@ -26,16 +29,25 @@ class Client:
         self.restUrl = f"{supabaseUrl}/rest/v1"
         self.realtimeUrl = f"{supabaseUrl}/realtime/v1".replace("http", "ws")
         self.authUrl = f"{supabaseUrl}/auth/v1"
-        self.schema = SETTINGS["schema"]
+        self.schema = settings["schema"]
         self.supabaseUrl = supabaseUrl
         self.supabaseKey = supabaseKey
-        self.auth = self._initSupabaseAuthClient(*SETTINGS)
+        self.auth = self._initSupabaseAuthClient(*settings)
 
     def _from(self, table: str):
         """
         Perform a table operation
         """
-        pass
+        url = f"{self.restUrl}/{table}"
+        return SupabaseQueryBuilder(
+            url,
+            {
+                "headers": self._getAuthHeaders(),
+                "schema": self.schema,
+                "realtime": self.realtime,
+            },
+            table,
+        )
 
     def rpc(self, fn, params):
         """
@@ -57,7 +69,12 @@ class Client:
         pass
 
     def _initSupabaseAuthClient(
-        self, autoRefreshToken, persistSession, detectSessionInUrl, localStorage
+        self,
+        schema,
+        autoRefreshToken,
+        persistSession,
+        detectSessionInUrl,
+        localStorage,
     ):
         return SupabaseAuthClient(
             self.authUrl,

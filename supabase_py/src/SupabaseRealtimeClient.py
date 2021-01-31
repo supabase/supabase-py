@@ -1,5 +1,8 @@
 class SupabaseRealtimeClient:
-    def __init__(self):
+    def __init__(self, socket, schema, tableName):
+        pass
+
+    def getPayloadRecords(payload):
         pass
 
     def on(self):
