@@ -1,9 +1,9 @@
 import gotrue
 
 from postgrest_py import PostgrestClient
-from .src.SupabaseAuthClient import SupabaseAuthClient
-from .src.SupabaseRealtimeClient import SupabaseRealtimeClient
-from .src.SupabaseQueryBuilder import SupabaseQueryBuilder
+from .lib.supabase_auth_client import SupabaseAuthClient
+from .lib.supabase_realtime_client import SupabaseRealtimeClient
+from .lib.supabase_query_builder import SupabaseQueryBuilder
 from typing import Optional
 
 
@@ -90,7 +90,6 @@ class Client:
     def _getAuthHeaders(self):
         headers = {}
         # What's the corresponding method to get the token
-        # authBearer = self.auth.session().token if self.auth.session().token else self.supabaseKey
         headers["apiKey"] = self.supabaseKey
         headers["Authorization"] = f"Bearer {self.supabaseKey}"
         return headers

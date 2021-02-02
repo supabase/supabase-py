@@ -1,2 +1,2 @@
-from .src import *
+from .lib import *
 from .client import Client
