@@ -22,8 +22,8 @@ supabase = supabase_py.Client(supabaseUrl, supabaseKey)
 ### See issues for what to work on
 
 Rough roadmap:
-- [x] Wrap [Postgrest-py](https://github.com/supabase/postgrest-py/)
-- [x] Wrap [Realtime-py](https://github.com/supabase/realtime-py)
+- [] Wrap [Postgrest-py](https://github.com/supabase/postgrest-py/)
+- [] Wrap [Realtime-py](https://github.com/supabase/realtime-py)
 - [x] Wrap [Gotrue-py](https://github.com/J0/gotrue-py)
 
 

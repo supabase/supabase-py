@@ -33,6 +33,7 @@ class Client:
         self.supabaseUrl = supabaseUrl
         self.supabaseKey = supabaseKey
         self.auth = self._initSupabaseAuthClient(*settings)
+        self.realtime = self._initRealtimeClient()
 
     def _from(self, table: str):
         """
@@ -56,17 +57,29 @@ class Client:
         rest = self._initPostgrestClient()
         return rest.rpc(fn, params)
 
-    def removeSubscription(self):
-        pass
+    # def removeSubscription(self, subscription):
+    #     async def remove_subscription_helper(resolve):
+    #         try:
+    #             await self._closeSubscription(subscription)
+    #             openSubscriptions = len(self.getSubscriptions())
+    #             if not openSubscriptions:
+    #                 error = await self.realtime.disconnect()
+    #                 if error:
+    #                     return {"error": None, "data": { openSubscriptions}}
+    #         except Error as e:
+    #             return {error}
 
-    def _closeSubscription(self, subscription):
-        pass
+    #     return remove_subscription_helper(subscription)
+
+    async def _closeSubscription(self, subscription):
+        if not subscription.closed:
+            await self._closeChannel(subscription)
 
     def getSubscriptions(self):
-        pass
+        return self.realtime.channels
 
     def _initRealtimeClient(self):
-        pass
+        return RealtimeClient(self.realtimeUrl, {"params": {apikey: self.supabaseKey}})
 
     def _initSupabaseAuthClient(
         self,
@@ -82,6 +95,10 @@ class Client:
             persistSession,
             detectSessionInUrl,
             localStorage,
+            headers={
+                "Authorization": f"Bearer {self.supabaseKey}",
+                "apikey": f"{self.supabaseKey}",
+            },
         )
 
     def _initPostgrestClient(self):
@@ -94,5 +111,10 @@ class Client:
         headers["Authorization"] = f"Bearer {self.supabaseKey}"
         return headers
 
-    def _closeChannel(self):
-        pass
+    # def closeSubscription(self):
+    #     if not subscription.closed:
+    #         await self._closeChannel(subscription)
+
+    # def _closeChannel(self, subscription):
+    #     async def _closeChannelHelper():
+    #         subscription.unsubscribe().on('OK')
