@@ -1,5 +1,3 @@
-import gotrue
-
 from postgrest_py import PostgrestClient
 from lib.auth_client import SupabaseAuthClient
 from lib.realtime_client import SupabaseRealtimeClient
