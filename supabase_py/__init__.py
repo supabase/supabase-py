@@ -1,5 +1,8 @@
-from lib import supabase_auth_client, supabase_query_builder, supabase_realtime_client
+# Retain module level imports for structured imports in tests etc.
+from . import lib
+from . import client
+# Open up the client as an easy import.
 from client import Client
 
 
-__VERSION__ = "0.0.1"
+__version__ = "0.0.1"

@@ -1,10 +1,11 @@
 import gotrue
 
 from postgrest_py import PostgrestClient
-from .lib.supabase_auth_client import SupabaseAuthClient
-from .lib.supabase_realtime_client import SupabaseRealtimeClient
-from .lib.supabase_query_builder import SupabaseQueryBuilder
-from typing import Optional
+from lib.auth_client import SupabaseAuthClient
+from lib.realtime_client import SupabaseRealtimeClient
+from lib.query_builder import SupabaseQueryBuilder
+
+from typing import Any, Dict
 
 
 DEFAULT_OPTIONS = {
@@ -18,56 +19,41 @@ DEFAULT_OPTIONS = {
 
 class Client:
     def __init__(
-        self, supabaseUrl: str, supabaseKey: str, options: Optional[dict] = {}
+        self, supabase_url: str, supabase_key: str, **options,
     ):
-        """
-        Initialize a Supabase Client
+        """Instanciate the client.
+
         Parameters
         ----------
-        SupabaseUrl
-            URL of the Supabase instance that we are acting on
-        SupabaseKey
-            API key for the Supabase instance that we are acting on
-        Options
-            Any other settings that we wish to override
-
-        Returns
-        None
-        -------
+        supabase_url: str
+            The URL to the Supabase instance that should be connected to.
+        supabase_key: str
+            The API key to the Supabase instance that should be connected to.
+        **options
+            Any extra settings to be optionally specified - also see the
+            `DEFAULT_OPTIONS` dict.
         """
-        if not supabaseUrl:
-            raise Exception("supabaseUrl is required")
-        if not supabaseKey:
-            raise Exception("supabaseKey is required")
-
-        settings = {**DEFAULT_OPTIONS, **options}
-        self.restUrl = f"{supabaseUrl}/rest/v1"
-        self.realtimeUrl = f"{supabaseUrl}/realtime/v1".replace("http", "ws")
-        self.authUrl = f"{supabaseUrl}/auth/v1"
+        if not supabase_url:
+            raise Exception("supabase_url is required")
+        if not supabase_key:
+            raise Exception("supabase_key is required")
+        settings: Dict[str, Any] = {**DEFAULT_OPTIONS, **options}
+        self.restUrl = f"{supabase_url}/rest/v1"
+        self.realtimeUrl = f"{supabase_url}/realtime/v1".replace("http", "ws")
+        self.authUrl = f"{supabase_url}/auth/v1"
         self.schema = settings["schema"]
-        self.supabaseUrl = supabaseUrl
-        self.supabaseKey = supabaseKey
-        self.auth = self._initSupabaseAuthClient(*settings)
-        # TODO: Fix this once Realtime-py is working
-        # self.realtime = self._initRealtimeClient()
+        self.supabaseUrl = supabase_url
+        self.supabaseKey = supabase_key
+        self.auth = self._init_supabase_auth_client(*settings)
+        self.realtime = self._init_realtime_client()
 
     def _from(self, table: str):
-        """
-        Perform a table operation on a given table
-        Parameters
-        ----------
-        table
-            Name of table to execute operations on
-        Returns
-        -------
-        SupabaseQueryBuilder
-        Wrapper for Postgrest-py client which we can perform operations(e.g. select/update) with
-        """
-        url = f"{self.restUrl}/{table}"
+        """Perform a table operation."""
+        url = f"{self.rest_url}/{table}"
         return SupabaseQueryBuilder(
             url,
             {
-                "headers": self._getAuthHeaders(),
+                "headers": self._get_auth_headers(),
                 "schema": self.schema,
                 "realtime": self.realtime,
             },
@@ -95,22 +81,19 @@ class Client:
         rest = self._initPostgrestClient()
         return rest.rpc(fn, params)
 
-    # TODO: Fix this segment after realtime-py is working
-    # def removeSubscription(self, subscription):
     #     async def remove_subscription_helper(resolve):
     #         try:
-    #             await self._closeSubscription(subscription)
-    #             openSubscriptions = len(self.getSubscriptions())
-    #             if not openSubscriptions:
+    #             await self._close_subscription(subscription)
+    #             open_subscriptions = len(self.get_subscriptions())
+    #             if not open_subscriptions:
     #                 error = await self.realtime.disconnect()
     #                 if error:
-    #                     return {"error": None, "data": { openSubscriptions}}
-    #         except Error as e:
-    #             return {error}
-
+    #                     return {"error": None, "data": { open_subscriptions}}
+    #         except Exception as e:
+    #             raise e
     #     return remove_subscription_helper(subscription)
 
-    async def _closeSubscription(self, subscription):
+    async def _close_subscription(self, subscription):
         """
         Close a given subscription
 
@@ -122,19 +105,19 @@ class Client:
         if not subscription.closed:
             await self._closeChannel(subscription)
 
-    def getSubscriptions(self):
+    def get_subscriptions(self):
         """
         Return all channels the the client is subscribed to.
         """
         return self.realtime.channels
 
-    def _initRealtimeClient(self):
+    def _init_realtime_client(self):
         """
         Private method for creating an instance of the realtime-py client.
         """
         return RealtimeClient(self.realtimeUrl, {"params": {apikey: self.supabaseKey}})
 
-    def _initSupabaseAuthClient(
+    def _init_supabase_auth_client(
         self,
         schema,
         autoRefreshToken,
@@ -157,13 +140,13 @@ class Client:
             },
         )
 
-    def _initPostgrestClient(self):
+    def _init_postgrest_client(self):
         """
         Private helper method for creating a wrapped instance of the Postgrest client.
         """
         return PostgrestClient(self.restUrl)
 
-    def _getAuthHeaders(self):
+    def _get_auth_headers(self):
         """
         Helper method to get auth headers
         """
@@ -172,12 +155,3 @@ class Client:
         headers["apiKey"] = self.supabaseKey
         headers["Authorization"] = f"Bearer {self.supabaseKey}"
         return headers
-
-    # TODO: Fix this segment after realtime-py is working
-    # def closeSubscription(self):
-    #     if not subscription.closed:
-    #         await self._closeChannel(subscription)
-
-    # def _closeChannel(self, subscription):
-    #     async def _closeChannelHelper():
-    #         subscription.unsubscribe().on('OK')
