@@ -1,3 +1,5 @@
+from typing import Any, Callable
+
 from realtime_py.connection import Socket
 
 
