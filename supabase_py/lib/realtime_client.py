@@ -31,7 +31,7 @@ class SupabaseRealtimeClient:
                 "new": {},
                 "old": {},
             }
-            enriched_payload = {**enriched_payload, **self.getPayloadRecords(payload)}
+            enriched_payload = {**enriched_payload, **self.get_payload_records(payload)}
             callback(enriched_payload)
 
         self.subscription.join().on(event, cb)

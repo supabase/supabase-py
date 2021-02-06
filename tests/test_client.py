@@ -5,12 +5,6 @@ from typing import Any, Dict
 
 import pytest
 
-"""
-Convert this flow into a test
-client = supabase_py.Client("<insert link>", "<password>")
-client.auth.sign_up({"email": "anemail@gmail.com", "password": "apassword"})
-"""
-
 
 def _random_string(length: int = 10) -> str:
     """Generate random string."""
@@ -25,8 +19,7 @@ def _assert_authenticated_user(user: Dict[str, Any]):
 
 def _assert_unauthenticated_user(user: Dict[str, Any]):
     """Raise assertion error if user is logged in correctly."""
-    assert user.get("id") is not None
-    assert user.get("aud") == "authenticated"
+    assert False
 
 
 @pytest.mark.xfail(
@@ -61,3 +54,12 @@ def test_client_auth():
     user = supabase.auth.sign_in(email=random_email, password=random_password)
     _assert_authenticated_user(user)
 
+
+def test_client_select():
+    """Ensure we can select data from a table."""
+    from supabase_py import create_client, Client
+
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
+    supabase: Client = create_client(url, key)
+    data = supabase.table("countries").select("*")
