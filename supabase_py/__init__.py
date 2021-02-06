@@ -2,8 +2,8 @@
 from . import lib
 from . import client
 
-# Open up the client as an easy import.
-from .client import Client
+# Open up the client and function as an easy import.
+from .client import Client, create_client
 
 
 __version__ = "0.0.1"

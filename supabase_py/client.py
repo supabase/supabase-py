@@ -160,12 +160,15 @@ class Client:
         return PostgrestClient(rest_url)
 
     def _get_auth_headers(self) -> Dict[str, str]:
-        """
-        Helper method to get auth headers
-        """
+        """Helper method to get auth headers."""
         # What's the corresponding method to get the token
         headers: Dict[str, str] = {
             "apiKey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
         }
         return headers
+
+
+def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
+    """Create client function to instanciate supabase client like JS runtime."""
+    return Client(supabase_url=supabase_url, supabase_key=supabase_key, **options)
