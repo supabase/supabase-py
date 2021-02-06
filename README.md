@@ -19,19 +19,34 @@ You can also installing from after cloning this repo. Install like below to inst
 ```bash 
 pip install -e .
 ```
+
 ## Usage
-```
-import supabase_py
-supabase_url=""
-supabase_key=""
-supabase = supabase_py.Client(supabase_url, supabase_key)
+```python
+import os
+from supabase_py import create_client, Client
+
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+email = "abcdde@gmail.com"
+password = "password"
+supabase: Client = create_client(url, key)
+user = supabase.auth.sign_up(email, password)
 ```
 
-### Run tests
-`python -m pytest`
+### Running Tests
+Currently the test suites are in a state of flux. We are expanding our clients tests to ensure things are working, and for now can connect to this test instance, that is populated with the following table:
+<p align="center">
+  <img width="720" height="481" src="https://i.ibb.co/Bq7Kdty/db.png">
+</p>
+
+The above test database is a blank supabase instance that has populated the `countries` table with the built in countries script that can be found in the supabase UI. You can launch the test scripts and point to the above test database with the 
+```bash
+SUPABASE_TEST_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTYxMjYwOTMyMiwiZXhwIjoxOTI4MTg1MzIyfQ.XL9W5I_VRQ4iyQHVQmjG0BkwRfx6eVyYB3uAKcesukg" \
+SUPABASE_TEST_URL="https://tfsatoopsijgjhrqplra.supabase.co" \
+pytest -x
+```
 
 ### See issues for what to work on
-
 Rough roadmap:
 - [ ] Wrap [Postgrest-py](https://github.com/supabase/postgrest-py/)
 - [ ] Wrap [Realtime-py](https://github.com/supabase/realtime-py)
@@ -40,9 +55,7 @@ Rough roadmap:
 
 
 ### Client Library
-
 This is a sample of how you'd use [supabase-py]. Functions and tests are WIP
-
 
 ## Authenticate 
 ```
