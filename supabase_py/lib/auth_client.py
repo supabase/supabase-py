@@ -28,13 +28,13 @@ class SupabaseAuthClient(gotrue.Client):
         """Sign in with email and password."""
         response = super().sign_in(credentials={"email": email, "password": password})
         # TODO(fedden): Log JWT to self.jwt
-        return response
+        return response.json()
 
     def sign_up(self, email: str, password: str) -> Dict[str, Any]:
         """Sign up with email and password."""
         response = super().sign_up(credentials={"email": email, "password": password})
         # TODO(fedden): Log JWT to self.jwt
-        return response
+        return response.json()
 
     def sign_out(self) -> Dict[str, Any]:
         """Sign out of logged in user."""
