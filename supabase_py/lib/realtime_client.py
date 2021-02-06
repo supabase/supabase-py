@@ -5,7 +5,6 @@ from realtime_py.connection import Socket
 
 class SupabaseRealtimeClient:
     def __init__(self, socket, schema, table_name):
-
         topic = (
             f"realtime:{schema}"
             if table_name == "*"
