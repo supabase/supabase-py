@@ -10,7 +10,8 @@ python = "^3.7.1"
 postgrest-py = "^0.3.2"
 realtime-py="^0.1.0"
 gotrue="0.1.2"
-
+pytest="6.2.2"
+supabase-realtime-py="0.1.1a0"
 
 [tool.poetry.dev-dependencies]
 

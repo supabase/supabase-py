@@ -1,7 +1,7 @@
 from postgrest_py import PostgrestClient
-from lib.auth_client import SupabaseAuthClient
-from lib.realtime_client import SupabaseRealtimeClient
-from lib.query_builder import SupabaseQueryBuilder
+from supabase_py.lib.auth_client import SupabaseAuthClient
+from supabase_py.lib.realtime_client import SupabaseRealtimeClient
+from supabase_py.lib.query_builder import SupabaseQueryBuilder
 
 from typing import Any, Dict
 
@@ -10,12 +10,14 @@ DEFAULT_OPTIONS = {
     "schema": "public",
     "auto_refresh_token": True,
     "persist_session": True,
-    "detect_session_in_url": True,
-    "headers": {},
+    "detect_session_url": True,
+    "local_storage": {},
 }
 
 
 class Client:
+    """Supabase client class."""
+
     def __init__(
         self, supabase_url: str, supabase_key: str, **options,
     ):
@@ -35,29 +37,37 @@ class Client:
             raise Exception("supabase_url is required")
         if not supabase_key:
             raise Exception("supabase_key is required")
-        settings: Dict[str, Any] = {**DEFAULT_OPTIONS, **options}
-        self.restUrl = f"{supabase_url}/rest/v1"
-        self.realtimeUrl = f"{supabase_url}/realtime/v1".replace("http", "ws")
-        self.authUrl = f"{supabase_url}/auth/v1"
-        self.schema = settings["schema"]
-        self.supabaseUrl = supabase_url
-        self.supabaseKey = supabase_key
-        self.auth = self._init_supabase_auth_client(*settings)
-        self.realtime = self._init_realtime_client()
+        self.supabase_url = supabase_url
+        self.supabase_key = supabase_key
+        # Start with defaults, write headers and prioritise user overwrites.
+        settings: Dict[str, Any] = {
+            **DEFAULT_OPTIONS,
+            "headers": self._get_auth_headers(),
+            **options,
+        }
+        self.rest_url: str = f"{supabase_url}/rest/v1"
+        self.realtime_url: str = f"{supabase_url}/realtime/v1".replace("http", "ws")
+        self.auth_url: str = f"{supabase_url}/auth/v1"
+        self.schema: str = settings.pop("schema")
+        # Instanciate clients.
+        self.auth: SupabaseAuthClient = self._init_supabase_auth_client(
+            auth_url=self.auth_url, supabase_key=self.supabase_key, **settings,
+        )
+        #  self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
+        #      realtime_url=self.realtime_url, supabase_key=self.supabase_key,
+        #  )
+        self.postgrest: PostgrestClient = self._init_postgrest_client(
+            rest_url=self.rest_url
+        )
 
-    def _from(self, table: str):
+    def _from(self, table: str) -> SupabaseQueryBuilder:
         """Perform a table operation."""
-        url = f"{self.rest_url}/{table}"
         return SupabaseQueryBuilder(
-            url,
-            {
-                "headers": self._get_auth_headers(),
-                "schema": self.schema,
-                "realtime": self.realtime,
-            },
-            self.schema,
-            self.realtime,
-            table,
+            url=f"{self.rest_url}/{table}",
+            headers=self._get_auth_headers(),
+            schema=self.schema,
+            realtime=self.realtime,
+            table=table,
         )
 
     def rpc(self, fn, params):
@@ -109,47 +119,53 @@ class Client:
         """
         return self.realtime.channels
 
-    def _init_realtime_client(self):
+    @staticmethod
+    def _init_realtime_client(
+        realtime_url: str, supabase_key: str
+    ) -> SupabaseRealtimeClient:
         """
         Private method for creating an instance of the realtime-py client.
         """
-        return RealtimeClient(self.realtimeUrl, {"params": {apikey: self.supabaseKey}})
+        return SupabaseRealtimeClient(
+            realtime_url, {"params": {"apikey": supabase_key}}
+        )
 
+    @staticmethod
     def _init_supabase_auth_client(
-        self,
-        schema,
-        autoRefreshToken,
-        persistSession,
-        detectSessionInUrl,
-        localStorage,
-    ):
+        auth_url: str,
+        supabase_key: str,
+        detect_session_url: bool,
+        auto_refresh_token: bool,
+        persist_session: bool,
+        local_storage: Dict[str, Any],
+        headers: Dict[str, str],
+    ) -> SupabaseAuthClient:
         """
         Private helper method for creating a wrapped instance of the GoTrue Client.
         """
         return SupabaseAuthClient(
-            self.authUrl,
-            autoRefreshToken,
-            persistSession,
-            detectSessionInUrl,
-            localStorage,
-            headers={
-                "Authorization": f"Bearer {self.supabaseKey}",
-                "apikey": f"{self.supabaseKey}",
-            },
+            auth_url=auth_url,
+            auto_refresh_token=auto_refresh_token,
+            detect_session_url=detect_session_url,
+            persist_session=persist_session,
+            local_storage=local_storage,
+            headers=headers,
         )
 
-    def _init_postgrest_client(self):
+    @staticmethod
+    def _init_postgrest_client(rest_url: str) -> PostgrestClient:
         """
         Private helper method for creating a wrapped instance of the Postgrest client.
         """
-        return PostgrestClient(self.restUrl)
+        return PostgrestClient(rest_url)
 
-    def _get_auth_headers(self):
+    def _get_auth_headers(self) -> Dict[str, str]:
         """
         Helper method to get auth headers
         """
-        headers = {}
-        # TODO: Add way of getting auth token
-        headers["apiKey"] = self.supabaseKey
-        headers["Authorization"] = f"Bearer {self.supabaseKey}"
+        # What's the corresponding method to get the token
+        headers: Dict[str, str] = {
+            "apiKey": self.supabase_key,
+            "Authorization": f"Bearer {self.supabase_key}",
+        }
         return headers

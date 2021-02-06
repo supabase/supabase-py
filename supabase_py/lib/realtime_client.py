@@ -1,16 +1,17 @@
-from typing import Callable, Any
+from realtime_py.connection import Socket
 
 
 class SupabaseRealtimeClient:
-    def __init__(self, socket, schema, tableName):
+    def __init__(self, socket, schema, table_name):
+
         topic = (
             f"realtime:{schema}"
             if table_name == "*"
-            else f"realtime:{schema}:{tableName}"
+            else f"realtime:{schema}:{table_name}"
         )
         self.subscription = socket.set_channel(topic)
 
-    def getPayloadRecords(self, payload: Any):
+    def get_payload_records(self, payload: Any):
         records = {"new": {}, "old": {}}
         # TODO: Figure out how to create payload
         # if payload.type == "INSERT" or payload.type == "UPDATE":
