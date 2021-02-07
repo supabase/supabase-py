@@ -21,6 +21,13 @@ pip install -e .
 ```
 
 ## Usage
+It's usually best practice to set your api key environment variables in some way that version control doesn't track them, e.g don't put them in your python modules! Set the key and url for the supabase instance in the shell, or better yet, use a dotenv file. Heres how to set the variables in the shell.
+```bash
+export SUPABASE_URL="my-url-to-my-awesome-supabase-instance"
+export SUPABASE_KEY="my-supa-dupa-secret-supabase-api-key"
+```
+
+We can then read the keys in the python source code.
 ```python
 import os
 from supabase_py import create_client, Client
