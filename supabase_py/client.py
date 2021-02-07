@@ -21,7 +21,7 @@ class Client:
     def __init__(
         self, supabase_url: str, supabase_key: str, **options,
     ):
-        """Instanciate the client.
+        """Instantiate the client.
 
         Parameters
         ----------
@@ -49,7 +49,7 @@ class Client:
         self.realtime_url: str = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url: str = f"{supabase_url}/auth/v1"
         self.schema: str = settings.pop("schema")
-        # Instanciate clients.
+        # Instantiate clients.
         self.auth: SupabaseAuthClient = self._init_supabase_auth_client(
             auth_url=self.auth_url, supabase_key=self.supabase_key, **settings,
         )
