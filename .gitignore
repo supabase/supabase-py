@@ -19,6 +19,7 @@ Sessionx.vim
 tags
 # Persistent undo
 [._]*.un~
+.idea
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

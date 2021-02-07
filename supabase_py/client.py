@@ -33,6 +33,7 @@ class Client:
             Any extra settings to be optionally specified - also see the
             `DEFAULT_OPTIONS` dict.
         """
+
         if not supabase_url:
             raise Exception("supabase_url is required")
         if not supabase_key:
@@ -203,3 +204,4 @@ def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
     Client
     """
     return Client(supabase_url=supabase_url, supabase_key=supabase_key, **options)
+
