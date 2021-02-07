@@ -1,6 +1,5 @@
 from postgrest_py.client import PostgrestClient
-from .supabase_realtime_client import SupabaseRealtimeClient
-from typing import Callable
+from .realtime_client import SupabaseRealtimeClient
 
 
 class SupabaseQueryBuilder(PostgrestClient):
