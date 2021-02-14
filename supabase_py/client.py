@@ -10,7 +10,7 @@ DEFAULT_OPTIONS = {
     "schema": "public",
     "auto_refresh_token": True,
     "persist_session": True,
-    "detect_session_url": True,
+    "detect_session_in_url": True,
     "local_storage": {},
 }
 
@@ -143,19 +143,17 @@ class Client:
     def _init_supabase_auth_client(
         auth_url: str,
         supabase_key: str,
-        detect_session_url: bool,
+        detect_session_in_url: bool,
         auto_refresh_token: bool,
         persist_session: bool,
         local_storage: Dict[str, Any],
         headers: Dict[str, str],
     ) -> SupabaseAuthClient:
-        """
-        Private helper method for creating a wrapped instance of the GoTrue Client.
-        """
+        """Creates a wrapped instance of the GoTrue Client."""
         return SupabaseAuthClient(
-            auth_url=auth_url,
+            url=auth_url,
             auto_refresh_token=auto_refresh_token,
-            detect_session_url=detect_session_url,
+            detect_session_in_url=detect_session_in_url,
             persist_session=persist_session,
             local_storage=local_storage,
             headers=headers,
@@ -204,4 +202,3 @@ def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
     Client
     """
     return Client(supabase_url=supabase_url, supabase_key=supabase_key, **options)
-
