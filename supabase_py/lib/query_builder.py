@@ -28,8 +28,7 @@ class SupabaseQueryBuilder(PostgrestClient):
         self._realtime = realtime
 
     def on(self, event, callback):
-        """
-        Subscribe to realtime changes in your database.
+        """Subscribe to realtime changes in your database.
 
         Parameters
         ----------
