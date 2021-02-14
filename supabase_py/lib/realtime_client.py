@@ -1,10 +1,11 @@
 from typing import Any, Callable
 
 from realtime_py.connection import Socket
+from realtime_py.transformers import convert_change_data
 
 
 class SupabaseRealtimeClient:
-    def __init__(self, socket, schema, table_name):
+    def __init__(self, socket: Type[Socket], schema: str, table_name: str):
         topic = (
             f"realtime:{schema}"
             if table_name == "*"
@@ -14,11 +15,12 @@ class SupabaseRealtimeClient:
 
     def get_payload_records(self, payload: Any):
         records = {"new": {}, "old": {}}
-        # TODO: Figure out how to create payload
-        # if payload.type == "INSERT" or payload.type == "UPDATE":
-        #     records.new = Transformers.convertChangeData(payload.columns, payload.record)
-        # if (payload.type === 'UPDATE' || payload.type === 'DELETE'):
-        #      records.old = Transformers.convertChangeData(payload.columns, payload.old_record)
+        if payload.type == "INSERT" or payload.type == "UPDATE":
+            records.new = payload.record
+            convert_change_data(payload.columns, payload.record)
+        if (payload.type === 'UPDATE' or payload.type === 'DELETE'):
+            records.old = payload.record
+            convert_change_data(payload.columns, payload.old_record)
         return records
 
     def on(self, event, callback: Callable[..., Any]):
