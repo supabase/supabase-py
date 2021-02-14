@@ -70,20 +70,21 @@ class Client:
         this is a reserved keyword so we have elected to use the name `table`.
         Alternatively you can use the `._from()` method.
         """
-        return self._from(table_name)
+        return self.from_(table_name)
 
-    def _from(self, table_name: str) -> SupabaseQueryBuilder:
+    def from_(self, table_name: str) -> SupabaseQueryBuilder:
         """Perform a table operation.
 
         See the `table` method.
         """
-        return SupabaseQueryBuilder(
+        query_builder = SupabaseQueryBuilder(
             url=f"{self.rest_url}/{table_name}",
             headers=self._get_auth_headers(),
             schema=self.schema,
             realtime=self.realtime,
             table=table_name,
         )
+        return query_builder.from_(table_name)
 
     def rpc(self, fn, params):
         """Performs a stored procedure call.

@@ -24,8 +24,8 @@ class SupabaseQueryBuilder(PostgrestClient):
         None
         """
         super().__init__(url)
-        self._subscription = SupabaseRealtimeClient(realtime, schema, table)
-        self._realtime = realtime
+        # self._subscription = SupabaseRealtimeClient(realtime, schema, table)
+        # self._realtime = realtime
 
     def on(self, event, callback):
         """Subscribe to realtime changes in your database.

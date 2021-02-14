@@ -65,4 +65,7 @@ def test_client_select():
     supabase: Client = create_client(url, key)
     # TODO(fedden): Add this set back in (and expand on it) when postgrest and
     #               realtime libs are working.
-    # data = supabase.table("countries").select("*")
+    import ipdb
+
+    ipdb.set_trace()
+    data = supabase.table("countries").select("*")
