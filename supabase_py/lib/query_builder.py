@@ -1,4 +1,6 @@
+from httpx import AsyncClient
 from postgrest_py.client import PostgrestClient
+
 from .realtime_client import SupabaseRealtimeClient
 
 
@@ -23,7 +25,15 @@ class SupabaseQueryBuilder(PostgrestClient):
         -------
         None
         """
-        super().__init__(url)
+        super().__init__(base_url=url)
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Accept-Profile": schema,
+            "Content-Profile": schema,
+            **headers,
+        }
+        self.session = AsyncClient(base_url=url, headers=headers)
         # self._subscription = SupabaseRealtimeClient(realtime, schema, table)
         # self._realtime = realtime
 

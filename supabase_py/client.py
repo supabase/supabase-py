@@ -60,7 +60,8 @@ class Client:
         #  )
         self.realtime = None
         self.postgrest: PostgrestClient = self._init_postgrest_client(
-            rest_url=self.rest_url
+            rest_url=self.rest_url,
+            supabase_key=supabase_key,
         )
 
     def table(self, table_name: str) -> SupabaseQueryBuilder:
@@ -161,9 +162,11 @@ class Client:
         )
 
     @staticmethod
-    def _init_postgrest_client(rest_url: str) -> PostgrestClient:
+    def _init_postgrest_client(rest_url: str, supabase_key: str) -> PostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
-        return PostgrestClient(rest_url)
+        client = PostgrestClient(rest_url)
+        client.auth(token=supabase_key)
+        return client
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
