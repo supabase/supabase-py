@@ -1,7 +1,39 @@
+from typing import Any, Dict
+
+import requests
 from httpx import AsyncClient
 from postgrest_py.client import PostgrestClient
+from postgrest_py.request_builder import QueryRequestBuilder
 
 from .realtime_client import SupabaseRealtimeClient
+
+
+def _execute_monkey_patch(self) -> Dict[str, Any]:
+    """Temporary method to enable syncronous client code."""
+    method: str = self.http_method.lower()
+    if method == "get":
+        func = requests.get
+    elif method == "post":
+        func = requests.post
+    elif method == "put":
+        func = requests.put
+    elif method == "patch":
+        func = requests.patch
+    elif method == "delete":
+        func = requests.delete
+    url: str = str(self.session.base_url).rstrip("/")
+    query: str = str(self.session.params)
+    response = func(f"{url}?{query}", headers=self.session.headers)
+    return {
+        "data": response.json(),
+        "status_code": response.status_code,
+    }
+
+
+# NOTE(fedden): Here we monkey patch the otherwise async method and use the
+#               requests module instead. Hopefully cleans things up a little
+#               for the user as they are now not bound to async methods.
+QueryRequestBuilder.execute = _execute_monkey_patch
 
 
 class SupabaseQueryBuilder(PostgrestClient):
