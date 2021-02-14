@@ -11,15 +11,15 @@ def _random_string(length: int = 10) -> str:
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 
-def _assert_authenticated_user(user: Dict[str, Any]):
+def _assert_authenticated_user(data: Dict[str, Any]):
     """Raise assertion error if user is not logged in correctly."""
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data.get("status_code") == 200
+    user = data.get("user")
+    assert user is not None
     assert user.get("id") is not None
     assert user.get("aud") == "authenticated"
-
-
-def _assert_unauthenticated_user(user: Dict[str, Any]):
-    """Raise assertion error if user is logged in correctly."""
-    assert False
 
 
 @pytest.mark.xfail(
@@ -48,8 +48,9 @@ def test_client_auth():
     user = supabase.auth.sign_up(email=random_email, password=random_password)
     _assert_authenticated_user(user)
     # Sign out.
-    user = supabase.auth.sign_out()
-    _assert_unauthenticated_user(user)
+    supabase.auth.sign_out()
+    assert supabase.auth.user() is None
+    assert supabase.auth.session() is None
     # Sign in (explicitly this time).
     user = supabase.auth.sign_in(email=random_email, password=random_password)
     _assert_authenticated_user(user)
