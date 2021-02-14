@@ -56,8 +56,7 @@ def test_client_auth():
     _assert_authenticated_user(user)
 
 
-@pytest.mark.asyncio
-async def test_client_select():
+def test_client_select():
     """Ensure we can select data from a table."""
     from supabase_py import create_client, Client
 
@@ -66,8 +65,6 @@ async def test_client_select():
     supabase: Client = create_client(url, key)
     # TODO(fedden): Add this set back in (and expand on it) when postgrest and
     #               realtime libs are working.
-    query = supabase.table("countries").select("*")
-    import ipdb
-
-    ipdb.set_trace()
-    data = await query.execute()
+    data = supabase.table("countries").select("*").execute()
+    # Assert we pulled real data.
+    assert len(data.get("data", [])) > 0
