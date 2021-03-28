@@ -68,3 +68,29 @@ def test_client_select():
     data = supabase.table("countries").select("*").execute()
     # Assert we pulled real data.
     assert len(data.get("data", [])) > 0
+
+
+def test_client_insert():
+    """Ensure we can select data from a table."""
+    from supabase_py import create_client, Client
+
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
+    supabase: Client = create_client(url, key)
+    data = supabase.table("countries").select("*").execute()
+    # Assert we pulled real data.
+    previous_length: int = len(data.get("data", []))
+    new_row = {
+        "name": "test name",
+        "iso2": "test iso2",
+        "iso3": "test iso3",
+        "local_name": "test local name",
+        "continent": None,
+    }
+    result = supabase.table("countries").insert(new_row).execute()
+    data = supabase.table("countries").select("*").execute()
+    current_length: int = len(data.get("data", []))
+    # Ensure we've added a row remotely.
+    assert current_length == previous_length + 1
+    # Check returned result for insert was valid.
+    assert result.get("status_code", 400) == 201
