@@ -11,19 +11,24 @@ from .realtime_client import SupabaseRealtimeClient
 def _execute_monkey_patch(self) -> Dict[str, Any]:
     """Temporary method to enable syncronous client code."""
     method: str = self.http_method.lower()
+    additional_kwargs: Dict[str, Any] = {}
     if method == "get":
         func = requests.get
     elif method == "post":
         func = requests.post
+        # Additionally requires the json body (e.g on insert, self.json==row).
+        additional_kwargs = {"json": self.json}
     elif method == "put":
         func = requests.put
     elif method == "patch":
         func = requests.patch
     elif method == "delete":
         func = requests.delete
+    else:
+        raise NotImplementedError(f"Method '{method}' not recognised.")
     url: str = str(self.session.base_url).rstrip("/")
     query: str = str(self.session.params)
-    response = func(f"{url}?{query}", headers=self.session.headers)
+    response = func(f"{url}?{query}", headers=self.session.headers, **additional_kwargs)
     return {
         "data": response.json(),
         "status_code": response.status_code,
