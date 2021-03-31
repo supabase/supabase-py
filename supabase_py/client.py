@@ -1,10 +1,11 @@
 from postgrest_py import PostgrestClient
+
+from supabase_py.lib.SupabaseStorageClient import SupabaseStorageClient
 from supabase_py.lib.auth_client import SupabaseAuthClient
 from supabase_py.lib.realtime_client import SupabaseRealtimeClient
 from supabase_py.lib.query_builder import SupabaseQueryBuilder
 
 from typing import Any, Dict
-
 
 DEFAULT_OPTIONS = {
     "schema": "public",
@@ -19,7 +20,7 @@ class Client:
     """Supabase client class."""
 
     def __init__(
-        self, supabase_url: str, supabase_key: str, **options,
+            self, supabase_url: str, supabase_key: str, **options,
     ):
         """Instantiate the client.
 
@@ -49,6 +50,8 @@ class Client:
         self.rest_url: str = f"{supabase_url}/rest/v1"
         self.realtime_url: str = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url: str = f"{supabase_url}/auth/v1"
+        self.storage_url = f"{supabase_url}/storage/v1"
+
         self.schema: str = settings.pop("schema")
         # Instantiate clients.
         self.auth: SupabaseAuthClient = self._init_supabase_auth_client(
@@ -62,6 +65,9 @@ class Client:
         self.postgrest: PostgrestClient = self._init_postgrest_client(
             rest_url=self.rest_url
         )
+
+    def storage(self):
+        return SupabaseStorageClient(self.storage_url, self._get_auth_headers())
 
     def table(self, table_name: str) -> SupabaseQueryBuilder:
         """Perform a table operation.
@@ -132,7 +138,7 @@ class Client:
 
     @staticmethod
     def _init_realtime_client(
-        realtime_url: str, supabase_key: str
+            realtime_url: str, supabase_key: str
     ) -> SupabaseRealtimeClient:
         """Private method for creating an instance of the realtime-py client."""
         return SupabaseRealtimeClient(
@@ -141,13 +147,13 @@ class Client:
 
     @staticmethod
     def _init_supabase_auth_client(
-        auth_url: str,
-        supabase_key: str,
-        detect_session_url: bool,
-        auto_refresh_token: bool,
-        persist_session: bool,
-        local_storage: Dict[str, Any],
-        headers: Dict[str, str],
+            auth_url: str,
+            supabase_key: str,
+            detect_session_url: bool,
+            auto_refresh_token: bool,
+            persist_session: bool,
+            local_storage: Dict[str, Any],
+            headers: Dict[str, str],
     ) -> SupabaseAuthClient:
         """
         Private helper method for creating a wrapped instance of the GoTrue Client.
@@ -204,4 +210,3 @@ def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
     Client
     """
     return Client(supabase_url=supabase_url, supabase_key=supabase_key, **options)
-
