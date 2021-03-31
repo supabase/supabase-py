@@ -11,6 +11,8 @@ postgrest-py = "^0.3.2"
 realtime-py="^0.1.0"
 gotrue="0.1.2"
 pytest="6.2.2"
+requests="^2.25.1"
+aiohttp="^3.7.4.post0"
 supabase-realtime-py="0.1.1a0"
 
 [tool.poetry.dev-dependencies]

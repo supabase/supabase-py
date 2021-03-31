@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any, Callable, Type
 
 from realtime_py.connection import Socket
 from realtime_py.transformers import convert_change_data
@@ -18,7 +18,7 @@ class SupabaseRealtimeClient:
         if payload.type == "INSERT" or payload.type == "UPDATE":
             records.new = payload.record
             convert_change_data(payload.columns, payload.record)
-        if (payload.type === 'UPDATE' or payload.type === 'DELETE'):
+        if (payload.type == 'UPDATE' or payload.type == 'DELETE'):
             records.old = payload.record
             convert_change_data(payload.columns, payload.old_record)
         return records

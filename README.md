@@ -65,7 +65,7 @@ Rough roadmap:
 This is a sample of how you'd use [supabase-py]. Functions and tests are WIP
 
 ## Authenticate 
-```
+```python
 supabase.auth.signUp({
   "email": 'example@email.com',
   "password": 'example-password',
@@ -74,7 +74,7 @@ supabase.auth.signUp({
 
 
 ## Sign-in
-```
+```python
 supabase.auth.signIn({
   "email": 'example@email.com',
   "password": 'example-password',
@@ -83,7 +83,7 @@ supabase.auth.signIn({
 
 
 ## Sign-in(Auth provider). This is not supported yet
-```
+```python
 supabase.auth.signIn({
   // provider can be 'github', 'google', 'gitlab', or 'bitbucket'
   "provider": 'github'
@@ -92,7 +92,7 @@ supabase.auth.signIn({
 
 
 ## Managing Data
-```
+```python
 supabase
   .from('countries')
   .select("
@@ -104,10 +104,30 @@ supabase
 ```
 
 ## Realtime Changes
-```
+```python
 mySubscription = supabase
   .from('countries')
   .on('*',  lambda x: print(x))
   .subscribe()
+  ```
+## Storage Files
+```python
+import os
+from supabase_py import create_client, Client
+import asyncio
+
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")  # service key
+supabase: Client = create_client(url, key)
+loop = asyncio.new_event_loop()
+
+storage = supabase.storage()
+storage_file = storage.StorageFileApi("poll")  # id of the bucket
+
+url = storage_file.create_signed_url("poll3o/test2.txt", 80)  # signed url
+loop.run_until_complete(storage_file.download("poll3o/test2.txt")) #upload or download
+loop.run_until_complete(storage_file.upload("poll3o/test2.txt","path_file_upload"))
+list_buckets = storage.list_buckets()
+list_files = storage_file.list("pollo")  
   ```
 See [Supabase Docs](https://supabase.io/docs/guides/client-libraries) for full list of examples
