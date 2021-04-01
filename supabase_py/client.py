@@ -10,7 +10,7 @@ DEFAULT_OPTIONS = {
     "schema": "public",
     "auto_refresh_token": True,
     "persist_session": True,
-    "detect_session_url": True,
+    "detect_session_in_url": True,
     "local_storage": {},
 }
 
@@ -60,7 +60,8 @@ class Client:
         #  )
         self.realtime = None
         self.postgrest: PostgrestClient = self._init_postgrest_client(
-            rest_url=self.rest_url
+            rest_url=self.rest_url,
+            supabase_key=supabase_key,
         )
 
     def table(self, table_name: str) -> SupabaseQueryBuilder:
@@ -70,20 +71,21 @@ class Client:
         this is a reserved keyword so we have elected to use the name `table`.
         Alternatively you can use the `._from()` method.
         """
-        return self._from(table_name)
+        return self.from_(table_name)
 
-    def _from(self, table_name: str) -> SupabaseQueryBuilder:
+    def from_(self, table_name: str) -> SupabaseQueryBuilder:
         """Perform a table operation.
 
         See the `table` method.
         """
-        return SupabaseQueryBuilder(
+        query_builder = SupabaseQueryBuilder(
             url=f"{self.rest_url}/{table_name}",
             headers=self._get_auth_headers(),
             schema=self.schema,
             realtime=self.realtime,
             table=table_name,
         )
+        return query_builder.from_(table_name)
 
     def rpc(self, fn, params):
         """Performs a stored procedure call.
@@ -143,28 +145,28 @@ class Client:
     def _init_supabase_auth_client(
         auth_url: str,
         supabase_key: str,
-        detect_session_url: bool,
+        detect_session_in_url: bool,
         auto_refresh_token: bool,
         persist_session: bool,
         local_storage: Dict[str, Any],
         headers: Dict[str, str],
     ) -> SupabaseAuthClient:
-        """
-        Private helper method for creating a wrapped instance of the GoTrue Client.
-        """
+        """Creates a wrapped instance of the GoTrue Client."""
         return SupabaseAuthClient(
-            auth_url=auth_url,
+            url=auth_url,
             auto_refresh_token=auto_refresh_token,
-            detect_session_url=detect_session_url,
+            detect_session_in_url=detect_session_in_url,
             persist_session=persist_session,
             local_storage=local_storage,
             headers=headers,
         )
 
     @staticmethod
-    def _init_postgrest_client(rest_url: str) -> PostgrestClient:
+    def _init_postgrest_client(rest_url: str, supabase_key: str) -> PostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
-        return PostgrestClient(rest_url)
+        client = PostgrestClient(rest_url)
+        client.auth(token=supabase_key)
+        return client
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
@@ -204,4 +206,3 @@ def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
     Client
     """
     return Client(supabase_url=supabase_url, supabase_key=supabase_key, **options)
-
