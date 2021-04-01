@@ -5,7 +5,7 @@ from realtime_py.transformers import convert_change_data
 
 
 class SupabaseRealtimeClient:
-    def __init__(self, socket: Type[Socket], schema: str, table_name: str):
+    def __init__(self, socket: Socket, schema: str, table_name: str):
         topic = (
             f"realtime:{schema}"
             if table_name == "*"
@@ -18,7 +18,7 @@ class SupabaseRealtimeClient:
         if payload.type == "INSERT" or payload.type == "UPDATE":
             records.new = payload.record
             convert_change_data(payload.columns, payload.record)
-        if (payload.type === 'UPDATE' or payload.type === 'DELETE'):
+        if (payload.type == 'UPDATE' or payload.type == 'DELETE'):
             records.old = payload.record
             convert_change_data(payload.columns, payload.old_record)
         return records
