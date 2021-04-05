@@ -2,7 +2,7 @@
 name = "supabase-py"
 version = "0.0.2"
 description = "Supabase client for Python."
-authors = ["Joel Lee <joel@joellee.org>"]
+authors = ["Joel Lee <joel@joellee.org>", "Leon Fedden <leonfedden@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
