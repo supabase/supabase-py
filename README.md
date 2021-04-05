@@ -4,6 +4,16 @@
 
 Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
 
+## Status
+- [x] Alpha: We are testing Supabase with a closed set of customers
+- [x] Public Alpha: Anyone can sign up over at [app.supabase.io](https://app.supabase.io). But go easy on us, there are a few kinks.
+- [ ] Public Beta: Stable enough for most non-enterprise use-cases
+- [ ] Public: Production-ready
+
+We are currently in Public Alpha. Watch "releases" of this repo to get notified of major updates.
+
+<kbd><img src="https://gitcdn.link/repo/supabase/supabase/master/web/static/watch-repo.gif" alt="Watch this repo"/></kbd>
+
 ## Installation
 
 **Recomended:** First activate your virtual environment, with your favourites system. For example, we like `poetry` and `conda`!
@@ -41,11 +51,10 @@ from supabase_py import create_client, Client
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
-email = "abcdde@gmail.com"
-password = "password"
 supabase: Client = create_client(url, key)
-user = supabase.auth.sign_up(email, password)
 ```
+
+Use the supabase client to interface with your database.
 
 ### Running Tests
 
@@ -78,48 +87,61 @@ This is a sample of how you'd use supabase-py. Functions and tests are WIP
 ## Authenticate
 
 ```python
-supabase.auth.sign_up({
-  "email": 'example@email.com',
-  "password": 'example-password',
-})
+from supabase_py import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+# Create a random user login email and password.
+random_email: str = "3hf82fijf92@supamail.com"
+random_password: str = "fqj13bnf2hiu23h"
+user = supabase.auth.sign_up(email=random_email, password=random_password)
 ```
 
 ## Sign-in
 
 ```python
-supabase.auth.signIn({
-  "email": 'example@email.com',
-  "password": 'example-password',
-})
-```
+from supabase_py import create_client, Client
 
-## Sign-in(Auth provider). This is not supported yet
-
-```python
-supabase.auth.signIn({
-  // provider can be 'github', 'google', 'gitlab', or 'bitbucket'
-  "provider": 'github'
-})
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+# Sign in using the user email and password.
+random_email: str = "3hf82fijf92@supamail.com"
+random_password: str = "fqj13bnf2hiu23h"
+user = supabase.auth.sign_in(email=random_email, password=random_password)
 ```
 
 ## Managing Data
 
+#### Insertion of Data
 ```python
-supabase
-  .from('countries')
-  .select("
-    name,
-    cities (
-      name
-    )
-  ")
+from supabase_py import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+data = supabase.table("countries").select("*").execute()
+assert len(data.get("data", [])) > 0
+```
+
+#### Selection of Data
+```python
+from supabase_py import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+data = supabase.table("countries").select("*").execute()
+# Assert we pulled real data.
+assert len(data.get("data", [])) > 0
 ```
 
 ## Realtime Changes
 
 ```python
-mySubscription = supabase
-  .from('countries')
+subscription = supabase
+  .table('countries')
   .on('*',  lambda x: print(x))
   .subscribe()
 ```
