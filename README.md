@@ -23,7 +23,7 @@ We are currently in Public Alpha. Watch "releases" of this repo to get notified 
 Now install the package.
 
 ```bash
-pip install supabase
+pip install supabase-py
 ```
 
 #### Local installation
