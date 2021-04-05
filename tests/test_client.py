@@ -11,15 +11,15 @@ def _random_string(length: int = 10) -> str:
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 
-def _assert_authenticated_user(user: Dict[str, Any]):
+def _assert_authenticated_user(data: Dict[str, Any]):
     """Raise assertion error if user is not logged in correctly."""
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data.get("status_code") == 200
+    user = data.get("user")
+    assert user is not None
     assert user.get("id") is not None
     assert user.get("aud") == "authenticated"
-
-
-def _assert_unauthenticated_user(user: Dict[str, Any]):
-    """Raise assertion error if user is logged in correctly."""
-    assert False
 
 
 @pytest.mark.xfail(
@@ -48,8 +48,9 @@ def test_client_auth():
     user = supabase.auth.sign_up(email=random_email, password=random_password)
     _assert_authenticated_user(user)
     # Sign out.
-    user = supabase.auth.sign_out()
-    _assert_unauthenticated_user(user)
+    supabase.auth.sign_out()
+    assert supabase.auth.user() is None
+    assert supabase.auth.session() is None
     # Sign in (explicitly this time).
     user = supabase.auth.sign_in(email=random_email, password=random_password)
     _assert_authenticated_user(user)
@@ -62,4 +63,34 @@ def test_client_select():
     url: str = os.environ.get("SUPABASE_TEST_URL")
     key: str = os.environ.get("SUPABASE_TEST_KEY")
     supabase: Client = create_client(url, key)
-    data = supabase.table("countries").select("*")
+    # TODO(fedden): Add this set back in (and expand on it) when postgrest and
+    #               realtime libs are working.
+    data = supabase.table("countries").select("*").execute()
+    # Assert we pulled real data.
+    assert len(data.get("data", [])) > 0
+
+
+def test_client_insert():
+    """Ensure we can select data from a table."""
+    from supabase_py import create_client, Client
+
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
+    supabase: Client = create_client(url, key)
+    data = supabase.table("countries").select("*").execute()
+    # Assert we pulled real data.
+    previous_length: int = len(data.get("data", []))
+    new_row = {
+        "name": "test name",
+        "iso2": "test iso2",
+        "iso3": "test iso3",
+        "local_name": "test local name",
+        "continent": None,
+    }
+    result = supabase.table("countries").insert(new_row).execute()
+    data = supabase.table("countries").select("*").execute()
+    current_length: int = len(data.get("data", []))
+    # Ensure we've added a row remotely.
+    assert current_length == previous_length + 1
+    # Check returned result for insert was valid.
+    assert result.get("status_code", 400) == 201
