@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Optional, AsyncGenerator, Union, Any ,Dict
+from typing import Optional, AsyncGenerator, Union, Any, Dict
 
 import aiohttp
 import requests
@@ -9,7 +9,6 @@ from requests import HTTPError
 from supabase_py.lib.storage.request_error import RequestError
 
 DEFAULT_CHUNK_SIZE = 100 * 1024 * 1024
-
 
 
 class StorageFileApi():
@@ -27,7 +26,7 @@ class StorageFileApi():
         # "Content-Type": f"multipart/form-data;boundary=---------------------------293582696224464"
     }
 
-    def __init__(self, url: str, headers: dict, bucket_id: str,replace:str):
+    def __init__(self, url: str, headers: dict, bucket_id: str, replace: str):
         """
         Create a  storage  api manager
 
@@ -44,7 +43,7 @@ class StorageFileApi():
         self.headers = headers
         self.bucket_id = bucket_id
         self.loop = asyncio.get_event_loop()
-        self.replace=replace
+        self.replace = replace
 
     async def _upload_request(self, session, file, path):
         _path = self._getFinalPath(path)
@@ -53,9 +52,10 @@ class StorageFileApi():
                 try:
                     resp = await response.json()
                 except BaseException:
-                    resp = json.loads(response.content._buffer[0]) #this should not be done but it returns only client.Disconnect so no error out
+                    resp = json.loads(response.content._buffer[
+                                          0])  # this should not be done but it returns only client.Disconnect so no error out
                     if resp["statusCode"] == "23505" and self.replace:
-                        return await self._update_request( session, file, path)
+                        return await self._update_request(session, file, path)
                 raise RequestError(resp["statusCode"], resp["error"], resp["message"])
             risp = await response.text()
             return risp
@@ -103,17 +103,20 @@ class StorageFileApi():
                     files = {"file": open(file, "rb")}  #
                     # file_sender(file)
                     return await self._upload_request(session, files, path)
+
     async def _update_request(self, session, file, path):
         _path = self._getFinalPath(path)
         async with session.put(f"{self.url}/object/{_path}", data=file) as response:
-            if not response.ok: # this should be in other function or aggregated. i do not have the time
+            if not response.ok:  # this should be in other function or aggregated. i do not have the time
                 try:
                     resp = await response.json()
                 except BaseException:
-                    resp = json.loads(response.content._buffer[0]) #this should not be done but it returns only client.Disconnect so no error out
+                    resp = json.loads(response.content._buffer[
+                                          0])  # this should not be done but it returns only client.Disconnect so no error out
                 raise RequestError(resp["statusCode"], resp["error"], resp["message"])
             risp = await response.text()
             return risp
+
     async def update(self, path: str, file: any, file_options: Optional[Dict[str, Any]] = None, stream=False, **kwargs):
         """
         Replaces an existing file at the specified path with a new one.
@@ -200,34 +203,39 @@ class StorageFileApi():
         else:
             return data
 
-    async def download(self, path: str, generator=False, chunk_size=DEFAULT_CHUNK_SIZE) -> Union[AsyncGenerator, bytes, None]:
+    # TODO:FIXARE docsting
+
+    async def download(self, path: str, generator=False,session=None, chunk_size=DEFAULT_CHUNK_SIZE) -> Union[
+        AsyncGenerator, bytes, None]:
         """
         Downloads a file.
-
-        Parameters
         ----------
         path
             The original file path, including the current file name. For example `folder/image.png`.
-
+        generator
+            If generator=True it returns an asynchronousgenerator and for every call to this function it returns a chunk of data
+        chunk_size
+            How mutch the generator should read
+        Parameters
         Returns
         -------
         bytes
             The bytes of the files
         """
+        _path = self._getFinalPath(path)
+
         if generator:
-            _path = self._getFinalPath(path)
-
-            return self._download_generator(_path,chunk_size)
-        async with aiohttp.ClientSession(headers=self.headers) as session:
-            _path = self._getFinalPath(path)
-            async with session.get(f"{self.url}/object/{_path}") as resp:
-                resp.raise_for_status()
-                if resp.status == 200:
-                    return await resp.read()  # this is not good for big files it should be a generator.
-
+            return self._download_generator(_path, chunk_size)
+        if session is None:
+            session = aiohttp.ClientSession(headers=self.headers)
+        async with session.get(f"{self.url}/object/{_path}") as resp:
+            resp.raise_for_status()
+            if resp.status == 200:
+                return await resp.read()  # this is not good for big files it should be a generator.
+        
         return None
 
-    async def _download_generator(self, _path: str, chunk_size=DEFAULT_CHUNK_SIZE) :
+    async def _download_generator(self, _path: str, chunk_size=DEFAULT_CHUNK_SIZE):
         """
         Downloads a file.
 
