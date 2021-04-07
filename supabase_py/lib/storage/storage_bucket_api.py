@@ -1,29 +1,32 @@
+from typing import Dict, Any
+
 import requests
 from requests import HTTPError
 
 
 class StorageBucketApi:
+    """Class that rappresents an access to the endpoint to get,list,empty,delete a bucket"""
 
     def __init__(self, url, headers):
         self.url = url
         self.headers = headers
 
-    def list_buckets(self):
-        """Retrieves the details of all Storage buckets within an existing product."""
+    def list_buckets(self) -> Dict[str, Any]:
+        """Retrieves the details of all storage buckets within an existing product."""
         try:
             response = requests.get(f"{self.url}/bucket", headers=self.headers)
 
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')  # Python 3.6
+            print(f"HTTP error occurred: {http_err}")  # Python 3.6
         except Exception as err:
-            print(f'Other error occurred: {err}')  # Python 3.6
+            print(f"Other error occurred: {err}")  # Python 3.6
         else:
             return response.json()
 
-    def get_bucket(self, id: str):
-        """Retrieves the details of an existing Storage bucket.
+    def get_bucket(self, id: str) -> Dict[str, Any]:
+        """Retrieves the details of an existing storage bucket.
 
         Parameters
         ----------
@@ -36,14 +39,14 @@ class StorageBucketApi:
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')  # Python 3.6
+            print(f"HTTP error occurred: {http_err}")  # Python 3.6
         except Exception as err:
-            print(f'Other error occurred: {err}')  # Python 3.6
+            print(f"Other error occurred: {err}")  # Python 3.6
         else:
             return response.json()
 
-    def create_bucket(self, id: str):
-        """Creates a new Storage bucket
+    def create_bucket(self, id: str) -> Dict[str, Any]:
+        """Creates a new storage bucket
 
         Parameters
         ----------
@@ -56,13 +59,13 @@ class StorageBucketApi:
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')  # Python 3.6
+            print(f"HTTP error occurred: {http_err}")  # Python 3.6
         except Exception as err:
-            print(f'Other error occurred: {err}')  # Python 3.6
+            print(f"Other error occurred: {err}")  # Python 3.6
         else:
             return response.json()
 
-    def empty_bucket(self, id: str):
+    def empty_bucket(self, id: str) -> Dict[str, Any]:
         """Removes all objects inside a single bucket.
 
         Parameters
@@ -76,14 +79,14 @@ class StorageBucketApi:
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')  # Python 3.6
+            print(f"HTTP error occurred: {http_err}")  # Python 3.6
         except Exception as err:
-            print(f'Other error occurred: {err}')  # Python 3.6
+            print(f"Other error occurred: {err}")  # Python 3.6
         else:
-            return response
+            return response.json()
 
-    def delete_bucket(self, id: str):
-        """Deletes an existing bucket. A bucket can't be deleted with existing objects inside it.You must first
+    def delete_bucket(self, id: str) -> Dict[str, Any]:
+        """Deletes an existing bucket. A bucket can"t be deleted with existing objects inside it.You must first
         `empty()` the bucket.
 
         Parameters
@@ -97,8 +100,8 @@ class StorageBucketApi:
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
         except HTTPError as http_err:
-            print(f'HTTP error occurred: {http_err}')  # Python 3.6
+            print(f"HTTP error occurred: {http_err}")  # Python 3.6
         except Exception as err:
-            print(f'Other error occurred: {err}')  # Python 3.6
+            print(f"Other error occurred: {err}")  # Python 3.6
         else:
-            return response
+            return response.json()

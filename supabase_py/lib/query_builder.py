@@ -1,4 +1,5 @@
 from postgrest_py.client import PostgrestClient
+
 from .realtime_client import SupabaseRealtimeClient
 
 
