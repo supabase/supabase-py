@@ -14,12 +14,12 @@ class SupabaseRealtimeClient:
         self.subscription = socket.set_channel(topic)
 
     def get_payload_records(self, payload: Any):
-        records = {"new": {}, "old": {}}
+        records: dict = {"new": {}, "old": {}}
         if payload.type == "INSERT" or payload.type == "UPDATE":
-            records.new = payload.record
+            records["new"] = payload.record
             convert_change_data(payload.columns, payload.record)
         if payload.type == "UPDATE" or payload.type == "DELETE":
-            records.old = payload.record
+            records["old"] = payload.record
             convert_change_data(payload.columns, payload.old_record)
         return records
 
