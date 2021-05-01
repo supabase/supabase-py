@@ -71,8 +71,8 @@ class SupabaseQueryBuilder(PostgrestClient):
             **headers,
         }
         self.session = AsyncClient(base_url=url, headers=headers)
-        # self._subscription = SupabaseRealtimeClient(realtime, schema, table)
-        # self._realtime = realtime
+        self._subscription = SupabaseRealtimeClient(realtime, schema, table)
+        self._realtime = realtime
 
     def on(self, event, callback):
         """Subscribe to realtime changes in your database.
