@@ -21,7 +21,7 @@ We are currently in Public Alpha. Watch "releases" of this repo to get notified 
 
 #### PyPi installation
 
-Now install the package.
+Now install the package. (for > Python 3.7)
 
 ```bash
 pip install supabase-py
