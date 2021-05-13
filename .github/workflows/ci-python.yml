@@ -28,5 +28,4 @@ jobs:
           pip install poetry
           poetry install
       - name: Test with Pytest
-        run: |
-          poetry run pytest
+        run: ./test.sh
