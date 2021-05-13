@@ -22,6 +22,7 @@ class StorageFileApi:
         },
     }
 
+    # TODO : Figure out what this dictionary is supposed to contain
     DEFAULT_FILE_OPTIONS = {
         # "Content-Type": f"multipart/form-data;boundary=---------------------------293582696224464"
     }
@@ -52,9 +53,9 @@ class StorageFileApi:
                 try:
                     resp = await response.json()
                 except BaseException:
-                    resp = json.loads(
-                        response.content._buffer[0]
-                    )  # this should not be done but it returns only client.Disconnect so no error out
+                    resp = json.loads(response.content._buffer[0])
+                    # TODO: Fix the error described below
+                    # this should not be done but it returns only client.Disconnect so no error out
                     if resp["statusCode"] == "23505" and self.replace:
                         return await self._update_request(session, file, path)
                 raise RequestError(resp["statusCode"], resp["error"], resp["message"])
@@ -103,13 +104,13 @@ class StorageFileApi:
                     return await self._upload_request(session, mpwriter, path)
                 else:
                     files = {"file": open(file, "rb")}  #
-                    # file_sender(file)
                     return await self._upload_request(session, files, path)
 
     async def _update_request(self, session, file, path):
         _path = self._getFinalPath(path)
         async with session.put(f"{self.url}/object/{_path}", data=file) as response:
-            if not response.ok:  # this should be in other function or aggregated. i do not have the time
+            # TODO: Put this in another function
+            if not response.ok:
                 try:
                     resp = await response.json()
                 except BaseException:
@@ -150,7 +151,6 @@ class StorageFileApi:
                     return await self._update_request(session, mpwriter, path)
                 else:
                     files = {"file": open(file, "rb")}  #
-                    # file_sender(file)
                     return await self._update_request(session, files, path)
 
     def move(self, from_path: str, to_path: str):
@@ -317,7 +317,6 @@ class StorageFileApi:
             raise err  # Python 3.6
         else:
             return getdata.json()
-        #
 
     def _getFinalPath(self, path: str):
         return f"{self.bucket_id}/{path}"

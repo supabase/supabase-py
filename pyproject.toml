@@ -12,6 +12,7 @@ realtime-py = "^0.1.2"
 gotrue = "0.2.0"
 pytest = "^6"
 requests = "2.25.1"
+aiohttp="^3.7.4.post0"
 
 [tool.poetry.dev-dependencies]
 
