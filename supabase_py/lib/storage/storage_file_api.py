@@ -11,7 +11,7 @@ from supabase_py.lib.storage.request_error import RequestError
 DEFAULT_CHUNK_SIZE = 100 * 1024 * 1024
 
 
-class StorageFileApi():
+class StorageFileApi:
     """A class used to manage storage ."""
 
     DEFAULT_SEARCH_OPTIONS = {
@@ -52,8 +52,9 @@ class StorageFileApi():
                 try:
                     resp = await response.json()
                 except BaseException:
-                    resp = json.loads(response.content._buffer[
-                                          0])  # this should not be done but it returns only client.Disconnect so no error out
+                    resp = json.loads(
+                        response.content._buffer[0]
+                    )  # this should not be done but it returns only client.Disconnect so no error out
                     if resp["statusCode"] == "23505" and self.replace:
                         return await self._update_request(session, file, path)
                 raise RequestError(resp["statusCode"], resp["error"], resp["message"])
@@ -90,8 +91,9 @@ class StorageFileApi():
         headers = dict(self.headers, **file_options)
         headers.update(self.DEFAULT_FILE_OPTIONS)
         if kwargs.get("session") and stream:
-            return await self._upload_session(kwargs["session"], file, kwargs["param_gen"], kwargs["content_type"],
-                                              path)
+            return await self._upload_session(
+                kwargs["session"], file, kwargs["param_gen"], kwargs["content_type"], path
+            )
         else:
             async with aiohttp.ClientSession(headers=headers) as session:
                 if stream:
@@ -111,8 +113,9 @@ class StorageFileApi():
                 try:
                     resp = await response.json()
                 except BaseException:
-                    resp = json.loads(response.content._buffer[
-                                          0])  # this should not be done but it returns only client.Disconnect so no error out
+                    resp = json.loads(
+                        response.content._buffer[0]
+                    )  # this should not be done but it returns only client.Disconnect so no error out
                 raise RequestError(resp["statusCode"], resp["error"], resp["message"])
             risp = await response.text()
             return risp
@@ -135,8 +138,9 @@ class StorageFileApi():
         headers = dict(self.headers, **file_options)
         headers.update(self.DEFAULT_FILE_OPTIONS)
         if kwargs["session"] and stream:
-            return await self._upload_session(kwargs["session"], file, kwargs["param_gen"], kwargs["content_type"],
-                                              path)
+            return await self._upload_session(
+                kwargs["session"], file, kwargs["param_gen"], kwargs["content_type"], path
+            )
         else:
             async with aiohttp.ClientSession(headers=headers) as session:
                 if stream:
@@ -162,10 +166,11 @@ class StorageFileApi():
             The new file path, including the new file name. For example `folder/image-copy.png`.
         """
         try:
-            response = requests.post(f"{self.url}/object/move", data={"bucketId": self.bucket_id,
-                                                                      "sourceKey": from_path,
-                                                                      "destinationKey": to_path},
-                                     headers=self.headers)
+            response = requests.post(
+                f"{self.url}/object/move",
+                data={"bucketId": self.bucket_id, "sourceKey": from_path, "destinationKey": to_path},
+                headers=self.headers,
+            )
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
         except HTTPError as http_err:
@@ -190,9 +195,9 @@ class StorageFileApi():
 
         try:
             _path = self._getFinalPath(path)
-            response = requests.post(f"{self.url}/object/sign/{_path}", json={"expiresIn": str(expires_in)},
-
-                                     headers=self.headers)
+            response = requests.post(
+                f"{self.url}/object/sign/{_path}", json={"expiresIn": str(expires_in)}, headers=self.headers
+            )
             data = response.json()
             data["signedURL"] = f"{self.url}{data['signedURL']}"
             response.raise_for_status()
@@ -205,8 +210,9 @@ class StorageFileApi():
 
     # TODO:FIXARE docsting
 
-    async def download(self, path: str, generator=False,session=None, chunk_size=DEFAULT_CHUNK_SIZE) -> Union[
-        AsyncGenerator, bytes, None]:
+    async def download(
+        self, path: str, generator=False, session=None, chunk_size=DEFAULT_CHUNK_SIZE
+    ) -> Union[AsyncGenerator, bytes, None]:
         """
         Downloads a file.
         ----------
@@ -232,7 +238,7 @@ class StorageFileApi():
             resp.raise_for_status()
             if resp.status == 200:
                 return await resp.read()  # this is not good for big files it should be a generator.
-        
+
         return None
 
     async def _download_generator(self, _path: str, chunk_size=DEFAULT_CHUNK_SIZE):
@@ -276,8 +282,9 @@ class StorageFileApi():
             An array or list of files to be deletes, including the path and file name. For example [`folder/image.png`].
         """
         try:
-            response = requests.delete(f"{self.url}/object/{self.bucket_id}", data={"prefixes": paths},
-                                       headers=self.headers)
+            response = requests.delete(
+                f"{self.url}/object/{self.bucket_id}", data={"prefixes": paths}, headers=self.headers
+            )
             response.raise_for_status()
         except HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")  # Python 3.6
@@ -301,9 +308,8 @@ class StorageFileApi():
         try:
             body = dict(self.DEFAULT_SEARCH_OPTIONS, **options)
             headers = dict(self.headers, **{"Content-Type": "application/json"})
-            body["prefix"] = path if path else ''
-            getdata = requests.post(f"{self.url}/object/list/{self.bucket_id}", json=body,
-                                    headers=headers)
+            body["prefix"] = path if path else ""
+            getdata = requests.post(f"{self.url}/object/list/{self.bucket_id}", json=body, headers=headers)
             getdata.raise_for_status()
         except HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")  # Python 3.6

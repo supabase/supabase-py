@@ -12,14 +12,14 @@ async def download(download_function, drive_service, file_upload=None, gen_param
     else:
         file_upload = gen_param[0]
     file_metadata = {
-        'name': file_upload,
+        "name": file_upload,
     }
-    media = MediaFileUploadGeneratorAsync(file_upload,
-                                          download_function,
-                                          resumable=True, gen_param=gen_param)
-    file = drive_service.service.files().update(body=file_metadata,
-                                                media_body=media,
-                                                fields='id', fileId=file_id).execute()
+    media = MediaFileUploadGeneratorAsync(file_upload, download_function, resumable=True, gen_param=gen_param)
+    file = (
+        drive_service.service.files()
+        .update(body=file_metadata, media_body=media, fields="id", fileId=file_id)
+        .execute()
+    )
     return file
 
 
@@ -43,8 +43,12 @@ def download_multitple_files(loop, files, storage_supabase_file, drive_service, 
     tasks = []
     for id_file in range(0, len(files), 2):
         task = asyncio.ensure_future(
-            download(storage_supabase_file.download, drive_service, gen_param=[files[id_file], True,session],
-                     file_id=files[id_file + 1])
+            download(
+                storage_supabase_file.download,
+                drive_service,
+                gen_param=[files[id_file], True, session],
+                file_id=files[id_file + 1],
+            )
         )
 
         tasks.append(task)
@@ -58,10 +62,15 @@ def upload_handle_multitple_files(loop, files_requests, files, storage_supabase_
     tasks = []
     for id_file in range(0, len(files), 2):
         task = asyncio.ensure_future(
-            storage_supabase_file.upload(files[id_file + 1], GDriveHandler.downloader,
-                                         file_options, stream=True,
-                                         param_gen=[files_requests[id_file], drive_service], session=session,
-                                         content_type='form-data')
+            storage_supabase_file.upload(
+                files[id_file + 1],
+                GDriveHandler.downloader,
+                file_options,
+                stream=True,
+                param_gen=[files_requests[id_file], drive_service],
+                session=session,
+                content_type="form-data",
+            )
         )
 
         tasks.append(task)

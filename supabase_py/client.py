@@ -20,7 +20,10 @@ class Client:
     """Supabase client class."""
 
     def __init__(
-        self, supabase_url: str, supabase_key: str, **options,
+        self,
+        supabase_url: str,
+        supabase_key: str,
+        **options,
     ):
         """Instantiate the client.
 
@@ -55,13 +58,16 @@ class Client:
         self.schema: str = settings.pop("schema")
         # Instantiate clients.
         self.auth: SupabaseAuthClient = self._init_supabase_auth_client(
-            auth_url=self.auth_url, supabase_key=self.supabase_key, **settings,
+            auth_url=self.auth_url,
+            supabase_key=self.supabase_key,
+            **settings,
         )
         # TODO(fedden): Bring up to parity with JS client.
         self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
-              realtime_url=self.realtime_url, supabase_key=self.supabase_key,
+            realtime_url=self.realtime_url,
+            supabase_key=self.supabase_key,
         )
-        #self.realtime = None
+        # self.realtime = None
         self.postgrest: PostgrestClient = self._init_postgrest_client(
             rest_url=self.rest_url,
             supabase_key=supabase_key,
@@ -140,13 +146,9 @@ class Client:
         return self.realtime.channels
 
     @staticmethod
-    def _init_realtime_client(
-        realtime_url: str, supabase_key: str
-    ) -> SupabaseRealtimeClient:
+    def _init_realtime_client(realtime_url: str, supabase_key: str) -> SupabaseRealtimeClient:
         """Private method for creating an instance of the realtime-py client."""
-        return SupabaseRealtimeClient(
-            realtime_url, {"params": {"apikey": supabase_key}}
-        )
+        return SupabaseRealtimeClient(realtime_url, {"params": {"apikey": supabase_key}})
 
     @staticmethod
     def _init_supabase_auth_client(
