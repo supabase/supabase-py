@@ -36,7 +36,7 @@ def _gather_all(tasks, loop, session):
     return results
 
 
-def download_multitple_files(loop, files, storage_supabase_file, drive_service, file_options=None):
+def download_multiple_files(loop, files, storage_supabase_file, drive_service, file_options=None):
     if file_options is None:
         file_options = {}
     session = aiohttp.ClientSession(headers=storage_supabase_file.headers)
@@ -55,7 +55,7 @@ def download_multitple_files(loop, files, storage_supabase_file, drive_service, 
     return _gather_all(tasks, loop, session)
 
 
-def upload_handle_multitple_files(loop, files_requests, files, storage_supabase_file, drive_service, file_options=None):
+def upload_handle_multiple_files(loop, files_requests, files, storage_supabase_file, drive_service, file_options=None):
     if file_options is None:
         file_options = {}
     session = aiohttp.ClientSession(headers=storage_supabase_file.headers)

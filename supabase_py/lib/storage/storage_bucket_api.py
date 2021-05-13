@@ -5,7 +5,7 @@ from requests import HTTPError
 
 
 class StorageBucketApi:
-    """Class that rappresents an access to the endpoint to get,list,empty,delete a bucket"""
+    """Class that represents an access to the endpoint to get,list,empty,delete a bucket"""
 
     def __init__(self, url, headers):
         self.url = url
