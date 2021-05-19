@@ -7,7 +7,7 @@ import pytest
 from supabase_py import Client, create_client
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def supabase() -> Client:
     url: str = os.environ.get("SUPABASE_TEST_URL")
     key: str = os.environ.get("SUPABASE_TEST_KEY")
