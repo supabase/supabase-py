@@ -1,5 +1,6 @@
 from supabase_py.lib.storage.storage_bucket_api import StorageBucketAPI
-from supabase_py.lib.storage.storage_file_api import StorageFileApi
+
+# from supabase_py.lib.storage.storage_file_api import StorageFileApi
 
 
 class SupabaseStorageClient(StorageBucketAPI):
@@ -18,9 +19,8 @@ class SupabaseStorageClient(StorageBucketAPI):
     def __init__(self, url, headers):
         super().__init__(url, headers)
 
-    def StorageFileApi(self, id_, replace=False):
-        return StorageFileApi(self.url, self.headers, id_, replace)
-    
+    # def StorageFileApi(self, id_, replace=False):
+    #     return StorageFileApi(self.url, self.headers, id_, replace)
+
     def StorageBucketAPI(self):
         return StorageBucketAPI(self.url, self.headers)
-
