@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict
 import pytest
 
 if TYPE_CHECKING:
-    from supabase_py import Client, create_client
+    from supabase_py import Client
 
 
 def _random_string(length: int = 10) -> str:

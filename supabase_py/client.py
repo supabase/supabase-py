@@ -1,10 +1,10 @@
-from postgrest_py import PostgrestClient
-from supabase_py.lib.auth_client import SupabaseAuthClient
-from supabase_py.lib.realtime_client import SupabaseRealtimeClient
-from supabase_py.lib.query_builder import SupabaseQueryBuilder
-
 from typing import Any, Dict
 
+from postgrest_py import PostgrestClient
+
+from supabase_py.lib.auth_client import SupabaseAuthClient
+from supabase_py.lib.query_builder import SupabaseQueryBuilder
+from supabase_py.lib.realtime_client import SupabaseRealtimeClient
 
 DEFAULT_OPTIONS = {
     "schema": "public",
@@ -19,7 +19,10 @@ class Client:
     """Supabase client class."""
 
     def __init__(
-        self, supabase_url: str, supabase_key: str, **options,
+        self,
+        supabase_url: str,
+        supabase_key: str,
+        **options,
     ):
         """Instantiate the client.
 
@@ -52,7 +55,9 @@ class Client:
         self.schema: str = settings.pop("schema")
         # Instantiate clients.
         self.auth: SupabaseAuthClient = self._init_supabase_auth_client(
-            auth_url=self.auth_url, supabase_key=self.supabase_key, **settings,
+            auth_url=self.auth_url,
+            supabase_key=self.supabase_key,
+            **settings,
         )
         # TODO(fedden): Bring up to parity with JS client.
         #  self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
