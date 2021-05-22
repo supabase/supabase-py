@@ -55,10 +55,11 @@ class Client:
             auth_url=self.auth_url, supabase_key=self.supabase_key, **settings,
         )
         # TODO(fedden): Bring up to parity with JS client.
-        #  self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
-        #      realtime_url=self.realtime_url, supabase_key=self.supabase_key,
-        #  )
-        self.realtime = None
+        # self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
+        #     realtime_url=self.realtime_url,
+        #     supabase_key=self.supabase_key,
+        # )
+        # self.realtime = None
         self.postgrest: PostgrestClient = self._init_postgrest_client(
             rest_url=self.rest_url,
             supabase_key=supabase_key,

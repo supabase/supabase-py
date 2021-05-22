@@ -94,3 +94,25 @@ def test_client_insert():
     assert current_length == previous_length + 1
     # Check returned result for insert was valid.
     assert result.get("status_code", 400) == 201
+
+
+def test_client_bucket():
+    """Ensure that the storage bucket operations work"""
+    from supabase_py import create_client, Client
+
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
+    TEST_BUCKET_NAME = "atestbucket"
+    supabase: Client = create_client(url, key)
+    storage = supabase.storage()
+    storage_bucket = storage.StorageBucketAPI()
+    storage_bucket.create_bucket(TEST_BUCKET_NAME)
+    storage_bucket.list_buckets()
+    storage_bucket.get_bucket(TEST_BUCKET_NAME)
+    storage_bucket.empty_bucket()
+    storage_bucket.delete_bucket(TEST_BUCKET_NAME)
+
+
+
+
+
