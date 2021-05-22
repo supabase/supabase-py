@@ -1,7 +1,5 @@
 from supabase_py.lib.storage.storage_bucket_api import StorageBucketAPI
 
-# from supabase_py.lib.storage.storage_file_api import StorageFileApi
-
 
 class SupabaseStorageClient(StorageBucketAPI):
     """

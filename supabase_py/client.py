@@ -67,7 +67,7 @@ class Client:
         #     realtime_url=self.realtime_url,
         #     supabase_key=self.supabase_key,
         # )
-        # self.realtime = None
+        self.realtime = None
         self.postgrest: PostgrestClient = self._init_postgrest_client(
             rest_url=self.rest_url,
             supabase_key=supabase_key,
