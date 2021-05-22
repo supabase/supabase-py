@@ -83,15 +83,10 @@ def test_client_insert(supabase: Client) -> None:
     assert result.get("status_code", 400) == 201
 
 
-def test_client_bucket():
+def test_client_bucket(supabase: Client) -> None:
 
     """Ensure that the storage bucket operations work"""
-    from supabase_py import create_client, Client
-
-    url: str = os.environ.get("SUPABASE_TEST_URL")
-    key: str = os.environ.get("SUPABASE_TEST_KEY")
     TEST_BUCKET_NAME = "atestbucket"
-    supabase: Client = create_client(url, key)
     # TODO[Joel] - Reinstate once permissions on test instance are updated
     # storage = supabase.storage()
     # storage_bucket = storage.StorageBucketAPI()
