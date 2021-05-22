@@ -1,8 +1,5 @@
 import pytest
 
-import sys
-
-print(sys.path)
 
 import supabase_py
 
@@ -13,10 +10,12 @@ client.auth.sign_up({"email": "anemail@gmail.com", "password": "apassword"})
 """
 
 
-def test_dummy():
+
+def test_dummy() -> None:
     # Test auth component
     assert True == True
 
 
-def test_client_initialziation():
+
+def test_client_initialziation() -> None:
     client = supabase_py.Client("http://testwebsite.com", "atestapi")
