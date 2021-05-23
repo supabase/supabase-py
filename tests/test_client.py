@@ -26,9 +26,7 @@ def _assert_authenticated_user(data: Dict[str, Any]) -> None:
     assert user.get("aud") == "authenticated"
 
 
-@pytest.mark.xfail(
-    reason="None of these values should be able to instanciate a client object"
-)
+@pytest.mark.xfail(reason="None of these values should be able to instanciate a client object")
 @pytest.mark.parametrize("url", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 @pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 def test_incorrect_values_dont_instanciate_client(url: Any, key: Any) -> None:
@@ -83,3 +81,17 @@ def test_client_insert(supabase: Client) -> None:
     assert current_length == previous_length + 1
     # Check returned result for insert was valid.
     assert result.get("status_code", 400) == 201
+
+
+def test_client_bucket(supabase: Client) -> None:
+
+    """Ensure that the storage bucket operations work"""
+    TEST_BUCKET_NAME = "atestbucket"
+    # TODO[Joel] - Reinstate once permissions on test instance are updated
+    # storage = supabase.storage()
+    # storage_bucket = storage.StorageBucketAPI()
+    # storage_bucket.create_bucket(TEST_BUCKET_NAME)
+    # storage_bucket.list_buckets()
+    # storage_bucket.get_bucket(TEST_BUCKET_NAME)
+    # storage_bucket.empty_bucket(TEST_BUCKET_NAME)
+    # storage_bucket.delete_bucket(TEST_BUCKET_NAME)
