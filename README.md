@@ -1,5 +1,7 @@
 # supabase-py
 
+[![Tests](https://github.com/supabase/supabase-py/actions/workflows/ci-python.yml/badge.svg)](https://github.com/supabase/supabase-py/actions)
+[![PYPI Version](https://badge.fury.io/py/supabase-py.svg)](https://badge.fury.io/py/supabase-py)
 [![Documentation Status](https://readthedocs.org/projects/supabase-py/badge/?version=latest)](https://gotrue-py.readthedocs.io/en/latest/?badge=latest)
 
 Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
