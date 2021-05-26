@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any, Dict
 
 import requests
 from requests import HTTPError
@@ -50,7 +50,9 @@ class StorageBucketAPI:
             A unique identifier for the bucket you are creating.
         """
         try:
-            response = requests.post(f"{self.url}/bucket", data={"id": id}, headers=self.headers)
+            response = requests.post(
+                f"{self.url}/bucket", data={"id": id}, headers=self.headers
+            )
             response.raise_for_status()
         except HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")  # Python 3.6
@@ -68,7 +70,9 @@ class StorageBucketAPI:
             The unique identifier of the bucket you would like to empty.
         """
         try:
-            response = requests.post(f"{self.url}/bucket/{id}/empty", data={}, headers=self.headers)
+            response = requests.post(
+                f"{self.url}/bucket/{id}/empty", data={}, headers=self.headers
+            )
             response.raise_for_status()
         except HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")  # Python 3.6
@@ -87,7 +91,9 @@ class StorageBucketAPI:
             The unique identifier of the bucket you would like to delete.
         """
         try:
-            response = requests.delete(f"{self.url}/bucket/{id}", data={}, headers=self.headers)
+            response = requests.delete(
+                f"{self.url}/bucket/{id}", data={}, headers=self.headers
+            )
 
             response.raise_for_status()
         except HTTPError as http_err:

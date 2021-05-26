@@ -7,10 +7,6 @@ from supabase_py.lib.query_builder import SupabaseQueryBuilder
 from supabase_py.lib.realtime_client import SupabaseRealtimeClient
 from supabase_py.lib.supabase_storage_client import SupabaseStorageClient
 
-
-from typing import Any, Dict
-
-
 DEFAULT_OPTIONS = {
     "schema": "public",
     "auto_refresh_token": True,
@@ -149,9 +145,13 @@ class Client:
         return self.realtime.channels
 
     @staticmethod
-    def _init_realtime_client(realtime_url: str, supabase_key: str) -> SupabaseRealtimeClient:
+    def _init_realtime_client(
+        realtime_url: str, supabase_key: str
+    ) -> SupabaseRealtimeClient:
         """Private method for creating an instance of the realtime-py client."""
-        return SupabaseRealtimeClient(realtime_url, {"params": {"apikey": supabase_key}})
+        return SupabaseRealtimeClient(
+            realtime_url, {"params": {"apikey": supabase_key}}
+        )
 
     @staticmethod
     def _init_supabase_auth_client(

@@ -26,7 +26,9 @@ def _assert_authenticated_user(data: Dict[str, Any]) -> None:
     assert user.get("aud") == "authenticated"
 
 
-@pytest.mark.xfail(reason="None of these values should be able to instanciate a client object")
+@pytest.mark.xfail(
+    reason="None of these values should be able to instanciate a client object"
+)
 @pytest.mark.parametrize("url", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 @pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 def test_incorrect_values_dont_instanciate_client(url: Any, key: Any) -> None:
