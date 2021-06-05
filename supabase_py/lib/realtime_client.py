@@ -15,12 +15,15 @@ class SupabaseRealtimeClient:
 
     def get_payload_records(self, payload: Any):
         records: dict = {"new": {}, "old": {}}
+        columns = payload.get("columns")
+        records = payload.get("records")
+        old_records = payload.get("old_record")
         if payload.type == "INSERT" or payload.type == "UPDATE":
             records["new"] = payload.record
-            convert_change_data(payload.columns, payload.record)
+            convert_change_data(columns, records)
         if payload.type == "UPDATE" or payload.type == "DELETE":
             records["old"] = payload.record
-            convert_change_data(payload.columns, payload.old_record)
+            convert_change_data(columns, old_records)
         return records
 
     def on(self, event, callback: Callable[..., Any]):
@@ -40,12 +43,9 @@ class SupabaseRealtimeClient:
         return self
 
     def subscribe(self, callback: Callable[..., Any]):
-        # TODO: Handle state change callbacks for error and close
-        self.subscription.join().on("ok", callback("SUBSCRIBED"))
-        self.subscription.join().on(
+        self.subscription.join().on("ok", callback("SUBSCRIBED")).on(
             "error", lambda x: callback("SUBSCRIPTION_ERROR", x)
-        )
-        self.subscription.join().on(
+        ).on("close", lambda: callback("CLOSED")).on(
             "timeout", lambda: callback("RETRYING_AFTER_TIMEOUT")
         )
         return self.subscription
