@@ -2,7 +2,7 @@ import requests
 from requests import HTTPError
 
 
-class StorageFileApi:
+class StorageFileAPI:
     DEFAULT_SEARCH_OPTIONS = {
         "limit": 100,
         "offset": 0,
@@ -28,7 +28,6 @@ class StorageFileApi:
         self.bucket_id = bucket_id
         # self.loop = asyncio.get_event_loop()
         # self.replace = replace
-        pass
 
     def create_signed_url(self, path: str, expires_in: int):
         """
@@ -41,14 +40,12 @@ class StorageFileApi:
         """
         try:
             _path = self._get_final_path(path)
-            print(f"{self.url}/object/sign/{_path}")
             response = requests.post(
                 f"{self.url}/object/sign/{_path}",
                 json={"expiresIn": str(expires_in)},
                 headers=self.headers,
             )
             data = response.json()
-            print(data)
             data["signedURL"] = f"{self.url}{data['signedURL']}"
             response.raise_for_status()
         except HTTPError as http_err:
@@ -57,6 +54,20 @@ class StorageFileApi:
             print(f"Other error occurred: {err}")  # Python 3.6
         else:
             return data
+
+    def get_public_url(self, path: str):
+        """
+        Parameters
+        ----------
+        path
+            file path to be downloaded, including the path and file name. For example `folder/image.png`.
+        """
+        try:
+            _path = self._get_final_path(path)
+            public_url = f"{self.url}/object/public/{_path}"
+            return public_url
+        except:
+            print("Public URL not found")
 
     def move(self, from_path: str, to_path: str):
         """
