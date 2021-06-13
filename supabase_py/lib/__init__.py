@@ -1,4 +1,3 @@
-from . import auth_client
-from . import query_builder
-from . import realtime_client
-from . import storage
+from supabase_py.lib import auth_client, query_builder, realtime_client
+
+__all__ = ["auth_client", "query_builder", "realtime_client"]

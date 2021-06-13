@@ -14,6 +14,7 @@ pytest = "^6"
 requests = "2.25.1"
 
 [tool.poetry.dev-dependencies]
+pre_commit = "^2.1.0"
 
 [build-system]
 requires = [

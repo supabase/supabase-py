@@ -1,10 +1,13 @@
 # supabase-py
 
-[![Documentation Status](https://readthedocs.org/projects/gotrue-py/badge/?version=latest)](https://gotrue-py.readthedocs.io/en/latest/?badge=latest)
+[![Tests](https://github.com/supabase/supabase-py/actions/workflows/ci-python.yml/badge.svg)](https://github.com/supabase/supabase-py/actions)
+[![PYPI Version](https://badge.fury.io/py/supabase-py.svg)](https://badge.fury.io/py/supabase-py)
+[![Documentation Status](https://readthedocs.org/projects/supabase-py/badge/?version=latest)](https://gotrue-py.readthedocs.io/en/latest/?badge=latest)
 
 Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
 
 ## Status
+
 - [x] Alpha: We are testing Supabase with a closed set of customers
 - [x] Public Alpha: Anyone can sign up over at [app.supabase.io](https://app.supabase.io). But go easy on us, there are a few kinks.
 - [ ] Public Beta: Stable enough for most non-enterprise use-cases
@@ -20,7 +23,7 @@ We are currently in Public Alpha. Watch "releases" of this repo to get notified 
 
 #### PyPi installation
 
-Now install the package.
+Now install the package. (for > Python 3.7)
 
 ```bash
 pip install supabase-py
@@ -64,12 +67,10 @@ Currently the test suites are in a state of flux. We are expanding our clients t
   <img width="720" height="481" src="https://i.ibb.co/Bq7Kdty/db.png">
 </p>
 
-The above test database is a blank supabase instance that has populated the `countries` table with the built in countries script that can be found in the supabase UI. You can launch the test scripts and point to the above test database with the
+The above test database is a blank supabase instance that has populated the `countries` table with the built in countries script that can be found in the supabase UI. You can launch the test scripts and point to the above test database by running
 
 ```bash
-SUPABASE_TEST_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTYxMjYwOTMyMiwiZXhwIjoxOTI4MTg1MzIyfQ.XL9W5I_VRQ4iyQHVQmjG0BkwRfx6eVyYB3uAKcesukg" \
-SUPABASE_TEST_URL="https://tfsatoopsijgjhrqplra.supabase.co" \
-pytest -x
+./test.sh
 ```
 
 ### See issues for what to work on
@@ -115,17 +116,19 @@ user = supabase.auth.sign_in(email=random_email, password=random_password)
 ## Managing Data
 
 #### Insertion of Data
+
 ```python
 from supabase_py import create_client, Client
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
 supabase: Client = create_client(url, key)
-data = supabase.table("countries").select("*").execute()
+data = supabase.table("countries").insert({"name":"Germany"}).execute()
 assert len(data.get("data", [])) > 0
 ```
 
 #### Selection of Data
+
 ```python
 from supabase_py import create_client, Client
 
