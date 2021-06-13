@@ -28,5 +28,4 @@ jobs:
           pip install poetry
           poetry install
       - name: Test with Pytest
-        run: |
-          SUPABASE_TEST_URL="https://tfsatoopsijgjhrqplra.supabase.co" SUPABASE_TEST_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTYxMjYwOTMyMiwiZXhwIjoxOTI4MTg1MzIyfQ.XL9W5I_VRQ4iyQHVQmjG0BkwRfx6eVyYB3uAKcesukg" poetry run pytest
+        run: ./test.sh
