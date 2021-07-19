@@ -80,6 +80,7 @@ class StorageFileAPI:
             The new file path, including the new file name. For example `folder/image-copy.png`.
         """
         try:
+            print(self.headers)
             response = requests.post(
                 f"{self.url}/object/move",
                 data={
