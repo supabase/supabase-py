@@ -1,9 +1,16 @@
 # supabase-py
+<<<<<<< HEAD
 =======
 [![Tests](https://github.com/supabase/supabase-py/actions/workflows/ci-python.yml/badge.svg)](https://github.com/supabase/supabase-py/actions)
 [![PYPI Version](https://badge.fury.io/py/supabase-py.svg)](https://badge.fury.io/py/supabase-py)
 [![Documentation Status](https://readthedocs.org/projects/supabase/badge/?version=latest)](https://supabase.readthedocs.io/en/latest/?badge=latest)
 
+=======
+
+[![Tests](https://github.com/supabase/supabase-py/actions/workflows/ci-python.yml/badge.svg)](https://github.com/supabase/supabase-py/actions)
+[![PYPI Version](https://badge.fury.io/py/supabase-py.svg)](https://badge.fury.io/py/supabase-py)
+[![Documentation Status](https://readthedocs.org/projects/supabase/badge/?version=latest)](https://supabase.readthedocs.io/en/latest/?badge=latest)
+>>>>>>> 4f9b847fe9f5eec6bc01580d9e8ada01da04bb60
 
 Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
 
