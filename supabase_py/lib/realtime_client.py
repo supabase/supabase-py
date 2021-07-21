@@ -6,11 +6,7 @@ from realtime_py.transformers import convert_change_data
 
 class SupabaseRealtimeClient:
     def __init__(self, socket: Socket, schema: str, table_name: str):
-        topic = (
-            f"realtime:{schema}"
-            if table_name == "*"
-            else f"realtime:{schema}:{table_name}"
-        )
+        topic = f"realtime:{schema}" if table_name == "*" else f"realtime:{schema}:{table_name}"
         self.subscription = socket.set_channel(topic)
 
     def get_payload_records(self, payload: Any):
@@ -42,10 +38,6 @@ class SupabaseRealtimeClient:
     def subscribe(self, callback: Callable[..., Any]):
         # TODO: Handle state change callbacks for error and close
         self.subscription.join().on("ok", callback("SUBSCRIBED"))
-        self.subscription.join().on(
-            "error", lambda x: callback("SUBSCRIPTION_ERROR", x)
-        )
-        self.subscription.join().on(
-            "timeout", lambda: callback("RETRYING_AFTER_TIMEOUT")
-        )
+        self.subscription.join().on("error", lambda x: callback("SUBSCRIPTION_ERROR", x))
+        self.subscription.join().on("timeout", lambda: callback("RETRYING_AFTER_TIMEOUT"))
         return self.subscription
