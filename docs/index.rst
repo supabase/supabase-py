@@ -22,4 +22,6 @@ Indices and tables
 
 Features
 --------
+* Auth
+* Realtime
 * Storage 
