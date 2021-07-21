@@ -22,3 +22,4 @@ Indices and tables
 
 Features
 --------
+* Storage 
