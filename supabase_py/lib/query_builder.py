@@ -5,8 +5,6 @@ from httpx import AsyncClient
 from postgrest_py.client import PostgrestClient
 from postgrest_py.request_builder import QueryRequestBuilder
 
-from .realtime_client import SupabaseRealtimeClient
-
 
 def _execute_monkey_patch(self) -> Dict[str, Any]:
     """Temporary method to enable syncronous client code."""
