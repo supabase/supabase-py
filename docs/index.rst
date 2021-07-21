@@ -24,4 +24,4 @@ Features
 --------
 * Auth
 * Realtime
-* Storage 
+* Storage
