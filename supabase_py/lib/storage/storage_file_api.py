@@ -11,6 +11,11 @@ class StorageFileAPI:
             "order": "asc",
         },
     }
+    DEFAULT_FILE_OPTIONS = {
+        "cacheControl": "3600",
+        "contentType": "text/plain;charset=UTF-8",
+        "upsert": "False",
+    }
 
     def __init__(self, url: str, headers: dict, bucket_id: str):
         """
@@ -162,6 +167,35 @@ class StorageFileAPI:
             raise err  # Python 3.6
         else:
             return response.content
+
+    def upload(self, path: str, file: any, file_options: dict = None):
+        """
+        Uploads a file to an existing bucket.
+        Parameters
+        ----------
+        path
+            The relative file path including the bucket ID. Should be of the format `bucket/folder/subfolder/filename.png`. The bucket must already exist before attempting to upload.
+        file
+            The File object to be stored in the bucket. or a async generator of chunks
+        file_options
+            HTTP headers. For example `cacheControl`
+        """
+        if file_options is None:
+            file_options = {}
+        headers = dict(self.headers, **file_options)
+        headers.update(self.DEFAULT_FILE_OPTIONS)
+        files = {"file": open(file, "rb")}
+        _path = self._get_final_path(path)
+        try:
+            resp = requests.post(
+                f"{self.url}/object/{_path}", data=files, headers=headers
+            )
+        except HTTPError as http_err:
+            print(f"HTTP error occurred: {http_err}")  # Python 3.6
+        except Exception as err:
+            raise err  # Python 3.6
+        else:
+            return resp
 
     def _get_final_path(self, path: str):
         return f"{self.bucket_id}/{path}"
