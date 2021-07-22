@@ -82,7 +82,7 @@ class StorageFileAPI:
         try:
             response = requests.post(
                 f"{self.url}/object/move",
-                data={
+                json={
                     "bucketId": self.bucket_id,
                     "sourceKey": from_path,
                     "destinationKey": to_path,
@@ -133,6 +133,7 @@ class StorageFileAPI:
             body = dict(self.DEFAULT_SEARCH_OPTIONS, **options)
             headers = dict(self.headers, **{"Content-Type": "application/json"})
             body["prefix"] = path if path else ""
+
             getdata = requests.post(
                 f"{self.url}/object/list/{self.bucket_id}", json=body, headers=headers
             )
@@ -143,6 +144,24 @@ class StorageFileAPI:
             raise err  # Python 3.6
         else:
             return getdata.json()
+
+    def download(self, path: str):
+        """
+        Downloads a file.
+        Parameters
+        ----------
+        path The file path to be downloaded, including the path and file name. For example `folder/image.png`.
+        """
+        try:
+            _path = self._get_final_path(path)
+            response = requests.get(f"{self.url}/object/{_path}", headers=self.headers)
+
+        except HTTPError as http_err:
+            print(f"HTTP error occurred: {http_err}")  # Python 3.6
+        except Exception as err:
+            raise err  # Python 3.6
+        else:
+            return response.content
 
     def _get_final_path(self, path: str):
         return f"{self.bucket_id}/{path}"
