@@ -6,9 +6,16 @@
 Welcome to supabase's documentation!
 ====================================
 
+.. automodule:: supabase_py
+    :members:
+    :show-inheritance:
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+
+   query_builder
+   storage_bucket
 
 
 
