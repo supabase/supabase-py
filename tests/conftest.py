@@ -3,8 +3,7 @@ from __future__ import annotations
 import os
 
 import pytest
-
-from supabase_py import Client, create_client
+from supabase import Client, create_client
 
 
 @pytest.fixture(scope="session")

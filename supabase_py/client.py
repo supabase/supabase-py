@@ -1,11 +1,10 @@
 from typing import Any, Dict
 
 from postgrest_py import PostgrestClient
-
-from supabase_py.lib.auth_client import SupabaseAuthClient
-from supabase_py.lib.query_builder import SupabaseQueryBuilder
-from supabase_py.lib.realtime_client import SupabaseRealtimeClient
-from supabase_py.lib.supabase_storage_client import SupabaseStorageClient
+from supabase.lib.auth_client import SupabaseAuthClient
+from supabase.lib.query_builder import SupabaseQueryBuilder
+from supabase.lib.realtime_client import SupabaseRealtimeClient
+from supabase.lib.supabase_storage_client import SupabaseStorageClient
 
 DEFAULT_OPTIONS = {
     "schema": "public",
@@ -207,7 +206,7 @@ def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
     --------
     Instanciating the client.
     >>> import os
-    >>> from supabase_py import create_client, Client
+    >>> from supabase import create_client, Client
     >>>
     >>> url: str = os.environ.get("SUPABASE_TEST_URL")
     >>> key: str = os.environ.get("SUPABASE_TEST_KEY")

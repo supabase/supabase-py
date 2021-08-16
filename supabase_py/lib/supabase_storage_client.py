@@ -1,4 +1,4 @@
-from supabase_py.lib.storage.storage_bucket_api import StorageBucketAPI
+from supabase.lib.storage.storage_bucket_api import StorageBucketAPI
 
 
 class SupabaseStorageClient(StorageBucketAPI):
