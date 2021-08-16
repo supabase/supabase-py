@@ -5,7 +5,7 @@ from postgrest_py import PostgrestClient
 from supabase_py.lib.auth_client import SupabaseAuthClient
 from supabase_py.lib.query_builder import SupabaseQueryBuilder
 from supabase_py.lib.realtime_client import SupabaseRealtimeClient
-from supabase_py.lib.supabase_storage_client import SupabaseStorageClient
+from supabase_py.lib.storage_client import SupabaseStorageClient
 
 DEFAULT_OPTIONS = {
     "schema": "public",
