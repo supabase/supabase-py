@@ -18,8 +18,10 @@ def _execute_monkey_patch(self) -> Dict[str, Any]:
         additional_kwargs = {"json": self.json}
     elif method == "put":
         func = requests.put
+        additional_kwargs = {"json": self.json}
     elif method == "patch":
         func = requests.patch
+        additional_kwargs = {"json": self.json}
     elif method == "delete":
         func = requests.delete
     else:
