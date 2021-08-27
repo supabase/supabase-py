@@ -179,6 +179,7 @@ class Client:
         rest_url: str,
         supabase_key: str,
         headers: Dict[str, str],
+        **kwargs,  # other unused settings
     ) -> PostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         client = PostgrestClient(rest_url, headers=headers)
