@@ -3,6 +3,7 @@ from typing import Any, Dict
 from postgrest_py import PostgrestClient
 
 from supabase_py.lib.auth_client import SupabaseAuthClient
+from supabase_py.lib.constants import DEFAULT_HEADERS
 from supabase_py.lib.query_builder import SupabaseQueryBuilder
 from supabase_py.lib.realtime_client import SupabaseRealtimeClient
 from supabase_py.lib.storage_client import SupabaseStorageClient
@@ -13,6 +14,7 @@ DEFAULT_OPTIONS = {
     "persist_session": True,
     "detect_session_in_url": True,
     "local_storage": {},
+    "headers": DEFAULT_HEADERS,
 }
 
 
@@ -44,17 +46,15 @@ class Client:
             raise Exception("supabase_key is required")
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
-        # Start with defaults, write headers and prioritise user overwrites.
-        settings: Dict[str, Any] = {
-            **DEFAULT_OPTIONS,
-            "headers": self._get_auth_headers(),
-            **options,
-        }
+
+        settings = {**DEFAULT_OPTIONS, **options}
+        settings["headers"].update(self._get_auth_headers())
         self.rest_url: str = f"{supabase_url}/rest/v1"
         self.realtime_url: str = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url: str = f"{supabase_url}/auth/v1"
         self.storage_url = f"{supabase_url}/storage/v1"
         self.schema: str = settings.pop("schema")
+
         # Instantiate clients.
         self.auth: SupabaseAuthClient = self._init_supabase_auth_client(
             auth_url=self.auth_url,
@@ -69,7 +69,8 @@ class Client:
         self.realtime = None
         self.postgrest: PostgrestClient = self._init_postgrest_client(
             rest_url=self.rest_url,
-            supabase_key=supabase_key,
+            supabase_key=self.supabase_key,
+            **settings,
         )
 
     def storage(self):
@@ -174,9 +175,14 @@ class Client:
         )
 
     @staticmethod
-    def _init_postgrest_client(rest_url: str, supabase_key: str) -> PostgrestClient:
+    def _init_postgrest_client(
+        rest_url: str,
+        supabase_key: str,
+        headers: Dict[str, str],
+        **kwargs,  # other unused settings
+    ) -> PostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
-        client = PostgrestClient(rest_url)
+        client = PostgrestClient(rest_url, headers=headers)
         client.auth(token=supabase_key)
         return client
 
