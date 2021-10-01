@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 
 import requests
 from httpx import AsyncClient
@@ -28,7 +28,8 @@ def _execute_monkey_patch(self) -> Dict[str, Any]:
         raise NotImplementedError(f"Method '{method}' not recognised.")
     url: str = str(self.session.base_url).rstrip("/")
     query: str = str(self.session.params)
-    response = func(f"{url}?{query}", headers=self.session.headers, **additional_kwargs)
+    response = func(f"{url}?{query}",
+                    headers=self.session.headers, **additional_kwargs)
     return {
         "data": response.json(),
         "status_code": response.status_code,
@@ -42,7 +43,13 @@ QueryRequestBuilder.execute = _execute_monkey_patch
 
 
 class SupabaseQueryBuilder(PostgrestClient):
-    def __init__(self, url, headers, schema, realtime, table):
+    def __init__(
+        self, url: str,
+        headers: Dict[str, str],
+        schema: str,
+        realtime: str,
+        table: str
+    ):
         """
         Subscribe to realtime changes in your database.
 
@@ -74,7 +81,7 @@ class SupabaseQueryBuilder(PostgrestClient):
         # self._subscription = SupabaseRealtimeClient(realtime, schema, table)
         # self._realtime = realtime
 
-    def on(self, event, callback):
+    def on(self, event: str, callback: Callable):
         """Subscribe to realtime changes in your database.
 
         Parameters
