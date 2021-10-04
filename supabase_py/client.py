@@ -1,3 +1,4 @@
+import requests
 from typing import Any, Dict
 
 from postgrest_py import PostgrestClient
@@ -100,7 +101,7 @@ class Client:
         )
         return query_builder.from_(table_name)
 
-    def rpc(self, fn, params):
+    def rpc(self, fn, params, is_async: bool = True):
         """Performs a stored procedure call.
 
         Parameters
@@ -109,6 +110,8 @@ class Client:
             The stored procedure call to be executed.
         params : dict of any
             Parameters passed into the stored procedure call.
+        is_async : boolean
+            Executes procedure call synchronous/asynchronously.
 
         Returns
         -------
@@ -116,7 +119,20 @@ class Client:
             Returns the HTTP Response object which results from executing the
             call.
         """
-        return self.postgrest.rpc(fn, params)
+
+        if is_async:
+            return self.postgrest.rpc(fn, params)
+        else:
+            path = f"rpc/{fn}"
+            url: str = str(self.postgrest.session.base_url).rstrip("/")
+            query: str = str(self.postgrest.session.params)
+
+            final_url = f"{url}/{path}?{query}"
+            response = requests.post(final_url, headers=dict(self.postgrest.session.headers) | self._get_auth_headers(), json=params)
+            return {
+                "data": response.json(),
+                "status_code": response.status_code,
+            }
 
     #     async def remove_subscription_helper(resolve):
     #         try:
