@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict
 import pytest
 
 if TYPE_CHECKING:
-    from supabase_py import Client
+    from supabase import Client
 
 
 def _random_string(length: int = 10) -> str:
@@ -33,7 +33,7 @@ def _assert_authenticated_user(data: Dict[str, Any]) -> None:
 @pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 def test_incorrect_values_dont_instanciate_client(url: Any, key: Any) -> None:
     """Ensure we can't instanciate client with nonesense values."""
-    from supabase_py import Client, create_client
+    from supabase import Client, create_client
 
     _: Client = create_client(url, key)
 

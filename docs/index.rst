@@ -6,7 +6,7 @@
 Welcome to supabase's documentation!
 ====================================
 
-.. automodule:: supabase_py
+.. automodule:: supabase
     :members:
     :show-inheritance:
 

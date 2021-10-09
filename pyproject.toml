@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "supabase-py"
-version = "0.0.2"
+name = "supabase"
+version = "0.0.3"
 description = "Supabase client for Python."
 authors = ["Joel Lee <joel@joellee.org>", "Leon Fedden <leonfedden@gmail.com>"]
 license = "MIT"

@@ -50,7 +50,7 @@ We can then read the keys in the python source code.
 
 ```python
 import os
-from supabase_py import create_client, Client
+from supabase import create_client, Client
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
@@ -88,7 +88,7 @@ This is a sample of how you'd use supabase-py. Functions and tests are WIP
 ## Authenticate
 
 ```python
-from supabase_py import create_client, Client
+from supabase import create_client, Client
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
@@ -102,7 +102,7 @@ user = supabase.auth.sign_up(email=random_email, password=random_password)
 ## Sign-in
 
 ```python
-from supabase_py import create_client, Client
+from supabase import create_client, Client
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
@@ -118,7 +118,7 @@ user = supabase.auth.sign_in(email=random_email, password=random_password)
 #### Insertion of Data
 
 ```python
-from supabase_py import create_client, Client
+from supabase import create_client, Client
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
@@ -130,7 +130,7 @@ assert len(data.get("data", [])) > 0
 #### Selection of Data
 
 ```python
-from supabase_py import create_client, Client
+from supabase import create_client, Client
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
