@@ -1,29 +1,64 @@
-from typing import Any, Dict
+from __future__ import annotations
 
-import requests
-from requests import HTTPError
+from collections.abc import Awaitable
+from typing import Any, Literal, Optional, Union
+
+from httpx import AsyncClient, Client
+
+RequestMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
+# dict is returned when the request was synchronous, awaitable when async, None if there was an error
+_SyncOrAsyncResponse = Union[dict[str, Any], Awaitable, None]
 
 
 class StorageBucketAPI:
     """This class abstracts access to the endpoint to the Get, List, Empty, and Delete operations on a bucket"""
 
-    def __init__(self, url, headers):
+    def __init__(
+        self, url: str, headers: dict[str, str], is_async: bool = False
+    ) -> None:
         self.url = url
         self.headers = headers
 
-    def list_buckets(self) -> Dict[str, Any]:
-        """Retrieves the details of all storage buckets within an existing product."""
-        try:
-            response = requests.get(f"{self.url}/bucket", headers=self.headers)
-            response.raise_for_status()
-        except HTTPError as http_err:
-            print(f"HTTP error occurred: {http_err}")  # Python 3.6
-        except Exception as err:
-            print(f"Other error occurred: {err}")  # Python 3.6
-        else:
-            return response.json()
+        self._is_async = is_async
 
-    def get_bucket(self, id: str) -> Dict[str, Any]:
+        if is_async:
+            self._client = AsyncClient(headers=self.headers)
+        else:
+            self._client = Client(headers=self.headers)
+
+    def _request(
+        self, method: RequestMethod, url: str, json: Optional[dict[Any, Any]] = None
+    ) -> Union[dict[Any, Any], Awaitable, None]:
+        if self._is_async:
+            return self._async_request(method, url, json)
+        else:
+            return self._sync_request(method, url, json)
+
+    def _sync_request(
+        self, method: RequestMethod, url: str, json: Optional[dict[Any, Any]] = None
+    ) -> Optional[dict[Any, Any]]:
+        if isinstance(self._client, AsyncClient):  # only to appease the type checker
+            return
+
+        response = self._client.request(method, url, json=json)
+        response.raise_for_status()
+        return response.json()
+
+    async def _async_request(
+        self, method: RequestMethod, url: str, json: Optional[dict[Any, Any]] = None
+    ) -> Optional[dict[Any, Any]]:
+        if isinstance(self._client, Client):  # only to appease the type checker
+            return
+
+        response = await self._client.request(method, url, json=json)
+        response.raise_for_status()
+        return response.json()
+
+    def list_buckets(self) -> _SyncOrAsyncResponse:
+        """Retrieves the details of all storage buckets within an existing product."""
+        return self._request("GET", f"{self.url}/bucket")
+
+    def get_bucket(self, id: str) -> _SyncOrAsyncResponse:
         """Retrieves the details of an existing storage bucket.
 
         Parameters
@@ -31,17 +66,11 @@ class StorageBucketAPI:
         id
             The unique identifier of the bucket you would like to retrieve.
         """
-        try:
-            response = requests.get(f"{self.url}/bucket/{id}", headers=self.headers)
-            response.raise_for_status()
-        except HTTPError as http_err:
-            print(f"HTTP error occurred: {http_err}")  # Python 3.6
-        except Exception as err:
-            print(f"Other error occurred: {err}")  # Python 3.6
-        else:
-            return response.json()
+        return self._request("GET", f"{self.url}/bucket/{id}")
 
-    def create_bucket(self, id: str) -> Dict[str, Any]:
+    def create_bucket(
+        self, id: str, name: str, public: bool = False
+    ) -> _SyncOrAsyncResponse:
         """Creates a new storage bucket.
 
         Parameters
@@ -49,19 +78,13 @@ class StorageBucketAPI:
         id
             A unique identifier for the bucket you are creating.
         """
-        try:
-            response = requests.post(
-                f"{self.url}/bucket", data={"id": id}, headers=self.headers
-            )
-            response.raise_for_status()
-        except HTTPError as http_err:
-            print(f"HTTP error occurred: {http_err}")  # Python 3.6
-        except Exception as err:
-            print(f"Other error occurred: {err}")  # Python 3.6
-        else:
-            return response.json()
+        return self._request(
+            "POST",
+            f"{self.url}/bucket",
+            json={"id": id, "name": name, "public": public},
+        )
 
-    def empty_bucket(self, id: str) -> Dict[str, Any]:
+    def empty_bucket(self, id: str) -> _SyncOrAsyncResponse:
         """Removes all objects inside a single bucket.
 
         Parameters
@@ -69,19 +92,9 @@ class StorageBucketAPI:
         id
             The unique identifier of the bucket you would like to empty.
         """
-        try:
-            response = requests.post(
-                f"{self.url}/bucket/{id}/empty", data={}, headers=self.headers
-            )
-            response.raise_for_status()
-        except HTTPError as http_err:
-            print(f"HTTP error occurred: {http_err}")  # Python 3.6
-        except Exception as err:
-            print(f"Other error occurred: {err}")  # Python 3.6
-        else:
-            return response.json()
+        return self._request("POST", f"{self.url}/bucket/{id}/empty", json={})
 
-    def delete_bucket(self, id: str) -> Dict[str, Any]:
+    def delete_bucket(self, id: str) -> _SyncOrAsyncResponse:
         """Deletes an existing bucket. Note that you cannot delete buckets with existing objects inside. You must first
         `empty()` the bucket.
 
@@ -90,15 +103,4 @@ class StorageBucketAPI:
         id
             The unique identifier of the bucket you would like to delete.
         """
-        try:
-            response = requests.delete(
-                f"{self.url}/bucket/{id}", data={}, headers=self.headers
-            )
-
-            response.raise_for_status()
-        except HTTPError as http_err:
-            print(f"HTTP error occurred: {http_err}")  # Python 3.6
-        except Exception as err:
-            print(f"Other error occurred: {err}")  # Python 3.6
-        else:
-            return response.json()
+        return self._request("DELETE", f"{self.url}/bucket/{id}", json={})
