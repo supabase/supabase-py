@@ -69,7 +69,7 @@ class StorageBucketAPI:
         return self._request("GET", f"{self.url}/bucket/{id}")
 
     def create_bucket(
-        self, id: str, name: str, public: bool = False
+        self, id: str, name: str = None, public: bool = False
     ) -> _SyncOrAsyncResponse:
         """Creates a new storage bucket.
 
@@ -77,6 +77,10 @@ class StorageBucketAPI:
         ----------
         id
             A unique identifier for the bucket you are creating.
+        name
+            A name for the bucket you are creating. If not passed, the id is used as the name as well.
+        public
+            Whether the bucket you are creating should be publicly accessible. Defaults to False.
         """
         return self._request(
             "POST",
