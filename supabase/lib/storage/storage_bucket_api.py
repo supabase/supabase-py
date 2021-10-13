@@ -5,11 +5,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal, Optional, Type, Union
 
-from httpx import AsyncClient, Client
+from httpx import AsyncClient, Client, HTTPError
 
 __all__ = ["Bucket", "StorageBucketAPI"]
 
 _RequestMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
+
+
+class StorageException(Exception):
+    """Error raised when an operation on the storage API fails."""
 
 
 @dataclass
@@ -79,7 +83,10 @@ class StorageBucketAPI:
             return
 
         response = self._client.request(method, url, json=json)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except HTTPError:
+            raise StorageException(response.json())
 
         response_data = response.json()
 
@@ -104,7 +111,10 @@ class StorageBucketAPI:
             return
 
         response = await self._client.request(method, url, json=json)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except HTTPError:
+            raise StorageException(response.json())
 
         response_data = response.json()
 
