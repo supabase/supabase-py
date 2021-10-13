@@ -157,7 +157,7 @@ class StorageBucketAPI:
         return self._request(
             "POST",
             f"{self.url}/bucket",
-            json={"id": id, "name": name, "public": public},
+            json={"id": id, "name": name or id, "public": public},
         )
 
     def empty_bucket(self, id: str) -> Union[dict[str, str], Awaitable[dict[str, str]]]:
