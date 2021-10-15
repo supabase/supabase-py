@@ -51,7 +51,7 @@ class StorageBucketAPI:
         """
         try:
             response = requests.post(
-                f"{self.url}/bucket", data={"id": id}, headers=self.headers
+                f"{self.url}/bucket", json={"name": id}, headers=self.headers
             )
             response.raise_for_status()
         except HTTPError as http_err:

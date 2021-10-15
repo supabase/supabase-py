@@ -85,15 +85,26 @@ def test_client_insert(supabase: Client) -> None:
     assert result.get("status_code", 400) == 201
 
 
+# TODO[Joel] - Reinstate once permissions on test instance are updated
+@pytest.mark.skip(reason="missing permissions on test instance")
 def test_client_bucket(supabase: Client) -> None:
-
     """Ensure that the storage bucket operations work"""
+
     TEST_BUCKET_NAME = "atestbucket"
-    # TODO[Joel] - Reinstate once permissions on test instance are updated
-    # storage = supabase.storage()
-    # storage_bucket = storage.StorageBucketAPI()
-    # storage_bucket.create_bucket(TEST_BUCKET_NAME)
-    # storage_bucket.list_buckets()
-    # storage_bucket.get_bucket(TEST_BUCKET_NAME)
-    # storage_bucket.empty_bucket(TEST_BUCKET_NAME)
-    # storage_bucket.delete_bucket(TEST_BUCKET_NAME)
+
+    storage = supabase.storage()
+    storage.create_bucket(TEST_BUCKET_NAME)
+    buckets = storage.list_buckets()
+    assert len(buckets) > 0
+
+    bucket = storage.get_bucket(TEST_BUCKET_NAME)
+    assert bucket.get("id") == TEST_BUCKET_NAME
+
+    storage.empty_bucket(TEST_BUCKET_NAME)
+    storage_file = storage.StorageFileAPI(TEST_BUCKET_NAME)
+    files = storage_file.list()
+    assert len(files) == 0
+
+    storage.delete_bucket(TEST_BUCKET_NAME)
+    bucket = storage.get_bucket(TEST_BUCKET_NAME)
+    assert bucket is None
