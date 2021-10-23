@@ -89,11 +89,10 @@ def test_client_bucket(supabase: Client) -> None:
 
     """Ensure that the storage bucket operations work"""
     TEST_BUCKET_NAME = "atestbucket"
-    # TODO[Joel] - Reinstate once permissions on test instance are updated
-    # storage = supabase.storage()
-    # storage_bucket = storage.StorageBucketAPI()
-    # storage_bucket.create_bucket(TEST_BUCKET_NAME)
-    # storage_bucket.list_buckets()
-    # storage_bucket.get_bucket(TEST_BUCKET_NAME)
-    # storage_bucket.empty_bucket(TEST_BUCKET_NAME)
-    # storage_bucket.delete_bucket(TEST_BUCKET_NAME)
+    storage = supabase.storage()
+    storage_bucket = storage.StorageBucketAPI()
+    storage_bucket.create_bucket(TEST_BUCKET_NAME)
+    storage_bucket.list_buckets()
+    storage_bucket.get_bucket(TEST_BUCKET_NAME)
+    storage_bucket.empty_bucket(TEST_BUCKET_NAME)
+    storage_bucket.delete_bucket(TEST_BUCKET_NAME)
