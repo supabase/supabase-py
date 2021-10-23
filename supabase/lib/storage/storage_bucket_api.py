@@ -91,11 +91,9 @@ class StorageBucketAPI:
         response_data = response.json()
 
         if not response_class:
-            # if no response_class is specified, return the raw response
             return response_data
 
         if isinstance(response_data, list):
-            # if a list of objects are returned, convert each member to response_class
             return [response_class(**item) for item in response_data]
         else:
             return response_class(**response_data)
