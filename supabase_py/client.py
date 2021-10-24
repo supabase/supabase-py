@@ -25,10 +25,7 @@ class Client:
     """Supabase client class."""
 
     def __init__(
-        self,
-        supabase_url: str,
-        supabase_key: str,
-        **options,
+        self, supabase_url: str, supabase_key: str, **options,
     ):
         """Instantiate the client.
 
@@ -60,9 +57,7 @@ class Client:
 
         # Instantiate clients.
         self.auth: SupabaseAuthClient = self._init_supabase_auth_client(
-            auth_url=self.auth_url,
-            supabase_key=self.supabase_key,
-            **settings,
+            auth_url=self.auth_url, supabase_key=self.supabase_key, **settings,
         )
         # TODO(fedden): Bring up to parity with JS client.
         # self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
@@ -71,9 +66,7 @@ class Client:
         # )
         self.realtime = None
         self.postgrest: PostgrestClient = self._init_postgrest_client(
-            rest_url=self.rest_url,
-            supabase_key=self.supabase_key,
-            **settings,
+            rest_url=self.rest_url, supabase_key=self.supabase_key, **settings,
         )
 
     def storage(self):
@@ -130,7 +123,11 @@ class Client:
             query: str = str(self.postgrest.session.params)
 
             final_url = f"{url}/{path}?{query}"
-            response = requests.post(final_url, headers=dict(self.postgrest.session.headers) | self._get_auth_headers(), json=params)
+            response = requests.post(
+                final_url,
+                headers=dict(self.postgrest.session.headers) | self._get_auth_headers(),
+                json=params,
+            )
             return {
                 "data": response.json(),
                 "status_code": response.status_code,
