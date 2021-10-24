@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict
 import pytest
 
 if TYPE_CHECKING:
-    from supabase_py import Client
+    from supabase import Client
 
 
 def _random_string(length: int = 10) -> str:
@@ -33,7 +33,7 @@ def _assert_authenticated_user(data: Dict[str, Any]) -> None:
 @pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 def test_incorrect_values_dont_instanciate_client(url: Any, key: Any) -> None:
     """Ensure we can't instanciate client with nonesense values."""
-    from supabase_py import Client, create_client
+    from supabase import Client, create_client
 
     _: Client = create_client(url, key)
 
@@ -85,15 +85,31 @@ def test_client_insert(supabase: Client) -> None:
     assert result.get("status_code", 400) == 201
 
 
-def test_client_bucket(supabase: Client) -> None:
+@pytest.mark.skip(reason="missing permissions on test instance")
+def test_client_upload_file(supabase: Client) -> None:
+    """Ensure we can upload files to a bucket"""
 
-    """Ensure that the storage bucket operations work"""
     TEST_BUCKET_NAME = "atestbucket"
-    # TODO[Joel] - Reinstate once permissions on test instance are updated
-    # storage = supabase.storage()
-    # storage_bucket = storage.StorageBucketAPI()
-    # storage_bucket.create_bucket(TEST_BUCKET_NAME)
-    # storage_bucket.list_buckets()
-    # storage_bucket.get_bucket(TEST_BUCKET_NAME)
-    # storage_bucket.empty_bucket(TEST_BUCKET_NAME)
-    # storage_bucket.delete_bucket(TEST_BUCKET_NAME)
+
+    storage = supabase.storage()
+    storage_file = storage.StorageFileAPI(TEST_BUCKET_NAME)
+
+    filename = "test.jpeg"
+    filepath = f"tests/{filename}"
+    mimetype = "image/jpeg"
+    options = {"contentType": mimetype}
+
+    storage_file.upload(filename, filepath, options)
+    files = storage_file.list()
+    assert len(files) > 0
+
+    image_info = None
+    for item in files:
+        if item.get("name") == filename:
+            image_info = item
+            break
+
+    assert image_info is not None
+    assert image_info.get("metadata", {}).get("mimetype") == mimetype
+
+    storage_file.remove([filename])

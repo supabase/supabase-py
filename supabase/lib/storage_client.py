@@ -1,5 +1,5 @@
-from supabase_py.lib.storage.storage_bucket_api import StorageBucketAPI
-from supabase_py.lib.storage.storage_file_api import StorageFileAPI
+from supabase.lib.storage.storage_bucket_api import StorageBucketAPI
+from supabase.lib.storage.storage_file_api import StorageFileAPI
 
 
 class SupabaseStorageClient(StorageBucketAPI):
