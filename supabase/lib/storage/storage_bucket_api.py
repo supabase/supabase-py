@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections.abc import Awaitable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 from httpx import AsyncClient, Client, HTTPError
 
 __all__ = ["Bucket", "StorageBucketAPI"]
 
-_RequestMethod = Literal["GET", "POST", "PUT", "DELETE", "PATCH"]
+_RequestMethod = str
 
 
 class StorageException(Exception):
@@ -33,10 +33,10 @@ class Bucket:
 
 
 ResponseType = Union[
-    dict[
+    Dict[
         str, str
     ],  # response from an endpoint without a custom response_class, example: create_bucket
-    list[
+    List[
         Bucket
     ],  # response from an endpoint which returns a list of objects, example: list_buckets
     Bucket,  # response from an endpoint which returns a single object, example: get_bucket
@@ -80,7 +80,7 @@ class StorageBucketAPI:
         response_class: Optional[Type] = None,
     ) -> ResponseType:
         if isinstance(self._client, AsyncClient):  # only to appease the type checker
-            return
+            return None
 
         response = self._client.request(method, url, json=json)
         try:
