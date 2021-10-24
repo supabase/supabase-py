@@ -83,16 +83,3 @@ def test_client_insert(supabase: Client) -> None:
     assert current_length == previous_length + 1
     # Check returned result for insert was valid.
     assert result.get("status_code", 400) == 201
-
-
-def test_client_bucket(supabase: Client) -> None:
-
-    """Ensure that the storage bucket operations work"""
-    TEST_BUCKET_NAME = "atestbucket"
-    storage = supabase.storage()
-    storage_bucket = storage.StorageBucketAPI()
-    storage_bucket.create_bucket(TEST_BUCKET_NAME)
-    storage_bucket.list_buckets()
-    storage_bucket.get_bucket(TEST_BUCKET_NAME)
-    storage_bucket.empty_bucket(TEST_BUCKET_NAME)
-    storage_bucket.delete_bucket(TEST_BUCKET_NAME)
