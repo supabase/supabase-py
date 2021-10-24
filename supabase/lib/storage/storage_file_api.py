@@ -1,5 +1,6 @@
 import requests
 from requests import HTTPError
+from requests_toolbelt import MultipartEncoder
 
 
 class StorageFileAPI:
@@ -182,9 +183,13 @@ class StorageFileAPI:
         """
         if file_options is None:
             file_options = {}
-        headers = dict(self.headers, **file_options)
-        headers.update(self.DEFAULT_FILE_OPTIONS)
-        files = {"file": open(file, "rb")}
+        headers = dict(self.headers, **self.DEFAULT_FILE_OPTIONS)
+        headers.update(file_options)
+        filename = path.rsplit("/", maxsplit=1)[-1]
+        files = MultipartEncoder(
+            fields={"file": (filename, open(file, "rb"), headers["contentType"])}
+        )
+        headers["Content-Type"] = files.content_type
         _path = self._get_final_path(path)
         try:
             resp = requests.post(

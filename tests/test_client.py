@@ -83,3 +83,33 @@ def test_client_insert(supabase: Client) -> None:
     assert current_length == previous_length + 1
     # Check returned result for insert was valid.
     assert result.get("status_code", 400) == 201
+
+
+@pytest.mark.skip(reason="missing permissions on test instance")
+def test_client_upload_file(supabase: Client) -> None:
+    """Ensure we can upload files to a bucket"""
+
+    TEST_BUCKET_NAME = "atestbucket"
+
+    storage = supabase.storage()
+    storage_file = storage.StorageFileAPI(TEST_BUCKET_NAME)
+
+    filename = "test.jpeg"
+    filepath = f"tests/{filename}"
+    mimetype = "image/jpeg"
+    options = {"contentType": mimetype}
+
+    storage_file.upload(filename, filepath, options)
+    files = storage_file.list()
+    assert len(files) > 0
+
+    image_info = None
+    for item in files:
+        if item.get("name") == filename:
+            image_info = item
+            break
+
+    assert image_info is not None
+    assert image_info.get("metadata", {}).get("mimetype") == mimetype
+
+    storage_file.remove([filename])
