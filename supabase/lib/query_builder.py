@@ -68,6 +68,7 @@ class SupabaseQueryBuilder(PostgrestClient):
             "Content-Type": "application/json",
             "Accept-Profile": schema,
             "Content-Profile": schema,
+            "Prefer": "return=representation",
             **headers,
         }
         self.session = AsyncClient(base_url=url, headers=headers)
