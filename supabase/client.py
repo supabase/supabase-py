@@ -77,7 +77,7 @@ class Client:
         """Create instance of the storage client"""
         return SupabaseStorageClient(self.storage_url, self._get_auth_headers())
 
-    def table(self, table_name: str) -> SupabaseQueryBuilder:
+    def table(self, table_name: str):
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
@@ -86,7 +86,7 @@ class Client:
         """
         return self.from_(table_name)
 
-    def from_(self, table_name: str) -> SupabaseQueryBuilder:
+    def from_(self, table_name: str):
         """Perform a table operation.
 
         See the `table` method.
