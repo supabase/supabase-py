@@ -29,9 +29,6 @@ def _execute_monkey_patch(self) -> Dict[str, Any]:
     url: str = str(self.session.base_url).rstrip("/")
     query: str = str(self.session.params)
     response = func(f"{url}?{query}", headers=self.session.headers, **additional_kwargs)
-    import pdb
-
-    pdb.set_trace()
     return {
         "data": response.json(),
         "status_code": response.status_code,
