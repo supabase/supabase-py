@@ -7,7 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.7.1"
-postgrest-py = "^0.5.0"
+postgrest-py = {git = "https://github.com/supabase-community/postgrest-py.git", rev = "master"}
 realtime-py = "^0.1.2"
 gotrue = "0.2.0"
 requests = "2.25.1"
