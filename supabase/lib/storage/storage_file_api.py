@@ -15,7 +15,7 @@ class StorageFileAPI:
     DEFAULT_FILE_OPTIONS = {
         "cacheControl": "3600",
         "contentType": "text/plain;charset=UTF-8",
-        "upsert": "False",
+        "x-upsert": "false",
     }
 
     def __init__(self, url: str, headers: dict, bucket_id: str):
