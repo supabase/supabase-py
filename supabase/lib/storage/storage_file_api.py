@@ -1,6 +1,7 @@
-import requests
-from requests import HTTPError
-from requests_toolbelt import MultipartEncoder
+from typing import Any
+
+import httpx
+from httpx import HTTPError
 
 
 class StorageFileAPI:
@@ -46,7 +47,7 @@ class StorageFileAPI:
         """
         try:
             _path = self._get_final_path(path)
-            response = requests.post(
+            response = httpx.post(
                 f"{self.url}/object/sign/{_path}",
                 json={"expiresIn": str(expires_in)},
                 headers=self.headers,
@@ -86,7 +87,7 @@ class StorageFileAPI:
             The new file path, including the new file name. For example `folder/image-copy.png`.
         """
         try:
-            response = requests.post(
+            response = httpx.post(
                 f"{self.url}/object/move",
                 json={
                     "bucketId": self.bucket_id,
@@ -112,9 +113,10 @@ class StorageFileAPI:
             An array or list of files to be deletes, including the path and file name. For example [`folder/image.png`].
         """
         try:
-            response = requests.delete(
+            response = httpx.request(
+                "DELETE",
                 f"{self.url}/object/{self.bucket_id}",
-                data={"prefixes": paths},
+                json={"prefixes": paths},
                 headers=self.headers,
             )
             response.raise_for_status()
@@ -139,9 +141,10 @@ class StorageFileAPI:
             body = dict(self.DEFAULT_SEARCH_OPTIONS, **options)
             headers = dict(self.headers, **{"Content-Type": "application/json"})
             body["prefix"] = path if path else ""
-
-            getdata = requests.post(
-                f"{self.url}/object/list/{self.bucket_id}", json=body, headers=headers
+            getdata = httpx.post(
+                f"{self.url}/object/list/{self.bucket_id}",
+                json=body,
+                headers=headers,
             )
             getdata.raise_for_status()
         except HTTPError as http_err:
@@ -160,7 +163,7 @@ class StorageFileAPI:
         """
         try:
             _path = self._get_final_path(path)
-            response = requests.get(f"{self.url}/object/{_path}", headers=self.headers)
+            response = httpx.get(f"{self.url}/object/{_path}", headers=self.headers)
 
         except HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")  # Python 3.6
@@ -169,7 +172,7 @@ class StorageFileAPI:
         else:
             return response.content
 
-    def upload(self, path: str, file: any, file_options: dict = None):
+    def upload(self, path: str, file: Any, file_options: dict = None):
         """
         Uploads a file to an existing bucket.
         Parameters
@@ -186,14 +189,13 @@ class StorageFileAPI:
         headers = dict(self.headers, **self.DEFAULT_FILE_OPTIONS)
         headers.update(file_options)
         filename = path.rsplit("/", maxsplit=1)[-1]
-        files = MultipartEncoder(
-            fields={"file": (filename, open(file, "rb"), headers["contentType"])}
-        )
-        headers["Content-Type"] = files.content_type
+        files = {"file": (filename, open(file, "rb"), headers["contentType"])}
         _path = self._get_final_path(path)
         try:
-            resp = requests.post(
-                f"{self.url}/object/{_path}", data=files, headers=headers
+            resp = httpx.post(
+                f"{self.url}/object/{_path}",
+                files=files,
+                headers=headers,
             )
         except HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")  # Python 3.6

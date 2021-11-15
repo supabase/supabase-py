@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-import requests
+import httpx
 from httpx import AsyncClient
 from postgrest_py.client import PostgrestClient
 from postgrest_py.request_builder import QueryRequestBuilder
@@ -11,19 +11,19 @@ def _execute_monkey_patch(self) -> Dict[str, Any]:
     method: str = self.http_method.lower()
     additional_kwargs: Dict[str, Any] = {}
     if method == "get":
-        func = requests.get
+        func = httpx.get
     elif method == "post":
-        func = requests.post
+        func = httpx.post
         # Additionally requires the json body (e.g on insert, self.json==row).
         additional_kwargs = {"json": self.json}
     elif method == "put":
-        func = requests.put
+        func = httpx.put
         additional_kwargs = {"json": self.json}
     elif method == "patch":
-        func = requests.patch
+        func = httpx.patch
         additional_kwargs = {"json": self.json}
     elif method == "delete":
-        func = requests.delete
+        func = httpx.delete
     else:
         raise NotImplementedError(f"Method '{method}' not recognised.")
     url: str = str(self.session.base_url).rstrip("/")
@@ -36,7 +36,7 @@ def _execute_monkey_patch(self) -> Dict[str, Any]:
 
 
 # NOTE(fedden): Here we monkey patch the otherwise async method and use the
-#               requests module instead. Hopefully cleans things up a little
+#               httpx sync methods. Hopefully cleans things up a little
 #               for the user as they are now not bound to async methods.
 QueryRequestBuilder.execute = _execute_monkey_patch
 
