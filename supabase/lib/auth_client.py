@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import gotrue
 
@@ -12,7 +12,7 @@ class SupabaseAuthClient(gotrue.Client):
         detect_session_in_url: bool = False,
         auto_refresh_token: bool = False,
         persist_session: bool = False,
-        local_storage: Optional[Dict[str, Any]] = None,
+        local_storage: Dict[str, Any] = {},
         headers: Dict[str, str] = {},
     ):
         """Instanciate SupabaseAuthClient instance."""
