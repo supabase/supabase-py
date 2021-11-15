@@ -44,7 +44,11 @@ def test_client_auth(supabase: Client) -> None:
     random_email: str = f"{_random_string(10)}@supamail.com"
     random_password: str = _random_string(20)
     # Sign up (and sign in).
-    user = supabase.auth.sign_up(email=random_email, password=random_password)
+    user = supabase.auth.sign_up(
+        email=random_email,
+        password=random_password,
+        phone=None,
+    )
     _assert_authenticated_user(user)
     # Sign out.
     supabase.auth.sign_out()
