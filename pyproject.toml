@@ -7,11 +7,9 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.7.1"
-postgrest-py = {git = "https://github.com/supabase-community/postgrest-py.git", rev = "master"}
+postgrest-py = {git = "https://github.com/supabase-community/postgrest-py.git", rev = "ba83ba43c6cfba906fbb710d3913e5dc070fdde3"}
 realtime-py = "^0.1.2"
-gotrue = "0.2.0"
-requests = "2.25.1"
-requests-toolbelt = "^0.9.1"
+gotrue = {git = "https://github.com/supabase-community/gotrue-py.git", rev = "9ba3192dbdccd2f02a4819b52dd6cf51095af7e7"}
 httpx = "^0.19.0"
 
 [tool.poetry.dev-dependencies]
