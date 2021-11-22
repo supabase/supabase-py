@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
 import requests
+
 from httpx import AsyncClient
 from postgrest_py.client import PostgrestClient
 from postgrest_py.request_builder import QueryRequestBuilder

@@ -1,15 +1,13 @@
 from typing import Any, Dict
 
-from postgrest_py import PostgrestClient
-
 import requests
 
+from postgrest_py import PostgrestClient
 from supabase.lib.auth_client import SupabaseAuthClient
 from supabase.lib.constants import DEFAULT_HEADERS
 from supabase.lib.query_builder import SupabaseQueryBuilder
 from supabase.lib.realtime_client import SupabaseRealtimeClient
 from supabase.lib.storage_client import SupabaseStorageClient
-
 
 DEFAULT_OPTIONS = {
     "schema": "public",
