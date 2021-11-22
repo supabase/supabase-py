@@ -71,8 +71,7 @@ class StorageFileAPI:
         """
         try:
             _path = self._get_final_path(path)
-            public_url = f"{self.url}/object/public/{_path}"
-            return public_url
+            return f"{self.url}/object/public/{_path}"
         except:
             print("Public URL not found")
 
@@ -139,7 +138,7 @@ class StorageFileAPI:
         try:
             body = dict(self.DEFAULT_SEARCH_OPTIONS, **options)
             headers = dict(self.headers, **{"Content-Type": "application/json"})
-            body["prefix"] = path if path else ""
+            body["prefix"] = path or ""
 
             getdata = requests.post(
                 f"{self.url}/object/list/{self.bucket_id}", json=body, headers=headers

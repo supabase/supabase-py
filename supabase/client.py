@@ -115,21 +115,20 @@ class Client:
 
         if is_async:
             return self.postgrest.rpc(fn, params)
-        else:
-            path = f"rpc/{fn}"
-            url: str = str(self.postgrest.session.base_url).rstrip("/")
-            query: str = str(self.postgrest.session.params)
+        path = f"rpc/{fn}"
+        url: str = str(self.postgrest.session.base_url).rstrip("/")
+        query: str = str(self.postgrest.session.params)
 
-            final_url = f"{url}/{path}?{query}"
-            response = requests.post(
-                final_url,
-                headers=dict(self.postgrest.session.headers) | self._get_auth_headers(),
-                json=params,
-            )
-            return {
-                "data": response.json(),
-                "status_code": response.status_code,
-            }
+        final_url = f"{url}/{path}?{query}"
+        response = requests.post(
+            final_url,
+            headers=dict(self.postgrest.session.headers) | self._get_auth_headers(),
+            json=params,
+        )
+        return {
+            "data": response.json(),
+            "status_code": response.status_code,
+        }
 
     #     async def remove_subscription_helper(resolve):
     #         try:
@@ -201,12 +200,10 @@ class Client:
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
-        # What's the corresponding method to get the token
-        headers: Dict[str, str] = {
+        return {
             "apiKey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
         }
-        return headers
 
 
 def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
