@@ -142,7 +142,7 @@ class Client:
             await self._closeChannel(subscription)
 
     def get_subscriptions(self):
-        """Return all channels the the client is subscribed to."""
+        """Return all channels the client is subscribed to."""
         return self.realtime.channels
 
     @staticmethod
@@ -197,7 +197,7 @@ class Client:
 
 
 def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
-    """Create client function to instanciate supabase client like JS runtime.
+    """Create client function to instantiate supabase client like JS runtime.
 
     Parameters
     ----------
@@ -211,7 +211,7 @@ def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
 
     Examples
     --------
-    Instanciating the client.
+    Instantiating the client.
     >>> import os
     >>> from supabase import create_client, Client
     >>>
