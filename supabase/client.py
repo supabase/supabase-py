@@ -8,6 +8,7 @@ from supabase.lib.auth_client import SupabaseAuthClient
 from supabase.lib.client_options import ClientOptions
 from supabase.lib.constants import DEFAULT_OPTIONS
 from supabase.lib.query_builder import SupabaseQueryBuilder
+from supabase.lib.realtime_client import SupabaseRealtimeClient
 from supabase.lib.storage_client import SupabaseStorageClient
 
 
