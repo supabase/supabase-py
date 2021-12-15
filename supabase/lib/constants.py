@@ -1,3 +1,4 @@
-from supabase import __version__
+from supabase.lib.client_options import ClientOptions
 
-DEFAULT_HEADERS = {"X-Client-Info": f"supabase-py/{__version__}"}
+
+DEFAULT_OPTIONS: ClientOptions = ClientOptions()
