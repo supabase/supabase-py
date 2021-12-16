@@ -178,11 +178,10 @@ class Client:
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
         # What's the corresponding method to get the token
-        headers: Dict[str, str] = {
+        return {
             "apiKey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
         }
-        return headers
 
 
 def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
