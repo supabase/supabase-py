@@ -94,7 +94,7 @@ class Client:
         )
         return query_builder.from_(table_name)
 
-    def rpc(self, fn, params) -> Coroutine[Any, Any, Response]:
+    def rpc(self, fn: str, params: Dict[Any, Any]) -> Coroutine[Any, Any, Response]:
         """Performs a stored procedure call.
 
         Parameters

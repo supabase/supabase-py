@@ -19,5 +19,5 @@ class SupabaseStorageClient(StorageBucketAPI):
     def __init__(self, url: str, headers: Dict[str, str]):
         super().__init__(url, headers)
 
-    def StorageFileAPI(self, id_: str):
+    def StorageFileAPI(self, id_: str) -> StorageFileAPI:
         return StorageFileAPI(self.url, self.headers, id_)
