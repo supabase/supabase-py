@@ -29,7 +29,7 @@ class ClientOptions:
     """A storage provider. Used to store the logged in session."""
     local_storage: Dict[str, Any] = dataclasses.field(default_factory=lambda: {})
 
-    """Options passed to the realtime-js instance"""
+    """Options passed to the realtime-py instance"""
     realtime: Optional[Dict[str, Any]] = None
 
     """A custom `fetch` implementation."""
