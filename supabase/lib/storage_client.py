@@ -1,3 +1,5 @@
+from typing import Dict
+
 from supabase.lib.storage.storage_bucket_api import StorageBucketAPI
 from supabase.lib.storage.storage_file_api import StorageFileAPI
 
@@ -14,8 +16,8 @@ class SupabaseStorageClient(StorageBucketAPI):
     >>> list_files = storage_file.list("something")
     """
 
-    def __init__(self, url, headers):
+    def __init__(self, url: str, headers: Dict[str, str]):
         super().__init__(url, headers)
 
-    def StorageFileAPI(self, id_):
+    def StorageFileAPI(self, id_: str) -> StorageFileAPI:
         return StorageFileAPI(self.url, self.headers, id_)
