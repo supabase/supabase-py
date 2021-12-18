@@ -9,9 +9,7 @@ In the interest of fostering an open and welcoming environment, please review an
 ## Code and copy reviews
 
 All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. Consult
-[GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
-information on using pull requests.
+use GitHub pull requests for this purpose. After filing a pull request, please tag any two of the [current maintainers](./supabase/lib/MAINTAINERS.md) to request a review.
 
 ## Report an issue
 
