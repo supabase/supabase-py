@@ -3,6 +3,8 @@ name: CI/CD
 on: [pull_request, push, workflow_dispatch]
 
 jobs:
+  strategy:
+    max-parallel: 1
   test:
     name: Test / OS ${{ matrix.os }} / Python ${{ matrix.python-version }}
     strategy:
