@@ -1,4 +1,4 @@
-from typing import Any, Coroutine, Dict
+from typing import Any, Dict
 
 from httpx import Response
 from postgrest_py import SyncPostgrestClient, SyncRequestBuilder
