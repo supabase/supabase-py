@@ -41,8 +41,8 @@ def test_incorrect_values_dont_instanciate_client(url: Any, key: Any) -> None:
 def test_client_auth(supabase: Client) -> None:
     """Ensure we can create an auth user, and login with it."""
     # Create a random user login email and password.
-    random_email: str = f"{_random_string(10)}@supamail.com"
-    random_password: str = _random_string(20)
+    random_email = f"{_random_string(10)}@supamail.com"
+    random_password = _random_string(20)
     # Sign up (and sign in).
     user = supabase.auth.sign_up(
         email=random_email,
@@ -65,14 +65,14 @@ def test_client_select(supabase: Client) -> None:
     #               realtime libs are working.
     data, _ = supabase.table("countries").select("*").execute()
     # Assert we pulled real data.
-    assert len(data.get("data", [])) > 0
+    assert data
 
 
 def test_client_insert(supabase: Client) -> None:
     """Ensure we can select data from a table."""
     data, _ = supabase.table("countries").select("*").execute()
     # Assert we pulled real data.
-    previous_length: int = len(data.get("data", []))
+    previous_length = len(data)
     new_row = {
         "name": "test name",
         "iso2": "test iso2",
@@ -81,12 +81,12 @@ def test_client_insert(supabase: Client) -> None:
         "continent": None,
     }
     result, _ = supabase.table("countries").insert(new_row).execute()
+    # Check returned result for insert was valid.
+    assert result
     data, _ = supabase.table("countries").select("*").execute()
-    current_length: int = len(data.get("data", []))
+    current_length = len(data)
     # Ensure we've added a row remotely.
     assert current_length == previous_length + 1
-    # Check returned result for insert was valid.
-    assert result.get("status_code", 400) == 201
 
 
 @pytest.mark.skip(reason="missing permissions on test instance")
