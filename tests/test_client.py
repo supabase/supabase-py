@@ -63,14 +63,14 @@ def test_client_select(supabase: Client) -> None:
     """Ensure we can select data from a table."""
     # TODO(fedden): Add this set back in (and expand on it) when postgrest and
     #               realtime libs are working.
-    data = supabase.table("countries").select("*").execute()
+    data, _ = supabase.table("countries").select("*").execute()
     # Assert we pulled real data.
     assert len(data.get("data", [])) > 0
 
 
 def test_client_insert(supabase: Client) -> None:
     """Ensure we can select data from a table."""
-    data = supabase.table("countries").select("*").execute()
+    data, _ = supabase.table("countries").select("*").execute()
     # Assert we pulled real data.
     previous_length: int = len(data.get("data", []))
     new_row = {
@@ -80,8 +80,8 @@ def test_client_insert(supabase: Client) -> None:
         "local_name": "test local name",
         "continent": None,
     }
-    result = supabase.table("countries").insert(new_row).execute()
-    data = supabase.table("countries").select("*").execute()
+    result, _ = supabase.table("countries").insert(new_row).execute()
+    data, _ = supabase.table("countries").select("*").execute()
     current_length: int = len(data.get("data", []))
     # Ensure we've added a row remotely.
     assert current_length == previous_length + 1
@@ -105,7 +105,7 @@ def test_client_upload_file(supabase: Client) -> None:
 
     storage_file.upload(filename, filepath, options)
     files = storage_file.list()
-    assert len(files) > 0
+    assert files
 
     image_info = None
     for item in files:

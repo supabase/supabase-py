@@ -1,13 +1,11 @@
 from typing import Any, Coroutine, Dict
 
 from httpx import Response
-from postgrest_py import PostgrestClient
-from postgrest_py.request_builder import RequestBuilder
+from postgrest_py import SyncPostgrestClient, SyncRequestBuilder
 
 from supabase.lib.auth_client import SupabaseAuthClient
 from supabase.lib.client_options import ClientOptions
 from supabase.lib.constants import DEFAULT_OPTIONS
-from supabase.lib.query_builder import SupabaseQueryBuilder
 from supabase.lib.realtime_client import SupabaseRealtimeClient
 from supabase.lib.storage_client import SupabaseStorageClient
 
@@ -50,7 +48,7 @@ class Client:
         self.schema: str = settings.schema
 
         # Instantiate clients.
-        self.auth: SupabaseAuthClient = self._init_supabase_auth_client(
+        self.auth = self._init_supabase_auth_client(
             auth_url=self.auth_url,
             supabase_key=self.supabase_key,
             client_options=settings,
@@ -61,7 +59,7 @@ class Client:
         #     supabase_key=self.supabase_key,
         # )
         self.realtime = None
-        self.postgrest: PostgrestClient = self._init_postgrest_client(
+        self.postgrest = self._init_postgrest_client(
             rest_url=self.rest_url,
             supabase_key=self.supabase_key,
             headers=settings.headers,
@@ -71,7 +69,7 @@ class Client:
         """Create instance of the storage client"""
         return SupabaseStorageClient(self.storage_url, self._get_auth_headers())
 
-    def table(self, table_name: str) -> RequestBuilder:
+    def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
@@ -80,21 +78,14 @@ class Client:
         """
         return self.from_(table_name)
 
-    def from_(self, table_name: str) -> RequestBuilder:
+    def from_(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
 
         See the `table` method.
         """
-        query_builder = SupabaseQueryBuilder(
-            url=f"{self.rest_url}/{table_name}",
-            headers=self._get_auth_headers(),
-            schema=self.schema,
-            realtime=self.realtime,
-            table=table_name,
-        )
-        return query_builder.from_(table_name)
+        return self.postgrest.from_(table_name)
 
-    def rpc(self, fn: str, params: Dict[Any, Any]) -> Coroutine[Any, Any, Response]:
+    def rpc(self, fn: str, params: Dict[Any, Any]) -> Response:
         """Performs a stored procedure call.
 
         Parameters
@@ -169,9 +160,9 @@ class Client:
         rest_url: str,
         supabase_key: str,
         headers: Dict[str, str],
-    ) -> PostgrestClient:
+    ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
-        client = PostgrestClient(rest_url, headers=headers)
+        client = SyncPostgrestClient(rest_url, headers=headers)
         client.auth(token=supabase_key)
         return client
 
