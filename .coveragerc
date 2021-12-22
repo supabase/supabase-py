@@ -1,0 +1,5 @@
+[run]
+omit =
+    docs/*
+    examples/*
+    tests/*

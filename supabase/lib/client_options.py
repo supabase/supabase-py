@@ -9,31 +9,32 @@ DEFAULT_HEADERS = {"X-Client-Info": f"supabase-py/{__version__}"}
 
 @dataclasses.dataclass
 class ClientOptions:
-
-    """The Postgres schema which your tables belong to. Must be on the list of exposed schemas in Supabase. Defaults to 'public'."""
-
     schema: str = "public"
+    """
+    The Postgres schema which your tables belong to.
+    Must be on the list of exposed schemas in Supabase. Defaults to 'public'.
+    """
 
-    """Optional headers for initializing the client."""
     headers: Dict[str, str] = dataclasses.field(default_factory=DEFAULT_HEADERS.copy)
+    """Optional headers for initializing the client."""
 
-    """Automatically refreshes the token for logged in users."""
     auto_refresh_token: bool = True
+    """Automatically refreshes the token for logged in users."""
 
-    """Whether to persist a logged in session to storage."""
     persist_session: bool = True
+    """Whether to persist a logged in session to storage."""
 
-    """Detect a session from the URL. Used for OAuth login callbacks."""
     detect_session_in_url: bool = True
+    """Detect a session from the URL. Used for OAuth login callbacks."""
 
-    """A storage provider. Used to store the logged in session."""
     local_storage: Dict[str, Any] = dataclasses.field(default_factory=lambda: {})
+    """A storage provider. Used to store the logged in session."""
 
     """Options passed to the realtime-py instance"""
     realtime: Optional[Dict[str, Any]] = None
 
-    """A custom `fetch` implementation."""
     fetch: Optional[Callable] = None
+    """A custom `fetch` implementation."""
 
     def replace(
         self,

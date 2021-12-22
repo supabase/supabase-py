@@ -1,26 +1,52 @@
 repos:
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v4.0.1
+      hooks:
+          - id: trailing-whitespace
+          - id: check-added-large-files
+          - id: end-of-file-fixer
+          - id: mixed-line-ending
+            args: ["--fix=lf"]
 
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.0.1
-    hooks:
-    - id: trailing-whitespace
-    - id: check-added-large-files
-    - id: mixed-line-ending
-      args: ['--fix=lf']
+    - repo: https://github.com/pycqa/isort
+      rev: 5.10.1
+      hooks:
+          - id: isort
+            args:
+                [
+                    "--profile",
+                    "black",
+                    "--multi-line=3",
+                    "--trailing-comma",
+                    "--force-grid-wrap=0",
+                    "--use-parentheses",
+                    "--line-width=88",
+                ]
 
--   repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.8.0
-    hooks:
-    -   id: isort
-        args: ['--multi-line=3', '--trailing-comma', '--force-grid-wrap=0', '--use-parentheses', '--line-width=88']
+    - repo: https://github.com/myint/autoflake.git
+      rev: v1.4
+      hooks:
+          - id: autoflake
+            args:
+                [
+                    "--in-place",
+                    "--remove-all-unused-imports",
+                    "--ignore-init-module-imports",
+                ]
 
--   repo: https://github.com/humitos/mirrors-autoflake.git
-    rev: v1.1
-    hooks:
-    -   id: autoflake
-        args: ['--in-place', '--remove-all-unused-imports']
+    - repo: https://github.com/ambv/black
+      rev: 21.11b1
+      hooks:
+          - id: black
 
--   repo: https://github.com/psf/black
-    rev: 21.5b1
-    hooks:
-    - id: black
+    - repo: https://github.com/asottile/pyupgrade
+      rev: v2.29.1
+      hooks:
+          - id: pyupgrade
+            args: ["--py37-plus", "--keep-runtime-typing"]
+
+    - repo: https://github.com/commitizen-tools/commitizen
+      rev: v2.20.0
+      hooks:
+          - id: commitizen
+            stages: [commit-msg]
