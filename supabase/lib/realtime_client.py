@@ -1,7 +1,7 @@
 from typing import Any, Callable
 
-from realtime_py.connection import Socket
-from realtime_py.transformers import convert_change_data
+from realtime.connection import Socket
+from realtime.transformers import convert_change_data
 
 
 class SupabaseRealtimeClient:
