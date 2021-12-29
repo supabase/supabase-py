@@ -149,6 +149,7 @@ class Client:
         return SupabaseAuthClient(
             url=auth_url,
             auto_refresh_token=client_options.auto_refresh_token,
+            detect_session_in_url=client_options.detect_session_in_url,
             persist_session=client_options.persist_session,
             local_storage=client_options.local_storage,
             headers=client_options.headers,

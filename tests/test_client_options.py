@@ -7,6 +7,7 @@ def test__client_options__replace__returns_updated_options():
         headers={"key": "value"},
         auto_refresh_token=False,
         persist_session=False,
+        detect_session_in_url=False,
         local_storage={"key": "value"},
         realtime={"key": "value"},
     )
@@ -17,6 +18,7 @@ def test__client_options__replace__returns_updated_options():
         headers={"key": "value"},
         auto_refresh_token=False,
         persist_session=False,
+        detect_session_in_url=False,
         local_storage={"key": "value"},
         realtime={"key": "value"},
     )
