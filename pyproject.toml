@@ -17,7 +17,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.7"
 postgrest-py = "^0.6.0"
-realtime = "^0.0.3"
+realtime = "^0.0.4"
 gotrue = "^0.3.0"
 httpx = ">=0.19,<0.22"
 
