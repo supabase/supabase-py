@@ -5,7 +5,6 @@ from postgrest_py import SyncPostgrestClient, SyncRequestBuilder
 
 from supabase.lib.auth_client import SupabaseAuthClient
 from supabase.lib.client_options import ClientOptions
-from supabase.lib.constants import DEFAULT_OPTIONS
 from supabase.lib.realtime_client import SupabaseRealtimeClient
 from supabase.lib.storage_client import SupabaseStorageClient
 
@@ -17,7 +16,7 @@ class Client:
         self,
         supabase_url: str,
         supabase_key: str,
-        **options,
+        options: ClientOptions = ClientOptions(),
     ):
         """Instantiate the client.
 
@@ -38,20 +37,18 @@ class Client:
             raise Exception("supabase_key is required")
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
-
-        settings = DEFAULT_OPTIONS.replace(**options)
-        settings.headers.update(self._get_auth_headers())
+        options.headers.update(self._get_auth_headers())
         self.rest_url: str = f"{supabase_url}/rest/v1"
         self.realtime_url: str = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url: str = f"{supabase_url}/auth/v1"
         self.storage_url = f"{supabase_url}/storage/v1"
-        self.schema: str = settings.schema
+        self.schema: str = options.schema
 
         # Instantiate clients.
         self.auth = self._init_supabase_auth_client(
             auth_url=self.auth_url,
             supabase_key=self.supabase_key,
-            client_options=settings,
+            client_options=options,
         )
         # TODO(fedden): Bring up to parity with JS client.
         # self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
@@ -62,7 +59,7 @@ class Client:
         self.postgrest = self._init_postgrest_client(
             rest_url=self.rest_url,
             supabase_key=self.supabase_key,
-            headers=settings.headers,
+            headers=options.headers,
         )
 
     def storage(self) -> SupabaseStorageClient:
@@ -149,7 +146,6 @@ class Client:
         return SupabaseAuthClient(
             url=auth_url,
             auto_refresh_token=client_options.auto_refresh_token,
-            detect_session_in_url=client_options.detect_session_in_url,
             persist_session=client_options.persist_session,
             local_storage=client_options.local_storage,
             headers=client_options.headers,
@@ -175,7 +171,11 @@ class Client:
         }
 
 
-def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
+def create_client(
+    supabase_url: str,
+    supabase_key: str,
+    options: ClientOptions = ClientOptions(),
+) -> Client:
     """Create client function to instantiate supabase client like JS runtime.
 
     Parameters
@@ -202,4 +202,4 @@ def create_client(supabase_url: str, supabase_key: str, **options) -> Client:
     -------
     Client
     """
-    return Client(supabase_url=supabase_url, supabase_key=supabase_key, **options)
+    return Client(supabase_url=supabase_url, supabase_key=supabase_key, options=options)

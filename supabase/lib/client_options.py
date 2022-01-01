@@ -1,13 +1,14 @@
-import copy
-import dataclasses
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional
+
+from gotrue import SyncMemoryStorage, SyncSupportedStorage
 
 from supabase import __version__
 
 DEFAULT_HEADERS = {"X-Client-Info": f"supabase-py/{__version__}"}
 
 
-@dataclasses.dataclass
+@dataclass
 class ClientOptions:
     schema: str = "public"
     """
@@ -15,7 +16,7 @@ class ClientOptions:
     Must be on the list of exposed schemas in Supabase. Defaults to 'public'.
     """
 
-    headers: Dict[str, str] = dataclasses.field(default_factory=DEFAULT_HEADERS.copy)
+    headers: Dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
     """Optional headers for initializing the client."""
 
     auto_refresh_token: bool = True
@@ -24,14 +25,11 @@ class ClientOptions:
     persist_session: bool = True
     """Whether to persist a logged in session to storage."""
 
-    detect_session_in_url: bool = True
-    """Detect a session from the URL. Used for OAuth login callbacks."""
-
-    local_storage: Dict[str, Any] = dataclasses.field(default_factory=lambda: {})
+    local_storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
 
-    """Options passed to the realtime-py instance"""
     realtime: Optional[Dict[str, Any]] = None
+    """Options passed to the realtime-py instance"""
 
     fetch: Optional[Callable] = None
     """A custom `fetch` implementation."""
@@ -42,17 +40,19 @@ class ClientOptions:
         headers: Optional[Dict[str, str]] = None,
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
-        detect_session_in_url: Optional[bool] = None,
-        local_storage: Optional[Dict[str, Any]] = None,
+        local_storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[Dict[str, Any]] = None,
         fetch: Optional[Callable] = None,
     ) -> "ClientOptions":
         """Create a new SupabaseClientOptions with changes"""
-        changes = {
-            key: value
-            for key, value in locals().items()
-            if key != "self" and value is not None
-        }
-        client_options = dataclasses.replace(self, **changes)
-        client_options = copy.deepcopy(client_options)
+        client_options = ClientOptions()
+        client_options.schema = schema or self.schema
+        client_options.headers = headers or self.headers
+        client_options.auto_refresh_token = (
+            auto_refresh_token or self.auto_refresh_token
+        )
+        client_options.persist_session = persist_session or self.persist_session
+        client_options.local_storage = local_storage or self.local_storage
+        client_options.realtime = realtime or self.realtime
+        client_options.fetch = fetch or self.fetch
         return client_options
