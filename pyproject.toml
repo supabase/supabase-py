@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "supabase"
-version = "0.0.3"
+version = "0.1.1"
 description = "Supabase client for Python."
-authors = ["Joel Lee <joel@joellee.org>", "Leon Fedden <leonfedden@gmail.com>"]
+authors = ["Joel Lee <joel@joellee.org>", "Leon Fedden <leonfedden@gmail.com>", "Daniel Reinón García <danielreinon@outlook.com>", "Leynier Gutiérrez González <leynier41@gmail.com>", "Anand"]
 homepage = "https://github.com/supabase-community/supabase-py"
 repository = "https://github.com/supabase-community/supabase-py"
 documentation = "https://github.com/supabase-community/supabase-py"
@@ -16,9 +16,9 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-postgrest-py = {git = "https://github.com/supabase-community/postgrest-py.git", rev = "3934fb2bd7c755962fa2fe490419d3e967e3555a"}
-realtime-py = "^0.1.2"
-gotrue = {git = "https://github.com/supabase-community/gotrue-py.git", rev = "9ba3192dbdccd2f02a4819b52dd6cf51095af7e7"}
+postgrest-py = "^0.6.0"
+realtime = "^0.0.4"
+gotrue = "^0.3.0"
 httpx = ">=0.19,<0.22"
 
 [tool.poetry.dev-dependencies]
@@ -32,7 +32,7 @@ commitizen = "^2.20.3"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.0.3"
+version = "0.1.1"
 version_files = [
     "supabase/__init__.py",
     "pyproject.toml:version"
