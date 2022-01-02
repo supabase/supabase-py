@@ -1,4 +1,4 @@
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 from supabase import client, lib
 from supabase.client import Client, create_client
