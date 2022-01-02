@@ -41,7 +41,7 @@ jobs:
         uses: commitizen-tools/commitizen-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
+          branch: develop
           changelog_increment_filename: body.md
       - name: Release
         uses: softprops/action-gh-release@v1
