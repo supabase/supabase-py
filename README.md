@@ -1,6 +1,6 @@
 # supabase-py
 
-[![Tests](https://github.com/supabase/supabase-py/actions/workflows/ci-python.yml/badge.svg)](https://github.com/supabase/supabase-py/actions)
+[![CI/CD](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml)
 [![PyPI version](https://badge.fury.io/py/supabase.svg)](https://badge.fury.io/py/supabase)
 [![Documentation Status](https://readthedocs.org/projects/supabase/badge/?version=latest)](https://supabase.readthedocs.io/en/latest/?badge=latest)
 
