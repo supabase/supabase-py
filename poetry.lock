@@ -215,15 +215,15 @@ pyflakes = ">=2.4.0,<2.5.0"
 
 [[package]]
 name = "gotrue"
-version = "0.3.0"
+version = "0.3.3"
 description = "Python Client Library for GoTrue"
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
-httpx = ">=0.20,<0.22"
-pydantic = ">=1.8.2,<2.0.0"
+httpx = ">=0.21.3,<0.22.0"
+pydantic = ">=1.9.0,<2.0.0"
 
 [[package]]
 name = "h11"
@@ -836,8 +836,8 @@ flake8 = [
     {file = "flake8-4.0.1.tar.gz", hash = "sha256:806e034dda44114815e23c16ef92f95c91e4c71100ff52813adf7132a6ad870d"},
 ]
 gotrue = [
-    {file = "gotrue-0.3.0-py3-none-any.whl", hash = "sha256:e1f89e6a7852d597bad454981fdfaa4ff02bd722c960ff639167a5eae8eaf1da"},
-    {file = "gotrue-0.3.0.tar.gz", hash = "sha256:a5037f6d3b0117613a3ea94b85795333080b7126e4e73e91b8178260559882cd"},
+    {file = "gotrue-0.3.3-py3-none-any.whl", hash = "sha256:d38d8d36f1d0a4927f3fedaac265982e406757fb5767073d5a2a55b23a099223"},
+    {file = "gotrue-0.3.3.tar.gz", hash = "sha256:284260bfd152b89b519ea7db64579ddea47a6c1ddfc5d24ab50eed0ae980209d"},
 ]
 h11 = [
     {file = "h11-0.12.0-py3-none-any.whl", hash = "sha256:36a3cb8c0a032f56e2da7084577878a035d3b61d104230d4bd49c0c6b555a9c6"},
