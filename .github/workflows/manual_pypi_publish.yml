@@ -1,0 +1,30 @@
+name: Manual PyPi Publish
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: PyPi Username
+        required: true
+        default: __token__
+      password:
+        description: PyPi Password
+        required: true
+jobs:
+  publish:
+    name: Manual PyPi Publish
+    runs-on: ubuntu-latest
+    steps:
+    - name: Clone Repository
+      uses: actions/checkout@v2
+    - name: Set up Python '3.10'
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+    - name: Set up Poetry
+      uses: abatilo/actions-poetry@v2.1.4
+      with:
+        poetry-version: 1.1.12
+    - name: Install dependencies
+      run: poetry install
+    - name: Publish to PyPi
+      run: poetry publish --build -u ${{ github.event.inputs.username }} -p ${{ github.event.inputs.password }}
