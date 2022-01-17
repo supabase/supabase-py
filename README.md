@@ -1,8 +1,16 @@
 # supabase-py
 
-[![CI/CD](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml)
-[![PyPI version](https://badge.fury.io/py/supabase.svg)](https://badge.fury.io/py/supabase)
-[![Documentation Status](https://readthedocs.org/projects/supabase/badge/?version=latest)](https://supabase.readthedocs.io/en/latest/?badge=latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?label=license)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/pypi/pyversions/supabase)](https://pypi.org/project/supabase)
+[![Version](https://img.shields.io/pypi/v/supabase?color=%2334D058)](https://pypi.org/project/supabase)
+[![Codecov](https://codecov.io/gh/supabase-community/supabase-py/branch/develop/graph/badge.svg)](https://codecov.io/gh/supabase-community/supabase-py)
+[![Last commit](https://img.shields.io/github/last-commit/supabase-community/supabase-py.svg?style=flat)](https://github.com/supabase-community/supabase-py/commits)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/supabase-community/supabase-py)](https://github.com/supabase-community/supabase-py/commits)
+[![Github Stars](https://img.shields.io/github/stars/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py/stargazers)
+[![Github Forks](https://img.shields.io/github/forks/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py/network/members)
+[![Github Watchers](https://img.shields.io/github/watchers/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py)
+[![GitHub contributors](https://img.shields.io/github/contributors/supabase-community/supabase-py)](https://github.com/supabase-community/supabase-py/graphs/contributors)
 
 Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
 
@@ -21,7 +29,7 @@ We are currently in Public Alpha. Watch "releases" of this repo to get notified 
 
 **Recomended:** First activate your virtual environment, with your favourites system. For example, we like `poetry` and `conda`!
 
-#### PyPi installation
+### PyPi installation
 
 Now install the package. (for > Python 3.7)
 
@@ -29,7 +37,7 @@ Now install the package. (for > Python 3.7)
 pip install supabase
 ```
 
-#### Local installation
+### Local installation
 
 You can also installing from after cloning this repo. Install like below to install in Development Mode, which means when you edit the source code the changes will be reflected in your python module.
 
@@ -115,7 +123,7 @@ user = supabase.auth.sign_in(email=random_email, password=random_password)
 
 ## Managing Data
 
-#### Insertion of Data
+### Insertion of Data
 
 ```python
 from supabase import create_client, Client
@@ -127,7 +135,7 @@ data = supabase.table("countries").insert({"name":"Germany"}).execute()
 assert len(data.get("data", [])) > 0
 ```
 
-#### Selection of Data
+### Selection of Data
 
 ```python
 from supabase import create_client, Client
@@ -140,7 +148,7 @@ data = supabase.table("countries").select("*").execute()
 assert len(data.get("data", [])) > 0
 ```
 
-#### Update of Data
+### Update of Data
 
 ```python
 from supabase import create_client, Client
