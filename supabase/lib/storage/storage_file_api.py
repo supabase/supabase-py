@@ -1,7 +1,10 @@
 from typing import Any
 
 import httpx
+import requests
 from httpx import HTTPError
+from requests import HTTPError as RequestsHTTPError
+from requests_toolbelt import MultipartEncoder
 
 
 class StorageFileAPI:
@@ -71,8 +74,7 @@ class StorageFileAPI:
         """
         try:
             _path = self._get_final_path(path)
-            public_url = f"{self.url}/object/public/{_path}"
-            return public_url
+            return f"{self.url}/object/public/{_path}"
         except:
             print("Public URL not found")
 
@@ -140,7 +142,7 @@ class StorageFileAPI:
         try:
             body = dict(self.DEFAULT_SEARCH_OPTIONS, **options)
             headers = dict(self.headers, **{"Content-Type": "application/json"})
-            body["prefix"] = path if path else ""
+            body["prefix"] = path or ""
             getdata = httpx.post(
                 f"{self.url}/object/list/{self.bucket_id}",
                 json=body,
@@ -189,15 +191,18 @@ class StorageFileAPI:
         headers = dict(self.headers, **self.DEFAULT_FILE_OPTIONS)
         headers.update(file_options)
         filename = path.rsplit("/", maxsplit=1)[-1]
-        files = {"file": (filename, open(file, "rb"), headers["contentType"])}
+        files = MultipartEncoder(
+            fields={"file": (filename, open(file, "rb"), headers["contentType"])}
+        )
+        headers["Content-Type"] = files.content_type
         _path = self._get_final_path(path)
         try:
-            resp = httpx.post(
+            resp = requests.post(
                 f"{self.url}/object/{_path}",
-                files=files,
+                data=files,
                 headers=headers,
             )
-        except HTTPError as http_err:
+        except RequestsHTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")  # Python 3.6
         except Exception as err:
             raise err  # Python 3.6
