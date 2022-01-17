@@ -29,15 +29,17 @@ flake8 = "^4.0.1"
 isort = "^5.9.3"
 pytest-cov = "^3.0.0"
 commitizen = "^2.20.3"
+python-semantic-release = "^7.23.0"
 
-[tool.commitizen]
-name = "cz_conventional_commits"
-version = "0.2.0"
-version_files = [
-    "supabase/__init__.py",
-    "pyproject.toml:version"
-]
-tag_format = "v$version"
+[tool.semantic_release]
+version_variable = "supabase/__init__.py:__version__"
+version_toml = "pyproject.toml:tool.poetry.version"
+major_on_zero = false
+commit_subject = "chore(release): bump version to v{version}"
+build_command = "curl -sSL https://install.python-poetry.org | python - && export PATH=\"/github/home/.local/bin:$PATH\" && poetry install && poetry build"
+upload_to_repository = false
+branch = "develop"
+changelog_components = "semantic_release.changelog.changelog_headers,semantic_release.changelog.compare_url"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
