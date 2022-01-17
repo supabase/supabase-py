@@ -153,11 +153,6 @@ data = supabase.table("countries").update({"country": "Indonesia", "capital_city
 
 ## Realtime Changes
 
-```python
-subscription = supabase
-  .table('countries')
-  .on('*',  lambda x: print(x))
-  .subscribe()
-```
+Realtime changes are unfortunately still a WIP. Feel free to file PRs to [realtime-py](https://github.com/supabase-community/realtime-py)
 
 See [Supabase Docs](https://supabase.io/docs/guides/client-libraries) for full list of examples
