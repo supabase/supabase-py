@@ -311,7 +311,7 @@ typing-extensions = {version = ">=3.7.4.3", markers = "python_version < \"3.8\""
 
 [[package]]
 name = "gotrue"
-version = "0.4.0"
+version = "0.5.0"
 description = "Python Client Library for GoTrue"
 category = "main"
 optional = false
@@ -1074,7 +1074,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "22e05c44245e61c899ca7853772166a571664f3d9ca7c1cad4148e3a8fd2b9bc"
+content-hash = "a51fda81b406e1207148c93065bc1ef2f2ddcab8d13bb9939ef11dc44d5d81ee"
 
 [metadata.files]
 anyio = [
@@ -1288,8 +1288,8 @@ gitpython = [
     {file = "GitPython-3.1.26.tar.gz", hash = "sha256:fc8868f63a2e6d268fb25f481995ba185a85a66fcad126f039323ff6635669ee"},
 ]
 gotrue = [
-    {file = "gotrue-0.4.0-py3-none-any.whl", hash = "sha256:b30dd75f768af14139d65bc59c523891bf279b2247c1d6a7606693769dfac1d4"},
-    {file = "gotrue-0.4.0.tar.gz", hash = "sha256:0c338ba90c9ee127f7002f23a91271efefaa83050bdce6e3f6e6106c4eb8a84b"},
+    {file = "gotrue-0.5.0-py3-none-any.whl", hash = "sha256:ed81289fd6a542caa05e6ab63d436561b7a04754783f4b9dd6b1114a04c146de"},
+    {file = "gotrue-0.5.0.tar.gz", hash = "sha256:b8a523a700809f89bc70ac4e465f5e610ac92793ca73b946bec665c30a764a8c"},
 ]
 h11 = [
     {file = "h11-0.12.0-py3-none-any.whl", hash = "sha256:36a3cb8c0a032f56e2da7084577878a035d3b61d104230d4bd49c0c6b555a9c6"},
