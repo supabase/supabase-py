@@ -16,12 +16,10 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-postgrest-py = "^0.8.0"
+postgrest-py = "^0.8.1"
 realtime = "^0.0.4"
-gotrue = ">=0.4,<0.6"
+gotrue = "^0.5.0"
 httpx = "^0.21.3"
-requests = "^2.27.1"
-requests-toolbelt = "^0.9.1"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.17.0"
