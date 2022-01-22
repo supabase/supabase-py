@@ -188,7 +188,7 @@ class StorageFileAPI:
         headers = dict(self.headers, **self.DEFAULT_FILE_OPTIONS)
         headers.update(file_options)
         filename = path.rsplit("/", maxsplit=1)[-1]
-        files = {"file": (filename, open(file, "rb"), headers.pop["content-type"])}
+        files = {"file": (filename, open(file, "rb"), headers.pop("content-type"))}
         _path = self._get_final_path(path)
         try:
             resp = httpx.post(
