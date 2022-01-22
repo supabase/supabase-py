@@ -17,8 +17,8 @@ class StorageFileAPI:
         },
     }
     DEFAULT_FILE_OPTIONS = {
-        "cacheControl": "3600",
-        "contentType": "text/plain;charset=UTF-8",
+        "cache-control": "3600",
+        "content-type": "text/plain;charset=UTF-8",
         "x-upsert": "false",
     }
 
