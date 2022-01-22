@@ -1,10 +1,7 @@
 from typing import Any
 
 import httpx
-import requests
 from httpx import HTTPError
-from requests import HTTPError as RequestsHTTPError
-from requests_toolbelt import MultipartEncoder
 
 
 class StorageFileAPI:
@@ -17,8 +14,8 @@ class StorageFileAPI:
         },
     }
     DEFAULT_FILE_OPTIONS = {
-        "cacheControl": "3600",
-        "contentType": "text/plain;charset=UTF-8",
+        "cache-control": "3600",
+        "content-type": "text/plain;charset=UTF-8",
         "x-upsert": "false",
     }
 
@@ -191,18 +188,15 @@ class StorageFileAPI:
         headers = dict(self.headers, **self.DEFAULT_FILE_OPTIONS)
         headers.update(file_options)
         filename = path.rsplit("/", maxsplit=1)[-1]
-        files = MultipartEncoder(
-            fields={"file": (filename, open(file, "rb"), headers["contentType"])}
-        )
-        headers["Content-Type"] = files.content_type
+        files = {"file": (filename, open(file, "rb"), headers.pop("content-type"))}
         _path = self._get_final_path(path)
         try:
-            resp = requests.post(
+            resp = httpx.post(
                 f"{self.url}/object/{_path}",
-                data=files,
+                files=files,
                 headers=headers,
             )
-        except RequestsHTTPError as http_err:
+        except HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")  # Python 3.6
         except Exception as err:
             raise err  # Python 3.6
