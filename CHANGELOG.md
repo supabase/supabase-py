@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.2 (2022-01-22)
+### Fix
+* Upgrade postgrest-py for fix order filter ([`b8840cd`](https://github.com/supabase-community/supabase-py/commit/b8840cdc07cd7d53767fe2c321761558aecd5bd4))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.3.1...v0.3.2)**
+
 ## v0.3.1 (2022-01-22)
 ### Fix
 * Use httpx in storage file upload ([#130](https://github.com/supabase-community/supabase-py/issues/130)) ([`086d925`](https://github.com/supabase-community/supabase-py/commit/086d92504f014079a125f5342c59d1d8bb7e795f))
