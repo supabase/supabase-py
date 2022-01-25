@@ -29,7 +29,7 @@ flake8 = "^4.0.1"
 isort = "^5.9.3"
 pytest-cov = "^3.0.0"
 commitizen = "^2.20.3"
-python-semantic-release = "^7.23.0"
+python-semantic-release = "^7.24.0"
 
 [tool.semantic_release]
 version_variable = "supabase/__init__.py:__version__"
