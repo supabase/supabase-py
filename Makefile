@@ -9,7 +9,6 @@ tests_pre_commit:
 	poetry run pre-commit run --all-files
 
 tests_only:
-	. scripts/export_tests_credentials.sh
 	poetry run pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
 tests: install tests_only tests_pre_commit
