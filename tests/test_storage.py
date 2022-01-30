@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pytest
-
 if TYPE_CHECKING:
     from supabase import Client
+    from typing import List, Dict, Any
 
 
-@pytest.mark.skip(reason="missing permissions on test instance")
 def test_client_upload_file(supabase: Client) -> None:
     """Ensure we can upload files to a bucket"""
 
@@ -17,14 +15,13 @@ def test_client_upload_file(supabase: Client) -> None:
     storage = supabase.storage()
     storage_file = storage.StorageFileAPI(TEST_BUCKET_NAME)
 
-    filename = "test.jpeg"
+    filename = "test_image.svg"
     filepath = f"tests/{filename}"
-    mimetype = "image/jpeg"
-    options = {"contentType": mimetype}
+    mimetype = "image/svg+xml"
+    options = {"content-type": mimetype}
 
     storage_file.upload(filename, filepath, options)
-    files = storage_file.list()
-    assert files
+    files: List[Dict[str, Any]] = storage_file.list()
 
     image_info = None
     for item in files:
@@ -32,6 +29,7 @@ def test_client_upload_file(supabase: Client) -> None:
             image_info = item
             break
 
+    assert files
     assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == mimetype
 
