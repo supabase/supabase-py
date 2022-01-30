@@ -30,15 +30,10 @@ def delete_left_buckets(request, supabase: Client):
 
     def finalizer(supabase: Client = supabase):
         storage_client = supabase.storage()
-        buckets_list = storage_client.list_buckets()
-        if not buckets_list:
-            return
-        test_buckets = [
-            bucket.id for bucket in buckets_list if bucket.id.startswith("pytest-")
-        ]
-        for bucket_id in test_buckets:
-            storage_client.empty_bucket(bucket_id)
-            storage_client.delete_bucket(bucket_id)
+        for bucket in storage_client.list_buckets():
+            if bucket.id.startswith("pytest-"):
+                storage_client.empty_bucket(bucket.id)
+                storage_client.delete_bucket(bucket.id)
 
     request.addfinalizer(finalizer)
 
@@ -61,11 +56,7 @@ def test_client_upload_file(supabase: Client, bucket: str, folder: str) -> None:
 
     storage_file.upload(bucket_file_path, file_path, options)
     files: List[Dict[str, Any]] = storage_file.list(folder)
-    image_info = None
-    for item in files:
-        if item.get("name") == file_name:
-            image_info = item
-            break
+    image_info = next((f for f in files if f.get("name") == file_name), None)
 
     assert files
     assert image_info is not None
