@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import os
 
-from dotenv import load_dotenv
 import pytest
+from dotenv import load_dotenv
 
 from supabase import Client, create_client
 
 
 def pytest_configure(config) -> None:
-    load_dotenv(dotenv_path='tests/tests.env')
+    load_dotenv(dotenv_path="tests/tests.env")
 
 
 @pytest.fixture(scope="session")

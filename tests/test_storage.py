@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Any, Dict, List
+
     from supabase import Client
-    from typing import List, Dict, Any
 
 
 def test_client_upload_file(supabase: Client) -> None:
