@@ -1,7 +1,7 @@
 from __future__ import annotations
+
 from pathlib import Path
 from time import sleep
-
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -10,7 +10,7 @@ import pytest
 if TYPE_CHECKING:
     from typing import Any, Dict, List
 
-    from supabase import Client, SupabaseStorageClient, StorageFileAPI
+    from supabase import Client, StorageFileAPI, SupabaseStorageClient
 
 
 @pytest.fixture(scope="module")
