@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
+from time import sleep
 
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -23,6 +24,7 @@ def delete_left_buckets(request, storage_client: SupabaseStorageClient):
     """Ensures no test buckets are left"""
 
     def finalizer():
+        sleep(5)
         for bucket in storage_client.list_buckets():
             if bucket.id.startswith("pytest-"):
                 storage_client.empty_bucket(bucket.id)
