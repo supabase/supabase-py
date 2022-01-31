@@ -9,15 +9,20 @@ import pytest
 if TYPE_CHECKING:
     from typing import Any, Dict, List
 
-    from supabase import Client
+    from supabase import Client, SupabaseStorageClient, StorageFileAPI
+
+
+@pytest.fixture(scope="module")
+def storage_client(supabase: Client) -> SupabaseStorageClient:
+    """Creates the storage client for the whole storage tests run"""
+    return supabase.storage()
 
 
 @pytest.fixture(scope="module", autouse=True)
-def delete_left_buckets(request, supabase: Client):
+def delete_left_buckets(request, storage_client: SupabaseStorageClient):
     """Ensures no test buckets are left"""
 
-    def finalizer(supabase: Client = supabase):
-        storage_client = supabase.storage()
+    def finalizer():
         for bucket in storage_client.list_buckets():
             if bucket.id.startswith("pytest-"):
                 storage_client.empty_bucket(bucket.id)
@@ -27,16 +32,23 @@ def delete_left_buckets(request, supabase: Client):
 
 
 @pytest.fixture(scope="module")
-def bucket(supabase: Client) -> str:
+def bucket(storage_client: SupabaseStorageClient) -> str:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = f"pytest-{uuid4().hex[:8]}"
-    storage_client = supabase.storage()
     storage_client.create_bucket(id=bucket_id)
 
     yield bucket_id
 
     storage_client.empty_bucket(bucket_id)
     storage_client.delete_bucket(bucket_id)
+
+
+@pytest.fixture(scope="module")
+def storage_file_client(
+    storage_client: SupabaseStorageClient, bucket: str
+) -> StorageFileAPI:
+    """Creates the storage file client for the whole storage tests run"""
+    yield storage_client.StorageFileAPI(bucket)
 
 
 @pytest.fixture
@@ -75,11 +87,9 @@ def file(tmp_path: Path) -> Dict[str, str]:
 
 
 def test_client_upload_file(
-    supabase: Client, bucket: str, file: Dict[str, str]
+    storage_file_client: StorageFileAPI, file: Dict[str, str]
 ) -> None:
     """Ensure we can upload files to a bucket"""
-    storage = supabase.storage()
-    storage_file = storage.StorageFileAPI(bucket)
 
     file_name = file["name"]
     file_path = file["local_path"]
@@ -88,8 +98,8 @@ def test_client_upload_file(
     bucket_folder = file["bucket_folder"]
     options = {"content-type": mime_type}
 
-    storage_file.upload(bucket_file_path, file_path, options)
-    files: List[Dict[str, Any]] = storage_file.list(bucket_folder)
+    storage_file_client.upload(bucket_file_path, file_path, options)
+    files: List[Dict[str, Any]] = storage_file_client.list(bucket_folder)
     image_info = next((f for f in files if f.get("name") == file_name), None)
 
     assert files
