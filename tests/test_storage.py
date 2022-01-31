@@ -24,7 +24,7 @@ def delete_left_buckets(request, storage_client: SupabaseStorageClient):
     """Ensures no test buckets are left"""
 
     def finalizer():
-        sleep(5)
+        sleep(15)
         for bucket in storage_client.list_buckets():
             if bucket.id.startswith("pytest-"):
                 storage_client.empty_bucket(bucket.id)
