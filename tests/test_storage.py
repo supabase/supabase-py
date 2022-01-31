@@ -71,6 +71,9 @@ def file(tmp_path: Path) -> Dict[str, str]:
     }
 
 
+# TODO: Test create_bucket, delete_bucket, empty_bucket, list_buckets, fileAPI.list before upload test
+
+
 def test_client_upload_file(
     supabase: Client, bucket: str, file: Dict[str, str]
 ) -> None:
