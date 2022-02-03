@@ -52,7 +52,7 @@ def delete_left_buckets(
                 except StorageException as e:
                     # Ignore 404 responses since they mean the bucket was already deleted
                     response = e.args[0]
-                    if response["status_code"] != 404:
+                    if response["statusCode"] != 404:
                         raise e
                     continue
 
