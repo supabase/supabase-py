@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v0.3.3 (2022-02-03)
+### Fix
+* Increase sleep before listing ([`127ef98`](https://github.com/supabase-community/supabase-py/commit/127ef98d56eceef992b1ed9cfdc69b9701f3b92a))
+* Sleep before listing buckets ([`566a355`](https://github.com/supabase-community/supabase-py/commit/566a35587983361f2bb2bc5c58f3b82b02d6ed0e))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.3.2...v0.3.3)**
+
 ## v0.3.2 (2022-01-22)
 ### Fix
 * Upgrade postgrest-py for fix order filter ([`b8840cd`](https://github.com/supabase-community/supabase-py/commit/b8840cdc07cd7d53767fe2c321761558aecd5bd4))
