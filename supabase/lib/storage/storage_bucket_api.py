@@ -48,7 +48,7 @@ class StorageBucketAPI:
     """This class abstracts access to the endpoint to the Get, List, Empty, and Delete operations on a bucket"""
 
     def __init__(
-        self, url: str, headers: dict[str, str], is_async: bool = False
+        self, url: str, headers: Dict[str, str], is_async: bool = False
     ) -> None:
         self.url = url
         self.headers = headers
@@ -64,7 +64,7 @@ class StorageBucketAPI:
         self,
         method: _RequestMethod,
         url: str,
-        json: Optional[dict[Any, Any]] = None,
+        json: Optional[Dict[Any, Any]] = None,
         response_class: Optional[Type] = None,
     ) -> Any:
         if self._is_async:
@@ -76,7 +76,7 @@ class StorageBucketAPI:
         self,
         method: _RequestMethod,
         url: str,
-        json: Optional[dict[Any, Any]] = None,
+        json: Optional[Dict[Any, Any]] = None,
         response_class: Optional[Type] = None,
     ) -> ResponseType:
         if isinstance(self._client, AsyncClient):  # only to appease the type checker
@@ -102,7 +102,7 @@ class StorageBucketAPI:
         self,
         method: _RequestMethod,
         url: str,
-        json: Optional[dict[Any, Any]] = None,
+        json: Optional[Dict[Any, Any]] = None,
         response_class: Optional[Type] = None,
     ) -> ResponseType:
         if isinstance(self._client, Client):  # only to appease the type checker
@@ -124,7 +124,7 @@ class StorageBucketAPI:
         else:
             return response_class(**response_data)
 
-    def list_buckets(self) -> Union[list[Bucket], Awaitable[list[Bucket]], None]:
+    def list_buckets(self) -> Union[List[Bucket], Awaitable[List[Bucket]], None]:
         """Retrieves the details of all storage buckets within an existing product."""
         return self._request("GET", f"{self.url}/bucket", response_class=Bucket)
 
@@ -140,7 +140,7 @@ class StorageBucketAPI:
 
     def create_bucket(
         self, id: str, name: str = None, public: bool = False
-    ) -> Union[dict[str, str], Awaitable[dict[str, str]]]:
+    ) -> Union[Dict[str, str], Awaitable[Dict[str, str]]]:
         """Creates a new storage bucket.
 
         Parameters
@@ -158,7 +158,7 @@ class StorageBucketAPI:
             json={"id": id, "name": name or id, "public": public},
         )
 
-    def empty_bucket(self, id: str) -> Union[dict[str, str], Awaitable[dict[str, str]]]:
+    def empty_bucket(self, id: str) -> Union[Dict[str, str], Awaitable[Dict[str, str]]]:
         """Removes all objects inside a single bucket.
 
         Parameters
@@ -170,7 +170,7 @@ class StorageBucketAPI:
 
     def delete_bucket(
         self, id: str
-    ) -> Union[dict[str, str], Awaitable[dict[str, str]]]:
+    ) -> Union[Dict[str, str], Awaitable[Dict[str, str]]]:
         """Deletes an existing bucket. Note that you cannot delete buckets with existing objects inside. You must first
         `empty()` the bucket.
 
