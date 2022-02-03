@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from time import sleep
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+
+from supabase import StorageException
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -39,16 +40,21 @@ def delete_left_buckets(
     """Ensures no test buckets are left"""
 
     def finalizer():
-        # Sleep 15 seconds in order to let buckets be deleted before the double-check
-        sleep(15)
         buckets_list = storage_client.list_buckets()
         if not buckets_list:
             return
 
         for bucket in buckets_list:
             if bucket.id.startswith(UUID_PREFIX):
-                storage_client.empty_bucket(bucket.id)
-                storage_client.delete_bucket(bucket.id)
+                try:
+                    storage_client.empty_bucket(bucket.id)
+                    storage_client.delete_bucket(bucket.id)
+                except StorageException as e:
+                    # Ignore 404 responses since they mean the bucket was already deleted
+                    response = e.args[0]
+                    if response["status_code"] != 404:
+                        raise e
+                    continue
 
     request.addfinalizer(finalizer)
 

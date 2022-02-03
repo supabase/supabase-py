@@ -1,3 +1,3 @@
-from supabase.lib import auth_client, realtime_client, storage_client
+from supabase.lib import auth_client, realtime_client, storage, storage_client
 
-__all__ = ["auth_client", "realtime_client", "storage_client"]
+__all__ = ["auth_client", "realtime_client", "storage_client", "storage"]
