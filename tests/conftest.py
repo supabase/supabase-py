@@ -3,8 +3,13 @@ from __future__ import annotations
 import os
 
 import pytest
+from dotenv import load_dotenv
 
 from supabase import Client, create_client
+
+
+def pytest_configure(config) -> None:
+    load_dotenv(dotenv_path="tests/tests.env")
 
 
 @pytest.fixture(scope="session")
