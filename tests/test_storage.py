@@ -34,10 +34,17 @@ def delete_left_buckets(request, storage_client: SupabaseStorageClient):
     request.addfinalizer(finalizer)
 
 
+@pytest.fixture
+def uuid() -> str:
+    # Get the first 8 digits part to make it shorter
+    uuid = uuid4().hex[:8]
+    return f"pytest-{uuid}"
+
+
 @pytest.fixture(scope="module")
-def bucket(storage_client: SupabaseStorageClient) -> str:
+def bucket(storage_client: SupabaseStorageClient, uuid: str) -> str:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
-    bucket_id = f"pytest-{uuid4().hex[:8]}"
+    bucket_id = uuid
     storage_client.create_bucket(id=bucket_id)
 
     yield bucket_id
@@ -55,7 +62,7 @@ def storage_file_client(
 
 
 @pytest.fixture
-def file(tmp_path: Path) -> Dict[str, str]:
+def file(tmp_path: Path, uuid: str) -> Dict[str, str]:
     """Creates a different test file (same content but different path) for each test"""
     file_name = "test_image.svg"
     file_content = (
@@ -71,7 +78,7 @@ def file(tmp_path: Path) -> Dict[str, str]:
         b'</linearGradient> <linearGradient id="paint1_linear" x1="36.1558" y1="30.578" x2="54.4844" y2="65.0806" '
         b'gradientUnits="userSpaceOnUse"> <stop/> <stop offset="1" stop-opacity="0"/> </linearGradient> </defs> </svg>'
     )
-    bucket_folder = uuid4().hex[:8]
+    bucket_folder = uuid
     bucket_path = f"{bucket_folder}/{file_name}"
     file_path = tmp_path / file_name
     with open(file_path, "wb") as f:
