@@ -8,7 +8,7 @@ import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any, Dict, List, Callable
+    from typing import Any, Callable, Dict, List
 
     from supabase import Client, StorageFileAPI, SupabaseStorageClient
 
@@ -54,7 +54,9 @@ def delete_left_buckets(
 
 
 @pytest.fixture(scope="module")
-def bucket(storage_client: SupabaseStorageClient, uuid_factory: Callable[[], str]) -> str:
+def bucket(
+    storage_client: SupabaseStorageClient, uuid_factory: Callable[[], str]
+) -> str:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
     storage_client.create_bucket(id=bucket_id)
