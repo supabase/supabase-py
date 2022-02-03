@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from time import sleep
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -8,9 +7,23 @@ from uuid import uuid4
 import pytest
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, List
+    from pathlib import Path
+    from typing import Any, Dict, List, Callable
 
     from supabase import Client, StorageFileAPI, SupabaseStorageClient
+
+
+UUID_PREFIX = "pytest-"
+
+
+@pytest.fixture(scope="module")
+def uuid_factory() -> Callable[[], str]:
+    def method() -> str:
+        """Generate a UUID"""
+        uuid = uuid4().hex[:8]  # Get the first 8 digits part to make it shorter
+        return f"{UUID_PREFIX}{uuid}"
+
+    return method
 
 
 @pytest.fixture(scope="module")
@@ -20,31 +33,30 @@ def storage_client(supabase: Client) -> SupabaseStorageClient:
 
 
 @pytest.fixture(scope="module", autouse=True)
-def delete_left_buckets(request, storage_client: SupabaseStorageClient):
+def delete_left_buckets(
+    request: pytest.FixtureRequest, storage_client: SupabaseStorageClient
+):
     """Ensures no test buckets are left"""
 
     def finalizer():
         # Sleep 15 seconds in order to let buckets be deleted before the double-check
         sleep(15)
-        for bucket in storage_client.list_buckets():
-            if bucket.id.startswith("pytest-"):
+        buckets_list = storage_client.list_buckets()
+        if not buckets_list:
+            return
+
+        for bucket in buckets_list:
+            if bucket.id.startswith(UUID_PREFIX):
                 storage_client.empty_bucket(bucket.id)
                 storage_client.delete_bucket(bucket.id)
 
     request.addfinalizer(finalizer)
 
 
-@pytest.fixture
-def uuid() -> str:
-    # Get the first 8 digits part to make it shorter
-    uuid = uuid4().hex[:8]
-    return f"pytest-{uuid}"
-
-
 @pytest.fixture(scope="module")
-def bucket(storage_client: SupabaseStorageClient, uuid: str) -> str:
+def bucket(storage_client: SupabaseStorageClient, uuid_factory: Callable[[], str]) -> str:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
-    bucket_id = uuid
+    bucket_id = uuid_factory()
     storage_client.create_bucket(id=bucket_id)
 
     yield bucket_id
@@ -62,7 +74,7 @@ def storage_file_client(
 
 
 @pytest.fixture
-def file(tmp_path: Path, uuid: str) -> Dict[str, str]:
+def file(tmp_path: Path, uuid_factory: Callable[[], str]) -> Dict[str, str]:
     """Creates a different test file (same content but different path) for each test"""
     file_name = "test_image.svg"
     file_content = (
@@ -78,7 +90,7 @@ def file(tmp_path: Path, uuid: str) -> Dict[str, str]:
         b'</linearGradient> <linearGradient id="paint1_linear" x1="36.1558" y1="30.578" x2="54.4844" y2="65.0806" '
         b'gradientUnits="userSpaceOnUse"> <stop/> <stop offset="1" stop-opacity="0"/> </linearGradient> </defs> </svg>'
     )
-    bucket_folder = uuid
+    bucket_folder = uuid_factory()
     bucket_path = f"{bucket_folder}/{file_name}"
     file_path = tmp_path / file_name
     with open(file_path, "wb") as f:
