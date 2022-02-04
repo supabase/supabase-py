@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from time import sleep
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
+
+from supabase import StorageException
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -13,15 +14,15 @@ if TYPE_CHECKING:
     from supabase import Client, StorageFileAPI, SupabaseStorageClient
 
 
-UUID_PREFIX = "pytest-"
+# Global variable to track the ids from the buckets created in the tests run
+temp_test_buckets_ids = []
 
 
 @pytest.fixture(scope="module")
 def uuid_factory() -> Callable[[], str]:
     def method() -> str:
-        """Generate a UUID"""
-        uuid = uuid4().hex[:8]  # Get the first 8 digits part to make it shorter
-        return f"{UUID_PREFIX}{uuid}"
+        """Generate a 8 digits long UUID"""
+        return uuid4().hex[:8]
 
     return method
 
@@ -36,19 +37,19 @@ def storage_client(supabase: Client) -> SupabaseStorageClient:
 def delete_left_buckets(
     request: pytest.FixtureRequest, storage_client: SupabaseStorageClient
 ):
-    """Ensures no test buckets are left"""
+    """Ensures no test buckets are left when a test that created a bucket fails"""
 
     def finalizer():
-        # Sleep 15 seconds in order to let buckets be deleted before the double-check
-        sleep(15)
-        buckets_list = storage_client.list_buckets()
-        if not buckets_list:
-            return
-
-        for bucket in buckets_list:
-            if bucket.id.startswith(UUID_PREFIX):
+        for bucket in temp_test_buckets_ids:
+            try:
                 storage_client.empty_bucket(bucket.id)
                 storage_client.delete_bucket(bucket.id)
+            except StorageException as e:
+                # Ignore 404 responses since they mean the bucket was already deleted
+                response = e.args[0]
+                if response["statusCode"] != 404:
+                    raise e
+                continue
 
     request.addfinalizer(finalizer)
 
@@ -59,12 +60,19 @@ def bucket(
 ) -> str:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
+
+    # Store bucket_id in global list
+    global temp_test_buckets_ids
+    temp_test_buckets_ids.append(bucket_id)
+
     storage_client.create_bucket(id=bucket_id)
 
     yield bucket_id
 
     storage_client.empty_bucket(bucket_id)
     storage_client.delete_bucket(bucket_id)
+
+    temp_test_buckets_ids.remove(bucket_id)
 
 
 @pytest.fixture(scope="module")

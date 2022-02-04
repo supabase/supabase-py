@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 
 from httpx import AsyncClient, Client, HTTPError
 
-__all__ = ["Bucket", "StorageBucketAPI"]
+__all__ = ["Bucket", "StorageBucketAPI", "StorageException"]
 
 _RequestMethod = str
 
