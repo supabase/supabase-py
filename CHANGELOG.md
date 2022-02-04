@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.4.0 (2022-02-04)
+### Feature
+* Update postgrest-py from 0.8.1 to 0.8.2 ([`1feab46`](https://github.com/supabase-community/supabase-py/commit/1feab46f2df64de014aa550952192366cc8055ef))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.3.3...v0.4.0)**
+
 ## v0.3.3 (2022-02-03)
 ### Fix
 * Increase sleep before listing ([`127ef98`](https://github.com/supabase-community/supabase-py/commit/127ef98d56eceef992b1ed9cfdc69b9701f3b92a))
