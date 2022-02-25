@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.1 (2022-02-25)
+### Fix
+* Require 0.9.0>= postgrest dependency ([#158](https://github.com/supabase-community/supabase-py/issues/158)) ([`b9097e6`](https://github.com/supabase-community/supabase-py/commit/b9097e665b411ea53cad70b9c1cc893d61fe295f))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.0...v0.5.1)**
+
 ## v0.5.0 (2022-02-19)
 ### Feature
 * Export APIResponse and APIError from postgrest-py ([#152](https://github.com/supabase-community/supabase-py/issues/152)) ([`21a69da`](https://github.com/supabase-community/supabase-py/commit/21a69da238b043f48fba6d700830c40c6bcbf8fb))
