@@ -132,7 +132,7 @@ url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
 supabase: Client = create_client(url, key)
 data = supabase.table("countries").insert({"name":"Germany"}).execute()
-assert len(data.get("data", [])) > 0
+assert len(data.data) > 0
 ```
 
 ### Selection of Data
@@ -145,7 +145,7 @@ key: str = os.environ.get("SUPABASE_TEST_KEY")
 supabase: Client = create_client(url, key)
 data = supabase.table("countries").select("*").execute()
 # Assert we pulled real data.
-assert len(data.get("data", [])) > 0
+assert len(data.data) > 0
 ```
 
 ### Update of Data
@@ -156,7 +156,7 @@ from supabase import create_client, Client
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
 supabase: Client = create_client(url, key)
-data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", "1").execute()
+data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 
 ## Realtime Changes
