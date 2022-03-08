@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.2 (2022-03-08)
+### Fix
+* Bump postgrest-py from 0.9.0 to 0.9.1 ([#164](https://github.com/supabase-community/supabase-py/issues/164)) ([`ecfe544`](https://github.com/supabase-community/supabase-py/commit/ecfe5448c52c23e496767c5a9965f3b0430ff408))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.1...v0.5.2)**
+
 ## v0.5.1 (2022-02-25)
 ### Fix
 * Require 0.9.0>= postgrest dependency ([#158](https://github.com/supabase-community/supabase-py/issues/158)) ([`b9097e6`](https://github.com/supabase-community/supabase-py/commit/b9097e665b411ea53cad70b9c1cc893d61fe295f))
