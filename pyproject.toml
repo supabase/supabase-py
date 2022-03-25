@@ -30,7 +30,7 @@ isort = "^5.9.3"
 pytest-cov = "^3.0.0"
 commitizen = "^2.21.2"
 python-semantic-release = "^7.27.0"
-python-dotenv = "^0.19.2"
+python-dotenv = "^0.20.0"
 
 [tool.semantic_release]
 version_variable = "supabase/__init__.py:__version__"
