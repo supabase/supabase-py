@@ -1,4 +1,6 @@
-__version__ = "0.4.0"
+__version__ = "0.5.3"
+
+from postgrest_py import APIError, APIResponse
 
 from supabase import client, lib
 from supabase.client import Client, create_client
