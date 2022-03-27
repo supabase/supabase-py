@@ -1,13 +1,14 @@
 import json
 
-from fastapi import FastAPI, Request, Response
-# redis related imports
-from fastapi_redis_cache import FastApiRedisCache, cache_one_week
-
 # supabase client
 from config import Config
+
 # database cursor to supabase
 from data.database import SupabaseDB
+from fastapi import FastAPI, Request, Response
+
+# redis related imports
+from fastapi_redis_cache import FastApiRedisCache, cache_one_week
 
 # application factory
 app = FastAPI(title="Supafast Tutorial", debug=True)

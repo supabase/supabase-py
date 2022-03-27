@@ -8,12 +8,12 @@ See docs for more information,
 Setup your virtual environment:
 
 ```bash
-python3 -m venv env 
+python3 -m venv env
 ```
 
 Activating your environment
 
-```zsh 
+```zsh
 source env/bin/activate
 ```
 
@@ -64,7 +64,7 @@ INFO:     Application startup complete.
 
 ### 🎾 Endpoints
 
-Introduction to your application. 
+Introduction to your application.
 ```bash
 http "http://127.0.0.1:8000/"
 
@@ -79,10 +79,10 @@ server: uvicorn
 }
 ```
 
-Working with your redis cache, the following call will pull data 
-from your supabase database, and cache it. 
+Working with your redis cache, the following call will pull data
+from your supabase database, and cache it.
 
-The x-fastapi-cache header field indicates that this response was found in the Redis cache (a.k.a. a Hit). 
+The x-fastapi-cache header field indicates that this response was found in the Redis cache (a.k.a. a Hit).
 
 The only other possible value for this field is Miss. The expires field and max-age value in the cache-control field indicate that this response will be considered fresh for 604321 seconds(1 week). This is expected since it was specified in the @cache decorator.
 

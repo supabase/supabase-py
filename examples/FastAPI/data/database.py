@@ -1,9 +1,7 @@
-import os
-
-from supabase import Client, create_client
-
 # variables for database and url configuration
 from config import Config
+
+from supabase import Client, create_client
 
 
 class SupabaseDB:
