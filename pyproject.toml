@@ -20,6 +20,7 @@ postgrest-py = ">=0.9.1,<0.11.0"
 realtime = "^0.0.4"
 gotrue = "^0.5.0"
 httpx = "^0.21.3"
+supafunc="^0.1.0"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.17.0"
