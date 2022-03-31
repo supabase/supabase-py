@@ -3,7 +3,6 @@ from typing import Any, Dict
 
 from httpx import Response
 from postgrest_py import SyncPostgrestClient, SyncRequestBuilder
-from supafunc import FunctionsClient
 
 from supabase.lib.auth_client import SupabaseAuthClient
 from supabase.lib.client_options import ClientOptions
