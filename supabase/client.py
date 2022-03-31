@@ -43,8 +43,9 @@ class Client:
         self.realtime_url: str = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url: str = f"{supabase_url}/auth/v1"
         self.storage_url = f"{supabase_url}/storage/v1"
-        is_platform = re.search(r"(supabase\.co)|(supabase\.in)", supabase_url)
-        if is_platform:
+        if is_platform := re.search(
+            r"(supabase\.co)|(supabase\.in)", supabase_url
+        ):
             url_parts = supabase_url.split(".")
             self.functions_url = (
                 f"{url_parts[0]}.functions.{url_parts[1]}.{url_parts[2]}"
