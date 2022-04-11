@@ -563,7 +563,7 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "postgrest-py"
-version = "0.10.0"
+version = "0.10.1"
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 category = "main"
 optional = false
@@ -1469,8 +1469,8 @@ pluggy = [
     {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
 ]
 postgrest-py = [
-    {file = "postgrest-py-0.10.0.tar.gz", hash = "sha256:8d4d9cbf0c153d777968c4137f77f2bcd18eb79e37b128680fefbe36fa74c3ed"},
-    {file = "postgrest_py-0.10.0-py3-none-any.whl", hash = "sha256:c30ec588b830d158a54209ae7c53959e3007b04907559e08277155030469734f"},
+    {file = "postgrest-py-0.10.1.tar.gz", hash = "sha256:bc1daa88c1e74fbc8dd3060511625c847236bb57def712eea81b7fd056751155"},
+    {file = "postgrest_py-0.10.1-py3-none-any.whl", hash = "sha256:8702abc9e7e89aaa0ecc8606a1c4e295053050e41a0e402e56e25fe66cd857ff"},
 ]
 pre-commit = [
     {file = "pre_commit-2.18.1-py2.py3-none-any.whl", hash = "sha256:02226e69564ebca1a070bd1f046af866aa1c318dbc430027c50ab832ed2b73f2"},
