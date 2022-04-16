@@ -159,6 +159,18 @@ supabase: Client = create_client(url, key)
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 
+### Deletion of Data
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+data = supabase.table("countries").delete().eq("id", 1).execute()
+```
+
+
 ## Realtime Changes
 
 Realtime changes are unfortunately still a WIP. Feel free to file PRs to [realtime-py](https://github.com/supabase-community/realtime-py)
