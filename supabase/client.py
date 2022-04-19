@@ -1,11 +1,10 @@
 from typing import Any, Dict
 
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
-from storage3 import SyncStorageClient
-from storage3 import create_client as create_storage_client
 
-from supabase.lib.auth_client import SupabaseAuthClient
-from supabase.lib.client_options import ClientOptions
+from .lib.auth_client import SupabaseAuthClient
+from .lib.client_options import ClientOptions
+from .lib.storage_client import SupabaseStorageClient
 
 
 class Client:
@@ -61,11 +60,9 @@ class Client:
             headers=options.headers,
         )
 
-    def storage(self) -> SyncStorageClient:
+    def storage(self) -> SupabaseStorageClient:
         """Create instance of the storage client"""
-        return create_storage_client(
-            self.storage_url, self._get_auth_headers(), is_async=False
-        )
+        return SupabaseStorageClient(self.storage_url, self._get_auth_headers())
 
     def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
