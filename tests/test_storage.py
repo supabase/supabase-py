@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 from uuid import uuid4
 
 import pytest
+from storage3 import SyncStorageClient
+from storage3._sync.file_api import SyncBucketProxy
 
 from supabase import StorageException
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any, Callable, Dict, List
+    from typing import Callable, Dict
 
-    from supabase import Client, StorageFileAPI, SupabaseStorageClient
+    from supabase import Client
 
 
 # Global variable to track the ids from the buckets created in the tests run
@@ -28,22 +30,22 @@ def uuid_factory() -> Callable[[], str]:
 
 
 @pytest.fixture(scope="module")
-def storage_client(supabase: Client) -> SupabaseStorageClient:
+def storage_client(supabase: Client) -> SyncStorageClient:
     """Creates the storage client for the whole storage tests run"""
     return supabase.storage()
 
 
 @pytest.fixture(scope="module", autouse=True)
 def delete_left_buckets(
-    request: pytest.FixtureRequest, storage_client: SupabaseStorageClient
+    request: pytest.FixtureRequest, storage_client: SyncStorageClient
 ):
     """Ensures no test buckets are left when a test that created a bucket fails"""
 
     def finalizer():
         for bucket in temp_test_buckets_ids:
             try:
-                storage_client.empty_bucket(bucket.id)
-                storage_client.delete_bucket(bucket.id)
+                storage_client.empty_bucket(bucket)
+                storage_client.delete_bucket(bucket)
             except StorageException as e:
                 # Ignore 404 responses since they mean the bucket was already deleted
                 response = e.args[0]
@@ -55,9 +57,7 @@ def delete_left_buckets(
 
 
 @pytest.fixture(scope="module")
-def bucket(
-    storage_client: SupabaseStorageClient, uuid_factory: Callable[[], str]
-) -> str:
+def bucket(storage_client: SyncStorageClient, uuid_factory: Callable[[], str]):
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
 
@@ -77,10 +77,10 @@ def bucket(
 
 @pytest.fixture(scope="module")
 def storage_file_client(
-    storage_client: SupabaseStorageClient, bucket: str
-) -> StorageFileAPI:
+    storage_client: SyncStorageClient, bucket: str
+) -> Generator[SyncBucketProxy, None, None]:
     """Creates the storage file client for the whole storage tests run"""
-    yield storage_client.StorageFileAPI(bucket)
+    yield storage_client.from_(bucket)
 
 
 @pytest.fixture
@@ -119,7 +119,7 @@ def file(tmp_path: Path, uuid_factory: Callable[[], str]) -> Dict[str, str]:
 
 
 def test_client_upload_file(
-    storage_file_client: StorageFileAPI, file: Dict[str, str]
+    storage_file_client: SyncBucketProxy, file: Dict[str, str]
 ) -> None:
     """Ensure we can upload files to a bucket"""
 
@@ -131,7 +131,7 @@ def test_client_upload_file(
     options = {"content-type": mime_type}
 
     storage_file_client.upload(bucket_file_path, file_path, options)
-    files: List[Dict[str, Any]] = storage_file_client.list(bucket_folder)
+    files = storage_file_client.list(bucket_folder)
     image_info = next((f for f in files if f.get("name") == file_name), None)
 
     assert files
