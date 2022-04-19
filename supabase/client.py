@@ -69,7 +69,7 @@ class Client:
 
         Note that the supabase client uses the `from` method, but in Python,
         this is a reserved keyword so we have elected to use the name `table`.
-        Alternatively you can use the `._from()` method.
+        Alternatively you can use the `.from_()` method.
         """
         return self.from_(table_name)
 
