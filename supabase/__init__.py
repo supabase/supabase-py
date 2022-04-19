@@ -1,4 +1,5 @@
-from postgrest import APIError, APIResponse
+from postgrest import APIError as PostgrestAPIError
+from postgrest import APIResponse as PostgrestAPIResponse
 from storage3.utils import StorageException
 
 from .__version__ import __version__
