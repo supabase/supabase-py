@@ -1,7 +1,6 @@
 from typing import Any, Dict
 
-from httpx import Response
-from postgrest_py import SyncPostgrestClient, SyncRequestBuilder
+from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 
 from supabase.lib.auth_client import SupabaseAuthClient
 from supabase.lib.client_options import ClientOptions
@@ -82,7 +81,7 @@ class Client:
         """
         return self.postgrest.from_(table_name)
 
-    def rpc(self, fn: str, params: Dict[Any, Any]) -> Response:
+    def rpc(self, fn: str, params: Dict[Any, Any]) -> SyncFilterRequestBuilder:
         """Performs a stored procedure call.
 
         Parameters

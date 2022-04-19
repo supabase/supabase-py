@@ -563,7 +563,7 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "postgrest-py"
-version = "0.10.1"
+version = "0.10.2"
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 category = "main"
 optional = false
@@ -931,6 +931,17 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
+name = "storage3"
+version = "0.2.0"
+description = "Supabase Storage client for Python."
+category = "main"
+optional = false
+python-versions = ">=3.7,<4.0"
+
+[package.dependencies]
+httpx = ">=0.19,<0.22"
+
+[[package]]
 name = "termcolor"
 version = "1.1.0"
 description = "ANSII Color formatting for output in terminal."
@@ -1084,7 +1095,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "6238b7635c95cd0e5783da4ef3ae412f26a5b2d9b906aca170489de1b04aaf9d"
+content-hash = "3c0b49a407000a7464d0ab108173302bfff2499789ed209a1e428a6ab00e9f84"
 
 [metadata.files]
 anyio = [
@@ -1469,8 +1480,8 @@ pluggy = [
     {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
 ]
 postgrest-py = [
-    {file = "postgrest-py-0.10.1.tar.gz", hash = "sha256:bc1daa88c1e74fbc8dd3060511625c847236bb57def712eea81b7fd056751155"},
-    {file = "postgrest_py-0.10.1-py3-none-any.whl", hash = "sha256:8702abc9e7e89aaa0ecc8606a1c4e295053050e41a0e402e56e25fe66cd857ff"},
+    {file = "postgrest-py-0.10.2.tar.gz", hash = "sha256:14e49007245f78a1ecc8bfbc108c0590d8523c4abe1ba29d20d8cbff2efcabe2"},
+    {file = "postgrest_py-0.10.2-py3-none-any.whl", hash = "sha256:46c4998efd9f3e67f954d21b565c3ab3c6cca03934a0121f2a0964b87436229c"},
 ]
 pre-commit = [
     {file = "pre_commit-2.18.1-py2.py3-none-any.whl", hash = "sha256:02226e69564ebca1a070bd1f046af866aa1c318dbc430027c50ab832ed2b73f2"},
@@ -1651,6 +1662,10 @@ smmap = [
 sniffio = [
     {file = "sniffio-1.2.0-py3-none-any.whl", hash = "sha256:471b71698eac1c2112a40ce2752bb2f4a4814c22a54a3eed3676bc0f5ca9f663"},
     {file = "sniffio-1.2.0.tar.gz", hash = "sha256:c4666eecec1d3f50960c6bdf61ab7bc350648da6c126e3cf6898d8cd4ddcd3de"},
+]
+storage3 = [
+    {file = "storage3-0.2.0-py3-none-any.whl", hash = "sha256:256eed8eb2d267c293a686363f50f3fdcbefa6fc9a39ec8c375122b1b9889100"},
+    {file = "storage3-0.2.0.tar.gz", hash = "sha256:97947b2a6d9959495296570b674095b0c5353b405d557911b6a5567b510f0251"},
 ]
 termcolor = [
     {file = "termcolor-1.1.0.tar.gz", hash = "sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b"},
