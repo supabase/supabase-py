@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.4 (2022-04-30)
+### Fix
+* Typo in docstring ([`54cd34e`](https://github.com/supabase-community/supabase-py/commit/54cd34e0b0d6af7e477fefeab38f7ccb6ce2f81a))
+* Correct path to version ([`cb5b4b2`](https://github.com/supabase-community/supabase-py/commit/cb5b4b251d5504feb0d6e94e1aa058bf5fc7a646))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.3...v0.5.4)**
+
 ## v0.5.3 (2022-03-08)
 ### Fix
 * Force postgrest version with fix ([#165](https://github.com/supabase-community/supabase-py/issues/165)) ([`59ad801`](https://github.com/supabase-community/supabase-py/commit/59ad801b2e51dc3c9d4cc82069bd19501f0bd923))
