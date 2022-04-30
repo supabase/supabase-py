@@ -1,12 +1,10 @@
 from typing import Any, Dict
 
-from httpx import Response
-from postgrest_py import SyncPostgrestClient, SyncRequestBuilder
+from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 
-from supabase.lib.auth_client import SupabaseAuthClient
-from supabase.lib.client_options import ClientOptions
-from supabase.lib.realtime_client import SupabaseRealtimeClient
-from supabase.lib.storage_client import SupabaseStorageClient
+from .lib.auth_client import SupabaseAuthClient
+from .lib.client_options import ClientOptions
+from .lib.storage_client import SupabaseStorageClient
 
 
 class Client:
@@ -71,7 +69,7 @@ class Client:
 
         Note that the supabase client uses the `from` method, but in Python,
         this is a reserved keyword so we have elected to use the name `table`.
-        Alternatively you can use the `._from()` method.
+        Alternatively you can use the `.from_()` method.
         """
         return self.from_(table_name)
 
@@ -82,7 +80,7 @@ class Client:
         """
         return self.postgrest.from_(table_name)
 
-    def rpc(self, fn: str, params: Dict[Any, Any]) -> Response:
+    def rpc(self, fn: str, params: Dict[Any, Any]) -> SyncFilterRequestBuilder:
         """Performs a stored procedure call.
 
         Parameters
@@ -94,9 +92,9 @@ class Client:
 
         Returns
         -------
-        Response
-            Returns the HTTP Response object which results from executing the
-            call.
+        SyncFilterRequestBuilder
+            Returns a filter builder. This lets you apply filters on the response
+            of an RPC.
         """
         return self.postgrest.rpc(fn, params)
 
@@ -112,29 +110,29 @@ class Client:
     #             raise e
     #     return remove_subscription_helper(subscription)
 
-    async def _close_subscription(self, subscription):
-        """Close a given subscription
+    # async def _close_subscription(self, subscription):
+    #    """Close a given subscription
 
-        Parameters
-        ----------
-        subscription
-            The name of the channel
-        """
-        if not subscription.closed:
-            await self._closeChannel(subscription)
+    #    Parameters
+    #    ----------
+    #    subscription
+    #        The name of the channel
+    #    """
+    #    if not subscription.closed:
+    #        await self._closeChannel(subscription)
 
-    def get_subscriptions(self):
-        """Return all channels the client is subscribed to."""
-        return self.realtime.channels
+    # def get_subscriptions(self):
+    #     """Return all channels the client is subscribed to."""
+    #     return self.realtime.channels
 
-    @staticmethod
-    def _init_realtime_client(
-        realtime_url: str, supabase_key: str
-    ) -> SupabaseRealtimeClient:
-        """Private method for creating an instance of the realtime-py client."""
-        return SupabaseRealtimeClient(
-            realtime_url, {"params": {"apikey": supabase_key}}
-        )
+    # @staticmethod
+    # def _init_realtime_client(
+    #     realtime_url: str, supabase_key: str
+    # ) -> SupabaseRealtimeClient:
+    #     """Private method for creating an instance of the realtime-py client."""
+    #     return SupabaseRealtimeClient(
+    #         realtime_url, {"params": {"apikey": supabase_key}}
+    #     )
 
     @staticmethod
     def _init_supabase_auth_client(
