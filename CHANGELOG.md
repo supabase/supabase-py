@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.5 (2022-05-01)
+### Fix
+* Bump storage3 ([`f557000`](https://github.com/supabase-community/supabase-py/commit/f557000ff4b0ad3304a6a058e49a0e07979cc09c))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.4...v0.5.5)**
+
 ## v0.5.4 (2022-04-30)
 ### Fix
 * Typo in docstring ([`54cd34e`](https://github.com/supabase-community/supabase-py/commit/54cd34e0b0d6af7e477fefeab38f7ccb6ce2f81a))

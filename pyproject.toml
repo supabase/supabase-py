@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "supabase"
-version = "0.5.4"
+version = "0.5.5"
 description = "Supabase client for Python."
 authors = ["Joel Lee <joel@joellee.org>", "Leon Fedden <leonfedden@gmail.com>", "Daniel Reinón García <danielreinon@outlook.com>", "Leynier Gutiérrez González <leynier41@gmail.com>", "Anand"]
 homepage = "https://github.com/supabase-community/supabase-py"
