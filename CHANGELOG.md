@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.6 (2022-05-06)
+### Fix
+* Export SupabaseStorageClient ([`8539a4e`](https://github.com/supabase-community/supabase-py/commit/8539a4eeb6109712a600e92736fa5a0a3df343c8))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.5...v0.5.6)**
+
 ## v0.5.5 (2022-05-01)
 ### Fix
 * Bump storage3 ([`f557000`](https://github.com/supabase-community/supabase-py/commit/f557000ff4b0ad3304a6a058e49a0e07979cc09c))
