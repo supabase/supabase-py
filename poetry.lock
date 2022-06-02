@@ -935,7 +935,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "storage3"
-version = "0.3.1"
+version = "0.3.2"
 description = "Supabase Storage client for Python."
 category = "main"
 optional = false
@@ -1642,8 +1642,8 @@ sniffio = [
     {file = "sniffio-1.2.0.tar.gz", hash = "sha256:c4666eecec1d3f50960c6bdf61ab7bc350648da6c126e3cf6898d8cd4ddcd3de"},
 ]
 storage3 = [
-    {file = "storage3-0.3.1-py3-none-any.whl", hash = "sha256:8c4ce3d6d62950da61e1ec2dccc5d88fd3a1ecdaab7bbd201c39f87c7cc2ddd8"},
-    {file = "storage3-0.3.1.tar.gz", hash = "sha256:8e0bc7178a3a3b2b498b1a7aa7b0e351976d29ff8998437ce5c48507072b74ba"},
+    {file = "storage3-0.3.2-py3-none-any.whl", hash = "sha256:31a03c37fe8a04880c53794812dfdcc517cf05f2cee07d6809fa9a95dcb477c3"},
+    {file = "storage3-0.3.2.tar.gz", hash = "sha256:498b00142e58793f1975c5d6d142fed20fb1cf362ac39648ea6effbe6665bebc"},
 ]
 termcolor = [
     {file = "termcolor-1.1.0.tar.gz", hash = "sha256:1d6d69ce66211143803fbc56652b41d73b4a400a2891d7bf7a1cdf4c02de613b"},
