@@ -58,6 +58,7 @@ class Client:
             rest_url=self.rest_url,
             supabase_key=self.supabase_key,
             headers=options.headers,
+            schema=options.schema
         )
 
     def storage(self) -> SupabaseStorageClient:
@@ -154,9 +155,10 @@ class Client:
         rest_url: str,
         supabase_key: str,
         headers: Dict[str, str],
+        schema: str
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
-        client = SyncPostgrestClient(rest_url, headers=headers)
+        client = SyncPostgrestClient(rest_url, headers=headers, schema=schema)
         client.auth(token=supabase_key)
         return client
 
