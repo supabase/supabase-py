@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.7 (2022-06-08)
+### Fix
+* Lock python-semantic-release version ([`0a81c6f`](https://github.com/supabase-community/supabase-py/commit/0a81c6f84877b1c0d13a8214493f21a3afded4ba))
+* Force release ([`cfa5a55`](https://github.com/supabase-community/supabase-py/commit/cfa5a5533afcc500be787e2e4fa1de78dce5aaa5))
+* Pass schema to postgrest init ([`912a442`](https://github.com/supabase-community/supabase-py/commit/912a4420e9dc9c098cd49ad5cb7631ac86cb2b89))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.6...v0.5.7)**
+
 ## v0.5.6 (2022-05-06)
 ### Fix
 * Export SupabaseStorageClient ([`8539a4e`](https://github.com/supabase-community/supabase-py/commit/8539a4eeb6109712a600e92736fa5a0a3df343c8))
