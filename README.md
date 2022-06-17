@@ -17,7 +17,7 @@ Supabase client for Python. This mirrors the design of [supabase-js](https://git
 ## Status
 
 - [x] Alpha: We are testing Supabase with a closed set of customers
-- [x] Public Alpha: Anyone can sign up over at [app.supabase.io](https://app.supabase.io). But go easy on us, there are a few kinks.
+- [x] Public Alpha: Anyone can sign up over at [app.supabase.io](https://app.supabase.com). But go easy on us, there are a few kinks.
 - [ ] Public Beta: Stable enough for most non-enterprise use-cases
 - [ ] Public: Production-ready
 
@@ -175,7 +175,7 @@ data = supabase.table("countries").delete().eq("id", 1).execute()
 
 Realtime changes are unfortunately still a WIP. Feel free to file PRs to [realtime-py](https://github.com/supabase-community/realtime-py)
 
-See [Supabase Docs](https://supabase.io/docs/guides/client-libraries) for full list of examples
+See [Supabase Docs](https://supabase.com/docs/guides/client-libraries) for full list of examples
 
 ## Python and Supabase Resources
 
