@@ -176,3 +176,8 @@ data = supabase.table("countries").delete().eq("id", 1).execute()
 Realtime changes are unfortunately still a WIP. Feel free to file PRs to [realtime-py](https://github.com/supabase-community/realtime-py)
 
 See [Supabase Docs](https://supabase.io/docs/guides/client-libraries) for full list of examples
+
+## Python and Supabase Resources
+
+- [Python data loading with Supabase](https://supabase.com/blog/2022/06/15/loading-data-supabase-python)
+
