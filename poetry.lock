@@ -749,7 +749,7 @@ yaml = ["PyYaml (>=5.2)"]
 name = "python-semantic-release"
 version = "7.28.1"
 description = "Automatic Semantic Versioning for Python projects"
-category = "main"
+category = "dev"
 optional = false
 python-versions = "*"
 
@@ -951,7 +951,7 @@ python-versions = ">=3.5"
 name = "storage3"
 version = "0.3.4"
 description = "Supabase Storage client for Python."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 
@@ -1126,7 +1126,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "01dc91e6d319f6a1e2a251ed8da73a7a858326df11ae5a8bf1b4310aa821def7"
+content-hash = "2e6f3aae5a6b9de825ce5b17392076f8ed0ad4cba18dbd993272a8dedb378d28"
 
 [metadata.files]
 anyio = [
