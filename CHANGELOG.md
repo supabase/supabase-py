@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.5.8 (2022-06-27)
+### Fix
+* Downgrade python-semantic-release, fix end of file at README and force latest storage version ([`9c4bfba`](https://github.com/supabase-community/supabase-py/commit/9c4bfbab5539fbe242bbb728e7ad03037a79563a))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.7...v0.5.8)**
+
 ## v0.5.7 (2022-06-08)
 ### Fix
 * Lock python-semantic-release version ([`0a81c6f`](https://github.com/supabase-community/supabase-py/commit/0a81c6f84877b1c0d13a8214493f21a3afded4ba))
