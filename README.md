@@ -180,3 +180,4 @@ See [Supabase Docs](https://supabase.com/docs/guides/client-libraries) for full 
 ## Python and Supabase Resources
 
 - [Python data loading with Supabase](https://supabase.com/blog/2022/06/15/loading-data-supabase-python)
+- [Visualizing Supabase Data using Metabase](https://supabase.com/blog/2022/06/29/visualizing-supabase-data-using-metabase)
