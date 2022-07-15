@@ -48,7 +48,6 @@ class Client:
             auth_url=self.auth_url,
             supabase_key=self.supabase_key,
             client_options=options,
-
         )
         # TODO(fedden): Bring up to parity with JS client.
         # self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
@@ -61,7 +60,6 @@ class Client:
             supabase_key=self.supabase_key,
             headers=options.headers,
             schema=options.schema,
-            timeout=options.timeout
         )
 
     def storage(self) -> SupabaseStorageClient:
