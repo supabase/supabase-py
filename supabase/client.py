@@ -2,11 +2,11 @@ from typing import Any, Dict, Union
 
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
+from httpx import Timeout
 
 from .lib.auth_client import SupabaseAuthClient
 from .lib.client_options import ClientOptions
 from .lib.storage_client import SupabaseStorageClient
-from httpx import Timeout
 
 class Client:
     """Supabase client class."""
