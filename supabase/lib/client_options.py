@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional, Union
 
 from gotrue import SyncMemoryStorage, SyncSupportedStorage
-from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from httpx import Timeout
+from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 
 from supabase import __version__
 
