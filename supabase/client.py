@@ -1,7 +1,7 @@
 from typing import Any, Dict, Union
 
-from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from httpx import Timeout
+from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 
 from .lib.auth_client import SupabaseAuthClient
