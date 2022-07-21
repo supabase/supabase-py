@@ -48,7 +48,7 @@ class ClientOptions:
         local_storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[Dict[str, Any]] = None,
         fetch: Optional[Callable] = None,
-        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT
+        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
     ) -> "ClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = ClientOptions()
