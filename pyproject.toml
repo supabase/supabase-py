@@ -30,7 +30,7 @@ pytest = "^7.1.2"
 flake8 = "^5.0.4"
 isort = "^5.9.3"
 pytest-cov = "^4.0.0"
-commitizen = "^2.27.1"
+commitizen = "^2.35.0"
 python-semantic-release = "^7.28.1"
 python-dotenv = "^0.21.0"
 
