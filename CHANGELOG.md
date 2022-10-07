@@ -2,6 +2,18 @@
 
 <!--next-version-placeholder-->
 
+## v0.6.0 (2022-10-07)
+### Feature
+* Setting timeout for postgrest-py client. Closes #225 ([`258ddf1`](https://github.com/supabase-community/supabase-py/commit/258ddf12e2c5df8b30175c7a295934bc0f78133d))
+* Setting timeout for postgrest-py client. Closes #225 ([`709ad8d`](https://github.com/supabase-community/supabase-py/commit/709ad8dd12f5654ba44c34b5a03e9d0c191a09e3))
+* Setting timeout for postgrest-py client. Closes #225 ([`4769dc4`](https://github.com/supabase-community/supabase-py/commit/4769dc4aa8fef866e1173cd3d1e39923ba0aadd6))
+* Setting timeout for postgrest-py client. Closes #225 ([`a910474`](https://github.com/supabase-community/supabase-py/commit/a910474b6827f1e9dbf9f0dd5f127788ca6da29d))
+* Added timeout to options ([#225](https://github.com/supabase-community/supabase-py/issues/225)) ([`136ce25`](https://github.com/supabase-community/supabase-py/commit/136ce2576c859cf87175778e1569e073bb67aa63))
+* Added timeout to options ([`069ada2`](https://github.com/supabase-community/supabase-py/commit/069ada2f14c44e96f20e60c31ad1fdb8d9beb9e4))
+* Setting timeout for postgrest-py client ([#225](https://github.com/supabase-community/supabase-py/issues/225)) ([`de5aba3`](https://github.com/supabase-community/supabase-py/commit/de5aba359ad21fd35f4e222f4693913b9777618e))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.8...v0.6.0)**
+
 ## v0.5.8 (2022-06-27)
 ### Fix
 * Downgrade python-semantic-release, fix end of file at README and force latest storage version ([`9c4bfba`](https://github.com/supabase-community/supabase-py/commit/9c4bfbab5539fbe242bbb728e7ad03037a79563a))
