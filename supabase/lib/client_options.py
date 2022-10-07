@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
 from gotrue import SyncMemoryStorage, SyncSupportedStorage
+from httpx import Timeout
+from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 
 from supabase import __version__
 
@@ -34,6 +36,9 @@ class ClientOptions:
     fetch: Optional[Callable] = None
     """A custom `fetch` implementation."""
 
+    timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT
+    """Timeout passed to the SyncPostgrestClient instance."""
+
     def replace(
         self,
         schema: Optional[str] = None,
@@ -43,6 +48,7 @@ class ClientOptions:
         local_storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[Dict[str, Any]] = None,
         fetch: Optional[Callable] = None,
+        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
     ) -> "ClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = ClientOptions()
@@ -55,4 +61,5 @@ class ClientOptions:
         client_options.local_storage = local_storage or self.local_storage
         client_options.realtime = realtime or self.realtime
         client_options.fetch = fetch or self.fetch
+        client_options.timeout = timeout or self.timeout
         return client_options

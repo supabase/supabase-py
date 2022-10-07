@@ -1,6 +1,8 @@
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
+from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
+from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 
 from .lib.auth_client import SupabaseAuthClient
 from .lib.client_options import ClientOptions
@@ -152,10 +154,16 @@ class Client:
 
     @staticmethod
     def _init_postgrest_client(
-        rest_url: str, supabase_key: str, headers: Dict[str, str], schema: str
+        rest_url: str,
+        supabase_key: str,
+        headers: Dict[str, str],
+        schema: str,
+        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
-        client = SyncPostgrestClient(rest_url, headers=headers, schema=schema)
+        client = SyncPostgrestClient(
+            rest_url, headers=headers, schema=schema, timeout=timeout
+        )
         client.auth(token=supabase_key)
         return client
 
