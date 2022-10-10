@@ -1,8 +1,10 @@
+import re
 from typing import Any, Dict, Union
 
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
+from supafunc import FunctionsClient
 
 from .lib.auth_client import SupabaseAuthClient
 from .lib.client_options import ClientOptions
@@ -42,6 +44,15 @@ class Client:
         self.realtime_url: str = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url: str = f"{supabase_url}/auth/v1"
         self.storage_url = f"{supabase_url}/storage/v1"
+        is_platform = re.search(r"(supabase\.co)|(supabase\.in)", supabase_url)
+        if is_platform:
+            url_parts = supabase_url.split(".")
+            self.functions_url = (
+                f"{url_parts[0]}.functions.{url_parts[1]}.{url_parts[2]}"
+            )
+
+        else:
+            self.functions_url = f"{supabase_url}/functions/v1"
         self.schema: str = options.schema
 
         # Instantiate clients.
@@ -62,6 +73,9 @@ class Client:
             headers=options.headers,
             schema=options.schema,
         )
+
+    def functions(self) -> FunctionsClient:
+        return FunctionsClient(self.functions_url, self._get_auth_headers())
 
     def storage(self) -> SupabaseStorageClient:
         """Create instance of the storage client"""
