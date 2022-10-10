@@ -74,7 +74,7 @@ class Client:
             schema=options.schema,
         )
 
-    def functions(self):
+    def functions(self) -> FunctionsClient:
         return FunctionsClient(self.functions_url, self._get_auth_headers())
 
     def storage(self) -> SupabaseStorageClient:
