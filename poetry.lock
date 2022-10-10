@@ -775,7 +775,7 @@ yaml = ["PyYaml (>=5.2)"]
 
 [[package]]
 name = "python-semantic-release"
-version = "7.28.1"
+version = "7.32.1"
 description = "Automatic Semantic Versioning for Python projects"
 category = "main"
 optional = false
@@ -787,16 +787,17 @@ click-log = ">=0.3,<1"
 dotty-dict = ">=1.3.0,<2"
 gitpython = ">=3.0.8,<4"
 invoke = ">=1.4.1,<2"
+packaging = "*"
 python-gitlab = ">=2,<4"
 requests = ">=2.25,<3"
 semver = ">=2.10,<3"
-tomlkit = ">=0.10.0,<0.11.0"
+tomlkit = ">=0.10,<1.0"
 twine = ">=3,<4"
 wheel = "*"
 
 [package.extras]
 dev = ["black", "isort", "tox"]
-docs = ["Sphinx (==1.3.6)"]
+docs = ["Jinja2 (==3.0.3)", "Sphinx (==1.3.6)"]
 mypy = ["mypy", "types-requests"]
 test = ["coverage (>=5,<6)", "mock (==1.3.0)", "pytest (>=5,<6)", "pytest-mock (>=2,<3)", "pytest-xdist (>=1,<2)", "responses (==0.13.3)"]
 
@@ -1152,7 +1153,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "153b2fb8efd25812af99b57888947aca8d49b63e403265959abb61d10d95fc15"
+content-hash = "5dec5bfd3cbfc811b789eb256d34c57f30fb5a3edb7040b8f81b60b2f9f443e0"
 
 [metadata.files]
 anyio = [
@@ -1637,8 +1638,8 @@ python-gitlab = [
     {file = "python_gitlab-3.10.0-py3-none-any.whl", hash = "sha256:6b5a24d0f479c43c1759cb174cf42116ed27cced31284bedc82d584d860fa238"},
 ]
 python-semantic-release = [
-    {file = "python-semantic-release-7.28.1.tar.gz", hash = "sha256:d7f82b3d4c06b304d07689b8a1c7d0d448ff07c2ab81cd810c4f2f900f24c599"},
-    {file = "python_semantic_release-7.28.1-py3-none-any.whl", hash = "sha256:319c3e811d6e10bc3f0e967419eae0e5e9ba1e6745aa2fd94dd24e3995541ca2"},
+    {file = "python-semantic-release-7.32.1.tar.gz", hash = "sha256:ba47100e4ffa74c006529d6a8c22ca98f85ff4c145e8584eb2b17e6830a5116e"},
+    {file = "python_semantic_release-7.32.1-py3-none-any.whl", hash = "sha256:9a29a02b3fb33fc318b07bf77c001c62aed9060d148eca25af7f4aa3afb49f4e"},
 ]
 pywin32-ctypes = [
     {file = "pywin32-ctypes-0.2.0.tar.gz", hash = "sha256:24ffc3b341d457d48e8922352130cf2644024a4ff09762a2261fd34c36ee5942"},
