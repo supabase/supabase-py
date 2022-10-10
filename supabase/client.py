@@ -2,8 +2,7 @@ import re
 from typing import Any, Dict, Union
 
 from httpx import Timeout
-from postgrest import (SyncFilterRequestBuilder, SyncPostgrestClient,
-                       SyncRequestBuilder)
+from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from supafunc import FunctionsClient
 
@@ -51,6 +50,7 @@ class Client:
             self.functions_url = (
                 f"{url_parts[0]}.functions.{url_parts[1]}.{url_parts[2]}"
             )
+
         else:
             self.functions_url = f"{supabase_url}/functions/v1"
         self.schema: str = options.schema
