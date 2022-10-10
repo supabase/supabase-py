@@ -2,6 +2,19 @@
 
 <!--next-version-placeholder-->
 
+## v0.7.0 (2022-10-10)
+### Feature
+* Add magic ([`9e9942b`](https://github.com/supabase-community/supabase-py/commit/9e9942b7e86314682ea4c98c9a0043bab78f18ad))
+
+### Fix
+* Remove .gitkeep ([`1ade301`](https://github.com/supabase-community/supabase-py/commit/1ade30162326fa57b9c237af7b597fc056febc62))
+* Update lock ([`4ad573a`](https://github.com/supabase-community/supabase-py/commit/4ad573ae18a46ca33799d5e8c0a277c45fd47833))
+* Update isort version ([`1a41ac7`](https://github.com/supabase-community/supabase-py/commit/1a41ac7addd17834e88f5206b910f4a0991be8e0))
+* Run isort on client ([`7a56ab4`](https://github.com/supabase-community/supabase-py/commit/7a56ab4df5cbd1275626d80af0b7c23e05c1b8fb))
+* Update supafunc version ([`7c92edf`](https://github.com/supabase-community/supabase-py/commit/7c92edfc7d8932f74f07f91967f03ba12f271848))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.6.0...v0.7.0)**
+
 ## v0.6.0 (2022-10-07)
 ### Feature
 * Setting timeout for postgrest-py client. Closes #225 ([`258ddf1`](https://github.com/supabase-community/supabase-py/commit/258ddf12e2c5df8b30175c7a295934bc0f78133d))
