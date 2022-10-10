@@ -1,9 +1,9 @@
 import re
 from typing import Any, Dict, Union
 
-
 from httpx import Timeout
-from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
+from postgrest import (SyncFilterRequestBuilder, SyncPostgrestClient,
+                       SyncRequestBuilder)
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from supafunc import FunctionsClient
 
