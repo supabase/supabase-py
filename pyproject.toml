@@ -25,7 +25,7 @@ python-semantic-release = "7.28.1"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.19.0"
-black = "^22.3"
+black = "^22.10"
 pytest = "^7.1.2"
 flake8 = "^5.0.4"
 isort = "^5.9.3"
