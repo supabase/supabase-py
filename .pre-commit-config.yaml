@@ -34,8 +34,8 @@ repos:
                     "--ignore-init-module-imports",
                 ]
 
-    - repo: https://github.com/ambv/black
-      rev: 21.12b0
+    - repo: https://github.com/psf/black
+      rev: "22.3.0"
       hooks:
           - id: black
 

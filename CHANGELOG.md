@@ -2,6 +2,51 @@
 
 <!--next-version-placeholder-->
 
+## v0.6.0 (2022-10-07)
+### Feature
+* Setting timeout for postgrest-py client. Closes #225 ([`258ddf1`](https://github.com/supabase-community/supabase-py/commit/258ddf12e2c5df8b30175c7a295934bc0f78133d))
+* Setting timeout for postgrest-py client. Closes #225 ([`709ad8d`](https://github.com/supabase-community/supabase-py/commit/709ad8dd12f5654ba44c34b5a03e9d0c191a09e3))
+* Setting timeout for postgrest-py client. Closes #225 ([`4769dc4`](https://github.com/supabase-community/supabase-py/commit/4769dc4aa8fef866e1173cd3d1e39923ba0aadd6))
+* Setting timeout for postgrest-py client. Closes #225 ([`a910474`](https://github.com/supabase-community/supabase-py/commit/a910474b6827f1e9dbf9f0dd5f127788ca6da29d))
+* Added timeout to options ([#225](https://github.com/supabase-community/supabase-py/issues/225)) ([`136ce25`](https://github.com/supabase-community/supabase-py/commit/136ce2576c859cf87175778e1569e073bb67aa63))
+* Added timeout to options ([`069ada2`](https://github.com/supabase-community/supabase-py/commit/069ada2f14c44e96f20e60c31ad1fdb8d9beb9e4))
+* Setting timeout for postgrest-py client ([#225](https://github.com/supabase-community/supabase-py/issues/225)) ([`de5aba3`](https://github.com/supabase-community/supabase-py/commit/de5aba359ad21fd35f4e222f4693913b9777618e))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.8...v0.6.0)**
+
+## v0.5.8 (2022-06-27)
+### Fix
+* Downgrade python-semantic-release, fix end of file at README and force latest storage version ([`9c4bfba`](https://github.com/supabase-community/supabase-py/commit/9c4bfbab5539fbe242bbb728e7ad03037a79563a))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.7...v0.5.8)**
+
+## v0.5.7 (2022-06-08)
+### Fix
+* Lock python-semantic-release version ([`0a81c6f`](https://github.com/supabase-community/supabase-py/commit/0a81c6f84877b1c0d13a8214493f21a3afded4ba))
+* Force release ([`cfa5a55`](https://github.com/supabase-community/supabase-py/commit/cfa5a5533afcc500be787e2e4fa1de78dce5aaa5))
+* Pass schema to postgrest init ([`912a442`](https://github.com/supabase-community/supabase-py/commit/912a4420e9dc9c098cd49ad5cb7631ac86cb2b89))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.6...v0.5.7)**
+
+## v0.5.6 (2022-05-06)
+### Fix
+* Export SupabaseStorageClient ([`8539a4e`](https://github.com/supabase-community/supabase-py/commit/8539a4eeb6109712a600e92736fa5a0a3df343c8))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.5...v0.5.6)**
+
+## v0.5.5 (2022-05-01)
+### Fix
+* Bump storage3 ([`f557000`](https://github.com/supabase-community/supabase-py/commit/f557000ff4b0ad3304a6a058e49a0e07979cc09c))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.4...v0.5.5)**
+
+## v0.5.4 (2022-04-30)
+### Fix
+* Typo in docstring ([`54cd34e`](https://github.com/supabase-community/supabase-py/commit/54cd34e0b0d6af7e477fefeab38f7ccb6ce2f81a))
+* Correct path to version ([`cb5b4b2`](https://github.com/supabase-community/supabase-py/commit/cb5b4b251d5504feb0d6e94e1aa058bf5fc7a646))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.5.3...v0.5.4)**
+
 ## v0.5.3 (2022-03-08)
 ### Fix
 * Force postgrest version with fix ([#165](https://github.com/supabase-community/supabase-py/issues/165)) ([`59ad801`](https://github.com/supabase-community/supabase-py/commit/59ad801b2e51dc3c9d4cc82069bd19501f0bd923))

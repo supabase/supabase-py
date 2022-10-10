@@ -11,7 +11,7 @@ gotrue==0.5.0
 h11==0.12.0
 httpcore==0.14.7
 httptools==0.3.0
-httpx==0.21.3
+httpx==0.23.0
 idna==3.3
 packaging==21.3
 postgrest-py==0.8.2

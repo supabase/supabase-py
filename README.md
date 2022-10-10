@@ -17,7 +17,7 @@ Supabase client for Python. This mirrors the design of [supabase-js](https://git
 ## Status
 
 - [x] Alpha: We are testing Supabase with a closed set of customers
-- [x] Public Alpha: Anyone can sign up over at [app.supabase.io](https://app.supabase.io). But go easy on us, there are a few kinks.
+- [x] Public Alpha: Anyone can sign up over at [app.supabase.io](https://app.supabase.com). But go easy on us, there are a few kinks.
 - [ ] Public Beta: Stable enough for most non-enterprise use-cases
 - [ ] Public: Production-ready
 
@@ -159,8 +159,25 @@ supabase: Client = create_client(url, key)
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 
+### Deletion of Data
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+data = supabase.table("countries").delete().eq("id", 1).execute()
+```
+
+
 ## Realtime Changes
 
 Realtime changes are unfortunately still a WIP. Feel free to file PRs to [realtime-py](https://github.com/supabase-community/realtime-py)
 
-See [Supabase Docs](https://supabase.io/docs/guides/client-libraries) for full list of examples
+See [Supabase Docs](https://supabase.com/docs/guides/client-libraries) for full list of examples
+
+## Python and Supabase Resources
+
+- [Python data loading with Supabase](https://supabase.com/blog/2022/06/15/loading-data-supabase-python)
+- [Visualizing Supabase Data using Metabase](https://supabase.com/blog/2022/06/29/visualizing-supabase-data-using-metabase)

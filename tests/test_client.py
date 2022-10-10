@@ -11,7 +11,7 @@ import pytest
 @pytest.mark.parametrize("url", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 @pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 def test_incorrect_values_dont_instanciate_client(url: Any, key: Any) -> None:
-    """Ensure we can't instanciate client with nonesense values."""
+    """Ensure we can't instanciate client with nonsense values."""
     from supabase import Client, create_client
 
     _: Client = create_client(url, key)
