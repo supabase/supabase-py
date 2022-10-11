@@ -975,7 +975,7 @@ typing-extensions = ">=4.2.0,<5.0.0"
 
 [[package]]
 name = "supafunc"
-version = "0.2.0"
+version = "0.2.1"
 description = "Library for Supabase Functions"
 category = "main"
 optional = false
@@ -1153,7 +1153,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "5dec5bfd3cbfc811b789eb256d34c57f30fb5a3edb7040b8f81b60b2f9f443e0"
+content-hash = "85916b2d277ea4f0cbc4a28cb8f0015e86ad5f2c893c8c32978345ea5885f793"
 
 [metadata.files]
 anyio = [
@@ -1740,8 +1740,8 @@ storage3 = [
     {file = "storage3-0.3.4.tar.gz", hash = "sha256:89a9e56bcb7262417452d559448f8c0b5ab54a613f97bbc33cb78647c0366a5a"},
 ]
 supafunc = [
-    {file = "supafunc-0.2.0-py3-none-any.whl", hash = "sha256:c6c08dcfe0bb4fc1b06596116f556143c9cb7ea520a67f466a335d413157c874"},
-    {file = "supafunc-0.2.0.tar.gz", hash = "sha256:3221371f4af637638522d2fa9518da2a385c11fa60dfde417903e750171b877b"},
+    {file = "supafunc-0.2.1-py3-none-any.whl", hash = "sha256:a00b34d1122ae67caf79d2a41878de09f4336efae8f85a0f52f05f5860e0dc53"},
+    {file = "supafunc-0.2.1.tar.gz", hash = "sha256:ca6d48ad6c0d031f359d104eb319441165f6a635358c9663aca3ea7749867324"},
 ]
 termcolor = [
     {file = "termcolor-2.0.1-py3-none-any.whl", hash = "sha256:7e597f9de8e001a3208c4132938597413b9da45382b6f1d150cff8d062b7aaa3"},
