@@ -2,6 +2,13 @@
 
 <!--next-version-placeholder-->
 
+## v0.7.1 (2022-10-11)
+### Fix
+* Resolve merge conflicts ([`36b71f3`](https://github.com/supabase-community/supabase-py/commit/36b71f3aab452e504fa400c629a8023661540e88))
+* Update packages and resolve security vuln ([`ec94092`](https://github.com/supabase-community/supabase-py/commit/ec94092189d0309fa4f1a7cfb6015ddacc1601c5))
+
+**[See all commits in this version](https://github.com/supabase-community/supabase-py/compare/v0.7.0...v0.7.1)**
+
 ## v0.7.0 (2022-10-10)
 ### Feature
 * Add magic ([`9e9942b`](https://github.com/supabase-community/supabase-py/commit/9e9942b7e86314682ea4c98c9a0043bab78f18ad))
