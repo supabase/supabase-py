@@ -296,7 +296,7 @@ smmap = ">=3.0.1,<6"
 
 [[package]]
 name = "GitPython"
-version = "3.1.28"
+version = "3.1.29"
 description = "GitPython is a python library used to interact with Git repositories"
 category = "main"
 optional = false
@@ -308,15 +308,15 @@ typing-extensions = {version = ">=3.7.4.3", markers = "python_version < \"3.8\""
 
 [[package]]
 name = "gotrue"
-version = "0.5.0"
+version = "0.5.4"
 description = "Python Client Library for GoTrue"
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
-httpx = ">=0.21.3,<0.22.0"
-pydantic = ">=1.9.0,<2.0.0"
+httpx = ">=0.23.0,<0.24.0"
+pydantic = ">=1.9.1,<2.0.0"
 
 [[package]]
 name = "h11"
@@ -328,11 +328,11 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "httpcore"
-version = "0.14.7"
+version = "0.15.0"
 description = "A minimal low-level HTTP client."
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 
 [package.dependencies]
 anyio = ">=3.0.0,<4.0.0"
@@ -346,23 +346,23 @@ socks = ["socksio (>=1.0.0,<2.0.0)"]
 
 [[package]]
 name = "httpx"
-version = "0.21.3"
+version = "0.23.0"
 description = "The next generation HTTP client."
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 
 [package.dependencies]
 certifi = "*"
-charset-normalizer = "*"
-httpcore = ">=0.14.0,<0.15.0"
+httpcore = ">=0.15.0,<0.16.0"
 rfc3986 = {version = ">=1.3,<2", extras = ["idna2008"]}
 sniffio = "*"
 
 [package.extras]
 brotli = ["brotli", "brotlicffi"]
-cli = ["click (>=8.0.0,<9.0.0)", "pygments (>=2.0.0,<3.0.0)", "rich (>=10.0.0,<11.0.0)"]
+cli = ["click (>=8.0.0,<9.0.0)", "pygments (>=2.0.0,<3.0.0)", "rich (>=10,<13)"]
 http2 = ["h2 (>=3,<5)"]
+socks = ["socksio (>=1.0.0,<2.0.0)"]
 
 [[package]]
 name = "identify"
@@ -591,7 +591,7 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "postgrest-py"
-version = "0.10.2"
+version = "0.10.3"
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 category = "main"
 optional = false
@@ -599,7 +599,7 @@ python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
 deprecation = ">=2.1.0,<3.0.0"
-httpx = ">=0.20,<0.23"
+httpx = ">=0.23.0,<0.24.0"
 pydantic = ">=1.9.0,<2.0.0"
 
 [[package]]
@@ -963,26 +963,26 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "storage3"
-version = "0.3.4"
+version = "0.3.5"
 description = "Supabase Storage client for Python."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
-httpx = ">=0.19,<0.22"
+httpx = ">=0.23,<0.24"
 typing-extensions = ">=4.2.0,<5.0.0"
 
 [[package]]
 name = "supafunc"
-version = "0.2.0"
+version = "0.2.2"
 description = "Library for Supabase Functions"
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
-httpx = ">=0.21.3,<0.22.0"
+httpx = ">=0.23.0,<0.24.0"
 
 [[package]]
 name = "termcolor"
@@ -1013,7 +1013,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "tomlkit"
-version = "0.10.2"
+version = "0.11.5"
 description = "Style preserving TOML library"
 category = "main"
 optional = false
@@ -1153,7 +1153,7 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "5dec5bfd3cbfc811b789eb256d34c57f30fb5a3edb7040b8f81b60b2f9f443e0"
+content-hash = "d057a7ba3b1cf4a1f0a50f04fa7299dcdd6dd5ebde38b08069e4f6040911c98f"
 
 [metadata.files]
 anyio = [
@@ -1406,24 +1406,24 @@ gitdb = [
     {file = "gitdb-4.0.9.tar.gz", hash = "sha256:bac2fd45c0a1c9cf619e63a90d62bdc63892ef92387424b855792a6cabe789aa"},
 ]
 GitPython = [
-    {file = "GitPython-3.1.28-py3-none-any.whl", hash = "sha256:77bfbd299d8709f6af7e0c70840ef26e7aff7cf0c1ed53b42dd7fc3a310fcb02"},
-    {file = "GitPython-3.1.28.tar.gz", hash = "sha256:6bd3451b8271132f099ceeaf581392eaf6c274af74bb06144307870479d0697c"},
+    {file = "GitPython-3.1.29-py3-none-any.whl", hash = "sha256:41eea0deec2deea139b459ac03656f0dd28fc4a3387240ec1d3c259a2c47850f"},
+    {file = "GitPython-3.1.29.tar.gz", hash = "sha256:cc36bfc4a3f913e66805a28e84703e419d9c264c1077e537b54f0e1af85dbefd"},
 ]
 gotrue = [
-    {file = "gotrue-0.5.0-py3-none-any.whl", hash = "sha256:ed81289fd6a542caa05e6ab63d436561b7a04754783f4b9dd6b1114a04c146de"},
-    {file = "gotrue-0.5.0.tar.gz", hash = "sha256:b8a523a700809f89bc70ac4e465f5e610ac92793ca73b946bec665c30a764a8c"},
+    {file = "gotrue-0.5.4-py3-none-any.whl", hash = "sha256:38387269bbf2c0f11f4c788c4488d335e9c9319c21b8cc16c186cd09b88abe92"},
+    {file = "gotrue-0.5.4.tar.gz", hash = "sha256:de3112486202b376e7caa68c531cf2033e349d8e81f696bfab68f1b70b7f74f1"},
 ]
 h11 = [
     {file = "h11-0.12.0-py3-none-any.whl", hash = "sha256:36a3cb8c0a032f56e2da7084577878a035d3b61d104230d4bd49c0c6b555a9c6"},
     {file = "h11-0.12.0.tar.gz", hash = "sha256:47222cb6067e4a307d535814917cd98fd0a57b6788ce715755fa2b6c28b56042"},
 ]
 httpcore = [
-    {file = "httpcore-0.14.7-py3-none-any.whl", hash = "sha256:47d772f754359e56dd9d892d9593b6f9870a37aeb8ba51e9a88b09b3d68cfade"},
-    {file = "httpcore-0.14.7.tar.gz", hash = "sha256:7503ec1c0f559066e7e39bc4003fd2ce023d01cf51793e3c173b864eb456ead1"},
+    {file = "httpcore-0.15.0-py3-none-any.whl", hash = "sha256:1105b8b73c025f23ff7c36468e4432226cbb959176eab66864b8e31c4ee27fa6"},
+    {file = "httpcore-0.15.0.tar.gz", hash = "sha256:18b68ab86a3ccf3e7dc0f43598eaddcf472b602aba29f9aa6ab85fe2ada3980b"},
 ]
 httpx = [
-    {file = "httpx-0.21.3-py3-none-any.whl", hash = "sha256:df9a0fd43fa79dbab411d83eb1ea6f7a525c96ad92e60c2d7f40388971b25777"},
-    {file = "httpx-0.21.3.tar.gz", hash = "sha256:7a3eb67ef0b8abbd6d9402248ef2f84a76080fa1c839f8662e6eb385640e445a"},
+    {file = "httpx-0.23.0-py3-none-any.whl", hash = "sha256:42974f577483e1e932c3cdc3cd2303e883cbfba17fe228b0f63589764d7b9c4b"},
+    {file = "httpx-0.23.0.tar.gz", hash = "sha256:f28eac771ec9eb4866d3fb4ab65abd42d38c424739e80c08d8d20570de60b0ef"},
 ]
 identify = [
     {file = "identify-2.5.6-py2.py3-none-any.whl", hash = "sha256:b276db7ec52d7e89f5bc4653380e33054ddc803d25875952ad90b0f012cbcdaa"},
@@ -1544,8 +1544,8 @@ pluggy = [
     {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
 ]
 postgrest-py = [
-    {file = "postgrest-py-0.10.2.tar.gz", hash = "sha256:14e49007245f78a1ecc8bfbc108c0590d8523c4abe1ba29d20d8cbff2efcabe2"},
-    {file = "postgrest_py-0.10.2-py3-none-any.whl", hash = "sha256:46c4998efd9f3e67f954d21b565c3ab3c6cca03934a0121f2a0964b87436229c"},
+    {file = "postgrest-py-0.10.3.tar.gz", hash = "sha256:533faefd4e231200478dcaabf97c2523b567d6977fa77f19338ff97e5663fda3"},
+    {file = "postgrest_py-0.10.3-py3-none-any.whl", hash = "sha256:fe0033c28551822e9d4561dee1cb232da2029f36b432b7797c64eda5fadbefb1"},
 ]
 pre-commit = [
     {file = "pre_commit-2.20.0-py2.py3-none-any.whl", hash = "sha256:51a5ba7c480ae8072ecdb6933df22d2f812dc897d5fe848778116129a681aac7"},
@@ -1736,12 +1736,12 @@ sniffio = [
     {file = "sniffio-1.3.0.tar.gz", hash = "sha256:e60305c5e5d314f5389259b7f22aaa33d8f7dee49763119234af3755c55b9101"},
 ]
 storage3 = [
-    {file = "storage3-0.3.4-py3-none-any.whl", hash = "sha256:2801e9abead0513fbef0f4736220e3b26678104a955f535d1280094696e2084b"},
-    {file = "storage3-0.3.4.tar.gz", hash = "sha256:89a9e56bcb7262417452d559448f8c0b5ab54a613f97bbc33cb78647c0366a5a"},
+    {file = "storage3-0.3.5-py3-none-any.whl", hash = "sha256:9c940000cf62d62de9bba6f501cfb86e9a8f3107980b143b9a5fa591eded8adf"},
+    {file = "storage3-0.3.5.tar.gz", hash = "sha256:c4e47635dc6cfa9a7d7915e204a026f749e7475cd35b45740350343db6799571"},
 ]
 supafunc = [
-    {file = "supafunc-0.2.0-py3-none-any.whl", hash = "sha256:c6c08dcfe0bb4fc1b06596116f556143c9cb7ea520a67f466a335d413157c874"},
-    {file = "supafunc-0.2.0.tar.gz", hash = "sha256:3221371f4af637638522d2fa9518da2a385c11fa60dfde417903e750171b877b"},
+    {file = "supafunc-0.2.2-py3-none-any.whl", hash = "sha256:a292812532cca05afc08d2cc040eea5bd79a8909e46051630620b67508070795"},
+    {file = "supafunc-0.2.2.tar.gz", hash = "sha256:84f1f8d47297b0c8b712f1d8e20843406c025a203bba00cb7216e2163f295c24"},
 ]
 termcolor = [
     {file = "termcolor-2.0.1-py3-none-any.whl", hash = "sha256:7e597f9de8e001a3208c4132938597413b9da45382b6f1d150cff8d062b7aaa3"},
@@ -1756,8 +1756,8 @@ tomli = [
     {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},
 ]
 tomlkit = [
-    {file = "tomlkit-0.10.2-py3-none-any.whl", hash = "sha256:905cf92c2111ef80d355708f47ac24ad1b6fc2adc5107455940088c9bbecaedb"},
-    {file = "tomlkit-0.10.2.tar.gz", hash = "sha256:30d54c0b914e595f3d10a87888599eab5321a2a69abc773bbefff51599b72db6"},
+    {file = "tomlkit-0.11.5-py3-none-any.whl", hash = "sha256:f2ef9da9cef846ee027947dc99a45d6b68a63b0ebc21944649505bf2e8bc5fe7"},
+    {file = "tomlkit-0.11.5.tar.gz", hash = "sha256:571854ebbb5eac89abcb4a2e47d7ea27b89bf29e09c35395da6f03dd4ae23d1c"},
 ]
 tqdm = [
     {file = "tqdm-4.64.1-py2.py3-none-any.whl", hash = "sha256:6fee160d6ffcd1b1c68c65f14c829c22832bc401726335ce92c52d395944a6a1"},
