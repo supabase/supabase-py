@@ -1,7 +1,7 @@
 import subprocess
     
 def run_cmd(cmd):
-    subprocess.call(cmd, shell=True, check=True)
+    subprocess.run(cmd, shell=True, check=True)
 
 def run_tests():
     # Install requirements
