@@ -13,7 +13,8 @@ class SupabaseRealtimeClient:
         )
         self.subscription = socket.set_channel(topic)
 
-    def get_payload_records(self, payload: Any):
+    @staticmethod
+    def get_payload_records(payload: Any):
         records: dict = {"new": {}, "old": {}}
         if payload.type in ["INSERT", "UPDATE"]:
             records["new"] = payload.record
