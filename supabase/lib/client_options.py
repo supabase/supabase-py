@@ -1,52 +1,65 @@
-from typing import Any, Callable
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, Optional, Union
 
-from realtime.connection import Socket
-from realtime.transformers import convert_change_data
+from gotrue import SyncMemoryStorage, SyncSupportedStorage
+from httpx import Timeout
+from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
+
+from supabase import __version__
+
+DEFAULT_HEADERS = {"X-Client-Info": f"supabase-py/{__version__}"}
 
 
-class SupabaseRealtimeClient:
-    def __init__(self, socket: Socket, schema: str, table_name: str):
-        topic = (
-            f"realtime:{schema}"
-            if table_name == "*"
-            else f"realtime:{schema}:{table_name}"
+@dataclass
+class ClientOptions:
+    schema: str = "public"
+    """
+    The Postgres schema which your tables belong to.
+    Must be on the list of exposed schemas in Supabase. Defaults to 'public'.
+    """
+
+    headers: Dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
+    """Optional headers for initializing the client."""
+
+    auto_refresh_token: bool = True
+    """Automatically refreshes the token for logged in users."""
+
+    persist_session: bool = True
+    """Whether to persist a logged in session to storage."""
+
+    local_storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
+    """A storage provider. Used to store the logged in session."""
+
+    realtime: Optional[Dict[str, Any]] = None
+    """Options passed to the realtime-py instance"""
+
+    fetch: Optional[Callable] = None
+    """A custom `fetch` implementation."""
+
+    timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT
+    """Timeout passed to the SyncPostgrestClient instance."""
+
+    def replace(
+        self,
+        schema: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
+        auto_refresh_token: Optional[bool] = None,
+        persist_session: Optional[bool] = None,
+        local_storage: Optional[SyncSupportedStorage] = None,
+        realtime: Optional[Dict[str, Any]] = None,
+        fetch: Optional[Callable] = None,
+        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+    ) -> "ClientOptions":
+        """Create a new SupabaseClientOptions with changes"""
+        client_options = ClientOptions()
+        client_options.schema = schema or self.schema
+        client_options.headers = headers or self.headers
+        client_options.auto_refresh_token = (
+            auto_refresh_token or self.auto_refresh_token
         )
-        self.subscription = socket.set_channel(topic)
-
-    @staticmethod
-    def get_payload_records(payload: Any):
-        records: dict = {"new": {}, "old": {}}
-        if payload.type in ["INSERT", "UPDATE"]:
-            records["new"] = payload.record
-            convert_change_data(payload.columns, payload.record)
-        if payload.type in ["UPDATE", "DELETE"]:
-            records["old"] = payload.record
-            convert_change_data(payload.columns, payload.old_record)
-        return records
-
-    def on(self, event, callback: Callable[..., Any]):
-        def cb(payload):
-            enriched_payload = {
-                "schema": payload.schema,
-                "table": payload.table,
-                "commit_timestamp": payload.commit_timestamp,
-                "event_type": payload.type,
-                "new": {},
-                "old": {},
-            }
-            enriched_payload = {**enriched_payload, **self.get_payload_records(payload)}
-            callback(enriched_payload)
-
-        self.subscription.join().on(event, cb)
-        return self
-
-    def subscribe(self, callback: Callable[..., Any]):
-        # TODO: Handle state change callbacks for error and close
-        self.subscription.join().on("ok", callback("SUBSCRIBED"))
-        self.subscription.join().on(
-            "error", lambda x: callback("SUBSCRIPTION_ERROR", x)
-        )
-        self.subscription.join().on(
-            "timeout", lambda: callback("RETRYING_AFTER_TIMEOUT")
-        )
-        return self.subscription
+        client_options.persist_session = persist_session or self.persist_session
+        client_options.local_storage = local_storage or self.local_storage
+        client_options.realtime = realtime or self.realtime
+        client_options.fetch = fetch or self.fetch
+        client_options.timeout = timeout or self.timeout
+        return client_options
