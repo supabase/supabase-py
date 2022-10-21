@@ -35,6 +35,9 @@ commitizen = "^2.35.0"
 python-semantic-release = "^7.32.1"
 python-dotenv = "^0.21.0"
 
+[tool.poetry.scripts]
+tests = 'poetry_scripts:run_tests'
+
 [tool.semantic_release]
 version_variable = "supabase/__version__.py:__version__"
 version_toml = "pyproject.toml:tool.poetry.version"
