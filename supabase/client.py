@@ -205,9 +205,9 @@ class Client:
 
 
 def create_client(
-        supabase_url: str,
-        supabase_key: str,
-        options: ClientOptions = ClientOptions(),
+    supabase_url: str,
+    supabase_key: str,
+    options: ClientOptions = ClientOptions(),
 ) -> Client:
     """Create client function to instantiate supabase client like JS runtime.
 
