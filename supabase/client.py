@@ -11,6 +11,13 @@ from .lib.client_options import ClientOptions
 from .lib.storage_client import SupabaseStorageClient
 
 
+# Create an exception class when user does not provide a valid url or key.
+class SupabaseException(Exception):
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
 class Client:
     """Supabase client class."""
 
@@ -34,9 +41,20 @@ class Client:
         """
 
         if not supabase_url:
-            raise Exception("supabase_url is required")
+            raise SupabaseException("supabase_url is required")
         if not supabase_key:
-            raise Exception("supabase_key is required")
+            raise SupabaseException("supabase_key is required")
+
+        # Check if the url and key are valid
+        if not re.match(r"^(https?)://.+", supabase_url):
+            raise SupabaseException("Invalid URL")
+
+        # Check if the key is a valid JWT
+        if not re.match(
+            r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key
+        ):
+            raise SupabaseException("Invalid API key")
+
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
         options.headers.update(self._get_auth_headers())
@@ -58,10 +76,9 @@ class Client:
         # Instantiate clients.
         self.auth = self._init_supabase_auth_client(
             auth_url=self.auth_url,
-            supabase_key=self.supabase_key,
             client_options=options,
         )
-        # TODO(fedden): Bring up to parity with JS client.
+        # TODO: Bring up to parity with JS client.
         # self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
         #     realtime_url=self.realtime_url,
         #     supabase_key=self.supabase_key,
@@ -85,7 +102,7 @@ class Client:
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
-        this is a reserved keyword so we have elected to use the name `table`.
+        this is a reserved keyword, so we have elected to use the name `table`.
         Alternatively you can use the `.from_()` method.
         """
         return self.from_(table_name)
@@ -154,7 +171,6 @@ class Client:
     @staticmethod
     def _init_supabase_auth_client(
         auth_url: str,
-        supabase_key: str,
         client_options: ClientOptions,
     ) -> SupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
