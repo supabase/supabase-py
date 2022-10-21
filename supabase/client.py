@@ -22,10 +22,10 @@ class Client:
     """Supabase client class."""
 
     def __init__(
-            self,
-            supabase_url: str,
-            supabase_key: str,
-            options: ClientOptions = ClientOptions(),
+        self,
+        supabase_url: str,
+        supabase_key: str,
+        options: ClientOptions = ClientOptions(),
     ):
         """Instantiate the client.
 
@@ -50,7 +50,9 @@ class Client:
             raise SupabaseException("Invalid URL")
 
         # Check if the key is a valid JWT
-        if not re.match(r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key):
+        if not re.match(
+            r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key
+        ):
             raise SupabaseException("Invalid API key")
 
         self.supabase_url = supabase_url
@@ -168,8 +170,8 @@ class Client:
 
     @staticmethod
     def _init_supabase_auth_client(
-            auth_url: str,
-            client_options: ClientOptions,
+        auth_url: str,
+        client_options: ClientOptions,
     ) -> SupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
         return SupabaseAuthClient(
@@ -182,11 +184,11 @@ class Client:
 
     @staticmethod
     def _init_postgrest_client(
-            rest_url: str,
-            supabase_key: str,
-            headers: Dict[str, str],
-            schema: str,
-            timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        rest_url: str,
+        supabase_key: str,
+        headers: Dict[str, str],
+        schema: str,
+        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         client = SyncPostgrestClient(
