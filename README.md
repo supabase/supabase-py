@@ -143,6 +143,23 @@ supabase: SupabaseClient = SupabaseClient(url, key)
 
 data = supabase.table("countries").insert({"name":"Germany"}).execute()
 ```
+#### (NEW) Async Support
+
+```python
+async def main():
+    import os
+    from supabase import AsyncSupabaseClient 
+
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
+    
+    async with AsyncSupabaseClient(url, key) as supabase:
+        await supabase.table("countries").insert({"name":"Germany"}).execute()
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
 
 ### Select Data
 
@@ -157,7 +174,23 @@ supabase: SupabaseClient = SupabaseClient(url, key)
 
 data = supabase.table("countries").select("*").execute()
 ```
+#### (NEW) Async Support
+    
+```python
+async def main():
+    import os
+    from supabase import AsyncSupabaseClient 
 
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
+    
+    async with AsyncSupabaseClient(url, key) as supabase:
+        await supabase.table("countries").select("*").execute()
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
 ### Update Data
 
 ```python
@@ -169,6 +202,23 @@ key: str = os.environ.get("SUPABASE_TEST_KEY")
 supabase: SupabaseClient = SupabaseClient(url, key)
 
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
+```
+#### (NEW) Async Support
+    
+```python
+async def main():
+    import os
+    from supabase import AsyncSupabaseClient 
+
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
+    
+    async with AsyncSupabaseClient(url, key) as supabase:
+        await supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
 ```
 
 ### Delete Data
@@ -183,7 +233,23 @@ key: str = os.environ.get("SUPABASE_TEST_KEY")
 supabase: SupabaseClient = SupabaseClient(url, key)
 data = supabase.table("countries").delete().eq("id", 1).execute()
 ```
+#### (NEW) Async Support
+    
+```python
+async def main():
+    import os
+    from supabase import AsyncSupabaseClient 
 
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
+    
+    async with AsyncSupabaseClient(url, key) as supabase:
+        await supabase.table("countries").delete().eq("id", 1).execute()
+        
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
 
 ## Realtime Changes
 
