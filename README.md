@@ -27,7 +27,7 @@ We are currently in Public Alpha. Watch "releases" of this repo to get notified 
 
 ## Installation
 
-**Recomended:** First activate your virtual environment, with your favourites system. For example, we like `poetry` and `conda`!
+**Recommended:** First activate your virtual environment, with your favourites' system. For example, we like `poetry` and `conda`!
 
 ### PyPi installation
 
@@ -47,7 +47,7 @@ pip install -e .
 
 ## Usage
 
-It's usually best practice to set your api key environment variables in some way that version control doesn't track them, e.g don't put them in your python modules! Set the key and url for the supabase instance in the shell, or better yet, use a dotenv file. Heres how to set the variables in the shell.
+It's usually best practice to set your API key environment variables in some way that version control doesn't track them, e.g. don't put them in your python modules! Set the Key and URL for the supabase instance in the shell, or better yet, use a dotenv file. Here's how to set the variables in the shell.
 
 ```bash
 export SUPABASE_URL="my-url-to-my-awesome-supabase-instance"
@@ -58,21 +58,22 @@ We can then read the keys in the python source code.
 
 ```python
 import os
-from supabase import create_client, Client
+from supabase import SupabaseClient
 
-url: str = os.environ.get("SUPABASE_URL")
+url: str = os.environ.get("SUPABASE_URL") 
 key: str = os.environ.get("SUPABASE_KEY")
-supabase: Client = create_client(url, key)
+
+supabase: SupabaseClient = SupabaseClient(url, key)
 ```
 
 Use the supabase client to interface with your database.
 
 ### Running Tests
 
-Currently the test suites are in a state of flux. We are expanding our clients tests to ensure things are working, and for now can connect to this test instance, that is populated with the following table:
+Currently, the test suites are in a state of flux. We are expanding our clients tests to ensure things are working, and for now can connect to this test instance, that is populated with the following table:
 
 <p align="center">
-  <img width="720" height="481" src="https://i.ibb.co/Bq7Kdty/db.png">
+  <img width="720" height="481" src="https://i.ibb.co/Bq7Kdty/db.png" alt="">
 </p>
 
 The above test database is a blank supabase instance that has populated the `countries` table with the built in countries script that can be found in the supabase UI. You can launch the test scripts and point to the above test database by running
@@ -96,77 +97,90 @@ This is a sample of how you'd use supabase-py. Functions and tests are WIP
 ## Authenticate
 
 ```python
-from supabase import create_client, Client
+import os
+from supabase import SupabaseClient 
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
+
+supabase: SupabaseClient = SupabaseClient(url, key)
+
 # Create a random user login email and password.
-random_email: str = "3hf82fijf92@supamail.com"
-random_password: str = "fqj13bnf2hiu23h"
+random_email: str = "user@supamail.com"
+random_password: str = "12345678"
 user = supabase.auth.sign_up(email=random_email, password=random_password)
 ```
 
 ## Sign-in
 
 ```python
-from supabase import create_client, Client
+import os
+from supabase import SupabaseClient 
+
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
+supabase: SupabaseClient = SupabaseClient(url, key)
+
 # Sign in using the user email and password.
-random_email: str = "3hf82fijf92@supamail.com"
-random_password: str = "fqj13bnf2hiu23h"
+random_email: str = "user@supamail.com"
+random_password: str = "12345678"
 user = supabase.auth.sign_in(email=random_email, password=random_password)
 ```
 
 ## Managing Data
 
-### Insertion of Data
+### Insert Data
 
 ```python
-from supabase import create_client, Client
+import os
+from supabase import SupabaseClient 
+
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
+supabase: SupabaseClient = SupabaseClient(url, key)
+
 data = supabase.table("countries").insert({"name":"Germany"}).execute()
-assert len(data.data) > 0
 ```
 
-### Selection of Data
+### Select Data
 
 ```python
-from supabase import create_client, Client
+import os
+from supabase import SupabaseClient 
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
+
+supabase: SupabaseClient = SupabaseClient(url, key)
+
 data = supabase.table("countries").select("*").execute()
-# Assert we pulled real data.
-assert len(data.data) > 0
 ```
 
-### Update of Data
+### Update Data
 
 ```python
-from supabase import create_client, Client
+import os
+from supabase import SupabaseClient 
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
+supabase: SupabaseClient = SupabaseClient(url, key)
+
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 
-### Deletion of Data
+### Delete Data
 
 ```python
-from supabase import create_client, Client
+import os
+from supabase import SupabaseClient 
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
+
+supabase: SupabaseClient = SupabaseClient(url, key)
 data = supabase.table("countries").delete().eq("id", 1).execute()
 ```
 
