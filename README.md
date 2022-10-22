@@ -60,7 +60,7 @@ We can then read the keys in the python source code.
 import os
 from supabase import SupabaseClient
 
-url: str = os.environ.get("SUPABASE_URL") 
+url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 
 supabase: SupabaseClient = SupabaseClient(url, key)
@@ -98,7 +98,7 @@ This is a sample of how you'd use supabase-py. Functions and tests are WIP
 
 ```python
 import os
-from supabase import SupabaseClient 
+from supabase import SupabaseClient
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
@@ -115,7 +115,7 @@ user = supabase.auth.sign_up(email=random_email, password=random_password)
 
 ```python
 import os
-from supabase import SupabaseClient 
+from supabase import SupabaseClient
 
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
@@ -134,7 +134,7 @@ user = supabase.auth.sign_in(email=random_email, password=random_password)
 
 ```python
 import os
-from supabase import SupabaseClient 
+from supabase import SupabaseClient
 
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
@@ -148,11 +148,11 @@ data = supabase.table("countries").insert({"name":"Germany"}).execute()
 ```python
 async def main():
     import os
-    from supabase import AsyncSupabaseClient 
+    from supabase import AsyncSupabaseClient
 
     url: str = os.environ.get("SUPABASE_TEST_URL")
     key: str = os.environ.get("SUPABASE_TEST_KEY")
-    
+
     async with AsyncSupabaseClient(url, key) as supabase:
         await supabase.table("countries").insert({"name":"Germany"}).execute()
 
@@ -165,7 +165,7 @@ if __name__ == "__main__":
 
 ```python
 import os
-from supabase import SupabaseClient 
+from supabase import SupabaseClient
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
@@ -175,15 +175,15 @@ supabase: SupabaseClient = SupabaseClient(url, key)
 data = supabase.table("countries").select("*").execute()
 ```
 #### (NEW) Async Support
-    
+
 ```python
 async def main():
     import os
-    from supabase import AsyncSupabaseClient 
+    from supabase import AsyncSupabaseClient
 
     url: str = os.environ.get("SUPABASE_TEST_URL")
     key: str = os.environ.get("SUPABASE_TEST_KEY")
-    
+
     async with AsyncSupabaseClient(url, key) as supabase:
         await supabase.table("countries").select("*").execute()
 
@@ -195,7 +195,7 @@ if __name__ == "__main__":
 
 ```python
 import os
-from supabase import SupabaseClient 
+from supabase import SupabaseClient
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
@@ -204,15 +204,15 @@ supabase: SupabaseClient = SupabaseClient(url, key)
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 #### (NEW) Async Support
-    
+
 ```python
 async def main():
     import os
-    from supabase import AsyncSupabaseClient 
+    from supabase import AsyncSupabaseClient
 
     url: str = os.environ.get("SUPABASE_TEST_URL")
     key: str = os.environ.get("SUPABASE_TEST_KEY")
-    
+
     async with AsyncSupabaseClient(url, key) as supabase:
         await supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 
@@ -225,7 +225,7 @@ if __name__ == "__main__":
 
 ```python
 import os
-from supabase import SupabaseClient 
+from supabase import SupabaseClient
 
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
@@ -234,18 +234,18 @@ supabase: SupabaseClient = SupabaseClient(url, key)
 data = supabase.table("countries").delete().eq("id", 1).execute()
 ```
 #### (NEW) Async Support
-    
+
 ```python
 async def main():
     import os
-    from supabase import AsyncSupabaseClient 
+    from supabase import AsyncSupabaseClient
 
     url: str = os.environ.get("SUPABASE_TEST_URL")
     key: str = os.environ.get("SUPABASE_TEST_KEY")
-    
+
     async with AsyncSupabaseClient(url, key) as supabase:
         await supabase.table("countries").delete().eq("id", 1).execute()
-        
+
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())

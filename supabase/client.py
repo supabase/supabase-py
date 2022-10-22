@@ -1,25 +1,24 @@
 import re
 from typing import Any, Dict, Union
-from semver import deprecated
 
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
+from semver import deprecated
 from supafunc import FunctionsClient
 
+from .exceptions import SupabaseException
 from .lib.auth_client import SupabaseAuthClient
 from .lib.client_options import ClientOptions
 from .lib.storage_client import SupabaseStorageClient
 
-from .exceptions import SupabaseException
-
 
 class SupabaseClient:
     def __init__(
-            self,
-            supabase_url: str,
-            supabase_key: str,
-            options: ClientOptions = ClientOptions(),
+        self,
+        supabase_url: str,
+        supabase_key: str,
+        options: ClientOptions = ClientOptions(),
     ):
         """Instantiate the client.
 
@@ -45,7 +44,7 @@ class SupabaseClient:
 
         # Check if the key is a valid JWT
         if not re.match(
-                r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key
+            r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key
         ):
             raise SupabaseException("Invalid API key")
 
@@ -128,8 +127,8 @@ class SupabaseClient:
 
     @staticmethod
     def _init_supabase_auth_client(
-            auth_url: str,
-            client_options: ClientOptions,
+        auth_url: str,
+        client_options: ClientOptions,
     ) -> SupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
         return SupabaseAuthClient(
@@ -142,11 +141,11 @@ class SupabaseClient:
 
     @staticmethod
     def _init_postgrest_client(
-            rest_url: str,
-            supabase_key: str,
-            headers: Dict[str, str],
-            schema: str,
-            timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        rest_url: str,
+        supabase_key: str,
+        headers: Dict[str, str],
+        schema: str,
+        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         client = SyncPostgrestClient(
@@ -174,15 +173,15 @@ class Client(SupabaseClient):
     """
     An alias for SupabaseClient.
     """
+
     # TODO: Remove in 0.8.0
-    pass
 
 
 @deprecated(version="0.7.1", replace="Client")
 def create_client(
-        supabase_url: str,
-        supabase_key: str,
-        options: ClientOptions = ClientOptions(),
+    supabase_url: str,
+    supabase_key: str,
+    options: ClientOptions = ClientOptions(),
 ) -> SupabaseClient:
     """
     Create client function to instantiate supabase client
@@ -212,9 +211,12 @@ def create_client(
     Client
     """
     import warnings
+
     warnings.warn(
         "The `create_client` function is deprecated and will be removed in a future version. "
         "Please use the `SupabaseClient` class instead.",
         DeprecationWarning,
     )
-    return SupabaseClient(supabase_url=supabase_url, supabase_key=supabase_key, options=options)
+    return SupabaseClient(
+        supabase_url=supabase_url, supabase_key=supabase_key, options=options
+    )

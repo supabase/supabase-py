@@ -1,26 +1,29 @@
 import re
-from typing import Any, Dict, Union, Coroutine
+from typing import Any, Coroutine, Dict, Union
 
 from httpx import Timeout
-from postgrest import AsyncFilterRequestBuilder, AsyncPostgrestClient, AsyncRequestBuilder
+from postgrest import (
+    AsyncFilterRequestBuilder,
+    AsyncPostgrestClient,
+    AsyncRequestBuilder,
+)
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
-
 from supafunc import FunctionsClient
+
+from .exceptions import SupabaseException
 from .lib.auth_client import SupabaseAuthClient
 from .lib.client_options import ClientOptions
 from .lib.storage_client import SupabaseStorageClient
-
-from .exceptions import SupabaseException
 
 
 class AsyncSupabaseClient:
     """Supabase client class."""
 
     def __init__(
-            self,
-            supabase_url: str,
-            supabase_key: str,
-            options: ClientOptions = ClientOptions(),
+        self,
+        supabase_url: str,
+        supabase_key: str,
+        options: ClientOptions = ClientOptions(),
     ):
         """Instantiate the client.
 
@@ -45,7 +48,9 @@ class AsyncSupabaseClient:
             raise SupabaseException("Invalid URL")
 
         # Check if the key is a valid JWT
-        if not re.match(r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key):
+        if not re.match(
+            r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key
+        ):
             raise SupabaseException("Invalid API key")
 
         self.supabase_url = supabase_url
@@ -123,7 +128,9 @@ class AsyncSupabaseClient:
         """
         return self.postgrest.from_(table_name)
 
-    def rpc(self, fn: str, params: Dict[Any, Any]) -> Coroutine[Any, Any, AsyncFilterRequestBuilder]:
+    def rpc(
+        self, fn: str, params: Dict[Any, Any]
+    ) -> Coroutine[Any, Any, AsyncFilterRequestBuilder]:
         """Performs a stored procedure call.
 
         Parameters
@@ -143,8 +150,8 @@ class AsyncSupabaseClient:
 
     @staticmethod
     def _init_supabase_auth_client(
-            auth_url: str,
-            client_options: ClientOptions,
+        auth_url: str,
+        client_options: ClientOptions,
     ) -> SupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue SupabaseClient."""
         return SupabaseAuthClient(
@@ -157,11 +164,11 @@ class AsyncSupabaseClient:
 
     @staticmethod
     def _init_postgrest_client(
-            rest_url: str,
-            supabase_key: str,
-            headers: Dict[str, str],
-            schema: str,
-            timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        rest_url: str,
+        supabase_key: str,
+        headers: Dict[str, str],
+        schema: str,
+        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         client = AsyncPostgrestClient(
