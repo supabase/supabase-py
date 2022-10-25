@@ -73,7 +73,7 @@ Use the supabase client to interface with your database.
 Currently, the test suites are in a state of flux. We are expanding our clients tests to ensure things are working, and for now can connect to this test instance, that is populated with the following table:
 
 <p align="center">
-  <img width="720" height="481" src="https://i.ibb.co/Bq7Kdty/db.png" alt="">
+  <img width="720" height="481" src="https://i.ibb.co/Bq7Kdty/db.png" alt="example of database table in Supabase Studio editor">
 </p>
 
 The above test database is a blank supabase instance that has populated the `countries` table with the built in countries script that can be found in the supabase UI. You can launch the test scripts and point to the above test database by running
