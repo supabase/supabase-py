@@ -27,7 +27,7 @@ We are currently in Public Alpha. Watch "releases" of this repo to get notified 
 
 ## Installation
 
-**Recommended:** First activate your virtual environment, with your favourites' system. For example, we like `poetry` and `conda`!
+**Recommended:** First, activate your virtual environment with your favourite environment management tool. For example, we like `poetry` and `conda`!
 
 ### PyPi installation
 
