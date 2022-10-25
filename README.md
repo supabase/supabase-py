@@ -47,7 +47,7 @@ pip install -e .
 
 ## Usage
 
-It's usually best practice to set your API key environment variables in some way that version control doesn't track them, e.g. don't put them in your python modules! Set the Key and URL for the supabase instance in the shell, or better yet, use a dotenv file. Here's how to set the variables in the shell.
+It's usually best practice to set your API key environment variables in some way that isn't tracked by version control. For instance, don't put them in your python modules! Set the Key and URL for the supabase instance in the shell, or better yet, use a dotenv file. Here's how to set the variables in the shell.
 
 ```bash
 export SUPABASE_URL="my-url-to-my-awesome-supabase-instance"
