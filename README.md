@@ -85,9 +85,11 @@ The above test database is a blank supabase instance that has populated the `cou
 
 Rough roadmap:
 
-- [x] Wrap [Postgrest-py](https://github.com/supabase/postgrest-py/)
-- [ ] Wrap [Realtime-py](https://github.com/supabase/realtime-py)
-- [x] Wrap [Gotrue-py](https://github.com/J0/gotrue-py)
+- [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
+- [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
+- [x] Wrap [Gotrue-py](https://github.com/supabase-community/gotrue-py)
+- [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
+- [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
 
 ### Client Library
 
