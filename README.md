@@ -93,8 +93,6 @@ Rough roadmap:
 
 ### Client Library
 
-This is a sample of how you'd use supabase-py.
-
 ## Authenticate
 
 ```python
@@ -186,7 +184,7 @@ func = supabase.functions()
 async def test_func(loop):
     resp = await func.invoke("hello-world",invoke_options={'body':{}})
     return resp
-    
+
 loop = asyncio.get_event_loop()
 resp = loop.run_until_complete(test_func(loop))
 loop.close()
