@@ -85,13 +85,13 @@ The above test database is a blank supabase instance that has populated the `cou
 
 Rough roadmap:
 
-- [ ] Wrap [Postgrest-py](https://github.com/supabase/postgrest-py/)
-- [ ] Wrap [Realtime-py](https://github.com/supabase/realtime-py)
-- [x] Wrap [Gotrue-py](https://github.com/J0/gotrue-py)
+- [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
+- [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
+- [x] Wrap [Gotrue-py](https://github.com/supabase-community/gotrue-py)
+- [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
+- [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
 
 ### Client Library
-
-This is a sample of how you'd use supabase-py. Functions and tests are WIP
 
 ## Authenticate
 
@@ -170,6 +170,25 @@ supabase: Client = create_client(url, key)
 data = supabase.table("countries").delete().eq("id", 1).execute()
 ```
 
+### Supabase Functions
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+func = supabase.functions()
+
+@asyncio.coroutine
+async def test_func(loop):
+    resp = await func.invoke("hello-world",invoke_options={'body':{}})
+    return resp
+
+loop = asyncio.get_event_loop()
+resp = loop.run_until_complete(test_func(loop))
+loop.close()
+```
 
 ## Realtime Changes
 
