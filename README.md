@@ -14,12 +14,12 @@
 
 Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
 
-## Status
-
-- [x] Alpha: We are testing Supabase with a closed set of customers
-- [x] Public Alpha: Anyone can sign up over at [app.supabase.io](https://app.supabase.com). But go easy on us, there are a few kinks.
-- [ ] Public Beta: Stable enough for most non-enterprise use-cases
-- [ ] Public: Production-ready
+| Status | Stability | Goal |
+| ------ | ------ | ---- |
+| ✅ | Alpha | We are testing Supabase with a closed set of customers |
+| ✅ | Public Alpha | Anyone can sign up over at [app.supabase.io](https://app.supabase.com). But go easy on us, there are a few kinks. |
+| 🚧 | Public Beta | Stable enough for most non-enterprise use-cases |
+| ❌ | Public | Production-ready |
 
 We are currently in Public Alpha. Watch "releases" of this repo to get notified of major updates.
 
