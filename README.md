@@ -39,11 +39,7 @@ pip install supabase
 
 ### Local installation
 
-You can also installing from after cloning this repo. Install like below to install in Development Mode, which means when you edit the source code the changes will be reflected in your python module.
-
-```bash
-pip install -e .
-```
+You can also install from after cloning this repo. Install development mode with ``pip install -e``, which makes it so when you edit the source code the changes will be reflected in your python module.
 
 ## Usage
 
