@@ -14,20 +14,19 @@
 
 Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
 
-## Status
+| Status | Stability | Goal |
+| ------ | ------ | ---- |
+| ✅ | Alpha | We are testing Supabase with a closed set of customers |
+| ✅ | Public Alpha | Anyone can sign up over at [app.supabase.io](https://app.supabase.com). But go easy on us, there are a few kinks. |
+| 🚧 | Public Beta | Stable enough for most non-enterprise use-cases |
+| ❌ | Public | Production-ready |
 
-- [x] Alpha: We are testing Supabase with a closed set of customers
-- [x] Public Alpha: Anyone can sign up over at [app.supabase.io](https://app.supabase.com). But go easy on us, there are a few kinks.
-- [ ] Public Beta: Stable enough for most non-enterprise use-cases
-- [ ] Public: Production-ready
+<!--We are currently in Public Alpha. Watch "releases" of this repo to get notified of major updates.
 
-We are currently in Public Alpha. Watch "releases" of this repo to get notified of major updates.
-
-<kbd><img src="https://gitcdn.link/repo/supabase/supabase/master/web/static/watch-repo.gif" alt="Watch this repo"/></kbd>
 
 ## Installation
 
-**Recomended:** First activate your virtual environment, with your favourites system. For example, we like `poetry` and `conda`!
+**Recomended:** First activate your virtual environment, with your favourite system. For example, we like `poetry` and `conda`!
 
 ### PyPi installation
 
@@ -43,11 +42,7 @@ conda install -c conda-forge supabase
 
 ### Local installation
 
-You can also installing from after cloning this repo. Install like below to install in Development Mode, which means when you edit the source code the changes will be reflected in your python module.
-
-```bash
-pip install -e .
-```
+You can also install locally after cloning this repo. Install Development mode with ``pip install -e``, which makes it so when you edit the source code the changes will be reflected in your python module.
 
 ## Usage
 
