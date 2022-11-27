@@ -34,7 +34,11 @@ We are currently in Public Alpha. Watch "releases" of this repo to get notified 
 Now install the package. (for > Python 3.7)
 
 ```bash
+# with pip
 pip install supabase
+
+# with conda
+conda install -c conda-forge supabase
 ```
 
 ### Local installation
