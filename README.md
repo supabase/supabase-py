@@ -23,7 +23,6 @@ Supabase client for Python. This mirrors the design of [supabase-js](https://git
 
 <!--We are currently in Public Alpha. Watch "releases" of this repo to get notified of major updates.
 
-<kbd><img src="https://gitcdn.link/repo/supabase/supabase/master/web/static/watch-repo.gif" alt="Watch this repo"/></kbd> ### Doesnt work ### -->
 
 ## Installation
 
