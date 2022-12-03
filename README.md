@@ -21,7 +21,7 @@ Supabase client for Python. This mirrors the design of [supabase-js](https://git
 | 🚧 | Public Beta | Stable enough for most non-enterprise use-cases |
 | ❌ | Public | Production-ready |
 
-<!--We are currently in Public Alpha. Watch "releases" of this repo to get notified of major updates.
+We are currently in Public Alpha. Watch "releases" of this repo to get notified of major updates.
 
 
 ## Installation
