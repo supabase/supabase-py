@@ -1132,14 +1132,14 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "wheel"
-version = "0.37.1"
+version = "0.38.1"
 description = "A built-package format for Python"
 category = "main"
 optional = false
-python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
+python-versions = ">=3.7"
 
 [package.extras]
-test = ["pytest (>=3.0.0)", "pytest-cov"]
+test = ["pytest (>=3.0.0)"]
 
 [[package]]
 name = "zipp"
@@ -1867,8 +1867,8 @@ websockets = [
     {file = "websockets-10.3.tar.gz", hash = "sha256:fc06cc8073c8e87072138ba1e431300e2d408f054b27047d047b549455066ff4"},
 ]
 wheel = [
-    {file = "wheel-0.37.1-py2.py3-none-any.whl", hash = "sha256:4bdcd7d840138086126cd09254dc6195fb4fc6f01c050a1d7236f2630db1d22a"},
-    {file = "wheel-0.37.1.tar.gz", hash = "sha256:e9a504e793efbca1b8e0e9cb979a249cf4a0a7b5b8c9e8b65a5e39d49529c1c4"},
+    {file = "wheel-0.38.1-py3-none-any.whl", hash = "sha256:7a95f9a8dc0924ef318bd55b616112c70903192f524d120acc614f59547a9e1f"},
+    {file = "wheel-0.38.1.tar.gz", hash = "sha256:ea041edf63f4ccba53ad6e035427997b3bb10ee88a4cd014ae82aeb9eea77bb9"},
 ]
 zipp = [
     {file = "zipp-3.9.0-py3-none-any.whl", hash = "sha256:972cfa31bc2fedd3fa838a51e9bc7e64b7fb725a8c00e7431554311f180e9980"},
