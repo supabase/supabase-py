@@ -66,7 +66,8 @@ class Client:
         if is_platform:
             url_parts = supabase_url.split(".")
             self.functions_url = (
-                f"{url_parts[0]}.functions.{url_parts[1]}.{url_parts[2]}"
+                f"{supabase_url}/rest/v1/rpc"
+                #f"{url_parts[0]}.functions.{url_parts[1]}.{url_parts[2]}"
             )
 
         else:
