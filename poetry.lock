@@ -966,7 +966,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "storage3"
-version = "0.3.5"
+version = "0.3.6"
 description = "Supabase Storage client for Python."
 category = "main"
 optional = false
@@ -974,6 +974,7 @@ python-versions = ">=3.7,<4.0"
 
 [package.dependencies]
 httpx = ">=0.23,<0.24"
+python-dateutil = ">=2.8.2,<3.0.0"
 typing-extensions = ">=4.2.0,<5.0.0"
 
 [[package]]
@@ -1739,8 +1740,8 @@ sniffio = [
     {file = "sniffio-1.3.0.tar.gz", hash = "sha256:e60305c5e5d314f5389259b7f22aaa33d8f7dee49763119234af3755c55b9101"},
 ]
 storage3 = [
-    {file = "storage3-0.3.5-py3-none-any.whl", hash = "sha256:9c940000cf62d62de9bba6f501cfb86e9a8f3107980b143b9a5fa591eded8adf"},
-    {file = "storage3-0.3.5.tar.gz", hash = "sha256:c4e47635dc6cfa9a7d7915e204a026f749e7475cd35b45740350343db6799571"},
+    {file = "storage3-0.3.6-py3-none-any.whl", hash = "sha256:14b2bc00d8672d31eb0cc3f746e3296e4973c8269f5caacab94634f023b30755"},
+    {file = "storage3-0.3.6.tar.gz", hash = "sha256:77ede68227acedf4102d993d880a8a501d9cfcf3cff626998a12e3c7f8297d5d"},
 ]
 supafunc = [
     {file = "supafunc-0.2.2-py3-none-any.whl", hash = "sha256:a292812532cca05afc08d2cc040eea5bd79a8909e46051630620b67508070795"},
