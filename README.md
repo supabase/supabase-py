@@ -199,4 +199,3 @@ See [Supabase Docs](https://supabase.com/docs/guides/client-libraries) for full 
 
 - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
 - [Visualizing Supabase Data using Metabase](https://supabase.com/blog/visualizing-supabase-data-using-metabase)
-
