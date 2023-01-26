@@ -998,20 +998,21 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "postgrest-py"
-version = "0.10.3"
+version = "0.10.4"
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "postgrest-py-0.10.3.tar.gz", hash = "sha256:533faefd4e231200478dcaabf97c2523b567d6977fa77f19338ff97e5663fda3"},
-    {file = "postgrest_py-0.10.3-py3-none-any.whl", hash = "sha256:fe0033c28551822e9d4561dee1cb232da2029f36b432b7797c64eda5fadbefb1"},
+    {file = "postgrest_py-0.10.4-py3-none-any.whl", hash = "sha256:ecfdd9a3decd042dd0d487ca720a924aa186201e2db5a7fe6af6adbba3c95842"},
+    {file = "postgrest_py-0.10.4.tar.gz", hash = "sha256:a3da250c70773974dd17af8148ef2acd19dffcb3f92a950e0ebf41cc242efa5a"},
 ]
 
 [package.dependencies]
 deprecation = ">=2.1.0,<3.0.0"
 httpx = ">=0.23.0,<0.24.0"
 pydantic = ">=1.9.0,<2.0.0"
+strenum = ">=0.4.9,<0.5.0"
 
 [[package]]
 name = "pre-commit"
@@ -1548,6 +1549,23 @@ files = [
 httpx = ">=0.23,<0.24"
 python-dateutil = ">=2.8.2,<3.0.0"
 typing-extensions = ">=4.2.0,<5.0.0"
+
+[[package]]
+name = "strenum"
+version = "0.4.9"
+description = "An Enum that inherits from str."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "StrEnum-0.4.9-py3-none-any.whl", hash = "sha256:c3df653030837b8077b2eb929738283481f01b07c7ef73ab4db368449830cc46"},
+    {file = "StrEnum-0.4.9.tar.gz", hash = "sha256:1b15ccff9eb0e22e77b8f874366ea752754280adc9144e6e388705d14cc350e7"},
+]
+
+[package.extras]
+docs = ["myst-parser[linkify]", "sphinx", "sphinx-rtd-theme"]
+release = ["twine"]
+test = ["pylint", "pytest", "pytest-black", "pytest-cov", "pytest-pylint"]
 
 [[package]]
 name = "supafunc"
