@@ -142,7 +142,7 @@ from supabase import create_client, Client
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
 supabase: Client = create_client(url, key)
-data = supabase.table("countries").select("*").execute()
+data = supabase.table("countries").select("*").eq("country", "IL").execute()
 # Assert we pulled real data.
 assert len(data.data) > 0
 ```
