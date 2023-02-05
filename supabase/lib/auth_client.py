@@ -3,7 +3,12 @@ from typing import Dict, Union
 from gotrue import SyncGoTrueClient, SyncMemoryStorage, SyncSupportedStorage
 
 # TODO - export this from GoTrue-py in next release
-from httpx import SyncClient
+from httpx import Client as BaseClient
+
+
+class SyncClient(BaseClient):
+    def aclose(self) -> None:
+        self.close()
 
 
 class SupabaseAuthClient(SyncGoTrueClient):
