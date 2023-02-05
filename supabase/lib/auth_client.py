@@ -1,6 +1,6 @@
 from typing import Dict, Union
 
-from gotrue import SyncGoTrueClient, SyncMemoryStorage, SyncSupportedStorage
+from gotrue import SyncClient, SyncGoTrueClient, SyncMemoryStorage, SyncSupportedStorage
 
 
 class SupabaseAuthClient(SyncGoTrueClient):
