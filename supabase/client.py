@@ -178,7 +178,7 @@ class Client:
             url=auth_url,
             auto_refresh_token=client_options.auto_refresh_token,
             persist_session=client_options.persist_session,
-            local_storage=client_options.local_storage,
+            storage=client_options.storage,
             headers=client_options.headers,
         )
 

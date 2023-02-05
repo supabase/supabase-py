@@ -4,14 +4,14 @@ from supabase.lib.client_options import ClientOptions
 
 
 def test__client_options__replace__returns_updated_options():
-    local_storage = SyncMemoryStorage()
-    local_storage.set_item("key", "value")
+    storage = SyncMemoryStorage()
+    storage.set_item("key", "value")
     options = ClientOptions(
         schema="schema",
         headers={"key": "value"},
         auto_refresh_token=False,
         persist_session=False,
-        local_storage=local_storage,
+        storage=storage,
         realtime={"key": "value"},
     )
 
@@ -21,7 +21,7 @@ def test__client_options__replace__returns_updated_options():
         headers={"key": "value"},
         auto_refresh_token=False,
         persist_session=False,
-        local_storage=local_storage,
+        storage=storage,
         realtime={"key": "value"},
     )
 
@@ -30,14 +30,14 @@ def test__client_options__replace__returns_updated_options():
 
 def test__client_options__replace__updates_only_new_options():
     # Arrange
-    local_storage = SyncMemoryStorage()
-    local_storage.set_item("key", "value")
-    options = ClientOptions(local_storage=local_storage)
+    storage = SyncMemoryStorage()
+    storage.set_item("key", "value")
+    options = ClientOptions(storage=storage)
     new_options = options.replace()
 
     # Act
-    new_options.local_storage.set_item("key", "new_value")
+    new_options.storage.set_item("key", "new_value")
 
     # Assert
-    assert options.local_storage.get_item("key") == "new_value"
-    assert new_options.local_storage.get_item("key") == "new_value"
+    assert options.storage.get_item("key") == "new_value"
+    assert new_options.storage.get_item("key") == "new_value"
