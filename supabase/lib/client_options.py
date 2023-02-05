@@ -27,7 +27,7 @@ class ClientOptions:
     persist_session: bool = True
     """Whether to persist a logged in session to storage."""
 
-    local_storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
+    storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
 
     realtime: Optional[Dict[str, Any]] = None
@@ -45,7 +45,7 @@ class ClientOptions:
         headers: Optional[Dict[str, str]] = None,
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
-        local_storage: Optional[SyncSupportedStorage] = None,
+        storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[Dict[str, Any]] = None,
         fetch: Optional[Callable] = None,
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -58,7 +58,7 @@ class ClientOptions:
             auto_refresh_token or self.auto_refresh_token
         )
         client_options.persist_session = persist_session or self.persist_session
-        client_options.local_storage = local_storage or self.local_storage
+        client_options.storage = storage or self.storage
         client_options.realtime = realtime or self.realtime
         client_options.fetch = fetch or self.fetch
         client_options.timeout = timeout or self.timeout

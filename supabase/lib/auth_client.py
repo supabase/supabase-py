@@ -1,13 +1,14 @@
-from typing import Dict, Optional
+from typing import Dict, Union
 
-from gotrue import (
-    CookieOptions,
-    SyncGoTrueAPI,
-    SyncGoTrueClient,
-    SyncMemoryStorage,
-    SyncSupportedStorage,
-)
-from gotrue.constants import COOKIE_OPTIONS
+from gotrue import SyncGoTrueClient, SyncMemoryStorage, SyncSupportedStorage
+
+# TODO - export this from GoTrue-py in next release
+from httpx import Client as BaseClient
+
+
+class SyncClient(BaseClient):
+    def aclose(self) -> None:
+        self.close()
 
 
 class SupabaseAuthClient(SyncGoTrueClient):
@@ -18,22 +19,20 @@ class SupabaseAuthClient(SyncGoTrueClient):
         *,
         url: str,
         headers: Dict[str, str] = {},
+        storage_key: Union[str, None] = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
-        local_storage: SyncSupportedStorage = SyncMemoryStorage(),
-        cookie_options: CookieOptions = CookieOptions.parse_obj(COOKIE_OPTIONS),
-        api: Optional[SyncGoTrueAPI] = None,
-        replace_default_headers: bool = False,
+        storage: SyncSupportedStorage = SyncMemoryStorage(),
+        http_client: Union[SyncClient, None] = None,
     ):
         """Instantiate SupabaseAuthClient instance."""
         SyncGoTrueClient.__init__(
             self,
             url=url,
             headers=headers,
+            storage_key=storage_key,
             auto_refresh_token=auto_refresh_token,
             persist_session=persist_session,
-            local_storage=local_storage,
-            cookie_options=cookie_options,
-            api=api,
-            replace_default_headers=replace_default_headers,
+            storage=storage,
+            http_client=http_client,
         )
