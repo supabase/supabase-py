@@ -1,6 +1,9 @@
 from typing import Dict, Union
 
-from gotrue import SyncClient, SyncGoTrueClient, SyncMemoryStorage, SyncSupportedStorage
+from gotrue import SyncGoTrueClient, SyncMemoryStorage, SyncSupportedStorage
+
+# TODO - export this from GoTrue-py in next release
+from httpx import SyncClient
 
 
 class SupabaseAuthClient(SyncGoTrueClient):
