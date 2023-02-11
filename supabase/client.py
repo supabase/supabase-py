@@ -201,7 +201,7 @@ class Client:
         """Helper method to get auth headers."""
         # What's the corresponding method to get the token
         data = self.auth.get_session()
-        token = data.get('access_token') if data.get('access_token') else None
+        token = data.get("access_token") if data.get("access_token") else None
         return {
             "apiKey": self.supabase_key,
             "Authorization": f"Bearer {data.get('access_token')}",
