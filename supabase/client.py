@@ -57,7 +57,6 @@ class Client:
 
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
-        options.headers.update(self._get_auth_headers())
         self.rest_url: str = f"{supabase_url}/rest/v1"
         self.realtime_url: str = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url: str = f"{supabase_url}/auth/v1"
@@ -78,6 +77,7 @@ class Client:
             auth_url=self.auth_url,
             client_options=options,
         )
+        options.headers.update(self._get_auth_headers())
         # TODO: Bring up to parity with JS client.
         # self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
         #     realtime_url=self.realtime_url,
