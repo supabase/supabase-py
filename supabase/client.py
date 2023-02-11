@@ -89,6 +89,7 @@ class Client:
             supabase_key=self.supabase_key,
             headers=options.headers,
             schema=options.schema,
+            timeout=options.timeout,
         )
 
     def functions(self) -> FunctionsClient:
