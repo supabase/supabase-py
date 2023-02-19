@@ -433,6 +433,21 @@ files = [
 ]
 
 [[package]]
+name = "deprecation"
+version = "2.1.0"
+description = "A library to handle automated deprecations"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a"},
+    {file = "deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff"},
+]
+
+[package.dependencies]
+packaging = "*"
+
+[[package]]
 name = "distlib"
 version = "0.3.6"
 description = "Distribution utilities"
@@ -994,13 +1009,17 @@ version = "0.10.5"
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 category = "main"
 optional = false
-python-versions = "*"
-files = []
-develop = true
+python-versions = ">=3.8,<4.0"
+files = [
+    {file = "postgrest-0.10.5-py3-none-any.whl", hash = "sha256:e62769e7b5833fa77db07c7fc79b6a5af82c2de23cb43e268dae68411ef42762"},
+    {file = "postgrest-0.10.5.tar.gz", hash = "sha256:266fa322355b127a183402b18406e7ba8529f8b7bd5bc2a936966323a3967cb7"},
+]
 
-[package.source]
-type = "directory"
-url = "../postgrest-py"
+[package.dependencies]
+deprecation = ">=2.1.0,<3.0.0"
+httpx = ">=0.23.0,<0.24.0"
+pydantic = ">=1.9.0,<2.0.0"
+strenum = ">=0.4.9,<0.5.0"
 
 [[package]]
 name = "pre-commit"
@@ -1536,6 +1555,23 @@ python-dateutil = ">=2.8.2,<3.0.0"
 typing-extensions = ">=4.2.0,<5.0.0"
 
 [[package]]
+name = "strenum"
+version = "0.4.9"
+description = "An Enum that inherits from str."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "StrEnum-0.4.9-py3-none-any.whl", hash = "sha256:c3df653030837b8077b2eb929738283481f01b07c7ef73ab4db368449830cc46"},
+    {file = "StrEnum-0.4.9.tar.gz", hash = "sha256:1b15ccff9eb0e22e77b8f874366ea752754280adc9144e6e388705d14cc350e7"},
+]
+
+[package.extras]
+docs = ["myst-parser[linkify]", "sphinx", "sphinx-rtd-theme"]
+release = ["twine"]
+test = ["pylint", "pytest", "pytest-black", "pytest-cov", "pytest-pylint"]
+
+[[package]]
 name = "supafunc"
 version = "0.2.2"
 description = "Library for Supabase Functions"
@@ -1821,4 +1857,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "3c3b756b277aa141ee63e697f0d67d69e0c1735a266f4b553f0233bd166e7ab7"
+content-hash = "7c1073d808c998a6322a10869716f93c61cd8279cab7931864eaf0f4a1d2e92d"
