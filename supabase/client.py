@@ -4,6 +4,7 @@ from typing import Any, Dict, Union
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
+from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import FunctionsClient
 
 from .lib.auth_client import SupabaseAuthClient
@@ -89,7 +90,10 @@ class Client:
             supabase_key=self.supabase_key,
             headers=options.headers,
             schema=options.schema,
-            timeout=options.timeout,
+            timeout=options.postgrest_client_timeout,
+        )
+        self.storage = self._init_storage_client(
+            self.storage_url, self._get_auth_headers(), options.storage_client_timeout
         )
 
     def functions(self) -> FunctionsClient:
@@ -168,6 +172,13 @@ class Client:
     #     return SupabaseRealtimeClient(
     #         realtime_url, {"params": {"apikey": supabase_key}}
     #     )
+    @staticmethod
+    def _init_storage_client(
+        storage_url: str,
+        headers: Dict[str, str],
+        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+    ) -> SupabaseStorageClient:
+        return SupabaseStorageClient(storage_url, headers, storage_client_timeout)
 
     @staticmethod
     def _init_supabase_auth_client(

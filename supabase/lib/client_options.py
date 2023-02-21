@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, Optional, Union
 from gotrue import SyncMemoryStorage, SyncSupportedStorage
 from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
+from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 
 from supabase import __version__
 
@@ -36,8 +37,13 @@ class ClientOptions:
     fetch: Optional[Callable] = None
     """A custom `fetch` implementation."""
 
-    timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT
+    postgrest_client_timeout: Union[
+        int, float, Timeout
+    ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT
     """Timeout passed to the SyncPostgrestClient instance."""
+
+    storage_client_timeout: Uniont[int, float, Timeout] = DEFAULT_STORAGE_CLIENT_TIMEOUT
+    """Timeout passed to the SyncStorageClient instance"""
 
     def replace(
         self,
@@ -48,7 +54,12 @@ class ClientOptions:
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[Dict[str, Any]] = None,
         fetch: Optional[Callable] = None,
-        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        postgrest_client_timeout: Union[
+            int, float, Timeout
+        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        storage_client_timeout: Union[
+            int, float, Timeout
+        ] = DEFAULT_STORAGE_CLIENT_TIMEOUT,
     ) -> "ClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = ClientOptions()
@@ -61,5 +72,10 @@ class ClientOptions:
         client_options.storage = storage or self.storage
         client_options.realtime = realtime or self.realtime
         client_options.fetch = fetch or self.fetch
-        client_options.timeout = timeout or self.timeout
+        client_options.postgrest_client_timeout = (
+            postgrest_client_timeout or self.postgrest_client_timeout
+        )
+        client_options.storage_client_timeout = (
+            storage_client_timeout or self.storage_client_timeout
+        )
         return client_options
