@@ -1539,14 +1539,14 @@ files = [
 
 [[package]]
 name = "storage3"
-version = "0.5.0"
+version = "0.5.1"
 description = "Supabase Storage client for Python."
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "storage3-0.5.0-py3-none-any.whl", hash = "sha256:949b9832c4d777dbf8994ac992ca86ce588722c552316e766cda4357a22ed0e7"},
-    {file = "storage3-0.5.0.tar.gz", hash = "sha256:51de159ef44edb30766bc92c9a8401374d1819570e9d4fb30dda4a27a88667ab"},
+    {file = "storage3-0.5.1-py3-none-any.whl", hash = "sha256:5b1863363767b5380d97f3532c2f670a7017d35582a7551a43d5fd5ffa7c6d12"},
+    {file = "storage3-0.5.1.tar.gz", hash = "sha256:324110c2cb2becd791ffe91a26c5366af62f190947938aefa9521649610f1425"},
 ]
 
 [package.dependencies]
@@ -1857,4 +1857,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "7c1073d808c998a6322a10869716f93c61cd8279cab7931864eaf0f4a1d2e92d"
+content-hash = "e93fc46bc86618eb18e425666a55904bcaed12cfa8f2c825dc98e096fae4caa0"

@@ -20,7 +20,7 @@ postgrest = "0.10.5"
 realtime = "^1.0.0"
 gotrue = "^1.0.0"
 httpx = "^0.23.0"
-storage3 = "0.5.0"
+storage3 = "0.5.1"
 supafunc = "^0.2.2"
 python-semantic-release = "7.33.2"
 
