@@ -33,7 +33,7 @@ isort = "^5.10.1"
 pytest-cov = "^4.0.0"
 commitizen = "^2.42.0"
 python-semantic-release = "^7.33.2"
-python-dotenv = "^0.21.0"
+python-dotenv = "^1.0.0"
 
 [tool.poetry.scripts]
 tests = 'poetry_scripts:run_tests'
