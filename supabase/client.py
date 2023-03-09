@@ -99,10 +99,6 @@ class Client:
     def functions(self) -> FunctionsClient:
         return FunctionsClient(self.functions_url, self._get_auth_headers())
 
-    def storage(self) -> SupabaseStorageClient:
-        """Create instance of the storage client"""
-        return SupabaseStorageClient(self.storage_url, self._get_auth_headers())
-
     def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
 
