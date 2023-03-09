@@ -42,7 +42,7 @@ class ClientOptions:
     ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT
     """Timeout passed to the SyncPostgrestClient instance."""
 
-    storage_client_timeout: Uniont[int, float, Timeout] = DEFAULT_STORAGE_CLIENT_TIMEOUT
+    storage_client_timeout: Union[int, float, Timeout] = DEFAULT_STORAGE_CLIENT_TIMEOUT
     """Timeout passed to the SyncStorageClient instance"""
 
     def replace(
