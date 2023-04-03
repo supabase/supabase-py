@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "supabase"
-version = "1.0.2"
+version = "1.0.3"
 description = "Supabase client for Python."
 authors = ["Joel Lee <joel@joellee.org>", "Leon Fedden <leonfedden@gmail.com>", "Daniel Reinón García <danielreinon@outlook.com>", "Leynier Gutiérrez González <leynier41@gmail.com>", "Anand"]
 homepage = "https://github.com/supabase-community/supabase-py"
@@ -18,7 +18,7 @@ classifiers = [
 python = "^3.8"
 postgrest = "^0.10.6"
 realtime = "^1.0.0"
-gotrue = "^1.0.0"
+gotrue = "^1.0.1"
 httpx = "^0.23.0"
 storage3 = "^0.5.2"
 supafunc = "^0.2.2"
