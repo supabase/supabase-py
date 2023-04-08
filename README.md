@@ -117,7 +117,7 @@ supabase: Client = create_client(url, key)
 # Sign in using the user email and password.
 random_email: str = "3hf82fijf92@supamail.com"
 random_password: str = "fqj13bnf2hiu23h"
-user = supabase.auth.sign_in(email=random_email, password=random_password)
+user = supabase.auth.supabase.auth.sign_in_with_password({ "email": random_email, "password": random_password })
 ```
 
 ## Managing Data
