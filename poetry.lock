@@ -1001,14 +1001,14 @@ strenum = ">=0.4.9,<0.5.0"
 
 [[package]]
 name = "pre-commit"
-version = "3.2.1"
+version = "3.3.0"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pre_commit-3.2.1-py2.py3-none-any.whl", hash = "sha256:a06a7fcce7f420047a71213c175714216498b49ebc81fe106f7716ca265f5bb6"},
-    {file = "pre_commit-3.2.1.tar.gz", hash = "sha256:b5aee7d75dbba21ee161ba641b01e7ae10c5b91967ebf7b2ab0dfae12d07e1f1"},
+    {file = "pre_commit-3.3.0-py2.py3-none-any.whl", hash = "sha256:7577a012399334d9f001873b5553f9fabc1ccc5b3e2b29e0793f84ce18e9d042"},
+    {file = "pre_commit-3.3.0.tar.gz", hash = "sha256:06acda43a7b6b63fdcc29aa90bf1228cf4d4029a4e4d70971347a9d2593c94d4"},
 ]
 
 [package.dependencies]
@@ -1834,4 +1834,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "fb93a07e217018167a220b76a548acdf6b4b9f1fddc84c3ec95a5aa5aa438c42"
+content-hash = "abbe91747d97eccb9c51355ed88a804b26aa3066117800f0a2795c46d3416484"
