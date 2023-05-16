@@ -1231,14 +1231,14 @@ yaml = ["PyYaml (>=5.2)"]
 
 [[package]]
 name = "python-semantic-release"
-version = "7.33.2"
+version = "7.33.4"
 description = "Automatic Semantic Versioning for Python projects"
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "python-semantic-release-7.33.2.tar.gz", hash = "sha256:c23b4bb746e9ddbe1ba7497c48f7d81403e67a14ceb37928ef667c1fbee5e324"},
-    {file = "python_semantic_release-7.33.2-py3-none-any.whl", hash = "sha256:9e4990cc0a4dc37482ac5ec7fe6f70f71681228f68f0fa39370415701fdcf632"},
+    {file = "python-semantic-release-7.33.4.tar.gz", hash = "sha256:3e2e4a9607f4878377e0ba61737df3720b1c14be4f7efea040d20446cc09d86d"},
+    {file = "python_semantic_release-7.33.4-py3-none-any.whl", hash = "sha256:194e6b22deca87a07aaacbf674684b772f1d52baace65130b18929de0b5b1dff"},
 ]
 
 [package.dependencies]
@@ -1834,4 +1834,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "fb93a07e217018167a220b76a548acdf6b4b9f1fddc84c3ec95a5aa5aa438c42"
+content-hash = "3573bdef04236784fe4eb44029f5c80f8a6112e90e8d6ef836353d2a4c8b74b9"
