@@ -85,10 +85,27 @@ The above test database is a blank supabase instance that has populated the `cou
 Rough roadmap:
 
 - [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
+  - [ ] Add remaining filters   
+  - [ ] Add support for EXPLAIN
+  - [ ] Add proper error handling
 - [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
+    - [ ]  Integrate with Supabase-py
+    - [ ]  Support WALRUS
+    - [ ]  Support broadcast (to check if already supported)
 - [x] Wrap [Gotrue-py](https://github.com/supabase-community/gotrue-py)
+    - [ ] Remove references to GoTrue-js v1 and do a proper release
+    - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
+    - [ ] Add MFA methods and SSO methods
 - [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
+    - [ ]  Support resumable uploads
+    - [ ]  Setup testing environment
+    - [ ]  Document how to properly upload different file types (e.g. jpeg/png and download it) 
 - [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
+
+Overall Tasks:
+- [ ] Add async support across the entire library
+- [ ] Add FastAPI helper library (external to supabase-py)
+- [ ] Add `django-supabase-postgrest` (external to supabase-py)
 
 ### Client Library
 
