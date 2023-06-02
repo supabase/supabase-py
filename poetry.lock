@@ -541,18 +541,18 @@ gitdb = ">=4.0.1,<5"
 
 [[package]]
 name = "gotrue"
-version = "1.0.1"
+version = "1.0.2"
 description = "Python Client Library for GoTrue"
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "gotrue-1.0.1-py3-none-any.whl", hash = "sha256:005e8bc8d7f2da87606504c9c269f2943245843e2ddefb99e583f45a8612e715"},
-    {file = "gotrue-1.0.1.tar.gz", hash = "sha256:9d7e01703beb3c017bcf0461f518f93bc5a400720df3ba8c082264d405cee4d0"},
+    {file = "gotrue-1.0.2-py3-none-any.whl", hash = "sha256:5377e7fd316b77df7be9e0c3c017d338bed2ba2e95a99fb44374b523d167ec65"},
+    {file = "gotrue-1.0.2.tar.gz", hash = "sha256:9ad9b2536ca68676cf37dc663b64f259956826075e80a9cb3f5a3ba150355811"},
 ]
 
 [package.dependencies]
-httpx = ">=0.23.0,<0.24.0"
+httpx = ">=0.23,<0.25"
 pydantic = ">=1.10.0,<2.0.0"
 
 [[package]]
