@@ -85,7 +85,7 @@ The above test database is a blank supabase instance that has populated the `cou
 Rough roadmap:
 
 - [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
-  - [ ] Add remaining filters   
+  - [ ] Add remaining filters
   - [ ] Add support for EXPLAIN
   - [ ] Add proper error handling
 - [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
@@ -99,7 +99,7 @@ Rough roadmap:
 - [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
     - [ ]  Support resumable uploads
     - [ ]  Setup testing environment
-    - [ ]  Document how to properly upload different file types (e.g. jpeg/png and download it) 
+    - [ ]  Document how to properly upload different file types (e.g. jpeg/png and download it)
 - [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
 
 Overall Tasks:
