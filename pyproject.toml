@@ -23,6 +23,7 @@ httpx = "^0.23.0"
 storage3 = "^0.5.2"
 supafunc = "^0.2.2"
 python-semantic-release = "7.34.3"
+faker = "^18.10.1"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^3.2.1"
