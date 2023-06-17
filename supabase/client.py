@@ -59,12 +59,12 @@ class Client:
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
         options.headers.update(self._get_auth_headers())
-        self.rest_url: str = f"{supabase_url}/rest/v1"
-        self.realtime_url: str = f"{supabase_url}/realtime/v1".replace("http", "ws")
-        self.auth_url: str = f"{supabase_url}/auth/v1"
+        self.rest_url = f"{supabase_url}/rest/v1"
+        self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
+        self.auth_url = f"{supabase_url}/auth/v1"
         self.storage_url = f"{supabase_url}/storage/v1"
         self.functions_url = f"{supabase_url}/functions/v1"
-        self.schema: str = options.schema
+        self.schema = options.schema
 
         # Instantiate clients.
         self.auth = self._init_supabase_auth_client(
