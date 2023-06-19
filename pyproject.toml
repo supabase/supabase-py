@@ -22,7 +22,7 @@ gotrue = "^1.0.1"
 httpx = "^0.23.0"
 storage3 = "^0.5.2"
 supafunc = "^0.2.2"
-python-semantic-release = "7.34.3"
+python-semantic-release = "7.34.4"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^3.2.1"
@@ -32,7 +32,7 @@ flake8 = "^5.0.4"
 isort = "^5.10.1"
 pytest-cov = "^4.1.0"
 commitizen = "^2.42.0"
-python-semantic-release = "^7.34.3"
+python-semantic-release = "^7.34.4"
 python-dotenv = "^1.0.0"
 
 [tool.poetry.scripts]
