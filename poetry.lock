@@ -255,27 +255,27 @@ files = [
 
 [[package]]
 name = "commitizen"
-version = "2.42.1"
+version = "3.5.1"
 description = "Python commitizen client tool"
 optional = false
-python-versions = ">=3.6.2,<4.0.0"
+python-versions = ">=3.7,<4.0"
 files = [
-    {file = "commitizen-2.42.1-py3-none-any.whl", hash = "sha256:fad7d37cfae361a859b713d4ac591859d5ca03137dd52de4e1bd208f7f45d5dc"},
-    {file = "commitizen-2.42.1.tar.gz", hash = "sha256:eac18c7c65587061aac6829534907aeb208405b8230bfd35ec08503c228a7f17"},
+    {file = "commitizen-3.5.1-py3-none-any.whl", hash = "sha256:0e0de7b02589363319b8c54f4e029fcf6ef6ff2ebb07f4f2a72679cd59d7bd26"},
+    {file = "commitizen-3.5.1.tar.gz", hash = "sha256:cbba8409e98f926cdfac41360cd3588d915bebab2da89db619fb54a1011e1cf2"},
 ]
 
 [package.dependencies]
-argcomplete = ">=1.12.1,<2.1"
-charset-normalizer = ">=2.1.0,<3.0.0"
+argcomplete = ">=1.12.1,<3.2"
+charset-normalizer = ">=2.1.0,<4"
 colorama = ">=0.4.1,<0.5.0"
-decli = ">=0.5.2,<0.6.0"
+decli = ">=0.6.0,<0.7.0"
+importlib_metadata = ">=4.13,<7"
 jinja2 = ">=2.10.3"
 packaging = ">=19"
 pyyaml = ">=3.08"
 questionary = ">=1.4.0,<2.0.0"
-termcolor = {version = ">=1.1,<3", markers = "python_version >= \"3.7\""}
+termcolor = ">=1.1,<3"
 tomlkit = ">=0.5.3,<1.0.0"
-typing-extensions = ">=4.0.1,<5.0.0"
 
 [[package]]
 name = "coverage"
@@ -386,13 +386,13 @@ tox = ["tox"]
 
 [[package]]
 name = "decli"
-version = "0.5.2"
+version = "0.6.1"
 description = "Minimal, easy-to-use, declarative cli tool"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 files = [
-    {file = "decli-0.5.2-py3-none-any.whl", hash = "sha256:d3207bc02d0169bf6ed74ccca09ce62edca0eb25b0ebf8bf4ae3fb8333e15ca0"},
-    {file = "decli-0.5.2.tar.gz", hash = "sha256:f2cde55034a75c819c630c7655a844c612f2598c42c21299160465df6ad463ad"},
+    {file = "decli-0.6.1-py3-none-any.whl", hash = "sha256:7815ac58617764e1a200d7cadac6315fcaacc24d727d182f9878dd6378ccf869"},
+    {file = "decli-0.6.1.tar.gz", hash = "sha256:ed88ccb947701e8e5509b7945fda56e150e2ac74a69f25d47ac85ef30ab0c0f0"},
 ]
 
 [[package]]
@@ -1741,4 +1741,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "52e31105378c9f85dc6d7ab386458d135109c46c9a9048dafa4428f44d7d77bf"
+content-hash = "be649afff16b86a7912675ba82efe21e1d9774d060687f6f0dff45c64ea2e6ea"
