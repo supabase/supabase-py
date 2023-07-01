@@ -1169,13 +1169,13 @@ yaml = ["PyYaml (>=5.2)"]
 
 [[package]]
 name = "python-semantic-release"
-version = "7.34.4"
+version = "7.34.6"
 description = "Automatic Semantic Versioning for Python projects"
 optional = false
 python-versions = "*"
 files = [
-    {file = "python-semantic-release-7.34.4.tar.gz", hash = "sha256:1b35dd1619db3a94a264441ac1ebcc79f3017dd7ee4844af576eb85c420f56ed"},
-    {file = "python_semantic_release-7.34.4-py3-none-any.whl", hash = "sha256:15d94b2047c454f98ff0d1ca640325b4f0150616e6e5a5976fd7396d7df6d33e"},
+    {file = "python-semantic-release-7.34.6.tar.gz", hash = "sha256:e9b8fb788024ae9510a924136d573588415a16eeca31cc5240f2754a80a2e831"},
+    {file = "python_semantic_release-7.34.6-py3-none-any.whl", hash = "sha256:7e3969ba4663d9b2087b02bf3ac140e202551377bf045c34e09bfe19753e19ab"},
 ]
 
 [package.dependencies]
@@ -1183,7 +1183,7 @@ click = ">=7,<9"
 click-log = ">=0.3,<1"
 dotty-dict = ">=1.3.0,<2"
 gitpython = ">=3.0.8,<4"
-invoke = ">=1.4.1,<2"
+invoke = ">=1.4.1,<3"
 packaging = "*"
 python-gitlab = ">=2,<4"
 requests = ">=2.25,<3"
@@ -1741,4 +1741,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "52e31105378c9f85dc6d7ab386458d135109c46c9a9048dafa4428f44d7d77bf"
+content-hash = "1978dd6427f77d13be35fdd79ca28c1cffbec22842b2e51e34767047dfc1e5a2"
