@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, Optional
 
 from gotrue import SyncGoTrueClient, SyncMemoryStorage, SyncSupportedStorage
 
@@ -18,14 +18,17 @@ class SupabaseAuthClient(SyncGoTrueClient):
         self,
         *,
         url: str,
-        headers: Dict[str, str] = {},
-        storage_key: Union[str, None] = None,
+        headers: Optional[Dict[str, str]] = None,
+        storage_key: Optional[str] = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
         storage: SyncSupportedStorage = SyncMemoryStorage(),
-        http_client: Union[SyncClient, None] = None,
+        http_client: Optional[SyncClient] = None,
     ):
         """Instantiate SupabaseAuthClient instance."""
+        if headers is None:
+            headers = {}
+
         SyncGoTrueClient.__init__(
             self,
             url=url,

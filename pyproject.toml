@@ -22,18 +22,18 @@ gotrue = "^1.0.1"
 httpx = "^0.23.0"
 storage3 = "^0.5.2"
 supafunc = "^0.2.2"
-python-semantic-release = "7.34.3"
+python-semantic-release = "7.34.6"
 faker = "^18.10.1"
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^3.2.1"
+pre-commit = "^3.3.3"
 black = "^23.1"
-pytest = "^7.3.2"
+pytest = "^7.4.0"
 flake8 = "^5.0.4"
 isort = "^5.10.1"
 pytest-cov = "^4.1.0"
-commitizen = "^2.42.0"
-python-semantic-release = "^7.34.3"
+commitizen = "^3.5.2"
+python-semantic-release = "^7.34.6"
 python-dotenv = "^1.0.0"
 
 [tool.poetry.scripts]
