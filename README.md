@@ -175,6 +175,24 @@ supabase: Client = create_client(url, key)
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 
+### Update data of duplicate keys
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+
+country = {
+  "country": "United Kingdom",
+  "capital_city": "London" # this was missing when it was added
+}
+
+data = supabase.table("countries").upsert(country).execute()
+assert len(data.data) > 0
+```
+
 ### Deletion of Data
 
 ```python
