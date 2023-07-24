@@ -206,6 +206,82 @@ resp = loop.run_until_complete(test_func(loop))
 loop.close()
 ```
 
+## Storage
+
+### Download a file
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+
+bucket_name: str = "photos"
+
+data = supabase.storage.from_(bucket_name).download("photo1.png)
+```
+
+### Upload a file
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+
+bucket_name: str = "photos"
+new_file = getUserFile()
+
+data = supabase.storage.from_(bucket_name).upload("/user1/profile.png", new_file)
+```
+
+### Delete a file
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+
+bucket_name: str = "photos"
+
+data = supabase.storage.from_(bucket_name).delete(["old_photo.png", "image5.jpg"])
+```
+
+### List all files
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+
+bucket_name: str = "charts"
+
+data = supabase.storage.from_(bucket_name).list()
+```
+
+### Move and rename file
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+supabase: Client = create_client(url, key)
+
+bucket_name: str = "charts"
+old_file_path: str = "generic/graph1.png"
+new_file_path: str = "important/revenue.png"
+
+data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
+```
+
+
 ## Realtime Changes
 
 Realtime changes are unfortunately still a WIP. Feel free to file PRs to [realtime-py](https://github.com/supabase-community/realtime-py)
