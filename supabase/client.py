@@ -1,7 +1,8 @@
 import re
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Literal
 
 from httpx import Timeout
+from gotrue import AuthResponse, OAuthResponse
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -204,6 +205,42 @@ class Client:
             "apiKey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
         }
+    
+    def sign_in(
+            self, 
+            data: Dict[str, Union[str, dict]], 
+            sign_in_type: Literal['password', 'otp', 'oauth'],
+    ) -> Union[AuthResponse, OAuthResponse]:
+        """Convenience method to sign in while also setting the auth token correctly for postgrest.
+        
+        Parameters
+        ----------
+        data : dict
+            The data to be passed to the sign in method.
+        sign_in_type : Literal['password', 'otp', 'oauth']
+            The type of sign in method to use.
+        
+        Returns
+        -------
+        Union[AuthResponse, OAuthResponse]
+        """
+        if sign_in_type == 'password':
+            response = self.auth.sign_in_with_password(data)
+        elif sign_in_type == 'otp':
+            response = self.auth.sign_in_with_otp(data)
+        elif sign_in_type == 'oauth':
+            response = self.auth.sign_in_with_oauth(data)
+        else:
+            raise ValueError(f'Invalid sign_in_type "{sign_in_type}"')
+
+        self.postgrest.auth(token=self.auth.get_session().access_token)
+
+        return response
+    
+    def sign_out(self) -> None:
+        """Convenience method to sign out while also correctly resetting the postgrest client."""
+        self.auth.sign_out()
+        self.postgrest.auth(self.supabase_key)
 
 
 def create_client(
