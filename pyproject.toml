@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "supabase"
-version = "1.0.3"
+version = "1.0.4"
 description = "Supabase client for Python."
 authors = ["Joel Lee <joel@joellee.org>", "Leon Fedden <leonfedden@gmail.com>", "Daniel Reinón García <danielreinon@outlook.com>", "Leynier Gutiérrez González <leynier41@gmail.com>", "Anand"]
 homepage = "https://github.com/supabase-community/supabase-py"
@@ -16,13 +16,12 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-postgrest = "^0.10.6"
+postgrest = "^0.10.8"
 realtime = "^1.0.0"
-gotrue = "^1.0.1"
-httpx = "^0.23.0"
-storage3 = "^0.5.2"
-supafunc = "^0.2.2"
-python-semantic-release = "8.0.3"
+gotrue = "^1.0.3"
+httpx = "^0.24.0"
+storage3 = "^0.5.3"
+supafunc = "^0.2.3"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^3.3.3"
@@ -32,7 +31,7 @@ flake8 = "^5.0.4"
 isort = "^5.10.1"
 pytest-cov = "^4.1.0"
 commitizen = "^3.5.2"
-python-semantic-release = "^8.0.3"
+python-semantic-release = "^7.34.6"
 python-dotenv = "^1.0.0"
 
 [tool.poetry.scripts]
