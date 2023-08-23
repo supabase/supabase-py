@@ -18,7 +18,7 @@ classifiers = [
 python = "^3.8"
 postgrest = "^0.10.8"
 realtime = "^1.0.0"
-gotrue = "^1.0.3"
+gotrue = "^1.0.4"
 httpx = "^0.24.0"
 storage3 = "^0.5.3"
 supafunc = "^0.2.3"
@@ -39,11 +39,11 @@ tests = 'poetry_scripts:run_tests'
 
 [tool.semantic_release]
 version_variable = "supabase/__version__.py:__version__"
-version_toml = "pyproject.toml:tool.poetry.version"
+version_toml = ["pyproject.toml:tool.poetry.version"]
 major_on_zero = false
 commit_subject = "chore(release): bump version to v{version}"
 build_command = "curl -sSL https://install.python-poetry.org | python - --preview && export PATH=\"/github/home/.local/bin:$PATH\" && poetry install && poetry build"
-upload_to_repository = true
+upload_to_vcs = true
 branch = "develop"
 changelog_components = "semantic_release.changelog.changelog_headers,semantic_release.changelog.compare_url"
 
