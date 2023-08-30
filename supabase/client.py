@@ -106,7 +106,7 @@ class Client:
 
         See the `table` method.
         """
-        return self.postgrest.from_(table_name)
+        return self.postgrest.from_(table_name, self._get_auth_token())
 
     def rpc(self, fn: str, params: Dict[Any, Any]) -> SyncFilterRequestBuilder:
         """Performs a stored procedure call.
@@ -197,6 +197,13 @@ class Client:
         )
         client.auth(token=supabase_key)
         return client
+    
+    def _get_auth_token(self) -> str:
+        """Helper method to get the auth token."""
+        session = self.auth.get_session()
+        if session is None:
+            return self.supabase_key
+        return session.access_token
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
@@ -205,42 +212,6 @@ class Client:
             "apiKey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
         }
-    
-    def sign_in(
-            self, 
-            data: Dict[str, Union[str, dict]], 
-            sign_in_type: Literal['password', 'otp', 'oauth'],
-    ) -> Union[AuthResponse, OAuthResponse]:
-        """Convenience method to sign in while also setting the auth token correctly for postgrest.
-        
-        Parameters
-        ----------
-        data : dict
-            The data to be passed to the sign in method.
-        sign_in_type : Literal['password', 'otp', 'oauth']
-            The type of sign in method to use.
-        
-        Returns
-        -------
-        Union[AuthResponse, OAuthResponse]
-        """
-        if sign_in_type == 'password':
-            response = self.auth.sign_in_with_password(data)
-        elif sign_in_type == 'otp':
-            response = self.auth.sign_in_with_otp(data)
-        elif sign_in_type == 'oauth':
-            response = self.auth.sign_in_with_oauth(data)
-        else:
-            raise ValueError(f'Invalid sign_in_type "{sign_in_type}"')
-
-        self.postgrest.auth(token=self.auth.get_session().access_token)
-
-        return response
-    
-    def sign_out(self) -> None:
-        """Convenience method to sign out while also correctly resetting the postgrest client."""
-        self.auth.sign_out()
-        self.postgrest.auth(self.supabase_key)
 
 
 def create_client(
