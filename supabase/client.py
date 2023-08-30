@@ -1,8 +1,7 @@
 import re
-from typing import Any, Dict, Union, Literal
+from typing import Any, Dict, Union
 
 from httpx import Timeout
-from gotrue import AuthResponse, OAuthResponse
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
