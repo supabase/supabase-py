@@ -1,8 +1,15 @@
 import re
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Coroutine
 
 from httpx import Timeout
-from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
+from postgrest import (
+    SyncFilterRequestBuilder,
+    SyncPostgrestClient,
+    SyncRequestBuilder,
+    AsyncFilterRequestBuilder,
+    AsyncPostgrestClient,
+    AsyncRequestBuilder,
+)
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import FunctionsClient
@@ -84,6 +91,13 @@ class Client:
             schema=options.schema,
             timeout=options.postgrest_client_timeout,
         )
+        self.apostgrest = self._init_apostgrest_client(
+            rest_url=self.rest_url,
+            supabase_key=self.supabase_key,
+            headers=options.headers,
+            schema=options.schema,
+            timeout=options.postgrest_client_timeout,
+        )
         self.storage = self._init_storage_client(
             self.storage_url, self._get_auth_headers(), options.storage_client_timeout
         )
@@ -100,12 +114,26 @@ class Client:
         """
         return self.from_(table_name)
 
+    def atable(self, table_name: str) -> AsyncRequestBuilder:
+        """Perform a table operation asynchronously.
+
+        Alternatively you can use the `.afrom_()` method.
+        """
+        return self.afrom_(table_name)
+
     def from_(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
 
         See the `table` method.
         """
         return self.postgrest.from_(table_name)
+
+    def afrom_(self, table_name: str) -> AsyncRequestBuilder:
+        """Perform a table operation asynchronously.
+
+        See the `atable` method.
+        """
+        return self.apostgrest.from_(table_name)
 
     def rpc(self, fn: str, params: Dict[Any, Any]) -> SyncFilterRequestBuilder:
         """Performs a stored procedure call.
@@ -124,6 +152,26 @@ class Client:
             of an RPC.
         """
         return self.postgrest.rpc(fn, params)
+
+    def arpc(
+        self, fn: str, params: Dict[Any, Any]
+    ) -> Coroutine[Any, Any, AsyncFilterRequestBuilder]:
+        """Performs a stored procedure call asynchronously.
+
+        Parameters
+        ----------
+        fn : callable
+            The stored procedure call to be executed.
+        params : dict of any
+            Parameters passed into the stored procedure call.
+
+        Returns
+        -------
+        AsyncFilterRequestBuilder
+            Returns an async filter builder. This lets you apply filters on the response
+            of an RPC.
+        """
+        return self.apostgrest.rpc(fn, params)
 
     #     async def remove_subscription_helper(resolve):
     #         try:
@@ -204,6 +252,21 @@ class Client:
             "apiKey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
         }
+
+    @staticmethod
+    def _init_apostgrest_client(
+        rest_url: str,
+        supabase_key: str,
+        headers: Dict[str, str],
+        schema: str,
+        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+    ) -> AsyncPostgrestClient:
+        """Private helper for creating an instance of the asynchronous Postgrest client."""
+        client = AsyncPostgrestClient(
+            rest_url, headers=headers, schema=schema, timeout=timeout
+        )
+        client.auth(token=supabase_key)
+        return client
 
 
 def create_client(
