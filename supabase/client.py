@@ -196,7 +196,7 @@ class Client:
         )
         client.auth(token=supabase_key)
         return client
-    
+
     def _get_auth_token(self) -> str:
         """Helper method to get the auth token."""
         session = self.auth.get_session()
