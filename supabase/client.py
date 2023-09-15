@@ -200,9 +200,7 @@ class Client:
     def _get_auth_token(self) -> str:
         """Helper method to get the auth token."""
         session = self.auth.get_session()
-        if session is None:
-            return self.supabase_key
-        return session.access_token
+        return self.supabase_key if session is None else session.access_token
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
