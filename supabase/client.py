@@ -1,12 +1,12 @@
 import re
 from typing import Any, Dict, Union
 
+from gotrue.types import AuthChangeEvent
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import FunctionsClient
-from gotrue.types import AuthChangeEvent
 
 from .lib.auth_client import SupabaseAuthClient
 from .lib.client_options import ClientOptions
