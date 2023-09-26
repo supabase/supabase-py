@@ -1,6 +1,7 @@
 import re
 from typing import Any, Dict, Union
 
+from gotrue.types import AuthChangeEvent
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
@@ -59,6 +60,7 @@ class Client:
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
         options.headers.update(self._get_auth_headers())
+        self.options = options
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url = f"{supabase_url}/auth/v1"
@@ -77,16 +79,9 @@ class Client:
         #     supabase_key=self.supabase_key,
         # )
         self.realtime = None
-        self.postgrest = self._init_postgrest_client(
-            rest_url=self.rest_url,
-            supabase_key=self.supabase_key,
-            headers=options.headers,
-            schema=options.schema,
-            timeout=options.postgrest_client_timeout,
-        )
-        self.storage = self._init_storage_client(
-            self.storage_url, self._get_auth_headers(), options.storage_client_timeout
-        )
+        self._postgrest = None
+        self._storage = None
+        self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     def functions(self) -> FunctionsClient:
         return FunctionsClient(self.functions_url, self._get_auth_headers())
@@ -124,6 +119,30 @@ class Client:
             of an RPC.
         """
         return self.postgrest.rpc(fn, params)
+
+    @property
+    def postgrest(self):
+        if self._postgrest is None:
+            self.options.headers.update(self._get_token_header())
+            self._postgrest = self._init_postgrest_client(
+                rest_url=self.rest_url,
+                headers=self.options.headers,
+                schema=self.options.schema,
+                timeout=self.options.postgrest_client_timeout,
+            )
+        return self._postgrest
+
+    @property
+    def storage(self):
+        if self._storage is None:
+            headers = self._get_auth_headers()
+            headers.update(self._get_token_header())
+            self._storage = self._init_storage_client(
+                storage_url=self.storage_url,
+                headers=headers,
+                storage_client_timeout=self.options.storage_client_timeout,
+            )
+        return self._storage
 
     #     async def remove_subscription_helper(resolve):
     #         try:
@@ -185,17 +204,14 @@ class Client:
     @staticmethod
     def _init_postgrest_client(
         rest_url: str,
-        supabase_key: str,
         headers: Dict[str, str],
         schema: str,
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
-        client = SyncPostgrestClient(
+        return SyncPostgrestClient(
             rest_url, headers=headers, schema=schema, timeout=timeout
         )
-        client.auth(token=supabase_key)
-        return client
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
@@ -204,6 +220,21 @@ class Client:
             "apiKey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
         }
+
+    def _get_token_header(self):
+        try:
+            access_token = self.auth.get_session().access_token
+        except:
+            access_token = self.supabase_key
+
+        return {
+            "Authorization": f"Bearer {access_token}",
+        }
+
+    def _listen_to_auth_events(self, event: AuthChangeEvent, session):
+        # reset postgrest instance on event change
+        self._postgrest = None
+        self._storage = None
 
 
 def create_client(
