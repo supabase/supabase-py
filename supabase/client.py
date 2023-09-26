@@ -80,9 +80,7 @@ class Client:
         # )
         self.realtime = None
         self._postgrest = None
-        self.storage = self._init_storage_client(
-            self.storage_url, self._get_auth_headers(), options.storage_client_timeout
-        )
+        self._storage = None
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     def functions(self) -> FunctionsClient:
@@ -133,6 +131,18 @@ class Client:
                 timeout=self.options.postgrest_client_timeout,
             )
         return self._postgrest
+
+    @property
+    def storage(self):
+        if self._storage is None:
+            headers = self._get_auth_headers()
+            headers.update(self._get_token_header())
+            self._storage = self._init_storage_client(
+                storage_url=self.storage_url,
+                headers=headers,
+                storage_client_timeout=self.options.storage_client_timeout,
+            )
+        return self._storage
 
     #     async def remove_subscription_helper(resolve):
     #         try:
@@ -224,6 +234,7 @@ class Client:
     def _listen_to_auth_events(self, event: AuthChangeEvent, session):
         # reset postgrest instance on event change
         self._postgrest = None
+        self._storage = None
 
 
 def create_client(
