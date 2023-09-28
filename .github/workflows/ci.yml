@@ -31,7 +31,7 @@ jobs:
         uses: codecov/codecov-action@v1
   publish:
     needs: test
-    if: ${{ !startsWith(github.event.head_commit.message, 'bump') && !startsWith(github.event.head_commit.message, 'chore') && github.ref == 'refs/heads/develop' && github.event_name == 'push' && github.repository_owner == 'supabase-community' }}
+    if: ${{ !startsWith(github.event.head_commit.message, 'bump') && !startsWith(github.event.head_commit.message, 'chore') && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase-community' }}
     runs-on: ubuntu-latest
     name: "Bump version, create changelog and publish"
     environment:
