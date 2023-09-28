@@ -306,9 +306,6 @@ Realtime changes are unfortunately still a WIP. Feel free to file PRs to [realti
 
 See [Supabase Docs](https://supabase.com/docs/guides/client-libraries) for full list of examples
 
-## NOTE: RLS does not work out of the box right now
-After you sign a user in, the user's access token is _not_ being used by the library for any of the API calls, and therefore RLS does not work right now. See [related issue and discussion](https://github.com/supabase-community/supabase-py/issues/185)
-
 ## Python and Supabase Resources
 
 - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
