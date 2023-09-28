@@ -5,6 +5,7 @@ See CONTRIBUTING.md for general contribution guidelines.
 # Maintainers (in alphabetical order)
 - [J0](https://github.com/J0)
 - [olirice](https://github.com/olirice)
+- [silentworks](https://github.com/silentworks)
 
 # Emeritus Maintainers (in alphabetical order)
 - [anand2312](https://github.com/anand2312)
