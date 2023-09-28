@@ -50,7 +50,7 @@ jobs:
         id: release
         uses: python-semantic-release/python-semantic-release@v8.0.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.SILENTWORKS_PAT }}
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
