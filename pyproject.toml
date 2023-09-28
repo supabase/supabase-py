@@ -44,7 +44,7 @@ major_on_zero = false
 commit_subject = "chore(release): bump version to v{version}"
 build_command = "curl -sSL https://install.python-poetry.org | python - --preview && export PATH=\"/github/home/.local/bin:$PATH\" && poetry install && poetry build"
 upload_to_vcs = true
-branch = "develop"
+branch = "main"
 changelog_components = "semantic_release.changelog.changelog_headers,semantic_release.changelog.compare_url"
 
 [build-system]
