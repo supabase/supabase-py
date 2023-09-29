@@ -2,13 +2,76 @@
 
 
 
+## v1.1.0 (2023-09-29)
+
+### Chore
+
+* chore(deps): bump postgrest from 0.10.8 to 0.11.0
+
+Bumps [postgrest](https://github.com/supabase-community/postgrest-py) from 0.10.8 to 0.11.0.
+- [Release notes](https://github.com/supabase-community/postgrest-py/releases)
+- [Changelog](https://github.com/supabase-community/postgrest-py/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/postgrest-py/compare/v0.10.8...v0.11.0)
+
+---
+updated-dependencies:
+- dependency-name: postgrest
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`1af5611`](https://github.com/supabase-community/supabase-py/commit/1af5611f83b59b0bbd9921fe0357c2100434c5f8))
+
+### Feature
+
+* feat: narrow the auth event listening ([`dc07c5d`](https://github.com/supabase-community/supabase-py/commit/dc07c5d3ded8860dc37d75f3d3e50716253b4fc5))
+
+### Unknown
+
+* Merge pull request #573 from supabase-community/silentworks/narrow-auth-events-listening
+
+feat: narrow the auth event listening ([`0a080d0`](https://github.com/supabase-community/supabase-py/commit/0a080d0af261c6ca8ee2919a446cc17e15dc8e1b))
+
+* &#39;Refactored by Sourcery&#39; (#574)
+
+Co-authored-by: Sourcery AI &lt;&gt; ([`5e5b1e4`](https://github.com/supabase-community/supabase-py/commit/5e5b1e4ddd81c86a97fe74cfaacdcf0eabb26dcf))
+
+* Fix trailing whitespace in ci.yml ([`a098bc4`](https://github.com/supabase-community/supabase-py/commit/a098bc45720ad11664270cff1808e1639b0c81e7))
+
+* Merge pull request #572 from supabase-community/silentworks/add-push-event
+
+Add push event back as it borked CI ([`d1f4574`](https://github.com/supabase-community/supabase-py/commit/d1f45740fbe7176ac2cce9eb3ac81ef3743c04ef))
+
+* Add push event back as it borked CI ([`c121122`](https://github.com/supabase-community/supabase-py/commit/c121122e16991c0f0d7b4d262f53ea62d6e17318))
+
+* Merge pull request #571 from supabase-community/silentworks/remove-push-event
+
+Remove push even from workflow ([`c5b346f`](https://github.com/supabase-community/supabase-py/commit/c5b346fcffebee8bb6e0b6b4f9d20783cfce7220))
+
+* Remove push even from workflow ([`7a054fe`](https://github.com/supabase-community/supabase-py/commit/7a054fe7594365e0c1371a322b057a909474a5bb))
+
+* Merge pull request #570 from supabase-community/dependabot/pip/main/postgrest-0.11.0
+
+chore(deps): bump postgrest from 0.10.8 to 0.11.0 ([`576abbb`](https://github.com/supabase-community/supabase-py/commit/576abbb45b6bca891efa2c48ab48bab6fdc78380))
+
+* Merge pull request #569 from supabase-community/silentworks/update-dependabot-target-branch
+
+Update dependabot target branch ([`5f87d78`](https://github.com/supabase-community/supabase-py/commit/5f87d78656d01b528070066342b37dde6919ad12))
+
+
 ## v1.0.6 (2023-09-28)
+
+### Chore
+
+* chore(release): bump version to v1.0.6 ([`7f431b9`](https://github.com/supabase-community/supabase-py/commit/7f431b99f4aa61052383a258f376eb6155811150))
 
 ### Fix
 
 * fix: correct semantic release variable names ([`c6a03e2`](https://github.com/supabase-community/supabase-py/commit/c6a03e2ac9f63966cc91787506e978f2ca28a212))
 
 ### Unknown
+
+* Update dependabot target branch ([`7b62b17`](https://github.com/supabase-community/supabase-py/commit/7b62b17c03562e6f12d7b5e4eb3923fe4a10149f))
 
 * Merge pull request #568 from supabase-community/silentworks/fix-semantic-releases-variable-names
 
