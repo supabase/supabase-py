@@ -232,7 +232,7 @@ class Client:
         }
 
     def _listen_to_auth_events(self, event: AuthChangeEvent, session):
-        if event == "SIGNED_IN" or event == "TOKEN_REFRESHED" or event == "SIGNED_OUT":
+        if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             # reset postgrest and storage instance on event change
             self._postgrest = None
             self._storage = None
