@@ -2,9 +2,24 @@
 
 
 
+## v1.1.1 (2023-10-02)
+
+### Fix
+
+* fix: remove fetch from clientoptions (#481)
+
+* fix: remove fetch from clientoptions
+
+* chore: re-run tests
+
+* chore: remove unused import ([`2829aea`](https://github.com/supabase-community/supabase-py/commit/2829aeaa9757080f9b8bd76a19fe1bb27ae4dcc2))
+
+
 ## v1.1.0 (2023-09-29)
 
 ### Chore
+
+* chore(release): bump version to v1.1.0 ([`0bb7830`](https://github.com/supabase-community/supabase-py/commit/0bb783030fe9587ecb93d190ef973f3a666f358b))
 
 * chore(deps): bump postgrest from 0.10.8 to 0.11.0
 
