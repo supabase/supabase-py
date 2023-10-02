@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from gotrue import SyncMemoryStorage, SyncSupportedStorage
 from httpx import Timeout
@@ -34,9 +34,6 @@ class ClientOptions:
     realtime: Optional[Dict[str, Any]] = None
     """Options passed to the realtime-py instance"""
 
-    fetch: Optional[Callable] = None
-    """A custom `fetch` implementation."""
-
     postgrest_client_timeout: Union[
         int, float, Timeout
     ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT
@@ -53,7 +50,6 @@ class ClientOptions:
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[Dict[str, Any]] = None,
-        fetch: Optional[Callable] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -71,7 +67,6 @@ class ClientOptions:
         client_options.persist_session = persist_session or self.persist_session
         client_options.storage = storage or self.storage
         client_options.realtime = realtime or self.realtime
-        client_options.fetch = fetch or self.fetch
         client_options.postgrest_client_timeout = (
             postgrest_client_timeout or self.postgrest_client_timeout
         )
