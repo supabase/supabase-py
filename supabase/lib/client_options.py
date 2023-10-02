@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from gotrue import SyncMemoryStorage, SyncSupportedStorage
 from httpx import Timeout
