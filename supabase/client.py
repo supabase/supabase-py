@@ -1,6 +1,7 @@
 import re
 from typing import Any, Dict, Union
 
+from deprecation import deprecated
 from gotrue.types import AuthChangeEvent
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
