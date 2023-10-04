@@ -2,7 +2,34 @@
 
 
 
+## v1.2.0 (2023-10-04)
+
+### Feature
+
+* feat: add functions property ([`5191baf`](https://github.com/supabase-community/supabase-py/commit/5191baf0d01ad4c6abd2b9f02a126a4697ef8562))
+
+### Fix
+
+* fix: add deprecation import ([`b7692cb`](https://github.com/supabase-community/supabase-py/commit/b7692cb7a0e1df49c30af0888c6c403a0cee59f4))
+
+### Test
+
+* test: remove call to functions ([`5f052ee`](https://github.com/supabase-community/supabase-py/commit/5f052ee0d064e67b68f27fc77a08a0c6d4fc2257))
+
+### Unknown
+
+* Merge pull request #579 from supabase-community/j0/convert_functions_into_property
+
+feat: add functions property ([`7cf9f84`](https://github.com/supabase-community/supabase-py/commit/7cf9f847c9475637c8cf5f2105a5ee181d28af55))
+
+* Update client.py ([`c283c8c`](https://github.com/supabase-community/supabase-py/commit/c283c8c39033fd4094c4fd22b2255f39f9be907d))
+
+
 ## v1.1.1 (2023-10-02)
+
+### Chore
+
+* chore(release): bump version to v1.1.1 ([`11b014d`](https://github.com/supabase-community/supabase-py/commit/11b014d503574333b72f829e7013fd641f75cd89))
 
 ### Fix
 
