@@ -247,6 +247,7 @@ class Client:
             # reset postgrest and storage instance on event change
             self._postgrest = None
             self._storage = None
+            self._functions = None
 
 
 def create_client(
