@@ -1,6 +1,7 @@
 import re
 from typing import Any, Dict, Union
 
+from deprecation import deprecated
 from gotrue.types import AuthChangeEvent
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
@@ -81,8 +82,10 @@ class Client:
         self.realtime = None
         self._postgrest = None
         self._storage = None
+        self._functions = None
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
+    @deprecated("1.1.1", "1.3.0", details="Use `.functions` instead")
     def functions(self) -> FunctionsClient:
         return FunctionsClient(self.functions_url, self._get_auth_headers())
 
@@ -143,6 +146,14 @@ class Client:
                 storage_client_timeout=self.options.storage_client_timeout,
             )
         return self._storage
+
+    @property
+    def functions(self):
+        if self._functions is None:
+            headers = self._get_auth_headers()
+            headers.update(self._get_token_header())
+            self._functions = FunctionsClient(self.functions_url, headers)
+        return self._functions
 
     #     async def remove_subscription_helper(resolve):
     #         try:
@@ -236,6 +247,7 @@ class Client:
             # reset postgrest and storage instance on event change
             self._postgrest = None
             self._storage = None
+            self._functions = None
 
 
 def create_client(
