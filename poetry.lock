@@ -439,13 +439,13 @@ gitdb = ">=4.0.1,<5"
 
 [[package]]
 name = "gotrue"
-version = "1.1.1"
+version = "1.2.0"
 description = "Python Client Library for GoTrue"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "gotrue-1.1.1-py3-none-any.whl", hash = "sha256:d07311a097fc8f9e6ff062b26169d0b820bd6fb4de385f6cee080135d8b5a698"},
-    {file = "gotrue-1.1.1.tar.gz", hash = "sha256:03c1593cff85027913bd1af063bcb38a5e79950fb5061768ff02ba7e67172708"},
+    {file = "gotrue-1.2.0-py3-none-any.whl", hash = "sha256:b44fb3807b1ee96751cb7a64a75aa5f21d610a0de2431e4c6e81045d8cda3c79"},
+    {file = "gotrue-1.2.0.tar.gz", hash = "sha256:f80befe60d713d5b524e70591fc22df4c5be5821d370585693cd76ac8c45eeeb"},
 ]
 
 [package.dependencies]
