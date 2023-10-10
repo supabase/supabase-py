@@ -255,7 +255,7 @@ new_file = getUserFile()
 data = supabase.storage.from_(bucket_name).upload("/user1/profile.png", new_file)
 ```
 
-### Delete a file
+### Remove a file
 
 ```python
 from supabase import create_client, Client
@@ -266,7 +266,7 @@ supabase: Client = create_client(url, key)
 
 bucket_name: str = "photos"
 
-data = supabase.storage.from_(bucket_name).delete(["old_photo.png", "image5.jpg"])
+data = supabase.storage.from_(bucket_name).remove(["old_photo.png", "image5.jpg"])
 ```
 
 ### List all files
