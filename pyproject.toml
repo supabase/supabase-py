@@ -25,7 +25,7 @@ supafunc = "^0.2.3"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^3.4.0"
-black = "^23.9"
+black = "^23.10"
 pytest = "^7.4.2"
 flake8 = "^5.0.4"
 isort = "^5.10.1"
