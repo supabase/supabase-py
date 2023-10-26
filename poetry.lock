@@ -807,13 +807,13 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "postgrest"
-version = "0.12.0"
+version = "0.13.0"
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "postgrest-0.12.0-py3-none-any.whl", hash = "sha256:db016bf78095e25cbc2f681bd671dcf10c9be0f5dc903fd8b0ec82bb71191781"},
-    {file = "postgrest-0.12.0.tar.gz", hash = "sha256:f19d554a1050466ca3c03e7d66c7c3710a5878fffd1bc995327e22ff52c80a71"},
+    {file = "postgrest-0.13.0-py3-none-any.whl", hash = "sha256:30aa8b2826db540705ba9896422fd7ad3751cebc4f884f15fffcad5032218647"},
+    {file = "postgrest-0.13.0.tar.gz", hash = "sha256:13d3c13bea10d1d47e7fbb9ca90beba19181197877dccf750f5f666fa28fe910"},
 ]
 
 [package.dependencies]
@@ -1584,4 +1584,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "fd40534cc4a8cfb957c43b8f60b7715daabb3d4bf44092f5eb13cb22d5f440be"
+content-hash = "7c9d8b487d6036cbc963f5585b4050c4f9be44c874e8d61193a3ed503182110d"
