@@ -1120,20 +1120,20 @@ yaml = ["PyYaml (>=5.2)"]
 
 [[package]]
 name = "python-semantic-release"
-version = "8.1.1"
+version = "8.3.0"
 description = "Automatic Semantic Versioning for Python projects"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "python-semantic-release-8.1.1.tar.gz", hash = "sha256:76f180b3981854f9370ef25c10a63487be21c299189b63ad029f13cdb9909ab3"},
-    {file = "python_semantic_release-8.1.1-py3-none-any.whl", hash = "sha256:642fdecac73ddfcbac14ddece3809791229148f0ec13d6cd024bd066e9eccd8e"},
+    {file = "python-semantic-release-8.3.0.tar.gz", hash = "sha256:62325bf32738ea1223ad4efaba0809bac4355ea2d4ad214f676232613a6625f4"},
+    {file = "python_semantic_release-8.3.0-py3-none-any.whl", hash = "sha256:7a26551af9f56485571b7e7831c342a327b16931560d58bc5de99b1cf1dc7ef5"},
 ]
 
 [package.dependencies]
 click = ">=8,<9"
 dotty-dict = ">=1.3.0,<2"
 gitpython = ">=3.0.8,<4"
-importlib-resources = ">=5.7,<6"
+importlib-resources = ">=5.7,<7"
 jinja2 = ">=3.1.2,<4"
 pydantic = ">=2,<3"
 python-gitlab = ">=2,<4"
@@ -1143,10 +1143,10 @@ shellingham = ">=1.5.0.post1"
 tomlkit = ">=0.10,<1.0"
 
 [package.extras]
-dev = ["black", "pre-commit", "ruff (==0.0.290)", "tox"]
+dev = ["black", "pre-commit", "ruff (==0.0.292)", "tox"]
 docs = ["Sphinx (<=6.0.0)", "furo (>=2023.3.27)", "sphinx-autobuild (==2021.03.14)", "sphinxcontrib-apidoc (==0.3.0)"]
 mypy = ["mypy", "types-requests"]
-test = ["coverage[toml] (>=6,<8)", "pytest (>=7,<8)", "pytest-cov (>=4,<5)", "pytest-lazy-fixture (>=0.6.3,<0.7.0)", "pytest-mock (>=3,<4)", "pytest-pretty (>=1.2.0,<2)", "pytest-xdist (>=2,<4)", "requests-mock (>=1.10.0,<2)", "responses (==0.23.3)", "types-pytest-lazy-fixture (>=0.6.3.3)"]
+test = ["coverage[toml] (>=6,<8)", "pytest (>=7,<8)", "pytest-clarity (>=1.0.1)", "pytest-cov (>=4,<5)", "pytest-lazy-fixture (>=0.6.3,<0.7.0)", "pytest-mock (>=3,<4)", "pytest-pretty (>=1.2.0,<2)", "pytest-xdist (>=2,<4)", "requests-mock (>=1.10.0,<2)", "responses (==0.23.3)", "types-pytest-lazy-fixture (>=0.6.3.3)"]
 
 [[package]]
 name = "pyyaml"
@@ -1588,4 +1588,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "92725976373387483797c3a135e6b87afdb867069d8b8c062b34938e58c4a4bb"
+content-hash = "7c0c0694820adc0d3cf3d42dcd7e19ba999ef5a76d70c672213dc33ef6074915"
