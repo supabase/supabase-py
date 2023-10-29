@@ -7,7 +7,7 @@ from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
-from supafunc import FunctionsClient
+from supafunc import SyncFunctionsClient
 
 from .lib.auth_client import SupabaseAuthClient
 from .lib.client_options import ClientOptions
@@ -86,8 +86,8 @@ class Client:
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @deprecated("1.1.1", "1.3.0", details="Use `.functions` instead")
-    def functions(self) -> FunctionsClient:
-        return FunctionsClient(self.functions_url, self._get_auth_headers())
+    def functions(self) -> SyncFunctionsClient:
+        return SyncFunctionsClient(self.functions_url, self._get_auth_headers())
 
     def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
@@ -152,7 +152,7 @@ class Client:
         if self._functions is None:
             headers = self._get_auth_headers()
             headers.update(self._get_token_header())
-            self._functions = FunctionsClient(self.functions_url, headers)
+            self._functions = SyncFunctionsClient(self.functions_url, headers)
         return self._functions
 
     #     async def remove_subscription_helper(resolve):
