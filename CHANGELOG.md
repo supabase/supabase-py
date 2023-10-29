@@ -2,7 +2,259 @@
 
 
 
+## v2.0.0 (2023-10-29)
+
+### Breaking
+
+* feat(functions-py): update functions-py version
+
+BREAKING CHANGE: Functions now raise exceptions on errors ([`10e9c47`](https://github.com/supabase-community/supabase-py/commit/10e9c4740a371812124068013f2420a637a981b4))
+
+### Chore
+
+* chore(deps-dev): bump pytest from 7.4.2 to 7.4.3 (#603) ([`8f9ce5c`](https://github.com/supabase-community/supabase-py/commit/8f9ce5c882e9246d777da919372969689d275257))
+
+* chore(deps-dev): bump pytest from 7.4.2 to 7.4.3
+
+Bumps [pytest](https://github.com/pytest-dev/pytest) from 7.4.2 to 7.4.3.
+- [Release notes](https://github.com/pytest-dev/pytest/releases)
+- [Changelog](https://github.com/pytest-dev/pytest/blob/main/CHANGELOG.rst)
+- [Commits](https://github.com/pytest-dev/pytest/compare/7.4.2...7.4.3)
+
+---
+updated-dependencies:
+- dependency-name: pytest
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`2774796`](https://github.com/supabase-community/supabase-py/commit/2774796e2b5e9978f637f89af473eff52c5b4cb1))
+
+* chore(deps): bump postgrest from 0.12.0 to 0.13.0 (#600) ([`d10c178`](https://github.com/supabase-community/supabase-py/commit/d10c178ab6d921a55aa838bdbb2e031b6b6b74c7))
+
+* chore(deps): bump postgrest from 0.12.0 to 0.13.0
+
+Bumps [postgrest](https://github.com/supabase-community/postgrest-py) from 0.12.0 to 0.13.0.
+- [Release notes](https://github.com/supabase-community/postgrest-py/releases)
+- [Changelog](https://github.com/supabase-community/postgrest-py/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/postgrest-py/compare/v0.12.0...v0.13.0)
+
+---
+updated-dependencies:
+- dependency-name: postgrest
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`e5e7789`](https://github.com/supabase-community/supabase-py/commit/e5e77898fd34798028092e1e17617f093179c334))
+
+* chore(deps-dev): bump black from 23.9.1 to 23.10.1 (#601) ([`4824430`](https://github.com/supabase-community/supabase-py/commit/4824430a098c913601629a2b5fd02004be8a5d07))
+
+* chore(deps-dev): bump black from 23.9.1 to 23.10.1
+
+Bumps [black](https://github.com/psf/black) from 23.9.1 to 23.10.1.
+- [Release notes](https://github.com/psf/black/releases)
+- [Changelog](https://github.com/psf/black/blob/main/CHANGES.md)
+- [Commits](https://github.com/psf/black/compare/23.9.1...23.10.1)
+
+---
+updated-dependencies:
+- dependency-name: black
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`6ac4657`](https://github.com/supabase-community/supabase-py/commit/6ac465745f338dac27f0cc7676f780dd42310ac9))
+
+* chore(deps-dev): bump python-semantic-release from 8.1.1 to 8.3.0 (#599) ([`813f85c`](https://github.com/supabase-community/supabase-py/commit/813f85c4ff121d4975e3dca55893864c16c0be4f))
+
+* chore(deps-dev): bump python-semantic-release from 8.1.1 to 8.3.0
+
+Bumps [python-semantic-release](https://github.com/python-semantic-release/python-semantic-release) from 8.1.1 to 8.3.0.
+- [Release notes](https://github.com/python-semantic-release/python-semantic-release/releases)
+- [Changelog](https://github.com/python-semantic-release/python-semantic-release/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/python-semantic-release/python-semantic-release/compare/v8.1.1...v8.3.0)
+
+---
+updated-dependencies:
+- dependency-name: python-semantic-release
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`b756260`](https://github.com/supabase-community/supabase-py/commit/b756260779c7635daefe95639089324d9522070f))
+
+* chore(deps-dev): bump commitizen from 3.10.0 to 3.12.0 (#596) ([`6967839`](https://github.com/supabase-community/supabase-py/commit/69678398b3a9f8f2bdfb69bfed899d5d6b91c532))
+
+* chore(deps-dev): bump commitizen from 3.10.0 to 3.12.0
+
+Bumps [commitizen](https://github.com/commitizen-tools/commitizen) from 3.10.0 to 3.12.0.
+- [Release notes](https://github.com/commitizen-tools/commitizen/releases)
+- [Changelog](https://github.com/commitizen-tools/commitizen/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/commitizen-tools/commitizen/compare/3.10.0...3.12.0)
+
+---
+updated-dependencies:
+- dependency-name: commitizen
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`e692a83`](https://github.com/supabase-community/supabase-py/commit/e692a831d32f676fbd7b37245d76401768a41f1b))
+
+* chore(deps-dev): bump urllib3 from 2.0.6 to 2.0.7 (#592) ([`f12bdc2`](https://github.com/supabase-community/supabase-py/commit/f12bdc2405a6c3864fb8b73b6984697f516e6dd2))
+
+* chore(deps-dev): bump pre-commit from 3.4.0 to 3.5.0 (#589) ([`d21a0e5`](https://github.com/supabase-community/supabase-py/commit/d21a0e5d85163ae5ad9211465dd5070c7e67afcb))
+
+* chore(deps-dev): bump urllib3 from 2.0.6 to 2.0.7
+
+Bumps [urllib3](https://github.com/urllib3/urllib3) from 2.0.6 to 2.0.7.
+- [Release notes](https://github.com/urllib3/urllib3/releases)
+- [Changelog](https://github.com/urllib3/urllib3/blob/main/CHANGES.rst)
+- [Commits](https://github.com/urllib3/urllib3/compare/2.0.6...2.0.7)
+
+---
+updated-dependencies:
+- dependency-name: urllib3
+  dependency-type: indirect
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`3621fa5`](https://github.com/supabase-community/supabase-py/commit/3621fa5d0ddd755c2e0d5df165ea731d0e30043f))
+
+* chore(deps-dev): bump pre-commit from 3.4.0 to 3.5.0
+
+Bumps [pre-commit](https://github.com/pre-commit/pre-commit) from 3.4.0 to 3.5.0.
+- [Release notes](https://github.com/pre-commit/pre-commit/releases)
+- [Changelog](https://github.com/pre-commit/pre-commit/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/pre-commit/pre-commit/compare/v3.4.0...v3.5.0)
+
+---
+updated-dependencies:
+- dependency-name: pre-commit
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`d78fb0f`](https://github.com/supabase-community/supabase-py/commit/d78fb0f5dc3d634ed7fe5a4bea1b8ec3a41e6bf5))
+
+* chore(deps-dev): bump gitpython from 3.1.35 to 3.1.37
+
+Bumps [gitpython](https://github.com/gitpython-developers/GitPython) from 3.1.35 to 3.1.37.
+- [Release notes](https://github.com/gitpython-developers/GitPython/releases)
+- [Changelog](https://github.com/gitpython-developers/GitPython/blob/main/CHANGES)
+- [Commits](https://github.com/gitpython-developers/GitPython/compare/3.1.35...3.1.37)
+
+---
+updated-dependencies:
+- dependency-name: gitpython
+  dependency-type: indirect
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`76caacd`](https://github.com/supabase-community/supabase-py/commit/76caacd06b7d4c8acce51e18739cb7e33332aab2))
+
+* chore(deps): bump postgrest from 0.11.0 to 0.12.0
+
+Bumps [postgrest](https://github.com/supabase-community/postgrest-py) from 0.11.0 to 0.12.0.
+- [Release notes](https://github.com/supabase-community/postgrest-py/releases)
+- [Changelog](https://github.com/supabase-community/postgrest-py/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/postgrest-py/compare/v0.11.0...v0.12.0)
+
+---
+updated-dependencies:
+- dependency-name: postgrest
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`27b7842`](https://github.com/supabase-community/supabase-py/commit/27b7842d88ebee6e0452b817007f3ef0f52f57f8))
+
+* chore(deps): bump gotrue from 1.1.1 to 1.2.0
+
+Bumps [gotrue](https://github.com/supabase-community/gotrue-py) from 1.1.1 to 1.2.0.
+- [Release notes](https://github.com/supabase-community/gotrue-py/releases)
+- [Changelog](https://github.com/supabase-community/gotrue-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/gotrue-py/compare/v1.1.1...v1.2.0)
+
+---
+updated-dependencies:
+- dependency-name: gotrue
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`125f7d6`](https://github.com/supabase-community/supabase-py/commit/125f7d63971a6ac077487e413e0206984e0d9e2a))
+
+### Feature
+
+* feat(functions-py): update functions-py version (#605) ([`b92c984`](https://github.com/supabase-community/supabase-py/commit/b92c984053ea9897e8b0e3a15f0685e6bd73c18a))
+
+### Unknown
+
+* Merge pull request #586 from supabase-community/dependabot/pip/gitpython-3.1.37
+
+chore(deps-dev): bump gitpython from 3.1.35 to 3.1.37 ([`4199c9a`](https://github.com/supabase-community/supabase-py/commit/4199c9aaa699a4be124af1ab70ea621278c59eb7))
+
+* Merge pull request #585 from devinem4/patch-1
+
+README / Storage -- Update `delete` file to `remove` file ([`a0a4eda`](https://github.com/supabase-community/supabase-py/commit/a0a4eda3759e0173bf397acf0f7d2e69fbf03d7d))
+
+* Update README.md
+
+Swap `delete` out, `remove` in ([`9b1fd17`](https://github.com/supabase-community/supabase-py/commit/9b1fd171a7e28102b10ead7a9057bbb18f1ac90f))
+
+* Merge pull request #578 from supabase-community/dependabot/pip/urllib3-2.0.6
+
+chore(deps-dev): bump urllib3 from 2.0.4 to 2.0.6 ([`173dd46`](https://github.com/supabase-community/supabase-py/commit/173dd46d272c18b1286b34fa267513db3eed8500))
+
+* Merge pull request #577 from supabase-community/dependabot/pip/main/storage3-0.6.1
+
+chore(deps): bump storage3 from 0.6.0 to 0.6.1 ([`47b381c`](https://github.com/supabase-community/supabase-py/commit/47b381ce1cdf5524f60375112a6771f883322f09))
+
+* Merge pull request #583 from supabase-community/dependabot/pip/main/postgrest-0.12.0
+
+chore(deps): bump postgrest from 0.11.0 to 0.12.0 ([`9a085f7`](https://github.com/supabase-community/supabase-py/commit/9a085f7ca23e9fb2d22793cffd49696b78fe6854))
+
+* Merge pull request #582 from supabase-community/dependabot/pip/main/gotrue-1.2.0
+
+chore(deps): bump gotrue from 1.1.1 to 1.2.0 ([`eaa31ef`](https://github.com/supabase-community/supabase-py/commit/eaa31ef6304f187f14cfe74925c1be3b10728ebb))
+
+
 ## v1.2.0 (2023-10-04)
+
+### Chore
+
+* chore(release): bump version to v1.2.0 ([`1ddb4e3`](https://github.com/supabase-community/supabase-py/commit/1ddb4e3e01c65b7c5009e8e01db79d4c4ec1cedc))
+
+* chore(deps-dev): bump urllib3 from 2.0.4 to 2.0.6
+
+Bumps [urllib3](https://github.com/urllib3/urllib3) from 2.0.4 to 2.0.6.
+- [Release notes](https://github.com/urllib3/urllib3/releases)
+- [Changelog](https://github.com/urllib3/urllib3/blob/main/CHANGES.rst)
+- [Commits](https://github.com/urllib3/urllib3/compare/2.0.4...2.0.6)
+
+---
+updated-dependencies:
+- dependency-name: urllib3
+  dependency-type: indirect
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`b940713`](https://github.com/supabase-community/supabase-py/commit/b94071318dcb57f4f5a1564618822b32fd7529f3))
+
+* chore(deps): bump storage3 from 0.6.0 to 0.6.1
+
+Bumps [storage3](https://github.com/supabase-community/storage-py) from 0.6.0 to 0.6.1.
+- [Release notes](https://github.com/supabase-community/storage-py/releases)
+- [Changelog](https://github.com/supabase-community/storage-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/storage-py/compare/v0.6.0...v0.6.1)
+
+---
+updated-dependencies:
+- dependency-name: storage3
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`05a110a`](https://github.com/supabase-community/supabase-py/commit/05a110ae03579d3c826d0749065749567f0df596))
 
 ### Feature
 
