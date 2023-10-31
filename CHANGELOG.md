@@ -2,6 +2,39 @@
 
 
 
+## v2.0.1 (2023-10-31)
+
+### Chore
+
+* chore: upgrade to the latest functions-py (#607) ([`d02f41f`](https://github.com/supabase-community/supabase-py/commit/d02f41f353a73f63ac19a1d2366236e993b54a82))
+
+* chore: upgrade to the latest functions-py ([`bf3dca0`](https://github.com/supabase-community/supabase-py/commit/bf3dca0e39ac9bb3bcf5b922eca692c70ccdcbd3))
+
+* chore(deps): bump supafunc from 0.3.0 to 0.3.1 (#606) ([`4ef1ea0`](https://github.com/supabase-community/supabase-py/commit/4ef1ea0461fa96e193fdd2fafdb23d1183c914e9))
+
+* chore(deps): bump supafunc from 0.3.0 to 0.3.1
+
+Bumps [supafunc](https://github.com/supabase-community/functions-py) from 0.3.0 to 0.3.1.
+- [Release notes](https://github.com/supabase-community/functions-py/releases)
+- [Changelog](https://github.com/supabase-community/functions-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/functions-py/compare/v0.3.0...v0.3.1)
+
+---
+updated-dependencies:
+- dependency-name: supafunc
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`1af3eae`](https://github.com/supabase-community/supabase-py/commit/1af3eae133015220c5c96f360c76aa926710156a))
+
+### Fix
+
+* fix: functions-py version update (#608) ([`2f7c69f`](https://github.com/supabase-community/supabase-py/commit/2f7c69fadda8ab8492ecb181f144bfd294b71cc6))
+
+* fix: functions-py version update ([`f5ba014`](https://github.com/supabase-community/supabase-py/commit/f5ba014dbf0be055ab132279a2bb95970d2f2834))
+
+
 ## v2.0.0 (2023-10-29)
 
 ### Breaking
@@ -11,6 +44,8 @@
 BREAKING CHANGE: Functions now raise exceptions on errors ([`10e9c47`](https://github.com/supabase-community/supabase-py/commit/10e9c4740a371812124068013f2420a637a981b4))
 
 ### Chore
+
+* chore(release): bump version to v2.0.0 ([`04e1ae2`](https://github.com/supabase-community/supabase-py/commit/04e1ae2a131227fc4351d5a9cda9ad064f51f76b))
 
 * chore(deps-dev): bump pytest from 7.4.2 to 7.4.3 (#603) ([`8f9ce5c`](https://github.com/supabase-community/supabase-py/commit/8f9ce5c882e9246d777da919372969689d275257))
 
