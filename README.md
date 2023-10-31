@@ -96,6 +96,7 @@ Rough roadmap:
     - [ ] Remove references to GoTrue-js v1 and do a proper release
     - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
     - [ ] Add MFA methods and SSO methods
+    - [ ] Add Proof Key for Code Exchange (PKCE) methods
 - [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
     - [ ]  Support resumable uploads
     - [ ]  Setup testing environment
@@ -212,16 +213,14 @@ from supabase import create_client, Client
 url: str = os.environ.get("SUPABASE_TEST_URL")
 key: str = os.environ.get("SUPABASE_TEST_KEY")
 supabase: Client = create_client(url, key)
-func = supabase.functions()
 
-@asyncio.coroutine
-async def test_func(loop):
-    resp = await func.invoke("hello-world",invoke_options={'body':{}})
+def test_func():
+  try:
+    resp = supabase.functions.invoke("hello-world", invoke_options={'body':{}})
     return resp
-
-loop = asyncio.get_event_loop()
-resp = loop.run_until_complete(test_func(loop))
-loop.close()
+  except (FunctionsRelayError, FunctionsHttpError) as exception:
+    err = exception.to_dict()
+    print(err.get("message"))
 ```
 
 ## Storage
