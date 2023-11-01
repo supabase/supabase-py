@@ -2,7 +2,20 @@
 
 
 
+## v2.0.3 (2023-11-01)
+
+### Fix
+
+* fix: add flow_type to client options (#610) ([`344850d`](https://github.com/supabase-community/supabase-py/commit/344850d60ce06996f46242421665b4044f0ebb73))
+
+* fix: add flow_type to client options ([`f1d8cba`](https://github.com/supabase-community/supabase-py/commit/f1d8cbaab5cce1defe067b698a003f234731e95d))
+
+
 ## v2.0.2 (2023-11-01)
+
+### Chore
+
+* chore(release): bump version to v2.0.2 ([`ca79bbd`](https://github.com/supabase-community/supabase-py/commit/ca79bbdc614f0aea0b61e7a194e9ea6d4c12a01d))
 
 ### Fix
 
