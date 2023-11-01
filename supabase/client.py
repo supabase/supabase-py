@@ -210,6 +210,7 @@ class Client:
             persist_session=client_options.persist_session,
             storage=client_options.storage,
             headers=client_options.headers,
+            flow_type=client_options.flow_type,
         )
 
     @staticmethod
