@@ -1,6 +1,11 @@
 from typing import Dict, Optional
 
-from gotrue import SyncGoTrueClient, SyncMemoryStorage, SyncSupportedStorage
+from gotrue import (
+    AuthFlowType,
+    SyncGoTrueClient,
+    SyncMemoryStorage,
+    SyncSupportedStorage,
+)
 
 # TODO - export this from GoTrue-py in next release
 from httpx import Client as BaseClient
@@ -24,6 +29,7 @@ class SupabaseAuthClient(SyncGoTrueClient):
         persist_session: bool = True,
         storage: SyncSupportedStorage = SyncMemoryStorage(),
         http_client: Optional[SyncClient] = None,
+        flow_type: AuthFlowType = "implicit"
     ):
         """Instantiate SupabaseAuthClient instance."""
         if headers is None:
@@ -38,4 +44,5 @@ class SupabaseAuthClient(SyncGoTrueClient):
             persist_session=persist_session,
             storage=storage,
             http_client=http_client,
+            flow_type=flow_type,
         )
