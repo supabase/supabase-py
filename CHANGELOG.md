@@ -2,9 +2,20 @@
 
 
 
+## v2.0.2 (2023-11-01)
+
+### Fix
+
+* fix: gotrue-py version update (#609) ([`a7502b1`](https://github.com/supabase-community/supabase-py/commit/a7502b156c9c943b5b17620c5d0f9c7ab25ea8ab))
+
+* fix: gotrue-py version update ([`8b3345a`](https://github.com/supabase-community/supabase-py/commit/8b3345a1730d8c3d5a3c88b247e24f9eb52acc0f))
+
+
 ## v2.0.1 (2023-10-31)
 
 ### Chore
+
+* chore(release): bump version to v2.0.1 ([`cc9e641`](https://github.com/supabase-community/supabase-py/commit/cc9e6412ae1860572b5f8d8d066680aadadf55d4))
 
 * chore: upgrade to the latest functions-py (#607) ([`d02f41f`](https://github.com/supabase-community/supabase-py/commit/d02f41f353a73f63ac19a1d2366236e993b54a82))
 
