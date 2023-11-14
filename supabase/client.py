@@ -43,6 +43,8 @@ class Client:
         **options
             Any extra settings to be optionally specified - also see the
             `DEFAULT_OPTIONS` dict.
+        vecs_connection_string: str
+            The connection string to the Postgres instance that should be connected to. In order to use this, you must have the `vecs` extra installed.
         """
 
         if not supabase_url:
@@ -281,6 +283,8 @@ def create_client(
     **options
         Any extra settings to be optionally specified - also see the
         `DEFAULT_OPTIONS` dict.
+    vecs_connection_string: str
+        The connection string to the Postgres instance that should be connected to. In order to use this, you must have the `vecs` extra installed.
 
     Examples
     --------
