@@ -14,15 +14,14 @@
 
 Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
 
-| Status | Stability | Goal |
-| ------ | ------ | ---- |
-| ✅ | Alpha | We are testing Supabase with a closed set of customers |
-| ✅ | Public Alpha | Anyone can sign up over at [app.supabase.io](https://app.supabase.com). But go easy on us, there are a few kinks. |
-| 🚧 | Public Beta | Stable enough for most non-enterprise use-cases |
-| ❌ | Public | Production-ready |
+| Status | Stability    | Goal                                                                                                              |
+| ------ | ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| ✅     | Alpha        | We are testing Supabase with a closed set of customers                                                            |
+| ✅     | Public Alpha | Anyone can sign up over at [app.supabase.io](https://app.supabase.com). But go easy on us, there are a few kinks. |
+| 🚧     | Public Beta  | Stable enough for most non-enterprise use-cases                                                                   |
+| ❌     | Public       | Production-ready                                                                                                  |
 
 We are currently in Public Alpha. Watch "releases" of this repo to get notified of major updates.
-
 
 ## Installation
 
@@ -42,7 +41,7 @@ conda install -c conda-forge supabase
 
 ### Local installation
 
-You can also install locally after cloning this repo. Install Development mode with ``pip install -e``, which makes it so when you edit the source code the changes will be reflected in your python module.
+You can also install locally after cloning this repo. Install Development mode with `pip install -e`, which makes it so when you edit the source code the changes will be reflected in your python module.
 
 ## Usage
 
@@ -51,6 +50,7 @@ It's usually best practice to set your api key environment variables in some way
 ```bash
 export SUPABASE_URL="my-url-to-my-awesome-supabase-instance"
 export SUPABASE_KEY="my-supa-dupa-secret-supabase-api-key"
+# export SUPABASE_CONNECTION_STRING="postgresql://postgres:[PASSWORD]@db.[REF].supabase.red:5432/postgres" optional for using vecs library
 ```
 
 We can then read the keys in the python source code.
@@ -61,7 +61,9 @@ from supabase import create_client, Client
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
+# conn_string: str = os.environ.get("SUPABASE_CONNECTION_STRING")
 supabase: Client = create_client(url, key)
+# supabase: Client = create_client(url, key, vecs_connection_string=conn_string)
 ```
 
 Use the supabase client to interface with your database.
@@ -89,21 +91,22 @@ Rough roadmap:
   - [ ] Add support for EXPLAIN
   - [ ] Add proper error handling
 - [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
-    - [ ]  Integrate with Supabase-py
-    - [ ]  Support WALRUS
-    - [ ]  Support broadcast (to check if already supported)
+  - [ ] Integrate with Supabase-py
+  - [ ] Support WALRUS
+  - [ ] Support broadcast (to check if already supported)
 - [x] Wrap [Gotrue-py](https://github.com/supabase-community/gotrue-py)
-    - [ ] Remove references to GoTrue-js v1 and do a proper release
-    - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
-    - [ ] Add MFA methods and SSO methods
-    - [ ] Add Proof Key for Code Exchange (PKCE) methods
+  - [ ] Remove references to GoTrue-js v1 and do a proper release
+  - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
+  - [ ] Add MFA methods and SSO methods
+  - [ ] Add Proof Key for Code Exchange (PKCE) methods
 - [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
-    - [ ]  Support resumable uploads
-    - [ ]  Setup testing environment
-    - [ ]  Document how to properly upload different file types (e.g. jpeg/png and download it)
+  - [ ] Support resumable uploads
+  - [ ] Setup testing environment
+  - [ ] Document how to properly upload different file types (e.g. jpeg/png and download it)
 - [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
 
 Overall Tasks:
+
 - [ ] Add async support across the entire library
 - [ ] Add FastAPI helper library (external to supabase-py)
 - [ ] Add `django-supabase-postgrest` (external to supabase-py)
@@ -298,12 +301,78 @@ new_file_path: str = "important/revenue.png"
 data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 ```
 
-
 ## Realtime Changes
 
 Realtime changes are unfortunately still a WIP. Feel free to file PRs to [realtime-py](https://github.com/supabase-community/realtime-py)
 
 See [Supabase Docs](https://supabase.com/docs/guides/client-libraries) for full list of examples
+
+## Vectors
+
+[vecs](https://github.com/supabase/vecs) is a library for working with vectors in Postgres with pgvector extension. Unlike other components of supabase-py this library requires a connection string to the database. To use vecs you have to instal supabase library with vecs extras:
+
+```bash
+pip install supabase[vecs]
+# or
+poetry add supabase -E vecs
+```
+
+Please note that vecs support is experimental and may change in the future. Currently, all `vecs` methods will bypass RLS and will be executed as a user used to connect to the database.
+
+### Create a vector collection
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+conn_string: str = os.environ.get("SUPABASE_CONNECTION_STRING")
+supabase: Client = create_client(url, key, vecs_connection_string=conn_string)
+
+col = supabase.vecs.admin.get_or_create_collection(name="my_collection", dimension=100)
+```
+
+### Upsert vectors into a collection
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+conn_string: str = os.environ.get("SUPABASE_CONNECTION_STRING")
+supabase: Client = create_client(url, key, vecs_connection_string=conn_string)
+
+supabase.vecs.admin.my_collection.upsert([['hello1', np.random.rand(100), {'foo': 'bar'}], ['hello2', np.random.rand(100), {'foo': 'bar'}]])
+```
+
+### Create a vector index
+
+```python
+from supabase import create_client, Client
+from vecs import IndexMeasure
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+conn_string: str = os.environ.get("SUPABASE_CONNECTION_STRING")
+supabase: Client = create_client(url, key, vecs_connection_string=conn_string)
+
+supabase.vecs.admin.my_collection.create_index(IndexMeasure.max_inner_product, replace=False)
+```
+
+### Query vectors
+
+```python
+from supabase import create_client, Client
+
+url: str = os.environ.get("SUPABASE_TEST_URL")
+key: str = os.environ.get("SUPABASE_TEST_KEY")
+conn_string: str = os.environ.get("SUPABASE_CONNECTION_STRING")
+supabase: Client = create_client(url, key, vecs_connection_string=conn_string)
+
+supabase.vecs.admin.my_collection.query(data=np.random.rand(100), measure=IndexMeasure.max_inner_product, limit=10)
+```
+
+More examples can be found in [vecs documentation](https://supabase.github.io/vecs/0.4/).
 
 ## Python and Supabase Resources
 

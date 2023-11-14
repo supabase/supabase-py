@@ -12,6 +12,7 @@ from supafunc import SyncFunctionsClient
 from .lib.auth_client import SupabaseAuthClient
 from .lib.client_options import ClientOptions
 from .lib.storage_client import SupabaseStorageClient
+from .lib.vecs_client import VecsClient
 
 
 # Create an exception class when user does not provide a valid url or key.
@@ -29,6 +30,7 @@ class Client:
         supabase_url: str,
         supabase_key: str,
         options: ClientOptions = ClientOptions(),
+        vecs_connection_string: str = None,
     ):
         """Instantiate the client.
 
@@ -47,6 +49,13 @@ class Client:
             raise SupabaseException("supabase_url is required")
         if not supabase_key:
             raise SupabaseException("supabase_key is required")
+        if vecs_connection_string:
+            # check is valid postgres connection string
+            if not re.match(
+                r"^(postgres|postgresql)://[^\s]*:[^\s]*@[^\s]*:[0-9]{4,5}/[^\s]*$",
+                vecs_connection_string,
+            ):
+                raise SupabaseException("Invalid vecs_connection_string")
 
         # Check if the url and key are valid
         if not re.match(r"^(https?)://.+", supabase_url):
@@ -68,6 +77,7 @@ class Client:
         self.storage_url = f"{supabase_url}/storage/v1"
         self.functions_url = f"{supabase_url}/functions/v1"
         self.schema = options.schema
+        self.vecs_connection_string = vecs_connection_string
 
         # Instantiate clients.
         self.auth = self._init_supabase_auth_client(
@@ -84,6 +94,9 @@ class Client:
         self._storage = None
         self._functions = None
         self.auth.on_auth_state_change(self._listen_to_auth_events)
+
+        if self.vecs_connection_string:
+            self.vecs = VecsClient(self.vecs_connection_string)
 
     @deprecated("1.1.1", "1.3.0", details="Use `.functions` instead")
     def functions(self) -> SyncFunctionsClient:
@@ -255,6 +268,7 @@ def create_client(
     supabase_url: str,
     supabase_key: str,
     options: ClientOptions = ClientOptions(),
+    vecs_connection_string: str = None,
 ) -> Client:
     """Create client function to instantiate supabase client like JS runtime.
 
@@ -282,4 +296,4 @@ def create_client(
     -------
     Client
     """
-    return Client(supabase_url=supabase_url, supabase_key=supabase_key, options=options)
+    return Client(supabase_url=supabase_url, supabase_key=supabase_key, options=options, vecs_connection_string=vecs_connection_string)

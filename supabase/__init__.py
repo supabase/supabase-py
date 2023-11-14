@@ -7,3 +7,4 @@ from .client import Client, create_client
 from .lib.auth_client import SupabaseAuthClient
 from .lib.realtime_client import SupabaseRealtimeClient
 from .lib.storage_client import SupabaseStorageClient
+from .lib.vecs_client import VecsClient
