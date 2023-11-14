@@ -300,4 +300,9 @@ def create_client(
     -------
     Client
     """
-    return Client(supabase_url=supabase_url, supabase_key=supabase_key, options=options, vecs_connection_string=vecs_connection_string)
+    return Client(
+        supabase_url=supabase_url,
+        supabase_key=supabase_key,
+        options=options,
+        vecs_connection_string=vecs_connection_string,
+    )
