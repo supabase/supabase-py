@@ -29,13 +29,12 @@ class VecsAdminClient:
             self._collections: Dict[str, vecs.Collection] = dict()
 
     def _vecs_installed(self):
-        if not VEC_INSTALLED:
-            logging.error(
-                "vecs library is not installed. This method will not work. Please install it to use this vecs client. You can install it by running `pip install supabase[vecs]`"
-            )
-            return False
-        else:
+        if VEC_INSTALLED:
             return True
+        logging.error(
+            "vecs library is not installed. This method will not work. Please install it to use this vecs client. You can install it by running `pip install supabase[vecs]`"
+        )
+        return False
 
     def get_or_create_collection(
         self,
@@ -48,15 +47,14 @@ class VecsAdminClient:
             return None
         if name in self._collections:
             return self._collections.get(name)
-        else:
-            collection = self._client.get_or_create_collection(
-                name=name,
-                dimension=dimension,
-                adapter=adapter,
-            )
-            self._collections[name] = collection
-            self.__setattr__(name, collection)
-            return collection
+        collection = self._client.get_or_create_collection(
+            name=name,
+            dimension=dimension,
+            adapter=adapter,
+        )
+        self._collections[name] = collection
+        self.__setattr__(name, collection)
+        return collection
 
     def delete_collection(self, name: str):
         if not self._vecs_installed():
@@ -64,9 +62,7 @@ class VecsAdminClient:
         if name in self._collections:
             self._collections.pop(name)
             self.__delattr__(name)
-            return self._client.delete_collection(name)
-        else:
-            return self._client.delete_collection(name)
+        return self._client.delete_collection(name)
 
     def list_collections(self):
         if not self._vecs_installed():
@@ -82,15 +78,14 @@ class VecsAdminClient:
             return None
         if name in self._collections:
             return self._collections.get(name)
-        else:
-            try:
-                collection = self._client.get_collection(name)
-                self._collections[name] = collection
-                self.__setattr__(name, collection)
-                return collection
-            except vecs.exc.CollectionNotFound:
-                logging.error(f"Collection {name} not found")
-                return None
+        try:
+            collection = self._client.get_collection(name)
+            self._collections[name] = collection
+            self.__setattr__(name, collection)
+            return collection
+        except vecs.exc.CollectionNotFound:
+            logging.error(f"Collection {name} not found")
+            return None
 
     def __del__(self):
         if not VEC_INSTALLED:
