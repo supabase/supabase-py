@@ -2,21 +2,15 @@ from typing import Dict, Optional
 
 from gotrue import (
     AuthFlowType,
-    SyncGoTrueClient,
-    SyncMemoryStorage,
-    SyncSupportedStorage,
+    AsyncGoTrueClient,
+    AsyncMemoryStorage,
+    AsyncSupportedStorage,
 )
 
-# TODO - export this from GoTrue-py in next release
-from httpx import Client as BaseClient
+from gotrue.http_clients import AsyncClient
 
 
-class SyncClient(BaseClient):
-    def aclose(self) -> None:
-        self.close()
-
-
-class SupabaseAuthClient(SyncGoTrueClient):
+class AsyncSupabaseAuthClient(AsyncGoTrueClient):
     """SupabaseAuthClient"""
 
     def __init__(
@@ -27,15 +21,15 @@ class SupabaseAuthClient(SyncGoTrueClient):
         storage_key: Optional[str] = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
-        storage: SyncSupportedStorage = SyncMemoryStorage(),
-        http_client: Optional[SyncClient] = None,
+        storage: AsyncSupportedStorage = AsyncMemoryStorage(),
+        http_client: Optional[AsyncClient] = None,
         flow_type: AuthFlowType = "implicit"
     ):
         """Instantiate SupabaseAuthClient instance."""
         if headers is None:
             headers = {}
 
-        SyncGoTrueClient.__init__(
+        AsyncGoTrueClient.__init__(
             self,
             url=url,
             headers=headers,

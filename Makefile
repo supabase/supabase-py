@@ -14,3 +14,6 @@ run_tests: tests
 
 tests_only:
 	poetry run pytest --cov=./ --cov-report=xml --cov-report=html -vv
+
+build_sync:
+	poetry run unasync supabase tests
