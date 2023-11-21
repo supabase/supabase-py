@@ -4,18 +4,14 @@ from typing import Any, Dict, Union
 from deprecation import deprecated
 from gotrue.types import AuthChangeEvent
 from httpx import Timeout
-from postgrest import (
-    SyncFilterRequestBuilder,
-    SyncPostgrestClient,
-    SyncRequestBuilder,
-)
+from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
-from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from storage3 import SyncStorageClient
+from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import SyncFunctionsClient
 
-from .auth_client import SyncSupabaseAuthClient
 from ..lib.client_options import ClientOptions
+from .auth_client import SyncSupabaseAuthClient
 
 
 # Create an exception class when user does not provide a valid url or key.

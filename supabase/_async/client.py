@@ -10,12 +10,12 @@ from postgrest import (
     AsyncRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
-from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from storage3 import AsyncStorageClient
+from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import AsyncFunctionsClient
 
-from .auth_client import AsyncSupabaseAuthClient
 from ..lib.client_options import ClientOptions
+from .auth_client import AsyncSupabaseAuthClient
 
 
 # Create an exception class when user does not provide a valid url or key.

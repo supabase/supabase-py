@@ -6,7 +6,6 @@ from gotrue import (
     SyncMemoryStorage,
     SyncSupportedStorage,
 )
-
 from gotrue.http_clients import SyncClient
 
 

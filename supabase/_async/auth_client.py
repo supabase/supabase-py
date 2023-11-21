@@ -1,12 +1,11 @@
 from typing import Dict, Optional
 
 from gotrue import (
-    AuthFlowType,
     AsyncGoTrueClient,
     AsyncMemoryStorage,
     AsyncSupportedStorage,
+    AuthFlowType,
 )
-
 from gotrue.http_clients import AsyncClient
 
 
