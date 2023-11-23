@@ -2,7 +2,52 @@
 
 
 
+## v2.1.0 (2023-11-23)
+
+### Chore
+
+* chore(deps): bump storage3 from 0.6.1 to 0.7.0 (#620) ([`f0dbe94`](https://github.com/supabase-community/supabase-py/commit/f0dbe94126d4f88bc158784b3cb2fdab784cae15))
+
+* chore(deps): bump storage3 from 0.6.1 to 0.7.0
+
+Bumps [storage3](https://github.com/supabase-community/storage-py) from 0.6.1 to 0.7.0.
+- [Release notes](https://github.com/supabase-community/storage-py/releases)
+- [Changelog](https://github.com/supabase-community/storage-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/storage-py/compare/v0.6.1...v0.7.0)
+
+---
+updated-dependencies:
+- dependency-name: storage3
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`38a7ded`](https://github.com/supabase-community/supabase-py/commit/38a7ded3f3a04dcf2ed16c581716bbe1ef2c469f))
+
+### Feature
+
+* feat: add async client (#619) ([`ee64181`](https://github.com/supabase-community/supabase-py/commit/ee64181c9bb27f4974636b5f87219059e44deadb))
+
+* feat: add async client ([`6097109`](https://github.com/supabase-community/supabase-py/commit/6097109c590a650601644f973116a2ee865c3024))
+
+### Fix
+
+* fix: format code with pre-commit ([`9f36f9d`](https://github.com/supabase-community/supabase-py/commit/9f36f9db2f125c01c8240475011588d11997e021))
+
+### Unknown
+
+* Update lock file ([`c34d5c6`](https://github.com/supabase-community/supabase-py/commit/c34d5c6b01db0a6e2984637092c8f4ae5ea1498c))
+
+* Update supabase/_async/client.py
+
+Co-authored-by: Joel Lee &lt;lee.yi.jie.joel@gmail.com&gt; ([`068b601`](https://github.com/supabase-community/supabase-py/commit/068b601f1ceb326f5266b67264a9c1bac7301497))
+
+
 ## v2.0.3 (2023-11-01)
+
+### Chore
+
+* chore(release): bump version to v2.0.3 ([`f76ac69`](https://github.com/supabase-community/supabase-py/commit/f76ac69bb12d65e5321ec1753a97020e3583ed19))
 
 ### Fix
 
