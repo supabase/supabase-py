@@ -6,17 +6,10 @@ from gotrue import (
     SyncMemoryStorage,
     SyncSupportedStorage,
 )
-
-# TODO - export this from GoTrue-py in next release
-from httpx import Client as BaseClient
+from gotrue.http_clients import SyncClient
 
 
-class SyncClient(BaseClient):
-    def aclose(self) -> None:
-        self.close()
-
-
-class SupabaseAuthClient(SyncGoTrueClient):
+class SyncSupabaseAuthClient(SyncGoTrueClient):
     """SupabaseAuthClient"""
 
     def __init__(

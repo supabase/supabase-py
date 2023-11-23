@@ -37,6 +37,9 @@ python-dotenv = "^1.0.0"
 [tool.poetry.scripts]
 tests = 'poetry_scripts:run_tests'
 
+[tool.poetry.group.dev.dependencies]
+unasync-cli = "^0.0.9"
+
 [tool.semantic_release]
 version_variables = ["supabase/__version__.py:__version__"]
 version_toml = ["pyproject.toml:tool.poetry.version"]
