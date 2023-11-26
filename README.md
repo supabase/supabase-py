@@ -236,7 +236,7 @@ supabase: Client = create_client(url, key)
 
 bucket_name: str = "photos"
 
-data = supabase.storage.from_(bucket_name).download("photo1.png)
+data = supabase.storage.from_(bucket_name).download("photo1.png")
 ```
 
 ### Upload a file
