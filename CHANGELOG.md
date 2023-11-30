@@ -2,9 +2,66 @@
 
 
 
+## v2.1.1 (2023-11-30)
+
+### Chore
+
+* chore(deps): bump gotrue from 1.3.0 to 2.0.0 (#628) ([`247b309`](https://github.com/supabase-community/supabase-py/commit/247b3091925347258348c200daec04a7b90c908b))
+
+* chore(deps): bump gotrue from 1.3.0 to 2.0.0
+
+Bumps [gotrue](https://github.com/supabase-community/gotrue-py) from 1.3.0 to 2.0.0.
+- [Release notes](https://github.com/supabase-community/gotrue-py/releases)
+- [Changelog](https://github.com/supabase-community/gotrue-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/gotrue-py/compare/v1.3.0...v2.0.0)
+
+---
+updated-dependencies:
+- dependency-name: gotrue
+  dependency-type: direct:production
+  update-type: version-update:semver-major
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`c1c0ac0`](https://github.com/supabase-community/supabase-py/commit/c1c0ac0b48d148653fa9aa0d8c3c980bc60282ac))
+
+* chore(deps): bump gotrue from 1.3.0 to 1.3.1 (#626) ([`1d268a0`](https://github.com/supabase-community/supabase-py/commit/1d268a04e233991fb8b8f0fba65cf06aef247515))
+
+* chore(deps): bump gotrue from 1.3.0 to 1.3.1
+
+Bumps [gotrue](https://github.com/supabase-community/gotrue-py) from 1.3.0 to 1.3.1.
+- [Release notes](https://github.com/supabase-community/gotrue-py/releases)
+- [Changelog](https://github.com/supabase-community/gotrue-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/gotrue-py/compare/v1.3.0...v1.3.1)
+
+---
+updated-dependencies:
+- dependency-name: gotrue
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`0ec8371`](https://github.com/supabase-community/supabase-py/commit/0ec83716f693ae5b0a3e167dfed13f5941c5f6be))
+
+### Fix
+
+* fix: remove deprecated .functions() method (#629) ([`243324d`](https://github.com/supabase-community/supabase-py/commit/243324d37650c9540bab0b14b6d550f06e10f1d0))
+
+* fix: remove deprecated .functions() method ([`e9f8010`](https://github.com/supabase-community/supabase-py/commit/e9f801040c7d62489e3648c0302018f69ed865f8))
+
+### Unknown
+
+* add: complete string (#624) ([`b41c453`](https://github.com/supabase-community/supabase-py/commit/b41c453e0e65229b53d9640e660a58226ab2d7d9))
+
+* add: complete string
+
+Incomplete String in `### Download a file` ([`7f7beec`](https://github.com/supabase-community/supabase-py/commit/7f7beecd009e8b79fb15d33ba3dfc934975f2f50))
+
+
 ## v2.1.0 (2023-11-23)
 
 ### Chore
+
+* chore(release): bump version to v2.1.0 ([`92541a2`](https://github.com/supabase-community/supabase-py/commit/92541a22ad431cc50f19242f2be4eb2cda90b50d))
 
 * chore(deps): bump storage3 from 0.6.1 to 0.7.0 (#620) ([`f0dbe94`](https://github.com/supabase-community/supabase-py/commit/f0dbe94126d4f88bc158784b3cb2fdab784cae15))
 
