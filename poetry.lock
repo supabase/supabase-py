@@ -454,13 +454,13 @@ test = ["black", "coverage[toml]", "ddt (>=1.1.1,!=1.4.3)", "mock", "mypy", "pre
 
 [[package]]
 name = "gotrue"
-version = "1.3.1"
+version = "2.0.0"
 description = "Python Client Library for GoTrue"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "gotrue-1.3.1-py3-none-any.whl", hash = "sha256:22a5194de560061f883e67fd51bcd7f4d1d188660d6ad81de3204d90a36714cb"},
-    {file = "gotrue-1.3.1.tar.gz", hash = "sha256:7808c210e26013b1641f91a056f8960f64c7ea9413cf3b79ad51060a42057db8"},
+    {file = "gotrue-2.0.0-py3-none-any.whl", hash = "sha256:c376d370bc1c7e15cba7fda4615777c8df83248c482ff9aa3399c34642395289"},
+    {file = "gotrue-2.0.0.tar.gz", hash = "sha256:21b2a39374309fbdd772b589c045681f5be3320f73b70bfd0dae1983ca7d7355"},
 ]
 
 [package.dependencies]
@@ -1645,4 +1645,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "885fa597e087b983753f1de542456861dd55be57d3eeecd625f20ed2f7736e43"
+content-hash = "9a159c98fd0b6f34219498be309e750018258472fae35dafa949bcf40d3758e0"
