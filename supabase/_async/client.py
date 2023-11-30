@@ -1,7 +1,6 @@
 import re
 from typing import Any, Dict, Union
 
-from deprecation import deprecated
 from gotrue.types import AuthChangeEvent
 from httpx import Timeout
 from postgrest import (
@@ -88,10 +87,6 @@ class Client:
         self._storage = None
         self._functions = None
         self.auth.on_auth_state_change(self._listen_to_auth_events)
-
-    @deprecated("1.1.1", "1.3.0", details="Use `.functions` instead")
-    def functions(self) -> AsyncFunctionsClient:
-        return AsyncFunctionsClient(self.functions_url, self._get_auth_headers())
 
     def table(self, table_name: str) -> AsyncRequestBuilder:
         """Perform a table operation.

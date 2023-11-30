@@ -1,7 +1,6 @@
 import re
 from typing import Any, Dict, Union
 
-from deprecation import deprecated
 from gotrue.types import AuthChangeEvent
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
@@ -84,10 +83,6 @@ class Client:
         self._storage = None
         self._functions = None
         self.auth.on_auth_state_change(self._listen_to_auth_events)
-
-    @deprecated("1.1.1", "1.3.0", details="Use `.functions` instead")
-    def functions(self) -> SyncFunctionsClient:
-        return SyncFunctionsClient(self.functions_url, self._get_auth_headers())
 
     def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
@@ -227,7 +222,6 @@ class Client:
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
-        # What's the corresponding method to get the token
         return {
             "apiKey": self.supabase_key,
             "Authorization": f"Bearer {self.supabase_key}",
