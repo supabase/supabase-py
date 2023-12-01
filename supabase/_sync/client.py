@@ -1,7 +1,7 @@
 import re
 from typing import Any, Dict, Union
 
-from gotrue.types import AuthChangeEvent
+from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
@@ -20,7 +20,7 @@ class SupabaseException(Exception):
         super().__init__(self.message)
 
 
-class Client:
+class SyncClient:
     """Supabase client class."""
 
     def __init__(
@@ -59,6 +59,9 @@ class Client:
 
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
+        self._auth_token = {
+            "Authorization": f"Bearer {supabase_key}",
+        }
         options.headers.update(self._get_auth_headers())
         self.options = options
         self.rest_url = f"{supabase_url}/rest/v1"
@@ -83,6 +86,17 @@ class Client:
         self._storage = None
         self._functions = None
         self.auth.on_auth_state_change(self._listen_to_auth_events)
+
+    @classmethod
+    def create(
+        cls,
+        supabase_url: str,
+        supabase_key: str,
+        options: ClientOptions = ClientOptions(),
+    ):
+        client = cls(supabase_url, supabase_key, options)
+        client._auth_token = client._get_token_header()
+        return client
 
     def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
@@ -121,20 +135,21 @@ class Client:
     @property
     def postgrest(self):
         if self._postgrest is None:
-            self.options.headers.update(self._get_token_header())
+            self.options.headers.update(self._auth_token)
             self._postgrest = self._init_postgrest_client(
                 rest_url=self.rest_url,
                 headers=self.options.headers,
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
             )
+
         return self._postgrest
 
     @property
     def storage(self):
         if self._storage is None:
             headers = self._get_auth_headers()
-            headers.update(self._get_token_header())
+            headers.update(self._auth_token)
             self._storage = self._init_storage_client(
                 storage_url=self.storage_url,
                 headers=headers,
@@ -146,7 +161,7 @@ class Client:
     def functions(self):
         if self._functions is None:
             headers = self._get_auth_headers()
-            headers.update(self._get_token_header())
+            headers.update(self._auth_token)
             self._functions = SyncFunctionsClient(self.functions_url, headers)
         return self._functions
 
@@ -229,15 +244,16 @@ class Client:
 
     def _get_token_header(self):
         try:
-            access_token = self.auth.get_session().access_token
-        except:
+            session = self.auth.get_session()
+            access_token = session.access_token
+        except Exception as err:
             access_token = self.supabase_key
 
         return {
             "Authorization": f"Bearer {access_token}",
         }
 
-    def _listen_to_auth_events(self, event: AuthChangeEvent, session):
+    def _listen_to_auth_events(self, event: AuthChangeEvent, session: Session):
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             # reset postgrest and storage instance on event change
             self._postgrest = None
@@ -249,7 +265,7 @@ def create_client(
     supabase_url: str,
     supabase_key: str,
     options: ClientOptions = ClientOptions(),
-) -> Client:
+) -> SyncClient:
     """Create client function to instantiate supabase client like JS runtime.
 
     Parameters
@@ -276,4 +292,6 @@ def create_client(
     -------
     Client
     """
-    return Client(supabase_url=supabase_url, supabase_key=supabase_key, options=options)
+    return SyncClient.create(
+        supabase_url=supabase_url, supabase_key=supabase_key, options=options
+    )
