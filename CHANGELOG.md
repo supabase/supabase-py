@@ -2,9 +2,20 @@
 
 
 
+## v2.2.0 (2023-12-01)
+
+### Feature
+
+* feat: add create method to handle token headers (#630) ([`fd612a0`](https://github.com/supabase-community/supabase-py/commit/fd612a00c8e8e8f9efdf700161358b09ed15a793))
+
+* feat: add create method to handle token headers ([`4f47306`](https://github.com/supabase-community/supabase-py/commit/4f473069821066d622ff2ae4e9a668c6759af78a))
+
+
 ## v2.1.1 (2023-11-30)
 
 ### Chore
+
+* chore(release): bump version to v2.1.1 ([`b9240d8`](https://github.com/supabase-community/supabase-py/commit/b9240d8ce29a584a0a016f502e352083063dd7db))
 
 * chore(deps): bump gotrue from 1.3.0 to 2.0.0 (#628) ([`247b309`](https://github.com/supabase-community/supabase-py/commit/247b3091925347258348c200daec04a7b90c908b))
 
