@@ -4,17 +4,17 @@ from typing import Any, Dict, Union
 from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import (
-    AsyncFilterRequestBuilder,
     AsyncPostgrestClient,
     AsyncRequestBuilder,
 )
+from postgrest._async.request_builder import AsyncRPCFilterRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import AsyncFunctionsClient
 
-from ..lib.client_options import ClientOptions
 from .auth_client import AsyncSupabaseAuthClient
+from ..lib.client_options import ClientOptions
 
 
 # Create an exception class when user does not provide a valid url or key.
@@ -118,7 +118,7 @@ class AsyncClient:
         """
         return self.postgrest.from_(table_name)
 
-    def rpc(self, fn: str, params: Dict[Any, Any]) -> AsyncFilterRequestBuilder:
+    def rpc(self, fn: str, params: Dict[Any, Any]) -> AsyncRPCFilterRequestBuilder[Any]:
         """Performs a stored procedure call.
 
         Parameters
@@ -250,7 +250,7 @@ class AsyncClient:
         try:
             session = await self.auth.get_session()
             access_token = session.access_token
-        except Exception as err:
+        except Exception:
             access_token = self.supabase_key
 
         return {
