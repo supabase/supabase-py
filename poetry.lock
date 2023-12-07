@@ -454,13 +454,13 @@ test = ["black", "coverage[toml]", "ddt (>=1.1.1,!=1.4.3)", "mock", "mypy", "pre
 
 [[package]]
 name = "gotrue"
-version = "2.0.0"
+version = "2.1.0"
 description = "Python Client Library for GoTrue"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "gotrue-2.0.0-py3-none-any.whl", hash = "sha256:c376d370bc1c7e15cba7fda4615777c8df83248c482ff9aa3399c34642395289"},
-    {file = "gotrue-2.0.0.tar.gz", hash = "sha256:21b2a39374309fbdd772b589c045681f5be3320f73b70bfd0dae1983ca7d7355"},
+    {file = "gotrue-2.1.0-py3-none-any.whl", hash = "sha256:6483d9a3ac9be1d1ad510be24171e133aa1cec702cc10a8f323b9e7519642447"},
+    {file = "gotrue-2.1.0.tar.gz", hash = "sha256:b21d48ee64f0f6a1ed111efe4871a83e542529f1a75a264833b50e6433cd3c98"},
 ]
 
 [package.dependencies]
