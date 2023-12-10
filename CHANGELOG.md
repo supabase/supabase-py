@@ -2,7 +2,20 @@
 
 
 
+## v2.2.1 (2023-12-10)
+
+### Fix
+
+* fix: upgrade gotrue and realtime dependencies (#637) ([`2554b66`](https://github.com/supabase-community/supabase-py/commit/2554b66b514bfc85c4c283430d95327cc9e8c4ab))
+
+* fix: upgrade gotrue and realtime dependencies ([`4eb6dfe`](https://github.com/supabase-community/supabase-py/commit/4eb6dfe896e28d4801e1560cbf43348b1da74ee2))
+
+
 ## v2.2.0 (2023-12-01)
+
+### Chore
+
+* chore(release): bump version to v2.2.0 ([`88954c2`](https://github.com/supabase-community/supabase-py/commit/88954c26c7e89838476f22428cf4a798eca96e09))
 
 ### Feature
 
