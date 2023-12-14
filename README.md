@@ -38,11 +38,11 @@ You can also install locally after cloning this repo. Install Development mode w
     - [ ]  Integrate with Supabase-py
     - [ ]  Support WALRUS
     - [ ]  Support broadcast (to check if already supported)
-- [x] Wrap [Gotrue-py](https://github.com/supabase-community/gotrue-py)
-    - [ ] Remove references to GoTrue-js v1 and do a proper release
+- [x] Wrap [auth-py](https://github.com/supabase-community/auth-py)
+    - [x] Remove references to GoTrue-js v1 and do a proper release
     - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
     - [ ] Add MFA methods and SSO methods
-    - [ ] Add Proof Key for Code Exchange (PKCE) methods
+    - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
 - [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
     - [ ]  Support resumable uploads
     - [ ]  Setup testing environment
@@ -50,7 +50,7 @@ You can also install locally after cloning this repo. Install Development mode w
 - [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
 
 Overall Tasks:
-- [ ] Add async support across the entire library
+- [x] Add async support across the entire library
 - [ ] Add FastAPI helper library (external to supabase-py)
 - [ ] Add `django-supabase-postgrest` (external to supabase-py)
 
