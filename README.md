@@ -38,7 +38,7 @@ You can also install locally after cloning this repo. Install Development mode w
     - [ ]  Integrate with Supabase-py
     - [ ]  Support WALRUS
     - [ ]  Support broadcast (to check if already supported)
-- [x] Wrap [Gotrue-py](https://github.com/supabase-community/gotrue-py)
+- [x] Wrap [auth-py](https://github.com/supabase-community/auth-py)
     - [x] Remove references to GoTrue-js v1 and do a proper release
     - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
     - [ ] Add MFA methods and SSO methods
