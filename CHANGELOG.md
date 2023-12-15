@@ -2,7 +2,34 @@
 
 
 
+## v2.3.0 (2023-12-15)
+
+### Chore
+
+* chore: move roadmap below usage ([`52756a2`](https://github.com/supabase-community/supabase-py/commit/52756a2640199ef817897f91a973b24a95e26bd8))
+
+### Feature
+
+* feat: update readme (#644) ([`46e0690`](https://github.com/supabase-community/supabase-py/commit/46e0690a1ae125aa6ab82befeb05c32fd8c6dd45))
+
+### Unknown
+
+* Update README.md ([`45af4fb`](https://github.com/supabase-community/supabase-py/commit/45af4fb967e97325e7e5963a5aaf507669fd1084))
+
+* Update README.md with completed tasks and rename to auth-py (#643) ([`d87fd0c`](https://github.com/supabase-community/supabase-py/commit/d87fd0cfe0029e4aae1d0cd7209c8769763d8224))
+
+* Update README.md ([`f571d0e`](https://github.com/supabase-community/supabase-py/commit/f571d0e7f8217e65c3105db9df1ca627c4a8e3f6))
+
+* Update README.md ([`d9d076c`](https://github.com/supabase-community/supabase-py/commit/d9d076c0b87b1900bccb7bb0bf7876115659dd85))
+
+* Update README.md ([`d9e300a`](https://github.com/supabase-community/supabase-py/commit/d9e300adee62bed7fb74b4aac074b3456e98f9dc))
+
+
 ## v2.2.1 (2023-12-10)
+
+### Chore
+
+* chore(release): bump version to v2.2.1 ([`9ec606c`](https://github.com/supabase-community/supabase-py/commit/9ec606c5539bdf3e5531c26be3df783db6b28483))
 
 ### Fix
 
