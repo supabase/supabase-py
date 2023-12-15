@@ -250,8 +250,8 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
     - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
 - [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
     - [ ]  Support resumable uploads
-    - [ ]  Setup testing environment
-    - [ ]  Document how to properly upload different file types (e.g. jpeg/png and download it)
+    - [x]  Setup testing environment
+    - [x]  Document how to properly upload different file types (e.g. jpeg/png and download it)
 - [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
 
 Overall Tasks:
