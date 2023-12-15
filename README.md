@@ -27,33 +27,6 @@ conda install -c conda-forge supabase
 
 You can also install locally after cloning this repo. Install Development mode with ``pip install -e``, which makes it so when you edit the source code the changes will be reflected in your python module.
 
-
-## Roadmap
-
-- [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
-  - [ ] Add remaining filters
-  - [ ] Add support for EXPLAIN
-  - [ ] Add proper error handling
-- [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
-    - [ ]  Integrate with Supabase-py
-    - [ ]  Support WALRUS
-    - [ ]  Support broadcast (to check if already supported)
-- [x] Wrap [auth-py](https://github.com/supabase-community/auth-py)
-    - [x] Remove references to GoTrue-js v1 and do a proper release
-    - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
-    - [ ] Add MFA methods and SSO methods
-    - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
-- [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
-    - [ ]  Support resumable uploads
-    - [ ]  Setup testing environment
-    - [ ]  Document how to properly upload different file types (e.g. jpeg/png and download it)
-- [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
-
-Overall Tasks:
-- [x] Add async support across the entire library
-- [ ] Add FastAPI helper library (external to supabase-py)
-- [ ] Add `django-supabase-postgrest` (external to supabase-py)
-
 ## Usage
 
 Set your Supabase environment variables in a dotenv file, or using the shell:
@@ -260,9 +233,31 @@ new_file_path: str = "important/revenue.png"
 data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 ```
 
-### Realtime Changes
+## Roadmap
 
-Realtime changes are still a WIP. Feel free to file PRs to [realtime-py](https://github.com/supabase-community/realtime-py).
+- [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
+  - [ ] Add remaining filters
+  - [ ] Add support for EXPLAIN
+  - [ ] Add proper error handling
+- [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
+    - [ ]  Integrate with Supabase-py
+    - [ ]  Support WALRUS
+    - [ ]  Support broadcast (to check if already supported)
+- [x] Wrap [auth-py](https://github.com/supabase-community/auth-py)
+    - [x] Remove references to GoTrue-js v1 and do a proper release
+    - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
+    - [ ] Add MFA methods and SSO methods
+    - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
+- [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
+    - [ ]  Support resumable uploads
+    - [ ]  Setup testing environment
+    - [ ]  Document how to properly upload different file types (e.g. jpeg/png and download it)
+- [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
+
+Overall Tasks:
+- [x] Add async support across the entire library
+- [ ] Add FastAPI helper library (external to supabase-py)
+- [ ] Add `django-supabase-postgrest` (external to supabase-py)
 
 ## Contributing
 
