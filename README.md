@@ -1,36 +1,19 @@
-# supabase-py
+# `supabase-py`
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?label=license)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/pypi/pyversions/supabase)](https://pypi.org/project/supabase)
-[![Version](https://img.shields.io/pypi/v/supabase?color=%2334D058)](https://pypi.org/project/supabase)
-[![Codecov](https://codecov.io/gh/supabase-community/supabase-py/branch/develop/graph/badge.svg)](https://codecov.io/gh/supabase-community/supabase-py)
-[![Last commit](https://img.shields.io/github/last-commit/supabase-community/supabase-py.svg?style=flat)](https://github.com/supabase-community/supabase-py/commits)
-[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/supabase-community/supabase-py)](https://github.com/supabase-community/supabase-py/commits)
-[![Github Stars](https://img.shields.io/github/stars/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py/stargazers)
-[![Github Forks](https://img.shields.io/github/forks/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py/network/members)
-[![Github Watchers](https://img.shields.io/github/watchers/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py)
-[![GitHub contributors](https://img.shields.io/github/contributors/supabase-community/supabase-py)](https://github.com/supabase-community/supabase-py/graphs/contributors)
+Python client for [Supabase](https://supabase.com)
 
-Supabase client for Python. This mirrors the design of [supabase-js](https://github.com/supabase/supabase-js/blob/master/README.md)
-
-| Status | Stability | Goal |
-| ------ | ------ | ---- |
-| ✅ | Alpha | We are testing Supabase with a closed set of customers |
-| ✅ | Public Alpha | Anyone can sign up over at [app.supabase.io](https://app.supabase.com). But go easy on us, there are a few kinks. |
-| 🚧 | Public Beta | Stable enough for most non-enterprise use-cases |
-| ❌ | Public | Production-ready |
-
-We are currently in Public Alpha. Watch "releases" of this repo to get notified of major updates.
-
+- Documentation: [supabase.com/docs](https://supabase.com/docs/reference/python/introduction)
+- Usage:
+  - [GitHub OAuth in your Python Flask app](https://supabase.com/blog/oauth2-login-python-flask-apps)
+  - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
 
 ## Installation
 
-**Recomended:** First activate your virtual environment, with your favourite system. For example, we like `poetry` and `conda`!
+We recommend activating your virtual environment. For example, we like `poetry` and `conda`!
 
 ### PyPi installation
 
-Now install the package. (for > Python 3.7)
+Install the package (for > Python 3.7):
 
 ```bash
 # with pip
@@ -46,14 +29,14 @@ You can also install locally after cloning this repo. Install Development mode w
 
 ## Usage
 
-It's usually best practice to set your api key environment variables in some way that version control doesn't track them, e.g don't put them in your python modules! Set the key and url for the supabase instance in the shell, or better yet, use a dotenv file. Heres how to set the variables in the shell.
+Set your Supabase environment variables in a dotenv file, or using the shell:
 
 ```bash
 export SUPABASE_URL="my-url-to-my-awesome-supabase-instance"
 export SUPABASE_KEY="my-supa-dupa-secret-supabase-api-key"
 ```
 
-We can then read the keys in the python source code.
+We can then read the keys in the python source code:
 
 ```python
 import os
@@ -66,51 +49,7 @@ supabase: Client = create_client(url, key)
 
 Use the supabase client to interface with your database.
 
-### Running Tests
-
-Currently the test suites are in a state of flux. We are expanding our clients tests to ensure things are working, and for now can connect to this test instance, that is populated with the following table:
-
-<p align="center">
-  <img width="720" height="481" src="https://i.ibb.co/Bq7Kdty/db.png">
-</p>
-
-The above test database is a blank supabase instance that has populated the `countries` table with the built in countries script that can be found in the supabase UI. You can launch the test scripts and point to the above test database by running
-
-```bash
-./test.sh
-```
-
-### See issues for what to work on
-
-Rough roadmap:
-
-- [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
-  - [ ] Add remaining filters
-  - [ ] Add support for EXPLAIN
-  - [ ] Add proper error handling
-- [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
-    - [ ]  Integrate with Supabase-py
-    - [ ]  Support WALRUS
-    - [ ]  Support broadcast (to check if already supported)
-- [x] Wrap [Gotrue-py](https://github.com/supabase-community/gotrue-py)
-    - [ ] Remove references to GoTrue-js v1 and do a proper release
-    - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
-    - [ ] Add MFA methods and SSO methods
-    - [ ] Add Proof Key for Code Exchange (PKCE) methods
-- [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
-    - [ ]  Support resumable uploads
-    - [ ]  Setup testing environment
-    - [ ]  Document how to properly upload different file types (e.g. jpeg/png and download it)
-- [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
-
-Overall Tasks:
-- [ ] Add async support across the entire library
-- [ ] Add FastAPI helper library (external to supabase-py)
-- [ ] Add `django-supabase-postgrest` (external to supabase-py)
-
-### Client Library
-
-## Authenticate
+#### Authenticate
 
 ```python
 from supabase import create_client, Client
@@ -124,7 +63,7 @@ random_password: str = "fqj13bnf2hiu23h"
 user = supabase.auth.sign_up({ "email": random_email, "password": random_password })
 ```
 
-## Sign-in
+#### Sign-in
 
 ```python
 from supabase import create_client, Client
@@ -138,9 +77,7 @@ random_password: str = "fqj13bnf2hiu23h"
 user = supabase.auth.sign_in_with_password({ "email": random_email, "password": random_password })
 ```
 
-## Managing Data
-
-### Insertion of Data
+#### Insert Data
 
 ```python
 from supabase import create_client, Client
@@ -152,7 +89,7 @@ data = supabase.table("countries").insert({"name":"Germany"}).execute()
 assert len(data.data) > 0
 ```
 
-### Selection of Data
+#### Select Data
 
 ```python
 from supabase import create_client, Client
@@ -165,7 +102,7 @@ data = supabase.table("countries").select("*").eq("country", "IL").execute()
 assert len(data.data) > 0
 ```
 
-### Update of Data
+#### Update Data
 
 ```python
 from supabase import create_client, Client
@@ -176,7 +113,7 @@ supabase: Client = create_client(url, key)
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 
-### Update data of duplicate keys
+#### Update data with duplicate keys
 
 ```python
 from supabase import create_client, Client
@@ -194,7 +131,7 @@ data = supabase.table("countries").upsert(country).execute()
 assert len(data.data) > 0
 ```
 
-### Deletion of Data
+#### Delete Data
 
 ```python
 from supabase import create_client, Client
@@ -205,7 +142,7 @@ supabase: Client = create_client(url, key)
 data = supabase.table("countries").delete().eq("id", 1).execute()
 ```
 
-### Supabase Functions
+#### Call Edge Functions
 
 ```python
 from supabase import create_client, Client
@@ -223,9 +160,7 @@ def test_func():
     print(err.get("message"))
 ```
 
-## Storage
-
-### Download a file
+#### Download a file from Storage
 
 ```python
 from supabase import create_client, Client
@@ -236,10 +171,10 @@ supabase: Client = create_client(url, key)
 
 bucket_name: str = "photos"
 
-data = supabase.storage.from_(bucket_name).download("photo1.png)
+data = supabase.storage.from_(bucket_name).download("photo1.png")
 ```
 
-### Upload a file
+#### Upload a file
 
 ```python
 from supabase import create_client, Client
@@ -254,7 +189,7 @@ new_file = getUserFile()
 data = supabase.storage.from_(bucket_name).upload("/user1/profile.png", new_file)
 ```
 
-### Remove a file
+#### Remove a file
 
 ```python
 from supabase import create_client, Client
@@ -268,7 +203,7 @@ bucket_name: str = "photos"
 data = supabase.storage.from_(bucket_name).remove(["old_photo.png", "image5.jpg"])
 ```
 
-### List all files
+#### List all files
 
 ```python
 from supabase import create_client, Client
@@ -282,7 +217,7 @@ bucket_name: str = "charts"
 data = supabase.storage.from_(bucket_name).list()
 ```
 
-### Move and rename file
+#### Move and rename files
 
 ```python
 from supabase import create_client, Client
@@ -298,14 +233,60 @@ new_file_path: str = "important/revenue.png"
 data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 ```
 
+## Roadmap
 
-## Realtime Changes
+- [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
+  - [ ] Add remaining filters
+  - [ ] Add support for EXPLAIN
+  - [ ] Add proper error handling
+- [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
+    - [ ]  Integrate with Supabase-py
+    - [ ]  Support WALRUS
+    - [ ]  Support broadcast (to check if already supported)
+- [x] Wrap [auth-py](https://github.com/supabase-community/auth-py)
+    - [x] Remove references to GoTrue-js v1 and do a proper release
+    - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
+    - [ ] Add MFA methods and SSO methods
+    - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
+- [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
+    - [ ]  Support resumable uploads
+    - [x]  Setup testing environment
+    - [x]  Document how to properly upload different file types (e.g. jpeg/png and download it)
+- [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
 
-Realtime changes are unfortunately still a WIP. Feel free to file PRs to [realtime-py](https://github.com/supabase-community/realtime-py)
+Overall Tasks:
+- [x] Add async support across the entire library
+- [ ] Add FastAPI helper library (external to supabase-py)
+- [ ] Add `django-supabase-postgrest` (external to supabase-py)
 
-See [Supabase Docs](https://supabase.com/docs/guides/client-libraries) for full list of examples
+## Contributing
 
-## Python and Supabase Resources
+Contributing to the Python libraries are a great way to get involved with the Supabase community. Reach out to us on Discord if you want to get involved.
 
-- [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
-- [Visualizing Supabase Data using Metabase](https://supabase.com/blog/visualizing-supabase-data-using-metabase)
+### Running Tests
+
+Currently the test suites are in a state of flux. We are expanding our clients tests to ensure things are working, and for now can connect to this test instance, that is populated with the following table:
+
+<p align="center">
+  <img width="720" height="481" src="https://i.ibb.co/Bq7Kdty/db.png">
+</p>
+
+The above test database is a blank supabase instance that has populated the `countries` table with the built in countries script that can be found in the supabase UI. You can launch the test scripts and point to the above test database by running
+
+```bash
+./test.sh
+```
+
+## Badges
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?label=license)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/pypi/pyversions/supabase)](https://pypi.org/project/supabase)
+[![Version](https://img.shields.io/pypi/v/supabase?color=%2334D058)](https://pypi.org/project/supabase)
+[![Codecov](https://codecov.io/gh/supabase-community/supabase-py/branch/develop/graph/badge.svg)](https://codecov.io/gh/supabase-community/supabase-py)
+[![Last commit](https://img.shields.io/github/last-commit/supabase-community/supabase-py.svg?style=flat)](https://github.com/supabase-community/supabase-py/commits)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/supabase-community/supabase-py)](https://github.com/supabase-community/supabase-py/commits)
+[![Github Stars](https://img.shields.io/github/stars/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py/stargazers)
+[![Github Forks](https://img.shields.io/github/forks/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py/network/members)
+[![Github Watchers](https://img.shields.io/github/watchers/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py)
+[![GitHub contributors](https://img.shields.io/github/contributors/supabase-community/supabase-py)](https://github.com/supabase-community/supabase-py/graphs/contributors)

@@ -2,7 +2,160 @@
 
 
 
+## v2.3.0 (2023-12-15)
+
+### Chore
+
+* chore: move roadmap below usage ([`52756a2`](https://github.com/supabase-community/supabase-py/commit/52756a2640199ef817897f91a973b24a95e26bd8))
+
+### Feature
+
+* feat: update readme (#644) ([`46e0690`](https://github.com/supabase-community/supabase-py/commit/46e0690a1ae125aa6ab82befeb05c32fd8c6dd45))
+
+### Unknown
+
+* Update README.md ([`45af4fb`](https://github.com/supabase-community/supabase-py/commit/45af4fb967e97325e7e5963a5aaf507669fd1084))
+
+* Update README.md with completed tasks and rename to auth-py (#643) ([`d87fd0c`](https://github.com/supabase-community/supabase-py/commit/d87fd0cfe0029e4aae1d0cd7209c8769763d8224))
+
+* Update README.md ([`f571d0e`](https://github.com/supabase-community/supabase-py/commit/f571d0e7f8217e65c3105db9df1ca627c4a8e3f6))
+
+* Update README.md ([`d9d076c`](https://github.com/supabase-community/supabase-py/commit/d9d076c0b87b1900bccb7bb0bf7876115659dd85))
+
+* Update README.md ([`d9e300a`](https://github.com/supabase-community/supabase-py/commit/d9e300adee62bed7fb74b4aac074b3456e98f9dc))
+
+
+## v2.2.1 (2023-12-10)
+
+### Chore
+
+* chore(release): bump version to v2.2.1 ([`9ec606c`](https://github.com/supabase-community/supabase-py/commit/9ec606c5539bdf3e5531c26be3df783db6b28483))
+
+### Fix
+
+* fix: upgrade gotrue and realtime dependencies (#637) ([`2554b66`](https://github.com/supabase-community/supabase-py/commit/2554b66b514bfc85c4c283430d95327cc9e8c4ab))
+
+* fix: upgrade gotrue and realtime dependencies ([`4eb6dfe`](https://github.com/supabase-community/supabase-py/commit/4eb6dfe896e28d4801e1560cbf43348b1da74ee2))
+
+
+## v2.2.0 (2023-12-01)
+
+### Chore
+
+* chore(release): bump version to v2.2.0 ([`88954c2`](https://github.com/supabase-community/supabase-py/commit/88954c26c7e89838476f22428cf4a798eca96e09))
+
+### Feature
+
+* feat: add create method to handle token headers (#630) ([`fd612a0`](https://github.com/supabase-community/supabase-py/commit/fd612a00c8e8e8f9efdf700161358b09ed15a793))
+
+* feat: add create method to handle token headers ([`4f47306`](https://github.com/supabase-community/supabase-py/commit/4f473069821066d622ff2ae4e9a668c6759af78a))
+
+
+## v2.1.1 (2023-11-30)
+
+### Chore
+
+* chore(release): bump version to v2.1.1 ([`b9240d8`](https://github.com/supabase-community/supabase-py/commit/b9240d8ce29a584a0a016f502e352083063dd7db))
+
+* chore(deps): bump gotrue from 1.3.0 to 2.0.0 (#628) ([`247b309`](https://github.com/supabase-community/supabase-py/commit/247b3091925347258348c200daec04a7b90c908b))
+
+* chore(deps): bump gotrue from 1.3.0 to 2.0.0
+
+Bumps [gotrue](https://github.com/supabase-community/gotrue-py) from 1.3.0 to 2.0.0.
+- [Release notes](https://github.com/supabase-community/gotrue-py/releases)
+- [Changelog](https://github.com/supabase-community/gotrue-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/gotrue-py/compare/v1.3.0...v2.0.0)
+
+---
+updated-dependencies:
+- dependency-name: gotrue
+  dependency-type: direct:production
+  update-type: version-update:semver-major
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`c1c0ac0`](https://github.com/supabase-community/supabase-py/commit/c1c0ac0b48d148653fa9aa0d8c3c980bc60282ac))
+
+* chore(deps): bump gotrue from 1.3.0 to 1.3.1 (#626) ([`1d268a0`](https://github.com/supabase-community/supabase-py/commit/1d268a04e233991fb8b8f0fba65cf06aef247515))
+
+* chore(deps): bump gotrue from 1.3.0 to 1.3.1
+
+Bumps [gotrue](https://github.com/supabase-community/gotrue-py) from 1.3.0 to 1.3.1.
+- [Release notes](https://github.com/supabase-community/gotrue-py/releases)
+- [Changelog](https://github.com/supabase-community/gotrue-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/gotrue-py/compare/v1.3.0...v1.3.1)
+
+---
+updated-dependencies:
+- dependency-name: gotrue
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`0ec8371`](https://github.com/supabase-community/supabase-py/commit/0ec83716f693ae5b0a3e167dfed13f5941c5f6be))
+
+### Fix
+
+* fix: remove deprecated .functions() method (#629) ([`243324d`](https://github.com/supabase-community/supabase-py/commit/243324d37650c9540bab0b14b6d550f06e10f1d0))
+
+* fix: remove deprecated .functions() method ([`e9f8010`](https://github.com/supabase-community/supabase-py/commit/e9f801040c7d62489e3648c0302018f69ed865f8))
+
+### Unknown
+
+* add: complete string (#624) ([`b41c453`](https://github.com/supabase-community/supabase-py/commit/b41c453e0e65229b53d9640e660a58226ab2d7d9))
+
+* add: complete string
+
+Incomplete String in `### Download a file` ([`7f7beec`](https://github.com/supabase-community/supabase-py/commit/7f7beecd009e8b79fb15d33ba3dfc934975f2f50))
+
+
+## v2.1.0 (2023-11-23)
+
+### Chore
+
+* chore(release): bump version to v2.1.0 ([`92541a2`](https://github.com/supabase-community/supabase-py/commit/92541a22ad431cc50f19242f2be4eb2cda90b50d))
+
+* chore(deps): bump storage3 from 0.6.1 to 0.7.0 (#620) ([`f0dbe94`](https://github.com/supabase-community/supabase-py/commit/f0dbe94126d4f88bc158784b3cb2fdab784cae15))
+
+* chore(deps): bump storage3 from 0.6.1 to 0.7.0
+
+Bumps [storage3](https://github.com/supabase-community/storage-py) from 0.6.1 to 0.7.0.
+- [Release notes](https://github.com/supabase-community/storage-py/releases)
+- [Changelog](https://github.com/supabase-community/storage-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/storage-py/compare/v0.6.1...v0.7.0)
+
+---
+updated-dependencies:
+- dependency-name: storage3
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`38a7ded`](https://github.com/supabase-community/supabase-py/commit/38a7ded3f3a04dcf2ed16c581716bbe1ef2c469f))
+
+### Feature
+
+* feat: add async client (#619) ([`ee64181`](https://github.com/supabase-community/supabase-py/commit/ee64181c9bb27f4974636b5f87219059e44deadb))
+
+* feat: add async client ([`6097109`](https://github.com/supabase-community/supabase-py/commit/6097109c590a650601644f973116a2ee865c3024))
+
+### Fix
+
+* fix: format code with pre-commit ([`9f36f9d`](https://github.com/supabase-community/supabase-py/commit/9f36f9db2f125c01c8240475011588d11997e021))
+
+### Unknown
+
+* Update lock file ([`c34d5c6`](https://github.com/supabase-community/supabase-py/commit/c34d5c6b01db0a6e2984637092c8f4ae5ea1498c))
+
+* Update supabase/_async/client.py
+
+Co-authored-by: Joel Lee &lt;lee.yi.jie.joel@gmail.com&gt; ([`068b601`](https://github.com/supabase-community/supabase-py/commit/068b601f1ceb326f5266b67264a9c1bac7301497))
+
+
 ## v2.0.3 (2023-11-01)
+
+### Chore
+
+* chore(release): bump version to v2.0.3 ([`f76ac69`](https://github.com/supabase-community/supabase-py/commit/f76ac69bb12d65e5321ec1753a97020e3583ed19))
 
 ### Fix
 
