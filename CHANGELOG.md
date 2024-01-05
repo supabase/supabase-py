@@ -2,9 +2,24 @@
 
 
 
+## v2.3.1 (2024-01-05)
+
+### Fix
+
+* fix: update httpx and other dev dependencies (#653) ([`e26e217`](https://github.com/supabase-community/supabase-py/commit/e26e2178d0b83ba2084cce82cd22fe8fce913800))
+
+### Unknown
+
+* Update MAINTAINERS.md (#651) ([`39f4aa8`](https://github.com/supabase-community/supabase-py/commit/39f4aa88dfed3b7329e7d13675735b013eb34d21))
+
+* Update MAINTAINERS.md ([`fa03108`](https://github.com/supabase-community/supabase-py/commit/fa0310873132cceb32581e96f019300bfb644d5b))
+
+
 ## v2.3.0 (2023-12-15)
 
 ### Chore
+
+* chore(release): bump version to v2.3.0 ([`f340c08`](https://github.com/supabase-community/supabase-py/commit/f340c08189c917263c325dc989a00a3669ba29af))
 
 * chore: move roadmap below usage ([`52756a2`](https://github.com/supabase-community/supabase-py/commit/52756a2640199ef817897f91a973b24a95e26bd8))
 
