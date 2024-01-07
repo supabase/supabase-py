@@ -2,6 +2,7 @@ import re
 from typing import Any, Dict, Union
 
 from gotrue.types import AuthChangeEvent, Session
+from gotrue._async.storage import AsyncMemoryStorage
 from httpx import Timeout
 from postgrest import (
     AsyncFilterRequestBuilder,
@@ -67,6 +68,7 @@ class AsyncClient:
             "Authorization": f"Bearer {supabase_key}",
         }
         options.headers.update(self._get_auth_headers())
+        options.storage = AsyncMemoryStorage()
         self.options = options
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
