@@ -1,7 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Union
 
-from gotrue import AuthFlowType, SyncMemoryStorage, SyncSupportedStorage
+from gotrue import (
+    AsyncMemoryStorage,
+    AsyncSupportedStorage,
+    AuthFlowType,
+    SyncMemoryStorage,
+    SyncSupportedStorage,
+)
 from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -28,7 +34,9 @@ class ClientOptions:
     persist_session: bool = True
     """Whether to persist a logged in session to storage."""
 
-    storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
+    storage: Union[SyncSupportedStorage, AsyncSupportedStorage] = field(
+        default_factory=SyncMemoryStorage
+    )
     """A storage provider. Used to store the logged in session."""
 
     realtime: Optional[Dict[str, Any]] = None
@@ -51,7 +59,7 @@ class ClientOptions:
         headers: Optional[Dict[str, str]] = None,
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
-        storage: Optional[SyncSupportedStorage] = None,
+        storage: Optional[Union[SyncSupportedStorage, AsyncMemoryStorage]] = None,
         realtime: Optional[Dict[str, Any]] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout

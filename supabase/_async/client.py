@@ -3,11 +3,8 @@ from typing import Any, Dict, Union
 
 from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
-from postgrest import (
-    AsyncFilterRequestBuilder,
-    AsyncPostgrestClient,
-    AsyncRequestBuilder,
-)
+from postgrest import AsyncPostgrestClient, AsyncRequestBuilder
+from postgrest._async.request_builder import AsyncRPCFilterRequestBuilder
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -118,7 +115,7 @@ class AsyncClient:
         """
         return self.postgrest.from_(table_name)
 
-    def rpc(self, fn: str, params: Dict[Any, Any]) -> AsyncFilterRequestBuilder:
+    def rpc(self, fn: str, params: Dict[Any, Any]) -> AsyncRPCFilterRequestBuilder[Any]:
         """Performs a stored procedure call.
 
         Parameters
