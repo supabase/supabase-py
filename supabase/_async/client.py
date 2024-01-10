@@ -1,8 +1,8 @@
 import re
 from typing import Any, Dict, Union
 
-from gotrue.types import AuthChangeEvent, Session
 from gotrue._async.storage import AsyncMemoryStorage
+from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import (
     AsyncFilterRequestBuilder,
