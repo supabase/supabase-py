@@ -1,6 +1,7 @@
 import re
 from typing import Any, Dict, Union
 
+from gotrue._async.storage import AsyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import (
@@ -31,7 +32,7 @@ class AsyncClient:
         self,
         supabase_url: str,
         supabase_key: str,
-        options: ClientOptions = ClientOptions(),
+        options: ClientOptions = ClientOptions(storage=AsyncMemoryStorage()),
     ):
         """Instantiate the client.
 
@@ -268,7 +269,7 @@ class AsyncClient:
 async def create_client(
     supabase_url: str,
     supabase_key: str,
-    options: ClientOptions = ClientOptions(),
+    options: ClientOptions = ClientOptions(storage=AsyncMemoryStorage()),
 ) -> AsyncClient:
     """Create client function to instantiate supabase client like JS runtime.
 
