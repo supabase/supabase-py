@@ -32,7 +32,7 @@ class AsyncClient:
         self,
         supabase_url: str,
         supabase_key: str,
-        options: ClientOptions = ClientOptions(),
+        options: ClientOptions = ClientOptions(storage=AsyncMemoryStorage()),
     ):
         """Instantiate the client.
 
@@ -68,7 +68,6 @@ class AsyncClient:
             "Authorization": f"Bearer {supabase_key}",
         }
         options.headers.update(self._get_auth_headers())
-        options.storage = AsyncMemoryStorage()
         self.options = options
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
@@ -270,7 +269,7 @@ class AsyncClient:
 async def create_client(
     supabase_url: str,
     supabase_key: str,
-    options: ClientOptions = ClientOptions(),
+    options: ClientOptions = ClientOptions(storage=AsyncMemoryStorage()),
 ) -> AsyncClient:
     """Create client function to instantiate supabase client like JS runtime.
 
