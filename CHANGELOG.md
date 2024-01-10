@@ -2,7 +2,20 @@
 
 
 
+## v2.3.2 (2024-01-10)
+
+### Fix
+
+* fix: Add AsyncMemoryStorage to AsyncClient options
+
+Co-authored-by: Andrew Smith &lt;a.smith@silentworks.co.uk&gt; ([`732e931`](https://github.com/supabase-community/supabase-py/commit/732e9317834043d3ac350a94d61116849007ac93))
+
+
 ## v2.3.1 (2024-01-05)
+
+### Chore
+
+* chore(release): bump version to v2.3.1 ([`272349e`](https://github.com/supabase-community/supabase-py/commit/272349ee768ab220c195d790990d7774811a0884))
 
 ### Fix
 
