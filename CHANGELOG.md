@@ -2,7 +2,27 @@
 
 
 
+## v2.3.3 (2024-01-11)
+
+### Chore
+
+* chore: remove init client code from every usage example ([`b0c5ac7`](https://github.com/supabase-community/supabase-py/commit/b0c5ac7a5f1f0a7906ba781dcc24c2afbd6346f9))
+
+* chore(deps-dev): bump gitpython from 3.1.40 to 3.1.41 (#659)
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`b3fd488`](https://github.com/supabase-community/supabase-py/commit/b3fd4887e11813118a465fe57c6c28830c31466f))
+
+### Fix
+
+* fix: add correct token to new requests when a user is signed in ([`c74b65b`](https://github.com/supabase-community/supabase-py/commit/c74b65b76d28082422cdfbc9d5c43972eb37d846))
+
+
 ## v2.3.2 (2024-01-10)
+
+### Chore
+
+* chore(release): bump version to v2.3.2 ([`158f17a`](https://github.com/supabase-community/supabase-py/commit/158f17a4a5cfcbe0fee42c852b93e40b916e29a3))
 
 ### Fix
 
