@@ -101,6 +101,7 @@ class AsyncClient:
     ):
         client = cls(supabase_url, supabase_key, options)
         client._auth_token = await client._get_token_header()
+        client.auth.on_auth_state_change(client._setup_auth_token)
         return client
 
     def table(self, table_name: str) -> AsyncRequestBuilder:
@@ -240,6 +241,11 @@ class AsyncClient:
             rest_url, headers=headers, schema=schema, timeout=timeout
         )
 
+    def _create_auth_header(self, token: str):
+        return {
+            "Authorization": f"Bearer {token}",
+        }
+
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
         return {
@@ -254,9 +260,14 @@ class AsyncClient:
         except Exception as err:
             access_token = self.supabase_key
 
-        return {
-            "Authorization": f"Bearer {access_token}",
-        }
+        return self._create_auth_header(access_token)
+
+    def _setup_auth_token(self, event: AuthChangeEvent, session: Session):
+        access_token = self.supabase_key
+        if event in ["SIGNED_IN", "TOKEN_REFRESHED"]:
+            access_token = session.access_token
+
+        self._auth_token = self._create_auth_header(access_token)
 
     def _listen_to_auth_events(self, event: AuthChangeEvent, session: Session):
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:

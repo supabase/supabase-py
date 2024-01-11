@@ -1,6 +1,7 @@
 import re
 from typing import Any, Dict, Union
 
+from gotrue._async.storage import SyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
@@ -27,7 +28,7 @@ class SyncClient:
         self,
         supabase_url: str,
         supabase_key: str,
-        options: ClientOptions = ClientOptions(),
+        options: ClientOptions = ClientOptions(storage=SyncMemoryStorage()),
     ):
         """Instantiate the client.
 
@@ -96,6 +97,7 @@ class SyncClient:
     ):
         client = cls(supabase_url, supabase_key, options)
         client._auth_token = client._get_token_header()
+        client.auth.on_auth_state_change(client._setup_auth_token)
         return client
 
     def table(self, table_name: str) -> SyncRequestBuilder:
@@ -235,6 +237,11 @@ class SyncClient:
             rest_url, headers=headers, schema=schema, timeout=timeout
         )
 
+    def _create_auth_header(self, token: str):
+        return {
+            "Authorization": f"Bearer {token}",
+        }
+
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
         return {
@@ -249,9 +256,14 @@ class SyncClient:
         except Exception as err:
             access_token = self.supabase_key
 
-        return {
-            "Authorization": f"Bearer {access_token}",
-        }
+        return self._create_auth_header(access_token)
+
+    def _setup_auth_token(self, event: AuthChangeEvent, session: Session):
+        access_token = self.supabase_key
+        if event in ["SIGNED_IN", "TOKEN_REFRESHED"]:
+            access_token = session.access_token
+
+        self._auth_token = self._create_auth_header(access_token)
 
     def _listen_to_auth_events(self, event: AuthChangeEvent, session: Session):
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
@@ -264,7 +276,7 @@ class SyncClient:
 def create_client(
     supabase_url: str,
     supabase_key: str,
-    options: ClientOptions = ClientOptions(),
+    options: ClientOptions = ClientOptions(storage=SyncMemoryStorage()),
 ) -> SyncClient:
     """Create client function to instantiate supabase client like JS runtime.
 
