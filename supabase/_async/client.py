@@ -101,7 +101,6 @@ class AsyncClient:
     ):
         client = cls(supabase_url, supabase_key, options)
         client._auth_token = await client._get_token_header()
-        client.auth.on_auth_state_change(client._setup_auth_token)
         return client
 
     def table(self, table_name: str) -> AsyncRequestBuilder:
@@ -262,19 +261,18 @@ class AsyncClient:
 
         return self._create_auth_header(access_token)
 
-    def _setup_auth_token(self, event: AuthChangeEvent, session: Session):
+    def _listen_to_auth_events(
+        self, event: AuthChangeEvent, session: Union[Session, None]
+    ):
         access_token = self.supabase_key
-        if event in ["SIGNED_IN", "TOKEN_REFRESHED"]:
-            access_token = session.access_token
-
-        self._auth_token = self._create_auth_header(access_token)
-
-    def _listen_to_auth_events(self, event: AuthChangeEvent, session: Session):
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             # reset postgrest and storage instance on event change
             self._postgrest = None
             self._storage = None
             self._functions = None
+            access_token = session.access_token if session else self.supabase_key
+
+        self._auth_token = self._create_auth_header(access_token)
 
 
 async def create_client(
