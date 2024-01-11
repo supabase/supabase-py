@@ -36,7 +36,7 @@ export SUPABASE_URL="my-url-to-my-awesome-supabase-instance"
 export SUPABASE_KEY="my-supa-dupa-secret-supabase-api-key"
 ```
 
-We can then read the keys in the python source code:
+Init client:
 
 ```python
 import os
@@ -49,55 +49,32 @@ supabase: Client = create_client(url, key)
 
 Use the supabase client to interface with your database.
 
-#### Authenticate
+#### Sign-up
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
-# Create a random user login email and password.
-random_email: str = "3hf82fijf92@supamail.com"
-random_password: str = "fqj13bnf2hiu23h"
-user = supabase.auth.sign_up({ "email": random_email, "password": random_password })
+user = supabase.auth.sign_up({ "email": users_email, "password": users_password })
 ```
 
 #### Sign-in
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
-# Sign in using the user email and password.
-random_email: str = "3hf82fijf92@supamail.com"
-random_password: str = "fqj13bnf2hiu23h"
-user = supabase.auth.sign_in_with_password({ "email": random_email, "password": random_password })
+user = supabase.auth.sign_in_with_password({ "email": users_email, "password": users_password })
 ```
 
 #### Insert Data
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
 data = supabase.table("countries").insert({"name":"Germany"}).execute()
+
+# Assert we pulled real data.
 assert len(data.data) > 0
 ```
 
 #### Select Data
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
 data = supabase.table("countries").select("*").eq("country", "IL").execute()
+
 # Assert we pulled real data.
 assert len(data.data) > 0
 ```
@@ -105,23 +82,12 @@ assert len(data.data) > 0
 #### Update Data
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 
 #### Update data with duplicate keys
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
-
 country = {
   "country": "United Kingdom",
   "capital_city": "London" # this was missing when it was added
@@ -134,23 +100,12 @@ assert len(data.data) > 0
 #### Delete Data
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
 data = supabase.table("countries").delete().eq("id", 1).execute()
 ```
 
 #### Call Edge Functions
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
-
 def test_func():
   try:
     resp = supabase.functions.invoke("hello-world", invoke_options={'body':{}})
@@ -163,12 +118,6 @@ def test_func():
 #### Download a file from Storage
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
-
 bucket_name: str = "photos"
 
 data = supabase.storage.from_(bucket_name).download("photo1.png")
@@ -177,12 +126,6 @@ data = supabase.storage.from_(bucket_name).download("photo1.png")
 #### Upload a file
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
-
 bucket_name: str = "photos"
 new_file = getUserFile()
 
@@ -192,12 +135,6 @@ data = supabase.storage.from_(bucket_name).upload("/user1/profile.png", new_file
 #### Remove a file
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
-
 bucket_name: str = "photos"
 
 data = supabase.storage.from_(bucket_name).remove(["old_photo.png", "image5.jpg"])
@@ -206,12 +143,6 @@ data = supabase.storage.from_(bucket_name).remove(["old_photo.png", "image5.jpg"
 #### List all files
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
-
 bucket_name: str = "charts"
 
 data = supabase.storage.from_(bucket_name).list()
@@ -220,12 +151,6 @@ data = supabase.storage.from_(bucket_name).list()
 #### Move and rename files
 
 ```python
-from supabase import create_client, Client
-
-url: str = os.environ.get("SUPABASE_TEST_URL")
-key: str = os.environ.get("SUPABASE_TEST_KEY")
-supabase: Client = create_client(url, key)
-
 bucket_name: str = "charts"
 old_file_path: str = "generic/graph1.png"
 new_file_path: str = "important/revenue.png"
