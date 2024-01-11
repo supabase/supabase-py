@@ -1,7 +1,7 @@
 import re
 from typing import Any, Dict, Union
 
-from gotrue._async.storage import AsyncMemoryStorage
+from gotrue import AsyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import (
@@ -240,6 +240,11 @@ class AsyncClient:
             rest_url, headers=headers, schema=schema, timeout=timeout
         )
 
+    def _create_auth_header(self, token: str):
+        return {
+            "Authorization": f"Bearer {token}",
+        }
+
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
         return {
@@ -254,16 +259,20 @@ class AsyncClient:
         except Exception as err:
             access_token = self.supabase_key
 
-        return {
-            "Authorization": f"Bearer {access_token}",
-        }
+        return self._create_auth_header(access_token)
 
-    def _listen_to_auth_events(self, event: AuthChangeEvent, session: Session):
+    def _listen_to_auth_events(
+        self, event: AuthChangeEvent, session: Union[Session, None]
+    ):
+        access_token = self.supabase_key
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             # reset postgrest and storage instance on event change
             self._postgrest = None
             self._storage = None
             self._functions = None
+            access_token = session.access_token if session else self.supabase_key
+
+        self._auth_token = self._create_auth_header(access_token)
 
 
 async def create_client(
