@@ -4,8 +4,11 @@ from typing import Any, Dict, Union
 from gotrue import AsyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
-from postgrest import AsyncPostgrestClient, AsyncRequestBuilder
-from postgrest._async.request_builder import AsyncRPCFilterRequestBuilder
+from postgrest import (
+    AsyncPostgrestClient,
+    AsyncRequestBuilder,
+    AsyncRPCFilterRequestBuilder,
+)
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
