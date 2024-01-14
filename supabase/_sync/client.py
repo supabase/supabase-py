@@ -104,10 +104,7 @@ class SyncClient:
         access_token: Union[str | None] = None,
         options: ClientOptions = ClientOptions(),
     ):
-        client = cls(supabase_url, supabase_key, options)
-        # no need i think
-        # client._auth_token = await client._get_token_header()
-        return client
+        return cls(supabase_url, supabase_key, options)
 
     def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
