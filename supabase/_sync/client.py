@@ -28,6 +28,7 @@ class SyncClient:
         self,
         supabase_url: str,
         supabase_key: str,
+        access_token: str | None = None,
         options: ClientOptions = ClientOptions(storage=SyncMemoryStorage()),
     ):
         """Instantiate the client.
@@ -60,8 +61,10 @@ class SyncClient:
 
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
+        # only can be set by init instance
+        self._access_token = access_token if access_token else supabase_key
         self._auth_token = {
-            "Authorization": f"Bearer {supabase_key}",
+            "Authorization": f"Bearer {access_token}",
         }
         options.headers.update(self._get_auth_headers())
         self.options = options
@@ -245,7 +248,7 @@ class SyncClient:
         """Helper method to get auth headers."""
         return {
             "apiKey": self.supabase_key,
-            "Authorization": f"Bearer {self.supabase_key}",
+            "Authorization": f"Bearer {self._access_token}",
         }
 
     def _get_token_header(self):
