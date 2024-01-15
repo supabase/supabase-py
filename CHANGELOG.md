@@ -2,9 +2,30 @@
 
 
 
+## v2.3.4 (2024-01-15)
+
+### Chore
+
+* chore(deps-dev): bump jinja2 from 3.1.2 to 3.1.3 (#661)
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`dcbd7b4`](https://github.com/supabase-community/supabase-py/commit/dcbd7b47700b3b0d0e13f518e4542d5a2adc7ac9))
+
+* chore(deps): bump postgrest from 0.13.1 to 0.13.2 (#662)
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`82c4305`](https://github.com/supabase-community/supabase-py/commit/82c4305dcb572a372ecdadd653056d530f308f28))
+
+### Fix
+
+* fix: update to latest postgrest (#669) ([`40cc767`](https://github.com/supabase-community/supabase-py/commit/40cc7672aa5308713e03f5464cd72cb8890817ec))
+
+
 ## v2.3.3 (2024-01-11)
 
 ### Chore
+
+* chore(release): bump version to v2.3.3 ([`ff00bde`](https://github.com/supabase-community/supabase-py/commit/ff00bdef05cfac7c84245ec12e4f8ee8a33c0729))
 
 * chore: remove init client code from every usage example ([`b0c5ac7`](https://github.com/supabase-community/supabase-py/commit/b0c5ac7a5f1f0a7906ba781dcc24c2afbd6346f9))
 
