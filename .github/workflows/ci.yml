@@ -17,15 +17,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Set up Poetry
-        uses: abatilo/actions-poetry@v2.2.0
+        uses: abatilo/actions-poetry@v3
         with:
           poetry-version: 1.3.2
 
@@ -33,7 +33,7 @@ jobs:
         run: poetry run tests
 
       - name: Upload Coverage
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
   publish:
     needs: test
     if: ${{ !startsWith(github.event.head_commit.message, 'bump') && !startsWith(github.event.head_commit.message, 'chore') && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase-community' }}
@@ -47,7 +47,7 @@ jobs:
       contents: write # needed for github actions bot to write to repo
     steps:
       - name: Clone Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
