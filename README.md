@@ -7,9 +7,28 @@ Python client for [Supabase](https://supabase.com)
   - [GitHub OAuth in your Python Flask app](https://supabase.com/blog/oauth2-login-python-flask-apps)
   - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
 
-## Installation
+## Set up a Local Development Environment
+### Clone the Repository:
 
-We recommend activating your virtual environment. For example, we like `poetry` and `conda`!
+```bash
+git clone https://github.com/supabase-community/supabase-py.git
+cd supabase-py
+```
+
+### Create and Activate a Virtual Environment:
+
+We recommend activating your virtual environment. For example, we like `poetry` and `conda`! Click <a href="https://docs.python.org/3/library/venv.html">here</a> for more about Python virtual environments and working with <a href="https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment">conda</a> and <a href="https://python-poetry.org/docs/basic-usage/">poetry</a>.
+
+Using venv (Python 3 built-in):
+```bash
+python3 -m venv env
+source env/bin/activate  # On Windows, use .\env\Scripts\activate
+```
+Using conda:
+```bash
+conda create --name supabase-py
+conda activate supabase-py
+```
 
 ### PyPi installation
 
@@ -186,7 +205,7 @@ Overall Tasks:
 
 ## Contributing
 
-Contributing to the Python libraries are a great way to get involved with the Supabase community. Reach out to us on Discord if you want to get involved.
+Contributing to the Python libraries are a great way to get involved with the Supabase community. Reach out to us on <a href="https://discord.supabase.com/">Discord</a> or on our <a href="https://github.com/orgs/supabase/discussions">Github Discussions</a> page if you want to get involved.
 
 ### Running Tests
 
