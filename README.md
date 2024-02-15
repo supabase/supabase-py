@@ -205,7 +205,7 @@ Overall Tasks:
 
 ## Contributing
 
-Contributing to the Python libraries are a great way to get involved with the Supabase community. Reach out to us on <a href="https://discord.supabase.com/">Discord</a> or on our <a href="https://github.com/supabase-community/supabase-py/discussions">Github Discussions</a> page if you want to get involved.
+Contributing to the Python libraries are a great way to get involved with the Supabase community. Reach out to us on <a href="https://discord.supabase.com/">Discord</a> or on our <a href="https://github.com/orgs/supabase/discussions">Github Discussions</a> page if you want to get involved.
 
 ### Running Tests
 
