@@ -2,9 +2,36 @@
 
 
 
+## v2.3.5 (2024-02-15)
+
+### Chore
+
+* chore(deps-dev): bump pytest from 7.4.4 to 8.0.0 (#677)
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`e3383c3`](https://github.com/supabase-community/supabase-py/commit/e3383c393e05668a4206cd9d5db027fe960763ac))
+
+* chore(deps-dev): bump python-dotenv from 1.0.0 to 1.0.1 (#675)
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`abdb15c`](https://github.com/supabase-community/supabase-py/commit/abdb15c7463c4d49588dc83f6935eccf50dc2f5a))
+
+### Fix
+
+* fix: add missing ClientOptions to the main init file (#688) ([`bd5f617`](https://github.com/supabase-community/supabase-py/commit/bd5f61716e44035acda91ab9f88d7370dee1f481))
+
+### Unknown
+
+* docs (sunbase-py) updated setup instructions, PR guidelines, added resources &amp; links (#690) ([`846d8e7`](https://github.com/supabase-community/supabase-py/commit/846d8e73bb05311030e62c87c15907967581ac9e))
+
+* Update action versions in CI/CD (#679) ([`13bed26`](https://github.com/supabase-community/supabase-py/commit/13bed26e676242f020caad48f24c9db993c1cfc4))
+
+
 ## v2.3.4 (2024-01-15)
 
 ### Chore
+
+* chore(release): bump version to v2.3.4 ([`225964c`](https://github.com/supabase-community/supabase-py/commit/225964cf1e6edab101ca4b04832d3315458aa6b2))
 
 * chore(deps-dev): bump jinja2 from 3.1.2 to 3.1.3 (#661)
 
