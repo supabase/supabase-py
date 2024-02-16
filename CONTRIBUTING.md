@@ -12,6 +12,7 @@ All submissions, including submissions by project members, require review. We
 use GitHub pull requests for this purpose. After filing a pull request, please tag any two of the [current maintainers](./MAINTAINERS.md) to request a review.
 
 ## Report an issue/File a feature request
+
 Before opening a new issue or request, please take a moment to check the existing issues and discussions to see if your topic has already been addressed. This helps us avoid duplicate issues and keeps the conversation focused.
 
 Report all issues and file all feature requests through [GitHub Issues](./issues).
