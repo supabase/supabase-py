@@ -198,13 +198,13 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 * chore(deps-dev): bump jinja2 from 3.1.2 to 3.1.3 (#661)
 
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
-Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`dcbd7b4`](https://github.com/supabase-community/supabase-py/commit/dcbd7b47700b3b0d0e13f518e4542d5a2adc7ac9))
+Signed-off-by: dependabot\[bot\] \<<support@github.com>>
+Co-authored-by: dependabot\[bot\] \<49699333+dependabot\[bot\]@users.noreply.github.com> ([`dcbd7b4`](https://github.com/supabase-community/supabase-py/commit/dcbd7b47700b3b0d0e13f518e4542d5a2adc7ac9))
 
 * chore(deps): bump postgrest from 0.13.1 to 0.13.2 (#662)
 
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
-Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`82c4305`](https://github.com/supabase-community/supabase-py/commit/82c4305dcb572a372ecdadd653056d530f308f28))
+Signed-off-by: dependabot\[bot\] \<<support@github.com>>
+Co-authored-by: dependabot\[bot\] \<49699333+dependabot\[bot\]@users.noreply.github.com> ([`82c4305`](https://github.com/supabase-community/supabase-py/commit/82c4305dcb572a372ecdadd653056d530f308f28))
 
 ### Fix
 
@@ -221,8 +221,8 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 * chore(deps-dev): bump gitpython from 3.1.40 to 3.1.41 (#659)
 
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
-Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`b3fd488`](https://github.com/supabase-community/supabase-py/commit/b3fd4887e11813118a465fe57c6c28830c31466f))
+Signed-off-by: dependabot\[bot\] \<<support@github.com>>
+Co-authored-by: dependabot\[bot\] \<49699333+dependabot\[bot\]@users.noreply.github.com> ([`b3fd488`](https://github.com/supabase-community/supabase-py/commit/b3fd4887e11813118a465fe57c6c28830c31466f))
 
 ### Fix
 
