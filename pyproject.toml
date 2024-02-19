@@ -35,7 +35,9 @@ python-semantic-release = "^9.3.1"
 python-dotenv = "^1.0.1"
 
 [tool.poetry.scripts]
-tests = 'poetry_scripts:run_tests'
+format = 'poetry_scripts:lint'
+install = 'poetry_scripts:install'
+coverage = 'poetry_scripts:coverage'
 
 [tool.poetry.group.dev.dependencies]
 unasync-cli = "^0.0.9"
