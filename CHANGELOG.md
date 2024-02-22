@@ -2,9 +2,37 @@
 
 
 
+## v2.3.6 (2024-02-22)
+
+### Chore
+
+* chore(deps-dev): bump commitizen from 3.13.0 to 3.15.0 (#694)
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`c881898`](https://github.com/supabase-community/supabase-py/commit/c88189862d6b1b4fa1639920dee141aee9198014))
+
+* chore(deps-dev): bump black from 23.12.1 to 24.2.0 (#687)
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`98face3`](https://github.com/supabase-community/supabase-py/commit/98face304a6afa7a91a97cf9b92977034e9b92af))
+
+* chore(deps-dev): bump pytest from 8.0.0 to 8.0.1 (#692)
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`45a9ffd`](https://github.com/supabase-community/supabase-py/commit/45a9ffd01d7c7a0b5fef124fd77be8ab23aa9541))
+
+### Fix
+
+* fix: Export Core Supabase Classes and Functions Explicitly via __all__ (#691)
+
+Co-authored-by: Andrew Smith &lt;a.smith@silentworks.co.uk&gt; ([`5d04c4c`](https://github.com/supabase-community/supabase-py/commit/5d04c4c7612a55d8a58a9df54afa4cc13a54b918))
+
+
 ## v2.3.5 (2024-02-15)
 
 ### Chore
+
+* chore(release): bump version to v2.3.5 ([`2bd19f3`](https://github.com/supabase-community/supabase-py/commit/2bd19f3c86cd0679c3ea335a3d02c3e160175880))
 
 * chore(deps-dev): bump pytest from 7.4.4 to 8.0.0 (#677)
 
