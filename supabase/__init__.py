@@ -11,13 +11,13 @@ from ._sync.client import create_client
 from .lib.realtime_client import SupabaseRealtimeClient
 
 __all__ = [
-    'create_client',
-    'Client',
-    'SupabaseAuthClient',
-    'SupabaseStorageClient',
-    'SupabaseRealtimeClient',
-    'PostgrestAPIError',
-    'PostgrestAPIResponse',
-    'StorageException',
-    '__version__',
+    "create_client",
+    "Client",
+    "SupabaseAuthClient",
+    "SupabaseStorageClient",
+    "SupabaseRealtimeClient",
+    "PostgrestAPIError",
+    "PostgrestAPIResponse",
+    "StorageException",
+    "__version__",
 ]
