@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 from gotrue import SyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
@@ -119,7 +119,9 @@ class SyncClient:
         """
         return self.postgrest.from_(table_name)
 
-    def rpc(self, fn: str, params: Dict[Any, Any] = {}) -> SyncRPCFilterRequestBuilder:
+    def rpc(
+        self, fn: str, params: Optional[Dict[Any, Any]] = None
+    ) -> SyncRPCFilterRequestBuilder:
         """Performs a stored procedure call.
 
         Parameters
@@ -135,6 +137,8 @@ class SyncClient:
             Returns a filter builder. This lets you apply filters on the response
             of an RPC.
         """
+        if params is None:
+            params = {}
         return self.postgrest.rpc(fn, params)
 
     @property
