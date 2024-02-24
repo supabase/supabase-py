@@ -4,7 +4,11 @@ from typing import Any, Dict, Union
 from gotrue import SyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
-from postgrest import SyncFilterRequestBuilder, SyncPostgrestClient, SyncRequestBuilder
+from postgrest import (
+    SyncPostgrestClient,
+    SyncRequestBuilder,
+    SyncRPCFilterRequestBuilder,
+)
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3 import SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -115,7 +119,7 @@ class SyncClient:
         """
         return self.postgrest.from_(table_name)
 
-    def rpc(self, fn: str, params: Dict[Any, Any]) -> SyncFilterRequestBuilder:
+    def rpc(self, fn: str, params: Dict[Any, Any] = {}) -> SyncRPCFilterRequestBuilder:
         """Performs a stored procedure call.
 
         Parameters
