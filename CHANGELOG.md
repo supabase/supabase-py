@@ -2,9 +2,18 @@
 
 
 
+## v2.3.7 (2024-02-26)
+
+### Fix
+
+* fix: Update rpc return type (#702) ([`4130d20`](https://github.com/supabase-community/supabase-py/commit/4130d20139b8b9f29da0503a0268d4903750e326))
+
+
 ## v2.3.6 (2024-02-22)
 
 ### Chore
+
+* chore(release): bump version to v2.3.6 ([`9357140`](https://github.com/supabase-community/supabase-py/commit/93571406054e8290fa3252892c57741744ba96f8))
 
 * chore(deps-dev): bump commitizen from 3.13.0 to 3.15.0 (#694)
 
