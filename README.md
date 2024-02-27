@@ -8,6 +8,7 @@ Python client for [Supabase](https://supabase.com)
   - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
 
 ## Set up a Local Development Environment
+
 ### Clone the Repository:
 
 ```bash
@@ -20,11 +21,14 @@ cd supabase-py
 We recommend activating your virtual environment. For example, we like `poetry` and `conda`! Click <a href="https://docs.python.org/3/library/venv.html">here</a> for more about Python virtual environments and working with <a href="https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment">conda</a> and <a href="https://python-poetry.org/docs/basic-usage/">poetry</a>.
 
 Using venv (Python 3 built-in):
+
 ```bash
 python3 -m venv env
 source env/bin/activate  # On Windows, use .\env\Scripts\activate
 ```
+
 Using conda:
+
 ```bash
 conda create --name supabase-py
 conda activate supabase-py
@@ -44,7 +48,7 @@ conda install -c conda-forge supabase
 
 ### Local installation
 
-You can also install locally after cloning this repo. Install Development mode with ``pip install -e``, which makes it so when you edit the source code the changes will be reflected in your python module.
+You can also install locally after cloning this repo. Install Development mode with `pip install -e`, which makes it so when you edit the source code the changes will be reflected in your python module.
 
 ## Usage
 
@@ -179,29 +183,30 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 
 ## Roadmap
 
-- [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
-  - [x] Add remaining filters
-  - [ ] Add support for EXPLAIN
-  - [ ] Add proper error handling
-- [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
-    - [ ]  Integrate with Supabase-py
-    - [ ]  Support WALRUS
-    - [ ]  Support broadcast (to check if already supported)
-- [x] Wrap [auth-py](https://github.com/supabase-community/auth-py)
-    - [x] Remove references to GoTrue-js v1 and do a proper release
-    - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
-    - [ ] Add MFA methods and SSO methods
-    - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
-- [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
-    - [ ]  Support resumable uploads
-    - [x]  Setup testing environment
-    - [x]  Document how to properly upload different file types (e.g. jpeg/png and download it)
-- [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
+- \[x\] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
+  - \[x\] Add remaining filters
+  - \[ \] Add support for EXPLAIN
+  - \[ \] Add proper error handling
+- \[ \] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
+  - \[ \]  Integrate with Supabase-py
+  - \[ \]  Support WALRUS
+  - \[ \]  Support broadcast (to check if already supported)
+- \[x\] Wrap [auth-py](https://github.com/supabase-community/auth-py)
+  - \[x\] Remove references to GoTrue-js v1 and do a proper release
+  - \[ \] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
+  - \[ \] Add MFA methods and SSO methods
+  - \[x\] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
+- \[x\] Wrap [storage-py](https://github.com/supabase-community/storage-py)
+  - \[ \]  Support resumable uploads
+  - \[x\]  Setup testing environment
+  - \[x\]  Document how to properly upload different file types (e.g. jpeg/png and download it)
+- \[x\] Wrap [functions-py](https://github.com/supabase-community/functions-py)
 
 Overall Tasks:
-- [x] Add async support across the entire library
-- [ ] Add FastAPI helper library (external to supabase-py)
-- [ ] Add `django-supabase-postgrest` (external to supabase-py)
+
+- \[x\] Add async support across the entire library
+- \[ \] Add FastAPI helper library (external to supabase-py)
+- \[ \] Add `django-supabase-postgrest` (external to supabase-py)
 
 ## Contributing
 
