@@ -2,7 +2,18 @@
 
 
 
+## v2.3.8 (2024-02-28)
+
+### Fix
+
+* fix: update postgrest and dev dependencies (#709) ([`f0f3079`](https://github.com/supabase-community/supabase-py/commit/f0f3079c90e848cb0da62d9cfcf77c0398113c2a))
+
+
 ## v2.3.7 (2024-02-26)
+
+### Chore
+
+* chore(release): bump version to v2.3.7 ([`9023c02`](https://github.com/supabase-community/supabase-py/commit/9023c025c96575723356f04b68375cf37f21ecd4))
 
 ### Fix
 
