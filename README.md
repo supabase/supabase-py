@@ -8,23 +8,27 @@ Python client for [Supabase](https://supabase.com)
   - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
 
 ## Set up a Local Development Environment
-### Clone the Repository:
+
+### Clone the Repository
 
 ```bash
 git clone https://github.com/supabase-community/supabase-py.git
 cd supabase-py
 ```
 
-### Create and Activate a Virtual Environment:
+### Create and Activate a Virtual Environment
 
-We recommend activating your virtual environment. For example, we like `poetry` and `conda`! Click <a href="https://docs.python.org/3/library/venv.html">here</a> for more about Python virtual environments and working with <a href="https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment">conda</a> and <a href="https://python-poetry.org/docs/basic-usage/">poetry</a>.
+We recommend activating your virtual environment. For example, we like `poetry` and `conda`! Click [here](https://docs.python.org/3/library/venv.html) for more about Python virtual environments and working with [conda](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment) and [poetry](https://python-poetry.org/docs/basic-usage/).
 
 Using venv (Python 3 built-in):
+
 ```bash
 python3 -m venv env
 source env/bin/activate  # On Windows, use .\env\Scripts\activate
 ```
+
 Using conda:
+
 ```bash
 conda create --name supabase-py
 conda activate supabase-py
@@ -44,7 +48,7 @@ conda install -c conda-forge supabase
 
 ### Local installation
 
-You can also install locally after cloning this repo. Install Development mode with ``pip install -e``, which makes it so when you edit the source code the changes will be reflected in your python module.
+You can also install locally after cloning this repo. Install Development mode with `pip install -e`, which makes it so when you edit the source code the changes will be reflected in your python module.
 
 ## Usage
 
@@ -68,19 +72,19 @@ supabase: Client = create_client(url, key)
 
 Use the supabase client to interface with your database.
 
-#### Sign-up
+### Sign-up
 
 ```python
 user = supabase.auth.sign_up({ "email": users_email, "password": users_password })
 ```
 
-#### Sign-in
+### Sign-in
 
 ```python
 user = supabase.auth.sign_in_with_password({ "email": users_email, "password": users_password })
 ```
 
-#### Insert Data
+### Insert Data
 
 ```python
 data = supabase.table("countries").insert({"name":"Germany"}).execute()
@@ -89,7 +93,7 @@ data = supabase.table("countries").insert({"name":"Germany"}).execute()
 assert len(data.data) > 0
 ```
 
-#### Select Data
+### Select Data
 
 ```python
 data = supabase.table("countries").select("*").eq("country", "IL").execute()
@@ -98,13 +102,13 @@ data = supabase.table("countries").select("*").eq("country", "IL").execute()
 assert len(data.data) > 0
 ```
 
-#### Update Data
+### Update Data
 
 ```python
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 
-#### Update data with duplicate keys
+### Update data with duplicate keys
 
 ```python
 country = {
@@ -116,13 +120,13 @@ data = supabase.table("countries").upsert(country).execute()
 assert len(data.data) > 0
 ```
 
-#### Delete Data
+### Delete Data
 
 ```python
 data = supabase.table("countries").delete().eq("id", 1).execute()
 ```
 
-#### Call Edge Functions
+### Call Edge Functions
 
 ```python
 def test_func():
@@ -134,7 +138,7 @@ def test_func():
     print(err.get("message"))
 ```
 
-#### Download a file from Storage
+### Download a file from Storage
 
 ```python
 bucket_name: str = "photos"
@@ -142,7 +146,7 @@ bucket_name: str = "photos"
 data = supabase.storage.from_(bucket_name).download("photo1.png")
 ```
 
-#### Upload a file
+### Upload a file
 
 ```python
 bucket_name: str = "photos"
@@ -151,7 +155,7 @@ new_file = getUserFile()
 data = supabase.storage.from_(bucket_name).upload("/user1/profile.png", new_file)
 ```
 
-#### Remove a file
+### Remove a file
 
 ```python
 bucket_name: str = "photos"
@@ -159,7 +163,7 @@ bucket_name: str = "photos"
 data = supabase.storage.from_(bucket_name).remove(["old_photo.png", "image5.jpg"])
 ```
 
-#### List all files
+### List all files
 
 ```python
 bucket_name: str = "charts"
@@ -167,7 +171,7 @@ bucket_name: str = "charts"
 data = supabase.storage.from_(bucket_name).list()
 ```
 
-#### Move and rename files
+### Move and rename files
 
 ```python
 bucket_name: str = "charts"
@@ -184,28 +188,29 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
   - [ ] Add support for EXPLAIN
   - [ ] Add proper error handling
 - [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
-    - [ ]  Integrate with Supabase-py
-    - [ ]  Support WALRUS
-    - [ ]  Support broadcast (to check if already supported)
+  - [ ] Integrate with Supabase-py
+  - [ ] Support WALRUS
+  - [ ] Support broadcast (to check if already supported)
 - [x] Wrap [auth-py](https://github.com/supabase-community/auth-py)
-    - [x] Remove references to GoTrue-js v1 and do a proper release
-    - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
-    - [ ] Add MFA methods and SSO methods
-    - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
+  - [x] Remove references to GoTrue-js v1 and do a proper release
+  - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
+  - [ ] Add MFA methods and SSO methods
+  - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
 - [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
-    - [ ]  Support resumable uploads
-    - [x]  Setup testing environment
-    - [x]  Document how to properly upload different file types (e.g. jpeg/png and download it)
+  - [ ] Support resumable uploads
+  - [x] Setup testing environment
+  - [x] Document how to properly upload different file types (e.g. jpeg/png and download it)
 - [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
 
-Overall Tasks:
+### Overall Tasks
+
 - [x] Add async support across the entire library
 - [ ] Add FastAPI helper library (external to supabase-py)
 - [ ] Add `django-supabase-postgrest` (external to supabase-py)
 
 ## Contributing
 
-Contributing to the Python libraries are a great way to get involved with the Supabase community. Reach out to us on <a href="https://discord.supabase.com/">Discord</a> or on our <a href="https://github.com/orgs/supabase/discussions">Github Discussions</a> page if you want to get involved.
+Contributing to the Python libraries are a great way to get involved with the Supabase community. Reach out to us on [Discord](https://discord.supabase.com) or on our [Github Discussions](https://github.com/orgs/supabase/discussions) page if you want to get involved.
 
 ### Running Tests
 
