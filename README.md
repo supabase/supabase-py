@@ -81,7 +81,7 @@ user = supabase.auth.sign_up({ "email": users_email, "password": users_password 
 ### Sign-in
 
 ```python
-user = supabase.auth.sign_in_with_password({ "email": users_email, "password": users_password })
+user = supabase.auth.sign_in({ "email": users_email, "password": users_password })
 ```
 
 ### Insert Data
