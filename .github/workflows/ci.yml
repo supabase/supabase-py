@@ -33,6 +33,16 @@ jobs:
           pip install tox-gh>=1.2
           tox -re ${{ matrix.python-version }}
 
+  lint:
+      name: Code formatting
+      needs: test
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - run: |
+            pip install tox>=4
+            tox -re format
+
   coverage:
     name: Codecov reports
     needs: test
