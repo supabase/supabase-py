@@ -232,6 +232,25 @@ files = [
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
+name = "click-option-group"
+version = "0.5.6"
+description = "Option groups missing in Click"
+optional = false
+python-versions = ">=3.6,<4"
+files = [
+    {file = "click-option-group-0.5.6.tar.gz", hash = "sha256:97d06703873518cc5038509443742b25069a3c7562d1ea72ff08bfadde1ce777"},
+    {file = "click_option_group-0.5.6-py3-none-any.whl", hash = "sha256:38a26d963ee3ad93332ddf782f9259c5bdfe405e73408d943ef5e7d0c3767ec7"},
+]
+
+[package.dependencies]
+Click = ">=7.0,<9"
+
+[package.extras]
+docs = ["Pallets-Sphinx-Themes", "m2r2", "sphinx"]
+tests = ["pytest"]
+tests-cov = ["coverage", "coveralls", "pytest", "pytest-cov"]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 description = "Cross-platform colored terminal text."
@@ -1199,17 +1218,18 @@ yaml = ["PyYaml (>=6.0.1)"]
 
 [[package]]
 name = "python-semantic-release"
-version = "9.1.1"
+version = "9.2.2"
 description = "Automatic Semantic Versioning for Python projects"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "python-semantic-release-9.1.1.tar.gz", hash = "sha256:fe4fc40f52cdddbfe82c710070978306b35e9e4f2c7d98a77db55bf6f5e544f2"},
-    {file = "python_semantic_release-9.1.1-py3-none-any.whl", hash = "sha256:4d45bc6540dd894663636ced5a98cf4d3ea5765a9f1f18f4ffef6ae0733e05a3"},
+    {file = "python-semantic-release-9.2.2.tar.gz", hash = "sha256:e5a9f4e7aa9b3eb099e7b9d37b16d967c0e7498397af32c627aa295bd188105c"},
+    {file = "python_semantic_release-9.2.2-py3-none-any.whl", hash = "sha256:7b20b63f4a29e0b0d4c5c83a2992a48b3507aec3730138ce18980e56cbae9afd"},
 ]
 
 [package.dependencies]
 click = ">=8,<9"
+click-option-group = ">=0.5,<1.0"
 dotty-dict = ">=1.3.0,<2"
 gitpython = ">=3.0.8,<4"
 importlib-resources = ">=5.7,<7"
@@ -1222,7 +1242,7 @@ shellingham = ">=1.5.0.post1"
 tomlkit = ">=0.11,<1.0"
 
 [package.extras]
-dev = ["pre-commit", "ruff (==0.1.11)", "tox"]
+dev = ["pre-commit", "ruff (==0.3.2)", "tox"]
 docs = ["Sphinx (<=6.0.0)", "furo (>=2023.3.27)", "sphinx-autobuild (==2021.03.14)", "sphinxcontrib-apidoc (==0.3.0)"]
 mypy = ["mypy", "types-requests"]
 test = ["coverage[toml] (>=6,<8)", "pytest (>=7,<8)", "pytest-clarity (>=1.0.1)", "pytest-cov (>=4,<5)", "pytest-env (>=1.0,<2.0)", "pytest-lazy-fixture (>=0.6.3,<0.7.0)", "pytest-mock (>=3,<4)", "pytest-pretty (>=1.2.0,<2)", "pytest-xdist (>=2,<4)", "requests-mock (>=1.10.0,<2)", "responses (==0.23.3)", "types-pytest-lazy-fixture (>=0.6.3.3)"]
@@ -1729,4 +1749,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "c4dadda462a3620fc3246f54fddfa0822c9c24f6b8faec666dd71867e5a688b2"
+content-hash = "d078d3ae0a2ef1d4fb21a3cf45f3642f10797885bc7863cfd636e6976ea4257b"
