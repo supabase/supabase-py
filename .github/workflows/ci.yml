@@ -5,6 +5,11 @@ on:
     branches:
       - main
   pull_request:
+    paths-ignore:
+      - '.github/**'
+      - '.devcontainer/**'
+      - 'CHANGELOG.md'
+      - 'MAINTAINERS.md'
   workflow_dispatch:
 
 jobs:
