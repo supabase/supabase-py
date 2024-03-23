@@ -2,14 +2,14 @@ name: CI/CD
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
     paths-ignore:
       - '.github/**'
       - '.devcontainer/**'
       - 'CHANGELOG.md'
       - 'MAINTAINERS.md'
+    branches:
+      - main
+  pull_request:
   workflow_dispatch:
 
 jobs:
