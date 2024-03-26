@@ -1,11 +1,5 @@
+exclude: '^.*\.(md|MD)$'
 repos:
-    - repo: https://github.com/executablebooks/mdformat
-      rev: 0.7.17
-      hooks:
-      - id: mdformat
-        additional_dependencies:
-        - mdformat-gfm
-
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v4.1.0
       hooks:
