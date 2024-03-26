@@ -478,17 +478,17 @@ test = ["black", "coverage[toml]", "ddt (>=1.1.1,!=1.4.3)", "mock", "mypy", "pre
 
 [[package]]
 name = "gotrue"
-version = "2.4.1"
-description = "Python Client Library for GoTrue"
+version = "2.4.2"
+description = "Python Client Library for Supabase Auth"
 optional = false
-python-versions = ">=3.8,<4.0"
+python-versions = "<4.0,>=3.8"
 files = [
-    {file = "gotrue-2.4.1-py3-none-any.whl", hash = "sha256:9647bb7a585c969d26667df21168fa20b18f91c5d6afe286af08d7a0610fd2cc"},
-    {file = "gotrue-2.4.1.tar.gz", hash = "sha256:8b260ef285f45a3a2f9b5a006f12afb9fad7a36a28fa277f19e733f22eb88584"},
+    {file = "gotrue-2.4.2-py3-none-any.whl", hash = "sha256:64cd40933d1f0a5d5cc4f4bd93bc51d730b94812447b6600f774790a4901e455"},
+    {file = "gotrue-2.4.2.tar.gz", hash = "sha256:e100745161f1c58dd05b9c1ef8bcd4cd78cdfb38d8d2c253ade63143a3dc6aeb"},
 ]
 
 [package.dependencies]
-httpx = ">=0.23,<0.26"
+httpx = ">=0.23,<0.28"
 pydantic = ">=1.10,<3"
 
 [[package]]
