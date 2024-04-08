@@ -2,23 +2,40 @@ from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from storage3.utils import StorageException
 
+# Version
 from .__version__ import __version__
+
+# Async Client
+from ._async.auth_client import SyncSupabaseAuthClient as ASupabaseAuthClient
+from ._async.client import ClientOptions as AClientOptions
+from ._async.client import SyncClient as AClient
+from ._async.client import SyncStorageClient as ASupabaseStorageClient
+from ._async.client import create_client as acreate_client
+
+# Sync Client
 from ._sync.auth_client import SyncSupabaseAuthClient as SupabaseAuthClient
 from ._sync.client import ClientOptions
 from ._sync.client import SyncClient as Client
 from ._sync.client import SyncStorageClient as SupabaseStorageClient
 from ._sync.client import create_client
+
+# Realtime Client
 from .lib.realtime_client import SupabaseRealtimeClient
 
 __all__ = [
-    "PostgrestAPIError",
-    "PostgrestAPIResponse",
-    "StorageException",
+    "ASupabaseAuthClient",
+    "acreate_client",
+    "AClient",
+    "AClientOptions",
+    "ASupabaseStorageClient",
     "SupabaseAuthClient",
-    "__version__",
     "create_client",
     "Client",
     "ClientOptions",
     "SupabaseStorageClient",
     "SupabaseRealtimeClient",
+    "PostgrestAPIError",
+    "PostgrestAPIResponse",
+    "StorageException",
+    "__version__",
 ]
