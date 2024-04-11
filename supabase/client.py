@@ -6,28 +6,26 @@ from storage3.utils import StorageException
 from .__version__ import __version__
 
 # Async Client
-from ._async.auth_client import SyncSupabaseAuthClient as ASupabaseAuthClient
-from ._async.client import ClientOptions as AClientOptions
-from ._async.client import SyncClient as AClient
-from ._async.client import SyncStorageClient as ASupabaseStorageClient
-from ._async.client import create_client as acreate_client
+from ._async.auth_client import AsyncSupabaseAuthClient
+from ._async.client import AsyncClient
+from ._async.client import AsyncStorageClient as AsyncSupabaseStorageClient
+from ._async.client import create_client as create_async_client
 
 # Sync Client
 from ._sync.auth_client import SyncSupabaseAuthClient as SupabaseAuthClient
-from ._sync.client import ClientOptions
 from ._sync.client import SyncClient as Client
 from ._sync.client import SyncStorageClient as SupabaseStorageClient
 from ._sync.client import create_client
 
-# Realtime Client
+# Lib
+from .lib.client_options import ClientOptions
 from .lib.realtime_client import SupabaseRealtimeClient
 
 __all__ = [
-    "ASupabaseAuthClient",
-    "acreate_client",
-    "AClient",
-    "AClientOptions",
-    "ASupabaseStorageClient",
+    "AsyncSupabaseAuthClient",
+    "create_async_client",
+    "AsyncClient",
+    "AsyncSupabaseStorageClient",
     "SupabaseAuthClient",
     "create_client",
     "Client",
