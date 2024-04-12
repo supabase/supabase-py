@@ -32,7 +32,7 @@ class AsyncClient:
         self,
         supabase_url: str,
         supabase_key: str,
-        options: ClientOptions = ClientOptions(storage=AsyncMemoryStorage()),
+        options: Union[ClientOptions, None] = None,
     ):
         """Instantiate the client.
 
@@ -61,6 +61,9 @@ class AsyncClient:
             r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key
         ):
             raise SupabaseException("Invalid API key")
+
+        if options is None:
+            options = ClientOptions(storage=AsyncMemoryStorage())
 
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
@@ -97,7 +100,7 @@ class AsyncClient:
         cls,
         supabase_url: str,
         supabase_key: str,
-        options: ClientOptions = ClientOptions(),
+        options: Union[ClientOptions, None] = None,
     ):
         client = cls(supabase_url, supabase_key, options)
         client._auth_token = await client._get_token_header()
@@ -282,7 +285,7 @@ class AsyncClient:
 async def create_client(
     supabase_url: str,
     supabase_key: str,
-    options: ClientOptions = ClientOptions(storage=AsyncMemoryStorage()),
+    options: Union[ClientOptions, None] = None,
 ) -> AsyncClient:
     """Create client function to instantiate supabase client like JS runtime.
 
