@@ -31,7 +31,7 @@ flake8 = "^5.0.4"
 isort = "^5.10.1"
 pytest-cov = "^5.0.0"
 commitizen = "^3.22.0"
-python-semantic-release = "^9.3.1"
+python-semantic-release = "^9.4.1"
 python-dotenv = "^1.0.1"
 
 [tool.poetry.scripts]
