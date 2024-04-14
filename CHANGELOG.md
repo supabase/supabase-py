@@ -2,9 +2,39 @@
 
 
 
+## v2.4.2 (2024-04-14)
+
+### Chore
+
+* chore(deps-dev): bump black from 24.3.0 to 24.4.0 (#765) ([`23d97ce`](https://github.com/supabase-community/supabase-py/commit/23d97ce2e5f10c22502b16b61f0a2bb102060ced))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.3.1 to 9.4.1 (#758) ([`d1ea76e`](https://github.com/supabase-community/supabase-py/commit/d1ea76ed78eaa0c28ea0a4a5ab026faccb50ad13))
+
+* chore(deps-dev): bump python-semantic-release from 9.3.1 to 9.4.1 (#759) ([`32e465b`](https://github.com/supabase-community/supabase-py/commit/32e465b7f89262af635c3e0c92db60aef6a974ff))
+
+* chore(deps-dev): bump commitizen from 3.20.0 to 3.22.0 (#761) ([`583d0d5`](https://github.com/supabase-community/supabase-py/commit/583d0d56c21fed4cd95ae773aa659713e2522a7b))
+
+* chore(deps): bump idna from 3.6 to 3.7 (#763)
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
+Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`0871967`](https://github.com/supabase-community/supabase-py/commit/08719676cab9538c32c45b2f6dcd16702f2c540f))
+
+### Fix
+
+* fix: Update minimum postgrest dep for imports (#767) ([`ac2d62d`](https://github.com/supabase-community/supabase-py/commit/ac2d62de335497e7dabcd3ca4d05d80713493f2e))
+
+* fix: remove default mutable argument from client creation (#764) ([`5e46177`](https://github.com/supabase-community/supabase-py/commit/5e461777d34c1a038a02f72ca5d2dc7bb1109026))
+
+### Unknown
+
+* remove mdformat-gfm (#750) ([`73c1958`](https://github.com/supabase-community/supabase-py/commit/73c1958be30b276e7b3cea154c6f62a6b292772b))
+
+
 ## v2.4.1 (2024-03-26)
 
 ### Chore
+
+* chore(release): bump version to v2.4.1 ([`9e6ea08`](https://github.com/supabase-community/supabase-py/commit/9e6ea08bb11cd913108e96f335671ae0e551ff56))
 
 * chore(deps): bump realtime from 1.0.2 to 1.0.3 (#748) ([`44afe58`](https://github.com/supabase-community/supabase-py/commit/44afe58a60dcadda8f249726161babecfab63297))
 
