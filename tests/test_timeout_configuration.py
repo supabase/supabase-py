@@ -10,11 +10,11 @@ def test_new_timeout_configuration():
     from supabase.lib.client_options import ClientOptions
     import os
 
-    url: str = os.environ.get("SUPABASE_URL")
-    key: str = os.environ.get("SUPABASE_KEY")
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = create_client(url, key)
-    data   = [{"item": value} for value in range(0,1000000)]
+    client = create_client(url, key)  # No options used here.
+    data   = [{"item": value} for value in range(0, 1000000)]
 
     client.table("sample").insert(data).execute()
 
@@ -27,11 +27,11 @@ def test_passing_wrong_timeout_value():
     from supabase.lib.client_options import ClientOptions
     import os
 
-    url: str = os.environ.get("SUPABASE_URL")
-    key: str = os.environ.get("SUPABASE_KEY")
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
 
-    options = ClientOptions(postgrest_client_timeout = 10)
+    options = ClientOptions(postgrest_client_timeout = 5)  # Explicit timeout.
     client  = create_client(url, key, options)
-    data    = [{"item": value} for value in range(0,1000000)]
+    data    = [{"item": value} for value in range(0, 1000000)]
 
     client.table("sample").insert(data).execute()
