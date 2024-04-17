@@ -3,7 +3,6 @@ from typing import Any, Dict, Optional, Union
 
 from gotrue import AuthFlowType, SyncMemoryStorage, SyncSupportedStorage
 from httpx import Timeout
-from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 
 from supabase import __version__
@@ -36,7 +35,7 @@ class ClientOptions:
 
     postgrest_client_timeout: Union[
         int, float, Timeout
-    ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT
+    ] = None
     """Timeout passed to the SyncPostgrestClient instance."""
 
     storage_client_timeout: Union[int, float, Timeout] = DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -55,7 +54,7 @@ class ClientOptions:
         realtime: Optional[Dict[str, Any]] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
-        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        ] = None,
         storage_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_STORAGE_CLIENT_TIMEOUT,
