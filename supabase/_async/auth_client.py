@@ -22,7 +22,7 @@ class AsyncSupabaseAuthClient(AsyncGoTrueClient):
         persist_session: bool = True,
         storage: AsyncSupportedStorage = AsyncMemoryStorage(),
         http_client: Optional[AsyncClient] = None,
-        flow_type: AuthFlowType = "implicit"
+        flow_type: AuthFlowType = "implicit",
     ):
         """Instantiate SupabaseAuthClient instance."""
         if headers is None:

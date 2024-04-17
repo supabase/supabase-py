@@ -19,5 +19,6 @@ __all__ = [
     "PostgrestAPIError",
     "PostgrestAPIResponse",
     "StorageException",
+    "ClientOptions",
     "__version__",
 ]

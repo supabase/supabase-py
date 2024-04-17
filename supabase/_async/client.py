@@ -263,7 +263,7 @@ class AsyncClient:
         try:
             session = await self.auth.get_session()
             access_token = session.access_token
-        except Exception as err:
+        except Exception:
             access_token = self.supabase_key
 
         return self._create_auth_header(access_token)
