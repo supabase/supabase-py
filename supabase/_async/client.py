@@ -67,11 +67,8 @@ class AsyncClient:
 
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
-        self._auth_token = {
-            "Authorization": f"Bearer {supabase_key}",
-        }
-        options.headers.update(self._get_auth_headers())
         self.options = options
+        options.headers.update(self._get_auth_headers())
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url = f"{supabase_url}/auth/v1"
@@ -102,9 +99,7 @@ class AsyncClient:
         supabase_key: str,
         options: Union[ClientOptions, None] = None,
     ):
-        client = cls(supabase_url, supabase_key, options)
-        client._auth_token = await client._get_token_header()
-        return client
+        return cls(supabase_url, supabase_key, options)
 
     def table(self, table_name: str) -> AsyncRequestBuilder:
         """Perform a table operation.
@@ -147,7 +142,6 @@ class AsyncClient:
     @property
     def postgrest(self):
         if self._postgrest is None:
-            self.options.headers.update(self._auth_token)
             self._postgrest = self._init_postgrest_client(
                 rest_url=self.rest_url,
                 headers=self.options.headers,
@@ -160,11 +154,9 @@ class AsyncClient:
     @property
     def storage(self):
         if self._storage is None:
-            headers = self._get_auth_headers()
-            headers.update(self._auth_token)
             self._storage = self._init_storage_client(
                 storage_url=self.storage_url,
-                headers=headers,
+                headers=self.options.headers,
                 storage_client_timeout=self.options.storage_client_timeout,
             )
         return self._storage
@@ -172,9 +164,9 @@ class AsyncClient:
     @property
     def functions(self):
         if self._functions is None:
-            headers = self._get_auth_headers()
-            headers.update(self._auth_token)
-            self._functions = AsyncFunctionsClient(self.functions_url, headers)
+            self._functions = AsyncFunctionsClient(
+                self.functions_url, self.options.headers
+            )
         return self._functions
 
     #     async def remove_subscription_helper(resolve):
@@ -248,25 +240,16 @@ class AsyncClient:
         )
 
     def _create_auth_header(self, token: str):
-        return {
-            "Authorization": f"Bearer {token}",
-        }
+        return f"Bearer {token}"
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Helper method to get auth headers."""
         return {
             "apiKey": self.supabase_key,
-            "Authorization": f"Bearer {self.supabase_key}",
+            "Authorization": self.options.headers.get(
+                "Authorization", self._create_auth_header(self.supabase_key)
+            ),
         }
-
-    async def _get_token_header(self):
-        try:
-            session = await self.auth.get_session()
-            access_token = session.access_token
-        except Exception as err:
-            access_token = self.supabase_key
-
-        return self._create_auth_header(access_token)
 
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Union[Session, None]
@@ -279,7 +262,7 @@ class AsyncClient:
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
 
-        self._auth_token = self._create_auth_header(access_token)
+        self.options.headers["Authorization"] = self._create_auth_header(access_token)
 
 
 async def create_client(
