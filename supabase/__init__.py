@@ -7,9 +7,9 @@ from .__version__ import __version__
 
 # Async Client
 from ._async.auth_client import AsyncSupabaseAuthClient as ASupabaseAuthClient
-from ._async.client import ClientOptions as AClientOptions
 from ._async.client import AsyncClient as AClient
 from ._async.client import AsyncStorageClient as ASupabaseStorageClient
+from ._async.client import ClientOptions as AClientOptions
 from ._async.client import create_client as acreate_client
 
 # Sync Client
