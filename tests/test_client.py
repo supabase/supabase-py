@@ -43,7 +43,7 @@ def test_supports_setting_a_global_authorization_header() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    authorization = f"Bearer secretuserjwt"
+    authorization = "Bearer secretuserjwt"
 
     options = ClientOptions(headers={"Authorization": authorization})
 
