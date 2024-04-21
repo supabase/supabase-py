@@ -2,9 +2,18 @@
 
 
 
+## v2.4.3 (2024-04-17)
+
+### Fix
+
+* fix(user auth context): do not overwrite provided client options Authorization header (#766) ([`4214c43`](https://github.com/supabase-community/supabase-py/commit/4214c43350d4d0028e7d7cb742c944efcbd32da5))
+
+
 ## v2.4.2 (2024-04-14)
 
 ### Chore
+
+* chore(release): bump version to v2.4.2 ([`bb24ce0`](https://github.com/supabase-community/supabase-py/commit/bb24ce0787981d23991a5e4ad90cc057ca869f50))
 
 * chore(deps-dev): bump black from 24.3.0 to 24.4.0 (#765) ([`23d97ce`](https://github.com/supabase-community/supabase-py/commit/23d97ce2e5f10c22502b16b61f0a2bb102060ced))
 

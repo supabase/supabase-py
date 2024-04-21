@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "supabase"
-version = "2.4.2"
+version = "2.4.3"
 description = "Supabase client for Python."
 authors = ["Joel Lee <joel@joellee.org>", "Leon Fedden <leonfedden@gmail.com>", "Daniel Reinón García <danielreinon@outlook.com>", "Leynier Gutiérrez González <leynier41@gmail.com>", "Anand", "Andrew Smith <a.smith@silentworks.co.uk>"]
 homepage = "https://github.com/supabase-community/supabase-py"
@@ -31,7 +31,7 @@ flake8 = "^5.0.4"
 isort = "^5.10.1"
 pytest-cov = "^5.0.0"
 commitizen = "^3.22.0"
-python-semantic-release = "^9.4.1"
+python-semantic-release = "^9.4.2"
 python-dotenv = "^1.0.1"
 
 [tool.poetry.scripts]
