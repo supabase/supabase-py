@@ -232,7 +232,7 @@ class AsyncClient:
         rest_url: str,
         headers: Dict[str, str],
         schema: str,
-        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        timeout: Union[int, float, Timeout] = None,
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         return AsyncPostgrestClient(
@@ -285,16 +285,18 @@ async def create_client(
     Examples
     --------
     Instantiating the client.
+    >>> import httpcore
+    >>> import asyncio
     >>> import os
-    >>> from supabase import create_client, Client
+    >>> from supabase._async.client import create_client
     >>>
     >>> url: str = os.environ.get("SUPABASE_TEST_URL")
     >>> key: str = os.environ.get("SUPABASE_TEST_KEY")
-    >>> supabase: Client = create_client(url, key)
+    >>> supabase: AsyncClient = asyncio.run(create_client(url, key))
 
     Returns
     -------
-    Client
+    AsyncClient
     """
     return await AsyncClient.create(
         supabase_url=supabase_url, supabase_key=supabase_key, options=options
