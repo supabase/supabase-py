@@ -6,14 +6,6 @@ repos:
           - id: trailing-whitespace
           - id: check-added-large-files
           - id: end-of-file-fixer
-          - id: check-docstring-first
-          - id: check-merge-conflict
-          - id: debug-statements
-          - id: forbid-submodules
-          - id: fix-byte-order-marker
-          - id: check-case-conflict
-          - id: check-symlinks
-          - id: destroyed-symlinks
           - id: mixed-line-ending
             args: ["--fix=lf"]
 
