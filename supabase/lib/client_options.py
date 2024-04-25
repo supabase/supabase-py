@@ -33,9 +33,7 @@ class ClientOptions:
     realtime: Optional[Dict[str, Any]] = None
     """Options passed to the realtime-py instance"""
 
-    postgrest_client_timeout: Union[
-        int, float, Timeout
-    ] = None
+    postgrest_client_timeout: Union[int, float, Timeout] = None
     """Timeout passed to the SyncPostgrestClient instance."""
 
     storage_client_timeout: Union[int, float, Timeout] = DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -52,9 +50,7 @@ class ClientOptions:
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[Dict[str, Any]] = None,
-        postgrest_client_timeout: Union[
-            int, float, Timeout
-        ] = None,
+        postgrest_client_timeout: Union[int, float, Timeout] = None,
         storage_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_STORAGE_CLIENT_TIMEOUT,
