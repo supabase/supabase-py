@@ -1129,13 +1129,13 @@ yaml = ["PyYaml (>=6.0.1)"]
 
 [[package]]
 name = "python-semantic-release"
-version = "9.4.2"
+version = "9.5.0"
 description = "Automatic Semantic Versioning for Python projects"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "python_semantic_release-9.4.2-py3-none-any.whl", hash = "sha256:db5cc2b81e6310b9bdb966e1060d501e8a888be612206abeb52442f1583319f3"},
-    {file = "python_semantic_release-9.4.2.tar.gz", hash = "sha256:bdbbdb2e7c2177458fdfcd344dc675b47eb890dca8e2cd9875cb8428e4bc9e74"},
+    {file = "python_semantic_release-9.5.0-py3-none-any.whl", hash = "sha256:1a33e1b038b89e0811da071a355babeaf1c3ede6762ebd831335071884e1d1bd"},
+    {file = "python_semantic_release-9.5.0.tar.gz", hash = "sha256:e82da3caf96e1f917c26b530214443da70c440d58d1ff46e1e8120f76f0c7b2c"},
 ]
 
 [package.dependencies]
@@ -1153,7 +1153,7 @@ shellingham = ">=1.5,<2.0"
 tomlkit = ">=0.11,<1.0"
 
 [package.extras]
-dev = ["pre-commit (>=3.5,<4.0)", "ruff (==0.3.5)", "tox (>=4.11,<5.0)"]
+dev = ["pre-commit (>=3.5,<4.0)", "ruff (==0.4.1)", "tox (>=4.11,<5.0)"]
 docs = ["Sphinx (>=6.0,<7.0)", "furo (>=2024.1,<2025.0)", "sphinx-autobuild (==2024.2.4)", "sphinxcontrib-apidoc (==0.5.0)"]
 mypy = ["mypy (==1.9.0)", "types-requests (>=2.31.0,<2.32.0)"]
 test = ["coverage[toml] (>=7.0,<8.0)", "pytest (>=7.0,<8.0)", "pytest-clarity (>=1.0,<2.0)", "pytest-cov (>=5.0,<6.0)", "pytest-env (>=1.0,<2.0)", "pytest-lazy-fixture (>=0.6.3,<0.7.0)", "pytest-mock (>=3.0,<4.0)", "pytest-pretty (>=1.2,<2.0)", "pytest-xdist (>=3.0,<4.0)", "requests-mock (>=1.10,<2.0)", "responses (>=0.25.0,<0.26.0)", "types-pytest-lazy-fixture (>=0.6.3,<0.7.0)"]
@@ -1648,4 +1648,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "ccca3693804738727c95559ec9814f492b6cdda03cdcba84e571d6d06618765b"
+content-hash = "33357850451952875dd5006f11820b014da317ffbc31e01eefb6c65627185e35"
