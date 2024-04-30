@@ -292,7 +292,7 @@ async def create_client(
     >>>
     >>> url: str = os.environ.get("SUPABASE_TEST_URL")
     >>> key: str = os.environ.get("SUPABASE_TEST_KEY")
-    >>> supabase: AsyncClient = asyncio.run(create_client(url, key))
+    >>> supabase: AsyncClient = await asyncio.create_task(create_client(url, key))
 
     Returns
     -------
