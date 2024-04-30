@@ -1,0 +1,25 @@
+name: Stale Issues & PRs
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  mark_stale:
+    name: Mark issues and PRs as Stale
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-pr-stale: 365
+          days-before-pr-close: -1
+          days-before-issue-stale: 365
+          days-before-issue-close: -1
+          stale-issue-message: >
+            This issue is stale because it has been open for 365 days with no activity.
+          stale-pr-message: >
+            This pull request is stale because it has been open for 365 days with no activity.
+          close-issue-message: >
+            This issue has been marked as stale and closed due to inactivity.
+          close-pr-message: >
+            This pull request has been marked as stale and closed due to inactivity.
