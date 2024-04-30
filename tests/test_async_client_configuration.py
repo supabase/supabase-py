@@ -10,8 +10,8 @@ pytest_plugins = ("pytest_asyncio", )
 
 @pytest.mark.asyncio
 async def test_async_configuration():
-    url: str = os.environ.get("SUPABASE_URL")
-    key: str = os.environ.get("SUPABASE_KEY")
+    url: str = os.environ.get("SUPABASE_TEST_URL")
+    key: str = os.environ.get("SUPABASE_TEST_KEY")
 
     """
     Initializing an AsynClient:
