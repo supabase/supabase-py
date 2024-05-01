@@ -2,7 +2,44 @@
 
 
 
+## v2.4.4 (2024-05-01)
+
+### Chore
+
+* chore(deps-dev): bump python-semantic-release from 9.5.0 to 9.6.0 (#785) ([`fbbf3d5`](https://github.com/supabase-community/supabase-py/commit/fbbf3d5e3137d44bf252c753871c42cdf344a7f1))
+
+* chore(deps-dev): bump pytest from 8.1.1 to 8.2.0 (#784) ([`f1727a0`](https://github.com/supabase-community/supabase-py/commit/f1727a005dbfadbab1b85a210ce7dbf820983851))
+
+* chore(deps-dev): bump python-semantic-release from 9.4.2 to 9.5.0 (#778) ([`4828e3b`](https://github.com/supabase-community/supabase-py/commit/4828e3b55611e264f41972eba3cd06de787fd4ad))
+
+* chore(deps-dev): bump black from 24.4.0 to 24.4.2 (#782) ([`105adca`](https://github.com/supabase-community/supabase-py/commit/105adca0a59bb7565ecf156480c65b11648e9722))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.4.2 to 9.5.0 (#779) ([`59b73eb`](https://github.com/supabase-community/supabase-py/commit/59b73ebcaf98264135c9b467ab0d9786fd9af55e))
+
+* chore(deps-dev): bump commitizen from 3.22.0 to 3.24.0 (#776) ([`8a64d83`](https://github.com/supabase-community/supabase-py/commit/8a64d8349f2e6049fcc56b814c2ae96c092fea30))
+
+* chore: update .pre-commit-config.yaml (#772) ([`f893cc8`](https://github.com/supabase-community/supabase-py/commit/f893cc815dae9f969e3fbf6fbc84da64d8312d58))
+
+* chore: add import async client (#760) ([`ad2fe1c`](https://github.com/supabase-community/supabase-py/commit/ad2fe1cbe86b5645fb88ff6c9d3ea9eb0c281ed3))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.4.1 to 9.4.2 (#769) ([`4a67fc2`](https://github.com/supabase-community/supabase-py/commit/4a67fc208254e9a30b35d359355c79001cbc2f40))
+
+* chore(deps-dev): bump python-semantic-release from 9.4.1 to 9.4.2 (#768) ([`6fcf11a`](https://github.com/supabase-community/supabase-py/commit/6fcf11a8678571cf253c6ce03783349f6dec8ff4))
+
+### Fix
+
+* fix(deps): bump postgrest from 0.16.3 to 0.16.4 with timeout fix (#786) ([`5cb84a5`](https://github.com/supabase-community/supabase-py/commit/5cb84a5e5df9ed7e5978a6b817369d39712183fc))
+
+### Unknown
+
+* Add stale bot (#774) ([`2c67a13`](https://github.com/supabase-community/supabase-py/commit/2c67a1305e4d5c2bee95a98667d83b27c32f5703))
+
+
 ## v2.4.3 (2024-04-17)
+
+### Chore
+
+* chore(release): bump version to v2.4.3 ([`d3656a6`](https://github.com/supabase-community/supabase-py/commit/d3656a6664f34c948128b01b01677b9510b8a35f))
 
 ### Fix
 
