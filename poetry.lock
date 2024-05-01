@@ -263,13 +263,13 @@ files = [
 
 [[package]]
 name = "commitizen"
-version = "3.24.0"
+version = "3.25.0"
 description = "Python commitizen client tool"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "commitizen-3.24.0-py3-none-any.whl", hash = "sha256:d9e28b1dcd97cea64dcb50be25292ceb730470d933f1da37131f9540f762df36"},
-    {file = "commitizen-3.24.0.tar.gz", hash = "sha256:088e01ae8265f1d6fa5a4d11a05e4fd7092d958c881837c35f6c65aad27331a9"},
+    {file = "commitizen-3.25.0-py3-none-any.whl", hash = "sha256:46b7f2a5a846df7414440d069aaa43b5d6c5a7f8840e68ae4c541492e93cd086"},
+    {file = "commitizen-3.25.0.tar.gz", hash = "sha256:65c9c5114ac2ded5ab1e1a75c2540adc27ae7291ed2db9290f9ed208178d1e99"},
 ]
 
 [package.dependencies]
@@ -1648,4 +1648,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "10c27e118fab489026bc5172be21050c8af8e359be063ecfdf4f8c6834a23f48"
+content-hash = "bf8e0ab227032a52419ae4f04bc654085d0d9d1ed9711b7b8a40b7892e734213"
