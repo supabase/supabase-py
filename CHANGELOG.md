@@ -2,9 +2,22 @@
 
 
 
+## v2.4.5 (2024-05-01)
+
+### Chore
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.5.0 to 9.6.0 (#787) ([`719e43b`](https://github.com/supabase-community/supabase-py/commit/719e43b33df63447796ac27195bbf6374acaa984))
+
+### Fix
+
+* fix(deps-dev): commitizen from 3.24.0 to 3.25.0 (#788) ([`5e8074a`](https://github.com/supabase-community/supabase-py/commit/5e8074a0fffd757bf597b7d4a0d7f310011547c2))
+
+
 ## v2.4.4 (2024-05-01)
 
 ### Chore
+
+* chore(release): bump version to v2.4.4 ([`e2676ee`](https://github.com/supabase-community/supabase-py/commit/e2676ee0f4b9498f8f5512fda72bc3fdb7075250))
 
 * chore(deps-dev): bump python-semantic-release from 9.5.0 to 9.6.0 (#785) ([`fbbf3d5`](https://github.com/supabase-community/supabase-py/commit/fbbf3d5e3137d44bf252c753871c42cdf344a7f1))
 
