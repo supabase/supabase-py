@@ -1129,13 +1129,13 @@ yaml = ["PyYaml (>=6.0.1)"]
 
 [[package]]
 name = "python-semantic-release"
-version = "9.7.1"
+version = "9.7.2"
 description = "Automatic Semantic Versioning for Python projects"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "python_semantic_release-9.7.1-py3-none-any.whl", hash = "sha256:fd96296952fb9a60eb3e75302afa702d7977c345b40590de1b85a0b767a07881"},
-    {file = "python_semantic_release-9.7.1.tar.gz", hash = "sha256:0bd98950f34e49bdf48e48b4fbaecbdcfadffca3b386b101996479f5012c6408"},
+    {file = "python_semantic_release-9.7.2-py3-none-any.whl", hash = "sha256:0fb65ad18f1e7511f72f906fdca878d7d5c4260c385044029d183f3bf5265618"},
+    {file = "python_semantic_release-9.7.2.tar.gz", hash = "sha256:c8d0c8f2fb453ecd87220450fa55001b40ef26e5de7e8bd200828c1b6037a437"},
 ]
 
 [package.dependencies]
@@ -1153,6 +1153,7 @@ shellingham = ">=1.5,<2.0"
 tomlkit = ">=0.11,<1.0"
 
 [package.extras]
+build = ["build (>=1.2,<2.0)"]
 dev = ["pre-commit (>=3.5,<4.0)", "ruff (==0.4.3)", "tox (>=4.11,<5.0)"]
 docs = ["Sphinx (>=6.0,<7.0)", "furo (>=2024.1,<2025.0)", "sphinx-autobuild (==2024.2.4)", "sphinxcontrib-apidoc (==0.5.0)"]
 mypy = ["mypy (==1.10.0)", "types-requests (>=2.31.0,<2.32.0)"]
@@ -1648,4 +1649,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "a3ac69381df1bd009883c13aaf44b957d80de5627e712746dee5782b0e1be8e5"
+content-hash = "2d19731092fab3534abdb6dbb7165e18551a602afd0e62f206e42d5a545408d1"
