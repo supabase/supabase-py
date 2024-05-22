@@ -2,9 +2,34 @@
 
 
 
+## v2.4.6 (2024-05-22)
+
+### Chore
+
+* chore(deps-dev): bump requests from 2.31.0 to 2.32.0 in the pip group across 1 directory (#804) ([`2972d76`](https://github.com/supabase-community/supabase-py/commit/2972d760870f1583ffdfe20e6b7b0f9f52c239eb))
+
+* chore(deps-dev): bump commitizen from 3.25.0 to 3.26.0 (#803) ([`ee0cc80`](https://github.com/supabase-community/supabase-py/commit/ee0cc8063e312b7fe0d282e04692093672133b97))
+
+* chore(deps-dev): bump pytest from 8.2.0 to 8.2.1 (#802) ([`5f87f29`](https://github.com/supabase-community/supabase-py/commit/5f87f29bf575190ceaa31a12402f0b64fde9cb03))
+
+* chore(deps-dev): bump python-semantic-release from 9.7.1 to 9.7.3 (#800) ([`1a81218`](https://github.com/supabase-community/supabase-py/commit/1a81218e53b3e40e9933ee79e97fbe1b6923f454))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.7.1 to 9.7.3 (#799) ([`ef184a8`](https://github.com/supabase-community/supabase-py/commit/ef184a86502e88bf2b1d4263ddfb3c89d8f47a32))
+
+* chore(deps-dev): bump python-semantic-release from 9.6.0 to 9.7.1 (#795) ([`fee2b5e`](https://github.com/supabase-community/supabase-py/commit/fee2b5e7ea013d06fb4e0dc6492ec053974fba10))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.6.0 to 9.7.1 (#794) ([`18e0743`](https://github.com/supabase-community/supabase-py/commit/18e0743fd1a33d71443d7a25d43ae7995c80f977))
+
+### Fix
+
+* fix: refactor create_client functions to call constructor directly (#805) ([`46c201f`](https://github.com/supabase-community/supabase-py/commit/46c201f8f52ce26f66bf5a22e4702785b2aa2be0))
+
+
 ## v2.4.5 (2024-05-01)
 
 ### Chore
+
+* chore(release): bump version to v2.4.5 ([`ee65975`](https://github.com/supabase-community/supabase-py/commit/ee659752b3142a8d958f455d1c3fde17887d5a65))
 
 * chore(deps): bump python-semantic-release/python-semantic-release from 9.5.0 to 9.6.0 (#787) ([`719e43b`](https://github.com/supabase-community/supabase-py/commit/719e43b33df63447796ac27195bbf6374acaa984))
 
