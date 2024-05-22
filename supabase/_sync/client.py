@@ -296,6 +296,6 @@ def create_client(
     -------
     Client
     """
-    return SyncClient.create(
+    return SyncClient(
         supabase_url=supabase_url, supabase_key=supabase_key, options=options
     )
