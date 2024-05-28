@@ -2,9 +2,18 @@
 
 
 
+## v2.5.0 (2024-05-28)
+
+### Feature
+
+* feat: add schema method to the client (#809) ([`d6a5df9`](https://github.com/supabase-community/supabase-py/commit/d6a5df9d48ee9384071541781084dde422f58f72))
+
+
 ## v2.4.6 (2024-05-22)
 
 ### Chore
+
+* chore(release): bump version to v2.4.6 ([`8468c2e`](https://github.com/supabase-community/supabase-py/commit/8468c2e665a3f5f27d456843e71d23f906c4f665))
 
 * chore(deps-dev): bump requests from 2.31.0 to 2.32.0 in the pip group across 1 directory (#804) ([`2972d76`](https://github.com/supabase-community/supabase-py/commit/2972d760870f1583ffdfe20e6b7b0f9f52c239eb))
 
