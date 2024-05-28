@@ -74,7 +74,6 @@ class SyncClient:
         self.auth_url = f"{supabase_url}/auth/v1"
         self.storage_url = f"{supabase_url}/storage/v1"
         self.functions_url = f"{supabase_url}/functions/v1"
-        self.schema = options.schema
 
         # Instantiate clients.
         self.auth = self._init_supabase_auth_client(
@@ -109,6 +108,19 @@ class SyncClient:
         Alternatively you can use the `.from_()` method.
         """
         return self.from_(table_name)
+
+    def schema(self, schema: str) -> SyncPostgrestClient:
+        """Select a schema to query or perform an function (rpc) call.
+
+        The schema needs to be on the list of exposed schemas inside Supabase.
+        """
+        self._postgrest = self._init_postgrest_client(
+            rest_url=self.rest_url,
+            headers=self.options.headers,
+            schema=schema,
+            timeout=self.options.postgrest_client_timeout,
+        )
+        return self._postgrest
 
     def from_(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
