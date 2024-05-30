@@ -221,8 +221,9 @@ class AsyncClient:
         storage_url: str,
         headers: Dict[str, str],
         storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+        verify: bool = True,
     ) -> AsyncStorageClient:
-        return AsyncStorageClient(storage_url, headers, storage_client_timeout)
+        return AsyncStorageClient(storage_url, headers, storage_client_timeout, verify)
 
     @staticmethod
     def _init_supabase_auth_client(
@@ -245,10 +246,15 @@ class AsyncClient:
         headers: Dict[str, str],
         schema: str,
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        verify: bool = True,
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         return AsyncPostgrestClient(
-            rest_url, headers=headers, schema=schema, timeout=timeout
+            rest_url,
+            headers=headers,
+            schema=schema,
+            timeout=timeout,
+            verify=verify,
         )
 
     def _create_auth_header(self, token: str):
