@@ -2,7 +2,40 @@
 
 
 
+## v2.5.1 (2024-06-11)
+
+### Chore
+
+* chore(deps): bump supafunc from 0.4.5 to 0.4.6 (#826) ([`3558813`](https://github.com/supabase-community/supabase-py/commit/35588132f652b086c2ddb8f50d31cdc4d37bb5b3))
+
+* chore(deps-dev): bump pytest from 8.2.1 to 8.2.2 (#825) ([`a0103b4`](https://github.com/supabase-community/supabase-py/commit/a0103b4251cdf4fa615f9e52c1ab1e9ada453311))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.8.0 to 9.8.1 (#823) ([`d45df9b`](https://github.com/supabase-community/supabase-py/commit/d45df9b790125e546ce53500c96ca4ba6e088b85))
+
+* chore(deps): bump storage3 from 0.7.4 to 0.7.6 (#822) ([`dcb0992`](https://github.com/supabase-community/supabase-py/commit/dcb09926267e2901d341ff275f3b0d3dd504d33f))
+
+* chore(deps-dev): bump python-semantic-release from 9.7.3 to 9.8.1 (#821) ([`f271d5b`](https://github.com/supabase-community/supabase-py/commit/f271d5bbf4efa08b109049c22add2fc0676ec898))
+
+* chore(deps): bump postgrest from 0.16.4 to 0.16.8 (#819) ([`b0cb1a5`](https://github.com/supabase-community/supabase-py/commit/b0cb1a5b257cfeba056a602b26c6fe0cc46c67a9))
+
+* chore(deps): bump gotrue from 2.4.2 to 2.4.4 (#817) ([`9f91f7d`](https://github.com/supabase-community/supabase-py/commit/9f91f7da974025b0c590329d7324e4a3c0e153cd))
+
+* chore(deps): bump realtime from 1.0.4 to 1.0.5 (#812) ([`035c0f4`](https://github.com/supabase-community/supabase-py/commit/035c0f479d6f1fd470df0d02e488d2d77484652e))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.7.3 to 9.8.0 (#810) ([`683a820`](https://github.com/supabase-community/supabase-py/commit/683a820e29fe38037c3ce138c611f59c7a0bf0f1))
+
+* chore(deps-dev): bump commitizen from 3.26.0 to 3.27.0 (#807) ([`bebb676`](https://github.com/supabase-community/supabase-py/commit/bebb6767c8cd70eb2a128775366a532a2e5b7127))
+
+### Fix
+
+* fix: add &#34;verify&#34; flag to the creation of client ([`0c51cf0`](https://github.com/supabase-community/supabase-py/commit/0c51cf0d51e843e13f116561bedcf24c1ff3dad4))
+
+
 ## v2.5.0 (2024-05-28)
+
+### Chore
+
+* chore(release): bump version to v2.5.0 ([`f462e3a`](https://github.com/supabase-community/supabase-py/commit/f462e3a9e167771c7a7c12d3d8be6e1d6ad4c5ba))
 
 ### Feature
 
