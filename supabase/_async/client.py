@@ -195,7 +195,6 @@ class AsyncClient:
             )
         return self._functions
 
-
     #     async def remove_subscription_helper(resolve):
     #         try:
     #             await self._close_subscription(subscription)
