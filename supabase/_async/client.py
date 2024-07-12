@@ -195,13 +195,6 @@ class AsyncClient:
             )
         return self._functions
 
-    def functionTimeout(self, timeout: int):
-        """Set function timeout"""
-        if self._functions:
-            assert timeout > 0, "Timeout must be positive."  # No negative timeout.
-            self._functions._client.timeout = min(
-                int(timeout), 150
-            )  # >150 returns HTTP-504.
 
     #     async def remove_subscription_helper(resolve):
     #         try:
