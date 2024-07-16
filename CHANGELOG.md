@@ -1,8 +1,16 @@
 # CHANGELOG
 
+## v2.5.3 (2024-07-16)
+
+### Fix
+
+* fix: missing await in async create_client (#859) ([`07c75ee`](https://github.com/supabase-community/supabase-py/commit/07c75eef93f61e4e815781f6b9cdbd197be1f64b))
+
 ## v2.5.2 (2024-07-16)
 
 ### Chore
+
+* chore(release): bump version to v2.5.2 ([`e437159`](https://github.com/supabase-community/supabase-py/commit/e43715910f0188cbc8265692514139d462153b92))
 
 * chore(deps): bump postgrest from 0.16.8 to 0.16.9 (#858) ([`aab9c3e`](https://github.com/supabase-community/supabase-py/commit/aab9c3eaaaf549a6c58051bef0e0253889b7ddd3))
 
