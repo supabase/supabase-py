@@ -1434,17 +1434,17 @@ test = ["pylint", "pytest", "pytest-black", "pytest-cov", "pytest-pylint"]
 
 [[package]]
 name = "supafunc"
-version = "0.4.6"
+version = "0.4.7"
 description = "Library for Supabase Functions"
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "supafunc-0.4.6-py3-none-any.whl", hash = "sha256:f7ca7b244365e171da7055a64edb462c2ec449cdaa210fc418cfccd132f4cf98"},
-    {file = "supafunc-0.4.6.tar.gz", hash = "sha256:92db51f8f8568d1430285219c9c0072e44207409c416622d7387f609e31928a6"},
+    {file = "supafunc-0.4.7-py3-none-any.whl", hash = "sha256:0b63133ff14e3b311fc881c9ff2538d70985df9b700b443efb86940588672905"},
+    {file = "supafunc-0.4.7.tar.gz", hash = "sha256:cd7b79d03d0c66aedfe3e8b2296cafcd0770fea5fc7505c863ae42c667309d27"},
 ]
 
 [package.dependencies]
-httpx = ">=0.24,<0.28"
+httpx = {version = ">=0.24,<0.28", extras = ["http2"]}
 
 [[package]]
 name = "termcolor"
