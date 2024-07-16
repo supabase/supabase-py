@@ -1,10 +1,52 @@
 # CHANGELOG
 
+## v2.5.2 (2024-07-16)
 
+### Chore
+
+* chore(deps): bump postgrest from 0.16.8 to 0.16.9 (#858) ([`aab9c3e`](https://github.com/supabase-community/supabase-py/commit/aab9c3eaaaf549a6c58051bef0e0253889b7ddd3))
+
+* chore(deps): bump storage3 from 0.7.6 to 0.7.7 (#857) ([`1c57f11`](https://github.com/supabase-community/supabase-py/commit/1c57f113345ca9c59f1ef7017e4578a9c6d3b666))
+
+* chore(deps): bump supafunc from 0.4.6 to 0.4.7 (#856) ([`e86ca82`](https://github.com/supabase-community/supabase-py/commit/e86ca8203a759dd56415f3dab35f08a76539bc71))
+
+* chore(deps): bump gotrue from 2.5.4 to 2.5.5 (#855) ([`544dd41`](https://github.com/supabase-community/supabase-py/commit/544dd4167e7d07557aa8049bf1fbc6e79d6a9ad8))
+
+* chore(deps-dev): bump zipp from 3.18.1 to 3.19.1 in the pip group across 1 directory (#854) ([`b339e83`](https://github.com/supabase-community/supabase-py/commit/b339e832bb3b1c5c77644c799266286117c3b6ac))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.8.4 to 9.8.5 (#853) ([`989668b`](https://github.com/supabase-community/supabase-py/commit/989668b50e530cf74f2dfa8571c3af41cc552906))
+
+* chore(deps-dev): bump python-semantic-release from 9.8.4 to 9.8.5 (#852) ([`592fe8e`](https://github.com/supabase-community/supabase-py/commit/592fe8ef6ce24ac09f42b31ce80b81d651fd33d1))
+
+* chore(deps): bump certifi from 2024.2.2 to 2024.7.4 in the pip group across 1 directory (#849) ([`ac5f04d`](https://github.com/supabase-community/supabase-py/commit/ac5f04d68b0970f0c1488ef930d0ad8a4088d809))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.8.3 to 9.8.4 (#848) ([`f846a94`](https://github.com/supabase-community/supabase-py/commit/f846a94db3044716b46eb1f96ef38c6a38496112))
+
+* chore(deps-dev): bump python-semantic-release from 9.8.3 to 9.8.4 (#847) ([`419b5e0`](https://github.com/supabase-community/supabase-py/commit/419b5e09634b6ee41c1fa77b577e8371377d4078))
+
+* chore(deps): bump gotrue from 2.5.3 to 2.5.4 (#842) ([`55c2581`](https://github.com/supabase-community/supabase-py/commit/55c258173843153d9286919e8b8f4cd4fc56faab))
+
+* chore(deps): bump gotrue from 2.5.2 to 2.5.3 (#841) ([`50c3d3a`](https://github.com/supabase-community/supabase-py/commit/50c3d3a662707d468a67b4450984f0b79eb195a2))
+
+* chore(deps): bump python-semantic-release/python-semantic-release from 9.8.1 to 9.8.3 (#836) ([`c7fa816`](https://github.com/supabase-community/supabase-py/commit/c7fa816e0aa13df02ece206f4d7973dc645c5229))
+
+* chore(deps): bump gotrue from 2.4.4 to 2.5.2 (#840) ([`e8d3463`](https://github.com/supabase-community/supabase-py/commit/e8d34638d90524dc03b805c138a8665270e853cf))
+
+* chore(deps-dev): bump python-semantic-release from 9.8.1 to 9.8.3 (#835) ([`dc958bc`](https://github.com/supabase-community/supabase-py/commit/dc958bc45565b17b0ea6f3204fccd7e6c6deb97f))
+
+* chore(deps): bump realtime from 1.0.5 to 1.0.6 (#832) ([`39e746d`](https://github.com/supabase-community/supabase-py/commit/39e746df09e2d0171bf9f95b1dd44bbc833237d0))
+
+* chore(deps-dev): bump urllib3 from 2.2.1 to 2.2.2 in the pip group across 1 directory (#831) ([`8ee2946`](https://github.com/supabase-community/supabase-py/commit/8ee2946d072350ed155d532f3700a992c8a8ea89))
+
+### Fix
+
+* fix: resolve user session inside of the create factory method (#851) ([`4635994`](https://github.com/supabase-community/supabase-py/commit/4635994764c91b34d77ad84e113f374d5404ca98))
 
 ## v2.5.1 (2024-06-11)
 
 ### Chore
+
+* chore(release): bump version to v2.5.1 ([`2cf1242`](https://github.com/supabase-community/supabase-py/commit/2cf12420c3d3d8dfd1488db3953f254fed9d96d6))
 
 * chore(deps): bump supafunc from 0.4.5 to 0.4.6 (#826) ([`3558813`](https://github.com/supabase-community/supabase-py/commit/35588132f652b086c2ddb8f50d31cdc4d37bb5b3))
 
@@ -30,7 +72,6 @@
 
 * fix: add &#34;verify&#34; flag to the creation of client ([`0c51cf0`](https://github.com/supabase-community/supabase-py/commit/0c51cf0d51e843e13f116561bedcf24c1ff3dad4))
 
-
 ## v2.5.0 (2024-05-28)
 
 ### Chore
@@ -40,7 +81,6 @@
 ### Feature
 
 * feat: add schema method to the client (#809) ([`d6a5df9`](https://github.com/supabase-community/supabase-py/commit/d6a5df9d48ee9384071541781084dde422f58f72))
-
 
 ## v2.4.6 (2024-05-22)
 
@@ -66,7 +106,6 @@
 
 * fix: refactor create_client functions to call constructor directly (#805) ([`46c201f`](https://github.com/supabase-community/supabase-py/commit/46c201f8f52ce26f66bf5a22e4702785b2aa2be0))
 
-
 ## v2.4.5 (2024-05-01)
 
 ### Chore
@@ -78,7 +117,6 @@
 ### Fix
 
 * fix(deps-dev): commitizen from 3.24.0 to 3.25.0 (#788) ([`5e8074a`](https://github.com/supabase-community/supabase-py/commit/5e8074a0fffd757bf597b7d4a0d7f310011547c2))
-
 
 ## v2.4.4 (2024-05-01)
 
@@ -114,7 +152,6 @@
 
 * Add stale bot (#774) ([`2c67a13`](https://github.com/supabase-community/supabase-py/commit/2c67a1305e4d5c2bee95a98667d83b27c32f5703))
 
-
 ## v2.4.3 (2024-04-17)
 
 ### Chore
@@ -124,7 +161,6 @@
 ### Fix
 
 * fix(user auth context): do not overwrite provided client options Authorization header (#766) ([`4214c43`](https://github.com/supabase-community/supabase-py/commit/4214c43350d4d0028e7d7cb742c944efcbd32da5))
-
 
 ## v2.4.2 (2024-04-14)
 
@@ -154,7 +190,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 ### Unknown
 
 * remove mdformat-gfm (#750) ([`73c1958`](https://github.com/supabase-community/supabase-py/commit/73c1958be30b276e7b3cea154c6f62a6b292772b))
-
 
 ## v2.4.1 (2024-03-26)
 
@@ -257,7 +292,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 * Adhere to github flavoured markdown syntax (#695) ([`954d243`](https://github.com/supabase-community/supabase-py/commit/954d2437b9086f85e2d76a06e8ebce61dfe04237))
 
-
 ## v2.4.0 (2024-02-28)
 
 ### Chore
@@ -267,7 +301,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 ### Feature
 
 * feat: add actions to dependabot (#710) ([`4661668`](https://github.com/supabase-community/supabase-py/commit/4661668d90a04599813f7083ed1c13af1cd96c96))
-
 
 ## v2.3.8 (2024-02-28)
 
@@ -279,7 +312,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 * fix: update postgrest and dev dependencies (#709) ([`f0f3079`](https://github.com/supabase-community/supabase-py/commit/f0f3079c90e848cb0da62d9cfcf77c0398113c2a))
 
-
 ## v2.3.7 (2024-02-26)
 
 ### Chore
@@ -289,7 +321,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 ### Fix
 
 * fix: Update rpc return type (#702) ([`4130d20`](https://github.com/supabase-community/supabase-py/commit/4130d20139b8b9f29da0503a0268d4903750e326))
-
 
 ## v2.3.6 (2024-02-22)
 
@@ -318,7 +349,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 Co-authored-by: Andrew Smith &lt;a.smith@silentworks.co.uk&gt; ([`5d04c4c`](https://github.com/supabase-community/supabase-py/commit/5d04c4c7612a55d8a58a9df54afa4cc13a54b918))
 
-
 ## v2.3.5 (2024-02-15)
 
 ### Chore
@@ -345,7 +375,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 * Update action versions in CI/CD (#679) ([`13bed26`](https://github.com/supabase-community/supabase-py/commit/13bed26e676242f020caad48f24c9db993c1cfc4))
 
-
 ## v2.3.4 (2024-01-15)
 
 ### Chore
@@ -366,7 +395,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 * fix: update to latest postgrest (#669) ([`40cc767`](https://github.com/supabase-community/supabase-py/commit/40cc7672aa5308713e03f5464cd72cb8890817ec))
 
-
 ## v2.3.3 (2024-01-11)
 
 ### Chore
@@ -384,7 +412,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 * fix: add correct token to new requests when a user is signed in ([`c74b65b`](https://github.com/supabase-community/supabase-py/commit/c74b65b76d28082422cdfbc9d5c43972eb37d846))
 
-
 ## v2.3.2 (2024-01-10)
 
 ### Chore
@@ -396,7 +423,6 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 * fix: Add AsyncMemoryStorage to AsyncClient options
 
 Co-authored-by: Andrew Smith &lt;a.smith@silentworks.co.uk&gt; ([`732e931`](https://github.com/supabase-community/supabase-py/commit/732e9317834043d3ac350a94d61116849007ac93))
-
 
 ## v2.3.1 (2024-01-05)
 
@@ -413,7 +439,6 @@ Co-authored-by: Andrew Smith &lt;a.smith@silentworks.co.uk&gt; ([`732e931`](http
 * Update MAINTAINERS.md (#651) ([`39f4aa8`](https://github.com/supabase-community/supabase-py/commit/39f4aa88dfed3b7329e7d13675735b013eb34d21))
 
 * Update MAINTAINERS.md ([`fa03108`](https://github.com/supabase-community/supabase-py/commit/fa0310873132cceb32581e96f019300bfb644d5b))
-
 
 ## v2.3.0 (2023-12-15)
 
@@ -439,7 +464,6 @@ Co-authored-by: Andrew Smith &lt;a.smith@silentworks.co.uk&gt; ([`732e931`](http
 
 * Update README.md ([`d9e300a`](https://github.com/supabase-community/supabase-py/commit/d9e300adee62bed7fb74b4aac074b3456e98f9dc))
 
-
 ## v2.2.1 (2023-12-10)
 
 ### Chore
@@ -452,7 +476,6 @@ Co-authored-by: Andrew Smith &lt;a.smith@silentworks.co.uk&gt; ([`732e931`](http
 
 * fix: upgrade gotrue and realtime dependencies ([`4eb6dfe`](https://github.com/supabase-community/supabase-py/commit/4eb6dfe896e28d4801e1560cbf43348b1da74ee2))
 
-
 ## v2.2.0 (2023-12-01)
 
 ### Chore
@@ -464,7 +487,6 @@ Co-authored-by: Andrew Smith &lt;a.smith@silentworks.co.uk&gt; ([`732e931`](http
 * feat: add create method to handle token headers (#630) ([`fd612a0`](https://github.com/supabase-community/supabase-py/commit/fd612a00c8e8e8f9efdf700161358b09ed15a793))
 
 * feat: add create method to handle token headers ([`4f47306`](https://github.com/supabase-community/supabase-py/commit/4f473069821066d622ff2ae4e9a668c6759af78a))
-
 
 ## v2.1.1 (2023-11-30)
 
@@ -522,7 +544,6 @@ Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`0ec8371`](https://g
 
 Incomplete String in `### Download a file` ([`7f7beec`](https://github.com/supabase-community/supabase-py/commit/7f7beecd009e8b79fb15d33ba3dfc934975f2f50))
 
-
 ## v2.1.0 (2023-11-23)
 
 ### Chore
@@ -565,7 +586,6 @@ Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`38a7ded`](https://g
 
 Co-authored-by: Joel Lee &lt;lee.yi.jie.joel@gmail.com&gt; ([`068b601`](https://github.com/supabase-community/supabase-py/commit/068b601f1ceb326f5266b67264a9c1bac7301497))
 
-
 ## v2.0.3 (2023-11-01)
 
 ### Chore
@@ -578,7 +598,6 @@ Co-authored-by: Joel Lee &lt;lee.yi.jie.joel@gmail.com&gt; ([`068b601`](https://
 
 * fix: add flow_type to client options ([`f1d8cba`](https://github.com/supabase-community/supabase-py/commit/f1d8cbaab5cce1defe067b698a003f234731e95d))
 
-
 ## v2.0.2 (2023-11-01)
 
 ### Chore
@@ -590,7 +609,6 @@ Co-authored-by: Joel Lee &lt;lee.yi.jie.joel@gmail.com&gt; ([`068b601`](https://
 * fix: gotrue-py version update (#609) ([`a7502b1`](https://github.com/supabase-community/supabase-py/commit/a7502b156c9c943b5b17620c5d0f9c7ab25ea8ab))
 
 * fix: gotrue-py version update ([`8b3345a`](https://github.com/supabase-community/supabase-py/commit/8b3345a1730d8c3d5a3c88b247e24f9eb52acc0f))
-
 
 ## v2.0.1 (2023-10-31)
 
@@ -625,7 +643,6 @@ Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`1af3eae`](https://g
 * fix: functions-py version update (#608) ([`2f7c69f`](https://github.com/supabase-community/supabase-py/commit/2f7c69fadda8ab8492ecb181f144bfd294b71cc6))
 
 * fix: functions-py version update ([`f5ba014`](https://github.com/supabase-community/supabase-py/commit/f5ba014dbf0be055ab132279a2bb95970d2f2834))
-
 
 ## v2.0.0 (2023-10-29)
 
@@ -731,8 +748,6 @@ Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`e692a83`](https://g
 
 * chore(deps-dev): bump urllib3 from 2.0.6 to 2.0.7 (#592) ([`f12bdc2`](https://github.com/supabase-community/supabase-py/commit/f12bdc2405a6c3864fb8b73b6984697f516e6dd2))
 
-* chore(deps-dev): bump pre-commit from 3.4.0 to 3.5.0 (#589) ([`d21a0e5`](https://github.com/supabase-community/supabase-py/commit/d21a0e5d85163ae5ad9211465dd5070c7e67afcb))
-
 * chore(deps-dev): bump urllib3 from 2.0.6 to 2.0.7
 
 Bumps [urllib3](https://github.com/urllib3/urllib3) from 2.0.6 to 2.0.7.
@@ -747,6 +762,8 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`3621fa5`](https://github.com/supabase-community/supabase-py/commit/3621fa5d0ddd755c2e0d5df165ea731d0e30043f))
+
+* chore(deps-dev): bump pre-commit from 3.4.0 to 3.5.0 (#589) ([`d21a0e5`](https://github.com/supabase-community/supabase-py/commit/d21a0e5d85163ae5ad9211465dd5070c7e67afcb))
 
 * chore(deps-dev): bump pre-commit from 3.4.0 to 3.5.0
 
@@ -778,6 +795,37 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`76caacd`](https://github.com/supabase-community/supabase-py/commit/76caacd06b7d4c8acce51e18739cb7e33332aab2))
+
+* chore(deps-dev): bump urllib3 from 2.0.4 to 2.0.6
+
+Bumps [urllib3](https://github.com/urllib3/urllib3) from 2.0.4 to 2.0.6.
+- [Release notes](https://github.com/urllib3/urllib3/releases)
+- [Changelog](https://github.com/urllib3/urllib3/blob/main/CHANGES.rst)
+- [Commits](https://github.com/urllib3/urllib3/compare/2.0.4...2.0.6)
+
+---
+updated-dependencies:
+- dependency-name: urllib3
+  dependency-type: indirect
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`b940713`](https://github.com/supabase-community/supabase-py/commit/b94071318dcb57f4f5a1564618822b32fd7529f3))
+
+* chore(deps): bump storage3 from 0.6.0 to 0.6.1
+
+Bumps [storage3](https://github.com/supabase-community/storage-py) from 0.6.0 to 0.6.1.
+- [Release notes](https://github.com/supabase-community/storage-py/releases)
+- [Changelog](https://github.com/supabase-community/storage-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/storage-py/compare/v0.6.0...v0.6.1)
+
+---
+updated-dependencies:
+- dependency-name: storage3
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`05a110a`](https://github.com/supabase-community/supabase-py/commit/05a110ae03579d3c826d0749065749567f0df596))
 
 * chore(deps): bump postgrest from 0.11.0 to 0.12.0
 
@@ -845,43 +893,11 @@ chore(deps): bump postgrest from 0.11.0 to 0.12.0 ([`9a085f7`](https://github.co
 
 chore(deps): bump gotrue from 1.1.1 to 1.2.0 ([`eaa31ef`](https://github.com/supabase-community/supabase-py/commit/eaa31ef6304f187f14cfe74925c1be3b10728ebb))
 
-
 ## v1.2.0 (2023-10-04)
 
 ### Chore
 
 * chore(release): bump version to v1.2.0 ([`1ddb4e3`](https://github.com/supabase-community/supabase-py/commit/1ddb4e3e01c65b7c5009e8e01db79d4c4ec1cedc))
-
-* chore(deps-dev): bump urllib3 from 2.0.4 to 2.0.6
-
-Bumps [urllib3](https://github.com/urllib3/urllib3) from 2.0.4 to 2.0.6.
-- [Release notes](https://github.com/urllib3/urllib3/releases)
-- [Changelog](https://github.com/urllib3/urllib3/blob/main/CHANGES.rst)
-- [Commits](https://github.com/urllib3/urllib3/compare/2.0.4...2.0.6)
-
----
-updated-dependencies:
-- dependency-name: urllib3
-  dependency-type: indirect
-...
-
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`b940713`](https://github.com/supabase-community/supabase-py/commit/b94071318dcb57f4f5a1564618822b32fd7529f3))
-
-* chore(deps): bump storage3 from 0.6.0 to 0.6.1
-
-Bumps [storage3](https://github.com/supabase-community/storage-py) from 0.6.0 to 0.6.1.
-- [Release notes](https://github.com/supabase-community/storage-py/releases)
-- [Changelog](https://github.com/supabase-community/storage-py/blob/main/CHANGELOG.md)
-- [Commits](https://github.com/supabase-community/storage-py/compare/v0.6.0...v0.6.1)
-
----
-updated-dependencies:
-- dependency-name: storage3
-  dependency-type: direct:production
-  update-type: version-update:semver-patch
-...
-
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`05a110a`](https://github.com/supabase-community/supabase-py/commit/05a110ae03579d3c826d0749065749567f0df596))
 
 ### Feature
 
@@ -903,7 +919,6 @@ feat: add functions property ([`7cf9f84`](https://github.com/supabase-community/
 
 * Update client.py ([`c283c8c`](https://github.com/supabase-community/supabase-py/commit/c283c8c39033fd4094c4fd22b2255f39f9be907d))
 
-
 ## v1.1.1 (2023-10-02)
 
 ### Chore
@@ -919,7 +934,6 @@ feat: add functions property ([`7cf9f84`](https://github.com/supabase-community/
 * chore: re-run tests
 
 * chore: remove unused import ([`2829aea`](https://github.com/supabase-community/supabase-py/commit/2829aeaa9757080f9b8bd76a19fe1bb27ae4dcc2))
-
 
 ## v1.1.0 (2023-09-29)
 
@@ -979,6 +993,7 @@ chore(deps): bump postgrest from 0.10.8 to 0.11.0 ([`576abbb`](https://github.co
 
 Update dependabot target branch ([`5f87d78`](https://github.com/supabase-community/supabase-py/commit/5f87d78656d01b528070066342b37dde6919ad12))
 
+* Update dependabot target branch ([`7b62b17`](https://github.com/supabase-community/supabase-py/commit/7b62b17c03562e6f12d7b5e4eb3923fe4a10149f))
 
 ## v1.0.6 (2023-09-28)
 
@@ -992,8 +1007,6 @@ Update dependabot target branch ([`5f87d78`](https://github.com/supabase-communi
 
 ### Unknown
 
-* Update dependabot target branch ([`7b62b17`](https://github.com/supabase-community/supabase-py/commit/7b62b17c03562e6f12d7b5e4eb3923fe4a10149f))
-
 * Merge pull request #568 from supabase-community/silentworks/fix-semantic-releases-variable-names
 
 fix: correct semantic release variable names ([`c846275`](https://github.com/supabase-community/supabase-py/commit/c846275475169df866e336648ffeea6d0e6188a0))
@@ -1003,7 +1016,6 @@ fix: correct semantic release variable names ([`c846275`](https://github.com/sup
 Ignore line endings of markdown files ([`19dba24`](https://github.com/supabase-community/supabase-py/commit/19dba24ce5d8cb949b36e65b9fdce272187b2344))
 
 * Ignore line endings of markdown files ([`3ec2b41`](https://github.com/supabase-community/supabase-py/commit/3ec2b4128aaa60f038f4a23147f3cb4ec7c56509))
-
 
 ## v1.0.5 (2023-09-28)
 
@@ -1107,22 +1119,6 @@ updated-dependencies:
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`1db9694`](https://github.com/supabase-community/supabase-py/commit/1db9694a4d2dca41bf94c529c93b888ddd2be134))
 
-* chore(deps): bump gotrue from 1.0.4 to 1.1.0
-
-Bumps [gotrue](https://github.com/supabase-community/gotrue-py) from 1.0.4 to 1.1.0.
-- [Release notes](https://github.com/supabase-community/gotrue-py/releases)
-- [Changelog](https://github.com/supabase-community/gotrue-py/blob/main/CHANGELOG.md)
-- [Commits](https://github.com/supabase-community/gotrue-py/compare/v1.0.4...v1.1.0)
-
----
-updated-dependencies:
-- dependency-name: gotrue
-  dependency-type: direct:production
-  update-type: version-update:semver-minor
-...
-
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`5c1d405`](https://github.com/supabase-community/supabase-py/commit/5c1d405135d9c6636ac08d9b19baf000b78ee79b))
-
 * chore(deps-dev): bump pytest from 7.4.0 to 7.4.2
 
 Bumps [pytest](https://github.com/pytest-dev/pytest) from 7.4.0 to 7.4.2.
@@ -1139,6 +1135,22 @@ updated-dependencies:
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`c715dfd`](https://github.com/supabase-community/supabase-py/commit/c715dfd47a118ea9d6b970020f9d746d84dfe8ce))
 
+* chore(deps): bump gotrue from 1.0.4 to 1.1.0
+
+Bumps [gotrue](https://github.com/supabase-community/gotrue-py) from 1.0.4 to 1.1.0.
+- [Release notes](https://github.com/supabase-community/gotrue-py/releases)
+- [Changelog](https://github.com/supabase-community/gotrue-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/gotrue-py/compare/v1.0.4...v1.1.0)
+
+---
+updated-dependencies:
+- dependency-name: gotrue
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`5c1d405`](https://github.com/supabase-community/supabase-py/commit/5c1d405135d9c6636ac08d9b19baf000b78ee79b))
+
 * chore(deps-dev): bump gitpython from 3.1.34 to 3.1.35
 
 Bumps [gitpython](https://github.com/gitpython-developers/GitPython) from 3.1.34 to 3.1.35.
@@ -1153,21 +1165,6 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`8b01e16`](https://github.com/supabase-community/supabase-py/commit/8b01e1655f138f671f7d017a909912a06a789768))
-
-* chore(deps-dev): bump gitpython from 3.1.32 to 3.1.34
-
-Bumps [gitpython](https://github.com/gitpython-developers/GitPython) from 3.1.32 to 3.1.34.
-- [Release notes](https://github.com/gitpython-developers/GitPython/releases)
-- [Changelog](https://github.com/gitpython-developers/GitPython/blob/main/CHANGES)
-- [Commits](https://github.com/gitpython-developers/GitPython/compare/3.1.32...3.1.34)
-
----
-updated-dependencies:
-- dependency-name: gitpython
-  dependency-type: indirect
-...
-
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`d8f5be5`](https://github.com/supabase-community/supabase-py/commit/d8f5be544dc260da1582249812cd3310d865f1d6))
 
 * chore(deps-dev): bump pre-commit from 3.3.3 to 3.4.0
 
@@ -1184,6 +1181,21 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`1d1a67d`](https://github.com/supabase-community/supabase-py/commit/1d1a67dfc791b20e705938d7d9aec0c8d8a8322f))
+
+* chore(deps-dev): bump gitpython from 3.1.32 to 3.1.34
+
+Bumps [gitpython](https://github.com/gitpython-developers/GitPython) from 3.1.32 to 3.1.34.
+- [Release notes](https://github.com/gitpython-developers/GitPython/releases)
+- [Changelog](https://github.com/gitpython-developers/GitPython/blob/main/CHANGES)
+- [Commits](https://github.com/gitpython-developers/GitPython/compare/3.1.32...3.1.34)
+
+---
+updated-dependencies:
+- dependency-name: gitpython
+  dependency-type: indirect
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`d8f5be5`](https://github.com/supabase-community/supabase-py/commit/d8f5be544dc260da1582249812cd3310d865f1d6))
 
 ### Fix
 
@@ -1259,6 +1271,10 @@ chore(deps-dev): bump python-semantic-release from 7.34.6 to 8.1.1 ([`a56913c`](
 
 chore: add CODEOWNERS ([`772dffd`](https://github.com/supabase-community/supabase-py/commit/772dffdfe9179aac8dd6d60f16366c4bef90790a))
 
+* Update ci.yml ([`e56c901`](https://github.com/supabase-community/supabase-py/commit/e56c90155de33185e1c85852ea46d687ad1146ae))
+
+* Create CODEOWNERS ([`799654d`](https://github.com/supabase-community/supabase-py/commit/799654dc9122724d62f5582495bfb1c646e01705))
+
 * Merge pull request #549 from supabase-community/dependabot/pip/develop/black-23.9.1
 
 chore(deps-dev): bump black from 23.7.0 to 23.9.1 ([`1ef07cd`](https://github.com/supabase-community/supabase-py/commit/1ef07cdddd8ddff58e04d6456bdad60f949b63f8))
@@ -1267,13 +1283,9 @@ chore(deps-dev): bump black from 23.7.0 to 23.9.1 ([`1ef07cd`](https://github.co
 
 chore(deps-dev): bump commitizen from 3.6.0 to 3.9.0 ([`a4267d7`](https://github.com/supabase-community/supabase-py/commit/a4267d7b06093e016600171ab0a220ba1938939f))
 
-* Update ci.yml ([`e56c901`](https://github.com/supabase-community/supabase-py/commit/e56c90155de33185e1c85852ea46d687ad1146ae))
-
 * Merge pull request #541 from supabase-community/dependabot/pip/develop/pytest-7.4.2
 
 chore(deps-dev): bump pytest from 7.4.0 to 7.4.2 ([`d576811`](https://github.com/supabase-community/supabase-py/commit/d57681100107a5217b0d878d23071406df3a2980))
-
-* Create CODEOWNERS ([`799654d`](https://github.com/supabase-community/supabase-py/commit/799654dc9122724d62f5582495bfb1c646e01705))
 
 * Merge pull request #545 from supabase-community/dependabot/pip/develop/gotrue-1.1.0
 
@@ -1299,28 +1311,11 @@ fix: change release branch to develop ([`f1378f0`](https://github.com/supabase-c
 
 fix: patch semver in ci ([`c906873`](https://github.com/supabase-community/supabase-py/commit/c9068733fc448a59b416d902d0083f4b20484253))
 
-
 ## v1.0.4 (2023-08-04)
 
 ### Chore
 
 * chore: bump version ([`081a08c`](https://github.com/supabase-community/supabase-py/commit/081a08cb46b21c503b1a7c6a8f24bb270b2543f6))
-
-* chore(deps): bump storage3 from 0.5.2 to 0.5.3
-
-Bumps [storage3](https://github.com/supabase-community/storage-py) from 0.5.2 to 0.5.3.
-- [Release notes](https://github.com/supabase-community/storage-py/releases)
-- [Changelog](https://github.com/supabase-community/storage-py/blob/main/CHANGELOG.md)
-- [Commits](https://github.com/supabase-community/storage-py/compare/v0.5.2...v0.5.3)
-
----
-updated-dependencies:
-- dependency-name: storage3
-  dependency-type: direct:production
-  update-type: version-update:semver-patch
-...
-
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`8f22490`](https://github.com/supabase-community/supabase-py/commit/8f22490ef3d4b3be130e152d9a16bae5afa8189e))
 
 * chore(deps-dev): bump black from 23.3.0 to 23.7.0
 
@@ -1337,6 +1332,22 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`e7433b1`](https://github.com/supabase-community/supabase-py/commit/e7433b148db71f69b48ba919fcf9546164cd7eb3))
+
+* chore(deps): bump storage3 from 0.5.2 to 0.5.3
+
+Bumps [storage3](https://github.com/supabase-community/storage-py) from 0.5.2 to 0.5.3.
+- [Release notes](https://github.com/supabase-community/storage-py/releases)
+- [Changelog](https://github.com/supabase-community/storage-py/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/supabase-community/storage-py/compare/v0.5.2...v0.5.3)
+
+---
+updated-dependencies:
+- dependency-name: storage3
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`8f22490`](https://github.com/supabase-community/supabase-py/commit/8f22490ef3d4b3be130e152d9a16bae5afa8189e))
 
 * chore(deps): bump python-semantic-release from 7.34.6 to 8.0.3
 
@@ -1422,8 +1433,6 @@ updated-dependencies:
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`034eaa9`](https://github.com/supabase-community/supabase-py/commit/034eaa9e3821ff50a2064a7fcabe50e5ab6692eb))
 
-* chore: fixed some types ([`c0da631`](https://github.com/supabase-community/supabase-py/commit/c0da631a51285e7ac60868ac47b8f5a567510f31))
-
 * chore(deps): bump python-semantic-release from 7.34.3 to 7.34.4
 
 Bumps [python-semantic-release](https://github.com/relekang/python-semantic-release) from 7.34.3 to 7.34.4.
@@ -1439,6 +1448,8 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`371af9f`](https://github.com/supabase-community/supabase-py/commit/371af9f2b25722020442df8c689ea18eee3fcc32))
+
+* chore: fixed some types ([`c0da631`](https://github.com/supabase-community/supabase-py/commit/c0da631a51285e7ac60868ac47b8f5a567510f31))
 
 * chore(deps-dev): bump pytest-cov from 4.0.0 to 4.1.0
 
@@ -1582,6 +1593,10 @@ chore(deps): bump python-semantic-release from 7.34.6 to 8.0.3 ([`8e9c8fe`](http
 
 Update README.md ([`7fabdca`](https://github.com/supabase-community/supabase-py/commit/7fabdca2534bb133512ad881c4989999e04da495))
 
+* Update README.md
+
+Adding `upsert` into Readme ([`b5ade74`](https://github.com/supabase-community/supabase-py/commit/b5ade7496e8b0a8e013ee593ffcb781b838df5e5))
+
 * Merge pull request #505 from jv-aquino/develop
 
 Add Storage Examples ([`ef933ce`](https://github.com/supabase-community/supabase-py/commit/ef933ce8d96cb7e5d337a6b4f14ec4b00a8efede))
@@ -1591,10 +1606,6 @@ Add Storage Examples ([`ef933ce`](https://github.com/supabase-community/supabase
 Add Storage examples ([`d92d331`](https://github.com/supabase-community/supabase-py/commit/d92d331d806a0822a624fc1f2f5ae2f916f9e26a))
 
 * Add Storage examples ([`fca8ceb`](https://github.com/supabase-community/supabase-py/commit/fca8ceb484c4811f561c9d67321441784f5b7f93))
-
-* Update README.md
-
-Adding `upsert` into Readme ([`b5ade74`](https://github.com/supabase-community/supabase-py/commit/b5ade7496e8b0a8e013ee593ffcb781b838df5e5))
 
 * Merge pull request #485 from supabase-community/j0/update-poetry-locka
 
@@ -1648,11 +1659,11 @@ chore(deps-dev): bump pytest from 7.3.1 to 7.3.2 ([`2ffe6d6`](https://github.com
 
 fix wrong pytest configuration ([`ac119f4`](https://github.com/supabase-community/supabase-py/commit/ac119f441d764c9290b8fa39f81b46da984b91a8))
 
+* fix wrong pytest configuration ([`e971e8c`](https://github.com/supabase-community/supabase-py/commit/e971e8c45b822a78805e3a68f2f414fea906bd1b))
+
 * Merge pull request #460 from supabase-community/j0/patch_whitespace
 
 chore: fix whitespace ([`eeec890`](https://github.com/supabase-community/supabase-py/commit/eeec890347610e95d20b5d0ecdd74cce2e927f47))
-
-* fix wrong pytest configuration ([`e971e8c`](https://github.com/supabase-community/supabase-py/commit/e971e8c45b822a78805e3a68f2f414fea906bd1b))
 
 * Merge pull request #455 from supabase-community/dependabot/pip/develop/python-semantic-release-7.34.3
 
@@ -1662,6 +1673,8 @@ chore(deps): bump python-semantic-release from 7.34.2 to 7.34.3 ([`ca95307`](htt
 
 chore: add todos to README, potentially handoff ([`673ae1a`](https://github.com/supabase-community/supabase-py/commit/673ae1aac7c54c65b9be80317775f00e7c581165))
 
+* Update README.md ([`9260a93`](https://github.com/supabase-community/supabase-py/commit/9260a93efa33c203896de7fe2e500c383bd8e0b2))
+
 * Merge pull request #454 from supabase-community/dependabot/pip/develop/gotrue-1.0.2
 
 chore(deps): bump gotrue from 1.0.1 to 1.0.2 ([`4b81424`](https://github.com/supabase-community/supabase-py/commit/4b81424e667646c41d5884ce5cd37964052b9bb9))
@@ -1670,17 +1683,15 @@ chore(deps): bump gotrue from 1.0.1 to 1.0.2 ([`4b81424`](https://github.com/sup
 
 chore(deps): bump python-semantic-release from 7.33.2 to 7.34.2 ([`0a3db2d`](https://github.com/supabase-community/supabase-py/commit/0a3db2d103e3eed36ff37ce634b3b81fe3e1a8f8))
 
-* Update README.md ([`9260a93`](https://github.com/supabase-community/supabase-py/commit/9260a93efa33c203896de7fe2e500c383bd8e0b2))
-
 * Merge pull request #429 from iRaySpace/iRaySpace-patch-1
 
 Update README.md ([`d5d4b12`](https://github.com/supabase-community/supabase-py/commit/d5d4b128222e7ec2df39f52867961160e141bc65))
 
+* Update README.md ([`3c0d7f9`](https://github.com/supabase-community/supabase-py/commit/3c0d7f961a53a4699c98957c955e7a3a539fd1ec))
+
 * Merge pull request #445 from supabase-community/dependabot/pip/requests-2.31.0
 
 chore(deps): bump requests from 2.28.2 to 2.31.0 ([`573f2c2`](https://github.com/supabase-community/supabase-py/commit/573f2c23b17f5c33f2f2fea7755098d5f6365454))
-
-* Update README.md ([`3c0d7f9`](https://github.com/supabase-community/supabase-py/commit/3c0d7f961a53a4699c98957c955e7a3a539fd1ec))
 
 * Merge pull request #414 from supabase-community/dependabot/pip/develop/pytest-7.3.1
 
@@ -1691,7 +1702,6 @@ chore(deps-dev): bump pytest from 7.2.2 to 7.3.1 ([`2bba842`](https://github.com
 Fix sample for sign in with username + password ([`606b55d`](https://github.com/supabase-community/supabase-py/commit/606b55dae1d6a50f663fe6227f7f89f209df237e))
 
 * Fix sample for sign in with username + password ([`ad9353f`](https://github.com/supabase-community/supabase-py/commit/ad9353f588e4e0f0978c382b4e644c74120e2c3f))
-
 
 ## v1.0.3 (2023-04-03)
 
@@ -1749,14 +1759,9 @@ chore(deps-dev): bump pre-commit from 3.2.0 to 3.2.1 ([`7024834`](https://github
 
 chore(deps-dev): bump pre-commit from 3.1.1 to 3.2.0 ([`b22729c`](https://github.com/supabase-community/supabase-py/commit/b22729c50808bbc1c4a4ab407b47ff4db6fe0850))
 
-
 ## v1.0.2 (2023-03-09)
 
 ### Chore
-
-* chore: fix typo ([`73975d0`](https://github.com/supabase-community/supabase-py/commit/73975d01342cfe321a0f9108f2ffcc8e4d07ecf1))
-
-* chore: bump storage version ([`da1a05b`](https://github.com/supabase-community/supabase-py/commit/da1a05b885fbb4f935643e57592b31ddc6eeb442))
 
 * chore(deps-dev): bump storage3 from 0.5.1 to 0.5.2 ([`3bd5a8e`](https://github.com/supabase-community/supabase-py/commit/3bd5a8ea40c629bcc191d27e6f2b621a6f7f9a71))
 
@@ -1826,6 +1831,10 @@ updated-dependencies:
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`87440c4`](https://github.com/supabase-community/supabase-py/commit/87440c4daa6088ce274ea88078633e20e3ab2a2c))
 
+* chore: fix typo ([`73975d0`](https://github.com/supabase-community/supabase-py/commit/73975d01342cfe321a0f9108f2ffcc8e4d07ecf1))
+
+* chore: bump storage version ([`da1a05b`](https://github.com/supabase-community/supabase-py/commit/da1a05b885fbb4f935643e57592b31ddc6eeb442))
+
 ### Fix
 
 * fix: bump version ([`57b340b`](https://github.com/supabase-community/supabase-py/commit/57b340be359f2049fdaa69a9d7c2ed84d90880dc))
@@ -1868,12 +1877,9 @@ chore: bump supabase version to 1.0.1 ([`84e2f69`](https://github.com/supabase-c
 
 chore(deps): bump storage3 from 0.5.0 to 0.5.1 ([`aa00e9f`](https://github.com/supabase-community/supabase-py/commit/aa00e9fe829ce01e2c5817916efdc5f702d443d1))
 
-
 ## v1.0.1 (2023-02-19)
 
 ### Chore
-
-* chore: bump version ([`d5749bd`](https://github.com/supabase-community/supabase-py/commit/d5749bd7a21cf52f2bfa271cef2ee5b43f589a1d))
 
 * chore(deps-dev): bump commitizen from 2.41.0 to 2.42.0
 
@@ -1891,6 +1897,8 @@ updated-dependencies:
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`d4a3ad0`](https://github.com/supabase-community/supabase-py/commit/d4a3ad02b408842b70be84289fcb3813171812ef))
 
+* chore: bump version ([`d5749bd`](https://github.com/supabase-community/supabase-py/commit/d5749bd7a21cf52f2bfa271cef2ee5b43f589a1d))
+
 * chore(deps): bump python-semantic-release from 7.33.1 to 7.33.2
 
 Bumps [python-semantic-release](https://github.com/relekang/python-semantic-release) from 7.33.1 to 7.33.2.
@@ -1906,6 +1914,21 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`6d98f55`](https://github.com/supabase-community/supabase-py/commit/6d98f5505a60b7feb611a46c6e5e7ab6081a9325))
+
+* chore(deps): bump cryptography from 39.0.0 to 39.0.1
+
+Bumps [cryptography](https://github.com/pyca/cryptography) from 39.0.0 to 39.0.1.
+- [Release notes](https://github.com/pyca/cryptography/releases)
+- [Changelog](https://github.com/pyca/cryptography/blob/main/CHANGELOG.rst)
+- [Commits](https://github.com/pyca/cryptography/compare/39.0.0...39.0.1)
+
+---
+updated-dependencies:
+- dependency-name: cryptography
+  dependency-type: indirect
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`c5b79ae`](https://github.com/supabase-community/supabase-py/commit/c5b79aead792076fe6d0c0b96fc09358b19c64ca))
 
 * chore(deps): bump postgrest-py from 0.10.3 to 0.10.4
 
@@ -1938,21 +1961,6 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`db623e3`](https://github.com/supabase-community/supabase-py/commit/db623e3aba6f822331dd9e93aa887d5264c0059e))
-
-* chore(deps): bump cryptography from 39.0.0 to 39.0.1
-
-Bumps [cryptography](https://github.com/pyca/cryptography) from 39.0.0 to 39.0.1.
-- [Release notes](https://github.com/pyca/cryptography/releases)
-- [Changelog](https://github.com/pyca/cryptography/blob/main/CHANGELOG.rst)
-- [Commits](https://github.com/pyca/cryptography/compare/39.0.0...39.0.1)
-
----
-updated-dependencies:
-- dependency-name: cryptography
-  dependency-type: indirect
-...
-
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`c5b79ae`](https://github.com/supabase-community/supabase-py/commit/c5b79aead792076fe6d0c0b96fc09358b19c64ca))
 
 * chore(deps-dev): bump pre-commit from 2.21.0 to 3.0.4
 
@@ -2050,10 +2058,11 @@ chore(deps): bump python-semantic-release from 7.33.0 to 7.33.1 ([`3d7e146`](htt
 
 Update README.md ([`e85b0ce`](https://github.com/supabase-community/supabase-py/commit/e85b0ce2da9cdb66f8720588db25d6d912732e26))
 
+* Update README.md ([`a98cccc`](https://github.com/supabase-community/supabase-py/commit/a98cccc3ded141818e6170727386034c9d747ec2))
+
 * Merge pull request #357 from supabase-community/dependabot/pip/develop/black-23.1.0
 
 chore(deps-dev): bump black from 22.12.0 to 23.1.0 ([`0d87538`](https://github.com/supabase-community/supabase-py/commit/0d87538813bc164726eb8e99e852e0a4278f3977))
-
 
 ## v1.0.0 (2023-02-05)
 
@@ -2210,8 +2219,6 @@ Installation, Usage etc. have been hidden ([`16397d9`](https://github.com/supaba
 
 chore: publish v1.0.0 with new versions of sublibs. py37 is deprecated ([`1cd6d87`](https://github.com/supabase-community/supabase-py/commit/1cd6d872341ab2ca99a7e52e8f60ab1eef3454a1))
 
-* Update README.md ([`a98cccc`](https://github.com/supabase-community/supabase-py/commit/a98cccc3ded141818e6170727386034c9d747ec2))
-
 * Merge pull request #352 from supabase-community/dependabot/pip/develop/postgrest-py-0.10.4
 
 chore(deps): bump postgrest-py from 0.10.3 to 0.10.4 ([`93a9ef9`](https://github.com/supabase-community/supabase-py/commit/93a9ef98390c6798c9fd42a9d20a9e89d2c60e10))
@@ -2256,18 +2263,6 @@ Fix grammar in readme ([`b2cddf0`](https://github.com/supabase-community/supabas
 
 * Update README.md ([`e73042c`](https://github.com/supabase-community/supabase-py/commit/e73042c5767a74f5919a5011c00d26b1921b3f31))
 
-* Merge pull request #310 from bweisel/patch-1
-
-Fix broken link in README ([`38e26d5`](https://github.com/supabase-community/supabase-py/commit/38e26d5e8c6085bc74a27ccc06aea981e44e8b5a))
-
-* Merge pull request #296 from timkpaine/tkp/conda
-
-add conda package instructions to readme ([`b34828a`](https://github.com/supabase-community/supabase-py/commit/b34828afb7115a5b2c5b60aab1e962eb3904fb1d))
-
-* Fix broken link in README
-
-https://github.com/supabase-community/supabase-py/issues/304 ([`966903c`](https://github.com/supabase-community/supabase-py/commit/966903c93c3573dd3353ff71bac196f0ff1a1b5b))
-
 * replace a for I missed at line 42 ([`77ef300`](https://github.com/supabase-community/supabase-py/commit/77ef300f11674f056c7ee132a476ff8328fa6d55))
 
 * Make line 42 better ([`8975705`](https://github.com/supabase-community/supabase-py/commit/8975705f0c634e0bc2702d1853f0b37aef39ac6a))
@@ -2279,6 +2274,20 @@ https://github.com/supabase-community/supabase-py/issues/304 ([`966903c`](https:
 * Better progress sheet ([`93eeaf0`](https://github.com/supabase-community/supabase-py/commit/93eeaf04b7f17f14b8173b25d39b2412b44780e6))
 
 * fix spelling error ([`35ab103`](https://github.com/supabase-community/supabase-py/commit/35ab1033c2fa316522c960699a3f4a3a5a05be4a))
+
+* Merge pull request #310 from bweisel/patch-1
+
+Fix broken link in README ([`38e26d5`](https://github.com/supabase-community/supabase-py/commit/38e26d5e8c6085bc74a27ccc06aea981e44e8b5a))
+
+* Fix broken link in README
+
+https://github.com/supabase-community/supabase-py/issues/304 ([`966903c`](https://github.com/supabase-community/supabase-py/commit/966903c93c3573dd3353ff71bac196f0ff1a1b5b))
+
+* Merge pull request #296 from timkpaine/tkp/conda
+
+add conda package instructions to readme ([`b34828a`](https://github.com/supabase-community/supabase-py/commit/b34828afb7115a5b2c5b60aab1e962eb3904fb1d))
+
+* add conda package instructions to readme ([`32b5a58`](https://github.com/supabase-community/supabase-py/commit/32b5a5889486c71e5b6f8aeabce3b5955b53c238))
 
 * Merge pull request #302 from supabase-community/J0/update-readme
 
@@ -2296,8 +2305,6 @@ chore(deps-dev): bump commitizen from 2.35.0 to 2.37.0 ([`1f12755`](https://gith
 
 chore(deps-dev): bump pytest from 7.1.3 to 7.2.0 ([`1b54ef7`](https://github.com/supabase-community/supabase-py/commit/1b54ef747da626b6e7e51e3fe84c297f016fd8ed))
 
-* add conda package instructions to readme ([`32b5a58`](https://github.com/supabase-community/supabase-py/commit/32b5a5889486c71e5b6f8aeabce3b5955b53c238))
-
 * Merge pull request #289 from rawandahmad698/develop
 
 Custom exception class, URL &amp; Key validation using RegEx, typo fixes. ([`f9b5ac1`](https://github.com/supabase-community/supabase-py/commit/f9b5ac12e135dfc5d2ea81bcff0d5e22e581eac4))
@@ -2314,21 +2321,15 @@ Custom exception class, URL &amp; Key validation using RegEx, typo fixes. ([`f9b
 
 * Fix tests ([`7ca812b`](https://github.com/supabase-community/supabase-py/commit/7ca812b7e781bd3cbf8f7257a168ab2fb6fd7c6a))
 
-* Merge pull request #287 from cadnce/develop
-
-Replaced makefile with poetry scripts ([`8e98ee2`](https://github.com/supabase-community/supabase-py/commit/8e98ee2d14f5ae0091e365eb89a309fc837a7b79))
-
-* Merge pull request #290 from RamiroND/patch-2
-
-Updated URL ([`0a71887`](https://github.com/supabase-community/supabase-py/commit/0a7188793dbdc8629af60b4e9bf4066ff30c0168))
-
-* Updated URL ([`e159dae`](https://github.com/supabase-community/supabase-py/commit/e159dae4a533c3a63aadb492fc8ee9db462060ef))
-
 * Fix test_client.py grammar. ([`7f6ff50`](https://github.com/supabase-community/supabase-py/commit/7f6ff50ff1a4b9fe42e5e30c4ef4fc22ac401f6a))
 
 * Fix client_options.py ([`d247c7e`](https://github.com/supabase-community/supabase-py/commit/d247c7e2819c424fb42659d4eceb5371c705e537))
 
 * Custom exception class, typo fixes. ([`d80f982`](https://github.com/supabase-community/supabase-py/commit/d80f98247209453ae31cf96881c45a100ad9e09a))
+
+* Merge pull request #287 from cadnce/develop
+
+Replaced makefile with poetry scripts ([`8e98ee2`](https://github.com/supabase-community/supabase-py/commit/8e98ee2d14f5ae0091e365eb89a309fc837a7b79))
 
 * format scripts ([`77bf12a`](https://github.com/supabase-community/supabase-py/commit/77bf12a8ea908ac65bf663d67aad88b5b20d0c4f))
 
@@ -2336,6 +2337,11 @@ Updated URL ([`0a71887`](https://github.com/supabase-community/supabase-py/commi
 
 * Replaced makefile with poetry scripts ([`f194c51`](https://github.com/supabase-community/supabase-py/commit/f194c51132d771f8d0c166935400b4129521a6b9))
 
+* Merge pull request #290 from RamiroND/patch-2
+
+Updated URL ([`0a71887`](https://github.com/supabase-community/supabase-py/commit/0a7188793dbdc8629af60b4e9bf4066ff30c0168))
+
+* Updated URL ([`e159dae`](https://github.com/supabase-community/supabase-py/commit/e159dae4a533c3a63aadb492fc8ee9db462060ef))
 
 ## v0.7.1 (2022-10-11)
 
@@ -2370,7 +2376,6 @@ Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`a6f4441`](https://g
 
 chore(deps): bump supafunc from 0.2.0 to 0.2.1 ([`3097532`](https://github.com/supabase-community/supabase-py/commit/309753238dbc57ecc649b84eb20d198de7219323))
 
-
 ## v0.7.0 (2022-10-10)
 
 ### Chore
@@ -2378,8 +2383,6 @@ chore(deps): bump supafunc from 0.2.0 to 0.2.1 ([`3097532`](https://github.com/s
 * chore(release): bump version to v0.7.0
 
 Automatically generated by python-semantic-release ([`9bb261d`](https://github.com/supabase-community/supabase-py/commit/9bb261d167bfeaf363b167efad0e04b19c6e88d3))
-
-* chore: run hooks ([`9775ce9`](https://github.com/supabase-community/supabase-py/commit/9775ce9ed886e63644fa9c5915167aa6dff4066f))
 
 * chore(deps): bump python-semantic-release from 7.28.1 to 7.32.1
 
@@ -2397,6 +2400,8 @@ updated-dependencies:
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`b8cad0f`](https://github.com/supabase-community/supabase-py/commit/b8cad0fe167329a3d49622a8c8607b6830e5deca))
 
+* chore: run hooks ([`9775ce9`](https://github.com/supabase-community/supabase-py/commit/9775ce9ed886e63644fa9c5915167aa6dff4066f))
+
 * chore(deps-dev): bump black from 22.8.0 to 22.10.0
 
 Bumps [black](https://github.com/psf/black) from 22.8.0 to 22.10.0.
@@ -2412,6 +2417,22 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`3edfd60`](https://github.com/supabase-community/supabase-py/commit/3edfd605f03eb474c6364e758d9d8e970c886a8a))
+
+* chore(deps-dev): bump commitizen from 2.27.1 to 2.35.0
+
+Bumps [commitizen](https://github.com/commitizen-tools/commitizen) from 2.27.1 to 2.35.0.
+- [Release notes](https://github.com/commitizen-tools/commitizen/releases)
+- [Changelog](https://github.com/commitizen-tools/commitizen/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/commitizen-tools/commitizen/compare/v2.27.1...v2.35.0)
+
+---
+updated-dependencies:
+- dependency-name: commitizen
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`91f6a10`](https://github.com/supabase-community/supabase-py/commit/91f6a10b3d318ac50b6bc63af656b0a43543ec17))
 
 ### Fix
 
@@ -2453,7 +2474,6 @@ chore(deps-dev): bump black from 22.8.0 to 22.10.0 ([`f6f893c`](https://github.c
 
 chore(deps-dev): bump commitizen from 2.27.1 to 2.35.0 ([`8c654d7`](https://github.com/supabase-community/supabase-py/commit/8c654d7a44de6bda5d7588de01e91a0d912f7212))
 
-
 ## v0.6.0 (2022-10-07)
 
 ### Chore
@@ -2463,22 +2483,6 @@ chore(deps-dev): bump commitizen from 2.27.1 to 2.35.0 ([`8c654d7`](https://gith
 Automatically generated by python-semantic-release ([`84c69d5`](https://github.com/supabase-community/supabase-py/commit/84c69d5c58143f84e7f6e812ffe1efa6291518a3))
 
 * chore: trigger release ([`d01a456`](https://github.com/supabase-community/supabase-py/commit/d01a45665babe9814013aac1560dc5ac4b7e8c6d))
-
-* chore(deps-dev): bump commitizen from 2.27.1 to 2.35.0
-
-Bumps [commitizen](https://github.com/commitizen-tools/commitizen) from 2.27.1 to 2.35.0.
-- [Release notes](https://github.com/commitizen-tools/commitizen/releases)
-- [Changelog](https://github.com/commitizen-tools/commitizen/blob/master/CHANGELOG.md)
-- [Commits](https://github.com/commitizen-tools/commitizen/compare/v2.27.1...v2.35.0)
-
----
-updated-dependencies:
-- dependency-name: commitizen
-  dependency-type: direct:development
-  update-type: version-update:semver-minor
-...
-
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`91f6a10`](https://github.com/supabase-community/supabase-py/commit/91f6a10b3d318ac50b6bc63af656b0a43543ec17))
 
 * chore(deps-dev): bump python-dotenv from 0.20.0 to 0.21.0
 
@@ -2551,6 +2555,14 @@ Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`fba47ef`](https://g
 
 Continuation of Pr/234: ran isort and black for tests ([`fff264f`](https://github.com/supabase-community/supabase-py/commit/fff264f2f22a01a1fbc5c8fbc9a0a3e5cebcf9c2))
 
+* ran isort and black
+
+First time contributing to an open source project, so please let me know if anything is wrong. I ran isort and black as requested by J0 ([`754bc06`](https://github.com/supabase-community/supabase-py/commit/754bc06d73c91c2f0efc3915cdd323febc389cdd))
+
+* Revert &#34;feat: added timeout to options&#34;
+
+This reverts commit 069ada2f14c44e96f20e60c31ad1fdb8d9beb9e4. ([`3f51884`](https://github.com/supabase-community/supabase-py/commit/3f518849385928f258d3ca5152c6ffb6da7d8e71))
+
 * Merge pull request #281 from supabase-community/dependabot/pip/develop/python-dotenv-0.21.0
 
 chore(deps-dev): bump python-dotenv from 0.20.0 to 0.21.0 ([`c490f87`](https://github.com/supabase-community/supabase-py/commit/c490f87c01bac4a886ea7957fa05834f72ee4e52))
@@ -2568,15 +2580,6 @@ chore(deps-dev): bump flake8 from 4.0.1 to 5.0.4 ([`47863f8`](https://github.com
 update realtime ([`01d83a4`](https://github.com/supabase-community/supabase-py/commit/01d83a4f7d0395def36650901820552b9f662877))
 
 * update realtime ([`1929ff2`](https://github.com/supabase-community/supabase-py/commit/1929ff213000276fd5c11c0f7ea480d63cd3c39f))
-
-* ran isort and black
-
-First time contributing to an open source project, so please let me know if anything is wrong. I ran isort and black as requested by J0 ([`754bc06`](https://github.com/supabase-community/supabase-py/commit/754bc06d73c91c2f0efc3915cdd323febc389cdd))
-
-* Revert &#34;feat: added timeout to options&#34;
-
-This reverts commit 069ada2f14c44e96f20e60c31ad1fdb8d9beb9e4. ([`3f51884`](https://github.com/supabase-community/supabase-py/commit/3f518849385928f258d3ca5152c6ffb6da7d8e71))
-
 
 ## v0.5.8 (2022-06-27)
 
@@ -2627,7 +2630,6 @@ Added H2 with Python and Supabase Resources ([`049c91a`](https://github.com/supa
 * Updated urls to supabase.com ([`f618a44`](https://github.com/supabase-community/supabase-py/commit/f618a442182edea1daa7d1fd1d066d68432220a9))
 
 * Added H2 with Python and Supabase Resources ([`b7ca664`](https://github.com/supabase-community/supabase-py/commit/b7ca6649471eb77e2a0c9ec2d255edfe6accd805))
-
 
 ## v0.5.7 (2022-06-08)
 
@@ -2716,6 +2718,22 @@ updated-dependencies:
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`ee7522e`](https://github.com/supabase-community/supabase-py/commit/ee7522e81378d2e5bd79d6c313d0d3adc831a36d))
 
+* chore(deps-dev): bump pre-commit from 2.18.1 to 2.19.0
+
+Bumps [pre-commit](https://github.com/pre-commit/pre-commit) from 2.18.1 to 2.19.0.
+- [Release notes](https://github.com/pre-commit/pre-commit/releases)
+- [Changelog](https://github.com/pre-commit/pre-commit/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/pre-commit/pre-commit/compare/v2.18.1...v2.19.0)
+
+---
+updated-dependencies:
+- dependency-name: pre-commit
+  dependency-type: direct:development
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`87b852f`](https://github.com/supabase-community/supabase-py/commit/87b852f6aa5d34704a759decab0e102e15a47d84))
+
 ### Fix
 
 * fix: lock python-semantic-release version ([`0a81c6f`](https://github.com/supabase-community/supabase-py/commit/0a81c6f84877b1c0d13a8214493f21a3afded4ba))
@@ -2754,7 +2772,6 @@ chore(deps-dev): bump commitizen from 2.24.0 to 2.25.0 ([`d8bffa4`](https://gith
 
 chore(deps-dev): bump pre-commit from 2.18.1 to 2.19.0 ([`61bc486`](https://github.com/supabase-community/supabase-py/commit/61bc4862139749eade05592e2145253f3853ed25))
 
-
 ## v0.5.6 (2022-05-06)
 
 ### Chore
@@ -2763,26 +2780,9 @@ chore(deps-dev): bump pre-commit from 2.18.1 to 2.19.0 ([`61bc486`](https://gith
 
 Automatically generated by python-semantic-release ([`1f3be9c`](https://github.com/supabase-community/supabase-py/commit/1f3be9cb5e433fb6b2ff47b766e732bcf0e8c524))
 
-* chore(deps-dev): bump pre-commit from 2.18.1 to 2.19.0
-
-Bumps [pre-commit](https://github.com/pre-commit/pre-commit) from 2.18.1 to 2.19.0.
-- [Release notes](https://github.com/pre-commit/pre-commit/releases)
-- [Changelog](https://github.com/pre-commit/pre-commit/blob/main/CHANGELOG.md)
-- [Commits](https://github.com/pre-commit/pre-commit/compare/v2.18.1...v2.19.0)
-
----
-updated-dependencies:
-- dependency-name: pre-commit
-  dependency-type: direct:development
-  update-type: version-update:semver-minor
-...
-
-Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`87b852f`](https://github.com/supabase-community/supabase-py/commit/87b852f6aa5d34704a759decab0e102e15a47d84))
-
 ### Fix
 
 * fix: export SupabaseStorageClient ([`8539a4e`](https://github.com/supabase-community/supabase-py/commit/8539a4eeb6109712a600e92736fa5a0a3df343c8))
-
 
 ## v0.5.5 (2022-05-01)
 
@@ -2803,7 +2803,6 @@ Automatically generated by python-semantic-release ([`2d29556`](https://github.c
 * Merge pull request #202 from supabase-community/bump-deps
 
 fix: bump storage3 version for js parity ([`ff08d02`](https://github.com/supabase-community/supabase-py/commit/ff08d02505cc962ea130a689323ab89b670b913e))
-
 
 ## v0.5.4 (2022-04-30)
 
@@ -2942,8 +2941,6 @@ Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
 
 Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`e432769`](https://github.com/supabase-community/supabase-py/commit/e4327695e64bc0297c6ba33bd1e3cf37a1cf9976))
 
-* chore: update deps ([`728ad55`](https://github.com/supabase-community/supabase-py/commit/728ad555b1c42b6ddc68b255cc111f4ed37bff83))
-
 * chore(deps-dev): bump black from 22.1.0 to 22.3.0
 
 Bumps [black](https://github.com/psf/black) from 22.1.0 to 22.3.0.
@@ -2959,6 +2956,8 @@ updated-dependencies:
 ...
 
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt; ([`80ceab3`](https://github.com/supabase-community/supabase-py/commit/80ceab3130e53ef56789cbbb4223289af9edf0ef))
+
+* chore: update deps ([`728ad55`](https://github.com/supabase-community/supabase-py/commit/728ad555b1c42b6ddc68b255cc111f4ed37bff83))
 
 * chore(deps-dev): bump python-dotenv from 0.19.2 to 0.20.0 (#174)
 
@@ -3098,6 +3097,7 @@ and more. ([`dd3b0b8`](https://github.com/supabase-community/supabase-py/commit/
 
 * dev: linted scripts and sorted imports ([`1817e58`](https://github.com/supabase-community/supabase-py/commit/1817e58f315bf6e6977dc901bed230e8aedefb1b))
 
+* FastAPI tutorial for Supabase-py project ([`e50f3ad`](https://github.com/supabase-community/supabase-py/commit/e50f3ad469d0b50a36da5e4ef0cb34d4b2daeef3))
 
 ## v0.5.3 (2022-03-08)
 
@@ -3110,7 +3110,6 @@ Automatically generated by python-semantic-release ([`47c2f96`](https://github.c
 ### Fix
 
 * fix: force postgrest version with fix (#165) ([`59ad801`](https://github.com/supabase-community/supabase-py/commit/59ad801b2e51dc3c9d4cc82069bd19501f0bd923))
-
 
 ## v0.5.2 (2022-03-08)
 
@@ -3161,7 +3160,6 @@ updated-dependencies:
 Signed-off-by: dependabot[bot] &lt;support@github.com&gt;
 
 Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.github.com&gt; ([`ecfe544`](https://github.com/supabase-community/supabase-py/commit/ecfe5448c52c23e496767c5a9965f3b0430ff408))
-
 
 ## v0.5.1 (2022-02-25)
 
@@ -3230,7 +3228,6 @@ Automatically generated by python-semantic-release ([`6550864`](https://github.c
 ### Fix
 
 * fix: Require 0.9.0&gt;= postgrest dependency (#158) ([`b9097e6`](https://github.com/supabase-community/supabase-py/commit/b9097e665b411ea53cad70b9c1cc893d61fe295f))
-
 
 ## v0.5.0 (2022-02-19)
 
@@ -3362,9 +3359,6 @@ Automatically generated by python-semantic-release ([`ecffe61`](https://github.c
 
 build(deps): bump postgrest-py from 0.8.2 to 0.9.0 ([`3588eba`](https://github.com/supabase-community/supabase-py/commit/3588eba5549b3f19df0850695012d2f20cf94b27))
 
-* FastAPI tutorial for Supabase-py project ([`e50f3ad`](https://github.com/supabase-community/supabase-py/commit/e50f3ad469d0b50a36da5e4ef0cb34d4b2daeef3))
-
-
 ## v0.4.0 (2022-02-04)
 
 ### Build
@@ -3412,7 +3406,6 @@ tests: ignore 404 when double-checking bucket deletion ([`53eeaed`](https://gith
 * tests: track created buckets in a global variable to only delete these ([`2cae0df`](https://github.com/supabase-community/supabase-py/commit/2cae0df10f6ef43d4bd4e008b7129308c53c13f1))
 
 * tests: ignore 404 when double-checking bucket deletion ([`76922a7`](https://github.com/supabase-community/supabase-py/commit/76922a743d605c9cc8affc7a5f07ea3f13eb3886))
-
 
 ## v0.3.3 (2022-02-03)
 
@@ -3515,7 +3508,6 @@ chore: reduce code amount ([`d7a0eb8`](https://github.com/supabase-community/sup
 
 build(deps-dev): bump black from 21.12b0 to 22.1.0 ([`2cd8826`](https://github.com/supabase-community/supabase-py/commit/2cd8826740499e1d4a6b661bcd41bdfda60ca35f))
 
-
 ## v0.3.2 (2022-01-22)
 
 ### Chore
@@ -3527,7 +3519,6 @@ Automatically generated by python-semantic-release ([`e8f1cf5`](https://github.c
 ### Fix
 
 * fix: upgrade postgrest-py for fix order filter ([`b8840cd`](https://github.com/supabase-community/supabase-py/commit/b8840cdc07cd7d53767fe2c321761558aecd5bd4))
-
 
 ## v0.3.1 (2022-01-22)
 
@@ -3587,7 +3578,6 @@ Automatically generated by python-semantic-release ([`d0b2978`](https://github.c
 
 * fix: replace [ ] by ( ) ([`086d925`](https://github.com/supabase-community/supabase-py/commit/086d92504f014079a125f5342c59d1d8bb7e795f))
 
-
 ## v0.3.0 (2022-01-17)
 
 ### Chore
@@ -3603,7 +3593,6 @@ Automatically generated by python-semantic-release ([`1f7a195`](https://github.c
 * chore: add manual action for publish on pypi
 
 * feat(deps): upgrade postgrest and gotrue ([`eca34fa`](https://github.com/supabase-community/supabase-py/commit/eca34fa222c8f7be7c30586f74cbe9fe9df3018f))
-
 
 ## v0.2.1 (2022-01-17)
 
@@ -3659,14 +3648,13 @@ chore: fix ci cd, update precommit rules and add badges to readme ([`4b2a181`](h
 
 Update README.md ([`3471478`](https://github.com/supabase-community/supabase-py/commit/3471478baca65e682f959286d229e73bd6c7e3f8))
 
-* Merge pull request #116 from supabase-community/dependabot/pip/develop/httpx-0.21.3
-
-build(deps): bump httpx from 0.21.1 to 0.21.3 ([`1f1c713`](https://github.com/supabase-community/supabase-py/commit/1f1c713d86b086cf8d2f97deadd6b5f4edee42ed))
-
 * Update README.md
 
 Add update of data ([`697b34d`](https://github.com/supabase-community/supabase-py/commit/697b34deb3fb07ab6607839898938e105f7eabf7))
 
+* Merge pull request #116 from supabase-community/dependabot/pip/develop/httpx-0.21.3
+
+build(deps): bump httpx from 0.21.1 to 0.21.3 ([`1f1c713`](https://github.com/supabase-community/supabase-py/commit/1f1c713d86b086cf8d2f97deadd6b5f4edee42ed))
 
 ## v0.2.0 (2022-01-03)
 
@@ -3677,7 +3665,6 @@ Add update of data ([`697b34d`](https://github.com/supabase-community/supabase-p
 ### Unknown
 
 * bump: version 0.1.1 -&gt; 0.2.0 ([`7c7d50b`](https://github.com/supabase-community/supabase-py/commit/7c7d50b94a20fc3bd2bc2a579295035d0e5d07b6))
-
 
 ## v0.1.1 (2022-01-02)
 
@@ -3767,9 +3754,13 @@ All those changes was be applied in gotrue-py ([`98ab987`](https://github.com/su
 
 * chore: remove redundant comments ([`981a410`](https://github.com/supabase-community/supabase-py/commit/981a410168004637c03691326016c356eb7767a6))
 
-* chore: add examples folder ([`72f23f0`](https://github.com/supabase-community/supabase-py/commit/72f23f05701c548a60cefa52bd396fb2c799e312))
-
 * chore: type the module ([`b5f7316`](https://github.com/supabase-community/supabase-py/commit/b5f7316a1cb004db8ec9fd15245912e580443b98))
+
+* chore: remove language version pin for black ([`2471116`](https://github.com/supabase-community/supabase-py/commit/247111641fdafcd51ad749414cb44b2d5414fe3f))
+
+* chore: add httpx to deps ([`c0b4fe8`](https://github.com/supabase-community/supabase-py/commit/c0b4fe8a37f772bb7bbcdc4788329780ffc01bf6))
+
+* chore: add examples folder ([`72f23f0`](https://github.com/supabase-community/supabase-py/commit/72f23f05701c548a60cefa52bd396fb2c799e312))
 
 ### Feature
 
@@ -3780,6 +3771,8 @@ All those changes was be applied in gotrue-py ([`98ab987`](https://github.com/su
 * feat: add header to query builder ([`d593f47`](https://github.com/supabase-community/supabase-py/commit/d593f47fd906a51389cfe210bf4b16ecee1daa37))
 
 * feat: create custom StorageException ([`55e7eef`](https://github.com/supabase-community/supabase-py/commit/55e7eef29541c579599c325bc45026aac45f0ecc))
+
+* feat: add async support to storage buckets API ([`e0748a8`](https://github.com/supabase-community/supabase-py/commit/e0748a8700818c4c2caaa538d36006c7212dcb29))
 
 ### Fix
 
@@ -3933,15 +3926,17 @@ feat: upload files include mime type ([`8ca2c76`](https://github.com/supabase-co
 
 Update Test instance settings ([`1676a33`](https://github.com/supabase-community/supabase-py/commit/1676a336f3e92734b6cb0939deefbf0f65477ce9))
 
+* tests: update test instance ([`71fae8b`](https://github.com/supabase-community/supabase-py/commit/71fae8bc139f93e25f4400da16e6edc2bff98129))
+
 * Merge branch &#39;develop&#39; into feature/upload-file-include-mimetype ([`7fbfa61`](https://github.com/supabase-community/supabase-py/commit/7fbfa6171dcab6b1df4a2c46b4295d1b6c8b312c))
 
 * Update ci-python.yml ([`e3185b1`](https://github.com/supabase-community/supabase-py/commit/e3185b1cc39f87bbe43df1597ad6538501638e37))
 
-* tests: update test instance ([`71fae8b`](https://github.com/supabase-community/supabase-py/commit/71fae8bc139f93e25f4400da16e6edc2bff98129))
-
 * Merge pull request #61 from anand2312/async-storagebuckets
 
 Async storage buckets ([`6469ad5`](https://github.com/supabase-community/supabase-py/commit/6469ad56fd18398e48237c98cc0deb01494afd0e))
+
+* doc: add doc about more params to create_bucket ([`4d68841`](https://github.com/supabase-community/supabase-py/commit/4d68841f16ab2c73b7ecb9974fe3654ea7e47d9d))
 
 * Merge pull request #68 from sampoder/patch-1
 
@@ -3955,14 +3950,9 @@ Remove Git Leftovers from Contributing ([`e6d12a1`](https://github.com/supabase-
 
 chore: add examples folder ([`f8898ca`](https://github.com/supabase-community/supabase-py/commit/f8898ca3efe40b358d0e1b1107aa45e9d90251fd))
 
-
 ## v0.0.3 (2021-10-13)
 
 ### Chore
-
-* chore: remove language version pin for black ([`2471116`](https://github.com/supabase-community/supabase-py/commit/247111641fdafcd51ad749414cb44b2d5414fe3f))
-
-* chore: add httpx to deps ([`c0b4fe8`](https://github.com/supabase-community/supabase-py/commit/c0b4fe8a37f772bb7bbcdc4788329780ffc01bf6))
 
 * chore: move pytest to dev-dependencies ([`78d6b81`](https://github.com/supabase-community/supabase-py/commit/78d6b81df9bb24930aaf24d86f2bd582b987d77a))
 
@@ -3972,11 +3962,11 @@ chore: add examples folder ([`f8898ca`](https://github.com/supabase-community/su
 
 * chore: format __init__ using autoflake ([`b518ad3`](https://github.com/supabase-community/supabase-py/commit/b518ad3adf05037d97e75cdf21d2913a72d53093))
 
-* chore: format docs file with black ([`95808c5`](https://github.com/supabase-community/supabase-py/commit/95808c562fa99c90f8fd3661efbdb38225454c3d))
-
 * chore: apply formatters to unformatted files ([`4776baa`](https://github.com/supabase-community/supabase-py/commit/4776baae2b60218b3edf46f9fbe86ca87bce5237))
 
 * chore: update pre-commit hook ([`45c2866`](https://github.com/supabase-community/supabase-py/commit/45c2866739bbe20640de21b3b19439c440c750c1))
+
+* chore: format docs file with black ([`95808c5`](https://github.com/supabase-community/supabase-py/commit/95808c562fa99c90f8fd3661efbdb38225454c3d))
 
 ### Documentation
 
@@ -3988,10 +3978,6 @@ chore: add examples folder ([`f8898ca`](https://github.com/supabase-community/su
 
 ### Feature
 
-* feat: add async support to storage buckets API ([`e0748a8`](https://github.com/supabase-community/supabase-py/commit/e0748a8700818c4c2caaa538d36006c7212dcb29))
-
-* feat: add docs for query_builder and storage_bucket ([`b74e439`](https://github.com/supabase-community/supabase-py/commit/b74e4399c3d3def335f7c92588bf6437a3e80bfe))
-
 * feat: add upload ([`3070b5b`](https://github.com/supabase-community/supabase-py/commit/3070b5b2291df29afe76b6ddc38ab2c9b69b8720))
 
 * feat: add download function ([`e85d675`](https://github.com/supabase-community/supabase-py/commit/e85d675044c484ae1772b76e07545fb13ab3eef1))
@@ -3999,6 +3985,8 @@ chore: add examples folder ([`f8898ca`](https://github.com/supabase-community/su
 * feat: Add more functions to storage file api ([`41682ad`](https://github.com/supabase-community/supabase-py/commit/41682adee5a7ec93c8382cf376cd4729c9360ffa))
 
 * feat: add create_signed_url ([`24cc3fd`](https://github.com/supabase-community/supabase-py/commit/24cc3fde998417a556b2009e7fbecfabaf470c1f))
+
+* feat: add docs for query_builder and storage_bucket ([`b74e439`](https://github.com/supabase-community/supabase-py/commit/b74e4399c3d3def335f7c92588bf6437a3e80bfe))
 
 ### Fix
 
@@ -4025,8 +4013,6 @@ chore: move pytest to dev-dependencies ([`6b76a9a`](https://github.com/supabase-
 * Merge pull request #59 from ianrtracey/develop
 
 updates readme to install the latest package ([`c099a7a`](https://github.com/supabase-community/supabase-py/commit/c099a7a97893d4043d449e0b7433160efec901b0))
-
-* doc: add doc about more params to create_bucket ([`4d68841`](https://github.com/supabase-community/supabase-py/commit/4d68841f16ab2c73b7ecb9974fe3654ea7e47d9d))
 
 * updates readme to install the correct package ([`33d1aae`](https://github.com/supabase-community/supabase-py/commit/33d1aae842c596a0091f33d516e196a5c16f54c6))
 
@@ -4074,15 +4060,13 @@ fix: missing json bodies in patch and put requests ([`9b68a97`](https://github.c
 
 Add Storage File API ([`bb98157`](https://github.com/supabase-community/supabase-py/commit/bb98157ec7db10f4aa8c3651d3cc9e49c9d8e6d5))
 
+* Merge branch &#39;develop&#39; into j0_add_storage_file_api ([`78fbe77`](https://github.com/supabase-community/supabase-py/commit/78fbe77ad5c0b5196226572203b2a1e4d20dc644))
+
 * Merge pull request #35 from supabase/j0_add_docs
 
 Add Initial Sphinx Documentation ([`08d5fe4`](https://github.com/supabase-community/supabase-py/commit/08d5fe434c29d201b997f3a852ed36df95d5e10b))
 
 * Merge branch &#39;develop&#39; into j0_add_docs ([`4f9b847`](https://github.com/supabase-community/supabase-py/commit/4f9b847fe9f5eec6bc01580d9e8ada01da04bb60))
-
-* Trigger pre-commit ([`0c8c703`](https://github.com/supabase-community/supabase-py/commit/0c8c70315420dccab03e35a54329838d7c3203dd))
-
-* Merge branch &#39;develop&#39; into j0_add_storage_file_api ([`78fbe77`](https://github.com/supabase-community/supabase-py/commit/78fbe77ad5c0b5196226572203b2a1e4d20dc644))
 
 * Merge pull request #29 from supabase/j0_test_precommit
 
@@ -4098,17 +4082,7 @@ Add pre-commit hooks enforcing a standard style ([`434d6ba`](https://github.com/
 
 Add Storage Bucket API ([`256f65d`](https://github.com/supabase-community/supabase-py/commit/256f65dcc820bd1c0bc3413c644fd37ce3d2a64a))
 
-* add badges for test CI and pypi version ([`9897a29`](https://github.com/supabase-community/supabase-py/commit/9897a295136d3cbccb400367d88ace5ea8cd6784))
-
-* apply pre-commit hooks &amp; add __all__ in __init__.py to prevent autoflake from removing imports ([`77a2234`](https://github.com/supabase-community/supabase-py/commit/77a2234da12c24ecb24c8e8fc1c2f05414daeac7))
-
-* enable pre-commit hooks for isort, autoflake, and black base 3.7 ([`f980db1`](https://github.com/supabase-community/supabase-py/commit/f980db111125d961ba905b8a65d3b1d0dd3c998c))
-
 * Merge branch &#39;develop&#39; into j0_add_storage_bucket ([`e306249`](https://github.com/supabase-community/supabase-py/commit/e3062496553924c9582f6b3abc28e0cbd4c20420))
-
-* Merge pull request #25 from olirice/client_in_fixture
-
-Reduce test code duplication via supabase Client in pytest fixture ([`873b85b`](https://github.com/supabase-community/supabase-py/commit/873b85bcf71f9e26b3ec612cee5cd33eb8591bce))
 
 * Remove unused comments ([`dd2ebe8`](https://github.com/supabase-community/supabase-py/commit/dd2ebe867fc168b3d27f856a5cef41a8f89ee386))
 
@@ -4116,17 +4090,29 @@ Reduce test code duplication via supabase Client in pytest fixture ([`873b85b`](
 
 * feature:add storage bucket client ([`ad53879`](https://github.com/supabase-community/supabase-py/commit/ad53879450e88837d2fd71932c7f8dedd0328d94))
 
+* Merge branch &#39;develop&#39; of github.com:supabase/supabase-py into develop ([`9463c98`](https://github.com/supabase-community/supabase-py/commit/9463c98faeae0133f024ad387eb0c4747df8babb))
+
+* Merge branch &#39;develop&#39; of github.com:supabase/supabase-py into develop ([`8dc7fe8`](https://github.com/supabase-community/supabase-py/commit/8dc7fe8252f3f52bcec1d604e8af695266cb23dc))
+
+* fix logic errors ([`f468624`](https://github.com/supabase-community/supabase-py/commit/f468624041d133ea13a266d53ed4453391bb1250))
+
+* add badges for test CI and pypi version ([`9897a29`](https://github.com/supabase-community/supabase-py/commit/9897a295136d3cbccb400367d88ace5ea8cd6784))
+
+* apply pre-commit hooks &amp; add __all__ in __init__.py to prevent autoflake from removing imports ([`77a2234`](https://github.com/supabase-community/supabase-py/commit/77a2234da12c24ecb24c8e8fc1c2f05414daeac7))
+
+* enable pre-commit hooks for isort, autoflake, and black base 3.7 ([`f980db1`](https://github.com/supabase-community/supabase-py/commit/f980db111125d961ba905b8a65d3b1d0dd3c998c))
+
+* Merge pull request #25 from olirice/client_in_fixture
+
+Reduce test code duplication via supabase Client in pytest fixture ([`873b85b`](https://github.com/supabase-community/supabase-py/commit/873b85bcf71f9e26b3ec612cee5cd33eb8591bce))
+
 * remove unused import ([`6bc5945`](https://github.com/supabase-community/supabase-py/commit/6bc59458f52fa1af68fc100109fcd7cffb427177))
 
 * session scope for pytest client fixture ([`0cf02da`](https://github.com/supabase-community/supabase-py/commit/0cf02da5cdc4aa25827343f1a0431e1cc0dfb779))
 
 * reduce test duplication via supabase client in pytest fixture ([`e1c3b90`](https://github.com/supabase-community/supabase-py/commit/e1c3b900e5ad476fe858bec72e08aab08e6b2648))
 
-* Merge branch &#39;develop&#39; of github.com:supabase/supabase-py into develop ([`9463c98`](https://github.com/supabase-community/supabase-py/commit/9463c98faeae0133f024ad387eb0c4747df8babb))
-
 * add python version info for pip ([`268bfe5`](https://github.com/supabase-community/supabase-py/commit/268bfe507f356bd63819101cf240d88ed473c8e1))
-
-* Merge branch &#39;develop&#39; of github.com:supabase/supabase-py into develop ([`8dc7fe8`](https://github.com/supabase-community/supabase-py/commit/8dc7fe8252f3f52bcec1d604e8af695266cb23dc))
 
 * Merge pull request #18 from supabase/j0_add_test_script
 
@@ -4136,6 +4122,8 @@ Add test script ([`bf3b49a`](https://github.com/supabase-community/supabase-py/c
 
 * Update CI to use test script ([`06a2a33`](https://github.com/supabase-community/supabase-py/commit/06a2a33489d593fcc21b1b8765ce1388934d460b))
 
+* Add test script, update README ([`8e50e61`](https://github.com/supabase-community/supabase-py/commit/8e50e6120e852278561135b258e9582ca592e312))
+
 * Merge pull request #19 from taloglu/patch-1
 
 Update README.md ([`985eaeb`](https://github.com/supabase-community/supabase-py/commit/985eaebd24705230283e995c8bb8bbb224746da0))
@@ -4144,14 +4132,11 @@ Update README.md ([`985eaeb`](https://github.com/supabase-community/supabase-py/
 
 Insertion of data code was not correct due to a copy paste error. ([`723c96a`](https://github.com/supabase-community/supabase-py/commit/723c96a7c35e0632932f4496284eca74fefab595))
 
-* fix logic errors ([`f468624`](https://github.com/supabase-community/supabase-py/commit/f468624041d133ea13a266d53ed4453391bb1250))
-
-* Add test script, update README ([`8e50e61`](https://github.com/supabase-community/supabase-py/commit/8e50e6120e852278561135b258e9582ca592e312))
+* Trigger pre-commit ([`0c8c703`](https://github.com/supabase-community/supabase-py/commit/0c8c70315420dccab03e35a54329838d7c3203dd))
 
 * Merge pull request #17 from supabase/develop
 
 Update README.md ([`ffde413`](https://github.com/supabase-community/supabase-py/commit/ffde413d6ae7be014e2152682308a0e48c9e3657))
-
 
 ## v0.0.2 (2021-04-05)
 
@@ -4233,6 +4218,8 @@ Miscellaneous updates from downstream ([`19f6e8e`](https://github.com/supabase-c
 
 * Merge branch &#39;master&#39; into master ([`1ac7232`](https://github.com/supabase-community/supabase-py/commit/1ac7232022e9628f96d09135a5279b9dd983007c))
 
+* Wrap postgrest-py (#4) ([`3c560de`](https://github.com/supabase-community/supabase-py/commit/3c560de6c7b7cc96055249fee25515b87ca22ea7))
+
 * Merge pull request #1 from fedden/master
 
 Upstream merge of the fork^2 of supabase-py ([`0dc431d`](https://github.com/supabase-community/supabase-py/commit/0dc431da1b1f2de55abab0804b574158d40bc68a))
@@ -4288,8 +4275,6 @@ Upstream merge of the fork^2 of supabase-py ([`0dc431d`](https://github.com/supa
 * Add _from functions, refactor ([`20106ce`](https://github.com/supabase-community/supabase-py/commit/20106ce2c0ff10d356cc179f1b597efebc0d5b38))
 
 * Refactor and format with black ([`2fc2747`](https://github.com/supabase-community/supabase-py/commit/2fc2747f109d28e27b8a01e5a803bff70f04eab2))
-
-* Wrap postgrest-py (#4) ([`3c560de`](https://github.com/supabase-community/supabase-py/commit/3c560de6c7b7cc96055249fee25515b87ca22ea7))
 
 * Add auth client wrapper ([`bd5d03b`](https://github.com/supabase-community/supabase-py/commit/bd5d03b0cd389f468cdcb0c9e22840012ca18a5a))
 
