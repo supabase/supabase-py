@@ -333,6 +333,6 @@ async def create_client(
     -------
     Client
     """
-    return AsyncClient.create(
+    return await AsyncClient.create(
         supabase_url=supabase_url, supabase_key=supabase_key, options=options
     )
