@@ -98,7 +98,21 @@ class SyncClient:
         supabase_key: str,
         options: Union[ClientOptions, None] = None,
     ):
-        return cls(supabase_url, supabase_key, options)
+        auth_header = options.headers.get("Authorization") if options else None
+        client = cls(supabase_url, supabase_key, options)
+
+        if auth_header is None:
+            try:
+                session = client.auth.get_session()
+                session_access_token = client._create_auth_header(session.access_token)
+            except Exception as err:
+                session_access_token = None
+
+            client.options.headers.update(
+                client._get_auth_headers(session_access_token)
+            )
+
+        return client
 
     def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
@@ -260,13 +274,18 @@ class SyncClient:
     def _create_auth_header(self, token: str):
         return f"Bearer {token}"
 
-    def _get_auth_headers(self) -> Dict[str, str]:
+    def _get_auth_headers(
+        self, authorization: Union[str, None] = None
+    ) -> Dict[str, str]:
+        if authorization is None:
+            authorization = self.options.headers.get(
+                "Authorization", self._create_auth_header(self.supabase_key)
+            )
+
         """Helper method to get auth headers."""
         return {
             "apiKey": self.supabase_key,
-            "Authorization": self.options.headers.get(
-                "Authorization", self._create_auth_header(self.supabase_key)
-            ),
+            "Authorization": authorization,
         }
 
     def _listen_to_auth_events(
@@ -314,6 +333,6 @@ def create_client(
     -------
     Client
     """
-    return SyncClient(
+    return SyncClient.create(
         supabase_url=supabase_url, supabase_key=supabase_key, options=options
     )
