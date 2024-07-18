@@ -113,7 +113,7 @@ data = supabase.table("countries").update({"country": "Indonesia", "capital_city
 ```python
 country = {
   "country": "United Kingdom",
-  "capital_city": "London" # this was missing when it was added
+  "capital_city": "London" # This was missing when it was added
 }
 
 data = supabase.table("countries").upsert(country).execute()
@@ -214,13 +214,13 @@ Contributing to the Python libraries are a great way to get involved with the Su
 
 ### Running Tests
 
-Currently the test suites are in a state of flux. We are expanding our clients tests to ensure things are working, and for now can connect to this test instance, that is populated with the following table:
+Currently, the test suites are in a state of flux. We are expanding our clients' tests to ensure things are working, and for now can connect to this test instance, which is populated with the following table:
 
 <p align="center">
   <img width="720" height="481" src="https://i.ibb.co/Bq7Kdty/db.png">
 </p>
 
-The above test database is a blank supabase instance that has populated the `countries` table with the built in countries script that can be found in the supabase UI. You can launch the test scripts and point to the above test database by running
+The above test database is a blank supabase instance that has populated the `countries` table with the built-in countries script that can be found in the supabase UI. You can launch the test scripts and point to the above test database by running
 
 ```bash
 ./test.sh
