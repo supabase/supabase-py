@@ -43,7 +43,9 @@ class ClientOptions:
     storage_client_timeout: Union[int, float, Timeout] = DEFAULT_STORAGE_CLIENT_TIMEOUT
     """Timeout passed to the SyncStorageClient instance"""
 
-    function_client_timeout: Union[int, float, Timeout] = DEFAULT_FUNCTION_CLIENT_TIMEOUT
+    function_client_timeout: Union[int, float, Timeout] = (
+        DEFAULT_FUNCTION_CLIENT_TIMEOUT
+    )
     """Timeout passed to the SyncFunctionsClient instance."""
 
     flow_type: AuthFlowType = "implicit"
