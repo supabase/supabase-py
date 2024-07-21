@@ -1434,13 +1434,13 @@ test = ["pylint", "pytest", "pytest-black", "pytest-cov", "pytest-pylint"]
 
 [[package]]
 name = "supafunc"
-version = "0.4.7"
+version = "0.5.0"
 description = "Library for Supabase Functions"
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "supafunc-0.4.7-py3-none-any.whl", hash = "sha256:0b63133ff14e3b311fc881c9ff2538d70985df9b700b443efb86940588672905"},
-    {file = "supafunc-0.4.7.tar.gz", hash = "sha256:cd7b79d03d0c66aedfe3e8b2296cafcd0770fea5fc7505c863ae42c667309d27"},
+    {file = "supafunc-0.5.0-py3-none-any.whl", hash = "sha256:6e6802c9a9d97a2cead3c778004ab43102b52d70c34899d903539066c5cfa43f"},
+    {file = "supafunc-0.5.0.tar.gz", hash = "sha256:a20ec28e90b4b3191b149c30d1020d9f18491d0b8b86d0a29c60935169dd4dbe"},
 ]
 
 [package.dependencies]
@@ -1687,4 +1687,4 @@ test = ["big-O", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-it
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "4462eb0dc643ac44d305801977cd95fbbb4110f1551f11fca24abeff28c55f64"
+content-hash = "3b1f4b4db1ec7e2c5355a17c01428e9e97e2e899fe19bd43e900c75d9da1dab2"
