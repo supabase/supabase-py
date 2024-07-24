@@ -1,6 +1,30 @@
 # CHANGELOG
 
+## v2.6.0 (2024-07-24)
+
+### Chore
+
+* chore(deps): bump supafunc from 0.4.7 to 0.5.0 (#866) ([`7201089`](https://github.com/supabase-community/supabase-py/commit/72010899dbd1eff9da490895bf1d7ad449c2c147))
+
+* chore(deps-dev): bump pytest from 8.2.2 to 8.3.1 (#865) ([`ccdb442`](https://github.com/supabase-community/supabase-py/commit/ccdb442577b073c51ed31a328b7d683ae65dca12))
+
+* chore(deps-dev): bump commitizen from 3.27.0 to 3.28.0 (#862) ([`877a7e0`](https://github.com/supabase-community/supabase-py/commit/877a7e0cc2b3a61936443aa00986cc6676e51c9c))
+
+* chore(deps): bump gotrue from 2.5.5 to 2.6.0 (#861) ([`bf1a2a6`](https://github.com/supabase-community/supabase-py/commit/bf1a2a64aedc3becf6c6db1d7e22f5934bdeed43))
+
+### Feature
+
+* feat: add edge functions timeout (#846) ([`c4fe829`](https://github.com/supabase-community/supabase-py/commit/c4fe829430fe04053010cf5faf564dbd484378fa))
+
+### Unknown
+
+* Update README.md (#820) ([`53ed4fe`](https://github.com/supabase-community/supabase-py/commit/53ed4fec676538378eb079a1c073398dba34f569))
+
 ## v2.5.3 (2024-07-16)
+
+### Chore
+
+* chore(release): bump version to v2.5.3 ([`475bd18`](https://github.com/supabase-community/supabase-py/commit/475bd184d0dd89b5f97fb994d5c038ca8616f208))
 
 ### Fix
 
