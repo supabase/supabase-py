@@ -191,7 +191,9 @@ class AsyncClient:
     def functions(self):
         if self._functions is None:
             self._functions = AsyncFunctionsClient(
-                self.functions_url, self.options.headers
+                self.functions_url,
+                self.options.headers,
+                self.options.function_client_timeout,
             )
         return self._functions
 

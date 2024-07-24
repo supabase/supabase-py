@@ -5,6 +5,7 @@ from gotrue import AuthFlowType, SyncMemoryStorage, SyncSupportedStorage
 from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
+from supafunc.utils import DEFAULT_FUNCTION_CLIENT_TIMEOUT
 
 from supabase import __version__
 
@@ -41,6 +42,11 @@ class ClientOptions:
 
     storage_client_timeout: Union[int, float, Timeout] = DEFAULT_STORAGE_CLIENT_TIMEOUT
     """Timeout passed to the SyncStorageClient instance"""
+
+    function_client_timeout: Union[int, float, Timeout] = (
+        DEFAULT_FUNCTION_CLIENT_TIMEOUT
+    )
+    """Timeout passed to the SyncFunctionsClient instance."""
 
     flow_type: AuthFlowType = "implicit"
     """flow type to use for authentication"""
