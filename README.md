@@ -12,7 +12,7 @@ Python client for [Supabase](https://supabase.com)
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/supabase-community/supabase-py.git
+git clone https://github.com/supabase/supabase-py.git
 cd supabase-py
 ```
 
@@ -183,24 +183,24 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 
 ## Roadmap
 
-- [x] Wrap [Postgrest-py](https://github.com/supabase-community/postgrest-py/)
+- [x] Wrap [Postgrest-py](https://github.com/supabase/postgrest-py/)
   - [x] Add remaining filters
   - [ ] Add support for EXPLAIN
   - [ ] Add proper error handling
-- [ ] Wrap [Realtime-py](https://github.com/supabase-community/realtime-py)
+- [ ] Wrap [Realtime-py](https://github.com/supabase/realtime-py)
   - [ ] Integrate with Supabase-py
   - [ ] Support WALRUS
   - [ ] Support broadcast (to check if already supported)
-- [x] Wrap [auth-py](https://github.com/supabase-community/auth-py)
+- [x] Wrap [auth-py](https://github.com/supabase/auth-py)
   - [x] Remove references to GoTrue-js v1 and do a proper release
   - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
   - [ ] Add MFA methods and SSO methods
   - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
-- [x] Wrap [storage-py](https://github.com/supabase-community/storage-py)
+- [x] Wrap [storage-py](https://github.com/supabase/storage-py)
   - [ ] Support resumable uploads
   - [x] Setup testing environment
   - [x] Document how to properly upload different file types (e.g. jpeg/png and download it)
-- [x] Wrap [functions-py](https://github.com/supabase-community/functions-py)
+- [x] Wrap [functions-py](https://github.com/supabase/functions-py)
 
 ### Overall Tasks
 
@@ -229,13 +229,13 @@ The above test database is a blank supabase instance that has populated the `cou
 ## Badges
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?label=license)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase-community/supabase-py/actions/workflows/ci.yml)
+[![CI](https://github.com/supabase/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase/supabase-py/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/pypi/pyversions/supabase)](https://pypi.org/project/supabase)
 [![Version](https://img.shields.io/pypi/v/supabase?color=%2334D058)](https://pypi.org/project/supabase)
-[![Codecov](https://codecov.io/gh/supabase-community/supabase-py/branch/develop/graph/badge.svg)](https://codecov.io/gh/supabase-community/supabase-py)
-[![Last commit](https://img.shields.io/github/last-commit/supabase-community/supabase-py.svg?style=flat)](https://github.com/supabase-community/supabase-py/commits)
-[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/supabase-community/supabase-py)](https://github.com/supabase-community/supabase-py/commits)
-[![Github Stars](https://img.shields.io/github/stars/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py/stargazers)
-[![Github Forks](https://img.shields.io/github/forks/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py/network/members)
-[![Github Watchers](https://img.shields.io/github/watchers/supabase-community/supabase-py?style=flat&logo=github)](https://github.com/supabase-community/supabase-py)
-[![GitHub contributors](https://img.shields.io/github/contributors/supabase-community/supabase-py)](https://github.com/supabase-community/supabase-py/graphs/contributors)
+[![Codecov](https://codecov.io/gh/supabase/supabase-py/branch/develop/graph/badge.svg)](https://codecov.io/gh/supabase/supabase-py)
+[![Last commit](https://img.shields.io/github/last-commit/supabase/supabase-py.svg?style=flat)](https://github.com/supabase/supabase-py/commits)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/supabase/supabase-py)](https://github.com/supabase/supabase-py/commits)
+[![Github Stars](https://img.shields.io/github/stars/supabase/supabase-py?style=flat&logo=github)](https://github.com/supabase/supabase-py/stargazers)
+[![Github Forks](https://img.shields.io/github/forks/supabase/supabase-py?style=flat&logo=github)](https://github.com/supabase/supabase-py/network/members)
+[![Github Watchers](https://img.shields.io/github/watchers/supabase/supabase-py?style=flat&logo=github)](https://github.com/supabase/supabase-py)
+[![GitHub contributors](https://img.shields.io/github/contributors/supabase/supabase-py)](https://github.com/supabase/supabase-py/graphs/contributors)
