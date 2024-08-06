@@ -199,7 +199,7 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
   - [x] Check cyclomatic complexity and fix if needed (mccabe, prospector).
 
 - [ ] Wrap [Realtime-py](https://github.com/supabase/realtime-py)
-  - [x] Integrate with Supabase-py
+  - [ ] Integrate with Supabase-py
   - [ ] Support WALRUS
   - [ ] Support broadcast (to check if already supported)
   - [x] Add `close()` method to close a socket.
