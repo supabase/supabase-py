@@ -227,6 +227,14 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 - [x] Wrap [storage-py](https://github.com/supabase/storage-py)
   - [ ] Support resumable uploads
   - [x] Setup testing environment
+  - [x] Fix client-side timeouts for long running operations.
+  - [x] Enable HTTP2 by default.
+  - [x] Enable follow redirects by default.
+  - [x] Enable keep-alive by default.
+  - [x] Enable running with unverified SSL via `verify=False`.
+  - [x] Add Stalebot.
+  - [x] Update CI (linters, etc).
+  - [x] Check cyclomatic complexity and fix if needed (mccabe, prospector).
   - [x] Document how to properly upload different file types (e.g. jpeg/png and download it)
 
 - [x] Wrap [functions-py](https://github.com/supabase/functions-py)
