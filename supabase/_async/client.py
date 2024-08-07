@@ -10,6 +10,7 @@ from postgrest import (
     AsyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
+from realtime.connection import Socket
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import AsyncFunctionsClient
@@ -80,12 +81,7 @@ class AsyncClient:
             auth_url=self.auth_url,
             client_options=options,
         )
-        # TODO: Bring up to parity with JS client.
-        # self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
-        #     realtime_url=self.realtime_url,
-        #     supabase_key=self.supabase_key,
-        # )
-        self.realtime = None
+        self.realtime = self._init_realtime_client(self.realtime_url, self.supabase_key)
         self._postgrest = None
         self._storage = None
         self._functions = None
@@ -272,6 +268,11 @@ class AsyncClient:
             timeout=timeout,
             verify=verify,
         )
+
+    @staticmethod
+    def _init_realtime_client(realtime_url: str, supabase_key: str) -> Socket:
+        """Private helper for creating an instance of the Socket client."""
+        return Socket(realtime_url, supabase_key)
 
     def _create_auth_header(self, token: str):
         return f"Bearer {token}"
