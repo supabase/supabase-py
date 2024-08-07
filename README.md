@@ -36,7 +36,7 @@ conda activate supabase-py
 
 ### PyPi installation
 
-Install the package (for > Python 3.7):
+Install the package (for Python > 3.7):
 
 ```bash
 # with pip
@@ -48,7 +48,7 @@ conda install -c conda-forge supabase
 
 ### Local installation
 
-You can also install locally after cloning this repo. Install Development mode with `pip install -e`, which makes it so when you edit the source code the changes will be reflected in your python module.
+You can also install locally after cloning this repo. Install Development mode with `pip install -e`, which makes it editable, so when you edit the source code the changes will be reflected in your python module.
 
 ## Usage
 
