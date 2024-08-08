@@ -10,7 +10,7 @@ from postgrest import (
     AsyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
-from realtime.connection import Socket
+from realtime import RealTimeClient
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import AsyncFunctionsClient
@@ -270,9 +270,9 @@ class AsyncClient:
         )
 
     @staticmethod
-    def _init_realtime_client(realtime_url: str, supabase_key: str) -> Socket:
-        """Private helper for creating an instance of the Socket client."""
-        return Socket(realtime_url, supabase_key)
+    def _init_realtime_client(realtime_url: str, supabase_key: str) -> RealTimeClient:
+        """Private helper for creating an instance of the RealTimeClient client."""
+        return RealTimeClient(realtime_url, supabase_key)
 
     def _create_auth_header(self, token: str):
         return f"Bearer {token}"
