@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from gotrue import AsyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
@@ -10,6 +10,8 @@ from postgrest import (
     AsyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
+from realtime.client import RealtimeClient
+from realtime.channel import Channel, RealtimeChannelOptions
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import AsyncFunctionsClient
@@ -80,11 +82,11 @@ class AsyncClient:
             auth_url=self.auth_url,
             client_options=options,
         )
-        # TODO: Bring up to parity with JS client.
-        # self.realtime: SupabaseRealtimeClient = self._init_realtime_client(
-        #     realtime_url=self.realtime_url,
-        #     supabase_key=self.supabase_key,
-        # )
+        self.realtime: RealtimeClient = self._init_realtime_client(
+            realtime_url=self.realtime_url,
+            supabase_key=self.supabase_key,
+            options=options.realtime if options else None,
+        )
         self.realtime = None
         self._postgrest = None
         self._storage = None
@@ -197,41 +199,25 @@ class AsyncClient:
             )
         return self._functions
 
-    #     async def remove_subscription_helper(resolve):
-    #         try:
-    #             await self._close_subscription(subscription)
-    #             open_subscriptions = len(self.get_subscriptions())
-    #             if not open_subscriptions:
-    #                 error = await self.realtime.disconnect()
-    #                 if error:
-    #                     return {"error": None, "data": { open_subscriptions}}
-    #         except Exception as e:
-    #             raise e
-    #     return remove_subscription_helper(subscription)
+    def channel(self, topic: str, params: RealtimeChannelOptions = {}) -> Channel:
+        """Return a channel object."""
+        return self.realtime.channel(topic, params)
 
-    # async def _close_subscription(self, subscription):
-    #    """Close a given subscription
+    def get_channels(self) -> List[Channel]:
+        """Return all channels the client is subscribed to."""
+        return self.realtime.get_channels()
+    
+    async def remove_channel(self, channel: Channel) -> None:
+        """Remove a channel from the client."""
+        await self.realtime.remove_channel(channel)
 
-    #    Parameters
-    #    ----------
-    #    subscription
-    #        The name of the channel
-    #    """
-    #    if not subscription.closed:
-    #        await self._closeChannel(subscription)
+    @staticmethod
+    def _init_realtime_client(
+        realtime_url: str, supabase_key: str, options: Optional[Dict[str, Any]]
+    ) -> RealtimeClient:
+        """Private method for creating an instance of the realtime-py client."""
+        return RealtimeClient(realtime_url, token=supabase_key, params=options or {})
 
-    # def get_subscriptions(self):
-    #     """Return all channels the client is subscribed to."""
-    #     return self.realtime.channels
-
-    # @staticmethod
-    # def _init_realtime_client(
-    #     realtime_url: str, supabase_key: str
-    # ) -> SupabaseRealtimeClient:
-    #     """Private method for creating an instance of the realtime-py client."""
-    #     return SupabaseRealtimeClient(
-    #         realtime_url, {"params": {"apikey": supabase_key}}
-    #     )
     @staticmethod
     def _init_storage_client(
         storage_url: str,
@@ -302,6 +288,9 @@ class AsyncClient:
             access_token = session.access_token if session else self.supabase_key
 
         self.options.headers["Authorization"] = self._create_auth_header(access_token)
+
+        # set_auth is a coroutine, how to handle this?
+        self.realtime.set_auth(access_token)
 
 
 async def create_client(
