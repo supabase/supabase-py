@@ -10,8 +10,8 @@ from postgrest import (
     AsyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
-from realtime.client import RealtimeClient
 from realtime.channel import Channel, RealtimeChannelOptions
+from realtime.client import RealtimeClient
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import AsyncFunctionsClient
@@ -206,7 +206,7 @@ class AsyncClient:
     def get_channels(self) -> List[Channel]:
         """Return all channels the client is subscribed to."""
         return self.realtime.get_channels()
-    
+
     async def remove_channel(self, channel: Channel) -> None:
         """Remove a channel from the client."""
         await self.realtime.remove_channel(channel)
