@@ -200,16 +200,20 @@ class AsyncClient:
         return self._functions
 
     def channel(self, topic: str, params: RealtimeChannelOptions = {}) -> Channel:
-        """Return a channel object."""
+        """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
         return self.realtime.channel(topic, params)
 
     def get_channels(self) -> List[Channel]:
-        """Return all channels the client is subscribed to."""
+        """Returns all realtime channels."""
         return self.realtime.get_channels()
 
     async def remove_channel(self, channel: Channel) -> None:
-        """Remove a channel from the client."""
+        """Unsubscribes and removes Realtime channel from Realtime client."""
         await self.realtime.remove_channel(channel)
+
+    async def remove_all_channels(self) -> None:
+        """Unsubscribes and removes all Realtime channels from Realtime client."""
+        await self.realtime.remove_all_channels()
 
     @staticmethod
     def _init_realtime_client(
