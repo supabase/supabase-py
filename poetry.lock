@@ -1310,18 +1310,19 @@ url = "../realtime-py"
 
 [[package]]
 name = "setuptools"
-version = "58.5.3"
+version = "72.1.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.8"
 files = [
-    {file = "setuptools-58.5.3-py3-none-any.whl", hash = "sha256:a481fbc56b33f5d8f6b33dce41482e64c68b668be44ff42922903b03872590bf"},
-    {file = "setuptools-58.5.3.tar.gz", hash = "sha256:dae6b934a965c8a59d6d230d3867ec408bb95e73bd538ff77e71fedf1eaca729"},
+    {file = "setuptools-72.1.0-py3-none-any.whl", hash = "sha256:5a03e1860cf56bb6ef48ce186b0e557fdba433237481a9a625176c2831be15d1"},
+    {file = "setuptools-72.1.0.tar.gz", hash = "sha256:8d243eff56d095e5817f796ede6ae32941278f542e0f941867cc05ae52b162ec"},
 ]
 
 [package.extras]
-docs = ["furo", "jaraco.packaging (>=8.2)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "rst.linker (>=1.9)", "sphinx", "sphinx-inline-tabs", "sphinxcontrib-towncrier"]
-testing = ["flake8-2020", "jaraco.envs", "jaraco.path (>=3.2.0)", "mock", "paver", "pip (>=19.1)", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.0.1)", "pytest-flake8", "pytest-mypy", "pytest-virtualenv (>=1.2.7)", "pytest-xdist", "sphinx", "virtualenv (>=13.0.0)", "wheel"]
+core = ["importlib-metadata (>=6)", "importlib-resources (>=5.10.2)", "jaraco.text (>=3.7)", "more-itertools (>=8.8)", "ordered-set (>=3.1.1)", "packaging (>=24)", "platformdirs (>=2.6.2)", "tomli (>=2.0.1)", "wheel (>=0.43.0)"]
+doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "pygments-github-lexers (==0.0.5)", "pyproject-hooks (!=1.1)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-favicon", "sphinx-inline-tabs", "sphinx-lint", "sphinx-notfound-page (>=1,<2)", "sphinx-reredirects", "sphinxcontrib-towncrier"]
+test = ["build[virtualenv] (>=1.0.3)", "filelock (>=3.4.0)", "importlib-metadata", "ini2toml[lite] (>=0.14)", "jaraco.develop (>=7.21)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "jaraco.test", "mypy (==1.11.*)", "packaging (>=23.2)", "pip (>=19.1)", "pyproject-hooks (!=1.1)", "pytest (>=6,!=8.1.*)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-home (>=0.5)", "pytest-mypy", "pytest-perf", "pytest-ruff (<0.4)", "pytest-ruff (>=0.2.1)", "pytest-ruff (>=0.3.2)", "pytest-subprocess", "pytest-timeout", "pytest-xdist (>=3)", "tomli", "tomli-w (>=1.0.0)", "virtualenv (>=13.0.0)", "wheel"]
 
 [[package]]
 name = "six"
@@ -1406,6 +1407,17 @@ files = [
 tests = ["pytest", "pytest-cov"]
 
 [[package]]
+name = "tokenize-rt"
+version = "6.0.0"
+description = "A wrapper around the stdlib `tokenize` which roundtrips."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "tokenize_rt-6.0.0-py2.py3-none-any.whl", hash = "sha256:d4ff7ded2873512938b4f8cbb98c9b07118f01d30ac585a30d7a88353ca36d22"},
+    {file = "tokenize_rt-6.0.0.tar.gz", hash = "sha256:b9711bdfc51210211137499b5e355d3de5ec88a85d2025c520cbb921b5194367"},
+]
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -1460,30 +1472,38 @@ files = [
 
 [[package]]
 name = "unasync"
-version = "0.5.0"
+version = "0.6.0"
 description = "The async transformation code."
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
+python-versions = ">=3.8"
 files = [
-    {file = "unasync-0.5.0-py3-none-any.whl", hash = "sha256:8d4536dae85e87b8751dfcc776f7656fd0baf54bb022a7889440dc1b9dc3becb"},
-    {file = "unasync-0.5.0.tar.gz", hash = "sha256:b675d87cf56da68bd065d3b7a67ac71df85591978d84c53083c20d79a7e5096d"},
-]
-
-[[package]]
-name = "unasync-cli"
-version = "0.0.9"
-description = "Command line interface for unasync"
-optional = false
-python-versions = ">=3.6.14,<4.0.0"
-files = [
-    {file = "unasync-cli-0.0.9.tar.gz", hash = "sha256:ca9d8c57ebb68911f8f8f68f243c7f6d0bb246ee3fd14743bc51c8317e276554"},
-    {file = "unasync_cli-0.0.9-py3-none-any.whl", hash = "sha256:f96c42fb2862efa555ce6d6415a5983ceb162aa0e45be701656d20a955c7c540"},
+    {file = "unasync-0.6.0-py3-none-any.whl", hash = "sha256:9cf7aaaea9737e417d8949bf9be55dc25fdb4ef1f4edc21b58f76ff0d2b9d73f"},
+    {file = "unasync-0.6.0.tar.gz", hash = "sha256:a9d01ace3e1068b20550ab15b7f9723b15b8bcde728bc1770bcb578374c7ee58"},
 ]
 
 [package.dependencies]
-setuptools = ">=58.2.0,<59.0.0"
-typer = ">=0.4.0,<0.5.0"
-unasync = ">=0.5.0,<0.6.0"
+setuptools = "*"
+tokenize-rt = "*"
+
+[[package]]
+name = "unasync-cli"
+version = "0.0.1"
+description = "Command line interface for unasync. Fork of https://github.com/leynier/unasync-cli/"
+optional = false
+python-versions = "^3.8.18"
+files = []
+develop = false
+
+[package.dependencies]
+setuptools = "^72.1.0"
+typer = "^0.4.0"
+unasync = "^0.6.0"
+
+[package.source]
+type = "git"
+url = "https://github.com/supabase-community/unasync-cli.git"
+reference = "main"
+resolved_reference = "22b8b0e86608ae8adff3623cb0bbc7d378afe266"
 
 [[package]]
 name = "virtualenv"
