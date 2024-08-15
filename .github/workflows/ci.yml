@@ -39,11 +39,43 @@ jobs:
 
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
-  publish:
+  release-please:
     needs: test
-    if: ${{ !startsWith(github.event.head_commit.message, 'bump') && !startsWith(github.event.head_commit.message, 'chore') && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
     runs-on: ubuntu-latest
-    name: "Bump version, create changelog and publish"
+    name: "Bump version and create changelog"
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+      contents: write # needed for github actions bot to write to repo
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          target-branch: ${{ github.ref_name }}
+
+      - if: ${{ steps.release.outputs }}
+        id: versions
+        run: |
+          set -ex
+
+          MAIN_RELEASE_VERSION=${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
+          RELEASE_VERSION="$MAIN_RELEASE_VERSION"
+          RELEASE_NAME="v$RELEASE_VERSION"
+          RELEASE_CREATED='${{ steps.release.outputs.release_created }}'
+          PRS_CREATED='${{ steps.release.outputs.prs_created }}'
+          PR_TITLE='${{ github.event.head_commit.message }}'
+
+          echo "MAIN_RELEASE_VERSION=${MAIN_RELEASE_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "RELEASE_CREATED=${RELEASE_CREATED}" >> "${GITHUB_OUTPUT}"
+          echo "RELEASE_NAME=${RELEASE_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "PRS_CREATED=${PRS_CREATED}" >> "${GITHUB_OUTPUT}"
+          echo "PR_TITLE=${PR_TITLE}" >> "${GITHUB_OUTPUT}"
+  publish:
+    needs: release-please
+    if: ${{ startsWith(github.event.head_commit.message, 'chore(main)') && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
+    runs-on: ubuntu-latest
+    name: "Publish to PyPi"
     environment:
       name: pypi
       url: https://pypi.org/p/supabase
@@ -51,26 +83,27 @@ jobs:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
       contents: write # needed for github actions bot to write to repo
     steps:
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
       - name: Clone Repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
-          token: ${{ secrets.SILENTWORKS_PAT }}
-      - name: Python Semantic Release
-        id: release
-        uses: python-semantic-release/python-semantic-release@v9.8.6
+
+      - name: Set up Poetry
+        uses: abatilo/actions-poetry@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          poetry-version: 1.8.3
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Build package dist directory
+        run: poetry build
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        # NOTE: DO NOT wrap the conditional in ${{ }} as it will always evaluate to true.
-        # See https://github.com/actions/runner/issues/1173
-        if: steps.release.outputs.released == 'true'
-
-      - name: Publish package distributions to GitHub Releases
-        uses: python-semantic-release/upload-to-gh-release@main
-        if: steps.release.outputs.released == 'true'
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
