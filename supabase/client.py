@@ -2,9 +2,6 @@ from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from storage3.utils import StorageException
 
-# Version
-from .__version__ import __version__
-
 # Async Client
 from ._async.auth_client import AsyncSupabaseAuthClient
 from ._async.client import AsyncClient
@@ -20,6 +17,9 @@ from ._sync.client import create_client
 # Lib
 from .lib.client_options import ClientOptions
 from .lib.realtime_client import SupabaseRealtimeClient
+
+# Version
+from .version import __version__
 
 __all__ = [
     "AsyncSupabaseAuthClient",
