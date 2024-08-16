@@ -18,6 +18,7 @@ from ._sync.client import create_client
 
 # Version
 from .version import __version__
+
 __all__ = [
     "acreate_client",
     "AClient",

@@ -10,8 +10,7 @@ from postgrest import (
     SyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
-from realtime.channel import Channel, RealtimeChannelOptions
-from realtime.client import RealtimeClient
+from realtime import RealtimeChannelOptions, SyncRealtimeChannel, SyncRealtimeClient
 from storage3 import SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import SyncFunctionsClient
@@ -82,7 +81,7 @@ class SyncClient:
             auth_url=self.auth_url,
             client_options=options,
         )
-        self.realtime: RealtimeClient = self._init_realtime_client(
+        self.realtime = self._init_realtime_client(
             realtime_url=self.realtime_url,
             supabase_key=self.supabase_key,
             options=options.realtime if options else None,
@@ -199,15 +198,17 @@ class SyncClient:
             )
         return self._functions
 
-    def channel(self, topic: str, params: RealtimeChannelOptions = {}) -> Channel:
+    def channel(
+        self, topic: str, params: RealtimeChannelOptions = {}
+    ) -> SyncRealtimeChannel:
         """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
         return self.realtime.channel(topic, params)
 
-    def get_channels(self) -> List[Channel]:
+    def get_channels(self) -> List[SyncRealtimeChannel]:
         """Returns all realtime channels."""
         return self.realtime.get_channels()
 
-    def remove_channel(self, channel: Channel) -> None:
+    def remove_channel(self, channel: SyncRealtimeChannel) -> None:
         """Unsubscribes and removes Realtime channel from Realtime client."""
         self.realtime.remove_channel(channel)
 
@@ -218,9 +219,11 @@ class SyncClient:
     @staticmethod
     def _init_realtime_client(
         realtime_url: str, supabase_key: str, options: Optional[Dict[str, Any]]
-    ) -> RealtimeClient:
+    ) -> SyncRealtimeClient:
         """Private method for creating an instance of the realtime-py client."""
-        return RealtimeClient(realtime_url, token=supabase_key, params=options or {})
+        return SyncRealtimeClient(
+            realtime_url, token=supabase_key, params=options or {}
+        )
 
     @staticmethod
     def _init_storage_client(
