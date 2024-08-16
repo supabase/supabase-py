@@ -186,7 +186,7 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 
 - [x] Wrap [Postgrest-py](https://github.com/supabase/postgrest-py/)
   - [x] Add remaining filters
-  - [ ] Add support for EXPLAIN
+  - [x] Add support for EXPLAIN
   - [ ] Add proper error handling
   - [x] Use `sanitize_param()` to sanitize inputs.
   - [x] Fix client-side timeouts for long running queries.
