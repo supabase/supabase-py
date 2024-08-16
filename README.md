@@ -181,26 +181,73 @@ new_file_path: str = "important/revenue.png"
 data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 ```
 
+
 ## Roadmap
 
 - [x] Wrap [Postgrest-py](https://github.com/supabase/postgrest-py/)
   - [x] Add remaining filters
-  - [ ] Add support for EXPLAIN
+  - [x] Add support for EXPLAIN
   - [ ] Add proper error handling
+  - [x] Use `sanitize_param()` to sanitize inputs.
+  - [x] Fix client-side timeouts for long running queries.
+  - [x] Enable HTTP2 by default.
+  - [x] Enable follow redirects by default.
+  - [x] Enable keep-alive by default.
+  - [x] Enable running with unverified SSL via `verify=False`.
+  - [x] Add Stalebot.
+  - [x] Update CI (linters, etc).
+  - [x] Check cyclomatic complexity and fix if needed (mccabe, prospector).
+
 - [ ] Wrap [Realtime-py](https://github.com/supabase/realtime-py)
   - [ ] Integrate with Supabase-py
   - [ ] Support WALRUS
   - [ ] Support broadcast (to check if already supported)
+  - [x] Add `close()` method to close a socket.
+  - [x] Add Stalebot.
+  - [x] Update CI (linters, etc).
+  - [x] Check cyclomatic complexity and fix if needed (mccabe, prospector).
+
 - [x] Wrap [auth-py](https://github.com/supabase/auth-py)
   - [x] Remove references to GoTrue-js v1 and do a proper release
   - [ ] Test and document common flows (e.g. sign in with OAuth, sign in with OTP)
-  - [ ] Add MFA methods and SSO methods
+  - [ ] Add MFA methods
+  - [x] Add SSO methods
   - [x] Add Proof Key for Code Exchange (PKCE) methods. Unlike the JS library, we do not currently plan to support Magic Link (PKCE). Please use the [token hash](https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr#create-api-endpoint-for-handling-tokenhash) in tandem with `verifyOTP` instead.
+  - [x] Add `is_anonymous` boolean property.
+  - [x] Add `sign_in_with_id_token()` method.
+  - [x] Add `sign_in_with_sso()` method.
+  - [x] Enable HTTP2 by default.
+  - [x] Enable follow redirects by default.
+  - [x] Enable keep-alive by default.
+  - [x] Enable running with unverified SSL via `verify=False`.
+  - [x] Add Stalebot.
+  - [x] Update CI (linters, etc).
+  - [x] Check cyclomatic complexity and fix if needed (mccabe, prospector).
+
 - [x] Wrap [storage-py](https://github.com/supabase/storage-py)
   - [ ] Support resumable uploads
   - [x] Setup testing environment
+  - [x] Fix client-side timeouts for long running operations.
+  - [x] Enable HTTP2 by default.
+  - [x] Enable follow redirects by default.
+  - [x] Enable keep-alive by default.
+  - [x] Enable running with unverified SSL via `verify=False`.
+  - [x] Add Stalebot.
+  - [x] Update CI (linters, etc).
+  - [x] Check cyclomatic complexity and fix if needed (mccabe, prospector).
   - [x] Document how to properly upload different file types (e.g. jpeg/png and download it)
+
 - [x] Wrap [functions-py](https://github.com/supabase/functions-py)
+  - [x] Fix client-side timeouts for long running functions.
+  - [x] Enable HTTP2 by default.
+  - [x] Enable follow redirects by default.
+  - [x] Enable keep-alive by default.
+  - [x] Enable running with unverified SSL via `verify=False`.
+  - [x] Add Regions support.
+  - [x] Add Stalebot.
+  - [x] Update CI (linters, etc).
+  - [x] Check cyclomatic complexity and fix if needed (mccabe, prospector).
+
 
 ### Overall Tasks
 
