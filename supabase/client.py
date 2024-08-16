@@ -16,7 +16,6 @@ from ._sync.client import create_client
 
 # Lib
 from .lib.client_options import ClientOptions
-from .lib.realtime_client import SupabaseRealtimeClient
 
 # Version
 from .version import __version__
@@ -31,7 +30,6 @@ __all__ = [
     "Client",
     "ClientOptions",
     "SupabaseStorageClient",
-    "SupabaseRealtimeClient",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
     "StorageException",
