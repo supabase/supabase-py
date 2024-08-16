@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.7.1](https://github.com/supabase/supabase-py/compare/v2.7.0...v2.7.1) (2024-08-16)
+
+
+### Bug Fixes
+
+* remove old SupabaseRealtimeClient import ([#896](https://github.com/supabase/supabase-py/issues/896)) ([579f499](https://github.com/supabase/supabase-py/commit/579f49970a01036bd0cba67a2b58b49c62876b33))
+
 ## [2.7.0](https://github.com/supabase/supabase-py/compare/v2.6.0...v2.7.0) (2024-08-16)
 
 
