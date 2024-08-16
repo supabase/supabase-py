@@ -41,6 +41,7 @@ jobs:
         uses: codecov/codecov-action@v4
   release-please:
     needs: test
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
     runs-on: ubuntu-latest
     name: "Bump version and create changelog"
     permissions:
@@ -52,25 +53,6 @@ jobs:
         id: release
         with:
           target-branch: ${{ github.ref_name }}
-
-      - if: ${{ steps.release.outputs }}
-        id: versions
-        run: |
-          set -ex
-
-          MAIN_RELEASE_VERSION=${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
-          RELEASE_VERSION="$MAIN_RELEASE_VERSION"
-          RELEASE_NAME="v$RELEASE_VERSION"
-          RELEASE_CREATED='${{ steps.release.outputs.release_created }}'
-          PRS_CREATED='${{ steps.release.outputs.prs_created }}'
-          PR_TITLE='${{ github.event.head_commit.message }}'
-
-          echo "MAIN_RELEASE_VERSION=${MAIN_RELEASE_VERSION}" >> "${GITHUB_OUTPUT}"
-          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> "${GITHUB_OUTPUT}"
-          echo "RELEASE_CREATED=${RELEASE_CREATED}" >> "${GITHUB_OUTPUT}"
-          echo "RELEASE_NAME=${RELEASE_NAME}" >> "${GITHUB_OUTPUT}"
-          echo "PRS_CREATED=${PRS_CREATED}" >> "${GITHUB_OUTPUT}"
-          echo "PR_TITLE=${PR_TITLE}" >> "${GITHUB_OUTPUT}"
   publish:
     needs: release-please
     if: ${{ startsWith(github.event.head_commit.message, 'chore(main)') && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
