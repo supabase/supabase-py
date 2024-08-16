@@ -41,6 +41,7 @@ jobs:
         uses: codecov/codecov-action@v4
   release-please:
     needs: test
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
     runs-on: ubuntu-latest
     name: "Bump version and create changelog"
     permissions:
