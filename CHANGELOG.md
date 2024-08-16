@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.7.0](https://github.com/supabase/supabase-py/compare/v2.6.0...v2.7.0) (2024-08-16)
+
+
+### Features
+
+* **realtime:** add realtime V2 ([#886](https://github.com/supabase/supabase-py/issues/886)) ([08496eb](https://github.com/supabase/supabase-py/commit/08496eb4c1c203d2806fc44753f3bddc4b463db0))
+
 ## v2.6.0 (2024-07-24)
 
 ### Chore
