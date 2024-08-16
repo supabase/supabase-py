@@ -417,13 +417,13 @@ pyflakes = ">=2.5.0,<2.6.0"
 
 [[package]]
 name = "gotrue"
-version = "2.6.1"
+version = "2.7.0"
 description = "Python Client Library for Supabase Auth"
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "gotrue-2.6.1-py3-none-any.whl", hash = "sha256:baea090456685e5517d971005105f9fe36759863c9ff9805dfbb54f38a5b14a6"},
-    {file = "gotrue-2.6.1.tar.gz", hash = "sha256:e5f7094620e4e25fddf533d4e259f565fa2badc11b8eae9815c65b7830ea6da8"},
+    {file = "gotrue-2.7.0-py3-none-any.whl", hash = "sha256:a0f617e3b5260c30dbd6832c471e45ff2c54261216e0af37d52a3eced0bf10c7"},
+    {file = "gotrue-2.7.0.tar.gz", hash = "sha256:95c0a726f3fa53f32eb5fe9caebe31ed1ef0eeb5837dc4e65fb1e30ebc0623fd"},
 ]
 
 [package.dependencies]
