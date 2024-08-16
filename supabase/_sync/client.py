@@ -86,7 +86,6 @@ class SyncClient:
             supabase_key=self.supabase_key,
             options=options.realtime if options else None,
         )
-        self.realtime = None
         self._postgrest = None
         self._storage = None
         self._functions = None
