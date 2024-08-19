@@ -181,19 +181,6 @@ files = [
 ]
 
 [[package]]
-name = "asyncio"
-version = "3.4.3"
-description = "reference implementation of PEP 3156"
-optional = false
-python-versions = "*"
-files = [
-    {file = "asyncio-3.4.3-cp33-none-win32.whl", hash = "sha256:b62c9157d36187eca799c378e572c969f0da87cd5fc42ca372d92cdb06e7e1de"},
-    {file = "asyncio-3.4.3-cp33-none-win_amd64.whl", hash = "sha256:c46a87b48213d7464f22d9a497b9eef8c1928b68320a2fa94240f969f6fec08c"},
-    {file = "asyncio-3.4.3-py3-none-any.whl", hash = "sha256:c4d18b22701821de07bd6aea8b53d21449ec0ec5680645e5317062ea21817d2d"},
-    {file = "asyncio-3.4.3.tar.gz", hash = "sha256:83360ff8bc97980e4ff25c964c7bd3923d333d177aa4f7fb736b019f26c7cb41"},
-]
-
-[[package]]
 name = "attrs"
 version = "24.2.0"
 description = "Classes Without Boilerplate"
@@ -1472,18 +1459,17 @@ prompt_toolkit = ">=2.0,<=3.0.36"
 
 [[package]]
 name = "realtime"
-version = "2.0.0"
+version = "2.0.1"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "realtime-2.0.0-py3-none-any.whl", hash = "sha256:b318c4bcb194fa773a2f1ffaed03d08d9fc3842c3f94220f727b9919e114738e"},
-    {file = "realtime-2.0.0.tar.gz", hash = "sha256:4015492416d0a3e4516a6774489452f9288e8341b398855c60df3a4ba5649000"},
+    {file = "realtime-2.0.1-py3-none-any.whl", hash = "sha256:13bd2796cd31d1cdf6c08f01891102db3379c12d5854b712229163bc9e6a8942"},
+    {file = "realtime-2.0.1.tar.gz", hash = "sha256:49072e3f80486648a29cc6605a1c8bca98ae0335d464ef998e6a70921e3486fc"},
 ]
 
 [package.dependencies]
 aiohttp = ">=3.10.2,<4.0.0"
-asyncio = ">=3.4.3,<4.0.0"
 python-dateutil = ">=2.8.1,<3.0.0"
 typing-extensions = ">=4.12.2,<5.0.0"
 websockets = ">=11,<13"
