@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.7.2](https://github.com/supabase/supabase-py/compare/v2.7.1...v2.7.2) (2024-08-19)
+
+
+### Bug Fixes
+
+* **realtime:** update realtime for fixing NotConnectedError ([#902](https://github.com/supabase/supabase-py/issues/902)) ([67dbaf2](https://github.com/supabase/supabase-py/commit/67dbaf2ac479944d3faf8d8eaa6db17590db5a45))
+
 ## [2.7.1](https://github.com/supabase/supabase-py/compare/v2.7.0...v2.7.1) (2024-08-16)
 
 
