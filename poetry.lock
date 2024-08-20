@@ -1459,13 +1459,13 @@ prompt_toolkit = ">=2.0,<=3.0.36"
 
 [[package]]
 name = "realtime"
-version = "2.0.1"
+version = "2.0.2"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "realtime-2.0.1-py3-none-any.whl", hash = "sha256:13bd2796cd31d1cdf6c08f01891102db3379c12d5854b712229163bc9e6a8942"},
-    {file = "realtime-2.0.1.tar.gz", hash = "sha256:49072e3f80486648a29cc6605a1c8bca98ae0335d464ef998e6a70921e3486fc"},
+    {file = "realtime-2.0.2-py3-none-any.whl", hash = "sha256:2634c915bc38807f2013f21e8bcc4d2f79870dfd81460ddb9393883d0489928a"},
+    {file = "realtime-2.0.2.tar.gz", hash = "sha256:519da9325b3b8102139d51785013d592f6b2403d81fa21d838a0b0234723ed7d"},
 ]
 
 [package.dependencies]
