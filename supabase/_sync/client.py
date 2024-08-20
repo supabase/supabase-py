@@ -15,15 +15,9 @@ from storage3 import SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import SyncFunctionsClient
 
-from ..lib.client_options import SyncClientOptions as ClientOptions
+from ..lib.client_options import ClientOptions
+from ..utils import AuthProxy, SupabaseException
 from .auth_client import SyncSupabaseAuthClient
-
-
-# Create an exception class when user does not provide a valid url or key.
-class SupabaseException(Exception):
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
 
 
 class SyncClient:
@@ -77,10 +71,15 @@ class SyncClient:
         self.functions_url = f"{supabase_url}/functions/v1"
 
         # Instantiate clients.
-        self.auth = self._init_supabase_auth_client(
-            auth_url=self.auth_url,
-            client_options=options,
-        )
+        if not options.access_token:
+            self.auth = self._init_supabase_auth_client(
+                auth_url=self.auth_url,
+                client_options=options,
+            )
+        else:
+            self.access_token = options.access_token
+            self.auth = AuthProxy()
+
         self.realtime = self._init_realtime_client(
             realtime_url=self.realtime_url,
             supabase_key=self.supabase_key,
@@ -89,7 +88,9 @@ class SyncClient:
         self._postgrest = None
         self._storage = None
         self._functions = None
-        self.auth.on_auth_state_change(self._listen_to_auth_events)
+
+        if not options.access_token:
+            self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
     def create(
@@ -103,8 +104,13 @@ class SyncClient:
 
         if auth_header is None:
             try:
-                session = client.auth.get_session()
-                session_access_token = client._create_auth_header(session.access_token)
+                if not options.access_token:
+                    session = client.auth.get_session()
+                    session_access_token = client._create_auth_header(
+                        session.access_token
+                    )
+                else:
+                    session_access_token = options.access_token
             except Exception as err:
                 session_access_token = None
 
