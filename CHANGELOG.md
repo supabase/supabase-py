@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [2.7.3](https://github.com/supabase/supabase-py/compare/v2.7.2...v2.7.3) (2024-08-22)
+
+
+### Bug Fixes
+
+* bump postgrest from 0.16.10 to 0.16.11 ([#910](https://github.com/supabase/supabase-py/issues/910)) ([495ae1d](https://github.com/supabase/supabase-py/commit/495ae1d8f8d95c1daac68110040c49734846a499))
+* bump realtime from 2.0.1 to 2.0.2 ([#906](https://github.com/supabase/supabase-py/issues/906)) ([d81e2dc](https://github.com/supabase/supabase-py/commit/d81e2dc0fdd65b8808b7b905a3ab2c84b650fa2a))
+
 ## [2.7.2](https://github.com/supabase/supabase-py/compare/v2.7.1...v2.7.2) (2024-08-19)
 
 
