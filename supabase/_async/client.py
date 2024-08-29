@@ -237,6 +237,7 @@ class AsyncClient:
     def _init_supabase_auth_client(
         auth_url: str,
         client_options: ClientOptions,
+        verify: bool = True,
     ) -> AsyncSupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
         return AsyncSupabaseAuthClient(
@@ -246,6 +247,7 @@ class AsyncClient:
             storage=client_options.storage,
             headers=client_options.headers,
             flow_type=client_options.flow_type,
+            verify=verify,
         )
 
     @staticmethod
