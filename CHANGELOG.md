@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.7.4](https://github.com/supabase/supabase-py/compare/v2.7.3...v2.7.4) (2024-08-29)
+
+
+### Bug Fixes
+
+* add `verify` argument to `_init_supabase_auth_client()` ([#913](https://github.com/supabase/supabase-py/issues/913)) ([cb6743b](https://github.com/supabase/supabase-py/commit/cb6743bab3505d3e107fdab6a26edced79867af8))
+
 ## [2.7.3](https://github.com/supabase/supabase-py/compare/v2.7.2...v2.7.3) (2024-08-22)
 
 
