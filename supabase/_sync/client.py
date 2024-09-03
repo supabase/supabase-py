@@ -284,7 +284,7 @@ class SyncClient:
             "Authorization": authorization,
         }
 
-    def _listen_to_auth_events(
+    async def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Union[Session, None]
     ):
         access_token = self.supabase_key
@@ -297,8 +297,8 @@ class SyncClient:
 
         self.options.headers["Authorization"] = self._create_auth_header(access_token)
 
-        # set_auth is a coroutine, how to handle this?
-        self.realtime.set_auth(access_token)
+        # Await for the realtime client to set the auth token
+        await self.realtime.set_auth(access_token)
 
 
 def create_client(
