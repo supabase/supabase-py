@@ -22,7 +22,6 @@ def test_sync_realtime():
     sp = supabase.Client(url, key)
 
     try:
-        channel = sp.realtime.channel('test')
+        channel = sp.realtime.channel("test")
     except NotImplementedError:
         pass
-    
