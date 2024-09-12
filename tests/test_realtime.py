@@ -1,7 +1,7 @@
 import supabase
 
 
-def test_functions_client_initialization() -> None:
+def test_realtime_client_initialization() -> None:
     ref = "ooqqmozurnggtljmjkii"
     url = f"https://{ref}.supabase.co"
     # Sample JWT Key
@@ -12,3 +12,16 @@ def test_functions_client_initialization() -> None:
     url = "http://localhost:54322"
     sp_local = supabase.Client(url, key)
     assert sp_local.realtime_url == f"ws://localhost:54322/realtime/v1"
+
+
+def test_sync_realtime():
+    ref = "ooqqmozurnggtljmjkii"
+    url = f"https://{ref}.supabase.co"
+    # Sample JWT Key
+    key = "xxxxxxxxxxxxxx.xxxxxxxxxxxxxxx.xxxxxxxxxxxxxxx"
+    sp = supabase.Client(url, key)
+
+    try:
+        channel = sp.realtime.channel("test")
+    except NotImplementedError:
+        pass
