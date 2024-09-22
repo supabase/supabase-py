@@ -51,6 +51,8 @@ class ClientOptions:
     flow_type: AuthFlowType = "implicit"
     """flow type to use for authentication"""
 
+    access_token: Union[str, None] = None
+
     def replace(
         self,
         schema: Optional[str] = None,
@@ -66,6 +68,7 @@ class ClientOptions:
             int, float, Timeout
         ] = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         flow_type: Optional[AuthFlowType] = None,
+        access_token: Union[str, None] = None,
     ) -> "ClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = ClientOptions()
@@ -84,4 +87,5 @@ class ClientOptions:
             storage_client_timeout or self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.access_token = access_token or self.access_token
         return client_options
