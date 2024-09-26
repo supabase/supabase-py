@@ -297,9 +297,6 @@ class SyncClient:
 
         self.options.headers["Authorization"] = self._create_auth_header(access_token)
 
-        # set_auth is a coroutine, how to handle this?
-        self.realtime.set_auth(access_token)
-
 
 def create_client(
     supabase_url: str,
