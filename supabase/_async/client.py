@@ -1,3 +1,4 @@
+import asyncio
 import re
 from typing import Any, Dict, List, Optional, Union
 
@@ -296,9 +297,7 @@ class AsyncClient:
             access_token = session.access_token if session else self.supabase_key
 
         self.options.headers["Authorization"] = self._create_auth_header(access_token)
-
-        # set_auth is a coroutine, how to handle this?
-        self.realtime.set_auth(access_token)
+        asyncio.create_task(self.realtime.set_auth(access_token))
 
 
 async def create_client(

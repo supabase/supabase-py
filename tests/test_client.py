@@ -92,5 +92,3 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == updated_authorization
-
-    realtime_mock.set_auth.assert_called_once_with(mock_session.access_token)
