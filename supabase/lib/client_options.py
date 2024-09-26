@@ -48,7 +48,7 @@ class ClientOptions:
     )
     """Timeout passed to the SyncFunctionsClient instance."""
 
-    flow_type: AuthFlowType = "implicit"
+    flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""
 
     def replace(
