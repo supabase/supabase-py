@@ -1,5 +1,6 @@
 import os
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
+
 from supabase import create_async_client
 
 
