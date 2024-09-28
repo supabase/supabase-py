@@ -28,11 +28,9 @@ from ._sync.client import SyncStorageClient as SupabaseStorageClient
 from ._sync.client import create_client
 
 # Lib
-from .lib.client_options import (
-    SyncClientOptions as ClientOptions,
-    AsyncClientOptions as AClientOptions,
-    AsyncClientOptions,
-)
+from .lib.client_options import AsyncClientOptions
+from .lib.client_options import AsyncClientOptions as AClientOptions
+from .lib.client_options import SyncClientOptions as ClientOptions
 
 # Version
 from .version import __version__
