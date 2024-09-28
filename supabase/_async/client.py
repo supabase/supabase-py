@@ -16,7 +16,7 @@ from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import AsyncFunctionsClient
 
-from ..lib.client_options import ClientOptions
+from ..lib.client_options import AsyncClientOptions as ClientOptions
 from .auth_client import AsyncSupabaseAuthClient
 
 

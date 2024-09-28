@@ -1,7 +1,12 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Union
 
-from gotrue import AuthFlowType, SyncMemoryStorage, SyncSupportedStorage
+from gotrue import (
+    AsyncMemoryStorage,
+    AuthFlowType,
+    SyncMemoryStorage,
+    SyncSupportedStorage,
+)
 from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -69,6 +74,85 @@ class ClientOptions:
     ) -> "ClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = ClientOptions()
+        client_options.schema = schema or self.schema
+        client_options.headers = headers or self.headers
+        client_options.auto_refresh_token = (
+            auto_refresh_token or self.auto_refresh_token
+        )
+        client_options.persist_session = persist_session or self.persist_session
+        client_options.storage = storage or self.storage
+        client_options.realtime = realtime or self.realtime
+        client_options.postgrest_client_timeout = (
+            postgrest_client_timeout or self.postgrest_client_timeout
+        )
+        client_options.storage_client_timeout = (
+            storage_client_timeout or self.storage_client_timeout
+        )
+        client_options.flow_type = flow_type or self.flow_type
+        return client_options
+
+
+@dataclass
+class AsyncClientOptions(ClientOptions):
+    storage: SyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
+    """A storage provider. Used to store the logged in session."""
+
+    def replace(
+        self,
+        schema: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
+        auto_refresh_token: Optional[bool] = None,
+        persist_session: Optional[bool] = None,
+        storage: Optional[SyncSupportedStorage] = None,
+        realtime: Optional[Dict[str, Any]] = None,
+        postgrest_client_timeout: Union[
+            int, float, Timeout
+        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        storage_client_timeout: Union[
+            int, float, Timeout
+        ] = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+        flow_type: Optional[AuthFlowType] = None,
+    ) -> "AsyncClientOptions":
+        """Create a new SupabaseClientOptions with changes"""
+        client_options = AsyncClientOptions()
+        client_options.schema = schema or self.schema
+        client_options.headers = headers or self.headers
+        client_options.auto_refresh_token = (
+            auto_refresh_token or self.auto_refresh_token
+        )
+        client_options.persist_session = persist_session or self.persist_session
+        client_options.storage = storage or self.storage
+        client_options.realtime = realtime or self.realtime
+        client_options.postgrest_client_timeout = (
+            postgrest_client_timeout or self.postgrest_client_timeout
+        )
+        client_options.storage_client_timeout = (
+            storage_client_timeout or self.storage_client_timeout
+        )
+        client_options.flow_type = flow_type or self.flow_type
+        return client_options
+
+
+@dataclass
+class SyncClientOptions(ClientOptions):
+    def replace(
+        self,
+        schema: Optional[str] = None,
+        headers: Optional[Dict[str, str]] = None,
+        auto_refresh_token: Optional[bool] = None,
+        persist_session: Optional[bool] = None,
+        storage: Optional[SyncSupportedStorage] = None,
+        realtime: Optional[Dict[str, Any]] = None,
+        postgrest_client_timeout: Union[
+            int, float, Timeout
+        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        storage_client_timeout: Union[
+            int, float, Timeout
+        ] = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+        flow_type: Optional[AuthFlowType] = None,
+    ) -> "SyncClientOptions":
+        """Create a new SupabaseClientOptions with changes"""
+        client_options = SyncClientOptions()
         client_options.schema = schema or self.schema
         client_options.headers = headers or self.headers
         client_options.auto_refresh_token = (
