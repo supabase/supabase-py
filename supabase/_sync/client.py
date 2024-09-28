@@ -15,7 +15,7 @@ from storage3 import SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import SyncFunctionsClient
 
-from ..lib.client_options import ClientOptions
+from ..lib.client_options import SyncClientOptions as ClientOptions
 from .auth_client import SyncSupabaseAuthClient
 
 

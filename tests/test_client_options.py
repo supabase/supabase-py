@@ -1,6 +1,6 @@
 from gotrue import SyncMemoryStorage
 
-from supabase.lib.client_options import ClientOptions
+from supabase import ClientOptions
 
 
 class TestClientOptions:
