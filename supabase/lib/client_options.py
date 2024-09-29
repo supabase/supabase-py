@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Union
+from typing import Dict, Optional, Union
 
 from gotrue import (
     AsyncMemoryStorage,
@@ -11,6 +11,8 @@ from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc.utils import DEFAULT_FUNCTION_CLIENT_TIMEOUT
+
+from supabase.types import RealtimeClientOptions
 
 from ..version import __version__
 
@@ -37,7 +39,7 @@ class ClientOptions:
     storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
 
-    realtime: Optional[Dict[str, Any]] = None
+    realtime: Optional[RealtimeClientOptions] = None
     """Options passed to the realtime-py instance"""
 
     postgrest_client_timeout: Union[int, float, Timeout] = (
@@ -63,7 +65,7 @@ class ClientOptions:
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
-        realtime: Optional[Dict[str, Any]] = None,
+        realtime: Optional[RealtimeClientOptions] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -104,7 +106,7 @@ class AsyncClientOptions(ClientOptions):
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
-        realtime: Optional[Dict[str, Any]] = None,
+        realtime: Optional[RealtimeClientOptions] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -142,7 +144,7 @@ class SyncClientOptions(ClientOptions):
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
-        realtime: Optional[Dict[str, Any]] = None,
+        realtime: Optional[RealtimeClientOptions] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,

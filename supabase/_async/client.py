@@ -218,12 +218,12 @@ class AsyncClient:
 
     @staticmethod
     def _init_realtime_client(
-        realtime_url: str, supabase_key: str, options: Optional[Dict[str, Any]]
+        realtime_url: str, supabase_key: str, options: Optional[Dict[str, Any]] = None
     ) -> AsyncRealtimeClient:
+        if options is None:
+            options = {}
         """Private method for creating an instance of the realtime-py client."""
-        return AsyncRealtimeClient(
-            realtime_url, token=supabase_key, params=options or {}
-        )
+        return AsyncRealtimeClient(realtime_url, token=supabase_key, **options)
 
     @staticmethod
     def _init_storage_client(
