@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [2.8.0](https://github.com/supabase/supabase-py/compare/v2.7.4...v2.8.0) (2024-09-29)
+
+
+### Features
+
+* **auth:** bump gotrue from 2.7.0 to 2.8.0 ([#916](https://github.com/supabase/supabase-py/issues/916)) ([ae97452](https://github.com/supabase/supabase-py/commit/ae9745247b271b3d2e9ef5ab28da04a68ffdc9bc))
+* **auth:** bump gotrue from 2.8.1 to 2.9.0 ([#940](https://github.com/supabase/supabase-py/issues/940)) ([9c6c433](https://github.com/supabase/supabase-py/commit/9c6c4333c3a102e0436fbd99dcaf2b38899a1d2d))
+* **deps:** bump postgrest from 0.16.11 to 0.17.0 ([#939](https://github.com/supabase/supabase-py/issues/939)) ([17bcf6d](https://github.com/supabase/supabase-py/commit/17bcf6ddcc123924fd24a7ba424ef6c9ee3adde4))
+* **functions:** bump supafunc from 0.5.1 to 0.6.0 ([#942](https://github.com/supabase/supabase-py/issues/942)) ([c1513a9](https://github.com/supabase/supabase-py/commit/c1513a972a82bf6ffeb1e5fce9458157e7c68b18))
+* set default flow_type to pkce ([#931](https://github.com/supabase/supabase-py/issues/931)) ([acbaae5](https://github.com/supabase/supabase-py/commit/acbaae5393d689535ace3d9e43b65392b9f94be6))
+* **storage:** bump storage3 from 0.7.7 to 0.8.0 ([#941](https://github.com/supabase/supabase-py/issues/941)) ([4060f47](https://github.com/supabase/supabase-py/commit/4060f4722b50341d870971fc37fb6c053d43f15b))
+
+
+### Bug Fixes
+
+* async client options default values ([#937](https://github.com/supabase/supabase-py/issues/937)) ([1e02178](https://github.com/supabase/supabase-py/commit/1e02178d3a62225d8230c36ca134cc01e02c9daa))
+* async set_auth for realtime in auth event listener ([#930](https://github.com/supabase/supabase-py/issues/930)) ([5e34512](https://github.com/supabase/supabase-py/commit/5e34512448bf037d1d002ebe162e415e707054b5))
+* **deps:** bump gotrue from 2.8.0 to 2.8.1 ([#923](https://github.com/supabase/supabase-py/issues/923)) ([eb7b466](https://github.com/supabase/supabase-py/commit/eb7b466838ba31bbe28af11144aff80cc94873fc))
+* **deps:** bump realtime from 2.0.2 to 2.0.5 ([#936](https://github.com/supabase/supabase-py/issues/936)) ([e1e0fb2](https://github.com/supabase/supabase-py/commit/e1e0fb25a62e7ca1819d327cdae00760d5cf64e2))
+* **realtime:** enable auto_reconnect option from supabase client ([#938](https://github.com/supabase/supabase-py/issues/938)) ([3eb18e3](https://github.com/supabase/supabase-py/commit/3eb18e3b31ad88fe89be01343212f57b7149b4fd))
+* update exports from init file ([#928](https://github.com/supabase/supabase-py/issues/928)) ([7a6199e](https://github.com/supabase/supabase-py/commit/7a6199e1c532fc46662d0b33b166b6db3456fec5))
+
 ## [2.7.4](https://github.com/supabase/supabase-py/compare/v2.7.3...v2.7.4) (2024-08-29)
 
 
