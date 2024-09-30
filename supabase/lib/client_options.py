@@ -3,6 +3,7 @@ from typing import Dict, Optional, Union
 
 from gotrue import (
     AsyncMemoryStorage,
+    AsyncSupportedStorage,
     AuthFlowType,
     SyncMemoryStorage,
     SyncSupportedStorage,
@@ -96,7 +97,7 @@ class ClientOptions:
 
 @dataclass
 class AsyncClientOptions(ClientOptions):
-    storage: SyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
+    storage: AsyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
 
     def replace(
@@ -105,7 +106,7 @@ class AsyncClientOptions(ClientOptions):
         headers: Optional[Dict[str, str]] = None,
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
-        storage: Optional[SyncSupportedStorage] = None,
+        storage: Optional[AsyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
