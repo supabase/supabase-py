@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [2.8.1](https://github.com/supabase/supabase-py/compare/v2.8.0...v2.8.1) (2024-09-30)
+
+
+### Bug Fixes
+
+* **auth:** bump gotrue from 2.9.0 to 2.9.1 ([#948](https://github.com/supabase/supabase-py/issues/948)) ([90db548](https://github.com/supabase/supabase-py/commit/90db5480eec3fe403cfd3b161c6a37f121ef6706))
+* **deps:** change version constraints on managed dependencies ([#945](https://github.com/supabase/supabase-py/issues/945)) ([d4f9307](https://github.com/supabase/supabase-py/commit/d4f9307dd2f244dad3cbcafce549e0bf3f963571))
+* storage type for async client options ([#944](https://github.com/supabase/supabase-py/issues/944)) ([28a9c9f](https://github.com/supabase/supabase-py/commit/28a9c9f063ad3d70dd58dd588eecbac6e9621fc1))
+
 ## [2.8.0](https://github.com/supabase/supabase-py/compare/v2.7.4...v2.8.0) (2024-09-29)
 
 
