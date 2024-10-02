@@ -24,6 +24,7 @@ class SyncSupabaseAuthClient(SyncGoTrueClient):
         http_client: Optional[SyncClient] = None,
         flow_type: AuthFlowType = "implicit",
         verify: bool = True,
+        proxy: Optional[str] = None,
     ):
         """Instantiate SupabaseAuthClient instance."""
         if headers is None:
@@ -40,4 +41,5 @@ class SyncSupabaseAuthClient(SyncGoTrueClient):
             http_client=http_client,
             flow_type=flow_type,
             verify=verify,
+            proxy=proxy,
         )

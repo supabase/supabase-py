@@ -230,14 +230,18 @@ class SyncClient:
         headers: Dict[str, str],
         storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         verify: bool = True,
+        proxy: Optional[str] = None,
     ) -> SyncStorageClient:
-        return SyncStorageClient(storage_url, headers, storage_client_timeout, verify)
+        return SyncStorageClient(
+            storage_url, headers, storage_client_timeout, verify, proxy
+        )
 
     @staticmethod
     def _init_supabase_auth_client(
         auth_url: str,
         client_options: ClientOptions,
         verify: bool = True,
+        proxy: Optional[str] = None,
     ) -> SyncSupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
         return SyncSupabaseAuthClient(
@@ -248,6 +252,7 @@ class SyncClient:
             headers=client_options.headers,
             flow_type=client_options.flow_type,
             verify=verify,
+            proxy=proxy,
         )
 
     @staticmethod
@@ -257,6 +262,7 @@ class SyncClient:
         schema: str,
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         verify: bool = True,
+        proxy: Optional[str] = None,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         return SyncPostgrestClient(
@@ -265,6 +271,7 @@ class SyncClient:
             schema=schema,
             timeout=timeout,
             verify=verify,
+            proxy=proxy,
         )
 
     def _create_auth_header(self, token: str):
