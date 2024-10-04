@@ -1149,18 +1149,18 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "postgrest"
-version = "0.17.0"
+version = "0.17.1"
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "postgrest-0.17.0-py3-none-any.whl", hash = "sha256:df2530e903955ffddbd21d92a99abc8d09d6efb357ce33438fca68d4b46b5d95"},
-    {file = "postgrest-0.17.0.tar.gz", hash = "sha256:5ee05d8d6796b9d716585d2ad589db57ef832af6c2592a3e39dcef8993929cff"},
+    {file = "postgrest-0.17.1-py3-none-any.whl", hash = "sha256:ec1d00dc8532fe5ffb342cfc7c4e610a1e0e2272eb14f78f9b2b61094f9be510"},
+    {file = "postgrest-0.17.1.tar.gz", hash = "sha256:e31d9977dbb80dc5f9fdd4d444014686606692dc4ddb9adc85639e56c6d54c92"},
 ]
 
 [package.dependencies]
 deprecation = ">=2.1.0,<3.0.0"
-httpx = {version = ">=0.24,<0.28", extras = ["http2"]}
+httpx = {version = ">=0.26,<0.28", extras = ["http2"]}
 pydantic = ">=1.9,<3.0"
 strenum = ">=0.4.9,<0.5.0"
 
