@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [2.9.0](https://github.com/supabase/supabase-py/compare/v2.8.1...v2.9.0) (2024-10-04)
+
+
+### Features
+
+* Proxy support ([#950](https://github.com/supabase/supabase-py/issues/950)) ([2a89a7c](https://github.com/supabase/supabase-py/commit/2a89a7c7f6daface72741ed336e6ececb13c7b1e))
+
+
+### Bug Fixes
+
+* **functions:** bump supafunc from 0.6.0 to 0.6.1 ([#954](https://github.com/supabase/supabase-py/issues/954)) ([1834069](https://github.com/supabase/supabase-py/commit/18340690c58c217875511a11f40fc5e85001748b))
+* **postgrest:** bump postgrest from 0.17.0 to 0.17.1 ([#952](https://github.com/supabase/supabase-py/issues/952)) ([ec19cd4](https://github.com/supabase/supabase-py/commit/ec19cd4da0895a561ccc73f9f12228f70ced71b4))
+* **storage:** bump storage3 from 0.8.0 to 0.8.1 ([#953](https://github.com/supabase/supabase-py/issues/953)) ([b739b97](https://github.com/supabase/supabase-py/commit/b739b979014527a24a4efdf60e986821dde1c10a))
+
 ## [2.8.1](https://github.com/supabase/supabase-py/compare/v2.8.0...v2.8.1) (2024-09-30)
 
 
