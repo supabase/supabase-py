@@ -25,7 +25,7 @@ supafunc = "^0.6.0"
 typing-extensions = "^4.12.2"
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^3.8.0"
+pre-commit = "^4.0.0"
 black = "^24.8"
 pytest = "^8.3.3"
 flake8 = "^7.1.1"
