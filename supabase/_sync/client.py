@@ -33,7 +33,7 @@ class SyncClient:
         self,
         supabase_url: str,
         supabase_key: str,
-        options: Union[ClientOptions, None] = None,
+        options: Optional[ClientOptions] = None,
     ):
         """Instantiate the client.
 
@@ -96,7 +96,7 @@ class SyncClient:
         cls,
         supabase_url: str,
         supabase_key: str,
-        options: Union[ClientOptions, None] = None,
+        options: Optional[ClientOptions] = None,
     ):
         auth_header = options.headers.get("Authorization") if options else None
         client = cls(supabase_url, supabase_key, options)
@@ -278,7 +278,7 @@ class SyncClient:
         return f"Bearer {token}"
 
     def _get_auth_headers(
-        self, authorization: Union[str, None] = None
+        self, authorization: Optional[str] = None
     ) -> Dict[str, str]:
         if authorization is None:
             authorization = self.options.headers.get(
@@ -292,7 +292,7 @@ class SyncClient:
         }
 
     def _listen_to_auth_events(
-        self, event: AuthChangeEvent, session: Union[Session, None]
+        self, event: AuthChangeEvent, session: Optional[Session]
     ):
         access_token = self.supabase_key
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
@@ -308,7 +308,7 @@ class SyncClient:
 def create_client(
     supabase_url: str,
     supabase_key: str,
-    options: Union[ClientOptions, None] = None,
+    options: Optional[ClientOptions] = None,
 ) -> SyncClient:
     """Create client function to instantiate supabase client like JS runtime.
 
