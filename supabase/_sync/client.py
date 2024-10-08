@@ -277,9 +277,7 @@ class SyncClient:
     def _create_auth_header(self, token: str):
         return f"Bearer {token}"
 
-    def _get_auth_headers(
-        self, authorization: Optional[str] = None
-    ) -> Dict[str, str]:
+    def _get_auth_headers(self, authorization: Optional[str] = None) -> Dict[str, str]:
         if authorization is None:
             authorization = self.options.headers.get(
                 "Authorization", self._create_auth_header(self.supabase_key)
