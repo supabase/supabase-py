@@ -18,7 +18,7 @@ classifiers = [
 python = "^3.9"
 postgrest = "^0.17.0"
 realtime = "^2.0.0"
-gotrue = "^2.7.0"
+gotrue = "^2.9.0"
 httpx = ">=0.26,<0.28"
 storage3 = "^0.8.0"
 supafunc = "^0.6.0"
