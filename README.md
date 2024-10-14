@@ -36,7 +36,7 @@ conda activate supabase-py
 
 ### PyPi installation
 
-Install the package (for Python > 3.7):
+Install the package (for Python >= 3.9):
 
 ```bash
 # with pip
