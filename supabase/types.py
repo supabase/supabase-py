@@ -1,8 +1,8 @@
-from typing_extensions import NotRequired, TypedDict
+from typing import TypedDict
 
 
 class RealtimeClientOptions(TypedDict, total=False):
-    auto_reconnect: NotRequired[bool]
-    hb_interval: NotRequired[int]
-    max_retries: NotRequired[int]
-    initial_backoff: NotRequired[float]
+    auto_reconnect: bool
+    hb_interval: int
+    max_retries: int
+    initial_backoff: float

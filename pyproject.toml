@@ -22,7 +22,6 @@ gotrue = "^2.9.0"
 httpx = ">=0.26,<0.28"
 storage3 = "^0.8.0"
 supafunc = "^0.6.0"
-typing-extensions = "^4.12.2"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^3.8.0"
