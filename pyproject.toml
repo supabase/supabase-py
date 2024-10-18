@@ -24,7 +24,7 @@ storage3 = "^0.8.0"
 supafunc = "^0.6.0"
 
 [tool.poetry.dev-dependencies]
-pre-commit = "^3.8.0"
+pre-commit = "^4.0.1"
 black = "^24.10"
 pytest = "^8.3.3"
 flake8 = "^7.1.1"
