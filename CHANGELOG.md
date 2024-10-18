@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [2.9.1](https://github.com/supabase/supabase-py/compare/v2.9.0...v2.9.1) (2024-10-18)
+
+
+### Bug Fixes
+
+* **auth:** bump gotrue from 2.9.1 to 2.9.2 ([#957](https://github.com/supabase/supabase-py/issues/957)) ([e9feb48](https://github.com/supabase/supabase-py/commit/e9feb487f017c1d1aa0bbd0583c25016be9ad470))
+* **auth:** raise the minimum version of gotrue to 2.9.0 ([#963](https://github.com/supabase/supabase-py/issues/963)) ([fce8839](https://github.com/supabase/supabase-py/commit/fce8839d73208507b61af2b083fed4bf4602f71b))
+* **deps:** bump gotrue from 2.9.2 to 2.9.3 ([#969](https://github.com/supabase/supabase-py/issues/969)) ([5bb8e36](https://github.com/supabase/supabase-py/commit/5bb8e36021ca5dd48e2bfce3463e429e0b770e0c))
+* **deps:** bump postgrest from 0.17.1 to 0.17.2 ([#972](https://github.com/supabase/supabase-py/issues/972)) ([fcea7f4](https://github.com/supabase/supabase-py/commit/fcea7f4f9ba067adca340b4f6acfbd09167952e2))
+* **deps:** bump realtime from 2.0.5 to 2.0.6 ([#968](https://github.com/supabase/supabase-py/issues/968)) ([aba0ced](https://github.com/supabase/supabase-py/commit/aba0cedd0ec02626819dfe0b6ff4b74d93cc1186))
+* **deps:** bump storage3 from 0.8.1 to 0.8.2 ([#970](https://github.com/supabase/supabase-py/issues/970)) ([05abdaa](https://github.com/supabase/supabase-py/commit/05abdaae0b9ee877ef2db34cd41fc818eb9a7574))
+* **deps:** bump supafunc from 0.6.1 to 0.6.2 ([#971](https://github.com/supabase/supabase-py/issues/971)) ([de1d105](https://github.com/supabase/supabase-py/commit/de1d105444620f6fa905965cb79220b56ad0d06a))
+* remove typing-extensions ([#965](https://github.com/supabase/supabase-py/issues/965)) ([c2eed40](https://github.com/supabase/supabase-py/commit/c2eed40a9e51001d51197272e7f04d732c48a0cb))
+* schema access optimization ([#966](https://github.com/supabase/supabase-py/issues/966)) ([8f1300e](https://github.com/supabase/supabase-py/commit/8f1300eed555903733b62fb7ed2959328fba03fe))
+* Types to use Option[T] ([#960](https://github.com/supabase/supabase-py/issues/960)) ([c36d80f](https://github.com/supabase/supabase-py/commit/c36d80f4776d5ad53e90344670f643fb07d685bc))
+
 ## [2.9.0](https://github.com/supabase/supabase-py/compare/v2.8.1...v2.9.0) (2024-10-04)
 
 
