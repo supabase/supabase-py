@@ -129,13 +129,11 @@ class AsyncClient:
 
         The schema needs to be on the list of exposed schemas inside Supabase.
         """
-        self._postgrest = self._init_postgrest_client(
-            rest_url=self.rest_url,
-            headers=self.options.headers,
-            schema=schema,
-            timeout=self.options.postgrest_client_timeout,
-        )
-        return self._postgrest
+        if self.options.schema != schema:
+            self.options.schema = schema
+            if self._postgrest:
+                self._postgrest.schema(schema)
+        return self.postgrest
 
     def from_(self, table_name: str) -> AsyncRequestBuilder:
         """Perform a table operation.
