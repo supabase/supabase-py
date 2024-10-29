@@ -15,6 +15,8 @@ from storage3 import SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import SyncFunctionsClient
 
+from supabase.lib.helpers import is_jwt
+
 from ..lib.client_options import SyncClientOptions as ClientOptions
 from .auth_client import SyncSupabaseAuthClient
 
@@ -277,9 +279,10 @@ class SyncClient:
 
     def _get_auth_headers(self, authorization: Optional[str] = None) -> Dict[str, str]:
         if authorization is None:
-            authorization = self.options.headers.get(
-                "Authorization", self._create_auth_header(self.supabase_key)
-            )
+            if is_jwt(self.supabase_key):
+                authorization = self.options.headers.get(
+                    "Authorization", self._create_auth_header(self.supabase_key)
+                )
 
         """Helper method to get auth headers."""
         return {
@@ -290,13 +293,14 @@ class SyncClient:
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Optional[Session]
     ):
-        access_token = self.supabase_key
+        default_access_token = self.supabase_key if is_jwt(self.supabase_key) else None
+        access_token = default_access_token
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             # reset postgrest and storage instance on event change
             self._postgrest = None
             self._storage = None
             self._functions = None
-            access_token = session.access_token if session else self.supabase_key
+            access_token = session.access_token if session else default_access_token
 
         self.options.headers["Authorization"] = self._create_auth_header(access_token)
 
