@@ -1170,13 +1170,13 @@ testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "postgrest"
-version = "0.17.2"
+version = "0.18.0"
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "postgrest-0.17.2-py3-none-any.whl", hash = "sha256:f7c4f448e5a5e2d4c1dcf192edae9d1007c4261e9a6fb5116783a0046846ece2"},
-    {file = "postgrest-0.17.2.tar.gz", hash = "sha256:445cd4e4a191e279492549df0c4e827d32f9d01d0852599bb8a6efb0f07fcf78"},
+    {file = "postgrest-0.18.0-py3-none-any.whl", hash = "sha256:200baad0d23fee986b3a0ffd3e07bfe0cdd40e09760f11e8e13a6c0c2376d5fa"},
+    {file = "postgrest-0.18.0.tar.gz", hash = "sha256:29c1a94801a17eb9ad590189993fe5a7a6d8c1bfc11a3c9d0ce7ba146454ebb3"},
 ]
 
 [package.dependencies]
@@ -2089,4 +2089,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "6d2918352e8450d8bac1b2fcbdaff5995e7aa242bc1eceb489b143be707583fa"
+content-hash = "fcd73c9adb0531cee6718e2a523662076bd8ccad4b9b73e4c27590d0a7844a00"
