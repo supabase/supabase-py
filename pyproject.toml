@@ -29,7 +29,7 @@ black = "^24.10"
 pytest = "^8.3.3"
 flake8 = "^7.1.1"
 isort = "^5.10.1"
-pytest-cov = "^5.0.0"
+pytest-cov = "^6.0.0"
 commitizen = "^3.30.0"
 python-dotenv = "^1.0.1"
 
