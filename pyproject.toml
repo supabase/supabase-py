@@ -20,7 +20,7 @@ postgrest = "^0.18"
 realtime = "^2.0.0"
 gotrue = "^2.10.0"
 httpx = ">=0.26,<0.28"
-storage3 = "^0.9.0"
+storage3 = ">=0.9,<0.11"
 supafunc = "^0.7.0"
 
 [tool.poetry.dev-dependencies]
