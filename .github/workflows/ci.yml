@@ -32,7 +32,7 @@ jobs:
       - name: Set up Poetry
         uses: abatilo/actions-poetry@v3
         with:
-          poetry-version: 1.3.2
+          poetry-version: 1.8.4
 
       - name: Run Tests
         run: poetry run tests
@@ -79,7 +79,7 @@ jobs:
       - name: Set up Poetry
         uses: abatilo/actions-poetry@v3
         with:
-          poetry-version: 1.8.3
+          poetry-version: 1.8.4
 
       - name: Install dependencies
         run: poetry install
