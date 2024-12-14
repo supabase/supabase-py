@@ -300,6 +300,11 @@ class SyncClient:
 
         self.options.headers["Authorization"] = self._create_auth_header(access_token)
 
+    def sign_out(self) -> None:
+        """Signs out the current user by revoking the session token."""
+        self.auth.sign_out()
+        self._listen_to_auth_events("SIGNED_OUT", None)
+
 
 def create_client(
     supabase_url: str,
