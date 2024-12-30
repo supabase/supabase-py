@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [2.11.0](https://github.com/supabase/supabase-py/compare/v2.10.0...v2.11.0) (2024-12-30)
+
+
+### Features
+
+* **auth:** bump gotrue from 2.10.0 to 2.11.0 ([#1005](https://github.com/supabase/supabase-py/issues/1005)) ([721de30](https://github.com/supabase/supabase-py/commit/721de30e5b4b582de9c371f28ebc4d27b57b4780))
+* **auth:** bump gotrue from 2.11.0 to 2.11.1 ([#1021](https://github.com/supabase/supabase-py/issues/1021)) ([17e8a66](https://github.com/supabase/supabase-py/commit/17e8a662de051e5805530544860e526074b55c0e))
+* **functions:** bump supafunc from 0.7.0 to 0.8.0 ([#1006](https://github.com/supabase/supabase-py/issues/1006)) ([bfc4a5c](https://github.com/supabase/supabase-py/commit/bfc4a5c1e36d3db57d71cf04bcb37faf199f687e))
+* **functions:** bump supafunc from 0.8.0 to 0.9.0 ([#1008](https://github.com/supabase/supabase-py/issues/1008)) ([19ab5df](https://github.com/supabase/supabase-py/commit/19ab5df525d87b59650a15eb97c9c7ac6346be91))
+* **postgrest:** bump postgrest from 0.18.0 to 0.19.0 ([#1004](https://github.com/supabase/supabase-py/issues/1004)) ([d7861b0](https://github.com/supabase/supabase-py/commit/d7861b0c4daf2a225abc14207b166d1121d29a62))
+* **postgrest:** bump postgrest from 0.19.0 to 0.19.1 ([#1022](https://github.com/supabase/supabase-py/issues/1022)) ([9a8b72f](https://github.com/supabase/supabase-py/commit/9a8b72fe3d08a4ad522c518b14485f5686d82ffa))
+* **realtime:** bump realtime from 2.0.6 to 2.1.0 ([#1019](https://github.com/supabase/supabase-py/issues/1019)) ([f251d52](https://github.com/supabase/supabase-py/commit/f251d520af57a89e21850658c786eb669a4762a8))
+* **storage:** bump storage3 from 0.10.0 to 0.11.0 ([#1020](https://github.com/supabase/supabase-py/issues/1020)) ([fb7a7e1](https://github.com/supabase/supabase-py/commit/fb7a7e12577d9718071edfe05077208cbeab5b7c))
+* **storage:** bump storage3 from 0.9.0 to 0.10.0 ([#1003](https://github.com/supabase/supabase-py/issues/1003)) ([718edc3](https://github.com/supabase/supabase-py/commit/718edc3892600ca3126f35503599cf0815f9c6c5))
+
+
+### Bug Fixes
+
+* remove project reference ([#999](https://github.com/supabase/supabase-py/issues/999)) ([e126d04](https://github.com/supabase/supabase-py/commit/e126d04d26f89c274511d151284eb12fa213cdd1))
+
 ## [2.10.0](https://github.com/supabase/supabase-py/compare/v2.9.1...v2.10.0) (2024-11-04)
 
 
