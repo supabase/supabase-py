@@ -37,8 +37,11 @@ jobs:
       - name: Run Tests
         run: poetry run tests
 
-      - name: Upload Coverage
-        uses: codecov/codecov-action@v5
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
   release-please:
     needs: test
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
