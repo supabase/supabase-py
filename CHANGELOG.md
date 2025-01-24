@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [2.12.0](https://github.com/supabase/supabase-py/compare/v2.11.0...v2.12.0) (2025-01-24)
+
+
+### Features
+
+* **realtime:** bump realtime from 2.1.0 to 2.2.0 ([#1037](https://github.com/supabase/supabase-py/issues/1037)) ([0e5eed6](https://github.com/supabase/supabase-py/commit/0e5eed6f47096e21f8f1e0b94bcae121e21afdc0))
+
+
+### Bug Fixes
+
+* **auth:** bump gotrue from 2.11.1 to 2.11.2 ([#1036](https://github.com/supabase/supabase-py/issues/1036)) ([f7c87b9](https://github.com/supabase/supabase-py/commit/f7c87b90108d3d448718ea1f8c92de2492735253))
+* **functions:** bump supafunc from 0.9.0 to 0.9.2 ([#1029](https://github.com/supabase/supabase-py/issues/1029)) ([f53f7ff](https://github.com/supabase/supabase-py/commit/f53f7ff58cb75b7b9aa5172eb6319b01f1f40407))
+* **postgrest:** bump postgrest from 0.19.1 to 0.19.3 ([#1040](https://github.com/supabase/supabase-py/issues/1040)) ([c117a57](https://github.com/supabase/supabase-py/commit/c117a57a3f06d31499c194fa17cd48e87a5ea234))
+* **storage:** bump storage3 from 0.11.0 to 0.11.1 ([#1035](https://github.com/supabase/supabase-py/issues/1035)) ([17942a2](https://github.com/supabase/supabase-py/commit/17942a2a6a6537d0ed36c06ffd62d224f094b39a))
+
 ## [2.11.0](https://github.com/supabase/supabase-py/compare/v2.10.0...v2.11.0) (2024-12-30)
 
 
