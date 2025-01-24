@@ -1684,13 +1684,13 @@ files = [
 
 [[package]]
 name = "storage3"
-version = "0.11.0"
+version = "0.11.1"
 description = "Supabase Storage client for Python."
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "storage3-0.11.0-py3-none-any.whl", hash = "sha256:de2d8f9c9103ca91a9a9d0d69d80b07a3ab6f647b93e023e6a1a97d3607b9728"},
-    {file = "storage3-0.11.0.tar.gz", hash = "sha256:243583f2180686c0f0a19e6117d8a9796fd60c0ca72ec567d62b75a5af0d57a1"},
+    {file = "storage3-0.11.1-py3-none-any.whl", hash = "sha256:a8dcfd1472ff1238c0f4a6a725d7a579f132762539c5395dc1e91806b4e20e45"},
+    {file = "storage3-0.11.1.tar.gz", hash = "sha256:b3bca07108f7077d406d49ef0ddd6805fe22f94fafc186c56bf3a1e2761291f3"},
 ]
 
 [package.dependencies]
