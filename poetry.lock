@@ -1629,20 +1629,20 @@ prompt_toolkit = ">=2.0,<=3.0.36"
 
 [[package]]
 name = "realtime"
-version = "2.2.0"
+version = "2.3.0"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "realtime-2.2.0-py3-none-any.whl", hash = "sha256:26dbaa58d143345318344bd7a7d4dc67154d6e0e9c98524327053a78bb3cc6b6"},
-    {file = "realtime-2.2.0.tar.gz", hash = "sha256:f87a51b6b8dd8c72c30af6c841e0161132dcb32bf8b96178f3fe3866d575ef33"},
+    {file = "realtime-2.3.0-py3-none-any.whl", hash = "sha256:6c241681d0517a3bc5e0132842bffd8b592286131b01a68b41cf7e0be94828fc"},
+    {file = "realtime-2.3.0.tar.gz", hash = "sha256:4071b095d7f750fcd68ec322e05045fce067b5cd5309a7ca809fcc87e50f56a1"},
 ]
 
 [package.dependencies]
 aiohttp = ">=3.11.11,<4.0.0"
 python-dateutil = ">=2.8.1,<3.0.0"
 typing-extensions = ">=4.12.2,<5.0.0"
-websockets = ">=11,<14"
+websockets = ">=11,<15"
 
 [[package]]
 name = "setuptools"
