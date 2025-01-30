@@ -18,3 +18,5 @@ tests_only:
 build_sync:
 	poetry run unasync supabase tests
 	sed -i 's/asyncio.create_task(self.realtime.set_auth(access_token))//g' supabase/_sync/client.py
+	sed -i 's/asynch/synch/g' supabase/_sync/auth_client.py
+	sed -i 's/Async/Sync/g' supabase/_sync/auth_client.py
