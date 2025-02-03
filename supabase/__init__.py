@@ -24,6 +24,7 @@ from ._async.client import create_client as create_async_client
 
 # Sync Client
 from ._sync.auth_client import SyncSupabaseAuthClient as SupabaseAuthClient
+from ._sync.client import SupabaseException
 from ._sync.client import SyncClient as Client
 from ._sync.client import SyncStorageClient as SupabaseStorageClient
 from ._sync.client import create_client
@@ -67,4 +68,5 @@ __all__ = [
     "FunctionsError",
     "AuthorizationError",
     "NotConnectedError",
+    "SupabaseException",
 ]
