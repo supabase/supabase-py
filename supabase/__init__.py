@@ -8,6 +8,7 @@ from gotrue.errors import (
     AuthUnknownError,
     AuthWeakPasswordError,
 )
+
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from realtime import AuthorizationError, NotConnectedError
@@ -38,7 +39,8 @@ from .lib.client_options import SyncClientOptions as ClientOptions
 # Version
 from .version import __version__
 
-__all__ = [
+
+__all__ = (
     "acreate_client",
     "create_async_client",
     "AClient",
@@ -71,4 +73,4 @@ __all__ = [
     "NotConnectedError",
     "SupabaseException",
     "ASupabaseException",
-]
+)
