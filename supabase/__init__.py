@@ -8,7 +8,6 @@ from gotrue.errors import (
     AuthUnknownError,
     AuthWeakPasswordError,
 )
-
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from realtime import AuthorizationError, NotConnectedError
@@ -20,9 +19,9 @@ from ._async.auth_client import AsyncSupabaseAuthClient as ASupabaseAuthClient
 from ._async.client import AsyncClient
 from ._async.client import AsyncClient as AClient
 from ._async.client import AsyncStorageClient as ASupabaseStorageClient
+from ._async.client import SupabaseException as ASupabaseException
 from ._async.client import create_client as acreate_client
 from ._async.client import create_client as create_async_client
-from ._async.client import SupabaseException as ASupabaseException
 
 # Sync Client
 from ._sync.auth_client import SyncSupabaseAuthClient as SupabaseAuthClient
@@ -38,7 +37,6 @@ from .lib.client_options import SyncClientOptions as ClientOptions
 
 # Version
 from .version import __version__
-
 
 __all__ = (
     "acreate_client",
