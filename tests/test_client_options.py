@@ -1,6 +1,6 @@
 from gotrue import SyncMemoryStorage
 
-from supabase import AClientOptions, ClientOptions
+from supabase import ClientOptions, AClientOptions
 
 
 class TestClientOptions:
@@ -42,6 +42,7 @@ class TestClientOptions:
         )
 
         actual = options.replace(schema="new schema")
+        assert actual
         expected = ClientOptions(
             schema="new schema",
             headers={"key": "value"},
