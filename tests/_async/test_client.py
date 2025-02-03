@@ -1,10 +1,8 @@
 import os
-
 from unittest.mock import AsyncMock, MagicMock
-from typing import Any
-from supabase import create_async_client, AClient, ASupabaseException
 
-import pytest
+
+from supabase import AClient, ASupabaseException, create_async_client
 
 
 async def test_incorrect_values_dont_instantiate_client() -> None:
@@ -27,7 +25,7 @@ async def test_postgrest_client() -> None:
     key = os.environ.get("SUPABASE_TEST_KEY")
 
     client = await create_async_client(url, key)
-    assert client.table('sample')
+    assert client.table("sample")
 
 
 async def test_rpc_client() -> None:
@@ -35,7 +33,7 @@ async def test_rpc_client() -> None:
     key = os.environ.get("SUPABASE_TEST_KEY")
 
     client = await create_async_client(url, key)
-    assert client.rpc('test_fn')
+    assert client.rpc("test_fn")
 
 
 async def test_function_initialization() -> None:
@@ -52,7 +50,7 @@ async def test_schema_update() -> None:
 
     client = await create_async_client(url, key)
     assert client.postgrest
-    assert client.schema('new_schema')
+    assert client.schema("new_schema")
 
 
 async def test_updates_the_authorization_header_on_auth_events() -> None:
