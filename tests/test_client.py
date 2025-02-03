@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from supabase import Client, ClientOptions, create_client, SupabaseException
+from supabase import Client, ClientOptions, SupabaseException, create_client
 
 
 @pytest.mark.xfail(
@@ -36,7 +36,7 @@ def test_postgrest_schema() -> None:
 
     client = create_client(url, key)
     assert client.postgrest
-    assert client.postgrest.schema('new_schema')
+    assert client.postgrest.schema("new_schema")
 
 
 def test_rpc_client() -> None:
@@ -44,7 +44,7 @@ def test_rpc_client() -> None:
     key = os.environ.get("SUPABASE_TEST_KEY")
 
     client = create_client(url, key)
-    assert client.rpc('test_fn')
+    assert client.rpc("test_fn")
 
 
 def test_uses_key_as_authorization_header_by_default() -> None:
