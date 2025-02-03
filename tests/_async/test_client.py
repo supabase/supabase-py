@@ -1,7 +1,6 @@
 import os
 from unittest.mock import AsyncMock, MagicMock
 
-
 from supabase import AClient, ASupabaseException, create_async_client
 
 
