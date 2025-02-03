@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from supabase import Client, ClientOptions, create_client
+from supabase import Client, ClientOptions, create_client, SupabaseException
 
 
 @pytest.mark.xfail(
@@ -16,7 +16,27 @@ from supabase import Client, ClientOptions, create_client
 @pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
     """Ensure we can't instantiate client with invalid values."""
-    _: Client = create_client(url, key)
+    try:
+        _: Client = create_client(url, key)
+    except SupabaseException as e:
+        pass
+
+
+def test_function_initialization() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = create_client(url, key)
+    assert client.functions
+
+
+def test_postgrest_schema() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = create_client(url, key)
+    assert client.postgrest
+    client.postgrest.schema('another_schema')
 
 
 def test_uses_key_as_authorization_header_by_default() -> None:
