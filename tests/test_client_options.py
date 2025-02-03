@@ -1,9 +1,34 @@
 from gotrue import SyncMemoryStorage
 
-from supabase import ClientOptions
+from supabase import ClientOptions, AClientOptions
 
 
 class TestClientOptions:
+
+    def test_replace_returns_updated_aclient_options(self):
+        storage = SyncMemoryStorage()
+        storage.set_item("key", "value")
+        options = AClientOptions(
+            schema="schema",
+            headers={"key": "value"},
+            auto_refresh_token=False,
+            persist_session=False,
+            storage=storage,
+            realtime={"key": "value"},
+        )
+
+        actual = options.replace(schema="new schema")
+        expected = AClientOptions(
+            schema="new schema",
+            headers={"key": "value"},
+            auto_refresh_token=False,
+            persist_session=False,
+            storage=storage,
+            realtime={"key": "value"},
+        )
+
+        assert actual == expected
+
     def test_replace_returns_updated_options(self):
         storage = SyncMemoryStorage()
         storage.set_item("key", "value")
