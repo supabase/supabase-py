@@ -1,6 +1,6 @@
 from gotrue import SyncMemoryStorage
 
-from supabase import ClientOptions, AClientOptions
+from supabase import AClientOptions, ClientOptions
 
 
 class TestClientOptions:
