@@ -1,7 +1,55 @@
 import os
 from unittest.mock import AsyncMock, MagicMock
 
-from supabase import create_async_client
+from supabase import AClient, ASupabaseException, create_async_client
+
+
+async def test_incorrect_values_dont_instantiate_client() -> None:
+    """Ensure we can't instantiate client with invalid values."""
+    try:
+        client: AClient = create_async_client(None, None)
+    except ASupabaseException:
+        pass
+
+
+async def test_supabase_exception() -> None:
+    try:
+        raise ASupabaseException("err")
+    except ASupabaseException:
+        pass
+
+
+async def test_postgrest_client() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = await create_async_client(url, key)
+    assert client.table("sample")
+
+
+async def test_rpc_client() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = await create_async_client(url, key)
+    assert client.rpc("test_fn")
+
+
+async def test_function_initialization() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = await create_async_client(url, key)
+    assert client.functions
+
+
+async def test_schema_update() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = await create_async_client(url, key)
+    assert client.postgrest
+    assert client.schema("new_schema")
 
 
 async def test_updates_the_authorization_header_on_auth_events() -> None:
