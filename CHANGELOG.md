@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## [2.13.0](https://github.com/supabase/supabase-py/compare/v2.12.0...v2.13.0) (2025-02-04)
+
+
+### Features
+
+* **realtime:** bump realtime from 2.2.0 to 2.3.0 ([#1049](https://github.com/supabase/supabase-py/issues/1049)) ([2347401](https://github.com/supabase/supabase-py/commit/23474017701560c361e3cb2d8fe49f238a8fc9d0))
+
+
+### Bug Fixes
+
+* **auth:** bump gotrue from 2.11.2 to 2.11.3 ([#1051](https://github.com/supabase/supabase-py/issues/1051)) ([4a2bb9e](https://github.com/supabase/supabase-py/commit/4a2bb9e73e8979e1c28ec9df788f4291c9e59c82))
+* **functions:** bump supafunc from 0.9.2 to 0.9.3 ([#1052](https://github.com/supabase/supabase-py/issues/1052)) ([29fed38](https://github.com/supabase/supabase-py/commit/29fed38015ff51fb1543f5efc7c34b5fd75ac0e4))
+* **storage:** bump storage3 from 0.11.1 to 0.11.3 ([#1050](https://github.com/supabase/supabase-py/issues/1050)) ([8c5d48f](https://github.com/supabase/supabase-py/commit/8c5d48f51f21658cf1e495d0e9f01906b5040fbd))
+* update SupabaseAuthClient to use super instead of calling base class ([#1045](https://github.com/supabase/supabase-py/issues/1045)) ([3efb4a6](https://github.com/supabase/supabase-py/commit/3efb4a678b6f2585622d1870410445e74e2b6c49))
+
 ## [2.12.0](https://github.com/supabase/supabase-py/compare/v2.11.0...v2.12.0) (2025-01-24)
 
 
