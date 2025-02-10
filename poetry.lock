@@ -409,20 +409,20 @@ files = [
 
 [[package]]
 name = "commitizen"
-version = "4.1.1"
+version = "4.2.1"
 description = "Python commitizen client tool"
 optional = false
-python-versions = ">=3.9"
+python-versions = "<4.0,>=3.9"
 files = [
-    {file = "commitizen-4.1.1-py3-none-any.whl", hash = "sha256:fdb5c7e72581b8bf568ae23a0342a1dce2c8e954a276b188320eb242290c223d"},
-    {file = "commitizen-4.1.1.tar.gz", hash = "sha256:a2ce2fa0c7960939f48ea01ae2e6db541904e74ef151b8f9dc35c67dbd9b03ac"},
+    {file = "commitizen-4.2.1-py3-none-any.whl", hash = "sha256:a347889e0fe408c3b920a34130d8f35616be3ea8ac6b7b20c5b9aac19762661b"},
+    {file = "commitizen-4.2.1.tar.gz", hash = "sha256:5255416f6d6071068159f0b97605777f3e25d00927ff157b7a8d01efeda7b952"},
 ]
 
 [package.dependencies]
 argcomplete = ">=1.12.1,<3.6"
 charset-normalizer = ">=2.1.0,<4"
-colorama = ">=0.4.1,<0.5.0"
-decli = ">=0.6.0,<0.7.0"
+colorama = ">=0.4.1,<1.0"
+decli = ">=0.6.0,<1.0"
 importlib_metadata = {version = ">=8.0.0,<9", markers = "python_version < \"3.10\""}
 jinja2 = ">=2.10.3"
 packaging = ">=19"
@@ -2115,4 +2115,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "1510855e0684b91172680b8860400eeaccb32fd9e478531e24505d1c42972eb0"
+content-hash = "71ecc1a64a37557989d1db1b66fa09a300c6248d10ff7ec4d1374cdf355c7d4d"
