@@ -694,13 +694,13 @@ files = [
 
 [[package]]
 name = "gotrue"
-version = "2.11.3"
+version = "2.11.4"
 description = "Python Client Library for Supabase Auth"
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "gotrue-2.11.3-py3-none-any.whl", hash = "sha256:8ad90771ff6b8ede180cf6242c5b0246b9288ad58b57ce0387ef94166e84284b"},
-    {file = "gotrue-2.11.3.tar.gz", hash = "sha256:14b03eb856b94a96fab73c8d41970ad645a74326ee4da95e66395e6b2c208ff7"},
+    {file = "gotrue-2.11.4-py3-none-any.whl", hash = "sha256:712e5018acc00d93cfc6d7bfddc3114eb3c420ab03b945757a8ba38c5fc3caa8"},
+    {file = "gotrue-2.11.4.tar.gz", hash = "sha256:a9ced242b16c6d6bedc43bca21bbefea1ba5fb35fcdaad7d529342099d3b1767"},
 ]
 
 [package.dependencies]
