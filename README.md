@@ -6,6 +6,9 @@ Python client for [Supabase](https://supabase.com)
 - Usage:
   - [GitHub OAuth in your Python Flask app](https://supabase.com/blog/oauth2-login-python-flask-apps)
   - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
+ 
+> [!NOTE]
+> Do you want to help us shape the future of this library? [We're hiring](https://jobs.ashbyhq.com/supabase/85d07345-47c6-4980-82e2-57782f83ab4e).
 
 ## Set up a Local Development Environment
 
