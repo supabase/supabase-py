@@ -119,3 +119,21 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == updated_authorization
+
+
+def test_init_client_with_access_token() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = create_client(
+        url, key, options=ClientOptions(access_token=lambda: "secretuserjwt")
+    )
+
+    assert client.access_token is not None
+
+    with pytest.raises(SupabaseException) as e:
+        client.auth.get_user()
+    assert (
+        str(e.value.message)
+        == "Supabase Client is configured with the access_token option, accessing supabase.auth.get_user is not possible."
+    )
