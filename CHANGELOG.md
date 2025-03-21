@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.14.1](https://github.com/supabase/supabase-py/compare/v2.14.0...v2.14.1) (2025-03-21)
+
+
+### Bug Fixes
+
+* **realtime:** bump realtime from 2.4.0 to 2.4.1 ([#1066](https://github.com/supabase/supabase-py/issues/1066)) ([1f92945](https://github.com/supabase/supabase-py/commit/1f92945a134de22eedc7911c80ed0607624e5b0c))
+
 ## [2.14.0](https://github.com/supabase/supabase-py/compare/v2.13.0...v2.14.0) (2025-03-20)
 
 
