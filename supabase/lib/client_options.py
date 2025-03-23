@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Union
+from typing import Awaitable, Callable, Dict, Optional, Union
 
 from gotrue import (
     AsyncMemoryStorage,
@@ -59,6 +59,15 @@ class ClientOptions:
     flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""
 
+    access_token: Union[Callable[[], str], None] = None
+    """Optional function for using a third-party authentication system with Supabase.
+    The function should return an access token or ID token (JWT) by obtaining it from the third-party auth client library.
+    Note that this funciton may be called concurrently and many times.
+    Use memoization and locking techniques if this is not supported by the clinet libraries.
+
+    When set, the `auth` namespace of the Supabase client cannot be used.
+    Create another client if you wish to use Supabase Auth and third-party authentications concurrently in the same application."""
+
     def replace(
         self,
         schema: Optional[str] = None,
@@ -74,6 +83,7 @@ class ClientOptions:
             int, float, Timeout
         ] = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         flow_type: Optional[AuthFlowType] = None,
+        access_token: Union[Callable[[], str], None] = None,
     ) -> "ClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = ClientOptions()
@@ -92,6 +102,7 @@ class ClientOptions:
             storage_client_timeout or self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.access_token = access_token or self.access_token
         return client_options
 
 
@@ -99,6 +110,8 @@ class ClientOptions:
 class AsyncClientOptions(ClientOptions):
     storage: AsyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
+
+    access_token: Union[Callable[[], Awaitable[str]], None] = None
 
     def replace(
         self,
@@ -115,6 +128,7 @@ class AsyncClientOptions(ClientOptions):
             int, float, Timeout
         ] = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         flow_type: Optional[AuthFlowType] = None,
+        access_token: Union[Callable[[], Awaitable[str]], None] = None,
     ) -> "AsyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = AsyncClientOptions()
@@ -133,6 +147,7 @@ class AsyncClientOptions(ClientOptions):
             storage_client_timeout or self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.access_token = access_token or self.access_token
         return client_options
 
 
@@ -153,6 +168,7 @@ class SyncClientOptions(ClientOptions):
             int, float, Timeout
         ] = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         flow_type: Optional[AuthFlowType] = None,
+        access_token: Union[Callable[[], Awaitable[str]], None] = None,
     ) -> "SyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = SyncClientOptions()
@@ -171,4 +187,5 @@ class SyncClientOptions(ClientOptions):
             storage_client_timeout or self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.access_token = access_token or self.access_token
         return client_options
