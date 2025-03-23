@@ -128,11 +128,7 @@ class SyncClient:
 
         The schema needs to be on the list of exposed schemas inside Supabase.
         """
-        if self.options.schema != schema:
-            self.options.schema = schema
-            if self._postgrest:
-                self._postgrest.schema(schema)
-        return self.postgrest
+        return self.postgrest.schema(schema)
 
     def from_(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
