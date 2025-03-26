@@ -38,7 +38,7 @@ tests = 'poetry_scripts:run_tests'
 
 [tool.poetry.group.dev.dependencies]
 unasync-cli = { git = "https://github.com/supabase-community/unasync-cli.git", branch = "main" }
-pytest-asyncio = ">=0.24,<0.26"
+pytest-asyncio = ">=0.24,<0.27"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
