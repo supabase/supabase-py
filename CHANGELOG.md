@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [2.15.0](https://github.com/supabase/supabase-py/compare/v2.14.0...v2.15.0) (2025-03-26)
+
+
+### Features
+
+* **postgrest:** bump postgrest from 0.19.3 to 1.0.0 ([#1074](https://github.com/supabase/supabase-py/issues/1074)) ([5e59df6](https://github.com/supabase/supabase-py/commit/5e59df6bfae71c6c84c839ec779494b59090e2ee))
+
+
+### Bug Fixes
+
+* **auth:** bump gotrue from 2.11.4 to 2.12.0 ([#1087](https://github.com/supabase/supabase-py/issues/1087)) ([da3ed9c](https://github.com/supabase/supabase-py/commit/da3ed9cdd709a09ca545e27189c870926aace5f6))
+* **functions:** bump supafunc from 0.9.3 to 0.9.4 ([#1088](https://github.com/supabase/supabase-py/issues/1088)) ([0340c8e](https://github.com/supabase/supabase-py/commit/0340c8eeb0f80c1dc7d24306625a27346eef10b5))
+* **postgrest:** bump postgrest from 1.0.0 to 1.0.1 ([#1083](https://github.com/supabase/supabase-py/issues/1083)) ([44d2ca5](https://github.com/supabase/supabase-py/commit/44d2ca56eb7d33245023a620d03fbb9184818ea1))
+* **realtime:** bump realtime from 2.4.0 to 2.4.1 ([#1066](https://github.com/supabase/supabase-py/issues/1066)) ([1f92945](https://github.com/supabase/supabase-py/commit/1f92945a134de22eedc7911c80ed0607624e5b0c))
+* **realtime:** bump realtime from 2.4.1 to 2.4.2 ([#1089](https://github.com/supabase/supabase-py/issues/1089)) ([7816d7f](https://github.com/supabase/supabase-py/commit/7816d7f40e0591da57679c60a1bd48177f351937))
+* schema method should use postgres method directly ([#1082](https://github.com/supabase/supabase-py/issues/1082)) ([b992324](https://github.com/supabase/supabase-py/commit/b9923249d91d5dd4c6817f593202aca9e31f7563))
+
 ## [2.14.0](https://github.com/supabase/supabase-py/compare/v2.13.0...v2.14.0) (2025-03-20)
 
 
