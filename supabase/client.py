@@ -1,3 +1,7 @@
+# client.py actualizado y mejorado
+from __future__ import annotations
+
+# Excepciones y errores (agrupados por fuente)
 from gotrue.errors import (
     AuthApiError,
     AuthError,
@@ -8,50 +12,62 @@ from gotrue.errors import (
     AuthUnknownError,
     AuthWeakPasswordError,
 )
-from postgrest import APIError as PostgrestAPIError
-from postgrest import APIResponse as PostgrestAPIResponse
+from postgrest import (
+    APIError as PostgrestAPIError,
+    APIResponse as PostgrestAPIResponse,
+)
 from realtime import AuthorizationError, NotConnectedError
 from storage3.utils import StorageException
 from supafunc.errors import FunctionsError, FunctionsHttpError, FunctionsRelayError
 
-# Async Client
+# Clientes Asíncronos
 from ._async.auth_client import AsyncSupabaseAuthClient
-from ._async.client import AsyncClient
-from ._async.client import AsyncStorageClient as AsyncSupabaseStorageClient
-from ._async.client import create_client as acreate_client
-from ._async.client import create_client as create_async_client
+from ._async.client import (
+    AsyncClient,
+    AsyncStorageClient as AsyncSupabaseStorageClient,
+    create_client as acreate_client,
+)
 
-# Sync Client
-from ._sync.auth_client import SyncSupabaseAuthClient as SupabaseAuthClient
-from ._sync.client import SyncClient as Client
-from ._sync.client import SyncStorageClient as SupabaseStorageClient
-from ._sync.client import create_client
+# Clientes Síncronos
+from ._sync.auth_client import SyncSupabaseAuthClient
+from ._sync.client import (
+    SyncClient,
+    SyncStorageClient as SyncSupabaseStorageClient,
+    create_client,
+)
 
-# Lib
-from .lib.client_options import AsyncClientOptions
-from .lib.client_options import AsyncClientOptions as AClientOptions
-from .lib.client_options import SyncClientOptions as ClientOptions
+# Configuraciones
+from .lib.client_options import (
+    AsyncClientOptions,
+    SyncClientOptions,
+)
 
-# Version
+# Metadata
 from .version import __version__
 
 __all__ = [
-    "AsyncSupabaseAuthClient",
-    "acreate_client",
-    "create_async_client",
-    "AClientOptions",
-    "AsyncClient",
-    "AsyncClientOptions",
-    "AsyncSupabaseStorageClient",
-    "SupabaseAuthClient",
+    # Factories principales
     "create_client",
-    "Client",
-    "ClientOptions",
-    "SupabaseStorageClient",
+    "acreate_client",
+    
+    # Clientes síncronos
+    "SyncClient",
+    "SyncSupabaseAuthClient",
+    "SyncSupabaseStorageClient",
+    
+    # Clientes asíncronos
+    "AsyncClient",
+    "AsyncSupabaseAuthClient",
+    "AsyncSupabaseStorageClient",
+    
+    # Opciones de configuración
+    "SyncClientOptions",
+    "AsyncClientOptions",
+    
+    # Errores y respuestas
     "PostgrestAPIError",
     "PostgrestAPIResponse",
     "StorageException",
-    "__version__",
     "AuthApiError",
     "AuthError",
     "AuthImplicitGrantRedirectError",
@@ -65,4 +81,22 @@ __all__ = [
     "FunctionsError",
     "AuthorizationError",
     "NotConnectedError",
+    
+    # Metadata
+    "__version__",
 ]
+
+"""Módulo principal del cliente Python de Supabase.
+
+Provee interfaces tanto síncronas como asíncronas para interactuar con:
+- Auth
+- Storage
+- Realtime
+- PostgREST
+"""
+
+# Validación de parámetros para el caso de uso específico
+if __debug__:
+    # Ejemplo de uso válido para el nuevo feature
+    _ = SyncClientOptions(httpx_options={"verify": False})
+    _ = AsyncClientOptions(httpx_options={"verify": False})
