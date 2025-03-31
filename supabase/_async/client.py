@@ -81,6 +81,11 @@ class AsyncClient:
         self.auth = self._init_supabase_auth_client(
             auth_url=self.auth_url,
             client_options=options,
+            verify=(
+                options.httpx_options.get("verify")
+                if options.httpx_options is not None
+                else True
+            ),
         )
         self.realtime = self._init_realtime_client(
             realtime_url=self.realtime_url,
@@ -168,6 +173,11 @@ class AsyncClient:
                 headers=self.options.headers,
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
+                verify=(
+                    self.options.httpx_options.get("verify")
+                    if self.options.httpx_options is not None
+                    else True
+                ),
             )
 
         return self._postgrest
@@ -179,6 +189,11 @@ class AsyncClient:
                 storage_url=self.storage_url,
                 headers=self.options.headers,
                 storage_client_timeout=self.options.storage_client_timeout,
+                verify=(
+                    self.options.httpx_options.get("verify")
+                    if self.options.httpx_options is not None
+                    else True
+                ),
             )
         return self._storage
 
@@ -189,6 +204,11 @@ class AsyncClient:
                 self.functions_url,
                 self.options.headers,
                 self.options.function_client_timeout,
+                verify=(
+                    self.options.httpx_options.get("verify")
+                    if self.options.httpx_options is not None
+                    else True
+                ),
             )
         return self._functions
 
