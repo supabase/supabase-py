@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import re
 from typing import Any, Dict, List, Optional, Union
 
@@ -69,7 +70,7 @@ class AsyncClient:
 
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
-        self.options = options
+        self.options = copy.deepcopy(options)
         options.headers.update(self._get_auth_headers())
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
@@ -294,8 +295,11 @@ class AsyncClient:
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
-
-        self.options.headers["Authorization"] = self._create_auth_header(access_token)
+        headers = copy.deepcopy(self._create_auth_header(access_token))
+        self.options.headers["Authorization"] = headers
+        self.auth._headers["Authorization"] = headers
+        self.postgrest.session.headers["Authorization"] = headers
+        self.storage.session.headers["Authorization"] = headers
         asyncio.create_task(self.realtime.set_auth(access_token))
 
 

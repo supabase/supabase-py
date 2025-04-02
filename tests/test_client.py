@@ -101,7 +101,6 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
     mock_session = MagicMock(access_token="secretuserjwt")
     realtime_mock = MagicMock()
     client.realtime = realtime_mock
-
     client._listen_to_auth_events("SIGNED_IN", mock_session)
 
     updated_authorization = f"Bearer {mock_session.access_token}"
@@ -113,7 +112,6 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
     assert (
         client.postgrest.session.headers.get("Authorization") == updated_authorization
     )
-
     assert client.auth._headers.get("apiKey") == key
     assert client.auth._headers.get("Authorization") == updated_authorization
 

@@ -1,3 +1,4 @@
+import copy
 import re
 from typing import Any, Dict, List, Optional, Union
 
@@ -62,13 +63,11 @@ class SyncClient:
             r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key
         ):
             raise SupabaseException("Invalid API key")
-
         if options is None:
             options = ClientOptions(storage=SyncMemoryStorage())
-
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
-        self.options = options
+        self.options = copy.deepcopy(options)
         options.headers.update(self._get_auth_headers())
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
@@ -100,7 +99,7 @@ class SyncClient:
     ):
         auth_header = options.headers.get("Authorization") if options else None
         client = cls(supabase_url, supabase_key, options)
-
+        session_access_token = None
         if auth_header is None:
             try:
                 session = client.auth.get_session()
@@ -108,9 +107,7 @@ class SyncClient:
             except Exception as err:
                 session_access_token = None
 
-            client.options.headers.update(
-                client._get_auth_headers(session_access_token)
-            )
+        client.options.headers.update(client._get_auth_headers(session_access_token))
 
         return client
 
@@ -293,8 +290,11 @@ class SyncClient:
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
-
-        self.options.headers["Authorization"] = self._create_auth_header(access_token)
+        header = copy.deepcopy(self._create_auth_header(access_token))
+        self.options.headers["Authorization"] = header
+        self.auth._headers["Authorization"] = header
+        self.postgrest.session.headers["Authorization"] = header
+        self.storage.session.headers["Authorization"] = header
 
 
 def create_client(
