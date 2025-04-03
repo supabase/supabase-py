@@ -137,7 +137,7 @@ def test_mutable_headers_issue():
     assert client2.options.headers["Authorization"] == "Bearer initial-token"
 
 
-#
+
 def test_global_authorization_header_issue():
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
