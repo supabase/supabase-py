@@ -148,6 +148,3 @@ def test_global_authorization_header_issue():
     client = create_client(url, key, options)
 
     assert client.options.headers.get("apiKey") == key
-
-
-# 実行

@@ -295,11 +295,9 @@ class AsyncClient:
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
-        headers = copy.deepcopy(self._create_auth_header(access_token))
-        self.options.headers["Authorization"] = headers
-        self.auth._headers["Authorization"] = headers
-        self.postgrest.session.headers["Authorization"] = headers
-        self.storage.session.headers["Authorization"] = headers
+        header = copy.deepcopy(self._create_auth_header(access_token))
+        self.options.headers["Authorization"] = header
+        self.auth._headers["Authorization"] = header
         asyncio.create_task(self.realtime.set_auth(access_token))
 
 

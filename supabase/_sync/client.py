@@ -293,8 +293,6 @@ class SyncClient:
         header = copy.deepcopy(self._create_auth_header(access_token))
         self.options.headers["Authorization"] = header
         self.auth._headers["Authorization"] = header
-        self.postgrest.session.headers["Authorization"] = header
-        self.storage.session.headers["Authorization"] = header
 
 
 def create_client(
