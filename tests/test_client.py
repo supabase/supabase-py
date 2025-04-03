@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from gotrue import SyncMemoryStorage
 
 from supabase import Client, ClientOptions, SupabaseException, create_client
 
@@ -117,3 +118,36 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == updated_authorization
+
+
+def test_mutable_headers_issue():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    shared_options = ClientOptions(
+        storage=SyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
+    )
+
+    client1 = create_client(url, key, shared_options)
+
+    client2 = create_client(url, key, shared_options)
+
+    client1.options.headers["Authorization"] = "Bearer modified-token"
+
+    assert client2.options.headers["Authorization"] == "Bearer initial-token"
+
+
+#
+def test_global_authorization_header_issue():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    authorization = "Bearer secretuserjwt"
+    options = ClientOptions(headers={"Authorization": authorization})
+
+    client = create_client(url, key, options)
+
+    assert client.options.headers.get("apiKey") == key
+
+
+# 実行
