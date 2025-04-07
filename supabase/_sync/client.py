@@ -10,6 +10,7 @@ from postgrest import (
     SyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
+from postgrest.types import CountMethod
 from realtime import RealtimeChannelOptions, SyncRealtimeChannel, SyncRealtimeClient
 from storage3 import SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -138,7 +139,12 @@ class SyncClient:
         return self.postgrest.from_(table_name)
 
     def rpc(
-        self, fn: str, params: Optional[Dict[Any, Any]] = None
+        self,
+        fn: str,
+        params: Optional[Dict[Any, Any]] = None,
+        count: CountMethod | None = None,
+        head: bool = False,
+        get: bool = False,
     ) -> SyncRPCFilterRequestBuilder:
         """Performs a stored procedure call.
 
@@ -148,6 +154,9 @@ class SyncClient:
             The stored procedure call to be executed.
         params : dict of any
             Parameters passed into the stored procedure call.
+        count: The method to use to get the count of rows returned.
+        head: When set to `true`, `data` will not be returned. Useful if you only need the count.
+        get: When set to `true`, the function will be called with read-only access mode.
 
         Returns
         -------
@@ -157,7 +166,7 @@ class SyncClient:
         """
         if params is None:
             params = {}
-        return self.postgrest.rpc(fn, params)
+        return self.postgrest.rpc(fn, params, count, head, get)
 
     @property
     def postgrest(self):
