@@ -71,7 +71,8 @@ class AsyncClient:
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
         self.options = copy.deepcopy(options)
-        options.headers.update(self._get_auth_headers())
+        self.options.headers.update(self._get_auth_headers())
+
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url = f"{supabase_url}/auth/v1"
@@ -81,12 +82,12 @@ class AsyncClient:
         # Instantiate clients.
         self.auth = self._init_supabase_auth_client(
             auth_url=self.auth_url,
-            client_options=options,
+            client_options=self.options,
         )
         self.realtime = self._init_realtime_client(
             realtime_url=self.realtime_url,
             supabase_key=self.supabase_key,
-            options=options.realtime if options else None,
+            options=self.options.realtime if self.options else None,
         )
         self._postgrest = None
         self._storage = None

@@ -63,6 +63,7 @@ class SyncClient:
             r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key
         ):
             raise SupabaseException("Invalid API key")
+
         if options is None:
             options = ClientOptions(storage=SyncMemoryStorage())
 
@@ -70,6 +71,7 @@ class SyncClient:
         self.supabase_key = supabase_key
         self.options = copy.deepcopy(options)
         self.options.headers.update(self._get_auth_headers())
+
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url = f"{supabase_url}/auth/v1"
@@ -100,14 +102,18 @@ class SyncClient:
     ):
         auth_header = options.headers.get("Authorization") if options else None
         client = cls(supabase_url, supabase_key, options)
-        session_access_token = None
+
         if auth_header is None:
             try:
                 session = client.auth.get_session()
                 session_access_token = client._create_auth_header(session.access_token)
             except Exception as err:
                 session_access_token = None
-        client.options.headers.update(client._get_auth_headers(session_access_token))
+
+            client.options.headers.update(
+                client._get_auth_headers(session_access_token)
+            )
+
         return client
 
     def table(self, table_name: str) -> SyncRequestBuilder:
@@ -290,8 +296,8 @@ class SyncClient:
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
         auth_header = copy.deepcopy(self._create_auth_header(access_token))
+
         self.options.headers["Authorization"] = auth_header
-        self.auth._headers["Authorization"] = auth_header
 
 
 def create_client(
@@ -325,7 +331,6 @@ def create_client(
     -------
     Client
     """
-
     return SyncClient.create(
         supabase_url=supabase_url, supabase_key=supabase_key, options=options
     )
