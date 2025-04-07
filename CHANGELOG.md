@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.15.1](https://github.com/supabase/supabase-py/compare/v2.15.0...v2.15.1) (2025-04-07)
+
+
+### Bug Fixes
+
+* **postgrest:** add missing count, head, and get params ([#1098](https://github.com/supabase/supabase-py/issues/1098)) ([e9c219e](https://github.com/supabase/supabase-py/commit/e9c219ebda5282db521c180fad108f7227ba6fa6))
+
 ## [2.15.0](https://github.com/supabase/supabase-py/compare/v2.14.0...v2.15.0) (2025-03-26)
 
 
