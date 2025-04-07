@@ -143,7 +143,7 @@ class AsyncClient:
         self,
         fn: str,
         params: Optional[Dict[Any, Any]] = None,
-        count: CountMethod | None = None,
+        count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
     ) -> AsyncRPCFilterRequestBuilder:
