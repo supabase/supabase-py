@@ -10,7 +10,7 @@ from gotrue.http_clients import SyncClient
 
 
 class SyncSupabaseAuthClient(SyncGoTrueClient):
-    """Supabase Auth Client for asynchronous operations."""
+    """Supabase Auth Client for synchronous operations."""
 
     def __init__(
         self,
@@ -35,8 +35,8 @@ class SyncSupabaseAuthClient(SyncGoTrueClient):
             storage_key (Optional[str]): Key to store session information.
             auto_refresh_token (bool): Whether to automatically refresh the token. Defaults to True.
             persist_session (bool): Whether to persist the session. Defaults to True.
-            storage (AsyncSupportedStorage): Storage mechanism. Defaults to AsyncMemoryStorage().
-            http_client (Optional[AsyncClient]): HTTP client for making requests. Defaults to None.
+            storage (SyncSupportedStorage): Storage mechanism. Defaults to SyncMemoryStorage().
+            http_client (Optional[SyncClient]): HTTP client for making requests. Defaults to None.
             flow_type (AuthFlowType): Type of authentication flow. Defaults to "implicit".
             verify (bool): Whether to verify SSL certificates. Defaults to True.
             proxy (Optional[str]): Proxy URL. Defaults to None.
