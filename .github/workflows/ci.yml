@@ -12,6 +12,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   test:
     name: Test / OS ${{ matrix.os }} / Python ${{ matrix.python-version }}
