@@ -1,13 +1,11 @@
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from gotrue import SyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import (
     SyncPostgrestClient,
-    SyncRequestBuilder,
-    SyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
@@ -115,7 +113,7 @@ class SyncClient:
 
         return client
 
-    def table(self, table_name: str) -> SyncRequestBuilder:
+    def table(self, table_name: str):
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
@@ -124,14 +122,14 @@ class SyncClient:
         """
         return self.from_(table_name)
 
-    def schema(self, schema: str) -> SyncPostgrestClient:
+    def schema(self, schema: str):
         """Select a schema to query or perform an function (rpc) call.
 
         The schema needs to be on the list of exposed schemas inside Supabase.
         """
         return self.postgrest.schema(schema)
 
-    def from_(self, table_name: str) -> SyncRequestBuilder:
+    def from_(self, table_name: str):
         """Perform a table operation.
 
         See the `table` method.
@@ -145,7 +143,7 @@ class SyncClient:
         count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
-    ) -> SyncRPCFilterRequestBuilder:
+    ):
         """Performs a stored procedure call.
 
         Parameters
@@ -206,15 +204,15 @@ class SyncClient:
         """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
         return self.realtime.channel(topic, params)
 
-    def get_channels(self) -> List[SyncRealtimeChannel]:
+    def get_channels(self):
         """Returns all realtime channels."""
         return self.realtime.get_channels()
 
-    def remove_channel(self, channel: SyncRealtimeChannel) -> None:
+    def remove_channel(self, channel: SyncRealtimeChannel):
         """Unsubscribes and removes Realtime channel from Realtime client."""
         self.realtime.remove_channel(channel)
 
-    def remove_all_channels(self) -> None:
+    def remove_all_channels(self):
         """Unsubscribes and removes all Realtime channels from Realtime client."""
         self.realtime.remove_all_channels()
 

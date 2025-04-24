@@ -20,3 +20,4 @@ build_sync:
 	sed -i 's/asyncio.create_task(self.realtime.set_auth(access_token))//g' supabase/_sync/client.py
 	sed -i 's/asynch/synch/g' supabase/_sync/auth_client.py
 	sed -i 's/Async/Sync/g' supabase/_sync/auth_client.py
+	sed -i 's/Async/Sync/g' supabase/_sync/client.py
