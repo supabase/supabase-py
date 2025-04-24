@@ -1,14 +1,12 @@
 import asyncio
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from gotrue import AsyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import (
     AsyncPostgrestClient,
-    AsyncRequestBuilder,
-    AsyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
@@ -116,7 +114,7 @@ class AsyncClient:
 
         return client
 
-    def table(self, table_name: str) -> AsyncRequestBuilder:
+    def table(self, table_name: str):
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
@@ -125,14 +123,14 @@ class AsyncClient:
         """
         return self.from_(table_name)
 
-    def schema(self, schema: str) -> AsyncPostgrestClient:
+    def schema(self, schema: str):
         """Select a schema to query or perform an function (rpc) call.
 
         The schema needs to be on the list of exposed schemas inside Supabase.
         """
         return self.postgrest.schema(schema)
 
-    def from_(self, table_name: str) -> AsyncRequestBuilder:
+    def from_(self, table_name: str):
         """Perform a table operation.
 
         See the `table` method.
@@ -146,7 +144,7 @@ class AsyncClient:
         count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
-    ) -> AsyncRPCFilterRequestBuilder:
+    ):
         """Performs a stored procedure call.
 
         Parameters
@@ -161,7 +159,7 @@ class AsyncClient:
 
         Returns
         -------
-        SyncFilterRequestBuilder
+        AsyncFilterRequestBuilder
             Returns a filter builder. This lets you apply filters on the response
             of an RPC.
         """
@@ -207,15 +205,15 @@ class AsyncClient:
         """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
         return self.realtime.channel(topic, params)
 
-    def get_channels(self) -> List[AsyncRealtimeChannel]:
+    def get_channels(self):
         """Returns all realtime channels."""
         return self.realtime.get_channels()
 
-    async def remove_channel(self, channel: AsyncRealtimeChannel) -> None:
+    async def remove_channel(self, channel: AsyncRealtimeChannel):
         """Unsubscribes and removes Realtime channel from Realtime client."""
         await self.realtime.remove_channel(channel)
 
-    async def remove_all_channels(self) -> None:
+    async def remove_all_channels(self):
         """Unsubscribes and removes all Realtime channels from Realtime client."""
         await self.realtime.remove_all_channels()
 
