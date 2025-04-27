@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Union
 
 from gotrue import SyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
-from httpx import SyncClient, Timeout
+from httpx import Timeout
 from postgrest import (
     SyncPostgrestClient,
 )
@@ -16,6 +16,7 @@ from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supafunc import SyncFunctionsClient
 
 from ..lib.client_options import SyncClientOptions as ClientOptions
+from ..lib.client_options import SyncHttpxClient
 from .auth_client import SyncSupabaseAuthClient
 
 
@@ -264,7 +265,7 @@ class SyncClient:
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         verify: bool = True,
         proxy: Optional[str] = None,
-        client: Union[SyncClient, None] = None,
+        client: Union[SyncHttpxClient, None] = None,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         return SyncPostgrestClient(

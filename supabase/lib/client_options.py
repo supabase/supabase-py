@@ -8,8 +8,8 @@ from gotrue import (
     SyncMemoryStorage,
     SyncSupportedStorage,
 )
-from httpx import AsyncClient as HttpxAsyncClient
-from httpx import Client as HttpxClient
+from httpx import AsyncClient as AsyncHttpxClient
+from httpx import Client as SyncHttpxClient
 from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -45,7 +45,7 @@ class ClientOptions:
     realtime: Optional[RealtimeClientOptions] = None
     """Options passed to the realtime-py instance"""
 
-    httpx_client: Union[HttpxClient] = None
+    httpx_client: Union[SyncHttpxClient] = None
     """Options passed to the realtime-py instance"""
 
     postgrest_client_timeout: Union[int, float, Timeout] = (
@@ -72,7 +72,7 @@ class ClientOptions:
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
-        httpx_client: Optional[HttpxClient] = None,
+        httpx_client: Optional[SyncHttpxClient] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -115,7 +115,7 @@ class AsyncClientOptions(ClientOptions):
         persist_session: Optional[bool] = None,
         storage: Optional[AsyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
-        httpx_client: Optional[HttpxAsyncClient] = None,
+        httpx_client: Optional[AsyncHttpxClient] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -155,7 +155,7 @@ class SyncClientOptions(ClientOptions):
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
-        httpx_client: Optional[HttpxClient] = None,
+        httpx_client: Optional[SyncHttpxClient] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
