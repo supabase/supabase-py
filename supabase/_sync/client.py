@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Union
 
 from gotrue import SyncMemoryStorage
 from gotrue.types import AuthChangeEvent, Session
-from httpx import Timeout
+from httpx import SyncClient, Timeout
 from postgrest import (
     SyncPostgrestClient,
 )
@@ -176,6 +176,7 @@ class SyncClient:
                 headers=self.options.headers,
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
+                client=self.options.httpx_client,
             )
 
         return self._postgrest
@@ -266,6 +267,7 @@ class SyncClient:
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         verify: bool = True,
         proxy: Optional[str] = None,
+        client: Union[SyncClient, None] = None,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         return SyncPostgrestClient(
@@ -275,6 +277,7 @@ class SyncClient:
             timeout=timeout,
             verify=verify,
             proxy=proxy,
+            client=client,
         )
 
     def _create_auth_header(self, token: str):
