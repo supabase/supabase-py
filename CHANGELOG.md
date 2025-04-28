@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [2.15.1](https://github.com/supabase/supabase-py/compare/v2.15.0...v2.15.1) (2025-04-28)
+
+
+### Bug Fixes
+
+* **postgrest:** add missing count, head, and get params ([#1098](https://github.com/supabase/supabase-py/issues/1098)) ([e9c219e](https://github.com/supabase/supabase-py/commit/e9c219ebda5282db521c180fad108f7227ba6fa6))
+* **realtime:** bump realtime from 2.4.2 to 2.4.3 ([#1112](https://github.com/supabase/supabase-py/issues/1112)) ([1d429c6](https://github.com/supabase/supabase-py/commit/1d429c65556a6d9bf356edd3d92305cbda01cdf3))
+* remove return type from postgrest methods ([#1110](https://github.com/supabase/supabase-py/issues/1110)) ([6664f42](https://github.com/supabase/supabase-py/commit/6664f42157702d5c0f446682c80b3c37181303d3))
+
 ## [2.15.0](https://github.com/supabase/supabase-py/compare/v2.14.0...v2.15.0) (2025-03-26)
 
 
