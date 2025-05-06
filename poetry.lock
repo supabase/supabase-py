@@ -417,18 +417,18 @@ markers = {main = "sys_platform == \"win32\""}
 
 [[package]]
 name = "commitizen"
-version = "4.6.0"
+version = "4.6.2"
 description = "Python commitizen client tool"
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["dev"]
 files = [
-    {file = "commitizen-4.6.0-py3-none-any.whl", hash = "sha256:d8861707b553c03c8b1993b7abd9e036384fdd1c57f95f6f38d5f215c53041a9"},
-    {file = "commitizen-4.6.0.tar.gz", hash = "sha256:cc1c9f8937e59a7c54321443aa49dd246e07b829e305c7cbff1d7f7e32e449fe"},
+    {file = "commitizen-4.6.2-py3-none-any.whl", hash = "sha256:2c5bfa5d0350bd1d5c813de96ed318bc0dd7286fe2c43066b260b16cfc0df9b0"},
+    {file = "commitizen-4.6.2.tar.gz", hash = "sha256:82ed227ac3978338809b15dade8d58e88e3d0266f3aac5ac4e75f2a93ae7340e"},
 ]
 
 [package.dependencies]
-argcomplete = ">=1.12.1,<3.6"
+argcomplete = ">=1.12.1,<3.7"
 charset-normalizer = ">=2.1.0,<4"
 colorama = ">=0.4.1,<1.0"
 decli = ">=0.6.0,<1.0"
@@ -2217,4 +2217,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "3c78ced00a88bf3b004c1d6b116b54458c63a0bee49f7bd334a2bb4417318db3"
+content-hash = "a3265a87fce30ea11d04791deafc86384f0a09ee3b86b2acf04240e290519c5a"
