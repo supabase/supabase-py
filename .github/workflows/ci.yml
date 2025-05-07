@@ -17,93 +17,10 @@ permissions:
   id-token: write
 
 jobs:
-  test:
-    name: Test / OS ${{ matrix.os }} / Python ${{ matrix.python-version }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Clone Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Set up Poetry
-        run: pipx install poetry==1.8.5 --python python${{ matrix.python-version }}
-
-      - name: Run Tests
-        run: poetry run tests
-
-      - name: Upload coverage to Coveralls
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          flag-name: run-${{ join(matrix.*, '-') }}
-          parallel: true
-
-  finish_tests:
-    needs: test
-    name: Upload tests coveralls results
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Coveralls Finished
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel-finished: true
-          carryforward: "run-ubuntu-latest-3.9,run-ubuntu-latest-3.10,run-ubuntu-latest-3.11,run-ubuntu-latest-3.12,run-ubuntu-latest-3.13"
-
-  release-please:
-    needs: test
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
-    runs-on: ubuntu-latest
-    name: "Bump version and create changelog"
-    permissions:
-      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
-      contents: write # needed for github actions bot to write to repo
-      pull-requests: write
-    steps:
-      - uses: googleapis/release-please-action@v4
-        id: release
-        with:
-          target-branch: ${{ github.ref_name }}
-  publish:
-    needs: release-please
-    if: ${{ startsWith(github.event.head_commit.message, 'chore(main)') && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
-    runs-on: ubuntu-latest
-    name: "Publish to PyPi"
-    environment:
-      name: pypi
-      url: https://pypi.org/p/supabase
-    permissions:
-      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
-      contents: write # needed for github actions bot to write to repo
-    steps:
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
-
-      - name: Clone Repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-          fetch-depth: 0
-
-      - name: Set up Poetry
-        run: pipx install poetry==1.8.5 --python python3.11
-
-      - name: Install dependencies
-        run: poetry install
-
-      - name: Build package dist directory
-        run: poetry build
-
-      - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+  ci:
+    uses: supabase/actions/.github/workflows/python-ci.yml@guilherme/python-ci
+    with:
+      enable-publish: true
+      package-name: 'supabase'
+    secrets:
+      COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
