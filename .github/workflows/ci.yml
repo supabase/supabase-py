@@ -12,10 +12,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: write
-  id-token: write
-
 jobs:
   ci:
     uses: supabase/actions/.github/workflows/python-ci.yml@guilherme/python-ci
