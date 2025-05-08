@@ -14,7 +14,7 @@ on:
 
 jobs:
   ci:
-    uses: supabase/actions/.github/workflows/python-ci.yml@guilherme/python-ci
+    uses: supabase/actions/.github/workflows/python-ci.yml@main
     with:
       enable-publish: true
       package-name: 'supabase'
