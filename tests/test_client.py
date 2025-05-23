@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from gotrue import SyncMemoryStorage
 
 from supabase import Client, ClientOptions, SupabaseException, create_client
 
@@ -70,7 +71,7 @@ def test_supports_setting_a_global_authorization_header() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    authorization = f"Bearer secretuserjwt"
+    authorization = "Bearer secretuserjwt"
 
     options = ClientOptions(headers={"Authorization": authorization})
 
@@ -101,7 +102,6 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
     mock_session = MagicMock(access_token="secretuserjwt")
     realtime_mock = MagicMock()
     client.realtime = realtime_mock
-
     client._listen_to_auth_events("SIGNED_IN", mock_session)
 
     updated_authorization = f"Bearer {mock_session.access_token}"
@@ -113,9 +113,37 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
     assert (
         client.postgrest.session.headers.get("Authorization") == updated_authorization
     )
-
     assert client.auth._headers.get("apiKey") == key
     assert client.auth._headers.get("Authorization") == updated_authorization
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == updated_authorization
+
+
+def test_mutable_headers_issue():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    shared_options = ClientOptions(
+        storage=SyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
+    )
+
+    client1 = create_client(url, key, shared_options)
+    client2 = create_client(url, key, shared_options)
+
+    client1.options.headers["Authorization"] = "Bearer modified-token"
+
+    assert client2.options.headers["Authorization"] == "Bearer initial-token"
+    assert client1.options.headers["Authorization"] == "Bearer modified-token"
+
+
+def test_global_authorization_header_issue():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    authorization = "Bearer secretuserjwt"
+    options = ClientOptions(headers={"Authorization": authorization})
+
+    client = create_client(url, key, options)
+
+    assert client.options.headers.get("apiKey") == key

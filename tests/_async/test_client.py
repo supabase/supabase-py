@@ -7,7 +7,7 @@ from supabase import AClient, ASupabaseException, create_async_client
 async def test_incorrect_values_dont_instantiate_client() -> None:
     """Ensure we can't instantiate client with invalid values."""
     try:
-        client: AClient = create_async_client(None, None)
+        client: AClient = await create_async_client(None, None)
     except ASupabaseException:
         pass
 
