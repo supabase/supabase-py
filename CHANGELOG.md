@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [2.15.2](https://github.com/supabase/supabase-py/compare/v2.15.1...v2.15.2) (2025-05-23)
+
+
+### Bug Fixes
+
+* mutable reference headers [#1095](https://github.com/supabase/supabase-py/issues/1095) ([#1096](https://github.com/supabase/supabase-py/issues/1096)) ([50d79c1](https://github.com/supabase/supabase-py/commit/50d79c18f63f7d61e11e6f0f0b81584f0cdc8cf0))
+* **postgrest:** bump postgrest from 1.0.1 to 1.0.2 ([#1125](https://github.com/supabase/supabase-py/issues/1125)) ([812a04d](https://github.com/supabase/supabase-py/commit/812a04d3f657f6bcd539efb44c6fe45ab54575c9))
+
 ## [2.15.1](https://github.com/supabase/supabase-py/compare/v2.15.0...v2.15.1) (2025-04-28)
 
 
