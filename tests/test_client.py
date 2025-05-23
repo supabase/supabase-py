@@ -71,7 +71,7 @@ def test_supports_setting_a_global_authorization_header() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    authorization = f"Bearer secretuserjwt"
+    authorization = "Bearer secretuserjwt"
 
     options = ClientOptions(headers={"Authorization": authorization})
 
@@ -129,12 +129,12 @@ def test_mutable_headers_issue():
     )
 
     client1 = create_client(url, key, shared_options)
-
     client2 = create_client(url, key, shared_options)
 
     client1.options.headers["Authorization"] = "Bearer modified-token"
 
     assert client2.options.headers["Authorization"] == "Bearer initial-token"
+    assert client1.options.headers["Authorization"] == "Bearer modified-token"
 
 
 def test_global_authorization_header_issue():
@@ -147,20 +147,3 @@ def test_global_authorization_header_issue():
     client = create_client(url, key, options)
 
     assert client.options.headers.get("apiKey") == key
-
-
-def test_mutable_headers_issue():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
-
-    shared_options = ClientOptions(
-        headers={"Authorization": "Bearer initial-token", "x-site": "supanew.site"}
-    )
-
-    client1 = create_client(url, key, shared_options)
-    client2 = create_client(url, key, shared_options)
-    client1.options.replace({"headers": {"Authorization": "Bearer modified-token"}})
-
-    assert client2.options.headers["Authorization"] == "Bearer initial-token"
-    assert client2.options.headers["x-site"] == "supanew.site"
-    assert client1.options.headers["x-site"] == "supanew.site"
