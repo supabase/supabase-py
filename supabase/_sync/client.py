@@ -68,8 +68,8 @@ class SyncClient:
 
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
-        self.options = copy.deepcopy(options)
-        self.options.headers.update(self._get_auth_headers())
+        self.options = copy.copy(options)
+        self.options.headers = copy.copy(self._get_auth_headers())
 
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
