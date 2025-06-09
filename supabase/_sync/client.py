@@ -68,8 +68,8 @@ class SyncClient:
 
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
-        self.options = copy.deepcopy(options)
-        self.options.headers.update(self._get_auth_headers())
+        self.options = copy.copy(options)
+        self.options.headers = copy.copy(self._get_auth_headers())
 
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
@@ -302,9 +302,7 @@ class SyncClient:
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
-        auth_header = copy.deepcopy(self._create_auth_header(access_token))
-
-        self.options.headers["Authorization"] = auth_header
+        self.options.headers["Authorization"] = self._create_auth_header(access_token)
 
 
 def create_client(
