@@ -302,9 +302,7 @@ class SyncClient:
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
-        auth_header = copy.deepcopy(self._create_auth_header(access_token))
-
-        self.options.headers["Authorization"] = auth_header
+        self.options.headers["Authorization"] = self._create_auth_header(access_token)
 
 
 def create_client(
