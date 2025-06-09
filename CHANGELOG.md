@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.15.3](https://github.com/supabase/supabase-py/compare/v2.15.2...v2.15.3) (2025-06-09)
+
+
+### Bug Fixes
+
+* copy client options instead of deepcopy ([#1130](https://github.com/supabase/supabase-py/issues/1130)) ([3d4da71](https://github.com/supabase/supabase-py/commit/3d4da713f3dd996fc8b437c0cb0d13350df47e85))
+
 ## [2.15.2](https://github.com/supabase/supabase-py/compare/v2.15.1...v2.15.2) (2025-05-23)
 
 
