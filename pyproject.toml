@@ -30,7 +30,7 @@ pytest = "^8.3.5"
 flake8 = "^7.2.0"
 isort = "^6.0.1"
 pytest-cov = "^6.1.1"
-commitizen = "^4.8.2"
+commitizen = "^4.8.3"
 python-dotenv = "^1.1.0"
 
 [tool.poetry.scripts]
