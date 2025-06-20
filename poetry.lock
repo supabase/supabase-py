@@ -1836,14 +1836,14 @@ test = ["pylint", "pytest", "pytest-black", "pytest-cov", "pytest-pylint"]
 
 [[package]]
 name = "supafunc"
-version = "0.9.4"
+version = "0.10.0"
 description = "Library for Supabase Functions"
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "supafunc-0.9.4-py3-none-any.whl", hash = "sha256:2b34a794fb7930953150a434cdb93c24a04cf526b2f51a9e60b2be0b86d44fb2"},
-    {file = "supafunc-0.9.4.tar.gz", hash = "sha256:68824a9a7bcccf5ab1e038cda632ba47cba27f2a7dc606014206b56f5a071de2"},
+    {file = "supafunc-0.10.0-py3-none-any.whl", hash = "sha256:8c61b8ff6a08c1e206b818acd1de6d650279db6bc0530f47d6a9bc15526004f5"},
+    {file = "supafunc-0.10.0.tar.gz", hash = "sha256:37569b9701e45a116d572ebf7964f6ee9bb6916d5ed8d9ff66eac5fafcad6187"},
 ]
 
 [package.dependencies]
@@ -2235,4 +2235,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "804d6a6528bc37dfbe8f9595998cb79efed2ddd0199d14c96d2f02085f069204"
+content-hash = "416c8c237b0da4adef5f359f86963a76bdd41865e82e9797bce1d897dea364f7"
