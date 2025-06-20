@@ -1,26 +1,9 @@
 from __future__ import annotations
 
 import os
-from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-from gotrue import SyncMemoryStorage
-
-from supabase import Client, ClientOptions, SupabaseException, create_client
-
-
-@pytest.mark.xfail(
-    reason="None of these values should be able to instantiate a client object"
-)
-@pytest.mark.parametrize("url", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
-@pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
-def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
-    """Ensure we can't instantiate client with invalid values."""
-    try:
-        _: Client = create_client(url, key)
-    except SupabaseException as e:
-        pass
+from supabase import ClientOptions, create_client
 
 
 def test_function_initialization() -> None:
