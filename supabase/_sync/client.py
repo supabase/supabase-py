@@ -57,12 +57,6 @@ class SyncClient:
         if not re.match(r"^(https?)://.+", supabase_url):
             raise SupabaseException("Invalid URL")
 
-        # Check if the key is a valid JWT
-        if not re.match(
-            r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", supabase_key
-        ):
-            raise SupabaseException("Invalid API key")
-
         if options is None:
             options = ClientOptions(storage=SyncMemoryStorage())
 
