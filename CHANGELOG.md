@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [2.16.0](https://github.com/supabase/supabase-py/compare/v2.15.3...v2.16.0) (2025-06-21)
+
+
+### Features
+
+* **functions:** bump supafunc from 0.9.4 to 0.10.0 ([#1146](https://github.com/supabase/supabase-py/issues/1146)) ([8f662f2](https://github.com/supabase/supabase-py/commit/8f662f205b7d9a1f10d0aab25b5d51d3fe17feec))
+* **postgrest:** bump postgrest from 1.0.2 to 1.1.0 ([#1147](https://github.com/supabase/supabase-py/issues/1147)) ([436d272](https://github.com/supabase/supabase-py/commit/436d272ae3aa52bb1186d9b73b9c58cb736ecb87))
+* **storage:** bump storage3 from 0.11.3 to 0.12.0 ([#1148](https://github.com/supabase/supabase-py/issues/1148)) ([ec032c5](https://github.com/supabase/supabase-py/commit/ec032c5a8d624e9360d0d13dc4029015b9fa850f))
+
 ## [2.15.3](https://github.com/supabase/supabase-py/compare/v2.15.2...v2.15.3) (2025-06-09)
 
 
