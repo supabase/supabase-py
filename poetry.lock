@@ -1803,17 +1803,18 @@ files = [
 
 [[package]]
 name = "storage3"
-version = "0.11.3"
+version = "0.12.0"
 description = "Supabase Storage client for Python."
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "storage3-0.11.3-py3-none-any.whl", hash = "sha256:090c42152217d5d39bd94af3ddeb60c8982f3a283dcd90b53d058f2db33e6007"},
-    {file = "storage3-0.11.3.tar.gz", hash = "sha256:883637132aad36d9d92b7c497a8a56dff7c51f15faf2ff7acbccefbbd5e97347"},
+    {file = "storage3-0.12.0-py3-none-any.whl", hash = "sha256:1c4585693ca42243ded1512b58e54c697111e91a20916cd14783eebc37e7c87d"},
+    {file = "storage3-0.12.0.tar.gz", hash = "sha256:94243f20922d57738bf42e96b9f5582b4d166e8bf209eccf20b146909f3f71b0"},
 ]
 
 [package.dependencies]
+deprecation = ">=2.1.0,<3.0.0"
 httpx = {version = ">=0.26,<0.29", extras = ["http2"]}
 python-dateutil = ">=2.8.2,<3.0.0"
 
@@ -2235,4 +2236,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "a5ab73be98bb95ade676d4ce17c9424a984a75e5d836175ca1ffe26760e5cd1a"
+content-hash = "a8120ac3257acd8a92c2bd631b19fb4a6ce5775ccc84ddd806d4da2d8ee889c1"
