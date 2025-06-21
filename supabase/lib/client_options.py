@@ -45,8 +45,8 @@ class ClientOptions:
     realtime: Optional[RealtimeClientOptions] = None
     """Options passed to the realtime-py instance"""
 
-    httpx_client: Union[SyncHttpxClient] = None
-    """Options passed to the realtime-py instance"""
+    httpx_client: Optional[SyncHttpxClient] = None
+    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
 
     postgrest_client_timeout: Union[int, float, Timeout] = (
         DEFAULT_POSTGREST_CLIENT_TIMEOUT
@@ -106,6 +106,9 @@ class ClientOptions:
 class AsyncClientOptions(ClientOptions):
     storage: AsyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
+
+    httpx_client: Optional[AsyncHttpxClient] = None
+    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
 
     def replace(
         self,

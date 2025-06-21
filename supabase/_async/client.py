@@ -175,7 +175,7 @@ class AsyncClient:
                 headers=self.options.headers,
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
-                client=self.options.httpx_client,
+                http_client=self.options.httpx_client,
             )
 
         return self._postgrest
@@ -187,6 +187,7 @@ class AsyncClient:
                 storage_url=self.storage_url,
                 headers=self.options.headers,
                 storage_client_timeout=self.options.storage_client_timeout,
+                http_client=self.options.httpx_client,
             )
         return self._storage
 
@@ -194,9 +195,14 @@ class AsyncClient:
     def functions(self):
         if self._functions is None:
             self._functions = AsyncFunctionsClient(
-                self.functions_url,
-                self.options.headers,
-                self.options.function_client_timeout,
+                url=self.functions_url,
+                headers=self.options.headers,
+                timeout=(
+                    self.options.function_client_timeout
+                    if self.options.httpx_client is None
+                    else None
+                ),
+                http_client=self.options.httpx_client,
             )
         return self._functions
 
@@ -234,9 +240,23 @@ class AsyncClient:
         storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         verify: bool = True,
         proxy: Optional[str] = None,
+        http_client: Union[AsyncHttpxClient, None] = None,
     ) -> AsyncStorageClient:
+        if http_client is not None:
+            # If an http client is provided, use it
+            kwargs = {"http_client": http_client}
+        else:
+            kwargs = {
+                "timeout": storage_client_timeout,
+                "verify": verify,
+                "proxy": proxy,
+                "http_client": None,
+            }
+
         return AsyncStorageClient(
-            storage_url, headers, storage_client_timeout, verify, proxy
+            url=storage_url,
+            headers=headers,
+            **kwargs,
         )
 
     @staticmethod
@@ -256,6 +276,7 @@ class AsyncClient:
             flow_type=client_options.flow_type,
             verify=verify,
             proxy=proxy,
+            http_client=client_options.httpx_client,
         )
 
     @staticmethod
@@ -266,17 +287,25 @@ class AsyncClient:
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         verify: bool = True,
         proxy: Optional[str] = None,
-        client: Union[AsyncHttpxClient, None] = None,
+        http_client: Union[AsyncHttpxClient, None] = None,
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
+        if http_client is not None:
+            # If an http client is provided, use it
+            kwargs = {"http_client": http_client}
+        else:
+            kwargs = {
+                "timeout": timeout,
+                "verify": verify,
+                "proxy": proxy,
+                "http_client": None,
+            }
+
         return AsyncPostgrestClient(
             rest_url,
             headers=headers,
             schema=schema,
-            timeout=timeout,
-            verify=verify,
-            proxy=proxy,
-            client=client,
+            **kwargs,
         )
 
     def _create_auth_header(self, token: str):
