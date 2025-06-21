@@ -1,16 +1,17 @@
 import os
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock, SyncMock
 
 import pytest
-from gotrue import AsyncMemoryStorage
-from httpx import AsyncClient as AsyncHttpxClient
-from httpx import AsyncHTTPTransport, Limits, Timeout
+from gotrue import SyncMemoryStorage
+from httpx import Limits
+from httpx import SyncClient as SyncHttpxClient
+from httpx import SyncHTTPTransport, Timeout
 
 from supabase import (
-    AsyncClient,
-    AsyncClientOptions,
-    AsyncSupabaseException,
+    SyncClient,
+    SyncClientOptions,
+    SyncSupabaseException,
     create_async_client,
 )
 
@@ -20,51 +21,51 @@ from supabase import (
 )
 @pytest.mark.parametrize("url", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 @pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
-async def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
+def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
     """Ensure we can't instantiate client with invalid values."""
     try:
-        _: AsyncClient = await create_async_client(url, key)
-    except AsyncSupabaseException:
+        _: SyncClient = create_async_client(url, key)
+    except SyncSupabaseException:
         pass
 
 
-async def test_supabase_exception() -> None:
+def test_supabase_exception() -> None:
     try:
-        raise AsyncSupabaseException("err")
-    except AsyncSupabaseException:
+        raise SyncSupabaseException("err")
+    except SyncSupabaseException:
         pass
 
 
-async def test_postgrest_client() -> None:
+def test_postgrest_client() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = await create_async_client(url, key)
+    client = create_async_client(url, key)
     assert client.table("sample")
     assert client.postgrest.schema("new_schema")
 
 
-async def test_rpc_client() -> None:
+def test_rpc_client() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = await create_async_client(url, key)
+    client = create_async_client(url, key)
     assert client.rpc("test_fn")
 
 
-async def test_function_initialization() -> None:
+def test_function_initialization() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = await create_async_client(url, key)
+    client = create_async_client(url, key)
     assert client.functions
 
 
-async def test_uses_key_as_authorization_header_by_default() -> None:
+def test_uses_key_as_authorization_header_by_default() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = await create_async_client(url, key)
+    client = create_async_client(url, key)
 
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == f"Bearer {key}"
@@ -79,26 +80,26 @@ async def test_uses_key_as_authorization_header_by_default() -> None:
     assert client.storage.session.headers.get("Authorization") == f"Bearer {key}"
 
 
-async def test_schema_update() -> None:
+def test_schema_update() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = await create_async_client(url, key)
+    client = create_async_client(url, key)
     assert client.postgrest
     assert client.schema("new_schema")
 
 
-async def test_updates_the_authorization_header_on_auth_events() -> None:
+def test_updates_the_authorization_header_on_auth_events() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = await create_async_client(url, key)
+    client = create_async_client(url, key)
 
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == f"Bearer {key}"
 
     mock_session = MagicMock(access_token="secretuserjwt")
-    realtime_mock = AsyncMock()
+    realtime_mock = SyncMock()
     client.realtime = realtime_mock
 
     client._listen_to_auth_events("SIGNED_IN", mock_session)
@@ -120,15 +121,15 @@ async def test_updates_the_authorization_header_on_auth_events() -> None:
     assert client.storage.session.headers.get("Authorization") == updated_authorization
 
 
-async def test_supports_setting_a_global_authorization_header() -> None:
+def test_supports_setting_a_global_authorization_header() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
     authorization = "Bearer secretuserjwt"
 
-    options = AsyncClientOptions(headers={"Authorization": authorization})
+    options = SyncClientOptions(headers={"Authorization": authorization})
 
-    client = await create_async_client(url, key, options)
+    client = create_async_client(url, key, options)
 
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == authorization
@@ -143,16 +144,16 @@ async def test_supports_setting_a_global_authorization_header() -> None:
     assert client.storage.session.headers.get("Authorization") == authorization
 
 
-async def test_mutable_headers_issue():
+def test_mutable_headers_issue():
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    shared_options = AsyncClientOptions(
-        storage=AsyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
+    shared_options = SyncClientOptions(
+        storage=SyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
     )
 
-    client1 = await create_async_client(url, key, shared_options)
-    client2 = await create_async_client(url, key, shared_options)
+    client1 = create_async_client(url, key, shared_options)
+    client2 = create_async_client(url, key, shared_options)
 
     client1.options.headers["Authorization"] = "Bearer modified-token"
 
@@ -160,23 +161,23 @@ async def test_mutable_headers_issue():
     assert client1.options.headers["Authorization"] == "Bearer modified-token"
 
 
-async def test_global_authorization_header_issue():
+def test_global_authorization_header_issue():
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
     authorization = "Bearer secretuserjwt"
-    options = AsyncClientOptions(headers={"Authorization": authorization})
+    options = SyncClientOptions(headers={"Authorization": authorization})
 
-    client = await create_async_client(url, key, options)
+    client = create_async_client(url, key, options)
 
     assert client.options.headers.get("apiKey") == key
 
 
-async def test_httpx_client():
+def test_httpx_client():
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    transport = AsyncHTTPTransport(
+    transport = SyncHTTPTransport(
         retries=10,
         verify=False,
         limits=Limits(
@@ -185,13 +186,13 @@ async def test_httpx_client():
     )
 
     headers = {"x-user-agent": "my-app/0.0.1"}
-    async with AsyncHttpxClient(
+    with SyncHttpxClient(
         transport=transport, headers=headers, timeout=Timeout(2.0)
     ) as http_client:
         # Create a client with the custom httpx client
-        options = AsyncClientOptions(httpx_client=http_client)
+        options = SyncClientOptions(httpx_client=http_client)
 
-        client = await create_async_client(url, key, options)
+        client = create_async_client(url, key, options)
 
         assert client.postgrest.session.headers.get("x-user-agent") == "my-app/0.0.1"
         assert client.auth._http_client.headers.get("x-user-agent") == "my-app/0.0.1"
