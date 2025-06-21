@@ -21,7 +21,7 @@ realtime = ">=2.4.0 <2.5.0"
 gotrue = "^2.11.0"
 httpx = ">=0.26,<0.29"
 storage3 = ">=0.10,<0.12"
-supafunc = "^0.9"
+supafunc = ">=0.9,<0.11"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^4.1.0"
