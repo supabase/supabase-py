@@ -147,3 +147,41 @@ def test_global_authorization_header_issue():
     client = create_client(url, key, options)
 
     assert client.options.headers.get("apiKey") == key
+
+
+def test_custom_headers():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    options = ClientOptions(
+        headers={
+            "x-app-name": "apple",
+            "x-version": "1.0",
+        }
+    )
+
+    client = create_client(url, key, options)
+
+    assert client.options.headers.get("x-app-name") == "apple"
+    assert client.options.headers.get("x-version") == "1.0"
+
+
+def test_custom_headers_immutable():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    options = ClientOptions(
+        headers={
+            "x-app-name": "apple",
+            "x-version": "1.0",
+        }
+    )
+
+    client1 = create_client(url, key, options)
+    client2 = create_client(url, key, options)
+
+    client1.options.headers["x-app-name"] = "grapes"
+
+    assert client1.options.headers.get("x-app-name") == "grapes"
+    assert client1.options.headers.get("x-version") == "1.0"
+    assert client2.options.headers.get("x-app-name") == "apple"
