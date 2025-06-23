@@ -1,18 +1,17 @@
 import os
 from typing import Any
-from unittest.mock import MagicMock, SyncMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from gotrue import SyncMemoryStorage
-from httpx import Limits
-from httpx import SyncClient as SyncHttpxClient
-from httpx import SyncHTTPTransport, Timeout
+from httpx import Client as SyncHttpxClient
+from httpx import HTTPTransport, Limits, Timeout
 
 from supabase import (
-    SyncClient,
-    SyncClientOptions,
+    Client,
+    ClientOptions,
     SyncSupabaseException,
-    create_async_client,
+    create_client,
 )
 
 
@@ -24,7 +23,7 @@ from supabase import (
 def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
     """Ensure we can't instantiate client with invalid values."""
     try:
-        _: SyncClient = create_async_client(url, key)
+        _: Client = create_client(url, key)
     except SyncSupabaseException:
         pass
 
@@ -40,7 +39,7 @@ def test_postgrest_client() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = create_async_client(url, key)
+    client = create_client(url, key)
     assert client.table("sample")
     assert client.postgrest.schema("new_schema")
 
@@ -49,7 +48,7 @@ def test_rpc_client() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = create_async_client(url, key)
+    client = create_client(url, key)
     assert client.rpc("test_fn")
 
 
@@ -57,7 +56,7 @@ def test_function_initialization() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = create_async_client(url, key)
+    client = create_client(url, key)
     assert client.functions
 
 
@@ -65,7 +64,7 @@ def test_uses_key_as_authorization_header_by_default() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = create_async_client(url, key)
+    client = create_client(url, key)
 
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == f"Bearer {key}"
@@ -84,7 +83,7 @@ def test_schema_update() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = create_async_client(url, key)
+    client = create_client(url, key)
     assert client.postgrest
     assert client.schema("new_schema")
 
@@ -93,13 +92,13 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    client = create_async_client(url, key)
+    client = create_client(url, key)
 
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == f"Bearer {key}"
 
     mock_session = MagicMock(access_token="secretuserjwt")
-    realtime_mock = SyncMock()
+    realtime_mock = Mock()
     client.realtime = realtime_mock
 
     client._listen_to_auth_events("SIGNED_IN", mock_session)
@@ -127,9 +126,9 @@ def test_supports_setting_a_global_authorization_header() -> None:
 
     authorization = "Bearer secretuserjwt"
 
-    options = SyncClientOptions(headers={"Authorization": authorization})
+    options = ClientOptions(headers={"Authorization": authorization})
 
-    client = create_async_client(url, key, options)
+    client = create_client(url, key, options)
 
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == authorization
@@ -148,12 +147,12 @@ def test_mutable_headers_issue():
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    shared_options = SyncClientOptions(
+    shared_options = ClientOptions(
         storage=SyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
     )
 
-    client1 = create_async_client(url, key, shared_options)
-    client2 = create_async_client(url, key, shared_options)
+    client1 = create_client(url, key, shared_options)
+    client2 = create_client(url, key, shared_options)
 
     client1.options.headers["Authorization"] = "Bearer modified-token"
 
@@ -166,9 +165,9 @@ def test_global_authorization_header_issue():
     key = os.environ.get("SUPABASE_TEST_KEY")
 
     authorization = "Bearer secretuserjwt"
-    options = SyncClientOptions(headers={"Authorization": authorization})
+    options = ClientOptions(headers={"Authorization": authorization})
 
-    client = create_async_client(url, key, options)
+    client = create_client(url, key, options)
 
     assert client.options.headers.get("apiKey") == key
 
@@ -177,7 +176,7 @@ def test_httpx_client():
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
-    transport = SyncHTTPTransport(
+    transport = HTTPTransport(
         retries=10,
         verify=False,
         limits=Limits(
@@ -190,9 +189,9 @@ def test_httpx_client():
         transport=transport, headers=headers, timeout=Timeout(2.0)
     ) as http_client:
         # Create a client with the custom httpx client
-        options = SyncClientOptions(httpx_client=http_client)
+        options = ClientOptions(httpx_client=http_client)
 
-        client = create_async_client(url, key, options)
+        client = create_client(url, key, options)
 
         assert client.postgrest.session.headers.get("x-user-agent") == "my-app/0.0.1"
         assert client.auth._http_client.headers.get("x-user-agent") == "my-app/0.0.1"
@@ -202,3 +201,41 @@ def test_httpx_client():
         assert client.auth._http_client.timeout == Timeout(2.0)
         assert client.storage.session.timeout == Timeout(2.0)
         assert client.functions._client.timeout == Timeout(2.0)
+
+
+def test_custom_headers():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    options = ClientOptions(
+        headers={
+            "x-app-name": "apple",
+            "x-version": "1.0",
+        }
+    )
+
+    client = create_client(url, key, options)
+
+    assert client.options.headers.get("x-app-name") == "apple"
+    assert client.options.headers.get("x-version") == "1.0"
+
+
+def test_custom_headers_immutable():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    options = ClientOptions(
+        headers={
+            "x-app-name": "apple",
+            "x-version": "1.0",
+        }
+    )
+
+    client1 = create_client(url, key, options)
+    client2 = create_client(url, key, options)
+
+    client1.options.headers["x-app-name"] = "grapes"
+
+    assert client1.options.headers.get("x-app-name") == "grapes"
+    assert client1.options.headers.get("x-version") == "1.0"
+    assert client2.options.headers.get("x-app-name") == "apple"

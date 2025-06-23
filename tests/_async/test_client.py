@@ -201,3 +201,41 @@ async def test_httpx_client():
         assert client.auth._http_client.timeout == Timeout(2.0)
         assert client.storage.session.timeout == Timeout(2.0)
         assert client.functions._client.timeout == Timeout(2.0)
+
+
+async def test_custom_headers():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    options = AsyncClientOptions(
+        headers={
+            "x-app-name": "apple",
+            "x-version": "1.0",
+        }
+    )
+
+    client = await create_async_client(url, key, options)
+
+    assert client.options.headers.get("x-app-name") == "apple"
+    assert client.options.headers.get("x-version") == "1.0"
+
+
+async def test_custom_headers_immutable():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    options = AsyncClientOptions(
+        headers={
+            "x-app-name": "apple",
+            "x-version": "1.0",
+        }
+    )
+
+    client1 = await create_async_client(url, key, options)
+    client2 = await create_async_client(url, key, options)
+
+    client1.options.headers["x-app-name"] = "grapes"
+
+    assert client1.options.headers.get("x-app-name") == "grapes"
+    assert client1.options.headers.get("x-version") == "1.0"
+    assert client2.options.headers.get("x-app-name") == "apple"
