@@ -1,27 +1,46 @@
-from __future__ import annotations
-
 import os
-from unittest.mock import MagicMock
+from typing import Any
+from unittest.mock import MagicMock, Mock
 
+import pytest
 from gotrue import SyncMemoryStorage
+from httpx import Client as SyncHttpxClient
+from httpx import HTTPTransport, Limits, Timeout
 
-from supabase import ClientOptions, create_client
+from supabase import (
+    Client,
+    ClientOptions,
+    SyncSupabaseException,
+    create_client,
+)
 
 
-def test_function_initialization() -> None:
+@pytest.mark.xfail(
+    reason="None of these values should be able to instantiate a client object"
+)
+@pytest.mark.parametrize("url", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
+@pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
+def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
+    """Ensure we can't instantiate client with invalid values."""
+    try:
+        _: Client = create_client(url, key)
+    except SyncSupabaseException:
+        pass
+
+
+def test_supabase_exception() -> None:
+    try:
+        raise SyncSupabaseException("err")
+    except SyncSupabaseException:
+        pass
+
+
+def test_postgrest_client() -> None:
     url = os.environ.get("SUPABASE_TEST_URL")
     key = os.environ.get("SUPABASE_TEST_KEY")
 
     client = create_client(url, key)
-    assert client.functions
-
-
-def test_postgrest_schema() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
-
-    client = create_client(url, key)
-    assert client.postgrest
+    assert client.table("sample")
     assert client.postgrest.schema("new_schema")
 
 
@@ -31,6 +50,14 @@ def test_rpc_client() -> None:
 
     client = create_client(url, key)
     assert client.rpc("test_fn")
+
+
+def test_function_initialization() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = create_client(url, key)
+    assert client.functions
 
 
 def test_uses_key_as_authorization_header_by_default() -> None:
@@ -50,6 +77,47 @@ def test_uses_key_as_authorization_header_by_default() -> None:
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == f"Bearer {key}"
+
+
+def test_schema_update() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = create_client(url, key)
+    assert client.postgrest
+    assert client.schema("new_schema")
+
+
+def test_updates_the_authorization_header_on_auth_events() -> None:
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    client = create_client(url, key)
+
+    assert client.options.headers.get("apiKey") == key
+    assert client.options.headers.get("Authorization") == f"Bearer {key}"
+
+    mock_session = MagicMock(access_token="secretuserjwt")
+    realtime_mock = Mock()
+    client.realtime = realtime_mock
+
+    client._listen_to_auth_events("SIGNED_IN", mock_session)
+
+    updated_authorization = f"Bearer {mock_session.access_token}"
+
+    assert client.options.headers.get("apiKey") == key
+    assert client.options.headers.get("Authorization") == updated_authorization
+
+    assert client.postgrest.session.headers.get("apiKey") == key
+    assert (
+        client.postgrest.session.headers.get("Authorization") == updated_authorization
+    )
+
+    assert client.auth._headers.get("apiKey") == key
+    assert client.auth._headers.get("Authorization") == updated_authorization
+
+    assert client.storage.session.headers.get("apiKey") == key
+    assert client.storage.session.headers.get("Authorization") == updated_authorization
 
 
 def test_supports_setting_a_global_authorization_header() -> None:
@@ -73,36 +141,6 @@ def test_supports_setting_a_global_authorization_header() -> None:
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == authorization
-
-
-def test_updates_the_authorization_header_on_auth_events() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
-
-    client = create_client(url, key)
-
-    assert client.options.headers.get("apiKey") == key
-    assert client.options.headers.get("Authorization") == f"Bearer {key}"
-
-    mock_session = MagicMock(access_token="secretuserjwt")
-    realtime_mock = MagicMock()
-    client.realtime = realtime_mock
-    client._listen_to_auth_events("SIGNED_IN", mock_session)
-
-    updated_authorization = f"Bearer {mock_session.access_token}"
-
-    assert client.options.headers.get("apiKey") == key
-    assert client.options.headers.get("Authorization") == updated_authorization
-
-    assert client.postgrest.session.headers.get("apiKey") == key
-    assert (
-        client.postgrest.session.headers.get("Authorization") == updated_authorization
-    )
-    assert client.auth._headers.get("apiKey") == key
-    assert client.auth._headers.get("Authorization") == updated_authorization
-
-    assert client.storage.session.headers.get("apiKey") == key
-    assert client.storage.session.headers.get("Authorization") == updated_authorization
 
 
 def test_mutable_headers_issue():
@@ -132,6 +170,37 @@ def test_global_authorization_header_issue():
     client = create_client(url, key, options)
 
     assert client.options.headers.get("apiKey") == key
+
+
+def test_httpx_client():
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    transport = HTTPTransport(
+        retries=10,
+        verify=False,
+        limits=Limits(
+            max_connections=1,
+        ),
+    )
+
+    headers = {"x-user-agent": "my-app/0.0.1"}
+    with SyncHttpxClient(
+        transport=transport, headers=headers, timeout=Timeout(2.0)
+    ) as http_client:
+        # Create a client with the custom httpx client
+        options = ClientOptions(httpx_client=http_client)
+
+        client = create_client(url, key, options)
+
+        assert client.postgrest.session.headers.get("x-user-agent") == "my-app/0.0.1"
+        assert client.auth._http_client.headers.get("x-user-agent") == "my-app/0.0.1"
+        assert client.storage.session.headers.get("x-user-agent") == "my-app/0.0.1"
+        assert client.functions._client.headers.get("x-user-agent") == "my-app/0.0.1"
+        assert client.postgrest.session.timeout == Timeout(2.0)
+        assert client.auth._http_client.timeout == Timeout(2.0)
+        assert client.storage.session.timeout == Timeout(2.0)
+        assert client.functions._client.timeout == Timeout(2.0)
 
 
 def test_custom_headers():

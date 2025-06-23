@@ -8,6 +8,8 @@ from gotrue import (
     SyncMemoryStorage,
     SyncSupportedStorage,
 )
+from httpx import AsyncClient as AsyncHttpxClient
+from httpx import Client as SyncHttpxClient
 from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
@@ -43,6 +45,9 @@ class ClientOptions:
     realtime: Optional[RealtimeClientOptions] = None
     """Options passed to the realtime-py instance"""
 
+    httpx_client: Optional[SyncHttpxClient] = None
+    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
+
     postgrest_client_timeout: Union[int, float, Timeout] = (
         DEFAULT_POSTGREST_CLIENT_TIMEOUT
     )
@@ -67,6 +72,7 @@ class ClientOptions:
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
+        httpx_client: Optional[SyncHttpxClient] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -85,6 +91,7 @@ class ClientOptions:
         client_options.persist_session = persist_session or self.persist_session
         client_options.storage = storage or self.storage
         client_options.realtime = realtime or self.realtime
+        client_options.httpx_client = httpx_client or self.httpx_client
         client_options.postgrest_client_timeout = (
             postgrest_client_timeout or self.postgrest_client_timeout
         )
@@ -100,6 +107,9 @@ class AsyncClientOptions(ClientOptions):
     storage: AsyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
 
+    httpx_client: Optional[AsyncHttpxClient] = None
+    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
+
     def replace(
         self,
         schema: Optional[str] = None,
@@ -108,6 +118,7 @@ class AsyncClientOptions(ClientOptions):
         persist_session: Optional[bool] = None,
         storage: Optional[AsyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
+        httpx_client: Optional[AsyncHttpxClient] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -126,6 +137,7 @@ class AsyncClientOptions(ClientOptions):
         client_options.persist_session = persist_session or self.persist_session
         client_options.storage = storage or self.storage
         client_options.realtime = realtime or self.realtime
+        client_options.httpx_client = httpx_client or self.httpx_client
         client_options.postgrest_client_timeout = (
             postgrest_client_timeout or self.postgrest_client_timeout
         )
@@ -146,6 +158,7 @@ class SyncClientOptions(ClientOptions):
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
+        httpx_client: Optional[SyncHttpxClient] = None,
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
@@ -164,6 +177,7 @@ class SyncClientOptions(ClientOptions):
         client_options.persist_session = persist_session or self.persist_session
         client_options.storage = storage or self.storage
         client_options.realtime = realtime or self.realtime
+        client_options.httpx_client = httpx_client or self.httpx_client
         client_options.postgrest_client_timeout = (
             postgrest_client_timeout or self.postgrest_client_timeout
         )
