@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [2.16.0](https://github.com/supabase/supabase-py/compare/v2.15.3...v2.16.0) (2025-06-23)
+
+
+### Features
+
+* allow injection of httpx client ([#1117](https://github.com/supabase/supabase-py/issues/1117)) ([6539e16](https://github.com/supabase/supabase-py/commit/6539e162885bc649c3abd967fa6217d243ecde21))
+* **functions:** bump supafunc from 0.9.4 to 0.10.0 ([#1146](https://github.com/supabase/supabase-py/issues/1146)) ([8f662f2](https://github.com/supabase/supabase-py/commit/8f662f205b7d9a1f10d0aab25b5d51d3fe17feec))
+* **postgrest:** bump postgrest from 1.0.2 to 1.1.0 ([#1147](https://github.com/supabase/supabase-py/issues/1147)) ([436d272](https://github.com/supabase/supabase-py/commit/436d272ae3aa52bb1186d9b73b9c58cb736ecb87))
+* **realtime:** bump realtime from 2.4.3 to 2.5.1 ([#1149](https://github.com/supabase/supabase-py/issues/1149)) ([7337b68](https://github.com/supabase/supabase-py/commit/7337b681412dd07bb614d4315a5bb7f37ade4fea))
+* **storage:** bump storage3 from 0.11.3 to 0.12.0 ([#1148](https://github.com/supabase/supabase-py/issues/1148)) ([ec032c5](https://github.com/supabase/supabase-py/commit/ec032c5a8d624e9360d0d13dc4029015b9fa850f))
+
+
+### Bug Fixes
+
+* custom headers not  setting ([#1155](https://github.com/supabase/supabase-py/issues/1155)) ([cde2056](https://github.com/supabase/supabase-py/commit/cde2056ba953751f75422bc48cd9c257cfd217f9))
+* remove jwt key validation to allow new api keys ([#1151](https://github.com/supabase/supabase-py/issues/1151)) ([70fe491](https://github.com/supabase/supabase-py/commit/70fe491dbe078aa7331762d19ba6676255ca7fd7))
+
 ## [2.15.3](https://github.com/supabase/supabase-py/compare/v2.15.2...v2.15.3) (2025-06-09)
 
 
