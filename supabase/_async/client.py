@@ -290,16 +290,14 @@ class AsyncClient:
         http_client: Union[AsyncHttpxClient, None] = None,
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
+        kwargs = {
+            "timeout": timeout,
+            "verify": verify,
+            "proxy": proxy,
+        }
         if http_client is not None:
             # If an http client is provided, use it
-            kwargs = {"http_client": http_client}
-        else:
-            kwargs = {
-                "timeout": timeout,
-                "verify": verify,
-                "proxy": proxy,
-                "http_client": None,
-            }
+            kwargs["httpx_client"] = http_client
 
         return AsyncPostgrestClient(
             rest_url,
