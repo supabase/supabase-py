@@ -1829,14 +1829,14 @@ prompt_toolkit = ">=2.0,<4.0"
 
 [[package]]
 name = "realtime"
-version = "2.5.1"
+version = "2.5.2"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "realtime-2.5.1-py3-none-any.whl", hash = "sha256:6ce4dd641860a76962f4e50d7b25d9d5b880e28a5cfe3d4086c12db43e499ba4"},
-    {file = "realtime-2.5.1.tar.gz", hash = "sha256:1475c5b06be0ef3534e2385dd4a41cfa65100c01324e484c1f1589171156e6ca"},
+    {file = "realtime-2.5.2-py3-none-any.whl", hash = "sha256:4460fcabec4c46cf8e883a58846388c63de89ab4d0d8eecce572ea8bd34cb63d"},
+    {file = "realtime-2.5.2.tar.gz", hash = "sha256:44e82407dd7fcf6a773caef9baf91187c419d6539ff0014f01ca4bc89a0e5c52"},
 ]
 
 [package.dependencies]
