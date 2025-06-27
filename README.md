@@ -259,6 +259,14 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 
 Contributing to the Python libraries are a great way to get involved with the Supabase community. Reach out to us on [Discord](https://discord.supabase.com) or on our [Github Discussions](https://github.com/orgs/supabase/discussions) page if you want to get involved.
 
+## Important: Proper Client Shutdown
+
+To ensure the Supabase client terminates correctly and to prevent resource leaks, you **must** explicitly call:
+
+```python
+client.auth.sign_out()
+```
+
 ### Running Tests
 
 Currently, the test suites are in a state of flux. We are expanding our clients' tests to ensure things are working, and for now can connect to this test instance, which is populated with the following table:
