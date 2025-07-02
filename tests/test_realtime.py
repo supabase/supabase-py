@@ -11,7 +11,7 @@ def test_realtime_client_initialization() -> None:
 
     url = "http://localhost:54322"
     sp_local = supabase.Client(url, key)
-    assert sp_local.realtime_url == f"ws://localhost:54322/realtime/v1"
+    assert sp_local.realtime_url == "ws://localhost:54322/realtime/v1"
 
 
 def test_sync_realtime():
@@ -22,6 +22,6 @@ def test_sync_realtime():
     sp = supabase.Client(url, key)
 
     try:
-        channel = sp.realtime.channel("test")
+        sp.realtime.channel("test")
     except NotImplementedError:
         pass
