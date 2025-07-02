@@ -105,7 +105,7 @@ class AsyncClient:
             try:
                 session = await client.auth.get_session()
                 session_access_token = client._create_auth_header(session.access_token)
-            except Exception as err:
+            except Exception:
                 session_access_token = None
 
             client.options.headers.update(
