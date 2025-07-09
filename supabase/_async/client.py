@@ -323,19 +323,21 @@ class AsyncClient:
             "Authorization": authorization,
         }
 
-    def _listen_to_auth_events(
-        self, event: AuthChangeEvent, session: Optional[Session]
-    ):
+    def _listen_to_auth_events(self, event: AuthChangeEvent, session: Optional[Session]):
+        original_auth = self._create_auth_header(self.supabase_key)
+
+        if self.options.headers.get("Authorization") == original_auth:
+            return
+
         access_token = self.supabase_key
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
-            # reset postgrest and storage instance on event change
             self._postgrest = None
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
-        self.options.headers["Authorization"] = self._create_auth_header(access_token)
-        asyncio.create_task(self.realtime.set_auth(access_token))
 
+        self.options.headers["Authorization"] = self._create_auth_header(access_token)
+        await self.realtime.set_auth(access_token)
 
 async def create_client(
     supabase_url: str,
