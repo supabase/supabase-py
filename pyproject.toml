@@ -17,7 +17,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.9"
 postgrest = "1.1.1"
-realtime = "2.5.3"
+realtime = "2.6.0"
 gotrue = "2.12.3"
 storage3 = "0.12.0"
 supafunc = "0.10.1"
