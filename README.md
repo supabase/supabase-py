@@ -294,3 +294,11 @@ The above test database is a blank supabase instance that has populated the `cou
 [![Github Forks](https://img.shields.io/github/forks/supabase/supabase-py?style=flat&logo=github)](https://github.com/supabase/supabase-py/network/members)
 [![Github Watchers](https://img.shields.io/github/watchers/supabase/supabase-py?style=flat&logo=github)](https://github.com/supabase/supabase-py)
 [![GitHub contributors](https://img.shields.io/github/contributors/supabase/supabase-py)](https://github.com/supabase/supabase-py/graphs/contributors)
+### 📌 .range() 方法说明
+
+`.range(start, end)` 用于分页查询，返回从第 `start` 行到第 `end` 行（**包含两端**）的数据。
+
+例如：
+
+```python
+supabase.table("users").select("*").range(0, 9)
