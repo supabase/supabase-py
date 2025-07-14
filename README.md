@@ -34,7 +34,7 @@ conda create --name supabase-py
 conda activate supabase-py
 ```
 
-### PyPi installation
+### PyPI installation
 
 Install the package (for Python >= 3.9):
 
