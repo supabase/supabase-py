@@ -30,7 +30,7 @@ pytest-cov = "^6.2.1"
 commitizen = "^4.8.3"
 python-dotenv = "^1.1.1"
 unasync-cli = { git = "https://github.com/supabase-community/unasync-cli.git", branch = "main" }
-pytest-asyncio = ">=0.24,<1.1"
+pytest-asyncio = ">=0.24,<1.2"
 ruff = "^0.12.1"
 
 [tool.poetry.scripts]
