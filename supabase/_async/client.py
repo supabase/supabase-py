@@ -323,13 +323,14 @@ class AsyncClient:
             "Authorization": authorization,
         }
 
-    def _listen_to_auth_events(self, event: AuthChangeEvent, session: Optional[Session]):
+    async def _listen_to_auth_events(self, event: AuthChangeEvent, session: Optional[Session]):
         original_auth = self._create_auth_header(self.supabase_key)
 
         if self.options.headers.get("Authorization") == original_auth:
             return
 
-        access_token = self.supabase_key
+        access_token = self.supabase_key  # Default value to avoid unbound error
+
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             self._postgrest = None
             self._storage = None
