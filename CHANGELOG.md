@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [2.17.0](https://github.com/supabase/supabase-py/compare/v2.16.0...v2.17.0) (2025-07-16)
+
+
+### Features
+
+* **deps:** bump realtime from 2.5.3 to 2.6.0 ([#1172](https://github.com/supabase/supabase-py/issues/1172)) ([89fa81a](https://github.com/supabase/supabase-py/commit/89fa81a6beaba3b3f3837e055d4860999e40f664))
+
+
+### Documentation
+
+* add note about explicit client.auth.sign_out() for proper shutdown ([#926](https://github.com/supabase/supabase-py/issues/926)) ([#1163](https://github.com/supabase/supabase-py/issues/1163)) ([b657308](https://github.com/supabase/supabase-py/commit/b657308e61253a70cf966b71c58e5b17a83e36a8))
+
 ## [2.16.0](https://github.com/supabase/supabase-py/compare/v2.15.3...v2.16.0) (2025-06-23)
 
 
