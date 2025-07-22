@@ -2,7 +2,7 @@ from gotrue import SyncMemoryStorage
 
 from supabase import AClientOptions, ClientOptions
 
-class TestClientOptions():
+class TestClientOptions:
     def test_replace_returns_updated_aclient_options(self):
         storage = SyncMemoryStorage()
         storage.set_item("key", "value")
