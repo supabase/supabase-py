@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    restart: always
+    env_file: .env
+    depends_on:
+      - redis
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - logs_volume:/app/logs
+    networks:
+      - dvsystem_network
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - dvsystem_network
+
+  celery:
+    build: .
+    command: celery -A dvsystem worker -l INFO
+    restart: always
+    env_file: .env
+    depends_on:
+      - web
+      - redis
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - logs_volume:/app/logs
+    networks:
+      - dvsystem_network
+
+  celery-beat:
+    build: .
+    command: celery -A dvsystem beat -l INFO
+    restart: always
+    env_file: .env
+    depends_on:
+      - web
+      - redis
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - logs_volume:/app/logs
+    networks:
+      - dvsystem_network
+
+  nginx:
+    image: nginx:1.25-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web
+    networks:
+      - dvsystem_network
+
+volumes:
+  static_volume:
+  media_volume:
+  logs_volume:
+  redis_data:
+
+networks:
+  dvsystem_network:
+    driver: bridge

@@ -1,0 +1,22 @@
+-r requirements.txt
+
+# Production Server
+gunicorn>=21.2.0
+whitenoise>=6.6.0
+django-storages>=1.14.2
+django-cors-headers>=4.3.1
+
+# Monitoring
+sentry-sdk>=1.39.1
+django-prometheus>=2.3.1
+
+# Performance
+django-redis>=5.4.0
+django-cacheops>=6.1.1
+django-compressor>=4.4
+
+# Security
+django-ratelimit>=4.1.0
+django-axes>=6.3.0
+django-otp>=1.3.0
+django-two-factor-auth>=1.15.5 
