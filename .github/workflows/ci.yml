@@ -28,16 +28,14 @@ jobs:
       - name: Clone Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
         with:
+          version: "0.8.2"
           python-version: ${{ matrix.python-version }}
 
-      - name: Set up Poetry
-        run: pipx install poetry==1.8.5 --python python${{ matrix.python-version }}
-
       - name: Run Tests
-        run: poetry run tests
+        run: uv run pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
@@ -85,25 +83,20 @@ jobs:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
       contents: write # needed for github actions bot to write to repo
     steps:
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
-
       - name: Clone Repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - name: Set up Poetry
-        run: pipx install poetry==1.8.5 --python python3.11
-
-      - name: Install dependencies
-        run: poetry install
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.2"
+          python-version: "3.11"
 
       - name: Build package dist directory
-        run: poetry build
+        run: uv build
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
