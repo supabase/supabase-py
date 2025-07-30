@@ -35,7 +35,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Run Tests
-        run: uv run pytest --cov=./ --cov-report=xml --cov-report=html -vv
+        run: uv run tests
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
