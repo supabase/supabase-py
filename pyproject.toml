@@ -30,20 +30,33 @@ dependencies = [
   "httpx >=0.26,<0.29",
 ]
 
-[project.dependency-groups]
+[project.scripts]
+tests = 'cli_scripts:run_tests'
+
+[dependency-groups]
 dev = [
+  { include-group = "pre-commit" },
+  { include-group = "tests" },
+  { include-group = "lints" },
+]
+pre-commit = [
   "pre-commit >= 4.1.0",
+  "commitizen >=4.8.3",
+]
+tests = [
   "pytest >= 8.4.1",
   "pytest-cov >= 6.2.1",
-  "commitizen >=4.8.3",
-  "python-dotenv >= 1.1.1",
-  "unasync-cli",
   "pytest-asyncio >=0.24,<1.1",
+  "python-dotenv >= 1.1.1",
+]
+lints = [
+  "unasync-cli",
   "ruff >=0.12.1",
 ]
 
-[project.scripts]
-tests = 'cli_scripts:run_tests'
+[tool.uv]
+default-groups = [ "dev" ]
+
 
 [tool.uv.sources]
 unasync-cli = { git = "https://github.com/supabase-community/unasync-cli.git", branch = "main" }
