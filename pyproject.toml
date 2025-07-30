@@ -43,7 +43,7 @@ dev = [
 ]
 
 [project.scripts]
-tests = 'test_scripts:run_tests'
+tests = 'cli_scripts:run_tests'
 
 [tool.uv.sources]
 unasync-cli = { git = "https://github.com/supabase-community/unasync-cli.git", branch = "main" }
