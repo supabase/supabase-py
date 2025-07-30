@@ -18,7 +18,13 @@ cd supabase-py
 
 ### Create and Activate a Virtual Environment
 
-We recommend activating your virtual environment. For example, we like `poetry` and `conda`! Click [here](https://docs.python.org/3/library/venv.html) for more about Python virtual environments and working with [conda](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment) and [poetry](https://python-poetry.org/docs/basic-usage/).
+We recommend activating your virtual environment. For example, we like `uv` and `conda`! Click [here](https://docs.python.org/3/library/venv.html) for more about Python virtual environments and working with [conda](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment) and [uv](https://docs.astral.sh/uv/getting-started/features/).
+
+Using uv:
+```
+uv venv supabase-py
+source supabase-py/bin/activate
+```
 
 Using venv (Python 3 built-in):
 
