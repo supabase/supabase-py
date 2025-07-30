@@ -48,9 +48,13 @@ tests = 'test_scripts:run_tests'
 [tool.uv.sources]
 unasync-cli = { git = "https://github.com/supabase-community/unasync-cli.git", branch = "main" }
 
+[build-system]
+requires = ["uv_build>=0.8.3,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "supabase"
+module-root = ""
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
