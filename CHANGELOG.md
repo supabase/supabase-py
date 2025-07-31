@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.18.0](https://github.com/supabase/supabase-py/compare/v2.17.0...v2.18.0) (2025-07-31)
+
+
+### Features
+
+* **realtime:** bump realtime from 2.6.0 to 2.7.0 ([#1184](https://github.com/supabase/supabase-py/issues/1184)) ([76c57b0](https://github.com/supabase/supabase-py/commit/76c57b0d90fe7775e5b9a44e74034b28368d73cb))
+
 ## [2.17.0](https://github.com/supabase/supabase-py/compare/v2.16.0...v2.17.0) (2025-07-16)
 
 
