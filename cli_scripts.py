@@ -36,6 +36,5 @@ def build_sync():
         sed(left, right)
 
 def run_tests():
-    # Install requirements
     precommit()
     pytest()
