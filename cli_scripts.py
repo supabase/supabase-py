@@ -1,20 +1,41 @@
-from subprocess import Popen
+import subprocess
 
 
-def spawn(cmd: str) -> Popen:
-    return Popen(cmd.split())
+def uvx(*cmds: str):
+    return subprocess.run(["uv", "run", *cmds], check=True)
 
 
-def spawn_precommit() -> Popen:
-    return spawn("uv run pre-commit run --all-files")
+def precommit():
+    return uvx("pre-commit", "run", "--all-files")
 
 
-def spawn_pytest() -> Popen:
-    return spawn("uv run pytest --cov=./ --cov-report=xml --cov-report=html -vv")
+def pytest():
+    return uvx("pytest", "--cov=./", "--cov-report=xml", "--cov-report=html", "-vv")
 
+
+def unasync():
+    return uvx("unasync", "supabase", "tests")
+
+
+def sed(before: str, after: str):
+    return subprocess.run(["sed", "-i", "", before, after], check=True)
+
+def build_sync():
+    substs = [
+        ('s/asyncio.create_task(self.realtime.set_auth(access_token))//g', "supabase/_sync/client.py"),
+        ('s/asynch/synch/g', "supabase/_sync/auth_client.py"),
+        ('s/Async/Sync/g', "supabase/_sync/auth_client.py"),
+        ('s/Async/Sync/g', "supabase/_sync/client.py"),
+        ('s/create_async_client/create_client/g', "tests/_sync/test_client.py"),
+        ('s/SyncClient/Client/gi', "tests/_sync/test_client.py"),
+        ('s/SyncHTTPTransport/HTTPTransport/g', "tests/_sync/test_client.py"),
+        ('s/SyncMock/Mock/g', "tests/_sync/test_client.py"),
+    ]
+    unasync()
+    for (left, right) in substs:
+        sed(left, right)
 
 def run_tests():
     # Install requirements
-    with spawn_precommit() as precommit, spawn_pytest() as pytests:
-        pass  # implicitly wait for all of them to return
-    return precommit.returncode and pytests.returncode
+    precommit()
+    pytest()

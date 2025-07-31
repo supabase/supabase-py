@@ -31,7 +31,8 @@ dependencies = [
 ]
 
 [project.scripts]
-tests = 'cli_scripts:run_tests'
+tests = "cli_scripts:run_tests"
+build_sync = "cli_scripts:build_sync"
 
 [dependency-groups]
 dev = [
