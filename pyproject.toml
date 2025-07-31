@@ -10,14 +10,11 @@ authors = [
   { name = "Anand" },
   { name = "Andrew Smith", email = "a.smith@silentworks.co.uk" },
 ]
-homepage = "https://github.com/supabase/supabase-py"
-repository = "https://github.com/supabase/supabase-py"
-documentation = "https://github.com/supabase/supabase-py"
 readme = "README.md"
 license = "MIT"
+license-files = [ "LICENSE" ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent"
 ]
 requires-python = ">=3.9"
@@ -29,6 +26,11 @@ dependencies = [
   "supafunc == 0.10.1",
   "httpx >=0.26,<0.29",
 ]
+
+[project.urls]
+homepage = "https://github.com/supabase/supabase-py"
+repository = "https://github.com/supabase/supabase-py"
+documentation = "https://github.com/supabase/supabase-py"
 
 [project.scripts]
 tests = "cli_scripts:run_tests"
