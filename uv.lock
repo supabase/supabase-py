@@ -464,6 +464,7 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67", size = 134899, upload-time = "2025-03-05T20:05:00.369Z" },
 ]
 
+
 [[package]]
 name = "markupsafe"
 version = "3.0.2"
@@ -531,6 +532,7 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/31/bd635fb5989440d9365c5e3c47556cfea121c7803f5034ac843e8f37c2f2/MarkupSafe-3.0.2-cp39-cp39-win32.whl", hash = "sha256:8c4e8c3ce11e1f92f6536ff07154f9d49677ebaaafc32db9db4620bc11ed480f", size = 15063, upload-time = "2024-10-18T15:21:51.385Z" },
     { url = "https://files.pythonhosted.org/packages/b3/73/085399401383ce949f727afec55ec3abd76648d04b9f22e1c0e99cb4bec3/MarkupSafe-3.0.2-cp39-cp39-win_amd64.whl", hash = "sha256:6e296a513ca3d94054c2c881cc913116e90fd030ad1c656b3869762b754f5f8a", size = 15506, upload-time = "2024-10-18T15:21:52.974Z" },
 ]
+
 
 [[package]]
 name = "nodeenv"
@@ -898,6 +900,7 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/46/a3/8a49cd4764cb96101d8b3374502dbc9a84f687a12f09e2af28d52035ebcd/realtime-2.6.0-py3-none-any.whl", hash = "sha256:a0512d71044c2621455bc87d1c171739967edc161381994de54e0989ca6c348e", size = 21803, upload-time = "2025-07-10T19:51:42.922Z" },
 ]
 
+
 [[package]]
 name = "ruff"
 version = "0.12.7"
@@ -1176,7 +1179,7 @@ wheels = [
 [[package]]
 name = "unasync-cli"
 version = "0.0.1"
-source = { git = "https://github.com/supabase-community/unasync-cli.git?branch=main#ae953f9799e781f1ef493030c58539c0486b3aae" }
+source = { git = "https://github.com/supabase-community/unasync-cli.git?branch=main#82f8a9a748665a7581be8c8f1a4a22752db618d1" }
 dependencies = [
     { name = "setuptools" },
     { name = "typer" },
