@@ -30,7 +30,7 @@ class ClientOptions:
     Must be on the list of exposed schemas in Supabase. Defaults to 'public'.
     """
 
-    headers: Dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
+    headers: Dict[str, str] = field(default_factory=lambda: DEFAULT_HEADERS.copy)
     """Optional headers for initializing the client."""
 
     auto_refresh_token: bool = True
@@ -82,7 +82,7 @@ class ClientOptions:
         flow_type: Optional[AuthFlowType] = None,
     ) -> "ClientOptions":
         """Create a new SupabaseClientOptions with changes"""
-        client_options = ClientOptions()
+        client_options = type(self)()
         client_options.schema = schema or self.schema
         client_options.headers = headers or self.headers
         client_options.auto_refresh_token = (
