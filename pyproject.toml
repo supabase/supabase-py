@@ -19,8 +19,8 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
+  "realtime",
   "postgrest == 1.1.1",
-  "realtime == 2.6.0",
   "gotrue == 2.12.3",
   "storage3 == 0.12.0",
   "supafunc == 0.10.1",
@@ -31,10 +31,6 @@ dependencies = [
 homepage = "https://github.com/supabase/supabase-py"
 repository = "https://github.com/supabase/supabase-py"
 documentation = "https://github.com/supabase/supabase-py"
-
-[project.scripts]
-tests = "cli_scripts:run_tests"
-build_sync = "cli_scripts:build_sync"
 
 [dependency-groups]
 dev = [
@@ -60,17 +56,25 @@ lints = [
 [tool.uv]
 default-groups = [ "dev" ]
 
+[tool.uv.workspace]
+members = [ "src/realtime" ]
 
 [tool.uv.sources]
+realtime = { workspace = true }
 unasync-cli = { git = "https://github.com/supabase-community/unasync-cli.git", branch = "main" }
+
+[project.scripts]
+tests = "cli_scripts:run_tests"
+build_sync = "cli_scripts:build_sync"
+
+
+[tool.uv.build-backend]
+module-name = "supabase"
+module-root = "src/supabase/src"
 
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
-
-[tool.uv.build-backend]
-module-name = "supabase"
-module-root = ""
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
