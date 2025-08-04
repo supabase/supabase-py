@@ -20,3 +20,6 @@ build_sync: unasync
     sed -i "" 's/SyncClient/Client/g' tests/_sync/test_client.py
     sed -i "" 's/SyncHTTPTransport/HTTPTransport/g' tests/_sync/test_client.py
     sed -i "" 's/SyncMock/Mock/g' tests/_sync/test_client.py
+
+[doc("Run all supabase tests")]
+test: pytest

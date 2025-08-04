@@ -11,7 +11,7 @@ default:
     @just --list
 
 [doc("Run all available tests")]
-test: realtime::pytest && supabase::pytest
+test: realtime::test && supabase::test
 
 [doc("Run pre-commit on all files")]
 pre-commit:

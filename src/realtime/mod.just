@@ -7,6 +7,13 @@ default:
 pytest: infra
     uv run --exact --package realtime pytest  --cov=./ --cov-report=xml --cov-report=html
 
+[doc("Run mypy in realtime")]
+mypy:
+    uv run --exact --package realtime mypy src/realtime
+
 [doc("Start the supabase docker instance for realtime")]
 infra:
     supabase start --workdir infra -x studio,mailpit,edge-runtime,logflare,vector,supavisor,imgproxy,storage-api
+
+[doc("Run relevant tests for realtime")]
+test: pytest && mypy
