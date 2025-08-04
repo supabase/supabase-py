@@ -1,6 +1,6 @@
 # `supabase-py`
 
-Python monorepo for all [Supabase](https://supabase.com) libraries.
+Python monorepo for all [Supabase](https://supabase.com) libraries. This is a work in progress, and currently these are the ones contained in this repository:
 
 - [supabase](src/supabase/README.md)
 - [realtime](src/realtime/README.md)
@@ -23,7 +23,7 @@ cd supabase-py
 
 ### Create and Activate a Virtual Environment
 
-We recommend activating your virtual environment. For example, we like `uv` and `conda`! Click [here](https://docs.python.org/3/library/venv.html) for more about Python virtual environments and working with [conda](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment) and [uv](https://docs.astral.sh/uv/getting-started/features/).
+We recommend activating your virtual environment. For example, we like `uv`, `conda` and `nix`! Click [here](https://docs.python.org/3/library/venv.html) for more about Python virtual environments and working with [conda](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment) and [uv](https://docs.astral.sh/uv/getting-started/features/). For nix, just install it with flakes enabled.
 
 Using uv:
 ```
@@ -44,6 +44,11 @@ Using conda:
 ```bash
 conda create --name supabase-py
 conda activate supabase-py
+```
+
+Using nix:
+```bash
+nix develop
 ```
 
 ### Local installation
