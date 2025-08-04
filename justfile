@@ -1,12 +1,15 @@
 # commands related to realtime
+[group("package")]
+[doc("realtime commands")]
 mod realtime "src/realtime/mod.just"
-# commands related to supabase
+[doc("supabase commands")]
+[group("package")]
 mod supabase "src/supabase/mod.just"
 
 [doc("Lists all available commands")]
 default:
     @just --list
-    
+
 [doc("Run all available tests")]
 test: realtime::pytest && supabase::pytest
 
