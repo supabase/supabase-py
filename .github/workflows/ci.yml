@@ -34,8 +34,12 @@ jobs:
           version: "0.8.2"
           python-version: ${{ matrix.python-version }}
 
+      - uses: extractions/setup-just@v3
+        with:
+          just-version: 1.5.0  # optional semver specification, otherwise latest
+
       - name: Run Tests
-        run: uv run tests
+        run: just ci
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
