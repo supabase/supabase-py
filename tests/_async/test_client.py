@@ -3,7 +3,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from gotrue import AsyncMemoryStorage
+from supabase_auth import AsyncMemoryStorage
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import AsyncHTTPTransport, Limits, Timeout
 
