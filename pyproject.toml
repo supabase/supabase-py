@@ -23,7 +23,7 @@ dependencies = [
   "realtime == 2.7.0",
   "gotrue == 2.12.3",
   "storage3 == 0.12.1",
-  "supafunc == 0.10.1",
+  "supafunc == 0.10.2",
   "httpx >=0.26,<0.29",
 ]
 
