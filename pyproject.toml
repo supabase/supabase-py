@@ -21,7 +21,7 @@ requires-python = ">=3.9"
 dependencies = [
   "postgrest == 1.1.1",
   "realtime == 2.7.0",
-  "gotrue == 2.12.3",
+  "gotrue == 2.12.4",
   "storage3 == 0.12.1",
   "supafunc == 0.10.1",
   "httpx >=0.26,<0.29",
