@@ -3,8 +3,8 @@ import copy
 import re
 from typing import Any, Dict, Optional, Union
 
-from gotrue import AsyncMemoryStorage
-from gotrue.types import AuthChangeEvent, Session
+from supabase_auth import AsyncMemoryStorage
+from supabase_auth.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import (
     AsyncPostgrestClient,
@@ -14,7 +14,7 @@ from postgrest.types import CountMethod
 from realtime import AsyncRealtimeChannel, AsyncRealtimeClient, RealtimeChannelOptions
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
-from supafunc import AsyncFunctionsClient
+from supabase_functions import AsyncFunctionsClient
 
 from ..lib.client_options import AsyncClientOptions as ClientOptions
 from ..lib.client_options import AsyncHttpxClient

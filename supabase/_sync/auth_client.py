@@ -1,12 +1,12 @@
 from typing import Dict, Optional
 
-from gotrue import (
+from supabase_auth import (
     AuthFlowType,
     SyncGoTrueClient,
     SyncMemoryStorage,
     SyncSupportedStorage,
 )
-from gotrue.http_clients import SyncClient
+from supabase_auth.http_clients import SyncClient
 
 
 class SyncSupabaseAuthClient(SyncGoTrueClient):

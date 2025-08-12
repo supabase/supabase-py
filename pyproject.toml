@@ -21,10 +21,14 @@ requires-python = ">=3.9"
 dependencies = [
   "postgrest == 1.1.1",
   "realtime == 2.7.0",
-  "gotrue == 2.12.3",
+  "supabase_auth == 2.12.3",
   "storage3 == 0.12.1",
-  "supafunc == 0.10.1",
+  "supabase_functions == 0.10.1",
   "httpx >=0.26,<0.29",
+  # keep both of them in for a little while
+  # until the name deprecation is finished.
+  "gotrue == 2.12.4",
+  "supafunc == 0.10.2",
 ]
 
 [project.urls]

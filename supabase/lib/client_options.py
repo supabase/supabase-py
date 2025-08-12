@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Union
 
-from gotrue import (
+from supabase_auth import (
     AsyncMemoryStorage,
     AsyncSupportedStorage,
     AuthFlowType,
@@ -13,7 +13,7 @@ from httpx import Client as SyncHttpxClient
 from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
-from supafunc.utils import DEFAULT_FUNCTION_CLIENT_TIMEOUT
+from supabase_functions.utils import DEFAULT_FUNCTION_CLIENT_TIMEOUT
 
 from supabase.types import RealtimeClientOptions
 
