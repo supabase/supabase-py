@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.18.1](https://github.com/supabase/supabase-py/compare/v2.18.0...v2.18.1) (2025-08-12)
+
+
+### Bug Fixes
+
+* remove deprecated supafunc and gotrue ([#1197](https://github.com/supabase/supabase-py/issues/1197)) ([0edf495](https://github.com/supabase/supabase-py/commit/0edf495c571619ebc645fa34956a9167a98f6dfa))
+
 ## [2.18.0](https://github.com/supabase/supabase-py/compare/v2.17.0...v2.18.0) (2025-08-05)
 
 
