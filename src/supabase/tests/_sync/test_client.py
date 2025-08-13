@@ -3,7 +3,7 @@ from typing import Any
 from unittest.mock import MagicMock, Mock
 
 import pytest
-from gotrue import SyncMemoryStorage
+from supabase_auth import SyncMemoryStorage
 from httpx import Client as SyncHttpxClient
 from httpx import HTTPTransport, Limits, Timeout
 

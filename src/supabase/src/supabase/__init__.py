@@ -1,4 +1,4 @@
-from gotrue.errors import (
+from supabase_auth.errors import (
     AuthApiError,
     AuthError,
     AuthImplicitGrantRedirectError,
@@ -12,7 +12,11 @@ from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from realtime import AuthorizationError, NotConnectedError
 from storage3.utils import StorageException
-from supafunc.errors import FunctionsError, FunctionsHttpError, FunctionsRelayError
+from supabase_functions.errors import (
+    FunctionsError,
+    FunctionsHttpError,
+    FunctionsRelayError,
+)
 
 # Async Client
 from ._async.auth_client import AsyncSupabaseAuthClient as ASupabaseAuthClient

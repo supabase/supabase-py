@@ -1,4 +1,4 @@
-from gotrue import SyncMemoryStorage
+from supabase_auth import SyncMemoryStorage
 
 from supabase import AClientOptions, ClientOptions
 
