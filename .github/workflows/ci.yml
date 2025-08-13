@@ -35,9 +35,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - uses: extractions/setup-just@v3
-        with:
-          just-version: 1.5.0  # optional semver specification, otherwise latest
-
+        
       - name: Run Tests
         run: just ci
 

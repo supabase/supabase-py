@@ -11,11 +11,11 @@ default:
     @just --list
 
 [doc("Run all available tests")]
-test: realtime::test && supabase::test
+test: realtime::test supabase::test
 
 [doc("Run pre-commit on all files")]
 pre-commit:
     uv run pre-commit run --all-files
 
 [doc("Run CI tests")]
-ci: pre-commit && test
+ci: pre-commit test
