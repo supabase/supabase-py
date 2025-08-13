@@ -35,7 +35,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - uses: extractions/setup-just@v3
-        
+
       - name: Run Tests
         run: just ci
 
