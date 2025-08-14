@@ -1,0 +1,61 @@
+[project]
+name = "supabase"
+version = "2.18.1" # {x-release-please-version}
+description = "Supabase client for Python."
+authors = [
+  { name = "Joel Lee", email = "joel@joellee.org" },
+  { name = "Leon Fedden", email = "leonfedden@gmail.com" },
+  { name = "Daniel Reinón García", email = "danielreinon@outlook.com" },
+  { name = "Leynier Gutiérrez González", email = "leynier41@gmail.com" },
+  { name = "Anand" },
+  { name = "Andrew Smith", email = "a.smith@silentworks.co.uk" },
+]
+readme = "README.md"
+license = "MIT"
+license-files = [ "LICENSE" ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.9"
+dependencies = [
+  "realtime",
+  "postgrest == 1.1.1",
+  "supabase_auth == 2.12.3",
+  "storage3 == 0.12.0",
+  "supabase_functions == 0.10.1",
+  "httpx >=0.26,<0.29",
+]
+
+[project.urls]
+homepage = "https://github.com/supabase/supabase-py"
+repository = "https://github.com/supabase/supabase-py"
+documentation = "https://github.com/supabase/supabase-py"
+
+[dependency-groups]
+dev = [
+  { include-group = "pre-commit" },
+  { include-group = "tests" },
+  { include-group = "lints" },
+]
+pre-commit = [
+  "pre-commit >= 4.1.0",
+  "commitizen >=4.8.3",
+]
+tests = [
+  "pytest >= 8.4.1",
+  "pytest-cov >= 6.2.1",
+  "pytest-asyncio >=0.24,<1.1",
+  "python-dotenv >= 1.1.1",
+]
+lints = [
+  "unasync-cli",
+  "ruff >=0.12.1",
+]
+
+[tool.uv]
+default-groups = [ "dev" ]
+
+[build-system]
+requires = ["uv_build>=0.8.3,<0.9.0"]
+build-backend = "uv_build"
