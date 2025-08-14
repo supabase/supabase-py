@@ -1,14 +1,10 @@
 .PHONY: pytest pre-commit unasync build-sync tests
 
 pytest:
-	uv run --package --exact supabase pytest --cov=./ --cov-report=xml --cov-report=html -vv
-
-pre-commit:
-	uv run pre-commit run --all-files
+	uv run --exact --package supabase pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
 unasync:
 	uv run run-unasync.py
-
 build-sync: unasync
 	sed -i 's/asyncio.create_task(self.realtime.set_auth(access_token))//g' src/supabase/_sync/client.py
 	sed -i 's/asynch/synch/g' src/supabase/_sync/auth_client.py
@@ -19,4 +15,4 @@ build-sync: unasync
 	sed -i 's/SyncHTTPTransport/HTTPTransport/g' tests/_sync/test_client.py
 	sed -i 's/SyncMock/Mock/g' tests/_sync/test_client.py
 
-tests: pre-commit pytest
+tests: pytest
