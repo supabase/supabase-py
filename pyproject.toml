@@ -7,7 +7,6 @@ members = [
 [tool.uv.sources]
 realtime = { workspace = true }
 supabase = { workspace = true }
-unasync-cli = { git = "https://github.com/supabase-community/unasync-cli.git", branch = "main" }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

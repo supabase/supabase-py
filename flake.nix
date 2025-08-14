@@ -31,8 +31,8 @@
 
     dev-tools = pkgs: [
       pkgs.supabase-cli
-      pkgs.just
       pkgs.uv
+      pkgs.gnumake
     ];
     workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; };
 
