@@ -37,10 +37,8 @@ jobs:
           version: "0.8.2"
           python-version: ${{ matrix.python-version }}
 
-      - uses: extractions/setup-just@v3
-
       - name: Run Tests
-        run: just ci
+        run: make ci
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
