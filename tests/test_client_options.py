@@ -2,7 +2,6 @@ from supabase_auth import SyncMemoryStorage
 
 from supabase import AClientOptions, ClientOptions
 
-
 class TestClientOptions:
     def test_replace_returns_updated_aclient_options(self):
         storage = SyncMemoryStorage()
