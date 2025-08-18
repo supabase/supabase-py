@@ -98,8 +98,5 @@ jobs:
           version: "0.8.2"
           python-version: "3.11"
 
-      - name: Build package dist directory
-        run: uv build
-
-      - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Build all packages and publish
+        run: make publish
