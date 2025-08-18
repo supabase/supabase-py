@@ -1,10 +1,11 @@
 tests: pytest
 
 pytest:
-	uv run pytest --cov=./ --cov-report=xml --cov-report=html -vv
+	uv run --package supabase_functions pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
 unasync:
-	uv run run-unasync.py
+	uv run --package supabase_functions run-unasync.py
+
 build-sync: unasync
 	sed -i '0,/SyncMock, /{s/SyncMock, //}' tests/_sync/test_function_client.py
 	sed -i 's/SyncMock/Mock/g' tests/_sync/test_function_client.py

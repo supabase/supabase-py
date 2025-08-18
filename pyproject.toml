@@ -1,11 +1,13 @@
 [tool.uv.workspace]
 members = [
   "src/realtime",
+  "src/functions",
   "src/supabase"
 ]
 
 [tool.uv.sources]
 realtime = { workspace = true }
+supabase_functions  = { workspace = true }
 supabase = { workspace = true }
 
 [tool.pytest.ini_options]
