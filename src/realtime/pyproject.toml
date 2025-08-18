@@ -1,0 +1,90 @@
+[project]
+name = "realtime"
+version = "2.7.0" # {x-release-please-version}
+description = ""
+authors = [
+    { name = "Joel Lee", email="joel@joellee.org"},
+    { name = "Andrew Smith", email="a.smith@silentworks.co.uk"},
+]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/supabase/realtime-py"
+requires-python = ">=3.9"
+dependencies = [
+  "websockets >=11,<16",
+  "typing-extensions >=4.14.0",
+  "pydantic (>=2.11.7,<3.0.0)",
+]
+
+[tool.poetry.group.dev.dependencies]
+aiohttp = "^3.12.15"
+pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+python-dotenv = "^1.1.1"
+pytest-asyncio = "^1.1.0"
+pre-commit = "^4.2.0"
+ruff = "^0.12.5"
+python-lsp-server = ">=1.12.2,<2.0.0"
+pylsp-mypy = ">=0.7.0,<0.8.0"
+python-lsp-ruff = ">=2.2.2,<3.0.0"
+
+# maintain two copies of the groups while poetry
+# doesn't implement pep 735 support.
+# https://peps.python.org/pep-0735/
+# https://github.com/python-poetry/poetry/issues/9751
+[dependency-groups]
+tests = [
+  "aiohttp >= 3.12.13",
+  "pytest >= 8.4.1",
+  "pytest-cov >= 6.2.1",
+  "python-dotenv >= 1.1.1",
+  "pytest-asyncio >= 1.0.0",
+]
+lints = [
+  "pre-commit >= 4.2.0",
+  "ruff >= 0.12.1",
+  "python-lsp-server (>=1.12.2,<2.0.0)",
+  "pylsp-mypy (>=0.7.0,<0.8.0)",
+  "python-lsp-ruff (>=2.2.2,<3.0.0)",
+]
+dev = [{ include-group = "lints" }, {include-group = "tests" }]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff.lint]
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  # "B",
+  # flake8-simplify
+  # "SIM",
+  # isort
+  "I",
+]
+ignore = ["F401", "F403", "F841", "E712", "E501", "E402", "UP006", "UP035"]
+# isort.required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.mypy]
+python_version = "3.9"
+check_untyped_defs = true
+allow_redefinition = true
+
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
