@@ -1,0 +1,32 @@
+diff --git a/supabase/_async/client.py b/supabase/_async/client.py
+index 398b7fb..6992af0 100644
+--- a/supabase/_async/client.py
++++ b/supabase/_async/client.py
+@@ -65,7 +65,10 @@ class AsyncClient:
+         self.supabase_url = supabase_url
+         self.supabase_key = supabase_key
+         self.options = copy.copy(options)
+-        self.options.headers = copy.copy(self._get_auth_headers())
++        self.options.headers = {
++            **options.headers,
++            **self._get_auth_headers(),
++        }
+ 
+         self.rest_url = f"{supabase_url}/rest/v1"
+         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
+diff --git a/supabase/_sync/client.py b/supabase/_sync/client.py
+index f100b3b..af2a841 100644
+--- a/supabase/_sync/client.py
++++ b/supabase/_sync/client.py
+@@ -64,7 +64,10 @@ class SyncClient:
+         self.supabase_url = supabase_url
+         self.supabase_key = supabase_key
+         self.options = copy.copy(options)
+-        self.options.headers = copy.copy(self._get_auth_headers())
++        self.options.headers = {
++            **options.headers,
++            **self._get_auth_headers(),
++        }
+ 
+         self.rest_url = f"{supabase_url}/rest/v1"
+         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")

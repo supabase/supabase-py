@@ -1,0 +1,7 @@
+# FAIL_TO_PASS tests
+# These tests fail with the bug and pass after applying the fix
+
+uv run pytest tests/_sync/test_client.py::test_custom_headers -xvs
+uv run pytest tests/_sync/test_client.py::test_custom_headers_immutable -xvs
+uv run pytest tests/_async/test_client.py::test_custom_headers -xvs
+uv run pytest tests/_async/test_client.py::test_custom_headers_immutable -xvs

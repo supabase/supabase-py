@@ -1,0 +1,42 @@
+{
+  "repo": "supabase/supabase-py",
+  "instance_id": "supabase__supabase-py-1155",
+  "base_commit": "f3b8e16",
+  "patch": "diff --git a/supabase/_async/client.py b/supabase/_async/client.py\nindex 398b7fb..6992af0 100644\n--- a/supabase/_async/client.py\n+++ b/supabase/_async/client.py\n@@ -65,7 +65,10 @@ class AsyncClient:\n         self.supabase_url = supabase_url\n         self.supabase_key = supabase_key\n         self.options = copy.copy(options)\n-        self.options.headers = copy.copy(self._get_auth_headers())\n+        self.options.headers = {\n+            **options.headers,\n+            **self._get_auth_headers(),\n+        }\n \n         self.rest_url = f\"{supabase_url}/rest/v1\"\n         self.realtime_url = f\"{supabase_url}/realtime/v1\".replace(\"http\", \"ws\")\ndiff --git a/supabase/_sync/client.py b/supabase/_sync/client.py\nindex f100b3b..af2a841 100644\n--- a/supabase/_sync/client.py\n+++ b/supabase/_sync/client.py\n@@ -64,7 +64,10 @@ class SyncClient:\n         self.supabase_url = supabase_url\n         self.supabase_key = supabase_key\n         self.options = copy.copy(options)\n-        self.options.headers = copy.copy(self._get_auth_headers())\n+        self.options.headers = {\n+            **options.headers,\n+            **self._get_auth_headers(),\n+        }\n \n         self.rest_url = f\"{supabase_url}/rest/v1\"\n         self.realtime_url = f\"{supabase_url}/realtime/v1\".replace(\"http\", \"ws\")",
+  "test_patch": "diff --git a/tests/_async/test_client.py b/tests/_async/test_client.py\nindex abc123..def456 100644\n--- a/tests/_async/test_client.py\n+++ b/tests/_async/test_client.py\n@@ -147,3 +147,41 @@ def test_global_authorization_header_issue():\n     client = create_client(url, key, options)\n \n     assert client.options.headers.get(\"apiKey\") == key\n+\n+\n+async def test_custom_headers():\n+    url = os.environ.get(\"SUPABASE_TEST_URL\")\n+    key = os.environ.get(\"SUPABASE_TEST_KEY\")\n+\n+    options = AsyncClientOptions(\n+        headers={\n+            \"x-app-name\": \"apple\",\n+            \"x-version\": \"1.0\",\n+        }\n+    )\n+\n+    client = await create_async_client(url, key, options)\n+\n+    assert client.options.headers.get(\"x-app-name\") == \"apple\"\n+    assert client.options.headers.get(\"x-version\") == \"1.0\"\n+\n+\n+async def test_custom_headers_immutable():\n+    url = os.environ.get(\"SUPABASE_TEST_URL\")\n+    key = os.environ.get(\"SUPABASE_TEST_KEY\")\n+\n+    options = AsyncClientOptions(\n+        headers={\n+            \"x-app-name\": \"apple\",\n+            \"x-version\": \"1.0\",\n+        }\n+    )\n+\n+    client1 = await create_async_client(url, key, options)\n+    client2 = await create_async_client(url, key, options)\n+\n+    client1.options.headers[\"x-app-name\"] = \"grapes\"\n+\n+    assert client1.options.headers.get(\"x-app-name\") == \"grapes\"\n+    assert client1.options.headers.get(\"x-version\") == \"1.0\"\n+    assert client2.options.headers.get(\"x-app-name\") == \"apple\"\ndiff --git a/tests/_sync/test_client.py b/tests/_sync/test_client.py\nindex abc123..def456 100\n--- a/tests/_sync/test_client.py\n+++ b/tests/_sync/test_client.py\n@@ -147,3 +147,41 @@ def test_global_authorization_header_issue():\n     client = create_client(url, key, options)\n \n     assert client.options.headers.get(\"apiKey\") == key\n+\n+\n+def test_custom_headers():\n+    url = os.environ.get(\"SUPABASE_TEST_URL\")\n+    key = os.environ.get(\"SUPABASE_TEST_KEY\")\n+\n+    options = ClientOptions(\n+        headers={\n+            \"x-app-name\": \"apple\",\n+            \"x-version\": \"1.0\",\n+        }\n+    )\n+\n+    client = create_client(url, key, options)\n+\n+    assert client.options.headers.get(\"x-app-name\") == \"apple\"\n+    assert client.options.headers.get(\"x-version\") == \"1.0\"\n+\n+\n+def test_custom_headers_immutable():\n+    url = os.environ.get(\"SUPABASE_TEST_URL\")\n+    key = os.environ.get(\"SUPABASE_TEST_KEY\")\n+\n+    options = ClientOptions(\n+        headers={\n+            \"x-app-name\": \"apple\",\n+            \"x-version\": \"1.0\",\n+        }\n+    )\n+\n+    client1 = create_client(url, key, options)\n+    client2 = create_client(url, key, options)\n+\n+    client1.options.headers[\"x-app-name\"] = \"grapes\"\n+\n+    assert client1.options.headers.get(\"x-app-name\") == \"grapes\"\n+    assert client1.options.headers.get(\"x-version\") == \"1.0\"\n+    assert client2.options.headers.get(\"x-app-name\") == \"apple\"",
+  "problem_statement": "Custom headers are not preserved when creating Supabase client\n\nWhen initializing a Supabase client with custom headers through ClientOptions, the custom headers are completely overwritten by the authentication headers instead of being merged with them. This prevents users from setting custom headers such as application identifiers, API version headers, or other metadata needed for their requests.\n\nThe bug affects both sync and async client implementations. Custom headers like x-app-name, x-version, or any other user-defined headers passed via ClientOptions(headers={...}) are lost during client initialization.\n\nExample:\n```python\nfrom supabase import create_client, ClientOptions\n\noptions = ClientOptions(\n    headers={\n        \"x-app-name\": \"my-app\",\n        \"x-version\": \"1.0\",\n    }\n)\n\nclient = create_client(url, key, options)\n# Bug: client.options.headers[\"x-app-name\"] returns None instead of \"my-app\"\n```",
+  "hints_text": "The issue is in the __init__ method of both AsyncClient and SyncClient classes. The line `self.options.headers = copy.copy(self._get_auth_headers())` overwrites any custom headers. It should merge the custom headers with auth headers instead.",
+  "created_at": "2025-07-16T00:00:00Z",
+  "version": "1.0",
+  "FAIL_TO_PASS": [
+    "tests/_sync/test_client.py::test_custom_headers",
+    "tests/_sync/test_client.py::test_custom_headers_immutable", 
+    "tests/_async/test_client.py::test_custom_headers",
+    "tests/_async/test_client.py::test_custom_headers_immutable"
+  ],
+  "PASS_TO_PASS": [
+    "tests/_sync/test_client.py::test_supabase_exception",
+    "tests/_sync/test_client.py::test_postgrest_client",
+    "tests/_sync/test_client.py::test_rpc_client",
+    "tests/_sync/test_client.py::test_function_initialization",
+    "tests/_sync/test_client.py::test_uses_key_as_authorization_header_by_default",
+    "tests/_sync/test_client.py::test_schema_update",
+    "tests/_sync/test_client.py::test_updates_the_authorization_header_on_auth_events",
+    "tests/_sync/test_client.py::test_supports_setting_a_global_authorization_header",
+    "tests/_sync/test_client.py::test_mutable_headers_issue",
+    "tests/_sync/test_client.py::test_global_authorization_header_issue",
+    "tests/_sync/test_client.py::test_httpx_client",
+    "tests/_async/test_client.py::test_supabase_exception",
+    "tests/_async/test_client.py::test_postgrest_client",
+    "tests/_async/test_client.py::test_rpc_client",
+    "tests/_async/test_client.py::test_function_initialization",
+    "tests/_async/test_client.py::test_uses_key_as_authorization_header_by_default",
+    "tests/_async/test_client.py::test_schema_update",
+    "tests/_async/test_client.py::test_updates_the_authorization_header_on_auth_events",
+    "tests/_async/test_client.py::test_supports_setting_a_global_authorization_header",
+    "tests/_async/test_client.py::test_mutable_headers_issue",
+    "tests/_async/test_client.py::test_global_authorization_header_issue",
+    "tests/_async/test_client.py::test_httpx_client"
+  ],
+  "environment_setup_commit": "f3b8e16"
+}

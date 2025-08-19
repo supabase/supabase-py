@@ -1,0 +1,26 @@
+# PASS_TO_PASS tests
+# These tests should continue passing after applying the fix (regression check)
+# Running a subset of client tests that verify core functionality
+
+uv run pytest tests/_sync/test_client.py::test_supabase_exception -xvs
+uv run pytest tests/_sync/test_client.py::test_postgrest_client -xvs
+uv run pytest tests/_sync/test_client.py::test_rpc_client -xvs
+uv run pytest tests/_sync/test_client.py::test_function_initialization -xvs
+uv run pytest tests/_sync/test_client.py::test_uses_key_as_authorization_header_by_default -xvs
+uv run pytest tests/_sync/test_client.py::test_schema_update -xvs
+uv run pytest tests/_sync/test_client.py::test_updates_the_authorization_header_on_auth_events -xvs
+uv run pytest tests/_sync/test_client.py::test_supports_setting_a_global_authorization_header -xvs
+uv run pytest tests/_sync/test_client.py::test_mutable_headers_issue -xvs
+uv run pytest tests/_sync/test_client.py::test_global_authorization_header_issue -xvs
+uv run pytest tests/_sync/test_client.py::test_httpx_client -xvs
+uv run pytest tests/_async/test_client.py::test_supabase_exception -xvs
+uv run pytest tests/_async/test_client.py::test_postgrest_client -xvs
+uv run pytest tests/_async/test_client.py::test_rpc_client -xvs
+uv run pytest tests/_async/test_client.py::test_function_initialization -xvs
+uv run pytest tests/_async/test_client.py::test_uses_key_as_authorization_header_by_default -xvs
+uv run pytest tests/_async/test_client.py::test_schema_update -xvs
+uv run pytest tests/_async/test_client.py::test_updates_the_authorization_header_on_auth_events -xvs
+uv run pytest tests/_async/test_client.py::test_supports_setting_a_global_authorization_header -xvs
+uv run pytest tests/_async/test_client.py::test_mutable_headers_issue -xvs
+uv run pytest tests/_async/test_client.py::test_global_authorization_header_issue -xvs
+uv run pytest tests/_async/test_client.py::test_httpx_client -xvs
