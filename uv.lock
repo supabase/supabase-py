@@ -1758,11 +1758,11 @@ dev = [
 ]
 lints = [
     { name = "ruff" },
-    { name = "unasync" },
 ]
 pre-commit = [
     { name = "commitizen" },
     { name = "pre-commit" },
+    { name = "unasync" },
 ]
 tests = [
     { name = "pytest" },
@@ -1792,13 +1792,11 @@ dev = [
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
-lints = [
-    { name = "ruff", specifier = ">=0.12.1" },
-    { name = "unasync", specifier = ">=0.6.0" },
-]
+lints = [{ name = "ruff", specifier = ">=0.12.1" }]
 pre-commit = [
     { name = "commitizen", specifier = ">=4.8.3" },
     { name = "pre-commit", specifier = ">=4.1.0" },
+    { name = "unasync", specifier = ">=0.6.0" },
 ]
 tests = [
     { name = "pytest", specifier = ">=8.4.1" },
