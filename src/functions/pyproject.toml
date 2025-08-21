@@ -8,7 +8,7 @@ authors = [
 ]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/supabase/functions-py"
+repository = "https://github.com/supabase/supabase-py"
 requires-python = ">=3.9"
 dependencies = [
   "httpx[http2] >=0.26,<0.29",

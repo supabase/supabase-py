@@ -8,7 +8,7 @@ authors = [
 ]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/supabase/realtime-py"
+repository = "https://github.com/supabase/supabase-py"
 requires-python = ">=3.9"
 dependencies = [
   "websockets >=11,<16",
