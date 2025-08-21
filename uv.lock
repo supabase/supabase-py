@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "realtime",
     "supabase",
+    "supabase-functions",
 ]
 
 [[package]]
@@ -1682,6 +1683,15 @@ wheels = [
 ]
 
 [[package]]
+name = "setuptools"
+version = "80.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/18/5d/3bf57dcd21979b887f014ea83c24ae194cfcd12b9e0fda66b957c69d1fca/setuptools-80.9.0.tar.gz", hash = "sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c", size = 1319958, upload-time = "2025-05-27T00:56:51.443Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/dc/17031897dae0efacfea57dfd3a82fdd2a2aeb58e0ff71b77b87e44edc772/setuptools-80.9.0-py3-none-any.whl", hash = "sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922", size = 1201486, upload-time = "2025-05-27T00:56:49.664Z" },
+]
+
+[[package]]
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1744,15 +1754,15 @@ dev = [
     { name = "pytest-cov" },
     { name = "python-dotenv" },
     { name = "ruff" },
-    { name = "unasync-cli" },
+    { name = "unasync" },
 ]
 lints = [
     { name = "ruff" },
-    { name = "unasync-cli" },
 ]
 pre-commit = [
     { name = "commitizen" },
     { name = "pre-commit" },
+    { name = "unasync" },
 ]
 tests = [
     { name = "pytest" },
@@ -1768,7 +1778,7 @@ requires-dist = [
     { name = "realtime", editable = "src/realtime" },
     { name = "storage3", specifier = "==0.12.0" },
     { name = "supabase-auth", specifier = "==2.12.3" },
-    { name = "supabase-functions", specifier = "==0.10.1" },
+    { name = "supabase-functions", editable = "src/functions" },
 ]
 
 [package.metadata.requires-dev]
@@ -1780,15 +1790,13 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "ruff", specifier = ">=0.12.1" },
-    { name = "unasync-cli" },
+    { name = "unasync", specifier = ">=0.6.0" },
 ]
-lints = [
-    { name = "ruff", specifier = ">=0.12.1" },
-    { name = "unasync-cli" },
-]
+lints = [{ name = "ruff", specifier = ">=0.12.1" }]
 pre-commit = [
     { name = "commitizen", specifier = ">=4.8.3" },
     { name = "pre-commit", specifier = ">=4.1.0" },
+    { name = "unasync", specifier = ">=0.6.0" },
 ]
 tests = [
     { name = "pytest", specifier = ">=8.4.1" },
@@ -1814,14 +1822,60 @@ wheels = [
 [[package]]
 name = "supabase-functions"
 version = "0.10.1"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
     { name = "strenum" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6c/e4/6df7cd4366396553449e9907c745862ebf010305835b2bac99933dd7db9d/supabase_functions-0.10.1.tar.gz", hash = "sha256:4779d33a1cc3d4aea567f586b16d8efdb7cddcd6b40ce367c5fb24288af3a4f1", size = 5025, upload-time = "2025-06-23T18:26:12.239Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/06/060118a1e602c9bda8e4bf950bd1c8b5e1542349f2940ec57541266fabe1/supabase_functions-0.10.1-py3-none-any.whl", hash = "sha256:1db85e20210b465075aacee4e171332424f7305f9903c5918096be1423d6fcc5", size = 8275, upload-time = "2025-06-23T18:26:10.387Z" },
+
+[package.dev-dependencies]
+dev = [
+    { name = "pre-commit" },
+    { name = "pyjwt" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "unasync" },
+]
+lints = [
+    { name = "pre-commit" },
+    { name = "ruff" },
+    { name = "unasync" },
+]
+tests = [
+    { name = "pyjwt" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
+    { name = "strenum", specifier = ">=0.4.15" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pre-commit", specifier = ">=3.4,<5.0" },
+    { name = "pyjwt", specifier = ">=2.8.0" },
+    { name = "pytest", specifier = ">=7.4.2,<9.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21.1,<1.2.0" },
+    { name = "pytest-cov", specifier = ">=4,<7" },
+    { name = "ruff", specifier = ">=0.12.1" },
+    { name = "unasync", specifier = ">=0.6.0" },
+]
+lints = [
+    { name = "pre-commit", specifier = ">=3.4,<5.0" },
+    { name = "ruff", specifier = ">=0.12.1" },
+    { name = "unasync", specifier = ">=0.6.0" },
+]
+tests = [
+    { name = "pyjwt", specifier = ">=2.8.0" },
+    { name = "pytest", specifier = ">=7.4.2,<9.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21.1,<1.2.0" },
+    { name = "pytest-cov", specifier = ">=4,<7" },
 ]
 
 [[package]]
@@ -1831,6 +1885,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ca/6c/3d75c196ac07ac8749600b60b03f4f6094d54e132c4d94ebac6ee0e0add0/termcolor-3.1.0.tar.gz", hash = "sha256:6a6dd7fbee581909eeec6a756cff1d7f7c376063b14e4a298dc4980309e55970", size = 14324, upload-time = "2025-04-30T11:37:53.791Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4f/bd/de8d508070629b6d84a30d01d57e4a65c69aa7f5abe7560b8fad3b50ea59/termcolor-3.1.0-py3-none-any.whl", hash = "sha256:591dd26b5c2ce03b9e43f391264626557873ce1d379019786f99b0c2bee140aa", size = 7684, upload-time = "2025-04-30T11:37:52.382Z" },
+]
+
+[[package]]
+name = "tokenize-rt"
+version = "6.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/69/ed/8f07e893132d5051d86a553e749d5c89b2a4776eb3a579b72ed61f8559ca/tokenize_rt-6.2.0.tar.gz", hash = "sha256:8439c042b330c553fdbe1758e4a05c0ed460dbbbb24a606f11f0dee75da4cad6", size = 5476, upload-time = "2025-05-23T23:48:00.035Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/33/f0/3fe8c6e69135a845f4106f2ff8b6805638d4e85c264e70114e8126689587/tokenize_rt-6.2.0-py2.py3-none-any.whl", hash = "sha256:a152bf4f249c847a66497a4a95f63376ed68ac6abf092a2f7cfb29d044ecff44", size = 6004, upload-time = "2025-05-23T23:47:58.812Z" },
 ]
 
 [[package]]
@@ -1879,18 +1942,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cc/18/0bbf3884e9eaa38819ebe46a7bd25dcd56b67434402b66a58c4b8e552575/tomlkit-0.13.3.tar.gz", hash = "sha256:430cf247ee57df2b94ee3fbe588e71d362a941ebb545dec29b53961d61add2a1", size = 185207, upload-time = "2025-06-05T07:13:44.947Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/75/8539d011f6be8e29f339c42e633aae3cb73bffa95dd0f9adec09b9c58e85/tomlkit-0.13.3-py3-none-any.whl", hash = "sha256:c89c649d79ee40629a9fda55f8ace8c6a1b42deb912b2a8fd8d942ddadb606b0", size = 38901, upload-time = "2025-06-05T07:13:43.546Z" },
-]
-
-[[package]]
-name = "typer"
-version = "0.4.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/fb/9e/8ae5ef480622282fc98507c0226e95de0accdf5e98ab7f57a5c8ba054339/typer-0.4.2.tar.gz", hash = "sha256:b8261c6c0152dd73478b5ba96ba677e5d6948c715c310f7c91079f311f62ec03", size = 223132, upload-time = "2022-07-02T18:05:28.861Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9d/ea/b565bc44a1af5278ef2ff9d571cdb4f4bc31fd450b0630441c93401c243c/typer-0.4.2-py3-none-any.whl", hash = "sha256:023bae00d1baf358a6cc7cea45851639360bb716de687b42b0a4641cd99173f1", size = 27955, upload-time = "2022-07-02T18:05:26.022Z" },
 ]
 
 [[package]]
@@ -1985,15 +2036,16 @@ wheels = [
 ]
 
 [[package]]
-name = "unasync-cli"
-version = "0.0.1"
+name = "unasync"
+version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typer" },
+    { name = "setuptools" },
+    { name = "tokenize-rt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a5/98/a896214f2c842e5a61519fe81ecf50f487dbc271b97e19c6c1dd2fe04b40/unasync-cli-0.0.1.tar.gz", hash = "sha256:7270085c8c008ea329ab7f4feeb5730c85e5ecd4996330207b468215c3137ad1", size = 2970, upload-time = "2021-10-21T00:42:14.02Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/4e/735dbc0885ca197bcd80a2479ca24035627e2e768c784261fc7f1b8d7600/unasync-0.6.0.tar.gz", hash = "sha256:a9d01ace3e1068b20550ab15b7f9723b15b8bcde728bc1770bcb578374c7ee58", size = 18755, upload-time = "2024-05-03T11:14:58.312Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/59/2d9f2d9a86514fab0dbf0c59e11317ea1116db76f34c84348616eb9132aa/unasync_cli-0.0.1-py3-none-any.whl", hash = "sha256:e3c65b1266824e7a12e16ea7752fc36fcaf8019a37c432bdf169b3d33a24280e", size = 3538, upload-time = "2021-10-21T00:42:12.45Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/b5/d2842541718ffa12060854735587543120a31ebc339435e0bd0faf368541/unasync-0.6.0-py3-none-any.whl", hash = "sha256:9cf7aaaea9737e417d8949bf9be55dc25fdb4ef1f4edc21b58f76ff0d2b9d73f", size = 9959, upload-time = "2024-05-03T11:14:56.17Z" },
 ]
 
 [[package]]

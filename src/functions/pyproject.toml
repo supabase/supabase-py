@@ -1,0 +1,44 @@
+[project]
+name = "supabase_functions"
+version = "0.10.1" # {x-release-please-version}
+description = "Library for Supabase Functions"
+authors = [
+  { name = "Joel Lee", email = "joel@joellee.org" },
+  { name = "Andrew Smith", email = "a.smith@silentworks.co.uk" },
+]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/supabase/supabase-py"
+requires-python = ">=3.9"
+dependencies = [
+  "httpx[http2] >=0.26,<0.29",
+  "strenum >=0.4.15",
+]
+
+[dependency-groups]
+tests = [
+  "pyjwt >=2.8.0",
+  "pytest >=7.4.2,<9.0.0",
+  "pytest-cov >=4,<7",
+  "pytest-asyncio >=0.21.1,<1.2.0",
+]
+lints = [
+  "unasync>=0.6.0",
+  "ruff >=0.12.1",
+  "pre-commit >=3.4,<5.0"
+]
+dev = [{ include-group = "lints" }, {include-group = "tests" }]
+
+[tool.uv]
+default-groups = [ "dev" ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "tests"
+filterwarnings = [
+    "ignore::DeprecationWarning", # ignore deprecation warnings globally
+]
+
+[build-system]
+requires = ["uv_build>=0.8.3,<0.9.0"]
+build-backend = "uv_build"

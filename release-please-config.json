@@ -5,9 +5,13 @@
       "changelog-path": "src/realtime/CHANGELOG.md",
       "release-type": "python"
     },
+    "src/functions": {
+      "changelog-path": "src/functions/CHANGELOG.md",
+      "release-type": "python"
+    }
     "src/supabase": {
       "changelog-path": "src/supabase/CHANGELOG.md",
       "release-type": "python"
-    }
+    },
   }
 }
