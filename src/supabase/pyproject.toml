@@ -21,9 +21,9 @@ requires-python = ">=3.9"
 dependencies = [
   "realtime",
   "supabase_functions",
+  "storage3",
   "postgrest == 1.1.1",
   "supabase_auth == 2.12.3",
-  "storage3 == 0.12.0",
   "httpx >=0.26,<0.29",
 ]
 

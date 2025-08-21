@@ -1,0 +1,90 @@
+[project]
+name = "storage3"
+description = "Supabase Storage client for Python."
+authors = [
+  { name = "Joel Lee" , email="joel@joellee.org"},
+  { name = "Leon Fedden" , email="leonfedden@gmail.com"},
+  { name = "Daniel Reinón García" , email="danielreinon@outlook.com"},
+  { name = "Leynier Gutiérrez González" , email="leynier41@gmail.com"},
+  { name = "Anand Krishna" , email="anand2312@proton.me"},
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+license = "MIT"
+readme = "README.md"
+version = "0.12.1" # {x-release-please-version}
+requires-python = ">=3.9"
+
+dependencies = [
+  "httpx[http2] >=0.26,<0.29",
+  "deprecation >=2.1.0",
+  "pydantic >=2.11.7",
+]
+
+[project.urls]
+documentation = "https://supabase.github.io/storage-py"
+homepage = "https://supabase.github.io/storage-py"
+repository = "https://github.com/supabase/supabase-py"
+
+[dependency-groups]
+lints = [
+  "pre-commit >=4.2.0",
+  "ruff >=0.12.1",
+  "unasync >= 0.6.0"
+]
+docs = [
+  "Sphinx >=7.1.2",
+  "sphinx-press-theme >=0.9.1",
+  "sphinx-toolbox >=3.4.0",
+]
+tests = [
+  "pytest >=8.3.5",
+  "pytest-asyncio >=0.21.0",
+  "pytest-cov >=6.1.0",
+  "python-dotenv >=1.1.0",
+]
+dev = [
+  { include-group = "lints" },
+  { include-group = "tests" },
+  { include-group = "lints" },
+  { include-group = "docs" },
+]
+
+[tool.ruff.lint]
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  # "B",
+  # flake8-simplify
+  # "SIM",
+  # isort
+  "I",
+]
+ignore = ["F401", "F403", "F841", "E712", "E501", "E402", "UP006", "UP035"]
+# isort.required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "tests"
+filterwarnings = [
+    "ignore::DeprecationWarning", # ignore deprecation warnings globally
+]
+
+[tool.uv]
+default-groups = [ "dev" ]
+
+[build-system]
+requires = ["uv_build>=0.8.3,<0.9.0"]
+build-backend = "uv_build"
