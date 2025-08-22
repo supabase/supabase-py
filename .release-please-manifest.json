@@ -1,5 +1,6 @@
 {
   "src/supabase": "2.18.1",
   "src/realtime": "2.7.0",
-  "src/functions": "0.10.1"
+  "src/functions": "0.10.1",
+  "src/storage": "0.12.1"
 }

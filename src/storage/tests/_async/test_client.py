@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 temp_test_buckets_ids = []
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def uuid_factory() -> Callable[[], str]:
     def method() -> str:
         """Generate a 8 digits long UUID"""
@@ -34,7 +34,7 @@ def uuid_factory() -> Callable[[], str]:
     return method
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture
 async def delete_left_buckets(
     request: pytest.FixtureRequest,
     storage: AsyncStorageClient,
@@ -62,7 +62,7 @@ async def bucket_factory(
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def bucket(storage: AsyncStorageClient, uuid_factory: Callable[[], str]) -> str:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
@@ -81,7 +81,7 @@ async def bucket(storage: AsyncStorageClient, uuid_factory: Callable[[], str]) -
     temp_test_buckets_ids.remove(bucket_id)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def public_bucket(
     storage: AsyncStorageClient, uuid_factory: Callable[[], str]
 ) -> str:
@@ -102,13 +102,13 @@ async def public_bucket(
     temp_test_buckets_ids.remove(bucket_id)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def storage_file_client(storage: AsyncStorageClient, bucket: str) -> AsyncBucketProxy:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(bucket)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def storage_file_client_public(
     storage: AsyncStorageClient, public_bucket: str
 ) -> AsyncBucketProxy:

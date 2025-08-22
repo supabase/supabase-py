@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [0.12.2](https://github.com/supabase/storage-py/compare/v0.12.1...v0.12.2) (2025-08-15)
+
+
+### Bug Fixes
+
+* remove extraneous char in test ([#389](https://github.com/supabase/storage-py/issues/389)) ([088cb7f](https://github.com/supabase/storage-py/commit/088cb7f74eb68deafa007b7b333ed9a9aac4b751))
+* use `BaseModel` instead of `dataclass` ([#386](https://github.com/supabase/storage-py/issues/386)) ([c4a81fb](https://github.com/supabase/storage-py/commit/c4a81fb9f7acacf8dccbf579daf4030200d8ab20))
+
 ## [0.12.1](https://github.com/supabase/storage-py/compare/v0.12.0...v0.12.1) (2025-08-05)
 
 
