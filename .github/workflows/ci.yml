@@ -30,6 +30,8 @@ jobs:
 
       - name: Install supabase cli latest
         uses: supabase/setup-cli@v1
+        with:
+          version: "latest"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6

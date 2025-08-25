@@ -8,10 +8,14 @@
     "src/functions": {
       "changelog-path": "src/functions/CHANGELOG.md",
       "release-type": "python"
-    }
+    },
+    "src/storage": {
+      "changelog-path": "src/storage/CHANGELOG.md",
+      "release-type": "python"
+    },
     "src/supabase": {
       "changelog-path": "src/supabase/CHANGELOG.md",
       "release-type": "python"
-    },
+    }
   }
 }
