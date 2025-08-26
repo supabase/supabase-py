@@ -1,12 +1,13 @@
 tests: pytest
 
 pytest: run_infra
-	uv run --package supabase_auth pytest --cov=./ --cov-report=xml --cov-report=html -vv
+	uv run --exact --package supabase_auth pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
 run_infra:
 	cd infra &&\
 	docker compose down &&\
 	docker compose up -d
+	sleep 2
 
 clean_infra:
 	cd infra &&\
@@ -21,4 +22,4 @@ sync_infra:
 	uv run --package supabase_auth scripts/gh-download.py --repo=supabase/gotrue-js --branch=master --folder=infra
 
 build_sync:
-	poetry run unasync supabase_auth tests
+	uv run unasync supabase_auth tests

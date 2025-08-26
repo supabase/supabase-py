@@ -12,12 +12,11 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-
 requires-python = ">=3.9"
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
   "pydantic >=1.10,<3",
-  "pyjwt >=2.10.1",
+  "pyjwt[crypto] >=2.10.1",
 ]
 
 [project.urls]
@@ -25,8 +24,8 @@ homepage = "https://github.com/supabase/auth-py"
 repository = "https://github.com/supabase/auth-py"
 documentation = "https://github.com/supabase/auth-py"
 
-[project.scripts]
-gh-download = "scripts.gh-download:main"
+# [project.scripts]
+# gh-download = "scripts.gh-download:main"
 
 [dependency-groups]
 tests = [
@@ -43,9 +42,6 @@ lints = [
   "unasync >= 0.6.0",
 ]
 dev = [{ include-group = "lints" }, {include-group = "tests" }]
-
-[tool.uv]
-default-groups = [ "dev" ]
 
 [tool.ruff.lint]
 select = [
