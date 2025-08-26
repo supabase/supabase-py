@@ -1,6 +1,6 @@
 tests: pytest
 
-pytest: run_infra
+pytest: run-infra
 	uv run --exact --package supabase_auth pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
 run-infra:

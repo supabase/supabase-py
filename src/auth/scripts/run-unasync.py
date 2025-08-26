@@ -1,5 +1,6 @@
-import unasync
 from pathlib import Path
+
+import unasync
 
 paths = Path("../src/supabase").glob("**/*.py")
 tests = Path("tests").glob("**/*.py")
