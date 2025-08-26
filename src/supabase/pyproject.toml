@@ -22,8 +22,8 @@ dependencies = [
   "realtime",
   "supabase_functions",
   "storage3",
+  "supabase_auth",
   "postgrest == 1.1.1",
-  "supabase_auth == 2.12.3",
   "httpx >=0.26,<0.29",
 ]
 

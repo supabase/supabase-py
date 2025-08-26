@@ -5,6 +5,10 @@
       "changelog-path": "src/realtime/CHANGELOG.md",
       "release-type": "python"
     },
+    "src/auth": {
+      "changelog-path": "src/auth/CHANGELOG.md",
+      "release-type": "python"
+    },
     "src/functions": {
       "changelog-path": "src/functions/CHANGELOG.md",
       "release-type": "python"
