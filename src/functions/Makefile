@@ -10,3 +10,10 @@ build-sync: unasync
 	sed -i '0,/SyncMock, /{s/SyncMock, //}' tests/_sync/test_function_client.py
 	sed -i 's/SyncMock/Mock/g' tests/_sync/test_function_client.py
 	sed -i 's/SyncClient/Client/g' src/supabase_functions/_sync/functions_client.py tests/_sync/test_function_client.py
+
+clean:
+	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
+	rm -f .coverage coverage.xml
+
+build:
+	uv build --package supabase_functions
