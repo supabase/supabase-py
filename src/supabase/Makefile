@@ -16,3 +16,10 @@ build-sync: unasync
 	sed -i 's/SyncMock/Mock/g' tests/_sync/test_client.py
 
 tests: pytest
+
+clean:
+	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
+	rm -f .coverage coverage.xml
+
+build:
+	uv build --package supabase

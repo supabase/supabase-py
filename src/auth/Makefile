@@ -1,9 +1,9 @@
 tests: pytest
 
-pytest: run-infra
+pytest: start-infra
 	uv run --exact --package supabase_auth pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
-run-infra:
+start-infra:
 	cd infra &&\
 	docker compose down &&\
 	docker compose up -d
@@ -23,3 +23,10 @@ sync-infra:
 
 build-sync:
 	uv run --exact --package supabase_auth scripts/run-unasync.py
+
+clean:
+	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
+	rm -f .coverage coverage.xml
+
+build:
+	uv build --package supabase_auth
