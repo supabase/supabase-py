@@ -1,7 +1,7 @@
 .PHONY: pytest pre-commit unasync build-sync tests
 
 pytest:
-	uv run --exact --package supabase pytest --cov=./ --cov-report=xml --cov-report=html -vv
+	uv run --package supabase pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
 unasync:
 	uv run run-unasync.py

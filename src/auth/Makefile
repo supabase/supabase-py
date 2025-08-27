@@ -1,7 +1,7 @@
 tests: pytest
 
 pytest: start-infra
-	uv run --exact --package supabase_auth pytest --cov=./ --cov-report=xml --cov-report=html -vv
+	uv run --package supabase_auth pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
 start-infra:
 	cd infra &&\
@@ -19,10 +19,10 @@ stop-infra:
 	docker compose down --remove-orphans
 
 sync-infra:
-	uv run --exact --package supabase_auth scripts/gh-download.py --repo=supabase/gotrue-js --branch=master --folder=infra
+	uv run --package supabase_auth scripts/gh-download.py --repo=supabase/gotrue-js --branch=master --folder=infra
 
 build-sync:
-	uv run --exact --package supabase_auth scripts/run-unasync.py
+	uv run --package supabase_auth scripts/run-unasync.py
 
 clean:
 	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache

@@ -4,9 +4,9 @@ start-infra:
 stop-infra:
 	supabase --workdir infra stop
 
-tests: start-infra pytest
+tests: pytest
 
-pytest:
+pytest: start-infra
 	uv run --package storage3 pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
 build-sync:
