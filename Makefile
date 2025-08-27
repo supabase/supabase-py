@@ -5,7 +5,7 @@ FORALL_PKGS = $(foreach pkg, $(PACKAGES), $(pkg).$(1))
 
 help::
 	@echo "Available commands"
-	@echo "  help -- (default) print this message"
+	@echo "  help           -- (default) print this message"
 
 ci: pre-commit $(call FORALL_PKGS,tests)
 help::
