@@ -1,0 +1,82 @@
+[project]
+name = "postgrest"
+version = "1.1.1" # {x-release-please-version}
+description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
+authors = [
+  { name = "Lương Quang Mạnh", email = "luongquangmanh85@gmail.com"},
+  { name = "Joel Lee", email = "joel@joellee.org"},
+  { name = "Anand"},
+  { name = "Oliver Rice"},
+  { name = "Andrew Smith", email = "a.smith@silentworks.co.uk"},
+]
+readme = "README.md"
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.9"
+dependencies = [
+  "httpx[http2] >=0.26,<0.29",
+  "deprecation >=2.1.0",
+  "pydantic >=1.9,<3.0",
+  "strenum >=0.4.9; python_version < \"3.11\"",
+]
+
+[project.urls]
+homepage = "https://github.com/supabase/postgrest-py"
+repository = "https://github.com/supabase/postgrest-py"
+documentation = "https://postgrest-py.rtfd.io"
+
+[dependency-groups]
+test = [
+  "pytest >= 8.4.1",
+  "pytest-cov >=6.2.1",
+  "pytest-depends >=1.0.1",
+  "pytest-asyncio >=1.0.0",
+]
+lints = [
+  "pre-commit >=4.2.0",
+  "ruff >=0.12.1",
+]
+docs = [
+  "sphinx >=7.1.2",
+  "furo >=2023.9.10,<2026.0.0",
+]
+dev = [ { include-group = "lints" }, { include-group="test" }]
+
+[tool.uv]
+default-groups = [ "dev" ]
+
+[tool.ruff.lint]
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  # "B",
+  # flake8-simplify
+  # "SIM",
+  # isort
+  "I",
+]
+ignore = ["F401", "F403", "F841", "E712", "E501", "E402", "UP006", "UP035"]
+# isort.required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning", # ignore deprecation warnings globally
+]
+
+[build-system]
+requires = ["uv_build>=0.8.3,<0.9.0"]
+build-backend = "uv_build"

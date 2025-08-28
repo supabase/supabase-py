@@ -4,6 +4,7 @@ members = [
   "src/functions",
   "src/supabase",
   "src/storage",
+  "src/postgrest",
   "src/auth"
 ]
 
@@ -12,6 +13,7 @@ realtime = { workspace = true }
 supabase_functions  = { workspace = true }
 supabase_auth = { workspace = true }
 storage3 = { workspace = true }
+postgrest = { workspace = true }
 supabase = { workspace = true }
 
 [tool.pytest.ini_options]

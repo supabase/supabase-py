@@ -23,7 +23,7 @@ dependencies = [
   "supabase_functions",
   "storage3",
   "supabase_auth",
-  "postgrest == 1.1.1",
+  "postgrest",
   "httpx >=0.26,<0.29",
 ]
 
