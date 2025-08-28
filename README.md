@@ -1,11 +1,12 @@
 # `supabase-py`
 
-Python monorepo for all [Supabase](https://supabase.com) libraries. This is a work in progress, and currently these are the ones contained in this repository:
+Python monorepo for all [Supabase](https://supabase.com) libraries.
 
 - [supabase](src/supabase/README.md)
 - [realtime](src/realtime/README.md)
 - [supabase_functions](src/functions/README.md)
 - [storage3](src/storage/README.md)
+- [postgrest](src/postgrest/README.md)
 - [supabase_auth](src/auth/README.md)
 
 Relevant links:
