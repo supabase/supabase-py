@@ -34,4 +34,4 @@ build_sync: unasync
 	sed -i 's/self\.session\.aclose/self\.session\.close/g' src/postgrest/_sync/client.py
 
 build:
-	uv build --package supabase
+	uv build --package postgrest
