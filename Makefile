@@ -27,10 +27,13 @@ publish: $(call FORALL_PKGS,build)
 # not all packages have infra, so just manually instantiate the ones that do for now
 start-infra: realtime.start-infra storage.start-infra auth.start-infra postgrest.start-infra
 help::
-	@echo "  start-infra    -- Start all containers necessary for tests. NOTE: it is not necessary to this before running CI tests, they start the infra by themselves"
+	@echo "  start-infra    -- Start all containers necessary for tests."
+	@echo "                    NOTE: it is not necessary to this command before running CI tests"
+
 stop-infra: realtime.stop-infra storage.stop-infra auth.stop-infra postgrest.stop-infra
 help::
-	@echo "  stop-infra     -- Stop all infra used by tests. NOTE: tests do leave their infra running, so run this to ensure all containers are stopped"
+	@echo "  stop-infra     -- Stop all infra used by tests."
+	@echo "                    NOTE: run this command to ensure all containers are stopped after tests"
 
 
 realtime.%:
