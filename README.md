@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/supabase/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase/supabase-py/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/pypi/v/supabase?color=%2334D058)](https://pypi.org/project/supabase)
-[![Coverage Status](https://coveralls.io/repos/github/supabase/supabase-py/badge.svg?branch=main)](https://coveralls.io/github/supabase/auth-py?branch=main)
+[![Coverage Status](https://coveralls.io/repos/github/supabase/supabase-py/badge.svg?branch=main)](https://coveralls.io/repos/github/supabase/supabase-py/badge.svg?branch=main)
 
 Python monorepo for all [Supabase](https://supabase.com) libraries.
 
