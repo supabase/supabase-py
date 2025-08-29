@@ -3,7 +3,6 @@
 [![CI](https://github.com/supabase-community/gotrue-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase-community/gotrue-py/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/pypi/pyversions/gotrue)](https://pypi.org/project/gotrue)
 [![Version](https://img.shields.io/pypi/v/gotrue?color=%2334D058)](https://pypi.org/project/gotrue)
-[![Coverage Status](https://coveralls.io/repos/github/supabase/auth-py/badge.svg?branch=main)](https://coveralls.io/github/supabase/auth-py?branch=main)
 
 This is a Python port of the [supabase js gotrue client](https://github.com/supabase/gotrue-js). The current state is that there is a features parity but with small differences that are mentioned in the section **Differences to the JS client**. As of December 14th, we renamed to repo from `gotrue-py` to `auth-py` to mirror the changes in the JavaScript library.
 
