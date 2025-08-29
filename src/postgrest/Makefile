@@ -22,9 +22,9 @@ clean:
 	rm -f .coverage coverage.xml
 
 unasync:
-	uv run unasync postgrest tests
+	uv run --package postgrest run-unasync.py
 
-build_sync: unasync
+build-sync: unasync
 	sed -i 's/@pytest.mark.asyncio//g' tests/_sync/test_client.py
 	sed -i 's/_async/_sync/g' tests/_sync/test_client.py
 	sed -i 's/Async/Sync/g' src/postgrest/_sync/request_builder.py tests/_sync/test_client.py

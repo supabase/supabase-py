@@ -1628,6 +1628,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-depends" },
     { name = "ruff" },
+    { name = "unasync" },
 ]
 docs = [
     { name = "furo" },
@@ -1644,6 +1645,7 @@ test = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-depends" },
+    { name = "unasync" },
 ]
 
 [package.metadata]
@@ -1662,6 +1664,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "pytest-depends", specifier = ">=1.0.1" },
     { name = "ruff", specifier = ">=0.12.1" },
+    { name = "unasync", specifier = ">=0.6.0" },
 ]
 docs = [
     { name = "furo", specifier = ">=2023.9.10,<2026.0.0" },
@@ -1676,6 +1679,7 @@ test = [
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "pytest-depends", specifier = ">=1.0.1" },
+    { name = "unasync", specifier = ">=0.6.0" },
 ]
 
 [[package]]
