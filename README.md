@@ -27,17 +27,17 @@ cd supabase-py
 
 ### Dependencies
 
-This repo relies on the following dev dependencies: 
+This repository relies on the following dependencies for development: 
 - `uv` for python project management.
 - `make` for command running.
-- `docker` for both `storage` and `auth` test containers.
-- `supabase-cli` for both `functions` and `realtime` test containers.
+- `docker` for both `postgrest` and `auth` test containers.
+- `supabase-cli` for both `storage` and `realtime` test containers.
 
 All of these dependencies are included in the nix shell environment, through `flake.nix`. If you've got `nix` installed, you may prefer to use it through `nix develop`.
 
 ### Use a Virtual Environment
 
-We recommend using a virtual environment, preferrably through `uv`, given it is currently the only tool that understands the workspace setup (you can read more about it in [the uv docs](https://docs.astral.sh/uv/concepts/projects/workspaces/).
+We recommend using a virtual environment, preferrably through `uv`, given it is currently the only tool that understands the workspace setup (you can read more about it in [the uv docs](https://docs.astral.sh/uv/concepts/projects/workspaces/)).
 
 ```
 uv venv supabase-py
@@ -45,7 +45,7 @@ source supabase-py/bin/activate
 uv sync
 ```
 
-If you're using nix, the `python` instance in the shell should have the correct dependencies installed for the whole workspace, given it is derived from the root's `pyproject.toml` using [uv2nix](https://github.com/pyproject-nix/uv2nix).
+If you're using nix, the generated `python` executable should have the correct dependencies installed for the whole workspace, given it is derived from the root's `pyproject.toml` using [uv2nix](https://github.com/pyproject-nix/uv2nix).
 
 ### Running tests and other commands
 
