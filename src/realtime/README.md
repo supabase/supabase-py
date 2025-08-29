@@ -37,6 +37,12 @@ This client enables you to use the following Supabase Realtime's features:
 pip3 install realtime
 ```
 
+or using `uv`
+
+```bash
+uv add realtime
+```
+
 ## Creating a Channel
 
 ```python

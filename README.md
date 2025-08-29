@@ -1,11 +1,16 @@
 # `supabase-py`
 
-Python monorepo for all [Supabase](https://supabase.com) libraries. This is a work in progress, and currently these are the ones contained in this repository:
+[![CI](https://github.com/supabase/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase/supabase-py/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/pypi/v/supabase?color=%2334D058)](https://pypi.org/project/supabase)
+[![Coverage Status](https://coveralls.io/repos/github/supabase/supabase-py/badge.svg?branch=main)](https://coveralls.io/github/supabase/supabase-py?branch=main)
+
+Python monorepo for all [Supabase](https://supabase.com) libraries.
 
 - [supabase](src/supabase/README.md)
-- [realtime](src/realtime/README.md)
+- [realtime-py](src/realtime/README.md)
 - [supabase_functions](src/functions/README.md)
 - [storage3](src/storage/README.md)
+- [postgrest](src/postgrest/README.md)
 - [supabase_auth](src/auth/README.md)
 
 Relevant links:
@@ -15,7 +20,7 @@ Relevant links:
   - [GitHub OAuth in your Python Flask app](https://supabase.com/blog/oauth2-login-python-flask-apps)
   - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
 
-## Set up a Local Development Environment
+## Local Development
 
 ### Clone the Repository
 
@@ -24,50 +29,52 @@ git clone https://github.com/supabase/supabase-py.git
 cd supabase-py
 ```
 
-### Create and Activate a Virtual Environment
+### Dependencies
 
-We recommend activating your virtual environment. For example, we like `uv`, `conda` and `nix`! Click [here](https://docs.python.org/3/library/venv.html) for more about Python virtual environments and working with [conda](https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#activating-an-environment) and [uv](https://docs.astral.sh/uv/getting-started/features/). For nix, just install it with flakes enabled.
+This repository relies on the following dependencies for development: 
+- `uv` for python project management.
+- `make` for command running.
+- `docker` for both `postgrest` and `auth` test containers.
+- `supabase-cli` for both `storage` and `realtime` test containers.
 
-Using uv:
+All of these dependencies are included in the nix shell environment, through `flake.nix`. If you've got `nix` installed, you may prefer to use it through `nix develop`.
+
+### Use a Virtual Environment
+
+We recommend using a virtual environment, preferrably through `uv`, given it is currently the only tool that understands the workspace setup (you can read more about it in [the uv docs](https://docs.astral.sh/uv/concepts/projects/workspaces/)).
+
 ```
 uv venv supabase-py
 source supabase-py/bin/activate
 uv sync
 ```
 
-Using venv (Python 3 built-in):
+If you're using nix, the generated `python` executable should have the correct dependencies installed for the whole workspace, given it is derived from the root's `pyproject.toml` using [uv2nix](https://github.com/pyproject-nix/uv2nix).
 
+### Running tests and other commands
+
+We use `make` to store and run the relevant commands. The structure is setup such that each sub package can individually set its command in its own `Makefile`, and the job of the main `Makefile` is just coordinate calling each of them.
+
+For instance, in order to run all tests of all packages, you should use the following root command
 ```bash
-python3 -m venv env
-source env/bin/activate  # On Windows, use .\env\Scripts\activate
+make ci
 ```
+Which internally dispatches `make -C src/{package} tests` calls to each package in the monorepo.
 
-Using conda:
-
+You should also consider using
 ```bash
-conda create --name supabase-py
-conda activate supabase-py
+make ci -jN # where N is the number of max concurrent jobs, or just -j for infinite jobs
 ```
+To run each of the packages' tests in parallel. This should be generally faster than running in 1 job, but has the downside of messing up the CLI output, so parsing error messages might not be easy.
 
-Using nix:
+Other relevant commands include
 ```bash
-nix develop
+make pre-commit # run lints and formmating before commiting
+make stop-infra # stops all running containers from all packages
+make clean      # delete all intermediary files created by testing
 ```
-
-### Local installation
-
-You can also install locally after cloning this repo. Install Development mode with `pip install -e`, which makes it editable, so when you edit the source code the changes will be reflected in your python module.
-
-## Badges
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?label=license)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/supabase/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase/supabase-py/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/pypi/pyversions/supabase)](https://pypi.org/project/supabase)
-[![Version](https://img.shields.io/pypi/v/supabase?color=%2334D058)](https://pypi.org/project/supabase)
-[![Codecov](https://codecov.io/gh/supabase/supabase-py/branch/develop/graph/badge.svg)](https://codecov.io/gh/supabase/supabase-py)
-[![Last commit](https://img.shields.io/github/last-commit/supabase/supabase-py.svg?style=flat)](https://github.com/supabase/supabase-py/commits)
-[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/supabase/supabase-py)](https://github.com/supabase/supabase-py/commits)
-[![Github Stars](https://img.shields.io/github/stars/supabase/supabase-py?style=flat&logo=github)](https://github.com/supabase/supabase-py/stargazers)
-[![Github Forks](https://img.shields.io/github/forks/supabase/supabase-py?style=flat&logo=github)](https://github.com/supabase/supabase-py/network/members)
-[![Github Watchers](https://img.shields.io/github/watchers/supabase/supabase-py?style=flat&logo=github)](https://github.com/supabase/supabase-py)
-[![GitHub contributors](https://img.shields.io/github/contributors/supabase/supabase-py)](https://github.com/supabase/supabase-py/graphs/contributors)
+All the sub packages command are available from the main root by prefixing the command with `{package_name}.`. Examples:
+```bash
+make realtime.tests # run only realtime tests
+make storage.clean # delete temporary files only in the storage package
+```

@@ -10,6 +10,9 @@ authors = [
   { name = "Anand" },
   { name = "Andrew Smith", email = "a.smith@silentworks.co.uk" },
 ]
+maintainers = [
+  { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
+]
 readme = "README.md"
 license = "MIT"
 license-files = [ "LICENSE" ]
@@ -23,14 +26,14 @@ dependencies = [
   "supabase_functions",
   "storage3",
   "supabase_auth",
-  "postgrest == 1.1.1",
+  "postgrest",
   "httpx >=0.26,<0.29",
 ]
 
 [project.urls]
 homepage = "https://github.com/supabase/supabase-py"
 repository = "https://github.com/supabase/supabase-py"
-documentation = "https://github.com/supabase/supabase-py"
+documentation = "https://github.com/supabase/supabase-py/src/supabase"
 
 [dependency-groups]
 dev = [

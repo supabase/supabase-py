@@ -5,6 +5,9 @@ description = "Python Client Library for Supabase Auth"
 authors = [
   {name = "Joel Lee", email = "joel@joellee.org" }
 ]
+maintainers = [
+  { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
+]
 readme = "README.md"
 license = "MIT"
 classifiers = [
@@ -20,9 +23,9 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://github.com/supabase/auth-py"
-repository = "https://github.com/supabase/auth-py"
-documentation = "https://github.com/supabase/auth-py"
+homepage = "https://github.com/supabase/supabase-py/tree/main/src/auth"
+repository = "https://github.com/supabase/supabase-py"
+documentation = "https://github.com/supabase/supabase-py/tree/main/src/auth"
 
 # [project.scripts]
 # gh-download = "scripts.gh-download:main"
