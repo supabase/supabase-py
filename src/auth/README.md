@@ -9,18 +9,25 @@ This is a Python port of the [supabase js gotrue client](https://github.com/supa
 
 ## Installation
 
-The package can be installed using pip or poetry:
-
-### Poetry
-
-```bash
-poetry add supabase_auth
-```
+The package can be installed using pip, uv or poetry:
 
 ### Pip
 
 ```bash
 pip install supabase_auth
+```
+
+
+### Uv
+
+```bash
+uv add supabase_auth
+```
+
+### Poetry
+
+```bash
+poetry add supabase_auth
 ```
 
 ## Features

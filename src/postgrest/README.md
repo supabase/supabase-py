@@ -82,21 +82,6 @@ await client.from_("countries").delete().eq("name", "Việt Nam").execute()
 await client.rpc("foobar", {"arg1": "value1", "arg2": "value2"}).execute()
 ```
 
-## DEVELOPMENT
-
-```sh
-git clone https://github.com/supabase/postgrest-py.git
-cd postgrest-py
-poetry install
-poetry run pre-commit install
-```
-
-### Testing
-
-```sh
-poetry run pytest
-```
-
 ## CHANGELOG
 
 Read more [here](https://github.com/supabase/postgrest-py/blob/main/CHANGELOG.md).
