@@ -8,7 +8,7 @@
 Python monorepo for all [Supabase](https://supabase.com) libraries.
 
 - [supabase](src/supabase/README.md)
-- [realtime](src/realtime/README.md)
+- [realtime-py](src/realtime/README.md)
 - [supabase_functions](src/functions/README.md)
 - [storage3](src/storage/README.md)
 - [postgrest](src/postgrest/README.md)
