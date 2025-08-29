@@ -17,7 +17,7 @@
       "changelog-path": "src/storage/CHANGELOG.md",
       "release-type": "python"
     },
-    "src/storage": {
+    "src/postgrest": {
       "changelog-path": "src/postgrest/CHANGELOG.md",
       "release-type": "python"
     },
