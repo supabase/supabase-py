@@ -8,6 +8,9 @@ authors = [
   { name = "Leynier Gutiérrez González" , email="leynier41@gmail.com"},
   { name = "Anand Krishna" , email="anand2312@proton.me"},
 ]
+maintainers = [
+  { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
+]
 classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",

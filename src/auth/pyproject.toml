@@ -5,6 +5,9 @@ description = "Python Client Library for Supabase Auth"
 authors = [
   {name = "Joel Lee", email = "joel@joellee.org" }
 ]
+maintainers = [
+  { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
+]
 readme = "README.md"
 license = "MIT"
 classifiers = [

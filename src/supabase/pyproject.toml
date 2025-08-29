@@ -10,6 +10,9 @@ authors = [
   { name = "Anand" },
   { name = "Andrew Smith", email = "a.smith@silentworks.co.uk" },
 ]
+maintainers = [
+  { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
+]
 readme = "README.md"
 license = "MIT"
 license-files = [ "LICENSE" ]

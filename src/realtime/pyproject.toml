@@ -6,6 +6,9 @@ authors = [
     { name = "Joel Lee", email="joel@joellee.org"},
     { name = "Andrew Smith", email="a.smith@silentworks.co.uk"},
 ]
+maintainers = [
+  { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
+]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/supabase/supabase-py"
