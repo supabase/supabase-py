@@ -30,7 +30,7 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/supabase/supabase-py"
 repository = "https://github.com/supabase/supabase-py"
-documentation = "https://github.com/supabase/supabase-py"
+documentation = "https://github.com/supabase/supabase-py/src/supabase"
 
 [dependency-groups]
 dev = [

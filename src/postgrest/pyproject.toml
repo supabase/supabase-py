@@ -25,8 +25,8 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://github.com/supabase/postgrest-py"
-repository = "https://github.com/supabase/postgrest-py"
+homepage = "https://github.com/supabase/supabase/tree/main/src/postgrest"
+repository = "https://github.com/supabase/supabase-py"
 documentation = "https://postgrest-py.rtfd.io"
 
 [dependency-groups]

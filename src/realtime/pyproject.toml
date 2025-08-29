@@ -16,6 +16,11 @@ dependencies = [
   "pydantic (>=2.11.7,<3.0.0)",
 ]
 
+[project.urls]
+homepage = "https://github.com/supabase/supabase/tree/main/src/realime"
+repository = "https://github.com/supabase/supabase-py"
+documentation = "https://github.com/supabase/supabase/tree/main/src/realime"
+
 [dependency-groups]
 tests = [
   "aiohttp >= 3.12.13",
