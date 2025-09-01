@@ -1,4 +1,5 @@
 # docker-compose.yml
+name: auth-tests
 version: '3'
 services:
   gotrue: # Signup enabled, autoconfirm off

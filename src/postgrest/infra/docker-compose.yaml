@@ -1,4 +1,5 @@
 # docker-compose.yml
+name: postgrest-tests
 version: '3'
 services:
   rest:
