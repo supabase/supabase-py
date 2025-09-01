@@ -40,7 +40,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Run Tests
-        run: make ci -j
+        run: make ci
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
