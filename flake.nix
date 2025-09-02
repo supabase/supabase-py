@@ -41,10 +41,22 @@
       sourcePreference = "wheel"; # or sourcePreference = "sdist";
     };
 
+    pyproject-overlay = final: prev: {
+      ruamel-yaml-clib = prev.ruamel-yaml-clib.overrideAttrs (old: {
+        nativeBuildInputs = old.nativeBuildInputs ++ [
+          (final.resolveBuildSystem {
+            setuptools = [];
+          })
+        ];
+      });
+
+    };
+
     python-for = pkgs: let
       extensions = pkgs.lib.composeManyExtensions [
         pyproject-build-systems.overlays.default
         workspace-overlay
+        pyproject-overlay
       ];
       base-python = pkgs.callPackage pyproject-nix.build.packages {
         python = pkgs.python311;
@@ -56,6 +68,20 @@
       python-env = python.mkVirtualEnv "supabase-py" workspace.deps.all;
     in {
       default = pkgs.mkShell {
+        env = {
+          # Don't create venv using uv
+          UV_NO_SYNC = "1";
+
+          # Force uv to use nixpkgs Python interpreter
+          UV_PYTHON = pkgs.python311.interpreter;
+
+          # Prevent uv from downloading managed Python's
+          UV_PYTHON_DOWNLOADS = "never";
+        };
+        shellHook = ''
+          # Undo dependency propagation by nixpkgs.
+          unset PYTHONPATH
+        '';
         packages = [ python-env ] ++ (dev-tools pkgs);
       };
     });
