@@ -73,6 +73,7 @@
           UV_NO_SYNC = "1";
 
           # Force uv to use nixpkgs Python interpreter
+          UV_PROJECT_ENVIRONMENT = python-env;
           UV_PYTHON = pkgs.python311.interpreter;
 
           # Prevent uv from downloading managed Python's
