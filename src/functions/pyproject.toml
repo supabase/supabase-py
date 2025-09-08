@@ -6,6 +6,9 @@ authors = [
   { name = "Joel Lee", email = "joel@joellee.org" },
   { name = "Andrew Smith", email = "a.smith@silentworks.co.uk" },
 ]
+maintainers = [
+  { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
+]
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -14,8 +17,10 @@ dependencies = [
   "strenum >=0.4.15",
 ]
 
+
 [project.urls]
 repository = "https://github.com/supabase/supabase-py"
+homepage = "https://github.com/supabase/supabase/tree/main/src/functions"
 
 [dependency-groups]
 tests = [

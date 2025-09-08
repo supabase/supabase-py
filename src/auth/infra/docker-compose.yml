@@ -1,5 +1,5 @@
 # docker-compose.yml
-version: '3'
+name: auth-tests
 services:
   gotrue: # Signup enabled, autoconfirm off
     image: supabase/auth:v2.178.0

@@ -1,6 +1,5 @@
 # Functions-py
 
-
 ## Installation
 
 `pip3 install supabase_functions`

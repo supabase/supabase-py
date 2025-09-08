@@ -2,8 +2,6 @@
 
 Python Client library to interact with Supabase Storage.
 
-
-
 ## How to use
 
 As it takes some effort to get the headers. We suggest that you use the storage functionality through the main [Supabase Python Client](https://github.com/supabase-community/supabase-py)
