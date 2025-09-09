@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Type, TypeAlias, reveal_type
 
 import pytest
 
@@ -22,11 +22,10 @@ def test_error_initialization(
     error_class: Type[FunctionsError], expected_name: str, expected_status: int
 ):
     test_message = "Test error message"
-
-    if error_class is FunctionsError:
+    if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
+        error: FunctionsError = error_class(test_message)
+    elif error_class is FunctionsError:
         error = error_class(test_message, expected_name, expected_status)
-    else:
-        error = error_class(test_message)
 
     assert str(error) == test_message
     assert error.message == test_message
@@ -48,10 +47,10 @@ def test_error_to_dict(
 ):
     test_message = "Test error message"
 
-    if error_class is FunctionsError:
+    if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
+        error: FunctionsError = error_class(test_message)
+    elif error_class is FunctionsError:
         error = error_class(test_message, expected_name, expected_status)
-    else:
-        error = error_class(test_message)
 
     error_dict = error.to_dict()
 

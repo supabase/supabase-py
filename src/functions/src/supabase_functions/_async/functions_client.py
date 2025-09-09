@@ -74,9 +74,11 @@ class AsyncFunctionsClient:
         headers: Optional[Dict[str, str]] = None,
         json: Optional[Dict[Any, Any]] = None,
     ) -> Response:
-        user_data = {"data": json} if isinstance(json, str) else {"json": json}
-        response = await self._client.request(method, url, **user_data, headers=headers)
-
+        response = (
+            await self._client.request(method, url, data=json, headers=headers)
+            if isinstance(json, str)
+            else await self._client.request(method, url, json=json, headers=headers)
+        )
         try:
             response.raise_for_status()
         except HTTPError as exc:

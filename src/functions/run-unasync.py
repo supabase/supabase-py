@@ -1,7 +1,7 @@
 import unasync
 from pathlib import Path
 
-paths = Path("src/functions").glob("**/*.py")
+paths = Path("src/supabase_functions").glob("**/*.py")
 tests = Path("tests").glob("**/*.py")
 
 rules = (unasync._DEFAULT_RULE,)
