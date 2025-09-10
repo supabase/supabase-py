@@ -1,4 +1,4 @@
-from typing import Type, TypeAlias, reveal_type
+from typing import Type
 
 import pytest
 
