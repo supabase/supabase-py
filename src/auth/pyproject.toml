@@ -1,6 +1,6 @@
 [project]
 name = "supabase_auth"
-version = "2.13.0" # {x-release-please-version}
+version = "2.19.0" # {x-release-please-version}
 description = "Python Client Library for Supabase Auth"
 authors = [
   {name = "Joel Lee", email = "joel@joellee.org" }

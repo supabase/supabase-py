@@ -1,6 +1,6 @@
 [project]
 name = "postgrest"
-version = "1.2.0" # {x-release-please-version}
+version = "2.19.0" # {x-release-please-version}
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 authors = [
   { name = "Lương Quang Mạnh", email = "luongquangmanh85@gmail.com"},
