@@ -2,27 +2,27 @@
   "last-release-sha": "7236ed62c37fb57c3feac23b416fc6d9d153dd68",
   "packages": {
     "src/realtime": {
-      "changelog-path": "src/realtime/CHANGELOG.md",
+      "changelog-path": "CHANGELOG.md",
       "release-type": "python"
     },
     "src/auth": {
-      "changelog-path": "src/auth/CHANGELOG.md",
+      "changelog-path": "CHANGELOG.md",
       "release-type": "python"
     },
     "src/functions": {
-      "changelog-path": "src/functions/CHANGELOG.md",
+      "changelog-path": "CHANGELOG.md",
       "release-type": "python"
     },
     "src/storage": {
-      "changelog-path": "src/storage/CHANGELOG.md",
+      "changelog-path": "CHANGELOG.md",
       "release-type": "python"
     },
     "src/postgrest": {
-      "changelog-path": "src/postgrest/CHANGELOG.md",
+      "changelog-path": "CHANGELOG.md",
       "release-type": "python"
     },
     "src/supabase": {
-      "changelog-path": "src/supabase/CHANGELOG.md",
+      "changelog-path": "CHANGELOG.md",
       "release-type": "python"
     }
   }
