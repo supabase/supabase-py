@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.19.0](https://github.com/supabase/supabase-py/compare/v2.18.1...v2.19.0) (2025-09-16)
+
+### Features
+
+* finalize monorepo switch, consolidating postgrest, auth, storage, functions and realtime all inside the supabase-py monorepository ([#1218](https://github.com/supabase/supabase-py/pull/1218)).
+
+
 ## [2.18.1](https://github.com/supabase/supabase-py/compare/v2.18.0...v2.18.1) (2025-08-12)
 
 

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.19.0](https://github.com/supabase/supabase-py/compare/v2.18.1...v2.19.0) (2025-09-16)
+
+### Features
+
+* move postgrest from original repository to supabase-py monorepo ([#1213](https://github.com/supabase/supabase-py/pull/1213)). 
+* NOTE: the version was bumped to 2.19.0 to have all the package versions in the monorepo be the same, simplifying version constraints. No changes were introduced in the package itself.
+
 ## [1.1.1](https://github.com/supabase/postgrest-py/compare/v1.1.0...v1.1.1) (2025-06-23)
 
 
