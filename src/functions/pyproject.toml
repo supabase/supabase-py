@@ -32,7 +32,10 @@ tests = [
 lints = [
   "unasync>=0.6.0",
   "ruff >=0.12.1",
-  "pre-commit >=3.4,<5.0"
+  "pre-commit >=3.4,<5.0",
+  "python-lsp-server (>=1.12.2,<2.0.0)",
+  "pylsp-mypy (>=0.7.0,<0.8.0)",
+  "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
 dev = [{ include-group = "lints" }, {include-group = "tests" }]
 
