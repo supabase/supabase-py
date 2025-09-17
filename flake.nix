@@ -38,7 +38,11 @@
     workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; };
 
     workspace-overlay = workspace.mkPyprojectOverlay {
-      sourcePreference = "wheel"; # or sourcePreference = "sdist";
+      sourcePreference = "wheel";
+    };
+
+    editable-overlay = workspace.mkEditablePyprojectOverlay {
+      root = "$REPO_ROOT";
     };
 
     pyproject-overlay = final: prev: {
@@ -56,6 +60,7 @@
       extensions = pkgs.lib.composeManyExtensions [
         pyproject-build-systems.overlays.default
         workspace-overlay
+        editable-overlay
         pyproject-overlay
       ];
       base-python = pkgs.callPackage pyproject-nix.build.packages {
@@ -82,6 +87,7 @@
         shellHook = ''
           # Undo dependency propagation by nixpkgs.
           unset PYTHONPATH
+          export REPO_ROOT=$(git rev-parse --show-toplevel)
         '';
         packages = [ python-env ] ++ (dev-tools pkgs);
       };
