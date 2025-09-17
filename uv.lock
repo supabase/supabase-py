@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.9"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -1611,7 +1611,7 @@ wheels = [
 
 [[package]]
 name = "postgrest"
-version = "1.1.1"
+version = "2.19.0"
 source = { editable = "src/postgrest" }
 dependencies = [
     { name = "deprecation" },
@@ -2181,7 +2181,7 @@ wheels = [
 
 [[package]]
 name = "realtime"
-version = "2.7.0"
+version = "2.19.0"
 source = { editable = "src/realtime" }
 dependencies = [
     { name = "pydantic" },
@@ -2761,7 +2761,7 @@ wheels = [
 
 [[package]]
 name = "storage3"
-version = "0.12.1"
+version = "2.19.0"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
@@ -2851,7 +2851,7 @@ wheels = [
 
 [[package]]
 name = "supabase"
-version = "2.18.1"
+version = "2.19.0"
 source = { editable = "src/supabase" }
 dependencies = [
     { name = "httpx" },
@@ -2924,7 +2924,7 @@ tests = [
 
 [[package]]
 name = "supabase-auth"
-version = "2.12.3"
+version = "2.19.0"
 source = { editable = "src/auth" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -2993,7 +2993,7 @@ tests = [
 
 [[package]]
 name = "supabase-functions"
-version = "0.10.1"
+version = "2.19.0"
 source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
