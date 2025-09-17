@@ -1,6 +1,11 @@
 # CHANGELOG
 
+## [2.19.0](https://github.com/supabase/supabase-py/compare/v2.18.1...v2.19.0) (2025-09-16)
 
+### Features
+
+* move realtime from original repository to supabase-py monorepo ([#1190](https://github.com/supabase/supabase-py/pull/1190)). 
+* NOTE: the version was bumped to 2.19.0 to have all the package versions in the monorepo be the same, simplifying version constraints. No changes were introduced in the package itself.
 
 ## [2.7.0](https://github.com/supabase/realtime-py/compare/v2.6.0...v2.7.0) (2025-07-28)
 

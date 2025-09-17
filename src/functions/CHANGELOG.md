@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.19.0](https://github.com/supabase/supabase-py/compare/v2.18.1...v2.19.0) (2025-09-16)
+
+### Features
+
+* move functions-py from original repository to supabase-py monorepo ([#1204](https://github.com/supabase/supabase-py/pull/1204)). 
+* NOTE: the version was bumped to 2.19.0 to have all the package versions in the monorepo be the same, simplifying version constraints. No changes were introduced in the package itself. 
+
 ## [0.10.1](https://github.com/supabase/functions-py/compare/v0.10.0...v0.10.1) (2025-06-20)
 
 

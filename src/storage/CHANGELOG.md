@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.19.0](https://github.com/supabase/supabase-py/compare/v2.18.1...v2.19.0) (2025-09-16)
+
+### Features
+
+* move storage from original repository to supabase-py monorepo ([#1211](https://github.com/supabase/supabase-py/pull/1211)). 
+* NOTE: the version was bumped to 2.19.0 to have all the package versions in the monorepo be the same, simplifying version constraints. No changes were introduced in the package itself. 
+
 ## [0.12.2](https://github.com/supabase/storage-py/compare/v0.12.1...v0.12.2) (2025-08-15)
 
 

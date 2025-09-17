@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [2.19.0](https://github.com/supabase/supabase-py/compare/v2.18.1...v2.19.0) (2025-09-16)
+
+### Features
+
+* move auth-py from original repository to supabase-py monorepo ([#1212](https://github.com/supabase/supabase-py/pull/1212)). 
+* NOTE: the version was bumped to 2.19.0 to have all the package versions in the monorepo to be the same, simplifying version constraints. No changes were introduced in the package itself.
+
+
 ## [2.12.3](https://github.com/supabase/auth-py/compare/v2.12.2...v2.12.3) (2025-07-03)
 
 

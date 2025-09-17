@@ -13,14 +13,14 @@ from .version import __version__
 
 class SyncClient(BaseClient):
     @deprecated(
-        "1.0.2", "1.3.0", __version__, "Use `Client` from the httpx package instead"
+        "1.0.2", "3.0.0", __version__, "Use `Client` from the httpx package instead"
     )
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     @deprecated(
         "1.0.2",
-        "1.3.0",
+        "3.0.0",
         __version__,
         "Use `close` method from `Client` in the httpx package instead",
     )
