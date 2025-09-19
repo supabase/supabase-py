@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 temp_test_buckets_ids = []
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def uuid_factory() -> Callable[[], str]:
     def method() -> str:
         """Generate a 8 digits long UUID"""
@@ -34,7 +34,7 @@ def uuid_factory() -> Callable[[], str]:
     return method
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture
 def delete_left_buckets(
     request: pytest.FixtureRequest,
     storage: SyncStorageClient,
@@ -62,7 +62,7 @@ def bucket_factory(
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def bucket(storage: SyncStorageClient, uuid_factory: Callable[[], str]) -> str:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
@@ -81,8 +81,10 @@ def bucket(storage: SyncStorageClient, uuid_factory: Callable[[], str]) -> str:
     temp_test_buckets_ids.remove(bucket_id)
 
 
-@pytest.fixture(scope="module")
-def public_bucket(storage: SyncStorageClient, uuid_factory: Callable[[], str]) -> str:
+@pytest.fixture
+def public_bucket(
+    storage: SyncStorageClient, uuid_factory: Callable[[], str]
+) -> str:
     """Creates a test public bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
 
@@ -100,13 +102,13 @@ def public_bucket(storage: SyncStorageClient, uuid_factory: Callable[[], str]) -
     temp_test_buckets_ids.remove(bucket_id)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def storage_file_client(storage: SyncStorageClient, bucket: str) -> SyncBucketProxy:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(bucket)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def storage_file_client_public(
     storage: SyncStorageClient, public_bucket: str
 ) -> SyncBucketProxy:
@@ -350,7 +352,9 @@ def test_client_upload_to_signed_url(
     assert image == file.file_content
 
     # Test with cache-control
-    data = storage_file_client.create_signed_upload_url(f"cached_{file.bucket_path}")
+    data = storage_file_client.create_signed_upload_url(
+        f"cached_{file.bucket_path}"
+    )
     storage_file_client.upload_to_signed_url(
         data["path"], data["token"], file.file_content, {"cache-control": "3600"}
     )

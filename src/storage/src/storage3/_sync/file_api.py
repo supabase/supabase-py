@@ -22,6 +22,7 @@ from ..types import (
     RequestMethod,
     SignedUploadURL,
     SignedUrlResponse,
+    TransformOptions,
     UploadData,
     UploadResponse,
     URLOptions,
@@ -165,7 +166,7 @@ class SyncBucketActionsMixin:
         options
             options to be passed for downloading or transforming the file.
         """
-        json = {"expiresIn": str(expires_in)}
+        json: dict[str, str | bool | TransformOptions] = {"expiresIn": str(expires_in)}
         download_query = ""
         if options.get("download"):
             json.update({"download": options["download"]})
@@ -209,7 +210,7 @@ class SyncBucketActionsMixin:
         options
             options to be passed for downloading the file.
         """
-        json = {"paths": paths, "expiresIn": str(expires_in)}
+        json: dict[str, str | bool | None | list[str]] = {"paths": paths, "expiresIn": str(expires_in)}
         download_query = ""
         if options.get("download"):
             json.update({"download": options.get("download")})
@@ -265,8 +266,8 @@ class SyncBucketActionsMixin:
 
         render_path = "render/image" if options.get("transform") else "object"
         transformation_query = (
-            urllib.parse.urlencode(options.get("transform"))
-            if options.get("transform")
+            urllib.parse.urlencode(t)
+            if (t := options.get("transform"))
             else None
         )
 
@@ -322,7 +323,7 @@ class SyncBucketActionsMixin:
         )
         return res.json()
 
-    def remove(self, paths: list) -> list[dict[str, Any]]:
+    def remove(self, paths: list[Any]) -> list[dict[str, Any]]:
         """
         Deletes files within the same bucket
 

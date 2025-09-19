@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.9"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -1611,7 +1611,7 @@ wheels = [
 
 [[package]]
 name = "postgrest"
-version = "1.1.1"
+version = "2.19.0"
 source = { editable = "src/postgrest" }
 dependencies = [
     { name = "deprecation" },
@@ -2181,7 +2181,7 @@ wheels = [
 
 [[package]]
 name = "realtime"
-version = "2.7.0"
+version = "2.19.0"
 source = { editable = "src/realtime" }
 dependencies = [
     { name = "pydantic" },
@@ -2761,7 +2761,7 @@ wheels = [
 
 [[package]]
 name = "storage3"
-version = "0.12.1"
+version = "2.19.0"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
@@ -2772,16 +2772,20 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "pre-commit" },
+    { name = "pylsp-mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "python-dotenv" },
+    { name = "python-lsp-ruff" },
+    { name = "python-lsp-server" },
     { name = "ruff" },
     { name = "sphinx", version = "7.4.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
     { name = "sphinx", version = "8.2.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "sphinx-press-theme" },
     { name = "sphinx-toolbox" },
+    { name = "types-deprecated" },
     { name = "unasync" },
 ]
 docs = [
@@ -2793,7 +2797,11 @@ docs = [
 ]
 lints = [
     { name = "pre-commit" },
+    { name = "pylsp-mypy" },
+    { name = "python-lsp-ruff" },
+    { name = "python-lsp-server" },
     { name = "ruff" },
+    { name = "types-deprecated" },
     { name = "unasync" },
 ]
 tests = [
@@ -2813,14 +2821,18 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "pre-commit", specifier = ">=4.2.0" },
+    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", specifier = ">=0.21.0" },
     { name = "pytest-cov", specifier = ">=6.1.0" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
+    { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
+    { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "sphinx", specifier = ">=7.1.2" },
     { name = "sphinx-press-theme", specifier = ">=0.9.1" },
     { name = "sphinx-toolbox", specifier = ">=3.4.0" },
+    { name = "types-deprecated", specifier = ">=1.2.15" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 docs = [
@@ -2830,7 +2842,11 @@ docs = [
 ]
 lints = [
     { name = "pre-commit", specifier = ">=4.2.0" },
+    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
+    { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
+    { name = "types-deprecated", specifier = ">=1.2.15" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 tests = [
@@ -2851,7 +2867,7 @@ wheels = [
 
 [[package]]
 name = "supabase"
-version = "2.18.1"
+version = "2.19.0"
 source = { editable = "src/supabase" }
 dependencies = [
     { name = "httpx" },
@@ -2924,7 +2940,7 @@ tests = [
 
 [[package]]
 name = "supabase-auth"
-version = "2.12.3"
+version = "2.19.0"
 source = { editable = "src/auth" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -2993,7 +3009,7 @@ tests = [
 
 [[package]]
 name = "supabase-functions"
-version = "0.10.1"
+version = "2.19.0"
 source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -3004,14 +3020,20 @@ dependencies = [
 dev = [
     { name = "pre-commit" },
     { name = "pyjwt" },
+    { name = "pylsp-mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "python-lsp-ruff" },
+    { name = "python-lsp-server" },
     { name = "ruff" },
     { name = "unasync" },
 ]
 lints = [
     { name = "pre-commit" },
+    { name = "pylsp-mypy" },
+    { name = "python-lsp-ruff" },
+    { name = "python-lsp-server" },
     { name = "ruff" },
     { name = "unasync" },
 ]
@@ -3032,14 +3054,20 @@ requires-dist = [
 dev = [
     { name = "pre-commit", specifier = ">=3.4,<5.0" },
     { name = "pyjwt", specifier = ">=2.8.0" },
+    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
     { name = "pytest", specifier = ">=7.4.2,<9.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.21.1,<1.2.0" },
     { name = "pytest-cov", specifier = ">=4,<7" },
+    { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
+    { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 lints = [
     { name = "pre-commit", specifier = ">=3.4,<5.0" },
+    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
+    { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
@@ -3123,6 +3151,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cc/18/0bbf3884e9eaa38819ebe46a7bd25dcd56b67434402b66a58c4b8e552575/tomlkit-0.13.3.tar.gz", hash = "sha256:430cf247ee57df2b94ee3fbe588e71d362a941ebb545dec29b53961d61add2a1", size = 185207, upload-time = "2025-06-05T07:13:44.947Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/75/8539d011f6be8e29f339c42e633aae3cb73bffa95dd0f9adec09b9c58e85/tomlkit-0.13.3-py3-none-any.whl", hash = "sha256:c89c649d79ee40629a9fda55f8ace8c6a1b42deb912b2a8fd8d942ddadb606b0", size = 38901, upload-time = "2025-06-05T07:13:43.546Z" },
+]
+
+[[package]]
+name = "types-deprecated"
+version = "1.2.15.20250304"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/67/eeefaaabb03b288aad85483d410452c8bbcbf8b2bd876b0e467ebd97415b/types_deprecated-1.2.15.20250304.tar.gz", hash = "sha256:c329030553029de5cc6cb30f269c11f4e00e598c4241290179f63cda7d33f719", size = 8015, upload-time = "2025-03-04T02:48:17.894Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4d/e3/c18aa72ab84e0bc127a3a94e93be1a6ac2cb281371d3a45376ab7cfdd31c/types_deprecated-1.2.15.20250304-py3-none-any.whl", hash = "sha256:86a65aa550ea8acf49f27e226b8953288cd851de887970fbbdf2239c116c3107", size = 8553, upload-time = "2025-03-04T02:48:16.666Z" },
 ]
 
 [[package]]

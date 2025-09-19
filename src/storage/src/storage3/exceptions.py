@@ -6,6 +6,7 @@ from .utils import StorageException
 class StorageApiErrorDict(TypedDict):
     name: str
     message: str
+    code: str
     status: int
 
 

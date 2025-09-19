@@ -13,8 +13,8 @@ build-sync:
 	uv run --package storage3 run-unasync.py
 	sed -i '0,/SyncMock, /{s/SyncMock, //}' tests/_sync/test_bucket.py tests/_sync/test_client.py
 	sed -i 's/SyncMock/Mock/g' tests/_sync/test_bucket.py tests/_sync/test_client.py
-	sed -i 's/SyncClient/Client/g' storage3/_sync/client.py storage3/_sync/bucket.py storage3/_sync/file_api.py tests/_sync/test_bucket.py tests/_sync/test_client.py
-	sed -i 's/self\.session\.aclose/self\.session\.close/g' storage3/_sync/client.py
+	sed -i 's/SyncClient/Client/g' src/storage3/_sync/client.py src/storage3/_sync/bucket.py src/storage3/_sync/file_api.py tests/_sync/test_bucket.py tests/_sync/test_client.py
+	sed -i 's/self\.session\.aclose/self\.session\.close/g' src/storage3/_sync/client.py
 
 clean:
 	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
