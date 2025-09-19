@@ -210,7 +210,10 @@ class AsyncBucketActionsMixin:
         options
             options to be passed for downloading the file.
         """
-        json: dict[str, str | bool | None | list[str]] = {"paths": paths, "expiresIn": str(expires_in)}
+        json: dict[str, str | bool | None | list[str]] = {
+            "paths": paths,
+            "expiresIn": str(expires_in),
+        }
         download_query = ""
         if options.get("download"):
             json.update({"download": options.get("download")})
@@ -266,9 +269,7 @@ class AsyncBucketActionsMixin:
 
         render_path = "render/image" if options.get("transform") else "object"
         transformation_query = (
-            urllib.parse.urlencode(t)
-            if (t := options.get("transform"))
-            else None
+            urllib.parse.urlencode(t) if (t := options.get("transform")) else None
         )
 
         if transformation_query:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Generator, Generator
+from collections.abc import Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -56,8 +56,11 @@ def delete_left_buckets(
 
     request.addfinalizer(SyncFinalizerFactory(afinalizer).finalizer)
 
+
 @pytest.fixture
-def bucket(storage: SyncStorageClient, uuid_factory: Callable[[], str]) -> Generator[str]:
+def bucket(
+    storage: SyncStorageClient, uuid_factory: Callable[[], str]
+) -> Generator[str]:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
 
@@ -97,7 +100,9 @@ def public_bucket(
 
 
 @pytest.fixture
-def storage_file_client(storage: SyncStorageClient, bucket: str) -> Generator[SyncBucketProxy]:
+def storage_file_client(
+    storage: SyncStorageClient, bucket: str
+) -> Generator[SyncBucketProxy]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(bucket)
 
@@ -349,9 +354,7 @@ def test_client_upload_to_signed_url(
     assert image == file.file_content
 
     # Test with cache-control
-    data = storage_file_client.create_signed_upload_url(
-        f"cached_{file.bucket_path}"
-    )
+    data = storage_file_client.create_signed_upload_url(f"cached_{file.bucket_path}")
     storage_file_client.upload_to_signed_url(
         data["path"], data["token"], file.file_content, {"cache-control": "3600"}
     )

@@ -56,8 +56,11 @@ async def delete_left_buckets(
 
     request.addfinalizer(AsyncFinalizerFactory(afinalizer).finalizer)
 
+
 @pytest.fixture
-async def bucket(storage: AsyncStorageClient, uuid_factory: Callable[[], str]) -> AsyncGenerator[str]:
+async def bucket(
+    storage: AsyncStorageClient, uuid_factory: Callable[[], str]
+) -> AsyncGenerator[str]:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
 
@@ -97,7 +100,9 @@ async def public_bucket(
 
 
 @pytest.fixture
-def storage_file_client(storage: AsyncStorageClient, bucket: str) -> Generator[AsyncBucketProxy]:
+def storage_file_client(
+    storage: AsyncStorageClient, bucket: str
+) -> Generator[AsyncBucketProxy]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(bucket)
 
