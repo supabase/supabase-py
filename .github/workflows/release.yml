@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/**'
+      - '.devcontainer/**'
+      - 'CHANGELOG.md'
+      - 'MAINTAINERS.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    if: ${{ github.repository_owner == 'supabase' }}
+    runs-on: ubuntu-latest
+    name: "Bump version and create changelog"
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    permissions:
+      contents: write # needed for github actions bot to write to repo
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          target-branch: ${{ github.ref_name }}
+
+  publish:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    name: "Publish to PyPI"
+    environment:
+      name: pypi
+      url: https://pypi.org/p/supabase
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+      contents: read
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+          fetch-depth: 0
+
+      - name: Install supabase cli latest
+        uses: supabase/setup-cli@v1
+        with:
+          version: "latest"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          version: "0.8.2"
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run pre-publish checks
+        run: |
+          make pre-commit
+          make ci
+
+      - name: Build all packages and publish
+        run: make publish
