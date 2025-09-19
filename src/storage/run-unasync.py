@@ -2,7 +2,7 @@ from pathlib import Path
 
 import unasync
 
-paths = Path("src/functions").glob("**/*.py")
+paths = Path("src/storage3").glob("**/*.py")
 tests = Path("tests").glob("**/*.py")
 
 rules = (unasync._DEFAULT_RULE,)

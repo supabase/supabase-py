@@ -14,18 +14,7 @@ def pytest_configure(config) -> None:
     load_dotenv(dotenv_path="tests/tests.env")
 
 
-@pytest.fixture(scope="package")
-def event_loop() -> Generator[asyncio.AbstractEventLoop]:
-    """Returns an event loop for the current thread"""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="package")
+@pytest.fixture
 def storage() -> Generator[SyncStorageClient]:
     url = os.environ.get("SUPABASE_TEST_URL")
     assert url is not None, "Must provide SUPABASE_TEST_URL environment variable"

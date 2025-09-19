@@ -36,7 +36,10 @@ repository = "https://github.com/supabase/supabase-py"
 lints = [
   "pre-commit >=4.2.0",
   "ruff >=0.12.1",
-  "unasync >= 0.6.0"
+  "unasync >= 0.6.0",
+  "python-lsp-server (>=1.12.2,<2.0.0)",
+  "pylsp-mypy (>=0.7.0,<0.8.0)",
+  "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
 docs = [
   "Sphinx >=7.1.2",
@@ -52,7 +55,6 @@ tests = [
 dev = [
   { include-group = "lints" },
   { include-group = "tests" },
-  { include-group = "lints" },
   { include-group = "docs" },
 ]
 
@@ -84,6 +86,10 @@ addopts = "tests"
 filterwarnings = [
     "ignore::DeprecationWarning", # ignore deprecation warnings globally
 ]
+
+[tool.mypy]
+follow_untyped_imports = true # for deprecation module that does not have stubs
+allow_redefinition = true
 
 [tool.uv]
 default-groups = [ "dev" ]
