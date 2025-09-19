@@ -323,7 +323,7 @@ class SyncBucketActionsMixin:
         )
         return res.json()
 
-    def remove(self, paths: list[Any]) -> list[dict[str, Any]]:
+    def remove(self, paths: list[str]) -> list[dict[str, Any]]:
         """
         Deletes files within the same bucket
 
@@ -342,7 +342,7 @@ class SyncBucketActionsMixin:
     def info(
         self,
         path: str,
-    ) -> list[dict[str, str]]:
+    ) -> dict[str, Any]:
         """
         Lists info for a particular file.
 
@@ -382,7 +382,7 @@ class SyncBucketActionsMixin:
         self,
         path: Optional[str] = None,
         options: Optional[ListBucketFilesOptions] = None,
-    ) -> list[dict[str, str]]:
+    ) -> list[dict[str, Any]]:
         """
         Lists all the files within a bucket.
 

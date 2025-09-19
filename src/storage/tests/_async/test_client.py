@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator, Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, Mock, patch
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
 
 # Global variable to track the ids from the buckets created in the tests run
-temp_test_buckets_ids = []
+temp_test_buckets_ids: list[str] = []
 
 
 @pytest.fixture
@@ -55,15 +56,8 @@ async def delete_left_buckets(
 
     request.addfinalizer(AsyncFinalizerFactory(afinalizer).finalizer)
 
-
-async def bucket_factory(
-    storage: AsyncStorageClient, uuid_factory: Callable[[], str], public: bool
-) -> str:
-    """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
-
-
 @pytest.fixture
-async def bucket(storage: AsyncStorageClient, uuid_factory: Callable[[], str]) -> str:
+async def bucket(storage: AsyncStorageClient, uuid_factory: Callable[[], str]) -> AsyncGenerator[str]:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
 
@@ -84,7 +78,7 @@ async def bucket(storage: AsyncStorageClient, uuid_factory: Callable[[], str]) -
 @pytest.fixture
 async def public_bucket(
     storage: AsyncStorageClient, uuid_factory: Callable[[], str]
-) -> str:
+) -> AsyncGenerator[str]:
     """Creates a test public bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
 
@@ -103,7 +97,7 @@ async def public_bucket(
 
 
 @pytest.fixture
-def storage_file_client(storage: AsyncStorageClient, bucket: str) -> AsyncBucketProxy:
+def storage_file_client(storage: AsyncStorageClient, bucket: str) -> Generator[AsyncBucketProxy]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(bucket)
 
@@ -111,7 +105,7 @@ def storage_file_client(storage: AsyncStorageClient, bucket: str) -> AsyncBucket
 @pytest.fixture
 def storage_file_client_public(
     storage: AsyncStorageClient, public_bucket: str
-) -> AsyncBucketProxy:
+) -> Generator[AsyncBucketProxy]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(public_bucket)
 
@@ -281,6 +275,7 @@ async def test_client_upload(
     image_info = next((f for f in files if f.get("name") == file.name), None)
 
     assert image == file.file_content
+    assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
 
 
@@ -308,6 +303,7 @@ async def test_client_update(
     )
 
     assert image == two_files[1].file_content
+    assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == two_files[1].mime_type
 
 
@@ -339,6 +335,7 @@ async def test_client_upload_to_signed_url(
     image_info = next((f for f in files if f.get("name") == file.name), None)
 
     assert image == file.file_content
+    assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
 
     # Test with file_options=None
@@ -586,6 +583,7 @@ async def test_client_copy(
     copied_info = next(
         (f for f in files if f.get("name") == f"copied_{file.name}"), None
     )
+    assert copied_info is not None
     assert copied_info.get("metadata", {}).get("mimetype") == file.mime_type
 
 
@@ -612,6 +610,7 @@ async def test_client_move(
     # Verify metadata was preserved
     files = await storage_file_client.list(file.bucket_folder)
     moved_info = next((f for f in files if f.get("name") == f"moved_{file.name}"), None)
+    assert moved_info is not None
     assert moved_info.get("metadata", {}).get("mimetype") == file.mime_type
 
 
@@ -628,7 +627,7 @@ async def test_client_remove(
     assert await storage_file_client.exists(file.bucket_path)
 
     # Remove file
-    await storage_file_client.remove(file.bucket_path)
+    await storage_file_client.remove([file.bucket_path])
 
     # Verify file no longer exists
     assert not await storage_file_client.exists(file.bucket_path)
