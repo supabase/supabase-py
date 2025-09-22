@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [2.20.0](https://github.com/supabase/supabase-py/compare/v2.19.0...v2.20.0) (2025-09-22)
+
+
+### Features
+
+* include postgrest in monorepo, finalize monorepo switch ([#1213](https://github.com/supabase/supabase-py/issues/1213)) ([2533ba1](https://github.com/supabase/supabase-py/commit/2533ba1f3b3f97f561ea7240c2c5ef8f9ee29ee0))
+* **postgrest:** implement max_affected method ([#1222](https://github.com/supabase/supabase-py/issues/1222)) ([3f75daf](https://github.com/supabase/supabase-py/commit/3f75daf450af8ed9e85fe51a26faf2ed44362273))
+
 ## [2.19.0](https://github.com/supabase/supabase-py/compare/v2.18.1...v2.19.0) (2025-09-16)
 
 ### Features

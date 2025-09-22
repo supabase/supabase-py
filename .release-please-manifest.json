@@ -1,8 +1,8 @@
 {
-  "src/supabase": "2.19.0",
-  "src/realtime": "2.19.0",
-  "src/functions": "2.19.0",
-  "src/storage": "2.19.0",
-  "src/postgrest": "2.19.0",
-  "src/auth": "2.19.0"
+  "src/supabase": "2.20.0",
+  "src/realtime": "2.20.0",
+  "src/functions": "2.20.0",
+  "src/storage": "2.20.0",
+  "src/postgrest": "2.20.0",
+  "src/auth": "2.20.0"
 }
