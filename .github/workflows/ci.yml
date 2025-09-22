@@ -76,9 +76,11 @@ jobs:
         id: release
         with:
           target-branch: ${{ github.ref_name }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
   publish:
     needs: release-please
-    if: ${{ startsWith(github.event.head_commit.message, 'chore(main)') && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
+    if: ${{ needs.release-please.outputs.release_created }}
     runs-on: ubuntu-latest
     name: "Publish to PyPi"
     environment:
