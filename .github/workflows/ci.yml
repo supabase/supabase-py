@@ -66,7 +66,7 @@ jobs:
     needs: test
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
     runs-on: ubuntu-latest
-    name: "Bump version and create changelog"
+    name: "Run release-please"
     permissions:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
       contents: write # needed for github actions bot to write to repo
@@ -76,9 +76,11 @@ jobs:
         id: release
         with:
           target-branch: ${{ github.ref_name }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
   publish:
     needs: release-please
-    if: ${{ startsWith(github.event.head_commit.message, 'chore(main)') && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
+    if: ${{ needs.release-please.outputs.release_created }}
     runs-on: ubuntu-latest
     name: "Publish to PyPi"
     environment:
