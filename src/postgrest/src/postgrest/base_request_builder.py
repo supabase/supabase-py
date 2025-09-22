@@ -526,6 +526,26 @@ class BaseFilterRequestBuilder(Generic[_ReturnT]):
 
         return updated_query
 
+    def max_affected(self: Self, value: int) -> Self:
+        """Set the maximum number of rows that can be affected by the query.
+
+        Only available in PostgREST v13+ and only works with PATCH and DELETE methods.
+
+        Args:
+            value: The maximum number of rows that can be affected
+        """
+        prefer_header = self.headers.get("Prefer", "")
+        if prefer_header:
+            if "handling=strict" not in prefer_header:
+                prefer_header += ",handling=strict"
+        else:
+            prefer_header = "handling=strict"
+
+        prefer_header += f",max-affected={value}"
+
+        self.headers["Prefer"] = prefer_header
+        return self
+
 
 class BaseSelectRequestBuilder(BaseFilterRequestBuilder[_ReturnT]):
     def __init__(
