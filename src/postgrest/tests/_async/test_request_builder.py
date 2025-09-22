@@ -147,6 +147,15 @@ class TestUpdate:
         assert builder.http_method == "PATCH"
         assert builder.json == {"key1": "val1"}
 
+    def test_update_with_max_affected(self, request_builder: AsyncRequestBuilder):
+        builder = request_builder.update({"key1": "val1"}).max_affected(5)
+
+        assert "handling=strict" in builder.headers["prefer"]
+        assert "max-affected=5" in builder.headers["prefer"]
+        assert "return=representation" in builder.headers["prefer"]
+        assert builder.http_method == "PATCH"
+        assert builder.json == {"key1": "val1"}
+
 
 class TestDelete:
     def test_delete(self, request_builder: AsyncRequestBuilder):
@@ -163,6 +172,15 @@ class TestDelete:
             "return=representation",
             "count=exact",
         ]
+        assert builder.http_method == "DELETE"
+        assert builder.json == {}
+
+    def test_delete_with_max_affected(self, request_builder: AsyncRequestBuilder):
+        builder = request_builder.delete().max_affected(10)
+
+        assert "handling=strict" in builder.headers["prefer"]
+        assert "max-affected=10" in builder.headers["prefer"]
+        assert "return=representation" in builder.headers["prefer"]
         assert builder.http_method == "DELETE"
         assert builder.json == {}
 

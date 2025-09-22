@@ -241,3 +241,34 @@ def test_or_in_contain(filter_request_builder):
         str(builder.params)
         == "or=%28id.in.%285%2C6%2C7%29%2C+arraycol.cs.%7B%27a%27%2C%27b%27%7D%29"
     )
+
+
+def test_max_affected(filter_request_builder):
+    builder = filter_request_builder.max_affected(5)
+
+    assert builder.headers["prefer"] == "handling=strict,max-affected=5"
+
+
+def test_max_affected_with_existing_prefer_header(filter_request_builder):
+    # Set an existing prefer header
+    filter_request_builder.headers["prefer"] = "return=representation"
+    builder = filter_request_builder.max_affected(10)
+
+    assert (
+        builder.headers["prefer"]
+        == "return=representation,handling=strict,max-affected=10"
+    )
+
+
+def test_max_affected_with_existing_handling_strict(filter_request_builder):
+    # Set an existing prefer header with handling=strict
+    filter_request_builder.headers["prefer"] = "handling=strict,return=minimal"
+    builder = filter_request_builder.max_affected(3)
+
+    assert builder.headers["prefer"] == "handling=strict,return=minimal,max-affected=3"
+
+
+def test_max_affected_returns_self(filter_request_builder):
+    builder = filter_request_builder.max_affected(1)
+
+    assert builder is filter_request_builder
