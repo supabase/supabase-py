@@ -53,8 +53,17 @@ class AsyncBucketActionsMixin:
             )
             response.raise_for_status()
         except HTTPStatusError as exc:
-            resp = exc.response.json()
-            raise StorageApiError(resp["message"], resp["error"], resp["statusCode"])
+            try:
+                # try parsing JSON safely
+                resp = exc.response.json()
+            except Exception:
+                resp = {}
+
+            message = resp.get("message") or exc.response.text or "Unknown error"
+            error = resp.get("error") or "UnknownError"
+            status_code = resp.get("statusCode") or exc.response.status_code
+
+            raise StorageApiError(message, error, status_code)
 
         # close the resource before returning the response
         if files and "file" in files and isinstance(files["file"][1], BufferedReader):
