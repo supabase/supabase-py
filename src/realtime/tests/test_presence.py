@@ -202,18 +202,12 @@ def test_presence_config_includes_enabled_field():
     from realtime.types import RealtimeChannelPresenceConfig
 
     # Test creating presence config with enabled field
-    config: RealtimeChannelPresenceConfig = {
-        "key": "user123",
-        "enabled": True
-    }
+    config: RealtimeChannelPresenceConfig = {"key": "user123", "enabled": True}
     assert config["key"] == "user123"
     assert config["enabled"] == True
 
     # Test with enabled False
-    config_disabled: RealtimeChannelPresenceConfig = {
-        "key": "",
-        "enabled": False
-    }
+    config_disabled: RealtimeChannelPresenceConfig = {"key": "", "enabled": False}
     assert config_disabled["key"] == ""
     assert config_disabled["enabled"] == False
 
@@ -221,7 +215,7 @@ def test_presence_config_includes_enabled_field():
 @pytest.mark.asyncio
 async def test_presence_enabled_when_callbacks_attached():
     """Test that presence.enabled is set correctly based on callback attachment."""
-    from unittest.mock import Mock, AsyncMock
+    from unittest.mock import AsyncMock, Mock
 
     socket = AsyncRealtimeClient(f"{URL}/realtime/v1", ANON_KEY)
     channel = socket.channel("test")
@@ -257,8 +251,8 @@ async def test_presence_enabled_when_callbacks_attached():
 @pytest.mark.asyncio
 async def test_resubscribe_on_presence_callback_addition():
     """Test that channel resubscribes when presence callbacks are added after joining."""
-    from unittest.mock import AsyncMock
     import asyncio
+    from unittest.mock import AsyncMock
 
     socket = AsyncRealtimeClient(f"{URL}/realtime/v1", ANON_KEY)
     channel = socket.channel("test")

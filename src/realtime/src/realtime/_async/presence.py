@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncRealtimePresence:
-
-
     @property
     def _has_callback_attached(self) -> bool:
         return (

@@ -191,12 +191,16 @@ class AsyncRealtimeChannel:
         else:
             config: RealtimeChannelConfig = self.params["config"]
             broadcast = config.get("broadcast")
-            presence = config.get("presence") or RealtimeChannelPresenceConfig(key="",enabled=False)
+            presence = config.get("presence") or RealtimeChannelPresenceConfig(
+                key="", enabled=False
+            )
             private = config.get("private", False)
 
-            presence_enabled = self.presence._has_callback_attached or presence.get("enabled", False)
+            presence_enabled = self.presence._has_callback_attached or presence.get(
+                "enabled", False
+            )
             presence["enabled"] = presence_enabled
-            
+
             config_payload: Dict[str, Any] = {
                 "config": {
                     "broadcast": broadcast,
@@ -434,7 +438,9 @@ class AsyncRealtimeChannel:
         self.presence.on_sync(callback)
 
         if self.is_joined:
-            logger.info(f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel")
+            logger.info(
+                f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel"
+            )
             asyncio.create_task(self._resubscribe())
 
         return self
@@ -450,7 +456,9 @@ class AsyncRealtimeChannel:
         """
         self.presence.on_join(callback)
         if self.is_joined:
-            logger.info(f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel")
+            logger.info(
+                f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel"
+            )
             asyncio.create_task(self._resubscribe())
 
         return self
@@ -466,7 +474,9 @@ class AsyncRealtimeChannel:
         """
         self.presence.on_leave(callback)
         if self.is_joined:
-            logger.info(f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel")
+            logger.info(
+                f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel"
+            )
             asyncio.create_task(self._resubscribe())
         return self
 
