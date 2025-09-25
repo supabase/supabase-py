@@ -43,6 +43,9 @@ test = [
 lints = [
   "pre-commit >=4.2.0",
   "ruff >=0.12.1",
+  "python-lsp-server (>=1.12.2,<2.0.0)",
+  "pylsp-mypy (>=0.7.0,<0.8.0)",
+  "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
 docs = [
   "sphinx >=7.1.2",
@@ -84,3 +87,14 @@ filterwarnings = [
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.mypy]
+python_version = "3.9"
+check_untyped_defs = true
+allow_redefinition = true
+follow_untyped_imports = true # for deprecation module that does not have stubs
+
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
