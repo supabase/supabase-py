@@ -173,3 +173,107 @@ def test_transform_state_additional_fields():
 
     result = AsyncRealtimePresence._transform_state(state_with_additional_fields)
     assert result == expected_output
+
+
+def test_presence_has_callback_attached():
+    """Test that _has_callback_attached property correctly detects presence callbacks."""
+    presence = AsyncRealtimePresence()
+
+    # Initially no callbacks should be attached
+    assert not presence._has_callback_attached
+
+    # After setting sync callback
+    presence.on_sync(lambda: None)
+    assert presence._has_callback_attached
+
+    # Reset and test with join callback
+    presence = AsyncRealtimePresence()
+    presence.on_join(lambda key, current, new: None)
+    assert presence._has_callback_attached
+
+    # Reset and test with leave callback
+    presence = AsyncRealtimePresence()
+    presence.on_leave(lambda key, current, left: None)
+    assert presence._has_callback_attached
+
+
+def test_presence_config_includes_enabled_field():
+    """Test that presence config correctly includes enabled flag."""
+    from realtime.types import RealtimeChannelPresenceConfig
+
+    # Test creating presence config with enabled field
+    config: RealtimeChannelPresenceConfig = {
+        "key": "user123",
+        "enabled": True
+    }
+    assert config["key"] == "user123"
+    assert config["enabled"] == True
+
+    # Test with enabled False
+    config_disabled: RealtimeChannelPresenceConfig = {
+        "key": "",
+        "enabled": False
+    }
+    assert config_disabled["key"] == ""
+    assert config_disabled["enabled"] == False
+
+
+@pytest.mark.asyncio
+async def test_presence_enabled_when_callbacks_attached():
+    """Test that presence.enabled is set correctly based on callback attachment."""
+    from unittest.mock import Mock, AsyncMock
+
+    socket = AsyncRealtimeClient(f"{URL}/realtime/v1", ANON_KEY)
+    channel = socket.channel("test")
+
+    # Mock the join_push to capture the payload
+    mock_join_push = Mock()
+    mock_join_push.receive = Mock(return_value=mock_join_push)
+    mock_join_push.update_payload = Mock()
+    mock_join_push.resend = AsyncMock()
+    channel.join_push = mock_join_push
+
+    # Mock socket connection
+    socket.is_connected = True
+    socket._leave_open_topic = AsyncMock()
+
+    # Add presence callback before subscription
+    channel.on_presence_sync(lambda: None)
+
+    await channel.subscribe()
+
+    # Verify that update_payload was called
+    assert mock_join_push.update_payload.called
+
+    # Get the payload that was passed to update_payload
+    call_args = mock_join_push.update_payload.call_args
+    payload = call_args[0][0]
+
+    # Verify presence.enabled is True because callback is attached
+    assert payload["config"]["presence"]["enabled"] == True
+
+
+@pytest.mark.asyncio
+async def test_resubscribe_on_presence_callback_addition():
+    """Test that channel resubscribes when presence callbacks are added after joining."""
+    from unittest.mock import AsyncMock
+    import asyncio
+
+    socket = AsyncRealtimeClient(f"{URL}/realtime/v1", ANON_KEY)
+    channel = socket.channel("test")
+
+    # Mock the channel as joined
+    channel.state = "joined"
+    channel._joined_once = True
+
+    # Mock resubscribe method
+    channel._resubscribe = AsyncMock()
+
+    # Add presence callbacks after joining
+    channel.on_presence_sync(lambda: None)
+
+    # Wait a bit for async tasks to complete
+    await asyncio.sleep(0.1)
+
+    # Verify resubscribe was called
+    assert channel._resubscribe.call_count == 1

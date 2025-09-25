@@ -21,6 +21,16 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncRealtimePresence:
+
+
+    @property
+    def _has_callback_attached(self) -> bool:
+        return (
+            self.on_join_callback is not None
+            or self.on_leave_callback is not None
+            or self.on_sync_callback is not None
+        )
+
     def __init__(self):
         self.state: RealtimePresenceState = {}
         self.on_join_callback: Optional[PresenceOnJoinCallback] = None
