@@ -407,9 +407,7 @@ def request_response_with_csv_data(csv_api_response: str) -> Response:
 
 
 class TestApiResponse:
-    def test_response_raises_when_api_error(
-        self, api_response_with_error: List[JSON]
-    ):
+    def test_response_raises_when_api_error(self, api_response_with_error: List[JSON]):
         with pytest.raises(ValueError):
             APIResponse(data=api_response_with_error)
 
@@ -417,9 +415,7 @@ class TestApiResponse:
         result = APIResponse(data=api_response)
         assert result.data == api_response
 
-    def test_parses_valid_response_data_and_count(
-        self, api_response: List[JSON]
-    ):
+    def test_parses_valid_response_data_and_count(self, api_response: List[JSON]):
         count = len(api_response)
         result = APIResponse(data=api_response, count=count)
         assert result.data == api_response

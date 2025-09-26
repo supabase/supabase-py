@@ -99,14 +99,14 @@ class AsyncSingleRequestBuilder:
     async def execute(self) -> SingleAPIResponse:
         """Execute the query.
 
-        .. tip::
-            This is the last method called, after the query is built.
+                .. tip::
+                    This is the last method called, after the query is built.
 
-        Returns:
-            :class:`SingleAPIResponse`
-na
-        Raises:
-            :class:`APIError` If the API raised an error.
+                Returns:
+                    :class:`SingleAPIResponse`
+        na
+                Raises:
+                    :class:`APIError` If the API raised an error.
         """
         r = await self.session.request(
             self.http_method,
@@ -143,11 +143,18 @@ class AsyncMaybeSingleRequestBuilder:
         self.headers = headers
         self.params = params
         self.json = json
-        
+
     async def execute(self) -> Optional[SingleAPIResponse]:
         r = None
         try:
-            request = AsyncSingleRequestBuilder(self.session, self.path, self.http_method, self.headers, self.params, self.json)
+            request = AsyncSingleRequestBuilder(
+                self.session,
+                self.path,
+                self.http_method,
+                self.headers,
+                self.params,
+                self.json,
+            )
             r = await request.execute()
         except APIError as e:
             if e.details and "The result contains 0 rows" in e.details:
@@ -175,7 +182,9 @@ class AsyncFilterRequestBuilder(BaseFilterRequestBuilder, AsyncQueryRequestBuild
         json: JSON,
     ) -> None:
         BaseFilterRequestBuilder.__init__(self, headers, params)
-        AsyncQueryRequestBuilder.__init__(self, session, path, http_method, headers, params, json)
+        AsyncQueryRequestBuilder.__init__(
+            self, session, path, http_method, headers, params, json
+        )
 
 
 class AsyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, AsyncSingleRequestBuilder):
@@ -189,7 +198,9 @@ class AsyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, AsyncSingleRequestBuil
         json: JSON,
     ) -> None:
         BaseFilterRequestBuilder.__init__(self, headers, params)
-        AsyncSingleRequestBuilder.__init__(self, session, path, http_method, headers, params, json)
+        AsyncSingleRequestBuilder.__init__(
+            self, session, path, http_method, headers, params, json
+        )
 
 
 class AsyncSelectRequestBuilder(AsyncQueryRequestBuilder, BaseSelectRequestBuilder):
@@ -203,8 +214,9 @@ class AsyncSelectRequestBuilder(AsyncQueryRequestBuilder, BaseSelectRequestBuild
         json: JSON,
     ) -> None:
         BaseSelectRequestBuilder.__init__(self, headers, params)
-        AsyncQueryRequestBuilder.__init__(self, session, path, http_method, headers, params, json)
-
+        AsyncQueryRequestBuilder.__init__(
+            self, session, path, http_method, headers, params, json
+        )
 
     def single(self) -> AsyncSingleRequestBuilder:
         """Specify that the query will only return a single row in response.
@@ -219,7 +231,7 @@ class AsyncSelectRequestBuilder(AsyncQueryRequestBuilder, BaseSelectRequestBuild
             json=self.json,
             params=self.params,
             path=self.path,
-            session=self.session,  
+            session=self.session,
         )
 
     def maybe_single(self) -> AsyncMaybeSingleRequestBuilder:

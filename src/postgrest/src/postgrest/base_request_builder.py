@@ -47,7 +47,7 @@ class QueryArgs(NamedTuple):
     json: JSON
 
 
-def _unique_columns(json: List[Dict[str,JSON]]):
+def _unique_columns(json: List[Dict[str, JSON]]):
     unique_keys = {key for row in json for key in row.keys()}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
@@ -183,18 +183,23 @@ class APIResponse(BaseModel):
         return bool(search(pattern, prefer_header))
 
     @staticmethod
-    def _get_count_from_http_request_response(request_response: RequestResponse) -> Optional[int]:
+    def _get_count_from_http_request_response(
+        request_response: RequestResponse,
+    ) -> Optional[int]:
         prefer_header: Optional[str] = request_response.request.headers.get("prefer")
         if not prefer_header:
             return None
-        is_count_in_prefer_header = APIResponse._is_count_in_prefer_header(prefer_header)
+        is_count_in_prefer_header = APIResponse._is_count_in_prefer_header(
+            prefer_header
+        )
         content_range_header: Optional[str] = request_response.headers.get(
             "content-range"
         )
         if is_count_in_prefer_header and content_range_header:
-            return APIResponse._get_count_from_content_range_header(content_range_header)
+            return APIResponse._get_count_from_content_range_header(
+                content_range_header
+            )
         return None
-
 
     @staticmethod
     def from_http_request_response(request_response: RequestResponse) -> APIResponse:
@@ -205,18 +210,22 @@ class APIResponse(BaseModel):
             data = request_response.text if len(request_response.text) > 0 else []
         return APIResponse(data=data, count=count)
 
+
 class SingleAPIResponse(APIResponse):
     data: JSON  # type: ignore
     """The data returned by the query."""
 
     @staticmethod
-    def from_http_request_response(request_response: RequestResponse) -> SingleAPIResponse:
+    def from_http_request_response(
+        request_response: RequestResponse,
+    ) -> SingleAPIResponse:
         count = APIResponse._get_count_from_http_request_response(request_response)
         try:
             data = request_response.json()
         except JSONDecodeError:
             data = request_response.text if len(request_response.text) > 0 else []
         return SingleAPIResponse(data=data, count=count)
+
 
 class BaseFilterRequestBuilder:
     def __init__(

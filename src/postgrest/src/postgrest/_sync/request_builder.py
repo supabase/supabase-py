@@ -99,14 +99,14 @@ class SyncSingleRequestBuilder:
     def execute(self) -> SingleAPIResponse:
         """Execute the query.
 
-        .. tip::
-            This is the last method called, after the query is built.
+                .. tip::
+                    This is the last method called, after the query is built.
 
-        Returns:
-            :class:`SingleAPIResponse`
-na
-        Raises:
-            :class:`APIError` If the API raised an error.
+                Returns:
+                    :class:`SingleAPIResponse`
+        na
+                Raises:
+                    :class:`APIError` If the API raised an error.
         """
         r = self.session.request(
             self.http_method,
@@ -143,11 +143,18 @@ class SyncMaybeSingleRequestBuilder:
         self.headers = headers
         self.params = params
         self.json = json
-        
+
     def execute(self) -> Optional[SingleAPIResponse]:
         r = None
         try:
-            request = SyncSingleRequestBuilder(self.session, self.path, self.http_method, self.headers, self.params, self.json)
+            request = SyncSingleRequestBuilder(
+                self.session,
+                self.path,
+                self.http_method,
+                self.headers,
+                self.params,
+                self.json,
+            )
             r = request.execute()
         except APIError as e:
             if e.details and "The result contains 0 rows" in e.details:
@@ -175,7 +182,9 @@ class SyncFilterRequestBuilder(BaseFilterRequestBuilder, SyncQueryRequestBuilder
         json: JSON,
     ) -> None:
         BaseFilterRequestBuilder.__init__(self, headers, params)
-        SyncQueryRequestBuilder.__init__(self, session, path, http_method, headers, params, json)
+        SyncQueryRequestBuilder.__init__(
+            self, session, path, http_method, headers, params, json
+        )
 
 
 class SyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, SyncSingleRequestBuilder):
@@ -189,7 +198,9 @@ class SyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, SyncSingleRequestBuilde
         json: JSON,
     ) -> None:
         BaseFilterRequestBuilder.__init__(self, headers, params)
-        SyncSingleRequestBuilder.__init__(self, session, path, http_method, headers, params, json)
+        SyncSingleRequestBuilder.__init__(
+            self, session, path, http_method, headers, params, json
+        )
 
 
 class SyncSelectRequestBuilder(SyncQueryRequestBuilder, BaseSelectRequestBuilder):
@@ -203,8 +214,9 @@ class SyncSelectRequestBuilder(SyncQueryRequestBuilder, BaseSelectRequestBuilder
         json: JSON,
     ) -> None:
         BaseSelectRequestBuilder.__init__(self, headers, params)
-        SyncQueryRequestBuilder.__init__(self, session, path, http_method, headers, params, json)
-
+        SyncQueryRequestBuilder.__init__(
+            self, session, path, http_method, headers, params, json
+        )
 
     def single(self) -> SyncSingleRequestBuilder:
         """Specify that the query will only return a single row in response.
@@ -219,7 +231,7 @@ class SyncSelectRequestBuilder(SyncQueryRequestBuilder, BaseSelectRequestBuilder
             json=self.json,
             params=self.params,
             path=self.path,
-            session=self.session,  
+            session=self.session,
         )
 
     def maybe_single(self) -> SyncMaybeSingleRequestBuilder:
