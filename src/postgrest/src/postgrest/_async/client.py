@@ -72,7 +72,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
             proxy=proxy,
             http_client=http_client,
         )
-        self.session = cast(AsyncClient, self.session)
+        self.session: AsyncClient = self.session
 
     def create_session(
         self,
@@ -122,7 +122,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
         """Close the underlying HTTP connections."""
         await self.session.aclose()
 
-    def from_(self, table: str) -> AsyncRequestBuilder[_TableT]:
+    def from_(self, table: str) -> AsyncRequestBuilder:
         """Perform a table operation.
 
         Args:
@@ -130,9 +130,9 @@ class AsyncPostgrestClient(BasePostgrestClient):
         Returns:
             :class:`AsyncRequestBuilder`
         """
-        return AsyncRequestBuilder[_TableT](self.session, f"/{table}")
+        return AsyncRequestBuilder(self.session, f"/{table}")
 
-    def table(self, table: str) -> AsyncRequestBuilder[_TableT]:
+    def table(self, table: str) -> AsyncRequestBuilder:
         """Alias to :meth:`from_`."""
         return self.from_(table)
 
@@ -148,7 +148,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
         count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
-    ) -> AsyncRPCFilterRequestBuilder[Any]:
+    ) -> AsyncRPCFilterRequestBuilder:
         """Perform a stored procedure call.
 
         Args:
@@ -175,7 +175,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
         headers = Headers({"Prefer": f"count={count}"}) if count else Headers()
 
         if method in ("HEAD", "GET"):
-            return AsyncRPCFilterRequestBuilder[Any](
+            return AsyncRPCFilterRequestBuilder(
                 self.session,
                 f"/rpc/{func}",
                 method,
@@ -184,6 +184,6 @@ class AsyncPostgrestClient(BasePostgrestClient):
                 json={},
             )
         # the params here are params to be sent to the RPC and not the queryparams!
-        return AsyncRPCFilterRequestBuilder[Any](
+        return AsyncRPCFilterRequestBuilder(
             self.session, f"/rpc/{func}", method, headers, QueryParams(), json=params
         )
