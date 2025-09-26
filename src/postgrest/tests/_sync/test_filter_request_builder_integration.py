@@ -77,7 +77,14 @@ def test_not_equal():
 
 
 def test_greater_than():
-    res = rest_client().from_("users").select("id, name").gt("id", 1).single().execute()
+    res = (
+        rest_client()
+        .from_("users")
+        .select("id, name")
+        .gt("id", 1)
+        .single()
+        .execute()
+    )
 
     assert res.data == {"id": 2, "name": "Jane"}
 

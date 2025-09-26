@@ -5,7 +5,7 @@ from httpx import AsyncClient, Request, Response
 
 from postgrest import AsyncRequestBuilder, AsyncSingleRequestBuilder
 from postgrest.base_request_builder import APIResponse, SingleAPIResponse
-from postgrest.types import CountMethod
+from postgrest.types import JSON, CountMethod
 
 
 @pytest.fixture
@@ -408,17 +408,17 @@ def request_response_with_csv_data(csv_api_response: str) -> Response:
 
 class TestApiResponse:
     def test_response_raises_when_api_error(
-        self, api_response_with_error: Dict[str, Any]
+        self, api_response_with_error: List[JSON]
     ):
         with pytest.raises(ValueError):
             APIResponse(data=api_response_with_error)
 
-    def test_parses_valid_response_only_data(self, api_response: List[Dict[str, Any]]):
+    def test_parses_valid_response_only_data(self, api_response: List[JSON]):
         result = APIResponse(data=api_response)
         assert result.data == api_response
 
     def test_parses_valid_response_data_and_count(
-        self, api_response: List[Dict[str, Any]]
+        self, api_response: List[JSON]
     ):
         count = len(api_response)
         result = APIResponse(data=api_response, count=count)

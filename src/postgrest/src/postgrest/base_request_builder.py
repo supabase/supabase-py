@@ -20,10 +20,10 @@ from typing import (
 
 from httpx import AsyncClient, Client, Headers, QueryParams
 from httpx import Response as RequestResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 try:
-    from typing import Self
+    from typing import Self  # type: ignore
 except ImportError:
     from typing_extensions import Self
 
@@ -32,10 +32,11 @@ try:
     from pydantic import field_validator
 except ImportError:
     # < 2.0.0
-    from pydantic import validator as field_validator
+    from pydantic import validator as field_validator  # type: ignore
 
-from .types import CountMethod, Filters, RequestMethod, ReturnMethod
-from .utils import get_origin_and_cast, sanitize_param
+from .base_client import BasePostgrestClient
+from .types import JSON, CountMethod, Filters, JSONAdapter, RequestMethod, ReturnMethod
+from .utils import sanitize_param
 
 
 class QueryArgs(NamedTuple):
@@ -43,10 +44,10 @@ class QueryArgs(NamedTuple):
     method: RequestMethod
     params: QueryParams
     headers: Headers
-    json: Dict[Any, Any]
+    json: JSON
 
 
-def _unique_columns(json: List[Dict]):
+def _unique_columns(json: List[Dict[str,JSON]]):
     unique_keys = {key for row in json for key in row.keys()}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
@@ -75,7 +76,7 @@ def pre_select(
     head: Optional[bool] = None,
 ) -> QueryArgs:
     method = RequestMethod.HEAD if head else RequestMethod.GET
-    cleaned_columns = _cleaned_columns(columns or "*")
+    cleaned_columns = _cleaned_columns(columns or ("*",))
     params = QueryParams({"select": cleaned_columns})
 
     headers = Headers({"Prefer": f"count={count}"}) if count else Headers()
@@ -83,7 +84,7 @@ def pre_select(
 
 
 def pre_insert(
-    json: Union[dict, list],
+    json: JSON,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -106,7 +107,7 @@ def pre_insert(
 
 
 def pre_upsert(
-    json: Union[dict, list],
+    json: JSON,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -132,7 +133,7 @@ def pre_upsert(
 
 
 def pre_update(
-    json: dict,
+    json: JSON,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -156,15 +157,8 @@ def pre_delete(
     return QueryArgs(RequestMethod.DELETE, QueryParams(), headers, {})
 
 
-_ReturnT = TypeVar("_ReturnT")
-
-
-# the APIResponse.data is marked as _ReturnT instead of list[_ReturnT]
-# as it is also returned in the case of rpc() calls; and rpc calls do not
-# necessarily return lists.
-# https://github.com/supabase-community/postgrest-py/issues/200
-class APIResponse(BaseModel, Generic[_ReturnT]):
-    data: List[_ReturnT]
+class APIResponse(BaseModel):
+    data: List[JSON]
     """The data returned by the query."""
     count: Optional[int] = None
     """The number of rows returned."""
@@ -188,78 +182,48 @@ class APIResponse(BaseModel, Generic[_ReturnT]):
         pattern = f"count=({'|'.join([cm.value for cm in CountMethod])})"
         return bool(search(pattern, prefer_header))
 
-    @classmethod
-    def _get_count_from_http_request_response(
-        cls: Type[Self],
-        request_response: RequestResponse,
-    ) -> Optional[int]:
+    @staticmethod
+    def _get_count_from_http_request_response(request_response: RequestResponse) -> Optional[int]:
         prefer_header: Optional[str] = request_response.request.headers.get("prefer")
         if not prefer_header:
             return None
-        is_count_in_prefer_header = cls._is_count_in_prefer_header(prefer_header)
+        is_count_in_prefer_header = APIResponse._is_count_in_prefer_header(prefer_header)
         content_range_header: Optional[str] = request_response.headers.get(
             "content-range"
         )
-        return (
-            cls._get_count_from_content_range_header(content_range_header)
-            if (is_count_in_prefer_header and content_range_header)
-            else None
-        )
+        if is_count_in_prefer_header and content_range_header:
+            return APIResponse._get_count_from_content_range_header(content_range_header)
+        return None
 
-    @classmethod
-    def from_http_request_response(
-        cls: Type[Self], request_response: RequestResponse
-    ) -> Self:
-        count = cls._get_count_from_http_request_response(request_response)
+
+    @staticmethod
+    def from_http_request_response(request_response: RequestResponse) -> APIResponse:
+        count = APIResponse._get_count_from_http_request_response(request_response)
         try:
-            data = request_response.json()
-        except JSONDecodeError:
+            data = JSONAdapter.validate_json(request_response.content)
+        except ValidationError:
             data = request_response.text if len(request_response.text) > 0 else []
-        # the type-ignore here is as pydantic needs us to pass the type parameter
-        # here explicitly, but pylance already knows that cls is correctly parametrized
-        return cls[_ReturnT](data=data, count=count)  # type: ignore
+        return APIResponse(data=data, count=count)
 
-    @classmethod
-    def from_dict(cls: Type[Self], dict: Dict[str, Any]) -> Self:
-        keys = dict.keys()
-        assert len(keys) == 3 and "data" in keys and "count" in keys and "error" in keys
-        return cls[_ReturnT](  # type: ignore
-            data=dict.get("data"), count=dict.get("count"), error=dict.get("error")
-        )
-
-
-class SingleAPIResponse(APIResponse[_ReturnT], Generic[_ReturnT]):
-    data: _ReturnT  # type: ignore
+class SingleAPIResponse(APIResponse):
+    data: JSON  # type: ignore
     """The data returned by the query."""
 
-    @classmethod
-    def from_http_request_response(
-        cls: Type[Self], request_response: RequestResponse
-    ) -> Self:
-        count = cls._get_count_from_http_request_response(request_response)
+    @staticmethod
+    def from_http_request_response(request_response: RequestResponse) -> SingleAPIResponse:
+        count = APIResponse._get_count_from_http_request_response(request_response)
         try:
             data = request_response.json()
         except JSONDecodeError:
             data = request_response.text if len(request_response.text) > 0 else []
-        return cls[_ReturnT](data=data, count=count)  # type: ignore
+        return SingleAPIResponse(data=data, count=count)
 
-    @classmethod
-    def from_dict(cls: Type[Self], dict: Dict[str, Any]) -> Self:
-        keys = dict.keys()
-        assert len(keys) == 3 and "data" in keys and "count" in keys and "error" in keys
-        return cls[_ReturnT](  # type: ignore
-            data=dict.get("data"), count=dict.get("count"), error=dict.get("error")
-        )
-
-
-class BaseFilterRequestBuilder(Generic[_ReturnT]):
+class BaseFilterRequestBuilder:
     def __init__(
         self,
-        session: Union[AsyncClient, Client],
         headers: Headers,
         params: QueryParams,
     ) -> None:
-        self.session = session
         self.headers = headers
         self.params = params
         self.negate_next = False
@@ -547,20 +511,7 @@ class BaseFilterRequestBuilder(Generic[_ReturnT]):
         return self
 
 
-class BaseSelectRequestBuilder(BaseFilterRequestBuilder[_ReturnT]):
-    def __init__(
-        self,
-        session: Union[AsyncClient, Client],
-        headers: Headers,
-        params: QueryParams,
-    ) -> None:
-        # Generic[T] is an instance of typing._GenericAlias, so doing Generic[T].__init__
-        # tries to call _GenericAlias.__init__ - which is the wrong method
-        # The __origin__ attribute of the _GenericAlias is the actual class
-        get_origin_and_cast(BaseFilterRequestBuilder[_ReturnT]).__init__(
-            self, session, headers, params
-        )
-
+class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
     def explain(
         self: Self,
         analyze: bool = False,
@@ -653,20 +604,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[_ReturnT]):
         return self
 
 
-class BaseRPCRequestBuilder(BaseSelectRequestBuilder[_ReturnT]):
-    def __init__(
-        self,
-        session: Union[AsyncClient, Client],
-        headers: Headers,
-        params: QueryParams,
-    ) -> None:
-        # Generic[T] is an instance of typing._GenericAlias, so doing Generic[T].__init__
-        # tries to call _GenericAlias.__init__ - which is the wrong method
-        # The __origin__ attribute of the _GenericAlias is the actual class
-        get_origin_and_cast(BaseSelectRequestBuilder[_ReturnT]).__init__(
-            self, session, headers, params
-        )
-
+class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
     def select(
         self,
         *columns: str,

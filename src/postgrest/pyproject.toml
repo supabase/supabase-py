@@ -94,6 +94,7 @@ check_untyped_defs = true
 allow_redefinition = true
 follow_untyped_imports = true # for deprecation module that does not have stubs
 
+no_warn_no_return = true
 warn_return_any = true
 warn_unused_configs = true
 warn_redundant_casts = true
