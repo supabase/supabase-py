@@ -1623,10 +1623,13 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "pre-commit" },
+    { name = "pylsp-mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-depends" },
+    { name = "python-lsp-ruff" },
+    { name = "python-lsp-server" },
     { name = "ruff" },
     { name = "unasync" },
 ]
@@ -1638,6 +1641,9 @@ docs = [
 ]
 lints = [
     { name = "pre-commit" },
+    { name = "pylsp-mypy" },
+    { name = "python-lsp-ruff" },
+    { name = "python-lsp-server" },
     { name = "ruff" },
 ]
 test = [
@@ -1659,10 +1665,13 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "pre-commit", specifier = ">=4.2.0" },
+    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "pytest-depends", specifier = ">=1.0.1" },
+    { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
+    { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
@@ -1672,6 +1681,9 @@ docs = [
 ]
 lints = [
     { name = "pre-commit", specifier = ">=4.2.0" },
+    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
+    { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
 ]
 test = [
