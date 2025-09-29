@@ -15,8 +15,6 @@ from ..types import CountMethod
 from ..version import __version__
 from .request_builder import SyncRequestBuilder, SyncRPCFilterRequestBuilder
 
-_TableT = Dict[str, Any]
-
 
 class SyncPostgrestClient(BasePostgrestClient):
     """PostgREST client."""
