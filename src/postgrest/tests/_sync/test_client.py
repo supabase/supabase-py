@@ -2,10 +2,10 @@ from unittest.mock import patch
 
 import pytest
 from httpx import (
-    Client,
-    HTTPTransport,
     BasicAuth,
+    Client,
     Headers,
+    HTTPTransport,
     Limits,
     Request,
     Response,
