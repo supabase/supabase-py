@@ -1,4 +1,5 @@
 from typing import Any, Dict, Literal, Optional, Union
+from urllib.parse import urlencode
 from warnings import warn
 
 from httpx import AsyncClient, HTTPError, Response
@@ -123,6 +124,8 @@ class AsyncFunctionsClient:
         headers = self.headers
         body = None
         response_type = "text/plain"
+        url = f"{self.url}/{function_name}"
+
         if invoke_options is not None:
             headers.update(invoke_options.get("headers", {}))
             response_type = invoke_options.get("responseType", "text/plain")
@@ -135,6 +138,8 @@ class AsyncFunctionsClient:
 
                 if region.value != "any":
                     headers["x-region"] = region.value
+                    # Add region as query parameter
+                    url = f"{url}?{urlencode({'forceFunctionRegion': region.value})}"
 
             body = invoke_options.get("body")
             if isinstance(body, str):
@@ -143,7 +148,7 @@ class AsyncFunctionsClient:
                 headers["Content-Type"] = "application/json"
 
         response = await self._request(
-            "POST", f"{self.url}/{function_name}", headers=headers, json=body
+            "POST", url, headers=headers, json=body
         )
         is_relay_error = response.headers.get("x-relay-header")
 
