@@ -117,3 +117,8 @@ class CreateSignedUrlResponse(TypedDict):
     path: str
     signedURL: str
     signedUrl: str
+
+class ApiErrorModel(BaseModel):
+    statusCode: int
+    error: str
+    message: str
