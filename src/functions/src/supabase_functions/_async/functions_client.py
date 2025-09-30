@@ -147,9 +147,7 @@ class AsyncFunctionsClient:
             elif isinstance(body, dict):
                 headers["Content-Type"] = "application/json"
 
-        response = await self._request(
-            "POST", url, headers=headers, json=body
-        )
+        response = await self._request("POST", url, headers=headers, json=body)
         is_relay_error = response.headers.get("x-relay-header")
 
         if is_relay_error and is_relay_error == "true":
