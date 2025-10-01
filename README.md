@@ -69,7 +69,7 @@ To run each of the packages' tests in parallel. This should be generally faster 
 
 Other relevant commands include
 ```bash
-make pre-commit # run lints and formmating before commiting
+make install-hooks # install all commit hooks into the local .git folder
 make stop-infra # stops all running containers from all packages
 make clean      # delete all intermediary files created by testing
 ```
