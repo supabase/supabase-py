@@ -104,7 +104,7 @@ async def test_invoke_with_region(client: AsyncFunctionsClient):
         # Check that x-region header is present
         assert kwargs["headers"]["x-region"] == "us-east-1"
         # Check that the URL contains the forceFunctionRegion query parameter
-        assert "forceFunctionRegion=us-east-1" in args[1]
+        assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
 
 
 async def test_invoke_with_region_string(client: AsyncFunctionsClient):
@@ -125,7 +125,7 @@ async def test_invoke_with_region_string(client: AsyncFunctionsClient):
         # Check that x-region header is present
         assert kwargs["headers"]["x-region"] == "us-east-1"
         # Check that the URL contains the forceFunctionRegion query parameter
-        assert "forceFunctionRegion=us-east-1" in args[1]
+        assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
 
 
 async def test_invoke_with_http_error(client: AsyncFunctionsClient):

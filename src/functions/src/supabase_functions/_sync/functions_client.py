@@ -1,8 +1,7 @@
 from typing import Any, Dict, Literal, Optional, Union
-from urllib.parse import urlencode
 from warnings import warn
 
-from httpx import Client, HTTPError, Response
+from httpx import Client, HTTPError, Response, QueryParams
 
 from ..errors import FunctionsHttpError, FunctionsRelayError
 from ..utils import (
@@ -74,11 +73,14 @@ class SyncFunctionsClient:
         url: str,
         headers: Optional[Dict[str, str]] = None,
         json: Optional[Dict[Any, Any]] = None,
+        params: Optional[QueryParams] = None,
     ) -> Response:
         response = (
-            self._client.request(method, url, data=json, headers=headers)
+            self._client.request(method, url, data=json, headers=headers, params=params)
             if isinstance(json, str)
-            else self._client.request(method, url, json=json, headers=headers)
+            else self._client.request(
+                method, url, json=json, headers=headers, params=params
+            )
         )
         try:
             response.raise_for_status()
@@ -122,6 +124,7 @@ class SyncFunctionsClient:
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
         headers = self.headers
+        params = QueryParams()
         body = None
         response_type = "text/plain"
         url = f"{self.url}/{function_name}"
@@ -139,7 +142,7 @@ class SyncFunctionsClient:
                 if region.value != "any":
                     headers["x-region"] = region.value
                     # Add region as query parameter
-                    url = f"{url}?{urlencode({'forceFunctionRegion': region.value})}"
+                    params = params.set("forceFunctionRegion", region.value)
 
             body = invoke_options.get("body")
             if isinstance(body, str):
@@ -147,7 +150,7 @@ class SyncFunctionsClient:
             elif isinstance(body, dict):
                 headers["Content-Type"] = "application/json"
 
-        response = self._request("POST", url, headers=headers, json=body)
+        response = self._request("POST", url, headers=headers, json=body, params=params)
         is_relay_error = response.headers.get("x-relay-header")
 
         if is_relay_error and is_relay_error == "true":
