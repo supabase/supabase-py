@@ -1,7 +1,7 @@
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
-from httpx import AsyncClient, HTTPError, Response
+from httpx import AsyncClient, HTTPError, Response, QueryParams
 
 from ..errors import FunctionsHttpError, FunctionsRelayError
 from ..utils import (
@@ -73,11 +73,16 @@ class AsyncFunctionsClient:
         url: str,
         headers: Optional[Dict[str, str]] = None,
         json: Optional[Dict[Any, Any]] = None,
+        params: Optional[QueryParams] = None,
     ) -> Response:
         response = (
-            await self._client.request(method, url, data=json, headers=headers)
+            await self._client.request(
+                method, url, data=json, headers=headers, params=params
+            )
             if isinstance(json, str)
-            else await self._client.request(method, url, json=json, headers=headers)
+            else await self._client.request(
+                method, url, json=json, headers=headers, params=params
+            )
         )
         try:
             response.raise_for_status()
@@ -121,8 +126,11 @@ class AsyncFunctionsClient:
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
         headers = self.headers
+        params = QueryParams()
         body = None
         response_type = "text/plain"
+        url = f"{self.url}/{function_name}"
+
         if invoke_options is not None:
             headers.update(invoke_options.get("headers", {}))
             response_type = invoke_options.get("responseType", "text/plain")
@@ -135,6 +143,8 @@ class AsyncFunctionsClient:
 
                 if region.value != "any":
                     headers["x-region"] = region.value
+                    # Add region as query parameter
+                    params = params.set("forceFunctionRegion", region.value)
 
             body = invoke_options.get("body")
             if isinstance(body, str):
@@ -143,7 +153,7 @@ class AsyncFunctionsClient:
                 headers["Content-Type"] = "application/json"
 
         response = await self._request(
-            "POST", f"{self.url}/{function_name}", headers=headers, json=body
+            "POST", url, headers=headers, json=body, params=params
         )
         is_relay_error = response.headers.get("x-relay-header")
 

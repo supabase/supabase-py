@@ -100,8 +100,11 @@ async def test_invoke_with_region(client: AsyncFunctionsClient):
 
         await client.invoke("test-function", {"region": FunctionRegion("us-east-1")})
 
-        _, kwargs = mock_request.call_args
+        args, kwargs = mock_request.call_args
+        # Check that x-region header is present
         assert kwargs["headers"]["x-region"] == "us-east-1"
+        # Check that the URL contains the forceFunctionRegion query parameter
+        assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
 
 
 async def test_invoke_with_region_string(client: AsyncFunctionsClient):
@@ -118,8 +121,11 @@ async def test_invoke_with_region_string(client: AsyncFunctionsClient):
         with pytest.warns(UserWarning, match=r"Use FunctionRegion\(us-east-1\)"):
             await client.invoke("test-function", {"region": "us-east-1"})
 
-        _, kwargs = mock_request.call_args
+        args, kwargs = mock_request.call_args
+        # Check that x-region header is present
         assert kwargs["headers"]["x-region"] == "us-east-1"
+        # Check that the URL contains the forceFunctionRegion query parameter
+        assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
 
 
 async def test_invoke_with_http_error(client: AsyncFunctionsClient):
