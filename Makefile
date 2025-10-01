@@ -1,4 +1,4 @@
-.PHONY: ci, default, pre-commit, clean, start-infra, stop-infra
+.PHONY: ci, default, clean, start-infra, stop-infra
 
 PACKAGES := functions realtime storage auth postgrest supabase
 FORALL_PKGS = $(foreach pkg, $(PACKAGES), $(pkg).$(1))

@@ -41,7 +41,6 @@ test = [
   "unasync >= 0.6.0",
 ]
 lints = [
-  "pre-commit >=4.2.0",
   "ruff >=0.12.1",
   "python-lsp-server (>=1.12.2,<2.0.0)",
   "pylsp-mypy (>=0.7.0,<0.8.0)",

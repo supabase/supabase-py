@@ -1,4 +1,4 @@
-.PHONY: pytest pre-commit mypy tests infra stop-infra
+.PHONY: pytest mypy tests infra stop-infra
 
 mypy:
 	uv run --package realtime mypy src/realtime

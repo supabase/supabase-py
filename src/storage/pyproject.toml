@@ -34,7 +34,6 @@ repository = "https://github.com/supabase/supabase-py"
 
 [dependency-groups]
 lints = [
-  "pre-commit >=4.2.0",
   "ruff >=0.12.1",
   "unasync >= 0.6.0",
   "python-lsp-server (>=1.12.2,<2.0.0)",
