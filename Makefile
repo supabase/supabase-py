@@ -7,7 +7,7 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
-ci: pre-commit $(call FORALL_PKGS,tests)
+ci: ruff $(call FORALL_PKGS,tests)
 help::
 	@echo "  ci             -- Run tests for all packages, the same way as CI does"
 
@@ -30,27 +30,26 @@ help::
 	@echo "  stop-infra     -- Stop all infra used by tests."
 	@echo "                    NOTE: run this command to ensure all containers are stopped after tests"
 
-define RUFF_HOOK_CONTENTS
-#!/bin/sh
-echo 'Running ruff checks on all files'
-uv run ruff check --fix
-uv run ruff format
-endef
-export RUFF_HOOK_CONTENTS
+
+ruff:
+	uv run ruff check --fix
+	uv run ruff format
+help::
+	@echo "  ruff           -- Run ruff checks on all files."
+
 define COMMITIZEN_HOOK_CONTENTS
 #!/bin/sh
-echo 'Running commitizen on message'
 MSG_FILE=$$1
 uv tool run --from commitizen cz check --allow-abort --commit-msg-file $$MSG_FILE
 endef
 export COMMITIZEN_HOOK_CONTENTS
-pre-commit:
-	@echo "$$RUFF_HOOK_CONTENTS" > .git/hooks/pre-commit
+install-hooks:
+	@echo "make ruff" > .git/hooks/pre-commit
 	@chmod +x .git/hooks/pre-commit
 	@echo "$$COMMITIZEN_HOOK_CONTENTS" > .git/hooks/commit-msg
 	@chmod +x .git/hooks/commit-msg
 help::
-	@echo "  pre-commit     -- Install custom pre-commit hooks locally."
+	@echo "  install-hooks  -- Install custom pre-commit hooks locally."
 	@echo "                 -- NOTE: Do this at least once after cloning the repo."
 
 realtime.%:
