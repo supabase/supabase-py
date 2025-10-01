@@ -32,8 +32,8 @@ help::
 
 
 ruff:
-	uv run ruff check --fix
-	uv run ruff format
+	@uv run ruff check --fix
+	@uv run ruff format
 help::
 	@echo "  ruff           -- Run ruff checks on all files."
 
