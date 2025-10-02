@@ -5,8 +5,14 @@ import os
 import aiohttp
 import pytest
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
-from realtime import AsyncRealtimeChannel, AsyncRealtimeClient, RealtimeSubscribeStates
+from realtime import (
+    AsyncRealtimeChannel,
+    AsyncRealtimeClient,
+    RealtimePostgresChangesListenEvent,
+    RealtimeSubscribeStates,
+)
 from realtime.message import Message
 from realtime.types import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_TIMEOUT, ChannelEvents
 
@@ -27,6 +33,14 @@ def socket() -> AsyncRealtimeClient:
     return AsyncRealtimeClient(url, key)
 
 
+class SignupMessageResponse(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in: int
+    expires_at: int
+    refresh_token: str
+
+
 async def access_token() -> str:
     url = f"{URL}/auth/v1/signup"
     headers = {"apikey": ANON_KEY, "Content-Type": "application/json"}
@@ -39,8 +53,11 @@ async def access_token() -> str:
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=data) as response:
             if response.status == 200:
-                json_response = await response.json()
-                return json_response.get("access_token")
+                response_content = await response.read()
+                signup_response = SignupMessageResponse.model_validate_json(
+                    response_content
+                )
+                return signup_response.access_token
             else:
                 raise Exception(
                     f"Failed to get access token. Status: {response.status}"
@@ -67,14 +84,20 @@ async def test_broadcast_events(socket: AsyncRealtimeClient):
     await socket.connect()
 
     channel = socket.channel(
-        "test-broadcast", params={"config": {"broadcast": {"self": True}}}
+        "test-broadcast",
+        params={
+            "config": {
+                "broadcast": {"self": True, "ack": True},
+                "presence": {"enabled": True, "key": ""},
+                "private": False,
+            }
+        },
     )
     received_events = []
 
     semaphore = asyncio.Semaphore(0)
 
     def broadcast_callback(payload):
-        print("broadcast: ", payload)
         received_events.append(payload)
         semaphore.release()
 
@@ -111,30 +134,31 @@ async def test_postgrest_changes(socket: AsyncRealtimeClient):
     await socket.set_auth(token)
 
     channel: AsyncRealtimeChannel = socket.channel("test-postgres-changes")
-    received_events = {"all": [], "insert": [], "update": [], "delete": []}
+    received_events: dict[str, list[dict]] = {
+        "all": [],
+        "insert": [],
+        "update": [],
+        "delete": [],
+    }
 
     def all_changes_callback(payload):
-        print("all_changes_callback: ", payload)
         received_events["all"].append(payload)
 
     insert_event = asyncio.Event()
 
     def insert_callback(payload):
-        print("insert_callback: ", payload)
         received_events["insert"].append(payload)
         insert_event.set()
 
     update_event = asyncio.Event()
 
     def update_callback(payload):
-        print("update_callback: ", payload)
         received_events["update"].append(payload)
         update_event.set()
 
     delete_event = asyncio.Event()
 
     def delete_callback(payload):
-        print("delete_callback: ", payload)
         received_events["delete"].append(payload)
         delete_event.set()
 
@@ -142,10 +166,18 @@ async def test_postgrest_changes(socket: AsyncRealtimeClient):
     system_event = asyncio.Event()
 
     await (
-        channel.on_postgres_changes("*", all_changes_callback, table="todos")
-        .on_postgres_changes("INSERT", insert_callback, table="todos")
-        .on_postgres_changes("UPDATE", update_callback, table="todos")
-        .on_postgres_changes("DELETE", delete_callback, table="todos")
+        channel.on_postgres_changes(
+            RealtimePostgresChangesListenEvent.All, all_changes_callback, table="todos"
+        )
+        .on_postgres_changes(
+            RealtimePostgresChangesListenEvent.Insert, insert_callback, table="todos"
+        )
+        .on_postgres_changes(
+            RealtimePostgresChangesListenEvent.Update, update_callback, table="todos"
+        )
+        .on_postgres_changes(
+            RealtimePostgresChangesListenEvent.Delete, delete_callback, table="todos"
+        )
         .on_system(lambda _: system_event.set())
         .subscribe(
             lambda state, _: (
@@ -206,16 +238,14 @@ async def test_postgrest_changes_on_different_tables(socket: AsyncRealtimeClient
     await socket.set_auth(token)
 
     channel: AsyncRealtimeChannel = socket.channel("test-postgres-changes")
-    received_events = {"all": [], "insert": []}
+    received_events: dict[str, list[dict]] = {"all": [], "insert": []}
 
     def all_changes_callback(payload):
-        print("all_changes_callback: ", payload)
         received_events["all"].append(payload)
 
     insert_event = asyncio.Event()
 
     def insert_callback(payload):
-        print("insert_callback: ", payload)
         received_events["insert"].append(payload)
         insert_event.set()
 
@@ -223,9 +253,15 @@ async def test_postgrest_changes_on_different_tables(socket: AsyncRealtimeClient
     system_event = asyncio.Event()
 
     await (
-        channel.on_postgres_changes("*", all_changes_callback, table="todos")
-        .on_postgres_changes("INSERT", insert_callback, table="todos")
-        .on_postgres_changes("INSERT", insert_callback, table="messages")
+        channel.on_postgres_changes(
+            RealtimePostgresChangesListenEvent.All, all_changes_callback, table="todos"
+        )
+        .on_postgres_changes(
+            RealtimePostgresChangesListenEvent.Insert, insert_callback, table="todos"
+        )
+        .on_postgres_changes(
+            RealtimePostgresChangesListenEvent.Insert, insert_callback, table="messages"
+        )
         .on_system(lambda _: system_event.set())
         .subscribe(
             lambda state, _: (
@@ -273,6 +309,10 @@ async def test_postgrest_changes_on_different_tables(socket: AsyncRealtimeClient
     await socket.close()
 
 
+class CreateTodoResponse(BaseModel):
+    id: str
+
+
 async def create_todo(access_token: str, todo: dict) -> str:
     url = f"{URL}/rest/v1/todos?select=id"
     headers = {
@@ -286,8 +326,11 @@ async def create_todo(access_token: str, todo: dict) -> str:
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=todo) as response:
             if response.status == 201:
-                json_response = await response.json()
-                return json_response.get("id")
+                response_content = await response.read()
+                create_todo_response = CreateTodoResponse.model_validate_json(
+                    response_content
+                )
+                return create_todo_response.id
             else:
                 raise Exception(f"Failed to create todo. Status: {response.status}")
 
@@ -306,7 +349,11 @@ async def update_todo(access_token: str, id: str, todo: dict):
                 raise Exception(f"Failed to update todo. Status: {response.status}")
 
 
-async def create_message(access_token: str, message: dict) -> str:
+class CreateMsgResponse(BaseModel):
+    id: int
+
+
+async def create_message(access_token: str, message: dict) -> int:
     url = f"{URL}/rest/v1/messages?select=id"
     headers = {
         "apikey": ANON_KEY,
@@ -319,8 +366,11 @@ async def create_message(access_token: str, message: dict) -> str:
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=message) as response:
             if response.status == 201:
-                json_response = await response.json()
-                return json_response.get("id")
+                response_content = await response.read()
+                create_msg_response = CreateMsgResponse.model_validate_json(
+                    response_content
+                )
+                return create_msg_response.id
             else:
                 raise Exception(f"Failed to create message. Status: {response.status}")
 
