@@ -869,6 +869,128 @@ class JWKSet(TypedDict):
     keys: List[JWK]
 
 
+OAuthClientGrantType = Literal["authorization_code", "refresh_token"]
+"""
+OAuth client grant types supported by the OAuth 2.1 server.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientResponseType = Literal["code"]
+"""
+OAuth client response types supported by the OAuth 2.1 server.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientType = Literal["public", "confidential"]
+"""
+OAuth client type indicating whether the client can keep credentials confidential.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientRegistrationType = Literal["dynamic", "manual"]
+"""
+OAuth client registration type.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+
+class OAuthClient(BaseModel):
+    """
+    OAuth client object returned from the OAuth 2.1 server.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client_id: str
+    """Unique identifier for the OAuth client"""
+    client_name: str
+    """Human-readable name of the OAuth client"""
+    client_secret: Optional[str] = None
+    """Client secret (only returned on registration and regeneration)"""
+    client_type: OAuthClientType
+    """Type of OAuth client"""
+    token_endpoint_auth_method: str
+    """Token endpoint authentication method"""
+    registration_type: OAuthClientRegistrationType
+    """Registration type of the client"""
+    client_uri: Optional[str] = None
+    """URI of the OAuth client"""
+    redirect_uris: List[str]
+    """Array of allowed redirect URIs"""
+    grant_types: List[OAuthClientGrantType]
+    """Array of allowed grant types"""
+    response_types: List[OAuthClientResponseType]
+    """Array of allowed response types"""
+    scope: Optional[str] = None
+    """Scope of the OAuth client"""
+    created_at: str
+    """Timestamp when the client was created"""
+    updated_at: str
+    """Timestamp when the client was last updated"""
+
+
+class CreateOAuthClientParams(TypedDict):
+    """
+    Parameters for creating a new OAuth client.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client_name: str
+    """Human-readable name of the OAuth client"""
+    client_uri: NotRequired[str]
+    """URI of the OAuth client"""
+    redirect_uris: List[str]
+    """Array of allowed redirect URIs"""
+    grant_types: NotRequired[List[OAuthClientGrantType]]
+    """Array of allowed grant types (optional, defaults to authorization_code and refresh_token)"""
+    response_types: NotRequired[List[OAuthClientResponseType]]
+    """Array of allowed response types (optional, defaults to code)"""
+    scope: NotRequired[str]
+    """Scope of the OAuth client"""
+
+
+class OAuthClientResponse(BaseModel):
+    """
+    Response type for OAuth client operations.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client: Optional[OAuthClient] = None
+
+
+class Pagination(BaseModel):
+    """
+    Pagination information for list responses.
+    """
+
+    next_page: Optional[int] = None
+    last_page: int = 0
+    total: int = 0
+
+
+class OAuthClientListResponse(BaseModel):
+    """
+    Response type for listing OAuth clients.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    clients: List[OAuthClient]
+    aud: Optional[str] = None
+    next_page: Optional[int] = None
+    last_page: int = 0
+    total: int = 0
+
+
+class PageParams(TypedDict):
+    """
+    Pagination parameters.
+    """
+
+    page: NotRequired[int]
+    """Page number"""
+    per_page: NotRequired[int]
+    """Number of items per page"""
+
+
 for model in [
     AMREntry,
     AuthResponse,
@@ -889,6 +1011,10 @@ for model in [
     AuthMFAAdminDeleteFactorResponse,
     AuthMFAAdminListFactorsResponse,
     GenerateLinkProperties,
+    OAuthClient,
+    OAuthClientResponse,
+    OAuthClientListResponse,
+    Pagination,
 ]:
     try:
         # pydantic > 2
