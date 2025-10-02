@@ -31,6 +31,7 @@ dependencies = [
 homepage = "https://github.com/supabase/supabase/tree/main/src/postgrest"
 repository = "https://github.com/supabase/supabase-py"
 documentation = "https://postgrest-py.rtfd.io"
+changelog = "https://github.com/supabase/supabase-py/CHANGELOG.md"
 
 [dependency-groups]
 test = [

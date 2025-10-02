@@ -31,6 +31,7 @@ dependencies = [
 documentation = "https://supabase.github.io/storage-py"
 homepage = "https://supabase.github.io/storage-py"
 repository = "https://github.com/supabase/supabase-py"
+changelog = "https://github.com/supabase/supabase-py/CHANGELOG.md"
 
 [dependency-groups]
 lints = [

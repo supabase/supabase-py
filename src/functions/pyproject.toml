@@ -21,6 +21,7 @@ dependencies = [
 [project.urls]
 repository = "https://github.com/supabase/supabase-py"
 homepage = "https://github.com/supabase/supabase/tree/main/src/functions"
+changelog = "https://github.com/supabase/supabase-py/CHANGELOG.md"
 
 [dependency-groups]
 tests = [
