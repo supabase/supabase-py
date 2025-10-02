@@ -41,7 +41,9 @@ async def test_presence(socket: AsyncRealtimeClient):
     def on_join(key: str, current_presences: List[Dict], new_presences: List[Presence]):
         join_events.append((key, current_presences, new_presences))
 
-    def on_leave(key: str, current_presences: List[Dict], left_presences: List[Presence]):
+    def on_leave(
+        key: str, current_presences: List[Dict], left_presences: List[Presence]
+    ):
         leave_events.append((key, current_presences, left_presences))
 
     await (
@@ -67,14 +69,14 @@ async def test_presence(socket: AsyncRealtimeClient):
 
     assert len(presences) == 1
     assert len(presences[0][1]) == 1
-    assert presences[0][1][0]["user_id"] == user1["user_id"]     # type: ignore
-    assert presences[0][1][0]["online_at"] == user1["online_at"] # type: ignore
+    assert presences[0][1][0]["user_id"] == user1["user_id"]  # type: ignore
+    assert presences[0][1][0]["online_at"] == user1["online_at"]  # type: ignore
     assert "presence_ref" in presences[0][1][0]
 
     assert len(join_events) == 1
     assert len(join_events[0][2]) == 1
-    assert join_events[0][2][0]["user_id"] == user1["user_id"]     # type: ignore
-    assert join_events[0][2][0]["online_at"] == user1["online_at"] # type: ignore
+    assert join_events[0][2][0]["user_id"] == user1["user_id"]  # type: ignore
+    assert join_events[0][2][0]["online_at"] == user1["online_at"]  # type: ignore
     assert "presence_ref" in join_events[0][2][0]
 
     # Track second user
@@ -87,13 +89,13 @@ async def test_presence(socket: AsyncRealtimeClient):
     # Assert both users are in the presence state
     for key, value in channel.presence.state.items():
         assert len(value) == 1
-        assert value[0]["user_id"] in ["1", "2"] # type: ignore
+        assert value[0]["user_id"] in ["1", "2"]  # type: ignore
         assert "online_at" in value[0]
         assert "presence_ref" in value[0]
     assert len(join_events) == 2
     assert len(join_events[1][2]) == 1
-    assert join_events[1][2][0]["user_id"] == user2["user_id"] # type: ignore
-    assert join_events[1][2][0]["online_at"] == user2["online_at"] # type: ignore
+    assert join_events[1][2][0]["user_id"] == user2["user_id"]  # type: ignore
+    assert join_events[1][2][0]["online_at"] == user2["online_at"]  # type: ignore
     assert "presence_ref" in join_events[1][2][0]
 
     # Untrack all users
@@ -113,8 +115,8 @@ def test_transform_state_raw_presence_state() -> None:
     raw_state: RawPresenceState = {
         "user1": {
             "metas": [
-                {"phx_ref": "ABC123", "user_id": "user1", "status": "online"}, # type: ignore
-                { # type: ignore
+                {"phx_ref": "ABC123", "user_id": "user1", "status": "online"},  # type: ignore
+                {  # type: ignore
                     "phx_ref": "DEF456",
                     "phx_ref_prev": "ABC123",
                     "user_id": "user1",
@@ -149,7 +151,7 @@ def test_transform_state_additional_fields() -> None:
     state_with_additional_fields: RawPresenceState = {
         "user1": {
             "metas": [
-                { # type: ignore
+                {  # type: ignore
                     "phx_ref": "ABC123",
                     "user_id": "user1",
                     "status": "online",
@@ -229,7 +231,7 @@ async def test_presence_enabled_when_callbacks_attached() -> None:
     # Mock socket connection by setting _ws_connection
     mock_ws = Mock()
     socket._ws_connection = mock_ws
-    socket._leave_open_topic = AsyncMock() # type: ignore
+    socket._leave_open_topic = AsyncMock()  # type: ignore
 
     # Add presence callback before subscription
     channel.on_presence_sync(lambda: None)
@@ -261,7 +263,7 @@ async def test_resubscribe_on_presence_callback_addition() -> None:
     channel._joined_once = True
 
     # Mock resubscribe method
-    channel._resubscribe = AsyncMock() # type: ignore
+    channel._resubscribe = AsyncMock()  # type: ignore
 
     # Add presence callbacks after joining
     channel.on_presence_sync(lambda: None)

@@ -95,7 +95,7 @@ async def test_timer_callback_error():
     timer = AsyncTimer(callback, linear_backoff)
     timer.schedule_timeout()
     assert timer.timer is not None
-    
+
     # Wait for the timer to complete
     await timer.timer
     # The error should be caught and logged, but not re-raised
