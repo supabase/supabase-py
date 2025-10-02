@@ -5,7 +5,7 @@ import pytest
 from realtime._async.timer import AsyncTimer
 
 
-def linear_backoff(tries: int) -> int:
+def linear_backoff(tries: int) -> float:
     return tries * 0.1
 
 
@@ -94,7 +94,8 @@ async def test_timer_callback_error():
 
     timer = AsyncTimer(callback, linear_backoff)
     timer.schedule_timeout()
-
+    assert timer.timer is not None
+    
     # Wait for the timer to complete
     await timer.timer
     # The error should be caught and logged, but not re-raised
@@ -113,6 +114,7 @@ async def test_timer_cancellation():
     timer.schedule_timeout()
 
     # Cancel the timer
+    assert timer.timer is not None
     timer.timer.cancel()
 
     # Wait a bit to ensure the timer doesn't fire

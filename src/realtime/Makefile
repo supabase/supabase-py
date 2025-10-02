@@ -7,7 +7,9 @@ help::
 	@echo "  tests          -- run all tests for realtime package"
 
 mypy:
-	uv run --package realtime mypy src/realtime
+	uv run --package realtime mypy src/realtime tests
+help::
+	@echo "  pytest         -- run mypy on realtime package"
 
 pytest: start-infra
 	uv run --package realtime pytest --cov=realtime --cov-report=xml --cov-report=html -vv
