@@ -33,7 +33,7 @@ cd supabase-py
 
 This repository relies on the following dependencies for development: 
 - `uv` for python project management.
-- `make` for command running.
+- `make` for running project commands.
 - `docker` for both `postgrest` and `auth` test containers.
 - `supabase-cli` for both `storage` and `realtime` test containers.
 
@@ -41,7 +41,7 @@ All of these dependencies are included in the nix shell environment, through `fl
 
 ### Use a Virtual Environment
 
-We recommend using a virtual environment, preferrably through `uv`, given it is currently the only tool that understands the workspace setup (you can read more about it in [the uv docs](https://docs.astral.sh/uv/concepts/projects/workspaces/)).
+We recommend using a virtual environment, preferably through `uv`, given it is currently the only tool that understands the workspace setup (you can read more about it in [the uv docs](https://docs.astral.sh/uv/concepts/projects/workspaces/)).
 
 ```
 uv venv supabase-py
@@ -53,7 +53,7 @@ If you're using nix, the generated `python` executable should have the correct d
 
 ### Running tests and other commands
 
-We use `make` to store and run the relevant commands. The structure is setup such that each sub package can individually set its command in its own `Makefile`, and the job of the main `Makefile` is just coordinate calling each of them.
+We use `make` to store and run the relevant commands. The structure is set up such that each sub package can individually set its command in its own `Makefile`, and the job of the main `Makefile` is just coordinate calling each of them.
 
 For instance, in order to run all tests of all packages, you should use the following root command
 ```bash
@@ -70,11 +70,11 @@ To run each of the packages' tests in parallel. This should be generally faster 
 Other relevant commands include
 ```bash
 make install-hooks # install all commit hooks into the local .git folder
-make stop-infra # stops all running containers from all packages
-make clean      # delete all intermediary files created by testing
+make stop-infra    # stops all running containers from all packages
+make clean         # delete all intermediary files created by testing
 ```
-All the sub packages command are available from the main root by prefixing the command with `{package_name}.`. Examples:
+All the subpackages command are available from the main root by prefixing the command with `{package_name}.`. Examples:
 ```bash
 make realtime.tests # run only realtime tests
-make storage.clean # delete temporary files only in the storage package
+make storage.clean  # delete temporary files only in the storage package
 ```
