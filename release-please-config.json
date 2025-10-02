@@ -4,7 +4,7 @@
     ".": {
       "changelog-path": "CHANGELOG.md",
       "separate-pull-requests": false,
-      "type": "python",
+      "release-type": "python",
       "extra-files": [
         {
           "type": "generic",
