@@ -50,6 +50,15 @@
           "type": "toml",
           "path": "src/storage/pyproject.toml",
           "jsonpath": "$.project.version"
+        },
+        {
+          "type": "generic",
+          "path": "src/realtime/src/realtime/version.py"
+        },
+        {
+          "type": "toml",
+          "path": "src/realtime/pyproject.toml",
+          "jsonpath": "$.project.version"
         }
       ]
     }
