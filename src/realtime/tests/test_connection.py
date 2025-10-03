@@ -517,6 +517,7 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
             "config": {
                 "private": True,
                 "broadcast": {"replay": {"since": ten_mins_ago_ms, "limit": 100}},
+                "presence": {"enabled": True, "key": ""},
             }
         },
     )
@@ -588,6 +589,7 @@ async def test_subscribe_to_channel_with_empty_replay_config(
             "config": {
                 "private": False,
                 "broadcast": {"ack": True, "self": False, "replay": {}},
+                "presence": {"enabled": True, "key": ""},
             }
         },
     )
@@ -640,7 +642,13 @@ async def test_subscribe_to_channel_without_replay_config(socket: AsyncRealtimeC
     # Create channel without replay configuration
     channel: AsyncRealtimeChannel = socket.channel(
         "test-no-replay",
-        params={"config": {"private": False, "broadcast": {"ack": True, "self": True}}},
+        params={
+            "config": {
+                "private": False,
+                "broadcast": {"ack": True, "self": True},
+                "presence": {"enabled": True, "key": ""},
+            }
+        },
     )
 
     # Mock the subscription callback
