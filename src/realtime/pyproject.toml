@@ -23,6 +23,7 @@ dependencies = [
 homepage = "https://github.com/supabase/supabase/tree/main/src/realime"
 repository = "https://github.com/supabase/supabase-py"
 documentation = "https://github.com/supabase/supabase/tree/main/src/realime"
+changelog = "https://github.com/supabase/supabase-py/CHANGELOG.md"
 
 [dependency-groups]
 tests = [
