@@ -191,6 +191,7 @@ class RealtimeChannelBroadcastConfig(TypedDict, total=False):
 
 class RealtimeChannelPresenceConfig(TypedDict):
     key: str
+    enabled: bool
 
 
 class RealtimeChannelConfig(TypedDict):

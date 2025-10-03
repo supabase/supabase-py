@@ -1,6 +1,6 @@
 [project]
 name = "postgrest"
-version = "2.20.0" # {x-release-please-version}
+version = "2.21.0" # {x-release-please-version}
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 authors = [
   { name = "Lương Quang Mạnh", email = "luongquangmanh85@gmail.com"},
@@ -31,6 +31,7 @@ dependencies = [
 homepage = "https://github.com/supabase/supabase/tree/main/src/postgrest"
 repository = "https://github.com/supabase/supabase-py"
 documentation = "https://postgrest-py.rtfd.io"
+changelog = "https://github.com/supabase/supabase-py/CHANGELOG.md"
 
 [dependency-groups]
 test = [
@@ -41,8 +42,10 @@ test = [
   "unasync >= 0.6.0",
 ]
 lints = [
-  "pre-commit >=4.2.0",
   "ruff >=0.12.1",
+  "python-lsp-server (>=1.12.2,<2.0.0)",
+  "pylsp-mypy (>=0.7.0,<0.8.0)",
+  "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
 docs = [
   "sphinx >=7.1.2",
@@ -84,3 +87,15 @@ filterwarnings = [
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.mypy]
+python_version = "3.9"
+check_untyped_defs = true
+allow_redefinition = true
+follow_untyped_imports = true # for deprecation module that does not have stubs
+
+no_warn_no_return = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true

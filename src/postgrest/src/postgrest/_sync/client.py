@@ -15,8 +15,6 @@ from ..types import CountMethod
 from ..version import __version__
 from .request_builder import SyncRequestBuilder, SyncRPCFilterRequestBuilder
 
-_TableT = Dict[str, Any]
-
 
 class SyncPostgrestClient(BasePostgrestClient):
     """PostgREST client."""
@@ -72,7 +70,7 @@ class SyncPostgrestClient(BasePostgrestClient):
             proxy=proxy,
             http_client=http_client,
         )
-        self.session = cast(Client, self.session)
+        self.session: Client = self.session
 
     def create_session(
         self,
@@ -122,7 +120,7 @@ class SyncPostgrestClient(BasePostgrestClient):
         """Close the underlying HTTP connections."""
         self.session.close()
 
-    def from_(self, table: str) -> SyncRequestBuilder[_TableT]:
+    def from_(self, table: str) -> SyncRequestBuilder:
         """Perform a table operation.
 
         Args:
@@ -130,9 +128,9 @@ class SyncPostgrestClient(BasePostgrestClient):
         Returns:
             :class:`AsyncRequestBuilder`
         """
-        return SyncRequestBuilder[_TableT](self.session, f"/{table}")
+        return SyncRequestBuilder(self.session, f"/{table}")
 
-    def table(self, table: str) -> SyncRequestBuilder[_TableT]:
+    def table(self, table: str) -> SyncRequestBuilder:
         """Alias to :meth:`from_`."""
         return self.from_(table)
 
@@ -148,7 +146,7 @@ class SyncPostgrestClient(BasePostgrestClient):
         count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
-    ) -> SyncRPCFilterRequestBuilder[Any]:
+    ) -> SyncRPCFilterRequestBuilder:
         """Perform a stored procedure call.
 
         Args:
@@ -175,7 +173,7 @@ class SyncPostgrestClient(BasePostgrestClient):
         headers = Headers({"Prefer": f"count={count}"}) if count else Headers()
 
         if method in ("HEAD", "GET"):
-            return SyncRPCFilterRequestBuilder[Any](
+            return SyncRPCFilterRequestBuilder(
                 self.session,
                 f"/rpc/{func}",
                 method,
@@ -184,6 +182,6 @@ class SyncPostgrestClient(BasePostgrestClient):
                 json={},
             )
         # the params here are params to be sent to the RPC and not the queryparams!
-        return SyncRPCFilterRequestBuilder[Any](
+        return SyncRPCFilterRequestBuilder(
             self.session, f"/rpc/{func}", method, headers, QueryParams(), json=params
         )

@@ -1,6 +1,6 @@
 [project]
 name = "supabase"
-version = "2.20.0" # {x-release-please-version}
+version = "2.21.0" # {x-release-please-version}
 description = "Supabase client for Python."
 authors = [
   { name = "Joel Lee", email = "joel@joellee.org" },
@@ -34,17 +34,12 @@ dependencies = [
 homepage = "https://github.com/supabase/supabase-py"
 repository = "https://github.com/supabase/supabase-py"
 documentation = "https://github.com/supabase/supabase-py/src/supabase"
+changelog = "https://github.com/supabase/supabase-py/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
-  { include-group = "pre-commit" },
   { include-group = "tests" },
   { include-group = "lints" },
-]
-pre-commit = [
-  "pre-commit >= 4.1.0",
-  "commitizen >=4.8.3",
-  "unasync >=0.6.0",
 ]
 tests = [
   "pytest >= 8.4.1",
@@ -53,6 +48,7 @@ tests = [
   "python-dotenv >= 1.1.1",
 ]
 lints = [
+  "unasync >=0.6.0",
   "ruff >=0.12.1",
 ]
 

@@ -1,29 +1,57 @@
 {
   "last-release-sha": "7236ed62c37fb57c3feac23b416fc6d9d153dd68",
   "packages": {
-    "src/realtime": {
+    ".": {
       "changelog-path": "CHANGELOG.md",
-      "release-type": "python"
-    },
-    "src/auth": {
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "python"
-    },
-    "src/functions": {
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "python"
-    },
-    "src/storage": {
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "python"
-    },
-    "src/postgrest": {
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "python"
-    },
-    "src/supabase": {
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "python"
+      "separate-pull-requests": false,
+      "release-type": "python",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "src/supabase/src/supabase/version.py"
+        },
+        {
+          "type": "toml",
+          "path": "src/supabase/pyproject.toml",
+          "jsonpath": "$.project.version"
+        },
+        {
+          "type": "generic",
+          "path": "src/auth/src/supabase_auth/version.py"
+        },
+        {
+          "type": "toml",
+          "path": "src/auth/pyproject.toml",
+          "jsonpath": "$.project.version"
+        },
+        {
+          "type": "generic",
+          "path": "src/functions/src/supabase_functions/version.py"
+        },
+        {
+          "type": "toml",
+          "path": "src/functions/pyproject.toml",
+          "jsonpath": "$.project.version"
+        },
+        {
+          "type": "generic",
+          "path": "src/postgrest/src/postgrest/version.py"
+        },
+        {
+          "type": "toml",
+          "path": "src/postgrest/pyproject.toml",
+          "jsonpath": "$.project.version"
+        },
+        {
+          "type": "generic",
+          "path": "src/storage/src/storage3/version.py"
+        },
+        {
+          "type": "toml",
+          "path": "src/storage/pyproject.toml",
+          "jsonpath": "$.project.version"
+        }
+      ]
     }
   }
 }

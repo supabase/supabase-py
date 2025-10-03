@@ -1,6 +1,6 @@
 [project]
 name = "supabase_functions"
-version = "2.20.0" # {x-release-please-version}
+version = "2.21.0" # {x-release-please-version}
 description = "Library for Supabase Functions"
 authors = [
   { name = "Joel Lee", email = "joel@joellee.org" },
@@ -21,6 +21,7 @@ dependencies = [
 [project.urls]
 repository = "https://github.com/supabase/supabase-py"
 homepage = "https://github.com/supabase/supabase/tree/main/src/functions"
+changelog = "https://github.com/supabase/supabase-py/CHANGELOG.md"
 
 [dependency-groups]
 tests = [
@@ -32,7 +33,6 @@ tests = [
 lints = [
   "unasync>=0.6.0",
   "ruff >=0.12.1",
-  "pre-commit >=3.4,<5.0",
   "python-lsp-server (>=1.12.2,<2.0.0)",
   "pylsp-mypy (>=0.7.0,<0.8.0)",
   "python-lsp-ruff (>=2.2.2,<3.0.0)",
