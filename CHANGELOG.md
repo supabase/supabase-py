@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **CRITICAL**: Fixed shared httpx client base_url mutation bug (GitHub Issue #1244)
+  - Storage, PostgREST, and Functions services now use isolated httpx clients
+  - Prevents URL corruption when multiple services share the same httpx.Client instance
+  - Maintains backward compatibility - no breaking changes
+  - Resolves authentication header duplication issues
+  - Preserves shared client configuration (timeouts, SSL settings, etc.)
+  - **Impact**: Users with custom httpx clients will no longer experience cross-service URL conflicts
+  - **Files affected**: Storage, PostgREST, Functions, and main Supabase client implementations
+  - **Migration**: No user action required - fix is automatically applied
+
+### Technical Details
+- Implemented client isolation pattern across all services
+- Added selective header merging to prevent authentication conflicts
+- Enhanced error handling for malformed HTTP responses
+- Improved test coverage for multi-service scenarios
+
 ## [2.21.1](https://github.com/supabase/supabase-py/compare/v2.21.0...v2.21.1) (2025-10-03)
 
 

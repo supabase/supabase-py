@@ -242,9 +242,35 @@ class AsyncClient:
         proxy: Optional[str] = None,
         http_client: Union[AsyncHttpxClient, None] = None,
     ) -> AsyncStorageClient:
+        """Private method for creating an instance of the Storage client."""
         if http_client is not None:
-            # If an http client is provided, use it
-            kwargs = {"http_client": http_client}
+            # Create a new client with same configuration but isolated from shared state
+            # This prevents mutation of the shared httpx client instance
+            # Be careful about header merging to avoid duplication
+            merged_headers = {}
+
+            # Start with service-specific headers
+            merged_headers.update(headers)
+
+            # Add non-conflicting headers from the original client
+            for key, value in http_client.headers.items():
+                lower_key = key.lower()
+                # Skip headers that are service-specific or auth-related to avoid duplication
+                if lower_key not in ["authorization", "apikey", "x-client-info"]:
+                    # Only add if not already present
+                    if key not in merged_headers:
+                        merged_headers[key] = value
+
+            isolated_client = AsyncHttpxClient(
+                base_url=storage_url,
+                headers=merged_headers,
+                timeout=http_client.timeout,
+                auth=http_client.auth,
+                params=http_client.params,
+                cookies=http_client.cookies,
+                follow_redirects=http_client.follow_redirects,
+            )
+            kwargs = {"http_client": isolated_client}
         else:
             kwargs = {
                 "timeout": storage_client_timeout,
@@ -291,8 +317,33 @@ class AsyncClient:
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         if http_client is not None:
-            # If an http client is provided, use it
-            kwargs = {"http_client": http_client}
+            # Create a new client with same configuration but isolated from shared state
+            # This prevents mutation of the shared httpx client instance
+            # Be careful about header merging to avoid duplication
+            merged_headers = {}
+
+            # Start with service-specific headers
+            merged_headers.update(headers)
+
+            # Add non-conflicting headers from the original client
+            for key, value in http_client.headers.items():
+                lower_key = key.lower()
+                # Skip headers that are service-specific or auth-related to avoid duplication
+                if lower_key not in ["authorization", "apikey", "x-client-info"]:
+                    # Only add if not already present
+                    if key not in merged_headers:
+                        merged_headers[key] = value
+
+            isolated_client = AsyncHttpxClient(
+                base_url=rest_url,
+                headers=merged_headers,
+                timeout=http_client.timeout,
+                auth=http_client.auth,
+                params=http_client.params,
+                cookies=http_client.cookies,
+                follow_redirects=http_client.follow_redirects,
+            )
+            kwargs = {"http_client": isolated_client}
         else:
             kwargs = {
                 "timeout": timeout,

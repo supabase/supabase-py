@@ -85,9 +85,33 @@ class AsyncPostgrestClient(BasePostgrestClient):
             http_client = self.http_client
 
         if http_client is not None:
-            http_client.base_url = base_url
-            http_client.headers.update({**headers})
-            return http_client
+            # Create a new client with the same configuration as the provided client
+            # but with the service-specific base_url and headers.
+            # This prevents mutation of the shared httpx client instance.
+            # Be careful about header merging to avoid duplication
+            merged_headers = {}
+
+            # Start with service-specific headers
+            merged_headers.update(headers)
+
+            # Add non-conflicting headers from the original client
+            for key, value in http_client.headers.items():
+                lower_key = key.lower()
+                # Skip headers that are service-specific or auth-related to avoid duplication
+                if lower_key not in ["authorization", "apikey", "x-client-info"]:
+                    # Only add if not already present
+                    if key not in merged_headers:
+                        merged_headers[key] = value
+
+            return AsyncClient(
+                base_url=base_url,
+                headers=merged_headers,
+                timeout=http_client.timeout,
+                auth=http_client.auth,
+                params=http_client.params,
+                cookies=http_client.cookies,
+                follow_redirects=http_client.follow_redirects,
+            )
 
         return AsyncClient(
             base_url=base_url,
