@@ -20,28 +20,6 @@ Relevant links:
   - [GitHub OAuth in your Python Flask app](https://supabase.com/blog/oauth2-login-python-flask-apps)
   - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
 
-## Recent Fixes
-
-### 🔧 GitHub Issue #1244 - Shared httpx Client URL Mutation (RESOLVED ✅)
-
-**Fixed**: Critical bug where shared `httpx.Client` instances caused URL corruption between Supabase services.
-
-**Problem**: When using custom httpx clients, accessing multiple services (Storage, PostgREST, Functions) would mutate the shared client's `base_url`, causing API calls to hit wrong endpoints.
-
-**Solution**: Implemented client isolation pattern that creates separate httpx clients for each service while preserving shared configuration (timeouts, SSL, proxy settings, etc.).
-
-**Impact**: 
-- ✅ All services maintain correct URLs
-- ✅ No header duplication issues  
-- ✅ Backward compatible - existing code works unchanged
-- ✅ Custom httpx configuration preserved across all services
-
-**Documentation**: 
-- Technical details: [ISSUE_1244_FIX_DOCUMENTATION.md](./ISSUE_1244_FIX_DOCUMENTATION.md)
-- Usage guide: [SHARED_CLIENT_USAGE.md](./SHARED_CLIENT_USAGE.md)
-- Testing: [TESTING_GUIDE_1244.md](./TESTING_GUIDE_1244.md)
-- Implementation: [IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md)
-
 ## Local Development
 
 ### Clone the Repository
