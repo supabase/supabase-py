@@ -239,3 +239,44 @@ async def test_custom_headers_immutable():
     assert client1.options.headers.get("x-app-name") == "grapes"
     assert client1.options.headers.get("x-version") == "1.0"
     assert client2.options.headers.get("x-app-name") == "apple"
+
+
+async def test_httpx_client_base_url_isolation():
+    """Test that shared httpx_client doesn't cause base_url mutation between services.
+
+    This test reproduces the issue where accessing PostgREST after Storage causes
+    Storage requests to hit the wrong endpoint (404 errors).
+
+    See: https://github.com/supabase/supabase-py/issues/1244
+    """
+    url = os.environ.get("SUPABASE_TEST_URL")
+    key = os.environ.get("SUPABASE_TEST_KEY")
+
+    # Create client with shared httpx instance
+    timeout = Timeout(10.0, read=60.0)
+    httpx_client = AsyncHttpxClient(timeout=timeout)
+    options = AsyncClientOptions(httpx_client=httpx_client)
+    client = await create_async_client(url, key, options)
+
+    # Access storage and capture its base_url
+    storage = client.storage
+    storage_base_url = str(storage.session.base_url).rstrip('/')
+    assert storage_base_url.endswith("/storage/v1"), f"Expected storage base_url to end with '/storage/v1', got {storage_base_url}"
+
+    # Access postgrest (this should NOT mutate storage's base_url)
+    postgrest = client.postgrest
+    postgrest_base_url = str(postgrest.session.base_url).rstrip('/')
+    assert postgrest_base_url.endswith("/rest/v1"), f"Expected postgrest base_url to end with '/rest/v1', got {postgrest_base_url}"
+
+    # Verify storage still has the correct base_url
+    storage_base_url_after = str(storage.session.base_url).rstrip('/')
+    assert storage_base_url_after.endswith("/storage/v1"), f"Storage base_url was mutated! Expected '/storage/v1', got {storage_base_url_after}"
+
+    # Access functions (should also not mutate other services)
+    functions = client.functions
+    functions_base_url = str(functions._client.base_url).rstrip('/')
+    assert functions_base_url.endswith("/functions/v1"), f"Expected functions base_url to end with '/functions/v1', got {functions_base_url}"
+
+    # Final verification: all services should still have their correct base_urls
+    assert str(storage.session.base_url).rstrip('/').endswith("/storage/v1"), "Storage base_url was mutated after accessing functions"
+    assert str(postgrest.session.base_url).rstrip('/').endswith("/rest/v1"), "PostgREST base_url was mutated after accessing functions"

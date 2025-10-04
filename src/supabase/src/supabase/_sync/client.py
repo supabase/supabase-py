@@ -76,9 +76,15 @@ class SyncClient:
         self.functions_url = f"{supabase_url}/functions/v1"
 
         # Instantiate clients.
+        # Create a copy of client_options with a copied httpx_client for auth
+        # to prevent base_url mutation across services
+        auth_options = copy.copy(self.options)
+        if self.options.httpx_client is not None:
+            auth_options.httpx_client = copy.copy(self.options.httpx_client)
+
         self.auth = self._init_supabase_auth_client(
             auth_url=self.auth_url,
-            client_options=self.options,
+            client_options=auth_options,
         )
         self.realtime = self._init_realtime_client(
             realtime_url=self.realtime_url,
@@ -169,12 +175,18 @@ class SyncClient:
     @property
     def postgrest(self):
         if self._postgrest is None:
+            # Create a copy of httpx_client to prevent base_url mutation across services
+            http_client = (
+                copy.copy(self.options.httpx_client)
+                if self.options.httpx_client is not None
+                else None
+            )
             self._postgrest = self._init_postgrest_client(
                 rest_url=self.rest_url,
                 headers=self.options.headers,
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
-                http_client=self.options.httpx_client,
+                http_client=http_client,
             )
 
         return self._postgrest
@@ -182,17 +194,29 @@ class SyncClient:
     @property
     def storage(self):
         if self._storage is None:
+            # Create a copy of httpx_client to prevent base_url mutation across services
+            http_client = (
+                copy.copy(self.options.httpx_client)
+                if self.options.httpx_client is not None
+                else None
+            )
             self._storage = self._init_storage_client(
                 storage_url=self.storage_url,
                 headers=self.options.headers,
                 storage_client_timeout=self.options.storage_client_timeout,
-                http_client=self.options.httpx_client,
+                http_client=http_client,
             )
         return self._storage
 
     @property
     def functions(self):
         if self._functions is None:
+            # Create a copy of httpx_client to prevent base_url mutation across services
+            http_client = (
+                copy.copy(self.options.httpx_client)
+                if self.options.httpx_client is not None
+                else None
+            )
             self._functions = SyncFunctionsClient(
                 url=self.functions_url,
                 headers=self.options.headers,
@@ -201,7 +225,7 @@ class SyncClient:
                     if self.options.httpx_client is None
                     else None
                 ),
-                http_client=self.options.httpx_client,
+                http_client=http_client,
             )
         return self._functions
 
