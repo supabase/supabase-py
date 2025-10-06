@@ -25,6 +25,7 @@ dependencies = [
   "httpx[http2] >=0.26,<0.29",
   "deprecation >=2.1.0",
   "pydantic >=2.11.7",
+  "yarl>=1.20.1",
 ]
 
 [project.urls]

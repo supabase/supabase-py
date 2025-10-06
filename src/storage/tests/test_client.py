@@ -45,9 +45,7 @@ def test_async_storage_client(valid_url, valid_headers):
     )
 
     assert isinstance(client, AsyncStorageClient)
-    assert all(
-        client._client.headers[key] == value for key, value in valid_headers.items()
-    )
+    assert all(client._headers[key] == value for key, value in valid_headers.items())
     assert client._client.headers.get("x-user-agent") == "my-app/0.0.1"
     assert client._client.timeout == Timeout(5.0)
 
@@ -60,9 +58,7 @@ def test_sync_storage_client(valid_url, valid_headers):
     )
 
     assert isinstance(client, SyncStorageClient)
-    assert all(
-        client._client.headers[key] == value for key, value in valid_headers.items()
-    )
+    assert all(client._headers[key] == value for key, value in valid_headers.items())
     assert client._client.headers.get("x-user-agent") == "my-app/0.0.1"
     assert client._client.timeout == Timeout(5.0)
 

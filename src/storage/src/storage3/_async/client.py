@@ -55,39 +55,16 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
         self.verify = bool(verify) if verify is not None else True
         self.timeout = int(abs(timeout)) if timeout is not None else DEFAULT_TIMEOUT
 
-        self.session = self._create_session(
+        self.session = http_client or AsyncClient(
             base_url=url,
             headers=headers,
             timeout=self.timeout,
+            proxy=proxy,
             verify=self.verify,
-            proxy=proxy,
-            http_client=http_client,
-        )
-        super().__init__(self.session)
-
-    def _create_session(
-        self,
-        base_url: str,
-        headers: dict[str, str],
-        timeout: int,
-        verify: bool = True,
-        proxy: Optional[str] = None,
-        http_client: Optional[AsyncClient] = None,
-    ) -> AsyncClient:
-        if http_client is not None:
-            http_client.base_url = base_url
-            http_client.headers.update({**headers})
-            return http_client
-
-        return AsyncClient(
-            base_url=base_url,
-            headers=headers,
-            timeout=timeout,
-            proxy=proxy,
-            verify=verify,
             follow_redirects=True,
             http2=True,
         )
+        super().__init__(self.session, url, headers)
 
     async def __aenter__(self) -> AsyncStorageClient:
         return self

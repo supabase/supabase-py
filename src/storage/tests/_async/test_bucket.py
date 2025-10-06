@@ -1,11 +1,13 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from httpx import HTTPStatusError, Response
+from httpx import AsyncClient, HTTPStatusError, Response
 
 from storage3 import AsyncBucket, AsyncStorageBucketAPI
 from storage3.exceptions import StorageApiError
 from storage3.types import CreateOrUpdateBucketOptions
+
+from ..test_client import valid_url
 
 
 @pytest.fixture
@@ -14,8 +16,15 @@ def mock_client():
 
 
 @pytest.fixture
-def storage_api(mock_client):
-    return AsyncStorageBucketAPI(mock_client)
+def headers() -> dict[str, str]:
+    return {}
+
+
+@pytest.fixture
+def storage_api(
+    mock_client: AsyncClient, headers: dict[str, str]
+) -> AsyncStorageBucketAPI:
+    return AsyncStorageBucketAPI(mock_client, "", headers)
 
 
 @pytest.fixture
@@ -58,7 +67,7 @@ async def test_list_buckets(storage_api, mock_client, mock_response):
     assert buckets[0].id == "bucket1"
     assert buckets[1].id == "bucket2"
 
-    mock_client.request.assert_called_once_with("GET", "/bucket", json=None)
+    mock_client.request.assert_called_once_with("GET", "bucket", json=None, headers={})
 
 
 async def test_get_bucket(storage_api, mock_client, mock_response):
@@ -84,7 +93,7 @@ async def test_get_bucket(storage_api, mock_client, mock_response):
     assert bucket.owner == "test-owner"
 
     mock_client.request.assert_called_once_with(
-        "GET", f"/bucket/{bucket_id}", json=None
+        "GET", f"bucket/{bucket_id}", json=None, headers={}
     )
 
 
@@ -103,7 +112,7 @@ async def test_create_bucket(storage_api, mock_client, mock_response):
     assert result == {"message": "Bucket created successfully"}
     mock_client.request.assert_called_once_with(
         "POST",
-        "/bucket",
+        "bucket",
         json={
             "id": bucket_id,
             "name": bucket_name,
@@ -111,6 +120,7 @@ async def test_create_bucket(storage_api, mock_client, mock_response):
             "file_size_limit": 1000000,
             "allowed_mime_types": ["image/*"],
         },
+        headers={},
     )
 
 
@@ -123,7 +133,7 @@ async def test_create_bucket_minimal(storage_api, mock_client, mock_response):
 
     assert result == {"message": "Bucket created successfully"}
     mock_client.request.assert_called_once_with(
-        "POST", "/bucket", json={"id": bucket_id, "name": bucket_id}
+        "POST", "bucket", json={"id": bucket_id, "name": bucket_id}, headers={}
     )
 
 
@@ -139,13 +149,14 @@ async def test_update_bucket(storage_api, mock_client, mock_response):
     assert result == {"message": "Bucket updated successfully"}
     mock_client.request.assert_called_once_with(
         "PUT",
-        f"/bucket/{bucket_id}",
+        f"bucket/{bucket_id}",
         json={
             "id": bucket_id,
             "name": bucket_id,
             "public": False,
             "file_size_limit": 2000000,
         },
+        headers={},
     )
 
 
@@ -158,7 +169,7 @@ async def test_empty_bucket(storage_api, mock_client, mock_response):
 
     assert result == {"message": "Bucket emptied successfully"}
     mock_client.request.assert_called_once_with(
-        "POST", f"/bucket/{bucket_id}/empty", json={}
+        "POST", f"bucket/{bucket_id}/empty", json={}, headers={}
     )
 
 
@@ -171,7 +182,7 @@ async def test_delete_bucket(storage_api, mock_client, mock_response):
 
     assert result == {"message": "Bucket deleted successfully"}
     mock_client.request.assert_called_once_with(
-        "DELETE", f"/bucket/{bucket_id}", json={}
+        "DELETE", f"bucket/{bucket_id}", json={}, headers={}
     )
 
 
@@ -187,23 +198,25 @@ async def test_request_error_handling(storage_api, mock_client):
     mock_client.request.side_effect = exc
 
     with pytest.raises(StorageApiError) as exc_info:
-        await storage_api._request("GET", "/test")
+        await storage_api._request("GET", ["test"])
 
     assert exc_info.value.message == "Test error message"
 
 
 @pytest.mark.parametrize(
-    "method,url,json_data",
+    "method,path,json_data",
     [
-        ("GET", "/test", None),
-        ("POST", "/test", {"key": "value"}),
-        ("PUT", "/test", {"id": "123"}),
-        ("DELETE", "/test", {}),
+        ("GET", "test", None),
+        ("POST", "test", {"key": "value"}),
+        ("PUT", "test", {"id": "123"}),
+        ("DELETE", "test", {}),
     ],
 )
 async def test_request_methods(
-    storage_api, mock_client, mock_response, method, url, json_data
+    storage_api, mock_client, mock_response, method, path, json_data
 ):
     mock_client.request.return_value = mock_response
-    await storage_api._request(method, url, json_data)
-    mock_client.request.assert_called_once_with(method, url, json=json_data)
+    await storage_api._request(method, [path], json_data)
+    mock_client.request.assert_called_once_with(
+        method, path, json=json_data, headers={}
+    )
