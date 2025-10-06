@@ -244,8 +244,10 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         )
 
         data = response.json()
+        # API may return either a list directly or a dict with "clients" key
+        clients_data = data.get("clients", data) if isinstance(data, dict) else data
         result = OAuthClientListResponse(
-            clients=[model_validate(OAuthClient, client) for client in data],
+            clients=[model_validate(OAuthClient, client) for client in clients_data],
             aud=data.get("aud") if isinstance(data, dict) else None,
         )
 
@@ -324,7 +326,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "DELETE",
             f"admin/oauth/clients/{client_id}",
             xform=lambda data: OAuthClientResponse(
-                client=model_validate(OAuthClient, data)
+                client=model_validate(OAuthClient, data) if data else None
             ),
         )
 
