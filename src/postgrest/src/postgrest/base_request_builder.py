@@ -5,6 +5,7 @@ from json import JSONDecodeError
 from re import search
 from typing import (
     Any,
+    Awaitable,
     Dict,
     Generic,
     Iterable,
@@ -16,11 +17,13 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    overload,
 )
 
-from httpx import AsyncClient, Client, Headers, QueryParams
+from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
 from httpx import Response as RequestResponse
 from pydantic import BaseModel, ValidationError
+from yarl import URL
 
 try:
     from typing import Self  # type: ignore
@@ -45,6 +48,44 @@ class QueryArgs(NamedTuple):
     params: QueryParams
     headers: Headers
     json: JSON
+
+
+C = TypeVar("C", Client, AsyncClient)
+
+
+class RequestConfig(Generic[C]):
+    def __init__(
+        self,
+        session: C,
+        path: URL,
+        http_method: str,
+        headers: Headers,
+        params: QueryParams,
+        auth: BasicAuth | None,
+        json: JSON,
+    ) -> None:
+        self.session: C = session
+        self.path = path
+        self.http_method = http_method
+        self.headers = headers
+        self.params = params
+        self.json = None if http_method in {"GET", "HEAD"} else json
+        self.auth = auth
+
+    @overload
+    def send(self: RequestConfig[Client]) -> RequestResponse: ...
+    @overload
+    def send(self: RequestConfig[AsyncClient]) -> Awaitable[RequestResponse]: ...
+
+    def send(self: RequestConfig[C]):
+        return self.session.request(
+            self.http_method,
+            str(self.path),
+            json=self.json,
+            params=self.params,
+            headers=self.headers,
+            auth=self.auth,
+        )
 
 
 def _unique_columns(json: List[Dict[str, JSON]]):
@@ -227,14 +268,9 @@ class SingleAPIResponse(APIResponse):
         return SingleAPIResponse(data=data, count=count)
 
 
-class BaseFilterRequestBuilder:
-    def __init__(
-        self,
-        headers: Headers,
-        params: QueryParams,
-    ) -> None:
-        self.headers = headers
-        self.params = params
+class BaseFilterRequestBuilder(Generic[C]):
+    def __init__(self, request: RequestConfig[C]) -> None:
+        self.request: RequestConfig[C] = request
         self.negate_next = False
 
     @property
@@ -255,7 +291,7 @@ class BaseFilterRequestBuilder:
             self.negate_next = False
             operator = f"{Filters.NOT}.{operator}"
         key, val = sanitize_param(column), f"{operator}.{criteria}"
-        self.params = self.params.add(key, val)
+        self.request.params = self.request.params.add(key, val)
         return self
 
     def eq(self: Self, column: str, value: Any) -> Self:
@@ -389,7 +425,7 @@ class BaseFilterRequestBuilder:
             reference_table: Set this to filter on referenced tables instead of the parent table
         """
         key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
-        self.params = self.params.add(key, f"({filters})")
+        self.request.params = self.request.params.add(key, f"({filters})")
         return self
 
     def fts(self: Self, column: str, query: Any) -> Self:
@@ -507,7 +543,7 @@ class BaseFilterRequestBuilder:
         Args:
             value: The maximum number of rows that can be affected
         """
-        prefer_header = self.headers.get("Prefer", "")
+        prefer_header = self.request.headers.get("Prefer", "")
         if prefer_header:
             if "handling=strict" not in prefer_header:
                 prefer_header += ",handling=strict"
@@ -516,11 +552,11 @@ class BaseFilterRequestBuilder:
 
         prefer_header += f",max-affected={value}"
 
-        self.headers["Prefer"] = prefer_header
+        self.request.headers["Prefer"] = prefer_header
         return self
 
 
-class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
+class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
     def explain(
         self: Self,
         analyze: bool = False,
@@ -536,7 +572,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
             if key not in ["self", "format"] and value
         ]
         options_str = "|".join(options)
-        self.headers["Accept"] = (
+        self.request.headers["Accept"] = (
             f"application/vnd.pgrst.plan+{format}; options={options_str}"
         )
         return self
@@ -560,9 +596,9 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
            Allow ordering results for foreign tables with the foreign_table parameter.
         """
         key = f"{foreign_table}.order" if foreign_table else "order"
-        existing_order = self.params.get(key)
+        existing_order = self.request.params.get(key)
 
-        self.params = self.params.set(
+        self.request.params = self.request.params.set(
             key,
             f"{existing_order + ',' if existing_order else ''}"
             + f"{column}.{'desc' if desc else 'asc'}"
@@ -583,7 +619,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         .. versionchanged:: 0.10.3
            Allow limiting results returned for foreign tables with the foreign_table parameter.
         """
-        self.params = self.params.add(
+        self.request.params = self.request.params.add(
             f"{foreign_table}.limit" if foreign_table else "limit",
             size,
         )
@@ -594,7 +630,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         Args:
             size: The number of the row to start at
         """
-        self.params = self.params.add(
+        self.request.params = self.request.params.add(
             "offset",
             size,
         )
@@ -603,10 +639,10 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
     def range(
         self: Self, start: int, end: int, foreign_table: Optional[str] = None
     ) -> Self:
-        self.params = self.params.add(
+        self.request.params = self.request.params.add(
             f"{foreign_table}.offset" if foreign_table else "offset", start
         )
-        self.params = self.params.add(
+        self.request.params = self.request.params.add(
             f"{foreign_table}.limit" if foreign_table else "limit",
             end - start + 1,
         )
@@ -626,11 +662,11 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
             :class:`BaseSelectRequestBuilder`
         """
         method, params, headers, json = pre_select(*columns, count=None)
-        self.params = self.params.add("select", params.get("select"))
-        if self.headers.get("Prefer"):
-            self.headers["Prefer"] += ",return=representation"
+        self.request.params = self.request.params.add("select", params.get("select"))
+        if self.request.headers.get("Prefer"):
+            self.request.headers["Prefer"] += ",return=representation"
         else:
-            self.headers["Prefer"] = "return=representation"
+            self.request.headers["Prefer"] = "return=representation"
 
         return self
 
@@ -640,15 +676,15 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        self.headers["Accept"] = "application/vnd.pgrst.object+json"
+        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return self
 
     def maybe_single(self) -> Self:
         """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        self.headers["Accept"] = "application/vnd.pgrst.object+json"
+        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return self
 
     def csv(self) -> Self:
         """Specify that the query must retrieve data as a single CSV string."""
-        self.headers["Accept"] = "text/csv"
+        self.request.headers["Accept"] = "text/csv"
         return self

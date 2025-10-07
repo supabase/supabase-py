@@ -1540,6 +1540,7 @@ dependencies = [
     { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "yarl" },
 ]
 
 [package.dev-dependencies]
@@ -1580,6 +1581,7 @@ requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=1.9,<3.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.9" },
+    { name = "yarl", specifier = ">=1.20.1" },
 ]
 
 [package.metadata.requires-dev]

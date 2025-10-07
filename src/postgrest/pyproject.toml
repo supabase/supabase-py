@@ -25,6 +25,7 @@ dependencies = [
   "deprecation >=2.1.0",
   "pydantic >=1.9,<3.0",
   "strenum >=0.4.9; python_version < \"3.11\"",
+  "yarl>=1.20.1",
 ]
 
 [project.urls]
