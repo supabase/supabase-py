@@ -34,7 +34,7 @@ jobs:
           version: "latest"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           version: "0.8.2"
           python-version: ${{ matrix.python-version }}
@@ -99,7 +99,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           version: "0.8.2"
           python-version: "3.11"
