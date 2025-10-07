@@ -2833,6 +2833,7 @@ source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
     { name = "strenum" },
+    { name = "yarl" },
 ]
 
 [package.dev-dependencies]
@@ -2865,6 +2866,7 @@ tests = [
 requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "strenum", specifier = ">=0.4.15" },
+    { name = "yarl", specifier = ">=1.20.1" },
 ]
 
 [package.metadata.requires-dev]

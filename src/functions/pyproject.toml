@@ -15,6 +15,7 @@ requires-python = ">=3.9"
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
   "strenum >=0.4.15",
+  "yarl>=1.20.1",
 ]
 
 

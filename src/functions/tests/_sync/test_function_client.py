@@ -31,7 +31,7 @@ def test_init_with_valid_params(valid_url, default_headers):
     client = SyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
-    assert client.url == valid_url
+    assert str(client.url) == valid_url
     assert "User-Agent" in client.headers
     assert client.headers["User-Agent"] == f"supabase-py/functions-py v{__version__}"
     assert client._client.timeout == Timeout(10)
