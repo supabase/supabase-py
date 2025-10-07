@@ -35,7 +35,6 @@ class TestConstructor:
                 "Content-Profile": "public",
             }
         )
-        print(session.headers)
         assert session.headers.items() >= headers.items()
 
     def test_custom_headers(self):

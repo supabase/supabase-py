@@ -35,7 +35,6 @@ class TestConstructor:
                 "Content-Profile": "public",
             }
         )
-        print(session.headers)
         assert session.headers.items() >= headers.items()
 
     @pytest.mark.asyncio
