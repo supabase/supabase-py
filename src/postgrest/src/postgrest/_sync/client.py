@@ -5,7 +5,6 @@ from warnings import warn
 
 from deprecation import deprecated
 from httpx import Client, Headers, QueryParams, Timeout
-from httpx._types import HeaderTypes
 from yarl import URL
 
 from ..base_client import BasePostgrestClient
