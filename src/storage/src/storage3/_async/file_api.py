@@ -68,7 +68,7 @@ class AsyncBucketActionsMixin:
             response = await self._client.request(
                 method,
                 str(url_path),
-                headers=headers or {},
+                headers=headers,
                 json=json,
                 files=files,
                 **kwargs,

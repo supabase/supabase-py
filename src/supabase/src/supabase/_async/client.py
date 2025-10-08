@@ -73,7 +73,7 @@ class AsyncClient:
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url = f"{supabase_url}/auth/v1"
-        self.storage_url = f"{supabase_url}/storage/v1"
+        self.storage_url = f"{supabase_url}/storage/v1/"
         self.functions_url = f"{supabase_url}/functions/v1"
 
         # Instantiate clients.
