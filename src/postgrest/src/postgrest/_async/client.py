@@ -5,6 +5,7 @@ from warnings import warn
 
 from deprecation import deprecated
 from httpx import AsyncClient, Headers, QueryParams, Timeout
+from yarl import URL
 
 from ..base_client import BasePostgrestClient
 from ..constants import (
@@ -13,7 +14,11 @@ from ..constants import (
 )
 from ..types import CountMethod
 from ..version import __version__
-from .request_builder import AsyncRequestBuilder, AsyncRPCFilterRequestBuilder
+from .request_builder import (
+    AsyncRequestBuilder,
+    AsyncRPCFilterRequestBuilder,
+    RequestConfig,
+)
 
 
 class AsyncPostgrestClient(BasePostgrestClient):
@@ -59,52 +64,32 @@ class AsyncPostgrestClient(BasePostgrestClient):
                 else DEFAULT_POSTGREST_CLIENT_TIMEOUT
             )
         )
-
         BasePostgrestClient.__init__(
             self,
-            base_url,
+            URL(base_url),
             schema=schema,
             headers=headers,
             timeout=self.timeout,
             verify=self.verify,
             proxy=proxy,
-            http_client=http_client,
         )
-        self.session: AsyncClient = self.session
 
-    def create_session(
-        self,
-        base_url: str,
-        headers: Dict[str, str],
-        timeout: Union[int, float, Timeout],
-        verify: bool = True,
-        proxy: Optional[str] = None,
-    ) -> AsyncClient:
-        http_client = None
-        if isinstance(self.http_client, AsyncClient):
-            http_client = self.http_client
-
-        if http_client is not None:
-            http_client.base_url = base_url
-            http_client.headers.update({**headers})
-            return http_client
-
-        return AsyncClient(
+        self.session = http_client or AsyncClient(
             base_url=base_url,
-            headers=headers,
+            headers=self.headers,
             timeout=timeout,
-            verify=verify,
+            verify=self.verify,
             proxy=proxy,
             follow_redirects=True,
             http2=True,
         )
 
-    def schema(self, schema: str):
+    def schema(self, schema: str) -> AsyncPostgrestClient:
         """Switch to another schema."""
         return AsyncPostgrestClient(
-            base_url=self.base_url,
+            base_url=str(self.base_url),
             schema=schema,
-            headers=self.headers,
+            headers=dict(self.headers),
             timeout=self.timeout,
             verify=self.verify,
             proxy=self.proxy,
@@ -128,7 +113,9 @@ class AsyncPostgrestClient(BasePostgrestClient):
         Returns:
             :class:`AsyncRequestBuilder`
         """
-        return AsyncRequestBuilder(self.session, f"/{table}")
+        return AsyncRequestBuilder(
+            self.session, self.base_url.joinpath(table), self.headers, self.basic_auth
+        )
 
     def table(self, table: str) -> AsyncRequestBuilder:
         """Alias to :meth:`from_`."""
@@ -142,7 +129,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
     def rpc(
         self,
         func: str,
-        params: dict,
+        params: dict[str, str],
         count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
@@ -171,17 +158,20 @@ class AsyncPostgrestClient(BasePostgrestClient):
         method = "HEAD" if head else "GET" if get else "POST"
 
         headers = Headers({"Prefer": f"count={count}"}) if count else Headers()
-
-        if method in ("HEAD", "GET"):
-            return AsyncRPCFilterRequestBuilder(
-                self.session,
-                f"/rpc/{func}",
-                method,
-                headers,
-                QueryParams(params),
-                json={},
-            )
+        headers.update(self.headers)
         # the params here are params to be sent to the RPC and not the queryparams!
-        return AsyncRPCFilterRequestBuilder(
-            self.session, f"/rpc/{func}", method, headers, QueryParams(), json=params
+        json, http_params = (
+            ({}, QueryParams(params))
+            if method in ("HEAD", "GET")
+            else (params, QueryParams())
         )
+        request = RequestConfig(
+            self.session,
+            self.base_url.joinpath("rpc", func),
+            method,
+            headers,
+            http_params,
+            self.basic_auth,
+            json,
+        )
+        return AsyncRPCFilterRequestBuilder(request)

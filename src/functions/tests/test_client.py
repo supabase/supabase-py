@@ -22,7 +22,7 @@ def test_create_async_client(valid_url, valid_headers):
     )
 
     assert isinstance(client, AsyncFunctionsClient)
-    assert client.url == valid_url
+    assert str(client.url) == valid_url
     assert all(client.headers[key] == value for key, value in valid_headers.items())
 
 
@@ -33,7 +33,7 @@ def test_create_sync_client(valid_url, valid_headers):
     )
 
     assert isinstance(client, SyncFunctionsClient)
-    assert client.url == valid_url
+    assert str(client.url) == valid_url
     assert all(client.headers[key] == value for key, value in valid_headers.items())
 
 

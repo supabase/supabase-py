@@ -25,6 +25,7 @@ dependencies = [
   "httpx[http2] >=0.26,<0.29",
   "deprecation >=2.1.0",
   "pydantic >=2.11.7",
+  "yarl>=1.20.1",
 ]
 
 [project.urls]
@@ -88,8 +89,15 @@ filterwarnings = [
 ]
 
 [tool.mypy]
+python_version = "3.9"
 follow_untyped_imports = true # for deprecation module that does not have stubs
+check_untyped_defs = true
 allow_redefinition = true
+
+# warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
 
 [tool.uv]
 default-groups = [ "dev" ]

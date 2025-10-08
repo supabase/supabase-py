@@ -2,6 +2,7 @@ from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
 from httpx import AsyncClient, HTTPError, Response, QueryParams
+from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError
 from ..utils import (
@@ -24,7 +25,7 @@ class AsyncFunctionsClient:
     ):
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
-        self.url = url
+        self.url = URL(url)
         self.headers = {
             "User-Agent": f"supabase-py/functions-py v{__version__}",
             **headers,
@@ -51,37 +52,32 @@ class AsyncFunctionsClient:
 
         self.verify = bool(verify) if verify is not None else True
         self.timeout = int(abs(timeout)) if timeout is not None else 60
-
-        if http_client is not None:
-            http_client.base_url = self.url
-            http_client.headers.update({**self.headers})
-            self._client = http_client
-        else:
-            self._client = AsyncClient(
-                base_url=self.url,
-                headers=self.headers,
-                verify=self.verify,
-                timeout=self.timeout,
-                proxy=proxy,
-                follow_redirects=True,
-                http2=True,
-            )
+        self._client = http_client or AsyncClient(
+            verify=self.verify,
+            timeout=self.timeout,
+            proxy=proxy,
+            follow_redirects=True,
+            http2=True,
+        )
 
     async def _request(
         self,
         method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
-        url: str,
+        path: list[str],
         headers: Optional[Dict[str, str]] = None,
         json: Optional[Dict[Any, Any]] = None,
         params: Optional[QueryParams] = None,
     ) -> Response:
+        url = self.url.joinpath(*path)
+        headers = headers or dict()
+        headers.update(self.headers)
         response = (
             await self._client.request(
-                method, url, data=json, headers=headers, params=params
+                method, str(url), data=json, headers=headers, params=params
             )
             if isinstance(json, str)
             else await self._client.request(
-                method, url, json=json, headers=headers, params=params
+                method, str(url), json=json, headers=headers, params=params
             )
         )
         try:
@@ -129,7 +125,6 @@ class AsyncFunctionsClient:
         params = QueryParams()
         body = None
         response_type = "text/plain"
-        url = f"{self.url}/{function_name}"
 
         if invoke_options is not None:
             headers.update(invoke_options.get("headers", {}))
@@ -153,7 +148,7 @@ class AsyncFunctionsClient:
                 headers["Content-Type"] = "application/json"
 
         response = await self._request(
-            "POST", url, headers=headers, json=body, params=params
+            "POST", [function_name], headers=headers, json=body, params=params
         )
         is_relay_error = response.headers.get("x-relay-header")
 

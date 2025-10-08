@@ -4,7 +4,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Dict, Literal, Optional, TypedDict, Union
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, TypeAdapter
+from typing_extensions import ReadOnly
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 
@@ -54,11 +55,15 @@ class ListBucketFilesOptions(TypedDict, total=False):
 
 
 class TransformOptions(TypedDict, total=False):
-    height: int
-    width: int
-    resize: Literal["cover", "contain", "fill"]
-    format: Literal["origin", "avif"]
-    quality: int
+    height: ReadOnly[int]
+    width: ReadOnly[int]
+    resize: ReadOnly[Literal["cover", "contain", "fill"]]
+    format: ReadOnly[Literal["origin", "avif"]]
+    quality: ReadOnly[int]
+
+
+def transform_to_dict(t: TransformOptions) -> dict[str, str]:
+    return {key: str(val) for key, val in t.items()}
 
 
 class URLOptions(TypedDict, total=False):
@@ -117,3 +122,16 @@ class CreateSignedUrlResponse(TypedDict):
     path: str
     signedURL: str
     signedUrl: str
+
+
+class SignedUrlJsonResponse(BaseModel):
+    signedURL: str
+
+
+class SignedUrlsJsonItem(BaseModel):
+    error: Optional[str]
+    path: str
+    signedURL: str
+
+
+SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])

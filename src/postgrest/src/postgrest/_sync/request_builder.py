@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Generic, Optional, TypeVar, Union
 
-from httpx import Client, Headers, QueryParams
+from httpx import BasicAuth, Client, Headers, QueryParams, Response
 from pydantic import ValidationError
 from typing_extensions import override
+from yarl import URL
 
 from ..base_request_builder import (
     APIResponse,
@@ -12,6 +13,7 @@ from ..base_request_builder import (
     BaseRPCRequestBuilder,
     BaseSelectRequestBuilder,
     CountMethod,
+    RequestConfig,
     SingleAPIResponse,
     pre_delete,
     pre_insert,
@@ -23,23 +25,12 @@ from ..exceptions import APIError, APIErrorFromJSON, generate_default_error_mess
 from ..types import JSON, ReturnMethod
 from ..utils import model_validate_json
 
+ReqConfig = RequestConfig[Client]
+
 
 class SyncQueryRequestBuilder:
-    def __init__(
-        self,
-        session: Client,
-        path: str,
-        http_method: str,
-        headers: Headers,
-        params: QueryParams,
-        json: JSON,
-    ) -> None:
-        self.session = session
-        self.path = path
-        self.http_method = http_method
-        self.headers = headers
-        self.params = params
-        self.json = None if http_method in {"GET", "HEAD"} else json
+    def __init__(self, request: ReqConfig):
+        self.request = request
 
     def execute(self) -> APIResponse | str:
         """Execute the query.
@@ -53,23 +44,19 @@ class SyncQueryRequestBuilder:
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        r = self.session.request(
-            self.http_method,
-            self.path,
-            json=self.json,
-            params=self.params,
-            headers=self.headers,
-        )
+        r = self.request.send()
         try:
             if r.is_success:
-                if self.http_method != "HEAD":
+                if self.request.http_method != "HEAD":
                     body = r.text
-                    if self.headers.get("Accept") == "text/csv":
+                    if self.request.headers.get("Accept") == "text/csv":
                         return body
-                    if self.headers.get(
+                    if self.request.headers.get(
                         "Accept"
-                    ) and "application/vnd.pgrst.plan" in self.headers.get("Accept"):
-                        if "+json" not in self.headers.get("Accept"):
+                    ) and "application/vnd.pgrst.plan" in self.request.headers.get(
+                        "Accept"
+                    ):
+                        if "+json" not in self.request.headers.get("Accept"):
                             return body
                 return APIResponse.from_http_request_response(r)
             else:
@@ -80,21 +67,8 @@ class SyncQueryRequestBuilder:
 
 
 class SyncSingleRequestBuilder:
-    def __init__(
-        self,
-        session: Client,
-        path: str,
-        http_method: str,
-        headers: Headers,
-        params: QueryParams,
-        json: JSON,
-    ) -> None:
-        self.session = session
-        self.path = path
-        self.http_method = http_method
-        self.headers = headers
-        self.params = params
-        self.json = json
+    def __init__(self, request: ReqConfig):
+        self.request = request
 
     def execute(self) -> SingleAPIResponse:
         """Execute the query.
@@ -108,13 +82,7 @@ class SyncSingleRequestBuilder:
                 Raises:
                     :class:`APIError` If the API raised an error.
         """
-        r = self.session.request(
-            self.http_method,
-            self.path,
-            json=self.json,
-            params=self.params,
-            headers=self.headers,
-        )
+        r = self.request.send()
         try:
             if (
                 200 <= r.status_code <= 299
@@ -128,34 +96,13 @@ class SyncSingleRequestBuilder:
 
 
 class SyncMaybeSingleRequestBuilder:
-    def __init__(
-        self,
-        session: Client,
-        path: str,
-        http_method: str,
-        headers: Headers,
-        params: QueryParams,
-        json: JSON,
-    ) -> None:
-        self.session = session
-        self.path = path
-        self.http_method = http_method
-        self.headers = headers
-        self.params = params
-        self.json = json
+    def __init__(self, request: ReqConfig):
+        self.request = request
 
     def execute(self) -> Optional[SingleAPIResponse]:
         r = None
         try:
-            request = SyncSingleRequestBuilder(
-                self.session,
-                self.path,
-                self.http_method,
-                self.headers,
-                self.params,
-                self.json,
-            )
-            r = request.execute()
+            r = SyncSingleRequestBuilder(self.request).execute()
         except APIError as e:
             if e.details and "The result contains 0 rows" in e.details:
                 return None
@@ -171,52 +118,26 @@ class SyncMaybeSingleRequestBuilder:
         return r
 
 
-class SyncFilterRequestBuilder(BaseFilterRequestBuilder, SyncQueryRequestBuilder):
-    def __init__(
-        self,
-        session: Client,
-        path: str,
-        http_method: str,
-        headers: Headers,
-        params: QueryParams,
-        json: JSON,
-    ) -> None:
-        BaseFilterRequestBuilder.__init__(self, headers, params)
-        SyncQueryRequestBuilder.__init__(
-            self, session, path, http_method, headers, params, json
-        )
+class SyncFilterRequestBuilder(
+    BaseFilterRequestBuilder[Client], SyncQueryRequestBuilder
+):
+    def __init__(self, request: ReqConfig) -> None:
+        BaseFilterRequestBuilder.__init__(self, request)
+        SyncQueryRequestBuilder.__init__(self, request)
 
 
 class SyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, SyncSingleRequestBuilder):
-    def __init__(
-        self,
-        session: Client,
-        path: str,
-        http_method: str,
-        headers: Headers,
-        params: QueryParams,
-        json: JSON,
-    ) -> None:
-        BaseFilterRequestBuilder.__init__(self, headers, params)
-        SyncSingleRequestBuilder.__init__(
-            self, session, path, http_method, headers, params, json
-        )
+    def __init__(self, request: ReqConfig) -> None:
+        BaseFilterRequestBuilder.__init__(self, request)
+        SyncSingleRequestBuilder.__init__(self, request)
 
 
-class SyncSelectRequestBuilder(SyncQueryRequestBuilder, BaseSelectRequestBuilder):
-    def __init__(
-        self,
-        session: Client,
-        path: str,
-        http_method: str,
-        headers: Headers,
-        params: QueryParams,
-        json: JSON,
-    ) -> None:
-        BaseSelectRequestBuilder.__init__(self, headers, params)
-        SyncQueryRequestBuilder.__init__(
-            self, session, path, http_method, headers, params, json
-        )
+class SyncSelectRequestBuilder(
+    SyncQueryRequestBuilder, BaseSelectRequestBuilder[Client]
+):
+    def __init__(self, request: ReqConfig) -> None:
+        BaseSelectRequestBuilder.__init__(self, request)
+        SyncQueryRequestBuilder.__init__(self, request)
 
     def single(self) -> SyncSingleRequestBuilder:
         """Specify that the query will only return a single row in response.
@@ -224,27 +145,13 @@ class SyncSelectRequestBuilder(SyncQueryRequestBuilder, BaseSelectRequestBuilder
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        self.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return SyncSingleRequestBuilder(
-            headers=self.headers,
-            http_method=self.http_method,
-            json=self.json,
-            params=self.params,
-            path=self.path,
-            session=self.session,
-        )
+        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
+        return SyncSingleRequestBuilder(self.request)
 
     def maybe_single(self) -> SyncMaybeSingleRequestBuilder:
         """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        self.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return SyncMaybeSingleRequestBuilder(
-            headers=self.headers,
-            http_method=self.http_method,
-            json=self.json,
-            params=self.params,
-            path=self.path,
-            session=self.session,
-        )
+        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
+        return SyncMaybeSingleRequestBuilder(self.request)
 
     def text_search(
         self, column: str, query: str, options: dict[str, Any] = {}
@@ -258,34 +165,26 @@ class SyncSelectRequestBuilder(SyncQueryRequestBuilder, BaseSelectRequestBuilder
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.params = self.params.add(column, f"{type_part}fts{config_part}.{query}")
-
-        return SyncQueryRequestBuilder(
-            headers=self.headers,
-            http_method=self.http_method,
-            json=self.json,
-            params=self.params,
-            path=self.path,
-            session=self.session,
+        self.request.params = self.request.params.add(
+            column, f"{type_part}fts{config_part}.{query}"
         )
+
+        return SyncQueryRequestBuilder(self.request)
 
     def csv(self) -> SyncSingleRequestBuilder:
         """Specify that the query must retrieve data as a single CSV string."""
-        self.headers["Accept"] = "text/csv"
-        return SyncSingleRequestBuilder(
-            session=self.session,
-            path=self.path,
-            http_method=self.http_method,
-            headers=self.headers,
-            params=self.params,
-            json=self.json,
-        )
+        self.request.headers["Accept"] = "text/csv"
+        return SyncSingleRequestBuilder(self.request)
 
 
-class SyncRequestBuilder:
-    def __init__(self, session: Client, path: str) -> None:
+class SyncRequestBuilder:  #
+    def __init__(
+        self, session: Client, path: URL, headers: Headers, auth: BasicAuth | None
+    ) -> None:
         self.session = session
         self.path = path
+        self.headers = headers
+        self.auth = auth
 
     def select(
         self,
@@ -302,9 +201,17 @@ class SyncRequestBuilder:
             :class:`SyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_select(*columns, count=count, head=head)
-        return SyncSelectRequestBuilder(
-            self.session, self.path, method, headers, params, json
+        headers.update(self.headers)
+        request = RequestConfig(
+            session=self.session,
+            path=self.path,
+            auth=self.auth,
+            params=params,
+            http_method=method,
+            headers=headers,
+            json=json,
         )
+        return SyncSelectRequestBuilder(request)
 
     def insert(
         self,
@@ -335,9 +242,17 @@ class SyncRequestBuilder:
             upsert=upsert,
             default_to_null=default_to_null,
         )
-        return SyncQueryRequestBuilder(
-            self.session, self.path, method, headers, params, json
+        headers.update(self.headers)
+        request = RequestConfig(
+            session=self.session,
+            path=self.path,
+            auth=self.auth,
+            params=params,
+            http_method=method,
+            headers=headers,
+            json=json,
         )
+        return SyncQueryRequestBuilder(request)
 
     def upsert(
         self,
@@ -372,9 +287,17 @@ class SyncRequestBuilder:
             on_conflict=on_conflict,
             default_to_null=default_to_null,
         )
-        return SyncQueryRequestBuilder(
-            self.session, self.path, method, headers, params, json
+        headers.update(self.headers)
+        request = RequestConfig(
+            session=self.session,
+            path=self.path,
+            auth=self.auth,
+            params=params,
+            http_method=method,
+            headers=headers,
+            json=json,
         )
+        return SyncQueryRequestBuilder(request)
 
     def update(
         self,
@@ -397,9 +320,17 @@ class SyncRequestBuilder:
             count=count,
             returning=returning,
         )
-        return SyncFilterRequestBuilder(
-            self.session, self.path, method, headers, params, json
+        headers.update(self.headers)
+        request = RequestConfig(
+            session=self.session,
+            path=self.path,
+            auth=self.auth,
+            params=params,
+            http_method=method,
+            headers=headers,
+            json=json,
         )
+        return SyncFilterRequestBuilder(request)
 
     def delete(
         self,
@@ -419,6 +350,14 @@ class SyncRequestBuilder:
             count=count,
             returning=returning,
         )
-        return SyncFilterRequestBuilder(
-            self.session, self.path, method, headers, params, json
+        headers.update(self.headers)
+        request = RequestConfig(
+            session=self.session,
+            path=self.path,
+            auth=self.auth,
+            params=params,
+            http_method=method,
+            headers=headers,
+            json=json,
         )
+        return SyncFilterRequestBuilder(request)

@@ -48,7 +48,7 @@ unasync:
 
 build-sync: unasync
 	sed -i 's/@pytest.mark.asyncio//g' tests/_sync/test_client.py
-	sed -i 's/_async/_sync/g' tests/_sync/test_client.py
+	sed -i 's/_async/_sync/g' tests/_sync/test_client.py tests/_sync/test_query_request_builder.py tests/_sync/test_filter_request_builder.py
 	sed -i 's/Async/Sync/g' src/postgrest/_sync/request_builder.py tests/_sync/test_client.py
 	sed -i 's/_client\.SyncClient/_client\.Client/g' tests/_sync/test_client.py
 	sed -i 's/SyncHTTPTransport/HTTPTransport/g' tests/_sync/**.py

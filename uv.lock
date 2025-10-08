@@ -1533,13 +1533,14 @@ wheels = [
 
 [[package]]
 name = "postgrest"
-version = "2.21.0"
+version = "2.21.1"
 source = { editable = "src/postgrest" }
 dependencies = [
     { name = "deprecation" },
     { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
+    { name = "yarl" },
 ]
 
 [package.dev-dependencies]
@@ -1580,6 +1581,7 @@ requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=1.9,<3.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.9" },
+    { name = "yarl", specifier = ">=1.20.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -2018,7 +2020,7 @@ wheels = [
 
 [[package]]
 name = "realtime"
-version = "2.20.0"
+version = "2.21.1"
 source = { editable = "src/realtime" }
 dependencies = [
     { name = "pydantic" },
@@ -2594,12 +2596,13 @@ wheels = [
 
 [[package]]
 name = "storage3"
-version = "2.21.0"
+version = "2.21.1"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
     { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
+    { name = "yarl" },
 ]
 
 [package.dev-dependencies]
@@ -2645,6 +2648,7 @@ requires-dist = [
     { name = "deprecation", specifier = ">=2.1.0" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=2.11.7" },
+    { name = "yarl", specifier = ">=1.20.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -2692,7 +2696,7 @@ wheels = [
 
 [[package]]
 name = "supabase"
-version = "2.21.0"
+version = "2.21.1"
 source = { editable = "src/supabase" }
 dependencies = [
     { name = "httpx" },
@@ -2755,7 +2759,7 @@ tests = [
 
 [[package]]
 name = "supabase-auth"
-version = "2.21.0"
+version = "2.21.1"
 source = { editable = "src/auth" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -2824,11 +2828,12 @@ tests = [
 
 [[package]]
 name = "supabase-functions"
-version = "2.21.0"
+version = "2.21.1"
 source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
     { name = "strenum" },
+    { name = "yarl" },
 ]
 
 [package.dev-dependencies]
@@ -2861,6 +2866,7 @@ tests = [
 requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "strenum", specifier = ">=0.4.15" },
+    { name = "yarl", specifier = ">=1.20.1" },
 ]
 
 [package.metadata.requires-dev]

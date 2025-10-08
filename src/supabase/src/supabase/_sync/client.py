@@ -10,7 +10,7 @@ from postgrest import (
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
-from realtime import RealtimeChannelOptions, SyncRealtimeChannel, SyncRealtimeClient
+from realtime import SyncRealtimeChannel, SyncRealtimeClient, RealtimeChannelOptions
 from storage3 import SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_functions import SyncFunctionsClient
@@ -72,7 +72,7 @@ class SyncClient:
         self.rest_url = f"{supabase_url}/rest/v1"
         self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
         self.auth_url = f"{supabase_url}/auth/v1"
-        self.storage_url = f"{supabase_url}/storage/v1"
+        self.storage_url = f"{supabase_url}/storage/v1/"
         self.functions_url = f"{supabase_url}/functions/v1"
 
         # Instantiate clients.

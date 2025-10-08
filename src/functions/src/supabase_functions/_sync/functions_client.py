@@ -2,6 +2,7 @@ from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
 from httpx import Client, HTTPError, Response, QueryParams
+from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError
 from ..utils import (
@@ -24,7 +25,7 @@ class SyncFunctionsClient:
     ):
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
-        self.url = url
+        self.url = URL(url)
         self.headers = {
             "User-Agent": f"supabase-py/functions-py v{__version__}",
             **headers,
@@ -51,35 +52,32 @@ class SyncFunctionsClient:
 
         self.verify = bool(verify) if verify is not None else True
         self.timeout = int(abs(timeout)) if timeout is not None else 60
-
-        if http_client is not None:
-            http_client.base_url = self.url
-            http_client.headers.update({**self.headers})
-            self._client = http_client
-        else:
-            self._client = Client(
-                base_url=self.url,
-                headers=self.headers,
-                verify=self.verify,
-                timeout=self.timeout,
-                proxy=proxy,
-                follow_redirects=True,
-                http2=True,
-            )
+        self._client = http_client or Client(
+            verify=self.verify,
+            timeout=self.timeout,
+            proxy=proxy,
+            follow_redirects=True,
+            http2=True,
+        )
 
     def _request(
         self,
         method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
-        url: str,
+        path: list[str],
         headers: Optional[Dict[str, str]] = None,
         json: Optional[Dict[Any, Any]] = None,
         params: Optional[QueryParams] = None,
     ) -> Response:
+        url = self.url.joinpath(*path)
+        headers = headers or dict()
+        headers.update(self.headers)
         response = (
-            self._client.request(method, url, data=json, headers=headers, params=params)
+            self._client.request(
+                method, str(url), data=json, headers=headers, params=params
+            )
             if isinstance(json, str)
             else self._client.request(
-                method, url, json=json, headers=headers, params=params
+                method, str(url), json=json, headers=headers, params=params
             )
         )
         try:
@@ -127,7 +125,6 @@ class SyncFunctionsClient:
         params = QueryParams()
         body = None
         response_type = "text/plain"
-        url = f"{self.url}/{function_name}"
 
         if invoke_options is not None:
             headers.update(invoke_options.get("headers", {}))
@@ -150,7 +147,9 @@ class SyncFunctionsClient:
             elif isinstance(body, dict):
                 headers["Content-Type"] = "application/json"
 
-        response = self._request("POST", url, headers=headers, json=body, params=params)
+        response = self._request(
+            "POST", [function_name], headers=headers, json=body, params=params
+        )
         is_relay_error = response.headers.get("x-relay-header")
 
         if is_relay_error and is_relay_error == "true":
