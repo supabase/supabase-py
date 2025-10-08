@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
-from httpx import Client, HTTPStatusError, Response
+from httpx import Client, Headers, HTTPStatusError, Response
 
 from storage3 import SyncBucket, SyncStorageBucketAPI
 from storage3.exceptions import StorageApiError
@@ -16,12 +16,12 @@ def mock_client():
 
 
 @pytest.fixture
-def headers() -> dict[str, str]:
-    return {}
+def headers() -> Headers:
+    return Headers()
 
 
 @pytest.fixture
-def storage_api(mock_client: Client, headers: dict[str, str]) -> SyncStorageBucketAPI:
+def storage_api(mock_client: Client, headers: Headers) -> SyncStorageBucketAPI:
     return SyncStorageBucketAPI(mock_client, "", headers)
 
 

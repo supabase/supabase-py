@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from warnings import warn
 
-from httpx import Client
+from httpx import Client, Headers
 
 from storage3.constants import DEFAULT_TIMEOUT
 
@@ -63,7 +63,7 @@ class SyncStorageClient(SyncStorageBucketAPI):
             follow_redirects=True,
             http2=True,
         )
-        super().__init__(self.session, url, headers)
+        super().__init__(self.session, url, Headers(headers))
 
     def __enter__(self) -> SyncStorageClient:
         return self
@@ -79,4 +79,4 @@ class SyncStorageClient(SyncStorageBucketAPI):
         id
             The unique identifier of the bucket
         """
-        return SyncBucketProxy(id, self._base_url, self._client)
+        return SyncBucketProxy(id, self._base_url, self._headers, self._client)

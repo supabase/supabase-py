@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from httpx import Client, HTTPStatusError, Response
-from httpx._types import HeaderTypes
+from httpx import Client, Headers, HTTPStatusError, Response
 from yarl import URL
 
 from ..exceptions import StorageApiError
@@ -16,7 +15,7 @@ __all__ = ["SyncStorageBucketAPI"]
 class SyncStorageBucketAPI:
     """This class abstracts access to the endpoint to the Get, List, Empty, and Delete operations on a bucket"""
 
-    def __init__(self, session: Client, url: str, headers: HeaderTypes) -> None:
+    def __init__(self, session: Client, url: str, headers: Headers) -> None:
         if url and url[-1] != "/":
             print("Storage endpoint URL should have a trailing slash.")
             url += "/"

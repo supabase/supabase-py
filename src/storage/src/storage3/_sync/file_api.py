@@ -8,7 +8,7 @@ from io import BufferedReader, FileIO
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Union, cast
 
-from httpx import Client, HTTPStatusError, Response
+from httpx import Client, Headers, HTTPStatusError, Response
 from yarl import URL
 
 from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
@@ -49,6 +49,7 @@ class SyncBucketActionsMixin:
     id: str
     _base_url: URL
     _client: Client
+    _headers: Headers
 
     def _request(
         self,
@@ -62,10 +63,12 @@ class SyncBucketActionsMixin:
     ) -> Response:
         try:
             url_path = self._base_url.joinpath(*path).with_query(query_params)
+            headers = headers or dict()
+            headers.update(self._headers)
             response = self._client.request(
                 method,
                 str(url_path),
-                headers=headers or {},
+                headers=headers,
                 json=json,
                 files=files,
                 **kwargs,
@@ -561,4 +564,5 @@ class SyncBucketProxy(SyncBucketActionsMixin):
 
     id: str
     _base_url: URL
+    _headers: Headers
     _client: Client = field(repr=False)
