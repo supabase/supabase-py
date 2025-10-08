@@ -17,8 +17,11 @@ class SyncStorageBucketAPI:
     """This class abstracts access to the endpoint to the Get, List, Empty, and Delete operations on a bucket"""
 
     def __init__(self, session: Client, url: str, headers: HeaderTypes) -> None:
-        self._client = session
+        if url and url[-1] != "/":
+            print("Storage endpoint URL should have a trailing slash.")
+            url += "/"
         self._base_url = URL(url)
+        self._client = session
         self._headers = headers
 
     def _request(

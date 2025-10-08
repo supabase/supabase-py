@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-class SyncStorageClient(SyncStorageBucketAPI):  #
+class SyncStorageClient(SyncStorageBucketAPI):
     """Manage storage buckets and files."""
 
     def __init__(
@@ -56,7 +56,6 @@ class SyncStorageClient(SyncStorageBucketAPI):  #
         self.timeout = int(abs(timeout)) if timeout is not None else DEFAULT_TIMEOUT
 
         self.session = http_client or Client(
-            base_url=url,
             headers=headers,
             timeout=self.timeout,
             proxy=proxy,
@@ -80,4 +79,4 @@ class SyncStorageClient(SyncStorageBucketAPI):  #
         id
             The unique identifier of the bucket
         """
-        return SyncBucketProxy(id, self._client)
+        return SyncBucketProxy(id, self._base_url, self._client)

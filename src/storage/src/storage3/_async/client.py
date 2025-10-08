@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 from warnings import warn
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Headers
 
 from storage3.constants import DEFAULT_TIMEOUT
 
@@ -56,7 +56,6 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
         self.timeout = int(abs(timeout)) if timeout is not None else DEFAULT_TIMEOUT
 
         self.session = http_client or AsyncClient(
-            base_url=url,
             headers=headers,
             timeout=self.timeout,
             proxy=proxy,
@@ -64,7 +63,7 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
             follow_redirects=True,
             http2=True,
         )
-        super().__init__(self.session, url, headers)
+        super().__init__(self.session, url, Headers(headers))
 
     async def __aenter__(self) -> AsyncStorageClient:
         return self
@@ -80,4 +79,4 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
         id
             The unique identifier of the bucket
         """
-        return AsyncBucketProxy(id, self._client)
+        return AsyncBucketProxy(id, self._base_url, self._headers, self._client)

@@ -6,9 +6,10 @@ import urllib.parse
 from dataclasses import dataclass, field
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Literal, Optional, Union, cast
+from typing import Any, List, Literal, Optional, Union, cast
 
 from httpx import Client, HTTPStatusError, Response
+from yarl import URL
 
 from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
 from ..exceptions import StorageApiError
@@ -21,35 +22,53 @@ from ..types import (
     ListBucketFilesOptions,
     RequestMethod,
     SignedUploadURL,
+    SignedUrlJsonResponse,
     SignedUrlResponse,
+    SignedUrlsJsonResponse,
     TransformOptions,
     UploadData,
     UploadResponse,
     URLOptions,
+    transform_to_dict,
 )
 from ..utils import StorageException
 
 __all__ = ["SyncBucket"]
 
 
+def relative_path_to_parts(path: str) -> tuple[str, ...]:
+    url = URL(path)
+    if url.absolute or url.parts[0] == "/":
+        return url.parts[1:]
+    return url.parts
+
+
 class SyncBucketActionsMixin:
     """Functions needed to access the file API."""
 
     id: str
+    _base_url: URL
     _client: Client
 
     def _request(
         self,
         method: RequestMethod,
-        url: str,
+        path: list[str],
         headers: Optional[dict[str, Any]] = None,
         json: Optional[dict[Any, Any]] = None,
         files: Optional[Any] = None,
+        query_params: Optional[dict[str, str]] = None,
         **kwargs: Any,
     ) -> Response:
         try:
+            url_path = self._base_url.joinpath(*path).with_query(query_params)
             response = self._client.request(
-                method, url, headers=headers or {}, json=json, files=files, **kwargs
+                method,
+                str(url_path),
+                headers=headers or {},
+                json=json,
+                files=files,
+                **kwargs,
             )
             response.raise_for_status()
         except HTTPStatusError as exc:
@@ -71,8 +90,10 @@ class SyncBucketActionsMixin:
         path
             The file path, including the file name. For example `folder/image.png`.
         """
-        _path = self._get_final_path(path)
-        response = self._request("POST", f"/object/upload/sign/{_path}")
+        path_parts = relative_path_to_parts(path)
+        response = self._request(
+            "POST", ["object", "upload", "sign", self.id, *path_parts]
+        )
         data = response.json()
         full_url: urllib.parse.ParseResult = urllib.parse.urlparse(
             str(self._client.base_url) + cast(str, data["url"]).lstrip("/")
@@ -108,10 +129,10 @@ class SyncBucketActionsMixin:
         file_options
             Additional options for the uploaded file
         """
-        _path = self._get_final_path(path)
-        _url = urllib.parse.urlparse(f"/object/upload/sign/{_path}")
-        query_params = urllib.parse.urlencode({"token": token})
-        final_url = f"{_url.geturl()}?{query_params}"
+        path_parts = relative_path_to_parts(path)
+        query_params = {"token": token}
+
+        final_url = ["object", "upload", "sign", self.id, *path_parts]
 
         if file_options is None:
             file_options = {}
@@ -128,7 +149,7 @@ class SyncBucketActionsMixin:
             **DEFAULT_FILE_OPTIONS,
             **file_options,
         }
-        filename = path.rsplit("/", maxsplit=1)[-1]
+        filename = path_parts[-1]
 
         if (
             isinstance(file, BufferedReader)
@@ -147,11 +168,23 @@ class SyncBucketActionsMixin:
                 )
             }
         response = self._request(
-            "PUT", final_url, files=_file, headers=headers, data=_data
+            "PUT",
+            final_url,
+            files=_file,
+            headers=headers,
+            data=_data,
+            query_params=query_params,
         )
         data: UploadData = response.json()
 
         return UploadResponse(path=path, Key=data.get("Key"))
+
+    def _make_signed_url(
+        self, signed_url: str, download_query: dict[str, str]
+    ) -> SignedUrlResponse:
+        url = URL(signed_url[1:])  # ignore starting slash
+        signedURL = self._base_url.join(url).extend_query(download_query)
+        return {"signedURL": str(signedURL), "signedUrl": str(signedURL)}
 
     def create_signed_url(
         self, path: str, expires_in: int, options: URLOptions = {}
@@ -167,39 +200,26 @@ class SyncBucketActionsMixin:
             options to be passed for downloading or transforming the file.
         """
         json: dict[str, str | bool | TransformOptions] = {"expiresIn": str(expires_in)}
-        download_query = ""
-        if options.get("download"):
-            json.update({"download": options["download"]})
+        download_query = {}
+        if download := options.get("download"):
+            json.update({"download": download})
+            download_query = {"download": "" if download is True else download}
+        if transform := options.get("transform"):
+            json.update({"transform": transform})
 
-            download_query = (
-                "&download="
-                if options.get("download") is True
-                else f"&download={options.get('download')}"
-            )
-        if options.get("transform"):
-            json.update({"transform": options["transform"]})
-
-        path = self._get_final_path(path)
+        path_parts = relative_path_to_parts(path)
         response = self._request(
             "POST",
-            f"/object/sign/{path}",
+            ["object", "sign", self.id, *path_parts],
             json=json,
         )
-        data = response.json()
 
-        # Prepare URL
-        url = urllib.parse.urlparse(data["signedURL"])
-        url = urllib.parse.quote(url.path) + f"?{url.query}"
-
-        signedURL = (
-            f"{self._client.base_url}{cast(str, url).lstrip('/')}{download_query}"
-        )
-        data: SignedUrlResponse = {"signedURL": signedURL, "signedUrl": signedURL}
-        return data
+        data = SignedUrlJsonResponse.model_validate_json(response.content)
+        return self._make_signed_url(data.signedURL, download_query)
 
     def create_signed_urls(
-        self, paths: list[str], expires_in: int, options: CreateSignedURLsOptions = {}
-    ) -> list[CreateSignedUrlResponse]:
+        self, paths: List[str], expires_in: int, options: CreateSignedURLsOptions = {}
+    ) -> List[CreateSignedUrlResponse]:
         """
         Parameters
         ----------
@@ -214,36 +234,26 @@ class SyncBucketActionsMixin:
             "paths": paths,
             "expiresIn": str(expires_in),
         }
-        download_query = ""
-        if options.get("download"):
-            json.update({"download": options.get("download")})
-
-            download_query = (
-                "&download="
-                if options.get("download") is True
-                else f"&download={options.get('download')}"
-            )
+        download_query = {}
+        if download := options.get("download"):
+            json.update({"download": download})
+            download_query = {"download": "" if download is True else download}
 
         response = self._request(
             "POST",
-            f"/object/sign/{self.id}",
+            ["object", "sign", self.id],
             json=json,
         )
-        data = response.json()
+        data = SignedUrlsJsonResponse.validate_json(response.content)
         signed_urls = []
         for item in data:
             # Prepare URL
-            url = urllib.parse.urlparse(item["signedURL"])
-            url = urllib.parse.quote(url.path) + f"?{url.query}"
-
-            signedURL = (
-                f"{self._client.base_url}{cast(str, url).lstrip('/')}{download_query}"
-            )
+            url = self._make_signed_url(item.signedURL, download_query)
             signed_item: CreateSignedUrlResponse = {
-                "error": item["error"],
-                "path": item["path"],
-                "signedURL": signedURL,
-                "signedUrl": signedURL,
+                "error": item.error,
+                "path": item.path,
+                "signedURL": url["signedURL"],
+                "signedUrl": url["signedURL"],
             }
             signed_urls.append(signed_item)
         return signed_urls
@@ -255,30 +265,22 @@ class SyncBucketActionsMixin:
         path
             file path, including the path and file name. For example `folder/image.png`.
         """
-        _query_string = []
-        download_query = ""
-        if options.get("download"):
-            download_query = (
-                "&download="
-                if options.get("download") is True
-                else f"&download={options.get('download')}"
-            )
+        download_query = {}
+        if download := options.get("download"):
+            download_query = {"download": "" if download is True else download}
 
-        if download_query:
-            _query_string.append(download_query)
-
-        render_path = "render/image" if options.get("transform") else "object"
-        transformation_query = (
-            urllib.parse.urlencode(t) if (t := options.get("transform")) else None
+        render_path = ["render", "image"] if options.get("transform") else ["object"]
+        transformation = (
+            transform_to_dict(t) if (t := options.get("transform")) else dict()
         )
 
-        if transformation_query:
-            _query_string.append(transformation_query)
-
-        query_string = "&".join(_query_string)
-        query_string = f"?{query_string}"
-        _path = self._get_final_path(path)
-        return f"{self._client.base_url}{render_path}/public/{_path}{query_string}"
+        path_parts = relative_path_to_parts(path)
+        url = (
+            self._base_url.joinpath(*render_path, "public", self.id, *path_parts)
+            .with_query(download_query)
+            .extend_query(transformation)
+        )
+        return str(url)
 
     def move(self, from_path: str, to_path: str) -> dict[str, str]:
         """
@@ -293,7 +295,7 @@ class SyncBucketActionsMixin:
         """
         res = self._request(
             "POST",
-            "/object/move",
+            ["object", "move"],
             json={
                 "bucketId": self.id,
                 "sourceKey": from_path,
@@ -315,7 +317,7 @@ class SyncBucketActionsMixin:
         """
         res = self._request(
             "POST",
-            "/object/copy",
+            ["object", "copy"],
             json={
                 "bucketId": self.id,
                 "sourceKey": from_path,
@@ -335,7 +337,7 @@ class SyncBucketActionsMixin:
         """
         response = self._request(
             "DELETE",
-            f"/object/{self.id}",
+            ["object", self.id],
             json={"prefixes": paths},
         )
         return response.json()
@@ -352,9 +354,10 @@ class SyncBucketActionsMixin:
         path
             The path to the file.
         """
+        path_parts = relative_path_to_parts(path)  # split paths by /
         response = self._request(
             "GET",
-            f"/object/info/{self.id}/{path}",
+            ["object", "info", self.id, *path_parts],
         )
         return response.json()
 
@@ -371,9 +374,10 @@ class SyncBucketActionsMixin:
             The path to the file.
         """
         try:
+            path_parts = relative_path_to_parts(path)  # split paths by /
             response = self._request(
                 "HEAD",
-                f"/object/{self.id}/{path}",
+                ["object", self.id, *path_parts],
             )
             return response.status_code == 200
         except json.JSONDecodeError:
@@ -403,7 +407,7 @@ class SyncBucketActionsMixin:
         }
         response = self._request(
             "POST",
-            f"/object/list/{self.id}",
+            ["object", "list", self.id],
             json=body,
             headers=extra_headers,
         )
@@ -419,22 +423,25 @@ class SyncBucketActionsMixin:
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         """
         render_path = (
-            "render/image/authenticated" if options.get("transform") else "object"
+            ["render", "image", "authenticated"]
+            if options.get("transform")
+            else ["object"]
         )
-        transformation_query = urllib.parse.urlencode(options.get("transform") or {})
-        query_string = f"?{transformation_query}" if transformation_query else ""
 
-        _path = self._get_final_path(path)
+        transform_options = options.get("transform") or {}
+
+        path_parts = relative_path_to_parts(path)
         response = self._request(
             "GET",
-            f"{render_path}/{_path}{query_string}",
+            [*render_path, self.id, *path_parts],
+            query_params=transform_to_dict(transform_options),
         )
         return response.content
 
     def _upload_or_update(
         self,
         method: Literal["POST", "PUT"],
-        path: str,
+        path: tuple[str, ...],
         file: Union[BufferedReader, bytes, FileIO, str, Path],
         file_options: Optional[FileOptions] = None,
     ) -> UploadResponse:
@@ -481,7 +488,7 @@ class SyncBucketActionsMixin:
         if method != "POST":
             del headers["x-upsert"]
 
-        filename = path.rsplit("/", maxsplit=1)[-1]
+        filename = path[-1]
 
         if cache_control:
             headers["cache-control"] = f"max-age={cache_control}"
@@ -504,10 +511,8 @@ class SyncBucketActionsMixin:
                 )
             }
 
-        _path = self._get_final_path(path)
-
         response = self._request(
-            method, f"/object/{_path}", files=files, headers=headers, data=_data
+            method, ["object", self.id, *path], files=files, headers=headers, data=_data
         )
 
         data: UploadData = response.json()
@@ -533,7 +538,8 @@ class SyncBucketActionsMixin:
         file_options
             HTTP headers.
         """
-        return self._upload_or_update("POST", path, file, file_options)
+        path_parts = relative_path_to_parts(path)
+        return self._upload_or_update("POST", path_parts, file, file_options)
 
     def update(
         self,
@@ -541,10 +547,8 @@ class SyncBucketActionsMixin:
         file: Union[BufferedReader, bytes, FileIO, str, Path],
         file_options: Optional[FileOptions] = None,
     ) -> UploadResponse:
-        return self._upload_or_update("PUT", path, file, file_options)
-
-    def _get_final_path(self, path: str) -> str:
-        return f"{self.id}/{path}"
+        path_parts = relative_path_to_parts(path)
+        return self._upload_or_update("PUT", path_parts, file, file_options)
 
 
 class SyncBucket(BaseBucket):
@@ -556,4 +560,5 @@ class SyncBucketProxy(SyncBucketActionsMixin):
     """A bucket proxy, this contains the minimum required fields to query the File API."""
 
     id: str
+    _base_url: URL
     _client: Client = field(repr=False)
