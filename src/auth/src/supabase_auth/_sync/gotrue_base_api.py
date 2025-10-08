@@ -118,8 +118,16 @@ class SyncGoTrueBaseAPI:
                 json=model_dump(body) if isinstance(body, BaseModel) else body,
             )
             response.raise_for_status()
-            result = response if no_resolve_json else response.json()
+            if no_resolve_json:
+                result = response
+            else:
+                # Handle empty responses (e.g., 204 No Content from DELETE)
+                if response.content:
+                    result = response.json()
+                else:
+                    result = {}
             if xform:
                 return xform(result)
+            return result
         except Exception as e:
             raise handle_exception(e)

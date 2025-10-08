@@ -639,3 +639,73 @@ async def test_delete_factor_invalid_id_raises_error():
         await service_role_api_client()._delete_factor(
             {"user_id": str(uuid.uuid4()), "id": "invalid_id"}
         )
+
+
+async def test_create_oauth_client():
+    """Test creating an OAuth client."""
+    response = await service_role_api_client().oauth.create_client(
+        {
+            "client_name": "Test OAuth Client",
+            "redirect_uris": ["https://example.com/callback"],
+        }
+    )
+    assert response.client is not None
+    assert response.client.client_name == "Test OAuth Client"
+    assert response.client.client_id is not None
+
+
+async def test_list_oauth_clients():
+    """Test listing OAuth clients."""
+    response = await service_role_api_client().oauth.list_clients()
+    assert response.clients is not None
+    assert isinstance(response.clients, list)
+
+
+async def test_get_oauth_client():
+    """Test getting an OAuth client by ID."""
+    # First create a client
+    create_response = await service_role_api_client().oauth.create_client(
+        {
+            "client_name": "Test OAuth Client for Get",
+            "redirect_uris": ["https://example.com/callback"],
+        }
+    )
+    if create_response.client:
+        client_id = create_response.client.client_id
+        response = await service_role_api_client().oauth.get_client(client_id)
+        assert response.client is not None
+        assert response.client.client_id == client_id
+
+
+async def test_delete_oauth_client():
+    """Test deleting an OAuth client."""
+    # First create a client
+    create_response = await service_role_api_client().oauth.create_client(
+        {
+            "client_name": "Test OAuth Client for Delete",
+            "redirect_uris": ["https://example.com/callback"],
+        }
+    )
+    if create_response.client:
+        client_id = create_response.client.client_id
+        response = await service_role_api_client().oauth.delete_client(client_id)
+        # DELETE operations return an empty response
+        assert response is not None
+
+
+async def test_regenerate_oauth_client_secret():
+    """Test regenerating an OAuth client secret."""
+    # First create a client
+    create_response = await service_role_api_client().oauth.create_client(
+        {
+            "client_name": "Test OAuth Client for Regenerate",
+            "redirect_uris": ["https://example.com/callback"],
+        }
+    )
+    if create_response.client:
+        client_id = create_response.client.client_id
+        response = await service_role_api_client().oauth.regenerate_client_secret(
+            client_id
+        )
+        assert response.client is not None
+        assert response.client.client_secret is not None
