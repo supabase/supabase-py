@@ -22,7 +22,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone Repository
@@ -60,7 +60,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
-          carryforward: "run-ubuntu-latest-3.9,run-ubuntu-latest-3.10,run-ubuntu-latest-3.11,run-ubuntu-latest-3.12,run-ubuntu-latest-3.13"
+          carryforward: "run-ubuntu-latest-3.9,run-ubuntu-latest-3.10,run-ubuntu-latest-3.11,run-ubuntu-latest-3.12,run-ubuntu-latest-3.13,run-ubuntu-latest-3.14"
 
   release-please:
     needs: test
