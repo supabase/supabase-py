@@ -34,7 +34,7 @@ dependencies = [
 homepage = "https://github.com/supabase/supabase-py"
 repository = "https://github.com/supabase/supabase-py"
 documentation = "https://github.com/supabase/supabase-py/src/supabase"
-changelog = "https://github.com/supabase/supabase-py/CHANGELOG.md"
+changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
