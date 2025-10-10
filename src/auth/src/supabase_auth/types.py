@@ -102,8 +102,8 @@ class AuthResponse(BaseModel):
 
 
 class AuthOtpResponse(BaseModel):
-    user: None = None
-    session: None = None
+    user: Literal[None] = None
+    session: Literal[None] = None
     message_id: Optional[str] = None
 
 
