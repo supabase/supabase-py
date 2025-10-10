@@ -17,6 +17,7 @@ dependencies = [
   "websockets >=11,<16",
   "typing-extensions >=4.14.0",
   "pydantic (>=2.11.7,<3.0.0)",
+  "httpx[http2] >=0.26,<0.29",
 ]
 
 [project.urls]
