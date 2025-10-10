@@ -2,14 +2,8 @@ name: CI/CD
 
 on:
   push:
-    paths-ignore:
-      - '.github/**'
-      - '.devcontainer/**'
-      - 'CHANGELOG.md'
-      - 'MAINTAINERS.md'
     branches:
-      - main
-  pull_request:
+      - chore/test-release
   workflow_dispatch:
 
 permissions:
@@ -17,58 +11,12 @@ permissions:
   id-token: write
 
 jobs:
-  test:
-    name: Test / OS ${{ matrix.os }} / Python ${{ matrix.python-version }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Clone Repository
-        uses: actions/checkout@v5
 
-      - name: Install supabase cli latest
-        uses: supabase/setup-cli@v1
-        with:
-          version: "latest"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: "0.8.2"
-          python-version: ${{ matrix.python-version }}
-
-      - name: Run Tests
-        run: make ci
-
-      - name: Upload coverage to Coveralls
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          flag-name: run-${{ join(matrix.*, '-') }}
-          parallel: true
-
-  finish_tests:
-    needs: test
-    name: Upload tests coveralls results
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Coveralls Finished
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel-finished: true
-          carryforward: "run-ubuntu-latest-3.9,run-ubuntu-latest-3.10,run-ubuntu-latest-3.11,run-ubuntu-latest-3.12,run-ubuntu-latest-3.13"
 
   release-please:
-    needs: test
-    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
+    if: ${{ github.event_name == 'push' && github.repository_owner == 'supabase' }}
     runs-on: ubuntu-latest
     name: "Run release-please"
-    outputs:
-      should_publish: steps.release.outputs.release_created
     permissions:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
       contents: write # needed for github actions bot to write to repo
@@ -80,29 +28,7 @@ jobs:
           target-branch: ${{ github.ref_name }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-  publish:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.should_publish }}
-    runs-on: ubuntu-latest
-    name: "Publish to PyPi"
-    environment:
-      name: pypi
-      url: https://pypi.org/p/supabase
-    permissions:
-      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
-      contents: write # needed for github actions bot to write to repo
-    steps:
-      - name: Clone Repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.ref }}
-          fetch-depth: 0
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-        with:
-          version: "0.8.2"
-          python-version: "3.11"
-
-      - name: Build all packages and publish
-        run: make publish
+          skip-github-release: true
+          skip-github-pull-request: false
+      - name: Print release-please outputs
+        run: echo '${{ toJson(steps.release.outputs) }}'
