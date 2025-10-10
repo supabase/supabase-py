@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Run release-please"
     outputs:
-      should_publish: steps.release.outputs.release_created
+      should_publish: ${{ steps.release.outputs.release_created == 'true' }}
     permissions:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
       contents: write # needed for github actions bot to write to repo
@@ -82,7 +82,7 @@ jobs:
           manifest-file: .release-please-manifest.json
   publish:
     needs: release-please
-    if: ${{ needs.release-please.outputs.should_publish }}
+    if: ${{ needs.release-please.outputs.should_publish == 'true' }}
     runs-on: ubuntu-latest
     name: "Publish to PyPi"
     environment:
