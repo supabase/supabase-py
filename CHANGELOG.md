@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.1](https://github.com/supabase/supabase-py/compare/v2.22.0...v2.22.1) (2025-10-10)
+
+
+### Bug Fixes
+
+* simplify to test ([62944b0](https://github.com/supabase/supabase-py/commit/62944b05ec3c38bc369e8b74c523e121c15b7a76))
+
 ## [2.22.0](https://github.com/supabase/supabase-py/compare/v2.21.1...v2.22.0) (2025-10-08)
 
 
