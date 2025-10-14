@@ -1,6 +1,6 @@
 [project]
 name = "supabase"
-version = "2.22.0" # {x-release-please-version}
+version = "2.22.1" # {x-release-please-version}
 description = "Supabase client for Python."
 authors = [
   { name = "Joel Lee", email = "joel@joellee.org" },
