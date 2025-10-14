@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.1](https://github.com/supabase/supabase-py/compare/v2.22.0...v2.22.1) (2025-10-14)
+
+
+### Bug Fixes
+
+* evaluate output of release-please correctly ([#1259](https://github.com/supabase/supabase-py/issues/1259)) ([c2a306e](https://github.com/supabase/supabase-py/commit/c2a306e12cb3ed268fd96e90350963e0425b2c8e))
+
 ## [2.22.0](https://github.com/supabase/supabase-py/compare/v2.21.1...v2.22.0) (2025-10-08)
 
 
