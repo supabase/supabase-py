@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional, Union
 
+import httpx
 from typing_extensions import assert_never
 
 from realtime.types import (
@@ -488,10 +489,95 @@ class AsyncRealtimeChannel:
         :param event: The name of the broadcast event
         :param data: The payload to broadcast
         """
+        if not self._can_push():
+            logger.warning(
+                "Realtime send_broadcast() is automatically falling back to REST API. "
+                "This behavior will be deprecated in the future. "
+                "Please use http_send() explicitly for REST delivery."
+            )
+
         await self.push(
             ChannelEvents.broadcast,
             {"type": "broadcast", "event": event, "payload": data},
         )
+
+    async def http_send(
+        self,
+        event: str,
+        payload: Any,
+        timeout: Optional[int] = None,
+    ) -> Dict[str, Union[bool, int, str]]:
+        """
+        Sends a broadcast message explicitly via REST API.
+
+        This method always uses the REST API endpoint regardless of WebSocket connection state.
+        Useful when you want to guarantee REST delivery or when gradually migrating from implicit REST fallback.
+
+        :param event: The name of the broadcast event
+        :param payload: Payload to be sent (required)
+        :param timeout: Optional timeout in milliseconds
+        :return: Dictionary with success status, and error details if failed
+        :raises ValueError: If payload is None or undefined
+        :raises Exception: If the HTTP request fails
+        """
+        if payload is None:
+            raise ValueError("Payload is required for http_send()")
+
+        authorization = (
+            f"Bearer {self.socket.access_token}" if self.socket.access_token else ""
+        )
+
+        headers = {
+            "Authorization": authorization,
+            "apikey": self.socket.apikey or "",
+            "Content-Type": "application/json",
+        }
+
+        config: RealtimeChannelConfig = self.params["config"]
+        private = config.get("private", False)
+
+        body = {
+            "messages": [
+                {
+                    "topic": self.topic,
+                    "event": event,
+                    "payload": payload,
+                    "private": private,
+                }
+            ]
+        }
+
+        timeout_ms = timeout or self.timeout
+        timeout_seconds = timeout_ms / 1000.0
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                response = await client.post(
+                    self.broadcast_endpoint_url,
+                    headers=headers,
+                    json=body,
+                )
+
+                if response.status_code == 202:
+                    return {"success": True}
+
+                error_message = response.reason_phrase
+                try:
+                    error_body = response.json()
+                    error_message = (
+                        error_body.get("error")
+                        or error_body.get("message")
+                        or error_message
+                    )
+                except Exception:
+                    pass
+
+                raise Exception(error_message)
+
+        except httpx.TimeoutException as e:
+            raise Exception(f"Request timeout: {str(e)}")
+        except Exception as e:
+            raise
 
     # Internal methods
 
