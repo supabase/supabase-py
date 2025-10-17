@@ -557,26 +557,6 @@ class BaseFilterRequestBuilder(Generic[C]):
 
 
 class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
-    def explain(
-        self: Self,
-        analyze: bool = False,
-        verbose: bool = False,
-        settings: bool = False,
-        buffers: bool = False,
-        wal: bool = False,
-        format: Literal["text", "json"] = "text",
-    ) -> Self:
-        options = [
-            key
-            for key, value in locals().items()
-            if key not in ["self", "format"] and value
-        ]
-        options_str = "|".join(options)
-        self.request.headers["Accept"] = (
-            f"application/vnd.pgrst.plan+{format}; options={options_str}"
-        )
-        return self
-
     def order(
         self: Self,
         column: str,
