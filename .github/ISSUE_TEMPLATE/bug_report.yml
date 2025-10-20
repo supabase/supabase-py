@@ -18,7 +18,6 @@ body:
       placeholder: I am doing ... What I expect is ... What actually happening is ...
     validations:
       required: true
-        - type: input
   - type: textarea
     id: reproduction
     attributes:
