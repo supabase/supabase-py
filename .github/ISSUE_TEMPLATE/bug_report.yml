@@ -37,7 +37,8 @@ body:
     id: supabase-library
     attributes:
       label: Library affected
-      description: Select the library that you think is affected by the bug
+      description: Select the library(s) that you think is affected by the bug
+      multiple: true
       options:
         - supabase-py
         - supabase-auth
@@ -45,7 +46,7 @@ body:
         - postgrest
         - realtime
         - storage3
-        - unsure/all/other
+        - other
     validations:
       required: true
   - type: input
