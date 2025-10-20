@@ -9,7 +9,8 @@ body:
         Thanks for the contribution.
 
         It is helpful to explain how to reproduce the bug and what the problem is.
-        If you have a small reproducible example, you can use the Reproduction field to provide it directly. Otherwise, please provide a link to a repository or a gist (https://gist.github.com).
+        If you have a small reproducible example, you can use the Reproduction field to provide it directly.
+        Otherwise, please provide a link to a repository or a gist (https://gist.github.com).
   - type: textarea
     id: bug-description
     attributes:
