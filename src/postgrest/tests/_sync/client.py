@@ -11,7 +11,7 @@ def rest_client():
     )
 
 
-def rest_client_httpx():
+def rest_client_httpx() -> SyncPostgrestClient:
     transport = HTTPTransport(
         retries=4,
         limits=Limits(

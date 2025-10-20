@@ -1,10 +1,10 @@
 from typing import Dict, Optional
 
 from supabase_auth import (
-    AuthFlowType,
     SyncGoTrueClient,
     SyncMemoryStorage,
     SyncSupportedStorage,
+    AuthFlowType,
 )
 from supabase_auth.http_clients import SyncClient
 

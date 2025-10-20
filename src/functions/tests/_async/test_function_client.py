@@ -31,7 +31,7 @@ async def test_init_with_valid_params(valid_url, default_headers):
     client = AsyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
-    assert client.url == valid_url
+    assert str(client.url) == valid_url
     assert "User-Agent" in client.headers
     assert client.headers["User-Agent"] == f"supabase-py/functions-py v{__version__}"
     assert client._client.timeout == Timeout(10)
@@ -100,8 +100,11 @@ async def test_invoke_with_region(client: AsyncFunctionsClient):
 
         await client.invoke("test-function", {"region": FunctionRegion("us-east-1")})
 
-        _, kwargs = mock_request.call_args
+        args, kwargs = mock_request.call_args
+        # Check that x-region header is present
         assert kwargs["headers"]["x-region"] == "us-east-1"
+        # Check that the URL contains the forceFunctionRegion query parameter
+        assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
 
 
 async def test_invoke_with_region_string(client: AsyncFunctionsClient):
@@ -118,8 +121,11 @@ async def test_invoke_with_region_string(client: AsyncFunctionsClient):
         with pytest.warns(UserWarning, match=r"Use FunctionRegion\(us-east-1\)"):
             await client.invoke("test-function", {"region": "us-east-1"})
 
-        _, kwargs = mock_request.call_args
+        args, kwargs = mock_request.call_args
+        # Check that x-region header is present
         assert kwargs["headers"]["x-region"] == "us-east-1"
+        # Check that the URL contains the forceFunctionRegion query parameter
+        assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
 
 
 async def test_invoke_with_http_error(client: AsyncFunctionsClient):

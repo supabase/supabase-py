@@ -7,6 +7,7 @@ from deprecation import deprecated
 from httpx import AsyncClient  # noqa: F401
 from httpx import Client as BaseClient  # noqa: F401
 from pydantic import BaseModel
+from yarl import URL
 
 from .version import __version__
 
@@ -40,8 +41,8 @@ def sanitize_pattern_param(pattern: str) -> str:
     return sanitize_param(pattern.replace("%", "*"))
 
 
-def is_http_url(url: str) -> bool:
-    return urlparse(url).scheme in {"https", "http"}
+def is_http_url(url: URL) -> bool:
+    return url.scheme in {"https", "http"}
 
 
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)

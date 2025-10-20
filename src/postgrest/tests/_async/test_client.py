@@ -57,7 +57,7 @@ class TestConstructor:
 
 class TestHttpxClientConstructor:
     @pytest.mark.asyncio
-    async def test_custom_httpx_client(self):
+    async def test_custom_httpx_client(self) -> None:
         transport = AsyncHTTPTransport(
             retries=10,
             limits=Limits(
@@ -71,40 +71,37 @@ class TestHttpxClientConstructor:
         async with AsyncPostgrestClient(
             "https://example.com", http_client=http_client, timeout=20.0
         ) as client:
-            session = client.session
-
-            assert session.base_url == "https://example.com"
-            assert session.timeout == Timeout(
+            assert str(client.base_url) == "https://example.com"
+            assert client.session.timeout == Timeout(
                 timeout=5.0
             )  # Should be the default 5 since we use custom httpx client
-            assert session.headers.get("x-user-agent") == "my-app/0.0.1"
-            assert isinstance(session, AsyncClient)
+            assert client.session.headers.get("x-user-agent") == "my-app/0.0.1"
+            assert isinstance(client.session, AsyncClient)
 
 
 class TestAuth:
     def test_auth_token(self, postgrest_client: AsyncPostgrestClient):
         postgrest_client.auth("s3cr3t")
-        session = postgrest_client.session
-
-        assert session.headers["Authorization"] == "Bearer s3cr3t"
+        assert postgrest_client.headers["Authorization"] == "Bearer s3cr3t"
 
     def test_auth_basic(self, postgrest_client: AsyncPostgrestClient):
         postgrest_client.auth(None, username="admin", password="s3cr3t")
-        session = postgrest_client.session
 
-        assert isinstance(session.auth, BasicAuth)
-        assert session.auth._auth_header == BasicAuth("admin", "s3cr3t")._auth_header
+        assert isinstance(postgrest_client.basic_auth, BasicAuth)
+        assert (
+            postgrest_client.basic_auth._auth_header
+            == BasicAuth("admin", "s3cr3t")._auth_header
+        )
 
 
 def test_schema(postgrest_client: AsyncPostgrestClient):
     client = postgrest_client.schema("private")
-    session = client.session
     subheaders = {
         "accept-profile": "private",
         "content-profile": "private",
     }
 
-    assert subheaders.items() < dict(session.headers).items()
+    assert subheaders.items() < client.headers.items()
 
 
 @pytest.mark.asyncio
@@ -154,8 +151,10 @@ async def test_response_maybe_single(postgrest_client: AsyncPostgrestClient):
         client = (
             postgrest_client.from_("test").select("a", "b").eq("c", "d").maybe_single()
         )
-        assert "Accept" in client.headers
-        assert client.headers.get("Accept") == "application/vnd.pgrst.object+json"
+        assert "Accept" in client.request.headers
+        assert (
+            client.request.headers.get("Accept") == "application/vnd.pgrst.object+json"
+        )
         with pytest.raises(APIError) as exc_info:
             await client.execute()
         assert isinstance(exc_info, pytest.ExceptionInfo)
@@ -178,8 +177,10 @@ async def test_response_client_invalid_response_but_valid_json(
         ),
     ):
         client = postgrest_client.from_("test").select("a", "b").eq("c", "d").single()
-        assert "Accept" in client.headers
-        assert client.headers.get("Accept") == "application/vnd.pgrst.object+json"
+        assert "Accept" in client.request.headers
+        assert (
+            client.request.headers.get("Accept") == "application/vnd.pgrst.object+json"
+        )
         with pytest.raises(APIError) as exc_info:
             await client.execute()
         assert isinstance(exc_info, pytest.ExceptionInfo)

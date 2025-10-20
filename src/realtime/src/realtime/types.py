@@ -107,9 +107,15 @@ class PostgresChangesPayload(TypedDict):
     ids: List[int]
 
 
+class BroadcastMeta(TypedDict, total=False):
+    replayed: bool
+    id: str
+
+
 class BroadcastPayload(TypedDict):
     event: str
     payload: dict[str, Any]
+    meta: NotRequired[BroadcastMeta]
 
 
 @dataclass(frozen=True)
@@ -172,9 +178,15 @@ class PresenceOpts:
 
 
 # TypedDicts
-class RealtimeChannelBroadcastConfig(TypedDict):
+class ReplayOption(TypedDict, total=False):
+    since: int
+    limit: int
+
+
+class RealtimeChannelBroadcastConfig(TypedDict, total=False):
     ack: bool
     self: bool
+    replay: ReplayOption
 
 
 class RealtimeChannelPresenceConfig(TypedDict):

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from httpx import Client, HTTPStatusError, Response
+from httpx import Client, Headers, HTTPStatusError, Response
+from yarl import URL
 
 from ..exceptions import StorageApiError
 from ..types import CreateOrUpdateBucketOptions, RequestMethod
@@ -14,17 +15,25 @@ __all__ = ["SyncStorageBucketAPI"]
 class SyncStorageBucketAPI:
     """This class abstracts access to the endpoint to the Get, List, Empty, and Delete operations on a bucket"""
 
-    def __init__(self, session: Client) -> None:
+    def __init__(self, session: Client, url: str, headers: Headers) -> None:
+        if url and url[-1] != "/":
+            print("Storage endpoint URL should have a trailing slash.")
+            url += "/"
+        self._base_url = URL(url)
         self._client = session
+        self._headers = headers
 
     def _request(
         self,
         method: RequestMethod,
-        url: str,
+        path: list[str],
         json: Optional[dict[Any, Any]] = None,
     ) -> Response:
         try:
-            response = self._client.request(method, url, json=json)
+            url_path = self._base_url.joinpath(*path)
+            response = self._client.request(
+                method, str(url_path), json=json, headers=self._headers
+            )
             response.raise_for_status()
         except HTTPStatusError as exc:
             resp = exc.response.json()
@@ -35,7 +44,7 @@ class SyncStorageBucketAPI:
     def list_buckets(self) -> list[SyncBucket]:
         """Retrieves the details of all storage buckets within an existing product."""
         # if the request doesn't error, it is assured to return a list
-        res = self._request("GET", "/bucket")
+        res = self._request("GET", ["bucket"])
         return [SyncBucket(**bucket) for bucket in res.json()]
 
     def get_bucket(self, id: str) -> SyncBucket:
@@ -46,7 +55,7 @@ class SyncStorageBucketAPI:
         id
             The unique identifier of the bucket you would like to retrieve.
         """
-        res = self._request("GET", f"/bucket/{id}")
+        res = self._request("GET", ["bucket", id])
         json = res.json()
         return SyncBucket(**json)
 
@@ -73,7 +82,7 @@ class SyncStorageBucketAPI:
             json.update(**options)
         res = self._request(
             "POST",
-            "/bucket",
+            ["bucket"],
             json=json,
         )
         return res.json()
@@ -92,7 +101,7 @@ class SyncStorageBucketAPI:
             `allowed_mime_types`.
         """
         json = {"id": id, "name": id, **options}
-        res = self._request("PUT", f"/bucket/{id}", json=json)
+        res = self._request("PUT", ["bucket", id], json=json)
         return res.json()
 
     def empty_bucket(self, id: str) -> dict[str, str]:
@@ -103,7 +112,7 @@ class SyncStorageBucketAPI:
         id
             The unique identifier of the bucket you would like to empty.
         """
-        res = self._request("POST", f"/bucket/{id}/empty", json={})
+        res = self._request("POST", ["bucket", id, "empty"], json={})
         return res.json()
 
     def delete_bucket(self, id: str) -> dict[str, str]:
@@ -115,5 +124,5 @@ class SyncStorageBucketAPI:
         id
             The unique identifier of the bucket you would like to delete.
         """
-        res = self._request("DELETE", f"/bucket/{id}", json={})
+        res = self._request("DELETE", ["bucket", id], json={})
         return res.json()

@@ -385,6 +385,7 @@ async def test_client_create_signed_url(
     )
     async with HttpxClient(timeout=None) as client:
         response = await client.get(download_signed_url["signedURL"])
+
     response.raise_for_status()
     assert (
         response.headers["content-disposition"]
