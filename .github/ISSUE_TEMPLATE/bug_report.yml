@@ -60,7 +60,6 @@ body:
     attributes:
       label: Python version
       description: Output of `python -V`
-      render: shell
       placeholder: 'python 3.X.Y'
     validations:
       required: true
