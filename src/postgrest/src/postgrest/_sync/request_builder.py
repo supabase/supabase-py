@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Generic, Optional, TypeVar, Union
+from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
 from httpx import BasicAuth, Client, Headers, QueryParams, Response
 from pydantic import ValidationError
@@ -32,7 +32,7 @@ class SyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
-    def execute(self) -> APIResponse | str:
+    def execute(self) -> APIResponse:
         """Execute the query.
 
         .. tip::
@@ -47,17 +47,6 @@ class SyncQueryRequestBuilder:
         r = self.request.send()
         try:
             if r.is_success:
-                if self.request.http_method != "HEAD":
-                    body = r.text
-                    if self.request.headers.get("Accept") == "text/csv":
-                        return body
-                    if self.request.headers.get(
-                        "Accept"
-                    ) and "application/vnd.pgrst.plan" in self.request.headers.get(
-                        "Accept"
-                    ):
-                        if "+json" not in self.request.headers.get("Accept"):
-                            return body
                 return APIResponse.from_http_request_response(r)
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
@@ -88,6 +77,22 @@ class SyncSingleRequestBuilder:
                 200 <= r.status_code <= 299
             ):  # Response.ok from JS (https://developer.mozilla.org/en-US/docs/Web/API/Response/ok)
                 return SingleAPIResponse.from_http_request_response(r)
+            else:
+                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                raise APIError(dict(json_obj))
+        except ValidationError as e:
+            raise APIError(generate_default_error_message(r))
+
+
+class SyncExplainRequestBuilder:
+    def __init__(self, request: ReqConfig):
+        self.request = request
+
+    def execute(self) -> str:
+        r = self.request.send()
+        try:
+            if r.is_success:
+                return r.text
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
@@ -175,6 +180,52 @@ class SyncSelectRequestBuilder(
         """Specify that the query must retrieve data as a single CSV string."""
         self.request.headers["Accept"] = "text/csv"
         return SyncSingleRequestBuilder(self.request)
+
+    @overload
+    def explain(
+        self,
+        analyze: bool = False,
+        verbose: bool = False,
+        settings: bool = False,
+        buffers: bool = False,
+        wal: bool = False,
+        format: Literal["text"] = "text",
+    ) -> SyncExplainRequestBuilder: ...
+
+    @overload
+    def explain(
+        self,
+        analyze: bool = False,
+        verbose: bool = False,
+        settings: bool = False,
+        buffers: bool = False,
+        wal: bool = False,
+        *,
+        format: Literal["json"],
+    ) -> SyncSingleRequestBuilder: ...
+
+    def explain(
+        self,
+        analyze: bool = False,
+        verbose: bool = False,
+        settings: bool = False,
+        buffers: bool = False,
+        wal: bool = False,
+        format: Literal["text", "json"] = "text",
+    ) -> SyncExplainRequestBuilder | SyncSingleRequestBuilder:
+        options = [
+            key
+            for key, value in locals().items()
+            if key not in ["self", "format"] and value
+        ]
+        options_str = "|".join(options)
+        self.request.headers["Accept"] = (
+            f"application/vnd.pgrst.plan+{format}; options={options_str}"
+        )
+        if format == "text":
+            return SyncExplainRequestBuilder(self.request)
+        else:
+            return SyncSingleRequestBuilder(self.request)
 
 
 class SyncRequestBuilder:  #
