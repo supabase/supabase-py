@@ -1,4 +1,5 @@
 import os
+from typing import Union
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -23,7 +24,11 @@ def socket() -> AsyncRealtimeClient:
     return AsyncRealtimeClient(url, key)
 
 
-def create_mock_response(status_code: int, reason_phrase: str = "OK", body: dict = None):
+def create_mock_response(
+    status_code: int,
+    reason_phrase: str = "OK",
+    body: Union[dict[str, str], None] = None,
+):
     """Create a mock HTTP response."""
     from unittest.mock import Mock
 
@@ -176,7 +181,8 @@ async def test_http_send_respects_custom_timeout(socket: AsyncRealtimeClient):
 async def test_http_send_with_private_channel(socket: AsyncRealtimeClient):
     """Test http_send with a private channel."""
     channel: AsyncRealtimeChannel = socket.channel(
-        "test-topic", params={"config": {"private": True}}
+        "test-topic",
+        params={"config": {"private": True, "broadcast": None, "presence": None}},
     )
 
     mock_response = create_mock_response(202, "Accepted")
