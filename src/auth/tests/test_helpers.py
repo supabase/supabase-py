@@ -21,7 +21,6 @@ from supabase_auth.helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    get_error_code,
     handle_exception,
     model_dump,
     model_dump_json,
@@ -128,11 +127,6 @@ def test_parse_response_api_version_with_invalid_dates():
 
 def test_parse_link_identity_response():
     assert parse_link_identity_response({"url": f"{TEST_URL}/hello-world"})
-
-
-def test_get_error_code():
-    assert get_error_code({}) is None
-    assert get_error_code({"error_code": "500"}) == "500"
 
 
 def test_decode_jwt():

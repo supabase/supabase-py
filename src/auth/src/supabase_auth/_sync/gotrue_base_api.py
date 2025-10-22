@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, Optional, TypeVar, overload
 
-from httpx import Response
+from httpx import HTTPStatusError, Response
 from pydantic import BaseModel
 from typing_extensions import Literal, Self
 
-from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS
+from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS_2024_01_01_NAME
 from ..helpers import handle_exception, model_dump
 from ..http_clients import SyncClient
 
@@ -96,12 +96,12 @@ class SyncGoTrueBaseAPI:
         query: Optional[Dict[str, str]] = None,
         body: Optional[Any] = None,
         no_resolve_json: bool = False,
-        xform: Optional[Callable[[Any], T]] = None,
+        xform: Optional[Callable[[Response], T]] = None,
     ) -> Optional[T]:
         url = f"{self._url}/{path}"
         headers = {**self._headers, **(headers or {})}
         if API_VERSION_HEADER_NAME not in headers:
-            headers[API_VERSION_HEADER_NAME] = API_VERSIONS["2024-01-01"].get("name")
+            headers[API_VERSION_HEADER_NAME] = API_VERSIONS_2024_01_01_NAME
         if "Content-Type" not in headers:
             headers["Content-Type"] = "application/json;charset=UTF-8"
         if jwt:
@@ -121,5 +121,6 @@ class SyncGoTrueBaseAPI:
             result = response if no_resolve_json else response.json()
             if xform:
                 return xform(result)
-        except Exception as e:
+            return None
+        except (HTTPStatusError, RuntimeError) as e:
             raise handle_exception(e)

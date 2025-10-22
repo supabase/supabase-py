@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import re
 import secrets
@@ -8,14 +9,17 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from json import loads
 from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, cast
 from urllib.parse import urlparse
 
 from httpx import HTTPStatusError, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
-from .constants import API_VERSION_HEADER_NAME, API_VERSIONS, BASE64URL_REGEX
+from .constants import (
+    API_VERSION_HEADER_NAME,
+    API_VERSIONS_2024_01_01_TIMESTAMP,
+    BASE64URL_REGEX,
+)
 from .errors import (
     AuthApiError,
     AuthError,
@@ -136,18 +140,9 @@ def get_error_message(error: Any) -> str:
     return next((error[prop] for prop in props if filter(prop)), str(error))
 
 
-def get_error_code(error: Any) -> str:
-    return error.get("error_code", None) if isinstance(error, dict) else None
-
-
-def looks_like_http_status_error(exception: Exception) -> bool:
-    return isinstance(exception, HTTPStatusError)
-
-
-def handle_exception(exception: Exception) -> AuthError:
-    if not looks_like_http_status_error(exception):
-        return AuthRetryableError(get_error_message(exception), 0)
-    error = cast(HTTPStatusError, exception)
+def handle_exception(error: HTTPStatusError | RuntimeError) -> AuthError:
+    if not isinstance(error, HTTPStatusError):
+        return AuthRetryableError(get_error_message(error), 0)
     try:
         network_error_codes = [502, 503, 504]
         if error.response.status_code in network_error_codes:
@@ -161,8 +156,10 @@ def handle_exception(exception: Exception) -> AuthError:
 
         if (
             response_api_version
-            and datetime.timestamp(response_api_version)
-            >= API_VERSIONS.get("2024-01-01").get("timestamp")
+            and (
+                datetime.timestamp(response_api_version)
+                >= API_VERSIONS_2024_01_01_TIMESTAMP
+            )
             and isinstance(data, dict)
             and data
             and isinstance(data.get("code"), str)
@@ -180,18 +177,18 @@ def handle_exception(exception: Exception) -> AuthError:
                 and isinstance(data.get("weak_password"), dict)
                 and data.get("weak_password")
                 and isinstance(data.get("weak_password"), list)
-                and len(data.get("weak_password"))
+                and len(data["weak_password"])
             ):
                 return AuthWeakPasswordError(
                     get_error_message(data),
                     error.response.status_code,
-                    data.get("weak_password").get("reasons"),
+                    data["weak_password"].get("reasons"),
                 )
         elif error_code == "weak_password":
             return AuthWeakPasswordError(
                 get_error_message(data),
                 error.response.status_code,
-                data.get("weak_password", {}).get("reasons", {}),
+                data["weak_password"].get("reasons", {}),
             )
 
         return AuthApiError(
@@ -224,20 +221,26 @@ class DecodedJWT(TypedDict):
     raw: Dict[str, str]
 
 
+JWTHeaderParser = TypeAdapter(JWTHeader)
+JWTPayloadParser = TypeAdapter(JWTPayload)
+
+
 def decode_jwt(token: str) -> DecodedJWT:
     parts = token.split(".")
     if len(parts) != 3:
         raise AuthInvalidJwtError("Invalid JWT structure")
 
-    # regex check for base64url
-    for part in parts:
-        if not re.match(BASE64URL_REGEX, part, re.IGNORECASE):
-            raise AuthInvalidJwtError("JWT not in base64url format")
+    try:
+        header = base64url_to_bytes(parts[0])
+        payload = base64url_to_bytes(parts[1])
+        signature = base64url_to_bytes(parts[2])
+    except binascii.Error:
+        raise AuthInvalidJwtError("Invalid JWT structure")
 
     return DecodedJWT(
-        header=JWTHeader(**loads(str_from_base64url(parts[0]))),
-        payload=JWTPayload(**loads(str_from_base64url(parts[1]))),
-        signature=base64url_to_bytes(parts[2]),
+        header=JWTHeaderParser.validate_json(header),
+        payload=JWTPayloadParser.validate_json(payload),
+        signature=signature,
         raw={
             "header": parts[0],
             "payload": parts[1],

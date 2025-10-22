@@ -2,7 +2,7 @@ from pathlib import Path
 
 import unasync
 
-paths = Path("../src/supabase").glob("**/*.py")
+paths = Path("src/supabase_auth").glob("**/*.py")
 tests = Path("tests").glob("**/*.py")
 
 rules = (unasync._DEFAULT_RULE,)

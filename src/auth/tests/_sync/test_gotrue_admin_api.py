@@ -371,11 +371,13 @@ def test_verify_otp_with_invalid_phone_number():
 
 def test_sign_in_with_id_token():
     try:
-        client_api_auto_confirm_off_signups_enabled_client().sign_in_with_id_token(
-            {
-                "provider": "google",
-                "token": "123456",
-            }
+        (
+            client_api_auto_confirm_off_signups_enabled_client().sign_in_with_id_token(
+                {
+                    "provider": "google",
+                    "token": "123456",
+                }
+            )
         )
     except AuthApiError as e:
         assert e.to_dict()
