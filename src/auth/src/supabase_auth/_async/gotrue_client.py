@@ -4,7 +4,7 @@ import time
 from contextlib import suppress
 from functools import partial
 from json import loads
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Mapping, Optional, Tuple, Union
 from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import uuid4
 
@@ -77,7 +77,9 @@ from ..types import (
     SignInWithPasswordlessCredentials,
     SignInWithSSOCredentials,
     SignOutOptions,
+    SignUpWithEmailAndPasswordCredentialsOptions,
     SignUpWithPasswordCredentials,
+    SignUpWithPhoneAndPasswordCredentialsOptions,
     Subscription,
     UpdateUserOptions,
     UserAttributes,
@@ -134,16 +136,17 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             headers=self._headers,
             http_client=self._http_client,
         )
+        # TODO(@o-santi): why is it like this?
         self.mfa = AsyncGoTrueMFAAPI()
-        self.mfa.challenge = self._challenge
-        self.mfa.challenge_and_verify = self._challenge_and_verify
-        self.mfa.enroll = self._enroll
-        self.mfa.get_authenticator_assurance_level = (
+        self.mfa.challenge = self._challenge  # type: ignore
+        self.mfa.challenge_and_verify = self._challenge_and_verify  # type: ignore
+        self.mfa.enroll = self._enroll  # type: ignore
+        self.mfa.get_authenticator_assurance_level = (  # type: ignore
             self._get_authenticator_assurance_level
         )
-        self.mfa.list_factors = self._list_factors
-        self.mfa.unenroll = self._unenroll
-        self.mfa.verify = self._verify
+        self.mfa.list_factors = self._list_factors  # type: ignore
+        self.mfa.unenroll = self._unenroll  # type: ignore
+        self.mfa.verify = self._verify  # type: ignore
 
     # Initializations
 
@@ -191,12 +194,12 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                     "captcha_token": captcha_token,
                 },
             },
-            xform=parse_auth_response,
         )
-        if response.session:
-            await self._save_session(response.session)
-            self._notify_all_subscribers("SIGNED_IN", response.session)
-        return response
+        auth_response = parse_auth_response(response)
+        if auth_response.session:
+            await self._save_session(auth_response.session)
+            self._notify_all_subscribers("SIGNED_IN", auth_response.session)
+        return auth_response
 
     async def sign_up(
         self,
@@ -209,8 +212,11 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         email = credentials.get("email")
         phone = credentials.get("phone")
         password = credentials.get("password")
-        options = credentials.get("options", {})
-        redirect_to = options.get("redirect_to") or options.get("email_redirect_to")
+        options: Union[
+            SignUpWithPhoneAndPasswordCredentialsOptions,
+            SignUpWithEmailAndPasswordCredentialsOptions,
+        ] = credentials.get("options", {})
+        redirect_to: Optional[str] = options.get("redirect_to")
         data = options.get("data") or {}
         channel = options.get("channel", "sms")
         captcha_token = options.get("captcha_token")
@@ -227,7 +233,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                     },
                 },
                 redirect_to=redirect_to,
-                xform=parse_auth_response,
             )
         elif phone:
             response = await self._request(
@@ -242,16 +247,17 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                         "captcha_token": captcha_token,
                     },
                 },
-                xform=parse_auth_response,
             )
         else:
             raise AuthInvalidCredentialsError(
                 "You must provide either an email or phone number and a password"
             )
-        if response.session:
-            await self._save_session(response.session)
-            self._notify_all_subscribers("SIGNED_IN", response.session)
-        return response
+        auth_response = parse_auth_response(response)
+        print(response.content)
+        if auth_response.session:
+            await self._save_session(auth_response.session)
+            self._notify_all_subscribers("SIGNED_IN", auth_response.session)
+        return auth_response
 
     async def sign_in_with_password(
         self,
@@ -282,7 +288,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 query={
                     "grant_type": "password",
                 },
-                xform=parse_auth_response,
             )
         elif phone:
             response = await self._request(
@@ -299,16 +304,16 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 query={
                     "grant_type": "password",
                 },
-                xform=parse_auth_response,
             )
         else:
             raise AuthInvalidCredentialsError(
                 "You must provide either an email or phone number and a password"
             )
-        if response.session:
-            await self._save_session(response.session)
-            self._notify_all_subscribers("SIGNED_IN", response.session)
-        return response
+        auth_response = parse_auth_response(response)
+        if auth_response.session:
+            await self._save_session(auth_response.session)
+            self._notify_all_subscribers("SIGNED_IN", auth_response.session)
+        return auth_response
 
     async def sign_in_with_id_token(
         self,
@@ -318,8 +323,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         Allows signing in with an OIDC ID token. The authentication provider used should be enabled and configured.
         """
         await self._remove_session()
-        provider = credentials.get("provider")
-        token = credentials.get("token")
+        provider = credentials["provider"]
+        token = credentials["token"]
         access_token = credentials.get("access_token")
         nonce = credentials.get("nonce")
         options = credentials.get("options", {})
@@ -340,13 +345,12 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             query={
                 "grant_type": "id_token",
             },
-            xform=parse_auth_response,
         )
-
-        if response.session:
-            await self._save_session(response.session)
-            self._notify_all_subscribers("SIGNED_IN", response.session)
-        return response
+        auth_response = parse_auth_response(response)
+        if auth_response.session:
+            await self._save_session(auth_response.session)
+            self._notify_all_subscribers("SIGNED_IN", auth_response.session)
+        return auth_response
 
     async def sign_in_with_sso(self, credentials: SignInWithSSOCredentials):
         """
@@ -374,7 +378,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         skip_http_redirect = options.get("skip_http_redirect", True)
 
         if domain:
-            return await self._request(
+            response = await self._request(
                 "POST",
                 "sso",
                 body={
@@ -385,10 +389,10 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                     },
                     "redirect_to": redirect_to,
                 },
-                xform=parse_sso_response,
             )
+            return parse_sso_response(response)
         if provider_id:
-            return await self._request(
+            response = await self._request(
                 "POST",
                 "sso",
                 body={
@@ -399,8 +403,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                     },
                     "redirect_to": redirect_to,
                 },
-                xform=parse_sso_response,
             )
+            return parse_sso_response(response)
         raise AuthInvalidCredentialsError(
             "You must provide either a domain or provider_id"
         )
@@ -414,7 +418,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         """
         await self._remove_session()
 
-        provider = credentials.get("provider")
+        provider = credentials["provider"]
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
         scopes = options.get("scopes")
@@ -431,7 +435,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
     async def link_identity(
         self, credentials: SignInWithOAuthCredentials
     ) -> OAuthResponse:
-        provider = credentials.get("provider")
+        provider = credentials["provider"]
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
         scopes = options.get("scopes")
@@ -453,17 +457,15 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             path=url,
             query=query,
             jwt=session.access_token,
-            xform=parse_link_identity_response,
         )
-        return OAuthResponse(provider=provider, url=response.url)
+        link_identity = parse_link_identity_response(response)
+        return OAuthResponse(provider=provider, url=link_identity.url)
 
-    async def get_user_identities(self):
+    async def get_user_identities(self) -> IdentitiesResponse:
         response = await self.get_user()
-        return (
-            IdentitiesResponse(identities=response.user.identities)
-            if response.user
-            else AuthSessionMissingError()
-        )
+        if response:
+            return IdentitiesResponse(identities=response.user.identities or [])
+        raise AuthSessionMissingError()
 
     async def unlink_identity(self, identity: UserIdentity):
         session = await self.get_session()
@@ -502,7 +504,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         channel = options.get("channel", "sms")
         captcha_token = options.get("captcha_token")
         if email:
-            return await self._request(
+            response = await self._request(
                 "POST",
                 "otp",
                 body={
@@ -514,10 +516,10 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                     },
                 },
                 redirect_to=email_redirect_to,
-                xform=parse_auth_otp_response,
             )
+            return parse_auth_otp_response(response)
         if phone:
-            return await self._request(
+            response = await self._request(
                 "POST",
                 "otp",
                 body={
@@ -529,8 +531,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                         "captcha_token": captcha_token,
                     },
                 },
-                xform=parse_auth_otp_response,
             )
+            return parse_auth_otp_response(response)
         raise AuthInvalidCredentialsError(
             "You must provide either an email or phone number"
         )
@@ -562,13 +564,13 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
         body.update({"email": email} if email else {"phone": phone})
 
-        return await self._request(
+        response = await self._request(
             "POST",
             "resend",
             body=body,
             redirect_to=email_redirect_to if email else None,
-            xform=parse_auth_otp_response,
         )
+        return parse_auth_otp_response(response)
 
     async def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
         """
@@ -585,24 +587,24 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 **params,
             },
             redirect_to=params.get("options", {}).get("redirect_to"),
-            xform=parse_auth_response,
         )
-        if response.session:
-            await self._save_session(response.session)
-            self._notify_all_subscribers("SIGNED_IN", response.session)
-        return response
+        auth_response = parse_auth_response(response)
+        if auth_response.session:
+            await self._save_session(auth_response.session)
+            self._notify_all_subscribers("SIGNED_IN", auth_response.session)
+        return auth_response
 
     async def reauthenticate(self) -> AuthResponse:
         session = await self.get_session()
         if not session:
             raise AuthSessionMissingError()
 
-        return await self._request(
+        response = await self._request(
             "GET",
             "reauthenticate",
             jwt=session.access_token,
-            xform=parse_auth_response,
         )
+        return parse_auth_response(response)
 
     async def get_session(self) -> Optional[Session]:
         """
@@ -619,6 +621,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 await self._remove_session()
         else:
             current_session = self._in_memory_session
+
         if not current_session:
             return None
         time_now = round(time.time())
@@ -646,7 +649,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 jwt = session.access_token
             else:
                 return None
-        return await self._request("GET", "user", jwt=jwt, xform=parse_user_response)
+        return parse_user_response(await self._request("GET", "user", jwt=jwt))
 
     async def update_user(
         self, attributes: UserAttributes, options: UpdateUserOptions = {}
@@ -663,12 +666,12 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             body=attributes,
             redirect_to=options.get("email_redirect_to"),
             jwt=session.access_token,
-            xform=parse_user_response,
         )
-        session.user = response.user
+        user_response = parse_user_response(response)
+        session.user = user_response.user
         await self._save_session(session)
         self._notify_all_subscribers("USER_UPDATED", session)
-        return response
+        return user_response
 
     async def set_session(self, access_token: str, refresh_token: str) -> AuthResponse:
         """
@@ -703,7 +706,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 return AuthResponse()
             session = response.session
         else:
-            response = await self.get_user(access_token)
+            user_response = await self.get_user(access_token)
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -823,23 +826,25 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             "factors",
             body=body,
             jwt=session.access_token,
-            xform=partial(model_validate, AuthMFAEnrollResponse),
         )
-        if params["factor_type"] == "totp" and response.totp.qr_code:
-            response.totp.qr_code = f"data:image/svg+xml;utf-8,{response.totp.qr_code}"
-        return response
+        auth_response = model_validate(AuthMFAEnrollResponse, response.content)
+        if params["factor_type"] == "totp" and auth_response.totp:
+            auth_response.totp.qr_code = (
+                f"data:image/svg+xml;utf-8,{auth_response.totp.qr_code}"
+            )
+        return auth_response
 
     async def _challenge(self, params: MFAChallengeParams) -> AuthMFAChallengeResponse:
         session = await self.get_session()
         if not session:
             raise AuthSessionMissingError()
-        return await self._request(
+        response = await self._request(
             "POST",
             f"factors/{params.get('factor_id')}/challenge",
             body={"channel": params.get("channel")},
             jwt=session.access_token,
-            xform=partial(model_validate, AuthMFAChallengeResponse),
         )
+        return model_validate(AuthMFAChallengeResponse, response.content)
 
     async def _challenge_and_verify(
         self,
@@ -847,14 +852,14 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
     ) -> AuthMFAVerifyResponse:
         response = await self._challenge(
             {
-                "factor_id": params.get("factor_id"),
+                "factor_id": params["factor_id"],
             }
         )
         return await self._verify(
             {
-                "factor_id": params.get("factor_id"),
+                "factor_id": params["factor_id"],
                 "challenge_id": response.id,
-                "code": params.get("code"),
+                "code": params["code"],
             }
         )
 
@@ -867,30 +872,34 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             f"factors/{params.get('factor_id')}/verify",
             body=params,
             jwt=session.access_token,
-            xform=partial(model_validate, AuthMFAVerifyResponse),
         )
-        session = model_validate(Session, model_dump(response))
+        auth_response = model_validate(AuthMFAVerifyResponse, response.content)
+        session = model_validate(Session, response.content)
         await self._save_session(session)
         self._notify_all_subscribers("MFA_CHALLENGE_VERIFIED", session)
-        return response
+        return auth_response
 
     async def _unenroll(self, params: MFAUnenrollParams) -> AuthMFAUnenrollResponse:
         session = await self.get_session()
         if not session:
             raise AuthSessionMissingError()
-        return await self._request(
+        response = await self._request(
             "DELETE",
             f"factors/{params.get('factor_id')}",
             jwt=session.access_token,
-            xform=partial(model_validate, AuthMFAUnenrollResponse),
         )
+        return model_validate(AuthMFAUnenrollResponse, response.content)
 
     async def _list_factors(self) -> AuthMFAListFactorsResponse:
         response = await self.get_user()
-        all = response.user.factors or []
-        totp = [f for f in all if f.factor_type == "totp" and f.status == "verified"]
-        phone = [f for f in all if f.factor_type == "phone" and f.status == "verified"]
-        return AuthMFAListFactorsResponse(all=all, totp=totp, phone=phone)
+        factors = response.user.factors or [] if response else []
+        totp = [
+            f for f in factors if f.factor_type == "totp" and f.status == "verified"
+        ]
+        phone = [
+            f for f in factors if f.factor_type == "phone" and f.status == "verified"
+        ]
+        return AuthMFAListFactorsResponse(all=factors, totp=totp, phone=phone)
 
     async def _get_authenticator_assurance_level(
         self,
@@ -903,9 +912,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 current_authentication_methods=[],
             )
         payload = decode_jwt(session.access_token)["payload"]
-        current_level: Optional[AuthenticatorAssuranceLevels] = None
-        if payload.get("aal"):
-            current_level = payload.get("aal")
+        current_level = payload.get("aal")
         verified_factors = [
             f for f in session.user.factors or [] if f.status == "verified"
         ]
@@ -1024,13 +1031,13 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         return response.session
 
     async def _refresh_access_token(self, refresh_token: str) -> AuthResponse:
-        return await self._request(
+        response = await self._request(
             "POST",
             "token",
             query={"grant_type": "refresh_token"},
             body={"refresh_token": refresh_token},
-            xform=parse_auth_response,
         )
+        return parse_auth_response(response)
 
     async def _save_session(self, session: Session) -> None:
         if not self._persist_session:
@@ -1087,22 +1094,11 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
     ) -> Optional[Session]:
         if not raw_session:
             return None
-        data = loads(raw_session)
-        if not data:
-            return None
-        if not data.get("access_token"):
-            return None
-        if not data.get("refresh_token"):
-            return None
-        if not data.get("expires_at"):
-            return None
         try:
-            expires_at = int(data["expires_at"])
-            data["expires_at"] = expires_at
-        except ValueError:
-            return None
-        try:
-            return model_validate(Session, data)
+            session = model_validate(Session, raw_session)
+            if session.expires_at is None:
+                return None
+            return session
         except Exception:
             return None
 
@@ -1123,7 +1119,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         url: str,
         provider: Provider,
         params: Dict[str, str],
-    ) -> Tuple[str, Dict[str, str]]:
+    ) -> Tuple[str, Mapping[str, str]]:
         if self._flow_type == "pkce":
             code_verifier = generate_pkce_verifier()
             code_challenge = generate_pkce_challenge(code_verifier)
@@ -1153,12 +1149,12 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 "code_verifier": code_verifier,
             },
             redirect_to=params.get("redirect_to"),
-            xform=parse_auth_response,
         )
+        auth_response = parse_auth_response(response)
         await self._storage.remove_item(f"{self._storage_key}-code-verifier")
-        if response.session:
-            await self._save_session(response.session)
-            self._notify_all_subscribers("SIGNED_IN", response.session)
+        if auth_response.session:
+            await self._save_session(auth_response.session)
+            self._notify_all_subscribers("SIGNED_IN", auth_response.session)
         return response
 
     async def _fetch_jwks(self, kid: str, jwks: JWKSet) -> JWK:
@@ -1182,13 +1178,14 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 return jwk
 
         # jwk isn't cached in memory so we need to fetch it from the well-known endpoint
-        response = await self._request("GET", ".well-known/jwks.json", xform=parse_jwks)
+        response = await self._request("GET", ".well-known/jwks.json")
+        jwks = parse_jwks(response)
         if response:
-            self._jwks = response
+            self._jwks = jwks
             self._jwks_cached_at = time.time()
 
             # find the signing key
-            jwk = next((jwk for jwk in response["keys"] if jwk["kid"] == kid), None)
+            jwk = next((jwk for jwk in jwks["keys"] if jwk["kid"] == kid), None)
             if not jwk:
                 raise AuthInvalidJwtError("No matching signing key found in JWKS")
 
@@ -1220,16 +1217,16 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         )
 
         validate_exp(payload["exp"])
-
+        print(header)
         # if symmetric algorithm, fallback to get_user
         if "kid" not in header or header["alg"] == "HS256":
             await self.get_user(token)
             return ClaimsResponse(claims=payload, headers=header, signature=signature)
 
         algorithm = get_algorithm_by_name(header["alg"])
-        signing_key = algorithm.from_jwk(
-            await self._fetch_jwks(header["kid"], jwks or {"keys": []})
-        )
+        jwks = await self._fetch_jwks(header["kid"], jwks or {"keys": []})
+        print(jwks)
+        signing_key = algorithm.from_jwk(jwks)
 
         # verify the signature
         is_valid = algorithm.verify(

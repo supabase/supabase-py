@@ -9,7 +9,7 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, cast
+from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from httpx import HTTPStatusError, Response
@@ -46,15 +46,15 @@ from .types import (
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def model_validate(model: Type[TBaseModel], contents) -> TBaseModel:
+def model_validate(model: Type[TBaseModel], contents: Union[str, bytes]) -> TBaseModel:
     """Compatibility layer between pydantic 1 and 2 for parsing an instance
     of a BaseModel from varied"""
     try:
         # pydantic > 2
-        return model.model_validate(contents)
+        return model.model_validate_json(contents)
     except AttributeError:
         # pydantic < 2
-        return model.parse_obj(contents)
+        return model.parse_raw(contents)
 
 
 def model_dump(model: BaseModel) -> Dict[str, Any]:
@@ -77,59 +77,58 @@ def model_dump_json(model: BaseModel) -> str:
         return model.json()
 
 
-def parse_auth_response(data: Any) -> AuthResponse:
-    session: Optional[Session] = None
-    if (
-        "access_token" in data
-        and "refresh_token" in data
-        and "expires_in" in data
-        and data["access_token"]
-        and data["refresh_token"]
-        and data["expires_in"]
-    ):
-        session = model_validate(Session, data)
-    user_data = data.get("user", data)
-    user = model_validate(User, user_data) if user_data else None
-    return AuthResponse(session=session, user=user)
+class AuthResponseParser(Session):
+    user: User
 
 
-def parse_auth_otp_response(data: Any) -> AuthOtpResponse:
-    return model_validate(AuthOtpResponse, data)
-
-
-def parse_link_identity_response(data: Any) -> LinkIdentityResponse:
-    return model_validate(LinkIdentityResponse, data)
-
-
-def parse_link_response(data: Any) -> GenerateLinkResponse:
-    properties = GenerateLinkProperties(
-        action_link=data.get("action_link"),
-        email_otp=data.get("email_otp"),
-        hashed_token=data.get("hashed_token"),
-        redirect_to=data.get("redirect_to"),
-        verification_type=data.get("verification_type"),
+def parse_auth_response(response: Response) -> AuthResponse:
+    parsed = model_validate(AuthResponseParser, response.content)
+    session = Session(
+        provider_token=parsed.provider_token,
+        provider_refresh_token=parsed.provider_refresh_token,
+        access_token=parsed.access_token,
+        refresh_token=parsed.refresh_token,
+        expires_in=parsed.expires_in,
+        expires_at=parsed.expires_at,
+        token_type=parsed.token_type,
+        user=parsed.user,
     )
-    user = model_validate(
-        User, {k: v for k, v in data.items() if k not in model_dump(properties)}
-    )
-    return GenerateLinkResponse(properties=properties, user=user)
+    return AuthResponse(user=parsed.user, session=session)
 
 
-def parse_user_response(data: Any) -> UserResponse:
-    if "user" not in data:
-        data = {"user": data}
-    return model_validate(UserResponse, data)
+def parse_auth_otp_response(response: Response) -> AuthOtpResponse:
+    return model_validate(AuthOtpResponse, response.content)
 
 
-def parse_sso_response(data: Any) -> SSOResponse:
-    return model_validate(SSOResponse, data)
+def parse_link_identity_response(response: Response) -> LinkIdentityResponse:
+    return model_validate(LinkIdentityResponse, response.content)
 
 
-def parse_jwks(response: Any) -> JWKSet:
-    if "keys" not in response or len(response["keys"]) == 0:
+def parse_link_response(response: Response) -> GenerateLinkResponse:
+    return model_validate(GenerateLinkResponse, response.content)
+
+
+UserParser: TypeAdapter = TypeAdapter(Union[UserResponse, User])
+
+
+def parse_user_response(response: Response) -> UserResponse:
+    parsed = UserParser.validate_json(response.content)
+    return UserResponse(user=parsed) if parsed is User else parsed
+
+
+def parse_sso_response(response: Response) -> SSOResponse:
+    return model_validate(SSOResponse, response.content)
+
+
+JWKSetParser = TypeAdapter(JWKSet)
+
+
+def parse_jwks(response: Response) -> JWKSet:
+    jwk = JWKSetParser.validate_json(response.content)
+    if len(jwk["keys"]) == 0:
         raise AuthInvalidJwtError("JWKS is empty")
 
-    return {"keys": response["keys"]}
+    return jwk
 
 
 def get_error_message(error: Any) -> str:

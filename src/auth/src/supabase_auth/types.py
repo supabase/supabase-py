@@ -810,6 +810,7 @@ class SignOutOptions(TypedDict):
     scope: NotRequired[SignOutScope]
 
 
+@with_config(extra="allow")
 class JWTHeader(TypedDict):
     alg: Literal["RS256", "ES256", "HS256"]
     typ: str
@@ -846,6 +847,7 @@ class ClaimsResponse(TypedDict):
     signature: bytes
 
 
+@with_config(extra="allow")
 class JWK(TypedDict, total=False):
     kty: Literal["RSA", "EC", "oct"]
     key_ops: List[str]

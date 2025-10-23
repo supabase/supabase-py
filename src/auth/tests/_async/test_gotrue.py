@@ -31,10 +31,11 @@ async def test_get_claims_calls_get_user_if_symmetric_jwt(mocker):
     spy = mocker.spy(client, "get_user")
 
     user = (await client.sign_up(mock_user_credentials())).user
+
     assert user is not None
 
     claims = (await client.get_claims())["claims"]
-    print(claims)
+
     assert claims["email"] == user.email
     spy.assert_called_once()
 

@@ -10,8 +10,6 @@ from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS_2024_01_01_NAME
 from ..helpers import handle_exception, model_dump
 from ..http_clients import SyncClient
 
-T = TypeVar("T")
-
 
 class SyncGoTrueBaseAPI:
     def __init__(
@@ -41,7 +39,6 @@ class SyncGoTrueBaseAPI:
     def close(self) -> None:
         self._http_client.aclose()
 
-    @overload
     def _request(
         self,
         method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
@@ -50,54 +47,10 @@ class SyncGoTrueBaseAPI:
         jwt: Optional[str] = None,
         redirect_to: Optional[str] = None,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
-        body: Optional[Any] = None,
-        no_resolve_json: Literal[False] = False,
-        xform: Callable[[Any], T],
-    ) -> T: ...  # pragma: no cover
-
-    @overload
-    def _request(
-        self,
-        method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
-        path: str,
-        *,
-        jwt: Optional[str] = None,
-        redirect_to: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
-        body: Optional[Any] = None,
-        no_resolve_json: Literal[True],
-        xform: Callable[[Response], T],
-    ) -> T: ...  # pragma: no cover
-
-    @overload
-    def _request(
-        self,
-        method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
-        path: str,
-        *,
-        jwt: Optional[str] = None,
-        redirect_to: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        query: Optional[Dict[str, str | None]] = None,
         body: Optional[Any] = None,
         no_resolve_json: bool = False,
-    ) -> None: ...  # pragma: no cover
-
-    def _request(
-        self,
-        method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
-        path: str,
-        *,
-        jwt: Optional[str] = None,
-        redirect_to: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
-        body: Optional[Any] = None,
-        no_resolve_json: bool = False,
-        xform: Optional[Callable[[Response], T]] = None,
-    ) -> Optional[T]:
+    ) -> Response:
         url = f"{self._url}/{path}"
         headers = {**self._headers, **(headers or {})}
         if API_VERSION_HEADER_NAME not in headers:
@@ -118,9 +71,6 @@ class SyncGoTrueBaseAPI:
                 json=model_dump(body) if isinstance(body, BaseModel) else body,
             )
             response.raise_for_status()
-            result = response if no_resolve_json else response.json()
-            if xform:
-                return xform(result)
-            return None
+            return response
         except (HTTPStatusError, RuntimeError) as e:
             raise handle_exception(e)
