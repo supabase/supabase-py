@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.2](https://github.com/supabase/supabase-py/compare/v2.22.1...v2.22.2) (2025-10-24)
+
+
+### Bug Fixes
+
+* **storage:** reconstruct path back instead of returning a tuple ([#1267](https://github.com/supabase/supabase-py/issues/1267)) ([557f1b2](https://github.com/supabase/supabase-py/commit/557f1b2b5e84da52815e7a4abce76034ca2facc0))
+
 ## [2.22.1](https://github.com/supabase/supabase-py/compare/v2.22.0...v2.22.1) (2025-10-21)
 
 
