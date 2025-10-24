@@ -23,12 +23,11 @@ from ..types import (
     InviteUserByEmailOptions,
     SignOutScope,
     User,
+    UserList,
     UserResponse,
 )
 from .gotrue_admin_mfa_api import AsyncGoTrueAdminMFAAPI
 from .gotrue_base_api import AsyncGoTrueBaseAPI
-
-UserList = TypeAdapter(List[User])
 
 
 class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
@@ -98,6 +97,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
             },
             redirect_to=params.get("options", {}).get("redirect_to"),
         )
+        print(response.content)
         return parse_link_response(response)
 
     # User Admin API
@@ -128,9 +128,9 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         response = await self._request(
             "GET",
             "admin/users",
-            query={"page": str(page), "per_page": str(per_page)},
+            query={"page": page, "per_page": per_page},
         )
-        return UserList.validate_json(response.content)
+        return model_validate(UserList, response.content).users
 
     async def get_user_by_id(self, uid: str) -> UserResponse:
         """

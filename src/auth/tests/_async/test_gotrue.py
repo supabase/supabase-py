@@ -52,7 +52,7 @@ async def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker):
     assert claims["email"] == user.email
 
     spy.assert_called_once()
-    spy.assert_called_with("GET", ".well-known/jwks.json", xform=unittest.mock.ANY)
+    spy.assert_called_with("GET", ".well-known/jwks.json")
 
     expected_keyid = "638c54b8-28c2-4b12-9598-ba12ef610a29"
 
@@ -70,7 +70,7 @@ async def test_jwks_ttl_cache_behavior(mocker):
     assert user is not None
 
     await client.get_claims()
-    spy.assert_called_with("GET", ".well-known/jwks.json", xform=unittest.mock.ANY)
+    spy.assert_called_with("GET", ".well-known/jwks.json")
     first_call_count = spy.call_count
 
     # Second call within TTL should use cache
@@ -461,6 +461,8 @@ async def test_link_identity():
 
     from unittest.mock import patch
 
+    from httpx import Response
+
     from supabase_auth.types import OAuthResponse
 
     # Since the test server has manual linking disabled, we'll mock the URL generation
@@ -471,7 +473,9 @@ async def test_link_identity():
 
         # Also mock the _request method since the server would reject it
         with patch.object(client, "_request") as mock_request:
-            mock_request.return_value = OAuthResponse(provider="github", url=mock_url)
+            mock_request.return_value = Response(
+                content=f'{{"url":"{mock_url}"}}', status_code=200
+            )
 
             # Call the method
             response = await client.link_identity({"provider": "github"})
@@ -565,6 +569,8 @@ async def test_verify_otp():
     import time
     from unittest.mock import patch
 
+    from httpx import Response
+
     from supabase_auth.types import AuthResponse, Session, User
 
     mock_user = User(
@@ -590,7 +596,8 @@ async def test_verify_otp():
         user=mock_user,
     )
 
-    mock_response = AuthResponse(session=mock_session, user=mock_user)
+    mock_response_json = mock_session.model_dump_json()
+    mock_response = Response(content=mock_response_json, status_code=200)
 
     with patch.object(client, "_request") as mock_request:
         # Configure the mock to return a predefined response
@@ -621,7 +628,7 @@ async def test_verify_otp():
             mock_save.assert_called_once_with(mock_session)
 
             # Verify the response
-            assert response == mock_response
+            assert AuthResponse(user=mock_user, session=mock_session) == response
 
 
 async def test_sign_in_with_password():
@@ -685,13 +692,16 @@ async def test_sign_in_with_otp():
     # We can't fully test the actual OTP flow since that requires email verification
     from unittest.mock import patch
 
+    from httpx import Response
+
     from supabase_auth.types import AuthOtpResponse
 
     # First test for email OTP
+    auth_otp = AuthOtpResponse(
+        message_id="mock-message-id", email=email, phone=None, hash=None
+    )
     with patch.object(client, "_request") as mock_request:
-        mock_response = AuthOtpResponse(
-            message_id="mock-message-id", email=email, phone=None, hash=None
-        )
+        mock_response = Response(content=auth_otp.model_dump_json(), status_code=200)
         mock_request.return_value = mock_response
 
         response = await client.sign_in_with_otp(
@@ -721,15 +731,15 @@ async def test_sign_in_with_otp():
         assert kwargs["redirect_to"] == "https://example.com/callback"
 
         # Verify response
-        assert response == mock_response
+        assert response == auth_otp
 
     # Test with phone OTP
     phone = "+11234567890"
-
+    auth_otp = AuthOtpResponse(
+        message_id="mock-message-id", email=None, phone=phone, hash=None
+    )
     with patch.object(client, "_request") as mock_request:
-        mock_response = AuthOtpResponse(
-            message_id="mock-message-id", email=None, phone=phone, hash=None
-        )
+        mock_response = Response(content=auth_otp.model_dump_json(), status_code=200)
         mock_request.return_value = mock_response
 
         response = await client.sign_in_with_otp(
@@ -760,7 +770,7 @@ async def test_sign_in_with_otp():
         assert kwargs.get("redirect_to") is None  # No redirect for phone
 
         # Verify response
-        assert response == mock_response
+        assert response == auth_otp
 
     # Test with invalid parameters (missing both email and phone)
     from supabase_auth.errors import AuthInvalidCredentialsError

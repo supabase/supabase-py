@@ -77,23 +77,14 @@ def model_dump_json(model: BaseModel) -> str:
         return model.json()
 
 
-class AuthResponseParser(Session):
-    user: User
-
-
 def parse_auth_response(response: Response) -> AuthResponse:
-    parsed = model_validate(AuthResponseParser, response.content)
-    session = Session(
-        provider_token=parsed.provider_token,
-        provider_refresh_token=parsed.provider_refresh_token,
-        access_token=parsed.access_token,
-        refresh_token=parsed.refresh_token,
-        expires_in=parsed.expires_in,
-        expires_at=parsed.expires_at,
-        token_type=parsed.token_type,
-        user=parsed.user,
-    )
-    return AuthResponse(user=parsed.user, session=session)
+    try:
+        session = model_validate(Session, response.content)
+        user = session.user
+    except:
+        session = None
+        user = model_validate(User, response.content)
+    return AuthResponse(user=user, session=session)
 
 
 def parse_auth_otp_response(response: Response) -> AuthOtpResponse:
@@ -105,7 +96,9 @@ def parse_link_identity_response(response: Response) -> LinkIdentityResponse:
 
 
 def parse_link_response(response: Response) -> GenerateLinkResponse:
-    return model_validate(GenerateLinkResponse, response.content)
+    properties = model_validate(GenerateLinkProperties, response.content)
+    user = model_validate(User, response.content)
+    return GenerateLinkResponse(properties=properties, user=user)
 
 
 UserParser: TypeAdapter = TypeAdapter(Union[UserResponse, User])
@@ -113,7 +106,7 @@ UserParser: TypeAdapter = TypeAdapter(Union[UserResponse, User])
 
 def parse_user_response(response: Response) -> UserResponse:
     parsed = UserParser.validate_json(response.content)
-    return UserResponse(user=parsed) if parsed is User else parsed
+    return UserResponse(user=parsed) if isinstance(parsed, User) else parsed
 
 
 def parse_sso_response(response: Response) -> SSOResponse:

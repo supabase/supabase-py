@@ -124,6 +124,10 @@ class IdentitiesResponse(BaseModel):
     identities: List[UserIdentity]
 
 
+class UserList(BaseModel):
+    users: List[User]
+
+
 class UserResponse(BaseModel):
     user: User
 

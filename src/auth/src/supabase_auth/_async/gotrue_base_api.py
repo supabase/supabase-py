@@ -47,7 +47,7 @@ class AsyncGoTrueBaseAPI:
         jwt: Optional[str] = None,
         redirect_to: Optional[str] = None,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str | None]] = None,
+        query: Optional[Dict[str, str | int | None]] = None,
         body: Optional[Any] = None,
         no_resolve_json: bool = False,
     ) -> Response:

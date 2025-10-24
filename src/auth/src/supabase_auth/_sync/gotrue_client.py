@@ -252,6 +252,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             raise AuthInvalidCredentialsError(
                 "You must provide either an email or phone number and a password"
             )
+        print(response.content)
         auth_response = parse_auth_response(response)
         if auth_response.session:
             self._save_session(auth_response.session)
@@ -618,6 +619,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
                 self._remove_session()
         else:
             current_session = self._in_memory_session
+
         if not current_session:
             return None
         time_now = round(time.time())
@@ -706,14 +708,14 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
-                user=response.user,
+                user=user_response.user,
                 token_type="bearer",
                 expires_in=expires_at - time_now,
                 expires_at=expires_at,
             )
         self._save_session(session)
         self._notify_all_subscribers("TOKEN_REFRESHED", session)
-        return AuthResponse(session=session, user=response.user)
+        return AuthResponse(session=session, user=session.user)
 
     def refresh_session(self, refresh_token: Optional[str] = None) -> AuthResponse:
         """
@@ -1088,22 +1090,11 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
     ) -> Optional[Session]:
         if not raw_session:
             return None
-        data = loads(raw_session)
-        if not data:
-            return None
-        if not data.get("access_token"):
-            return None
-        if not data.get("refresh_token"):
-            return None
-        if not data.get("expires_at"):
-            return None
         try:
-            expires_at = int(data["expires_at"])
-            data["expires_at"] = expires_at
-        except ValueError:
-            return None
-        try:
-            return model_validate(Session, data)
+            session = model_validate(Session, raw_session)
+            if session.expires_at is None:
+                return None
+            return session
         except Exception:
             return None
 
@@ -1220,16 +1211,16 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         )
 
         validate_exp(payload["exp"])
-
+        print(header)
         # if symmetric algorithm, fallback to get_user
         if "kid" not in header or header["alg"] == "HS256":
             self.get_user(token)
             return ClaimsResponse(claims=payload, headers=header, signature=signature)
 
         algorithm = get_algorithm_by_name(header["alg"])
-        signing_key = algorithm.from_jwk(
-            self._fetch_jwks(header["kid"], jwks or {"keys": []})
-        )
+        jwks = self._fetch_jwks(header["kid"], jwks or {"keys": []})
+        print(jwks)
+        signing_key = algorithm.from_jwk(jwks)
 
         # verify the signature
         is_valid = algorithm.verify(

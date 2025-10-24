@@ -126,7 +126,8 @@ def test_parse_response_api_version_with_invalid_dates():
 
 
 def test_parse_link_identity_response():
-    assert parse_link_identity_response({"url": f"{TEST_URL}/hello-world"})
+    resp = Response(content=f'{{"url": "{TEST_URL}/hello-world"}}', status_code=200)
+    assert parse_link_identity_response(resp)
 
 
 def test_decode_jwt():
@@ -165,14 +166,14 @@ def test_model_validate_pydantic_v1():
     with patch("supabase_auth.helpers.TBaseModel") as MockType:
         # Mock the behavior of the try block to raise AttributeError
         mock_model = MagicMock()
-        mock_model.model_validate.side_effect = AttributeError
-        mock_model.parse_obj.return_value = "parsed_obj_result"
+        mock_model.model_validate_json.side_effect = AttributeError
+        mock_model.parse_raw.return_value = "parsed_obj_result"
 
         # Use the patched model in the actual function
         result = model_validate(mock_model, {"test": "data"})
 
         # Check that parse_obj was called
-        mock_model.parse_obj.assert_called_once_with({"test": "data"})
+        mock_model.parse_raw.assert_called_once_with({"test": "data"})
         assert result == "parsed_obj_result"
 
 
@@ -208,20 +209,25 @@ def test_model_dump_json_pydantic_v1():
 
 # Test for parse_auth_response with a session
 def test_parse_auth_response_with_session():
+    from json import dumps
+
     # Create our own AuthResponse object to avoid pydantic validation issues
     mock_session = MagicMock(spec=Session)
     mock_user = MagicMock(spec=User)
 
     # Test data with access_token, refresh_token, and expires_in
-    data = {
-        "access_token": "test_access_token",
-        "refresh_token": "test_refresh_token",
-        "expires_in": 3600,
-        "user": {
-            "id": "user-123",
-            "email": "test@example.com",
-        },
-    }
+    data = dumps(
+        {
+            "access_token": "test_access_token",
+            "refresh_token": "test_refresh_token",
+            "expires_in": 3600,
+            "user": {
+                "id": "user-123",
+                "email": "test@example.com",
+            },
+        }
+    )
+    response = Response(content=data, status_code=200)
 
     with patch("supabase_auth.helpers.model_validate") as mock_validate:
         # First call for Session, second for User
@@ -230,12 +236,11 @@ def test_parse_auth_response_with_session():
         with patch("supabase_auth.helpers.AuthResponse") as mock_auth_response:
             mock_auth_response.return_value = "auth_response_result"
 
-            result = parse_auth_response(data)
+            result = parse_auth_response(response)
 
             # Verify model_validate was called for Session and User
             assert mock_validate.call_count == 2
-            mock_validate.assert_any_call(Session, data)
-            mock_validate.assert_any_call(User, data["user"])
+            mock_validate.assert_any_call(User, response.content)
 
             # Verify AuthResponse was created with correct params
             mock_auth_response.assert_called_once_with(
@@ -246,16 +251,21 @@ def test_parse_auth_response_with_session():
 
 # Test for parse_auth_response without a session
 def test_parse_auth_response_without_session():
+    from json import dumps
+
     # Create our own User object to avoid pydantic validation issues
     mock_user = MagicMock(spec=User)
 
     # Test data without session info
-    data = {
-        "user": {
-            "id": "user-123",
-            "email": "test@example.com",
+    data = dumps(
+        {
+            "user": {
+                "id": "user-123",
+                "email": "test@example.com",
+            }
         }
-    }
+    )
+    response = Response(content=data, status_code=200)
 
     with patch("supabase_auth.helpers.model_validate") as mock_validate:
         mock_validate.return_value = mock_user
@@ -263,10 +273,10 @@ def test_parse_auth_response_without_session():
         with patch("supabase_auth.helpers.AuthResponse") as mock_auth_response:
             mock_auth_response.return_value = "auth_response_result"
 
-            result = parse_auth_response(data)
+            result = parse_auth_response(response)
 
             # Verify model_validate was called only for User
-            mock_validate.assert_called_once_with(User, data["user"])
+            mock_validate.assert_called_once_with(User, response)
 
             # Verify AuthResponse was created with correct params
             mock_auth_response.assert_called_once_with(session=None, user=mock_user)

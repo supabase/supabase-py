@@ -252,8 +252,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             raise AuthInvalidCredentialsError(
                 "You must provide either an email or phone number and a password"
             )
-        auth_response = parse_auth_response(response)
         print(response.content)
+        auth_response = parse_auth_response(response)
         if auth_response.session:
             await self._save_session(auth_response.session)
             self._notify_all_subscribers("SIGNED_IN", auth_response.session)
@@ -710,14 +710,14 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
-                user=response.user,
+                user=user_response.user,
                 token_type="bearer",
                 expires_in=expires_at - time_now,
                 expires_at=expires_at,
             )
         await self._save_session(session)
         self._notify_all_subscribers("TOKEN_REFRESHED", session)
-        return AuthResponse(session=session, user=response.user)
+        return AuthResponse(session=session, user=session.user)
 
     async def refresh_session(
         self, refresh_token: Optional[str] = None
