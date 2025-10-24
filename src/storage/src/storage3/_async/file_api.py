@@ -180,7 +180,7 @@ class AsyncBucketActionsMixin:
         )
         data: UploadData = response.json()
 
-        return UploadResponse(path=path, Key=data.get("Key"))
+        return UploadResponse(path=path, Key=data["Key"])
 
     def _make_signed_url(
         self, signed_url: str, download_query: dict[str, str]
@@ -520,7 +520,7 @@ class AsyncBucketActionsMixin:
 
         data: UploadData = response.json()
 
-        return UploadResponse(path=path, Key=data.get("Key"))
+        return UploadResponse(path="/".join(path), Key=data["Key"])
 
     async def upload(
         self,

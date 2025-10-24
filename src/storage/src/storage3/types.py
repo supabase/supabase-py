@@ -104,7 +104,7 @@ class UploadResponse:
     full_path: str
     fullPath: str
 
-    def __init__(self, path, Key):
+    def __init__(self, path: str, Key: str):
         self.path = path
         self.full_path = Key
         self.fullPath = Key
