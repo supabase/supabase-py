@@ -678,7 +678,7 @@ Co-authored-by: dependabot[bot] &lt;49699333+dependabot[bot]@users.noreply.githu
 
 ### Unknown
 
-* docs (sunbase-py) updated setup instructions, PR guidelines, added resources &amp; links (#690) ([`846d8e7`](https://github.com/supabase-community/supabase-py/commit/846d8e73bb05311030e62c87c15907967581ac9e))
+* docs (supabase-py) updated setup instructions, PR guidelines, added resources &amp; links (#690) ([`846d8e7`](https://github.com/supabase-community/supabase-py/commit/846d8e73bb05311030e62c87c15907967581ac9e))
 
 * Update action versions in CI/CD (#679) ([`13bed26`](https://github.com/supabase-community/supabase-py/commit/13bed26e676242f020caad48f24c9db993c1cfc4))
 
