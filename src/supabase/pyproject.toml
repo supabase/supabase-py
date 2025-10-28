@@ -22,12 +22,12 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-  "realtime == 2.22.2",
-  "supabase_functions == 2.22.2",
-  "storage3 == 2.22.2",
-  "supabase_auth == 2.22.2",
-  "postgrest == 2.22.2", 
-  "httpx >=0.26,<0.29",
+  "realtime == 2.22.2", # x-release-please-version
+  "supabase_functions == 2.22.2", # x-release-please-version
+  "storage3 == 2.22.2", # x-release-please-version
+  "supabase_auth == 2.22.2", # x-release-please-version
+  "postgrest == 2.22.2", # x-release-please-version
+  "httpx >=0.26,<0.29", # x-release-please-version
 ]
 
 [project.urls]
