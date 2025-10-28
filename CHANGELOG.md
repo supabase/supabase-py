@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.3](https://github.com/supabase/supabase-py/compare/v2.22.2...v2.22.3) (2025-10-28)
+
+
+### Bug Fixes
+
+* **supabase:** pin dependencies versions ([#1273](https://github.com/supabase/supabase-py/issues/1273)) ([5f65227](https://github.com/supabase/supabase-py/commit/5f65227ddec8fee13693b108f3c7048b4e66fcdf))
+
 ## [2.22.2](https://github.com/supabase/supabase-py/compare/v2.22.1...v2.22.2) (2025-10-24)
 
 
