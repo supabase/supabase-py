@@ -11,9 +11,8 @@
           "path": "src/supabase/src/supabase/version.py"
         },
         {
-          "type": "toml",
-          "path": "src/supabase/pyproject.toml",
-          "jsonpath": "$.project.version"
+          "type": "generic",  // also update versions of dependencies
+          "path": "src/supabase/pyproject.toml"
         },
         {
           "type": "generic",
