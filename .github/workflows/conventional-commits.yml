@@ -1,46 +1,28 @@
-name: Check pull requests
+# See https://github.com/amannn/action-semantic-pull-request
+name: 'PR Title is Conventional'
 
 on:
-  push:
-    branches-ignore: # Run the checks on all branches but the protected ones
-      - main
-      - release/*
-
   pull_request:
-    branches:
-      - main
-      - release/*
     types:
       - opened
       - edited
-      - reopened
-      - ready_for_review
+      - synchronize
 
 permissions:
+  pull-requests: write
   contents: read
 
 jobs:
-  check-conventional-commits:
+  main:
+    name: Validate PR title
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v5
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          sparse-checkout: |
-            .github
-
-      - if: ${{ github.event_name == 'pull_request' }}
-        run: |
-          set -ex
-
-          node .github/workflows/conventional-commits-lint.js pr <<EOF
-          ${{ toJSON(github.event) }}
-          EOF
-
-      - if: ${{ github.event_name == 'push' }}
-        run: |
-          set -ex
-
-          node .github/workflows/conventional-commits-lint.js push <<EOF
-          ${{ toJSON(github.event) }}
-          EOF
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            didn't match the configured pattern. Please ensure that the subject
+            doesn't start with an uppercase character.
