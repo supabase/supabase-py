@@ -189,10 +189,10 @@ async def test_postgrest_changes(socket: AsyncRealtimeClient):
         )
     )
 
-    await asyncio.wait_for(system_event.wait(), 30)
+    await asyncio.wait_for(system_event.wait(), 10)
 
     # Wait for the channel to be subscribed
-    await asyncio.wait_for(subscribed_event.wait(), 30)
+    await asyncio.wait_for(subscribed_event.wait(), 10)
 
     created_todo_id = await create_todo(
         token, {"description": "Test todo", "is_completed": False}
@@ -273,10 +273,10 @@ async def test_postgrest_changes_on_different_tables(socket: AsyncRealtimeClient
         )
     )
 
-    await asyncio.wait_for(system_event.wait(), 30)
+    await asyncio.wait_for(system_event.wait(), 10)
 
     # Wait for the channel to be subscribed
-    await asyncio.wait_for(subscribed_event.wait(), 30)
+    await asyncio.wait_for(subscribed_event.wait(), 10)
 
     created_todo_id = await create_todo(
         token, {"description": "Test todo", "is_completed": False}
