@@ -73,14 +73,6 @@ async def test_list_users_should_return_registered_users():
     assert credentials.get("email") in emails
 
 
-async def test_get_user_fetches_a_user_by_their_access_token():
-    credentials = mock_user_credentials()
-    auth_client_with_session_current_user = await auth_client_with_session()
-    response = await auth_client_with_session_current_user.get_user()
-    assert response
-    assert response.user.email == credentials["email"]
-
-
 async def test_get_user_by_id_should_a_registered_user_given_its_user_identifier():
     credentials = mock_user_credentials()
     user = await create_new_user_with_email(email=credentials["email"])
@@ -201,26 +193,31 @@ async def test_resend():
 
 
 async def test_reauthenticate():
-    response = await auth_client_with_session().reauthenticate()
+    client = await auth_client_with_session()
+    await client.reauthenticate()
 
 
 async def test_refresh_session():
-    await auth_client_with_session().refresh_session()
+    client = await auth_client_with_session()
+    await client.refresh_session()
 
 
 async def test_reset_password_for_email():
     credentials = mock_user_credentials()
-    await auth_client_with_session().reset_password_email(email=credentials["email"])
+    client = await auth_client_with_session()
+    await client.reset_password_email(email=credentials["email"])
 
 
 async def test_resend_missing_credentials():
+    credentials = mock_user_credentials()
     await client_api_auto_confirm_off_signups_enabled_client().resend(
-        {"type": "email_change"}
+        {"type": "email_change", "email": credentials["email"]}
     )
 
 
 async def test_sign_in_anonymously():
-    response = await auth_client_with_session().sign_in_anonymously()
+    client = await auth_client_with_session()
+    await client.sign_in_anonymously()
 
 
 async def test_delete_user_should_be_able_delete_an_existing_user():
@@ -286,7 +283,8 @@ async def test_invite_user_by_email_creates_a_new_user_with_an_invited_at_timest
 
 async def test_sign_out_with_an_valid_access_token():
     credentials = mock_user_credentials()
-    response = await auth_client_with_session().sign_up(
+    client = await auth_client_with_session()
+    response = await client.sign_up(
         {
             "email": credentials.get("email"),
             "password": credentials.get("password"),

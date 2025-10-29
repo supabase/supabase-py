@@ -204,7 +204,7 @@ async def test_set_session_with_invalid_token():
 
 
 async def test_mfa_enroll():
-    client = auth_client_with_session()
+    client = await auth_client_with_session()
 
     credentials = mock_user_credentials()
 

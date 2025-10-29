@@ -70,6 +70,7 @@ class AsyncGoTrueBaseAPI:
                 params=query,
                 json=model_dump(body) if isinstance(body, BaseModel) else body,
             )
+
             response.raise_for_status()
             return response
         except (HTTPStatusError, RuntimeError) as e:
