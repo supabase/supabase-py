@@ -928,7 +928,7 @@ class OAuthClient(BaseModel):
     """Timestamp when the client was last updated"""
 
 
-class CreateOAuthClientParams(TypedDict):
+class CreateOAuthClientParams(BaseModel):
     """
     Parameters for creating a new OAuth client.
     Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
@@ -936,15 +936,15 @@ class CreateOAuthClientParams(TypedDict):
 
     client_name: str
     """Human-readable name of the OAuth client"""
-    client_uri: NotRequired[str]
+    client_uri: Optional[str] = None
     """URI of the OAuth client"""
     redirect_uris: List[str]
     """Array of allowed redirect URIs"""
-    grant_types: NotRequired[List[OAuthClientGrantType]]
+    grant_types: Optional[List[OAuthClientGrantType]] = None
     """Array of allowed grant types (optional, defaults to authorization_code and refresh_token)"""
-    response_types: NotRequired[List[OAuthClientResponseType]]
+    response_types: Optional[List[OAuthClientResponseType]] = None
     """Array of allowed response types (optional, defaults to code)"""
-    scope: NotRequired[str]
+    scope: Optional[str] = None
     """Scope of the OAuth client"""
 
 
@@ -980,14 +980,14 @@ class OAuthClientListResponse(BaseModel):
     total: int = 0
 
 
-class PageParams(TypedDict):
+class PageParams(BaseModel):
     """
     Pagination parameters.
     """
 
-    page: NotRequired[int]
+    page: Optional[int] = None
     """Page number"""
-    per_page: NotRequired[int]
+    per_page: Optional[int] = None
     """Number of items per page"""
 
 

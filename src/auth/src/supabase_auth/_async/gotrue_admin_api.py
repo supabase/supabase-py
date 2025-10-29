@@ -222,10 +222,10 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         """
         query = {}
         if params:
-            if params.get("page") is not None:
-                query["page"] = str(params["page"])
-            if params.get("per_page") is not None:
-                query["per_page"] = str(params["per_page"])
+            if params.page is not None:
+                query["page"] = str(params.page)
+            if params.per_page is not None:
+                query["per_page"] = str(params.per_page)
 
         response = await self._request(
             "GET",

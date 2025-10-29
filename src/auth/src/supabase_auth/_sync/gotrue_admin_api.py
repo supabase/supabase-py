@@ -220,7 +220,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
 
     def _list_oauth_clients(
         self,
-        params: PageParams = None,
+        params: PageParams | None = None,
     ) -> OAuthClientListResponse:
         """
         Lists all OAuth clients with optional pagination.
@@ -231,10 +231,10 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         """
         query = {}
         if params:
-            if params.get("page") is not None:
-                query["page"] = str(params["page"])
-            if params.get("per_page") is not None:
-                query["per_page"] = str(params["per_page"])
+            if params.page is not None:
+                query["page"] = str(params.page)
+            if params.per_page is not None:
+                query["per_page"] = str(params.per_page)
 
         response = self._request(
             "GET",

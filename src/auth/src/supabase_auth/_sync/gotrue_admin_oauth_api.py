@@ -14,7 +14,7 @@ class SyncGoTrueAdminOAuthAPI:
 
     def list_clients(
         self,
-        params: PageParams = None,
+        params: PageParams | None = None,
     ) -> OAuthClientListResponse:
         """
         Lists all OAuth clients with optional pagination.
