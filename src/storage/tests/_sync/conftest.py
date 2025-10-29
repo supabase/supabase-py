@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from collections.abc import Generator
+from collections.abc import Generator, Generator
 
 import pytest
 from dotenv import load_dotenv

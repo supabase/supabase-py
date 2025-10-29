@@ -30,6 +30,7 @@ from ..types import (
     UploadData,
     UploadResponse,
     URLOptions,
+    UploadSignedUrlFileOptions,
     transform_to_dict,
 )
 from ..utils import StorageException
@@ -97,10 +98,12 @@ class SyncBucketActionsMixin:
         ----------
         path
             The file path, including the file name. For example `folder/image.png`.
+        options
+            Additional options for the upload url creation.
         """
-        headers = dict()
-        if options.get("upsert", None):
-            headers.update({"x-upsert": options.get("upsert")})
+        headers: dict[str, str] = dict()
+        if options is not None and options.upsert:
+            headers.update({"x-upsert": options.upsert})
 
         path_parts = relative_path_to_parts(path)
         response = self._request(
@@ -125,7 +128,7 @@ class SyncBucketActionsMixin:
         path: str,
         token: str,
         file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[FileOptions] = None,
+        file_options: Optional[UploadSignedUrlFileOptions] = None,
     ) -> UploadResponse:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
@@ -146,20 +149,21 @@ class SyncBucketActionsMixin:
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
 
-        if file_options is None:
-            file_options = {}
+        options = {}
+        if file_options is not None:
+            options = file_options.model_dump()
 
-        cache_control = file_options.get("cache-control")
+        cache_control = options.get("cache-control")
         # cacheControl is also passed as form data
         # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89
         _data = {}
         if cache_control:
-            file_options["cache-control"] = f"max-age={cache_control}"
+            options["cache-control"] = f"max-age={cache_control}"
             _data = {"cacheControl": cache_control}
         headers = {
             **self._client.headers,
             **DEFAULT_FILE_OPTIONS,
-            **file_options,
+            **options,
         }
         filename = path_parts[-1]
 

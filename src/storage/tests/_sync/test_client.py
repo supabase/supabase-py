@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Generator, Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -354,7 +354,9 @@ def test_client_upload_to_signed_url(
     assert image == file.file_content
 
     # Test with cache-control
-    data = storage_file_client.create_signed_upload_url(f"cached_{file.bucket_path}")
+    data = storage_file_client.create_signed_upload_url(
+        f"cached_{file.bucket_path}"
+    )
     storage_file_client.upload_to_signed_url(
         data["path"], data["token"], file.file_content, {"cache-control": "3600"}
     )
