@@ -893,6 +893,12 @@ OAuth client registration type.
 Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 """
 
+OAuthClientTokenEndpointAuthMethod = Literal["none", "client_secret_basic", "client_secret_post"]
+"""
+OAuth client token endpoint authentication method.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
 
 class OAuthClient(BaseModel):
     """
@@ -901,27 +907,29 @@ class OAuthClient(BaseModel):
     """
 
     client_id: str
-    """Unique identifier for the OAuth client"""
+    """Unique client identifier"""
     client_name: str
-    """Human-readable name of the OAuth client"""
+    """Human-readable name of the client application"""
     client_secret: Optional[str] = None
-    """Client secret (only returned on registration and regeneration)"""
+    """Client secret for confidential clients (only returned on registration/regeneration)"""
     client_type: OAuthClientType
-    """Type of OAuth client"""
-    token_endpoint_auth_method: str
-    """Token endpoint authentication method"""
+    """Type of the client"""
+    token_endpoint_auth_method: OAuthClientTokenEndpointAuthMethod
+    """Authentication method for the token endpoint"""
     registration_type: OAuthClientRegistrationType
     """Registration type of the client"""
     client_uri: Optional[str] = None
-    """URI of the OAuth client"""
+    """URL of the client application's homepage"""
+    logo_uri: Optional[str] = None
+    """URL of the client application's logo"""
     redirect_uris: List[str]
-    """Array of allowed redirect URIs"""
+    """Array of redirect URIs used by the client"""
     grant_types: List[OAuthClientGrantType]
-    """Array of allowed grant types"""
+    """OAuth grant types the client is authorized to use"""
     response_types: List[OAuthClientResponseType]
-    """Array of allowed response types"""
+    """OAuth response types the client can use"""
     scope: Optional[str] = None
-    """Scope of the OAuth client"""
+    """Space-separated list of scope values"""
     created_at: str
     """Timestamp when the client was created"""
     updated_at: str
@@ -937,15 +945,17 @@ class CreateOAuthClientParams(BaseModel):
     client_name: str
     """Human-readable name of the OAuth client"""
     client_uri: Optional[str] = None
-    """URI of the OAuth client"""
+    """URL of the client application's homepage"""
+    logo_uri: Optional[str] = None
+    """URL of the client application's logo"""
     redirect_uris: List[str]
-    """Array of allowed redirect URIs"""
+    """Array of redirect URIs used by the client"""
     grant_types: Optional[List[OAuthClientGrantType]] = None
-    """Array of allowed grant types (optional, defaults to authorization_code and refresh_token)"""
+    """OAuth grant types the client is authorized to use (optional, defaults to authorization_code and refresh_token)"""
     response_types: Optional[List[OAuthClientResponseType]] = None
-    """Array of allowed response types (optional, defaults to code)"""
+    """OAuth response types the client can use (optional, defaults to code)"""
     scope: Optional[str] = None
-    """Scope of the OAuth client"""
+    """Space-separated list of scope values"""
 
 
 class OAuthClientResponse(BaseModel):
