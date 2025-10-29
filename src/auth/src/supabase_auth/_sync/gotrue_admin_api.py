@@ -10,6 +10,7 @@ from ..helpers import (
     model_validate,
     parse_link_response,
     parse_user_response,
+    validate_uuid,
 )
 from ..http_clients import SyncClient
 from ..types import (
@@ -303,6 +304,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
+        validate_uuid(client_id)
         return self._request(
             "GET",
             f"admin/oauth/clients/{client_id}",
@@ -322,6 +324,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
+        validate_uuid(client_id)
         return self._request(
             "DELETE",
             f"admin/oauth/clients/{client_id}",
@@ -341,6 +344,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
+        validate_uuid(client_id)
         return self._request(
             "POST",
             f"admin/oauth/clients/{client_id}/regenerate_secret",

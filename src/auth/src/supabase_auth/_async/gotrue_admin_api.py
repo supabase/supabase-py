@@ -314,6 +314,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
+        validate_uuid(client_id)
         return await self._request(
             "DELETE",
             f"admin/oauth/clients/{client_id}",
@@ -333,6 +334,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
+        validate_uuid(client_id)
         return await self._request(
             "POST",
             f"admin/oauth/clients/{client_id}/regenerate_secret",
