@@ -98,6 +98,8 @@ class AsyncBucketActionsMixin:
         ----------
         path
             The file path, including the file name. For example `folder/image.png`.
+        options
+            Additional options for the upload url creation.
         """
         headers: dict[str, str] = dict()
         if options is not None and options.upsert:
