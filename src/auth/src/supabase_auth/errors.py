@@ -90,6 +90,11 @@ ErrorCode = Literal[
 ]
 
 
+class UserDoesntExist(Exception):
+    def __init__(self, access_token: str):
+        self.access_token = access_token
+
+
 class AuthError(Exception):
     def __init__(self, message: str, code: ErrorCode | None) -> None:
         Exception.__init__(self, message)

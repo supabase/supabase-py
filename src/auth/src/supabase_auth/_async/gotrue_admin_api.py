@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from httpx import Response
+from httpx import QueryParams, Response
 from pydantic import TypeAdapter
 
 from ..helpers import (
@@ -60,7 +60,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         await self._request(
             "POST",
             "logout",
-            query={"scope": scope},
+            query=QueryParams(scope=scope),
             jwt=jwt,
             no_resolve_json=True,
         )
@@ -128,7 +128,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         response = await self._request(
             "GET",
             "admin/users",
-            query={"page": page, "per_page": per_page},
+            query=QueryParams(page=page, per_page=per_page),
         )
         return model_validate(UserList, response.content).users
 

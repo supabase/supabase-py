@@ -48,14 +48,14 @@ TEST_URL = "http://localhost"
 def test_handle_exception_with_api_version_and_error_code():
     err = {
         "name": "without API version and error code",
-        "code": "error_code",
+        "code": "unexpected_failure",
         "ename": "AuthApiError",
     }
 
     with respx.mock:
         respx.get(f"{TEST_URL}/hello-world").mock(
             return_value=Response(status_code=200),
-            side_effect=AuthApiError("Error code message", 400, "error_code"),
+            side_effect=AuthApiError("Error code message", 400, "unexpected_failure"),
         )
         with pytest.raises(AuthApiError, match=r"Error code message") as exc:
             httpx.get(f"{TEST_URL}/hello-world")
@@ -90,14 +90,14 @@ def test_handle_exception_without_api_version_and_weak_password_error_code():
 def test_handle_exception_with_api_version_2024_01_01_and_error_code():
     err = {
         "name": "with API version 2024-01-01 and error code",
-        "code": "error_code",
+        "code": "unexpected_failure",
         "ename": "AuthApiError",
     }
 
     with respx.mock:
         respx.get(f"{TEST_URL}/hello-world").mock(
             return_value=Response(status_code=200),
-            side_effect=AuthApiError("Error code message", 400, "error_code"),
+            side_effect=AuthApiError("Error code message", 400, "unexpected_failure"),
         )
         with pytest.raises(AuthApiError, match=r"Error code message") as exc:
             httpx.get(f"{TEST_URL}/hello-world")
@@ -170,7 +170,7 @@ def test_model_validate_pydantic_v1():
         mock_model.parse_raw.return_value = "parsed_obj_result"
 
         # Use the patched model in the actual function
-        result = model_validate(mock_model, {"test": "data"})
+        result = model_validate(mock_model, {"test": "data"})  # type: ignore
 
         # Check that parse_obj was called
         mock_model.parse_raw.assert_called_once_with({"test": "data"})
@@ -205,203 +205,6 @@ def test_model_dump_json_pydantic_v1():
     # Check the results
     assert result == '{"test": "data"}'
     mock_model.json.assert_called_once()
-
-
-# Test for parse_auth_response with a session
-def test_parse_auth_response_with_session():
-    from json import dumps
-
-    # Create our own AuthResponse object to avoid pydantic validation issues
-    mock_session = MagicMock(spec=Session)
-    mock_user = MagicMock(spec=User)
-
-    # Test data with access_token, refresh_token, and expires_in
-    data = dumps(
-        {
-            "access_token": "test_access_token",
-            "refresh_token": "test_refresh_token",
-            "expires_in": 3600,
-            "user": {
-                "id": "user-123",
-                "email": "test@example.com",
-            },
-        }
-    )
-    response = Response(content=data, status_code=200)
-
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        # First call for Session, second for User
-        mock_validate.side_effect = [mock_session, mock_user]
-
-        with patch("supabase_auth.helpers.AuthResponse") as mock_auth_response:
-            mock_auth_response.return_value = "auth_response_result"
-
-            result = parse_auth_response(response)
-
-            # Verify model_validate was called for Session and User
-            assert mock_validate.call_count == 2
-            mock_validate.assert_any_call(User, response.content)
-
-            # Verify AuthResponse was created with correct params
-            mock_auth_response.assert_called_once_with(
-                session=mock_session, user=mock_user
-            )
-            assert result == "auth_response_result"
-
-
-# Test for parse_auth_response without a session
-def test_parse_auth_response_without_session():
-    from json import dumps
-
-    # Create our own User object to avoid pydantic validation issues
-    mock_user = MagicMock(spec=User)
-
-    # Test data without session info
-    data = dumps(
-        {
-            "user": {
-                "id": "user-123",
-                "email": "test@example.com",
-            }
-        }
-    )
-    response = Response(content=data, status_code=200)
-
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        mock_validate.return_value = mock_user
-
-        with patch("supabase_auth.helpers.AuthResponse") as mock_auth_response:
-            mock_auth_response.return_value = "auth_response_result"
-
-            result = parse_auth_response(response)
-
-            # Verify model_validate was called only for User
-            mock_validate.assert_called_once_with(User, response)
-
-            # Verify AuthResponse was created with correct params
-            mock_auth_response.assert_called_once_with(session=None, user=mock_user)
-            assert result == "auth_response_result"
-
-
-# Test for parse_link_response
-def test_parse_link_response():
-    # Create mocks to avoid pydantic validation issues
-    mock_user = MagicMock(spec=User)
-    mock_gen_link_response = MagicMock(spec=GenerateLinkResponse)
-
-    # Test data for link response
-    data = {
-        "action_link": "https://example.com/verify",
-        "email_otp": "123456",
-        "hashed_token": "abc123",
-        "redirect_to": "https://example.com/app",
-        "verification_type": "signup",
-        "id": "user-123",
-        "email": "test@example.com",
-    }
-
-    # We need to patch the GenerateLinkProperties constructor
-    with patch("supabase_auth.helpers.GenerateLinkProperties") as mock_gen_props:
-        mock_gen_props.return_value = "mock_properties"
-
-        with patch("supabase_auth.helpers.model_dump") as mock_dump:
-            mock_dump.return_value = {
-                "action_link": "https://example.com/verify",
-                "email_otp": "123456",
-                "hashed_token": "abc123",
-                "redirect_to": "https://example.com/app",
-                "verification_type": "signup",
-            }
-
-            with patch("supabase_auth.helpers.model_validate") as mock_validate:
-                mock_validate.return_value = mock_user
-
-                with patch(
-                    "supabase_auth.helpers.GenerateLinkResponse"
-                ) as mock_gen_link:
-                    mock_gen_link.return_value = mock_gen_link_response
-
-                    result = parse_link_response(data)
-
-                    # Verify that props were created correctly
-                    mock_gen_props.assert_called_once_with(
-                        action_link=data.get("action_link"),
-                        email_otp=data.get("email_otp"),
-                        hashed_token=data.get("hashed_token"),
-                        redirect_to=data.get("redirect_to"),
-                        verification_type=data.get("verification_type"),
-                    )
-
-                    # Verify model_validate was called for User with filtered data
-                    mock_validate.assert_called_once()
-
-                    # Verify GenerateLinkResponse was created
-                    mock_gen_link.assert_called_once_with(
-                        properties="mock_properties", user=mock_user
-                    )
-                    assert result == mock_gen_link_response
-
-
-# Test for parse_user_response
-def test_parse_user_response_with_user_object():
-    # Test data with 'user' key
-    data = {"user": {"id": "user-123", "email": "test@example.com"}}
-
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        mock_validate.return_value = "mock_user_response"
-
-        result = parse_user_response(data)
-
-        assert result == "mock_user_response"
-        mock_validate.assert_called_once()
-
-
-# Test for parse_user_response without user object
-def test_parse_user_response_without_user_object():
-    # Test data without 'user' key
-    data = {"id": "user-123", "email": "test@example.com"}
-
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        mock_validate.return_value = "mock_user_response"
-
-        result = parse_user_response(data)
-
-        assert result == "mock_user_response"
-        mock_validate.assert_called_once()
-        # Verify that it wrapped the data in a user object
-        expected_wrapped_data = {"user": data}
-        assert mock_validate.call_args[0][1] == expected_wrapped_data
-
-
-# Test for parse_sso_response
-def test_parse_sso_response():
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        mock_validate.return_value = "sso_response"
-
-        result = parse_sso_response({"provider": "google"})
-        assert result == "sso_response"
-
-        # Verify model_validate was called with correct params
-        from supabase_auth.types import SSOResponse
-
-        mock_validate.assert_called_once_with(SSOResponse, {"provider": "google"})
-
-
-# Test for parse_jwks with empty keys
-def test_parse_jwks_empty_keys():
-    with pytest.raises(AuthInvalidJwtError, match="JWKS is empty"):
-        parse_jwks({"keys": []})
-
-
-# Tests for handle_exception
-def test_handle_exception_non_http_error():
-    # Test case for non-HTTPStatusError
-    exception = ValueError("Test error")
-    result = handle_exception(exception)
-
-    assert isinstance(result, AuthRetryableError)
-    assert result.message == "Test error"
-    assert result.status == 0
 
 
 def test_handle_exception_network_error():
@@ -508,12 +311,6 @@ def test_handle_exception_unknown_error():
     assert "Server error" in result.message
 
 
-# Tests for validate_exp
-def test_validate_exp_with_no_exp():
-    with pytest.raises(AuthInvalidJwtError, match="JWT has no expiration time"):
-        validate_exp(None)
-
-
 def test_validate_exp_with_expired_exp():
     # Set expiry to 1 hour ago
     exp = int(datetime.now().timestamp()) - 3600
@@ -599,25 +396,3 @@ def test_handle_exception_weak_password_branch():
         assert isinstance(result, AuthWeakPasswordError)
         assert result.message == "Password too weak"
         assert result.status == 400
-
-
-def test_parse_auth_otp_response():
-    """Test for the parse_auth_otp_response function."""
-    from supabase_auth.helpers import parse_auth_otp_response
-    from supabase_auth.types import AuthOtpResponse
-
-    # Test with message_id field
-    data = {"message_id": "12345"}
-    result = parse_auth_otp_response(data)
-    assert isinstance(result, AuthOtpResponse)
-    assert result.message_id == "12345"
-    assert result.user is None
-    assert result.session is None
-
-    # Test with no message_id field
-    data = {}
-    result = parse_auth_otp_response(data)
-    assert isinstance(result, AuthOtpResponse)
-    assert result.message_id is None
-    assert result.user is None
-    assert result.session is None

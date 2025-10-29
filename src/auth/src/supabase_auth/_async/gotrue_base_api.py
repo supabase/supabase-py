@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, Optional, TypeVar, overload
 
-from httpx import HTTPStatusError, Response
+from httpx import HTTPStatusError, QueryParams, Response
 from pydantic import BaseModel
 from typing_extensions import Literal, Self
 
@@ -47,7 +47,7 @@ class AsyncGoTrueBaseAPI:
         jwt: Optional[str] = None,
         redirect_to: Optional[str] = None,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str | int | None]] = None,
+        query: Optional[QueryParams] = None,
         body: Optional[Any] = None,
         no_resolve_json: bool = False,
     ) -> Response:
@@ -59,9 +59,9 @@ class AsyncGoTrueBaseAPI:
             headers["Content-Type"] = "application/json;charset=UTF-8"
         if jwt:
             headers["Authorization"] = f"Bearer {jwt}"
-        query = query or {}
+        query = query or QueryParams()
         if redirect_to:
-            query["redirect_to"] = redirect_to
+            query = query.set("redirect_to", redirect_to)
         try:
             response = await self._http_client.request(
                 method,

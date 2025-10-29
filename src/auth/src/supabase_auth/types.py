@@ -82,6 +82,11 @@ class AMREntry(BaseModel):
     """
 
 
+class AMREntryDict(TypedDict):
+    timestamp: int
+    method: Union[Literal["password", "otp", "oauth", "mfa/totp"], str]
+
+
 class Options(TypedDict):
     redirect_to: NotRequired[str]
     captcha_token: NotRequired[str]
@@ -843,6 +848,7 @@ class JWTPayload(TypedDict, total=False):
     role: str
     aal: AuthenticatorAssuranceLevels
     session_id: str
+    amr: NotRequired[List[AMREntryDict]]
 
 
 class ClaimsResponse(TypedDict):

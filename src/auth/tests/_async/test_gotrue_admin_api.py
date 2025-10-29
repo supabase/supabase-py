@@ -15,14 +15,12 @@ from .clients import (
     auth_client_with_session,
     client_api_auto_confirm_disabled_client,
     client_api_auto_confirm_off_signups_enabled_client,
-    service_role_api_client,
-)
-from .utils import (
     create_new_user_with_email,
     mock_app_metadata,
     mock_user_credentials,
     mock_user_metadata,
     mock_verification_otp,
+    service_role_api_client,
 )
 
 
@@ -37,12 +35,12 @@ async def test_create_user_with_user_metadata():
     credentials = mock_user_credentials()
     response = await service_role_api_client().create_user(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials["email"],
+            "password": credentials["password"],
             "user_metadata": user_metadata,
         }
     )
-    assert response.user.email == credentials.get("email")
+    assert response.user.email == credentials["email"]
     assert response.user.user_metadata == user_metadata
     assert "profile_image" in response.user.user_metadata
 
@@ -53,8 +51,8 @@ async def test_create_user_with_user_and_app_metadata():
     credentials = mock_user_credentials()
     response = await service_role_api_client().create_user(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials["email"],
+            "password": credentials["password"],
             "user_metadata": user_metadata,
             "app_metadata": app_metadata,
         }
@@ -77,21 +75,15 @@ async def test_list_users_should_return_registered_users():
 
 async def test_get_user_fetches_a_user_by_their_access_token():
     credentials = mock_user_credentials()
-    auth_client_with_session_current_user = auth_client_with_session()
-    response = await auth_client_with_session_current_user.sign_up(
-        {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
-        }
-    )
-    assert response.session
+    auth_client_with_session_current_user = await auth_client_with_session()
     response = await auth_client_with_session_current_user.get_user()
-    assert response.user.email == credentials.get("email")
+    assert response
+    assert response.user.email == credentials["email"]
 
 
 async def test_get_user_by_id_should_a_registered_user_given_its_user_identifier():
     credentials = mock_user_credentials()
-    user = await create_new_user_with_email(email=credentials.get("email"))
+    user = await create_new_user_with_email(email=credentials["email"])
     assert user.id
     response = await service_role_api_client().get_user_by_id(user.id)
     assert response.user.email == credentials.get("email")
@@ -141,8 +133,8 @@ async def test_modify_confirm_email_using_update_user_by_id():
     credentials = mock_user_credentials()
     response = await client_api_auto_confirm_off_signups_enabled_client().sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials["email"],
+            "password": credentials["password"],
         }
     )
     assert response.user
@@ -203,53 +195,32 @@ async def test_sign_in_with_otp_phone():
 
 
 async def test_resend():
-    try:
-        await client_api_auto_confirm_off_signups_enabled_client().resend(
-            {"phone": "+112345678", "type": "sms"}
-        )
-    except AuthApiError as e:
-        assert e.to_dict()
+    await client_api_auto_confirm_off_signups_enabled_client().resend(
+        {"phone": "+112345678", "type": "sms"}
+    )
 
 
 async def test_reauthenticate():
-    try:
-        response = await auth_client_with_session().reauthenticate()
-    except AuthSessionMissingError:
-        pass
+    response = await auth_client_with_session().reauthenticate()
 
 
 async def test_refresh_session():
-    try:
-        response = await auth_client_with_session().refresh_session()
-    except AuthSessionMissingError:
-        pass
+    await auth_client_with_session().refresh_session()
 
 
 async def test_reset_password_for_email():
     credentials = mock_user_credentials()
-    try:
-        response = await auth_client_with_session().reset_password_email(
-            email=credentials.get("email")
-        )
-    except AuthSessionMissingError:
-        pass
+    await auth_client_with_session().reset_password_email(email=credentials["email"])
 
 
 async def test_resend_missing_credentials():
-    try:
-        await client_api_auto_confirm_off_signups_enabled_client().resend(
-            {"type": "email_change"}
-        )
-    except AuthInvalidCredentialsError as e:
-        assert e.to_dict()
+    await client_api_auto_confirm_off_signups_enabled_client().resend(
+        {"type": "email_change"}
+    )
 
 
 async def test_sign_in_anonymously():
-    try:
-        response = await auth_client_with_session().sign_in_anonymously()
-        assert response
-    except AuthApiError:
-        pass
+    response = await auth_client_with_session().sign_in_anonymously()
 
 
 async def test_delete_user_should_be_able_delete_an_existing_user():

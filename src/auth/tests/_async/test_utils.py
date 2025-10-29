@@ -1,6 +1,6 @@
 from time import time
 
-from .utils import (
+from .clients import (
     create_new_user_with_email,
     mock_app_metadata,
     mock_user_credentials,

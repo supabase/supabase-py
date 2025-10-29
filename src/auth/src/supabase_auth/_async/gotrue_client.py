@@ -8,7 +8,9 @@ from typing import Callable, Dict, List, Mapping, Optional, Tuple, Union
 from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import uuid4
 
+from httpx import QueryParams
 from jwt import get_algorithm_by_name
+from typing_extensions import cast
 
 from ..constants import (
     DEFAULT_HEADERS,
@@ -25,6 +27,7 @@ from ..errors import (
     AuthInvalidJwtError,
     AuthRetryableError,
     AuthSessionMissingError,
+    UserDoesntExist,
 )
 from ..helpers import (
     decode_jwt,
@@ -45,6 +48,7 @@ from ..http_clients import AsyncClient
 from ..timer import Timer
 from ..types import (
     JWK,
+    AMREntry,
     AuthChangeEvent,
     AuthenticatorAssuranceLevels,
     AuthFlowType,
@@ -71,10 +75,12 @@ from ..types import (
     ResendCredentials,
     Session,
     SignInAnonymouslyCredentials,
+    SignInWithEmailAndPasswordlessCredentialsOptions,
     SignInWithIdTokenCredentials,
     SignInWithOAuthCredentials,
     SignInWithPasswordCredentials,
     SignInWithPasswordlessCredentials,
+    SignInWithPhoneAndPasswordlessCredentialsOptions,
     SignInWithSSOCredentials,
     SignOutOptions,
     SignUpWithEmailAndPasswordCredentialsOptions,
@@ -212,15 +218,17 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         email = credentials.get("email")
         phone = credentials.get("phone")
         password = credentials.get("password")
-        options: Union[
-            SignUpWithPhoneAndPasswordCredentialsOptions,
-            SignUpWithEmailAndPasswordCredentialsOptions,
-        ] = credentials.get("options", {})
-        redirect_to: Optional[str] = options.get("redirect_to")
-        data = options.get("data") or {}
-        channel = options.get("channel", "sms")
-        captcha_token = options.get("captcha_token")
-        if email:
+        # TODO(@o-santi): this is horrible, but it is the easiest way to satisfy mypy
+        #                 it should have been a builder pattern instead, and with proper classes
+        if email and password:
+            email_options = cast(
+                SignUpWithEmailAndPasswordCredentialsOptions,
+                credentials.get("options", {}),
+            )
+            data = email_options.get("data") or {}
+            channel = email_options.get("channel", "sms")
+            captcha_token = email_options.get("captcha_token")
+            redirect_to = email_options.get("email_redirect_to")
             response = await self._request(
                 "POST",
                 "signup",
@@ -234,7 +242,14 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 },
                 redirect_to=redirect_to,
             )
-        elif phone:
+        elif phone and password:
+            phone_options = cast(
+                SignUpWithPhoneAndPasswordCredentialsOptions,
+                credentials.get("options", {}),
+            )
+            data = phone_options.get("data") or {}
+            channel = phone_options.get("channel", "sms")
+            captcha_token = phone_options.get("captcha_token")
             response = await self._request(
                 "POST",
                 "signup",
@@ -252,7 +267,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             raise AuthInvalidCredentialsError(
                 "You must provide either an email or phone number and a password"
             )
-        print(response.content)
+
         auth_response = parse_auth_response(response)
         if auth_response.session:
             await self._save_session(auth_response.session)
@@ -273,7 +288,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         options = credentials.get("options", {})
         data = options.get("data") or {}
         captcha_token = options.get("captcha_token")
-        if email:
+        if email and password:
             response = await self._request(
                 "POST",
                 "token",
@@ -285,11 +300,9 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                         "captcha_token": captcha_token,
                     },
                 },
-                query={
-                    "grant_type": "password",
-                },
+                query=QueryParams(grant_type="password"),
             )
-        elif phone:
+        elif phone and password:
             response = await self._request(
                 "POST",
                 "token",
@@ -301,9 +314,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                         "captcha_token": captcha_token,
                     },
                 },
-                query={
-                    "grant_type": "password",
-                },
+                query=QueryParams(grant_type="password"),
             )
         else:
             raise AuthInvalidCredentialsError(
@@ -342,9 +353,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                     "captcha_token": captcha_token,
                 },
             },
-            query={
-                "grant_type": "id_token",
-            },
+            query=QueryParams(grant_type="id_token"),
         )
         auth_response = parse_auth_response(response)
         if auth_response.session:
@@ -374,7 +383,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         captcha_token = options.get("captcha_token")
         # HTTPX currently does not follow redirects: https://www.python-httpx.org/compatibility/
         # Additionally, unlike the JS client, Python is a server side language and it's not possible
-        # to automatically redirect in browser for hte user
+        # to automatically redirect in browser for the user
         skip_http_redirect = options.get("skip_http_redirect", True)
 
         if domain:
@@ -497,13 +506,18 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         await self._remove_session()
         email = credentials.get("email")
         phone = credentials.get("phone")
-        options = credentials.get("options", {})
-        email_redirect_to = options.get("email_redirect_to")
-        should_create_user = options.get("should_create_user", True)
-        data = options.get("data")
-        channel = options.get("channel", "sms")
-        captcha_token = options.get("captcha_token")
+        # TODO(@o-santi): this is horrible, but it is the easiest way to satisfy mypy
+        #                 it should have been a builder pattern instead, and with proper classes
         if email:
+            email_options = cast(
+                SignInWithEmailAndPasswordlessCredentialsOptions,
+                credentials.get("options", {}),
+            )
+            email_redirect_to = email_options.get("email_redirect_to")
+            should_create_user = email_options.get("should_create_user", True)
+            data = email_options.get("data")
+            channel = email_options.get("channel", "sms")
+            captcha_token = email_options.get("captcha_token")
             response = await self._request(
                 "POST",
                 "otp",
@@ -519,6 +533,14 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             )
             return parse_auth_otp_response(response)
         if phone:
+            phone_options = cast(
+                SignInWithPhoneAndPasswordlessCredentialsOptions,
+                credentials.get("options", {}),
+            )
+            should_create_user = phone_options.get("should_create_user", True)
+            data = phone_options.get("data")
+            channel = phone_options.get("channel", "sms")
+            captcha_token = phone_options.get("captcha_token")
             response = await self._request(
                 "POST",
                 "otp",
@@ -548,9 +570,9 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         phone = credentials.get("phone")
         type = credentials.get("type")
         options = credentials.get("options", {})
-        email_redirect_to = options.get("email_redirect_to")
+        email_redirect_to: Optional[str] = options.get("email_redirect_to")  # type: ignore
         captcha_token = options.get("captcha_token")
-        body = {
+        body: Dict[str, object] = {  # improve later
             "type": type,
             "gotrue_meta_security": {
                 "captcha_token": captcha_token,
@@ -707,6 +729,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             session = response.session
         else:
             user_response = await self.get_user(access_token)
+            if user_response is None:
+                raise UserDoesntExist(access_token)
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -917,7 +941,10 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             f for f in session.user.factors or [] if f.status == "verified"
         ]
         next_level = "aal2" if verified_factors else current_level
-        current_authentication_methods = payload.get("amr") or []
+        amr_dict_list = payload.get("amr") or []
+        current_authentication_methods = [
+            AMREntry.model_validate(amr) for amr in amr_dict_list
+        ]
         return AuthMFAGetAuthenticatorAssuranceLevelResponse(
             current_level=current_level,
             next_level=next_level,
@@ -972,6 +999,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         time_now = round(time.time())
         expires_at = time_now + int(expires_in)
         user = await self.get_user(access_token)
+        if user is None:
+            raise UserDoesntExist(access_token)
         session = Session(
             provider_token=provider_token,
             provider_refresh_token=provider_refresh_token,
@@ -1034,7 +1063,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         response = await self._request(
             "POST",
             "token",
-            query={"grant_type": "refresh_token"},
+            query=QueryParams(grant_type="refresh_token"),
             body={"refresh_token": refresh_token},
         )
         return parse_auth_response(response)
@@ -1119,7 +1148,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         url: str,
         provider: Provider,
         params: Dict[str, str],
-    ) -> Tuple[str, Mapping[str, str]]:
+    ) -> Tuple[str, QueryParams]:
+        query = QueryParams(params)
         if self._flow_type == "pkce":
             code_verifier = generate_pkce_verifier()
             code_challenge = generate_pkce_challenge(code_verifier)
@@ -1129,12 +1159,11 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             code_challenge_method = (
                 "plain" if code_verifier == code_challenge else "s256"
             )
-            params["code_challenge"] = code_challenge
-            params["code_challenge_method"] = code_challenge_method
-
-        params["provider"] = provider
-        query = urlencode(params)
-        return f"{url}?{query}", params
+            query = query.set("code_challenge", code_challenge).set(
+                "code_challenge_method", code_challenge_method
+            )
+        query = query.set("provider", provider)
+        return f"{url}?{query}", query
 
     async def exchange_code_for_session(self, params: CodeExchangeParams):
         code_verifier = params.get("code_verifier") or await self._storage.get_item(
@@ -1143,7 +1172,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         response = await self._request(
             "POST",
             "token",
-            query={"grant_type": "pkce"},
+            query=QueryParams(grant_type="pkce"),
             body={
                 "auth_code": params.get("auth_code"),
                 "code_verifier": code_verifier,
@@ -1224,9 +1253,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             return ClaimsResponse(claims=payload, headers=header, signature=signature)
 
         algorithm = get_algorithm_by_name(header["alg"])
-        jwks = await self._fetch_jwks(header["kid"], jwks or {"keys": []})
-        print(jwks)
-        signing_key = algorithm.from_jwk(jwks)
+        jwk_set = await self._fetch_jwks(header["kid"], jwks or {"keys": []})
+        signing_key = algorithm.from_jwk(cast(Dict[str, str], jwk_set))
 
         # verify the signature
         is_valid = algorithm.verify(

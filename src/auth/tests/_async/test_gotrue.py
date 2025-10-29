@@ -17,8 +17,8 @@ from .clients import (
     auth_client,
     auth_client_with_asymmetric_session,
     auth_client_with_session,
+    mock_user_credentials,
 )
-from .utils import mock_user_credentials
 
 
 async def test_get_claims_returns_none_when_session_is_none():

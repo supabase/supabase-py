@@ -31,7 +31,7 @@ AUTH_ADMIN_JWT = encode(
 )
 
 
-def auth_client():
+def auth_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -39,7 +39,7 @@ def auth_client():
     )
 
 
-def auth_client_with_session():
+def auth_client_with_session() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -55,7 +55,7 @@ def auth_client_with_asymmetric_session() -> SyncGoTrueClient:
     )
 
 
-def auth_subscription_client():
+def auth_subscription_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -63,7 +63,7 @@ def auth_subscription_client():
     )
 
 
-def client_api_auto_confirm_enabled_client():
+def client_api_auto_confirm_enabled_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -71,7 +71,7 @@ def client_api_auto_confirm_enabled_client():
     )
 
 
-def client_api_auto_confirm_off_signups_enabled_client():
+def client_api_auto_confirm_off_signups_enabled_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
@@ -79,7 +79,7 @@ def client_api_auto_confirm_off_signups_enabled_client():
     )
 
 
-def client_api_auto_confirm_disabled_client():
+def client_api_auto_confirm_disabled_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
@@ -87,7 +87,7 @@ def client_api_auto_confirm_disabled_client():
     )
 
 
-def auth_admin_api_auto_confirm_enabled_client():
+def auth_admin_api_auto_confirm_enabled_client() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         headers={
@@ -96,7 +96,7 @@ def auth_admin_api_auto_confirm_enabled_client():
     )
 
 
-def auth_admin_api_auto_confirm_disabled_client():
+def auth_admin_api_auto_confirm_disabled_client() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         headers={
@@ -113,7 +113,7 @@ SERVICE_ROLE_JWT = encode(
 )
 
 
-def service_role_api_client():
+def service_role_api_client() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         headers={
@@ -122,7 +122,7 @@ def service_role_api_client():
     )
 
 
-def service_role_api_client_with_sms():
+def service_role_api_client_with_sms() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         headers={
@@ -131,7 +131,7 @@ def service_role_api_client_with_sms():
     )
 
 
-def service_role_api_client_no_sms():
+def service_role_api_client_no_sms() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         headers={
