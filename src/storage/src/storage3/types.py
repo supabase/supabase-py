@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Dict, Literal, Optional, TypedDict, Union
 
-from pydantic import BaseModel, ConfigDict, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from typing_extensions import ReadOnly
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
@@ -135,3 +135,14 @@ class SignedUrlsJsonItem(BaseModel):
 
 
 SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
+
+
+class CreateSignedUploadUrlOptions(BaseModel):
+    upsert: str
+
+
+class UploadSignedUrlFileOptions(BaseModel):
+    cache_control: str = Field(validation_alias="cache-control")
+    content_type: str = Field(validation_alias="content-type")
+    metadata: Dict[str, Any]
+    headers: Dict[str, str]

@@ -15,6 +15,7 @@ from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
 from ..exceptions import StorageApiError
 from ..types import (
     BaseBucket,
+    CreateSignedUploadUrlOptions,
     CreateSignedUrlResponse,
     CreateSignedURLsOptions,
     DownloadOptions,
@@ -84,7 +85,11 @@ class SyncBucketActionsMixin:
 
         return response
 
-    def create_signed_upload_url(self, path: str) -> SignedUploadURL:
+    def create_signed_upload_url(
+        self,
+        path: str,
+        options: Optional[CreateSignedUploadUrlOptions] = None,
+    ) -> SignedUploadURL:
         """
         Creates a signed upload URL.
 
@@ -93,9 +98,13 @@ class SyncBucketActionsMixin:
         path
             The file path, including the file name. For example `folder/image.png`.
         """
+        headers = dict()
+        if options.get("upsert", None):
+            headers.update({"x-upsert": options.get("upsert")})
+
         path_parts = relative_path_to_parts(path)
         response = self._request(
-            "POST", ["object", "upload", "sign", self.id, *path_parts]
+            "POST", ["object", "upload", "sign", self.id, *path_parts], headers=headers
         )
         data = response.json()
         full_url: urllib.parse.ParseResult = urllib.parse.urlparse(
