@@ -1246,7 +1246,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         )
 
         validate_exp(payload["exp"])
-        print(header)
+
         # if symmetric algorithm, fallback to get_user
         if "kid" not in header or header["alg"] == "HS256":
             await self.get_user(token)
