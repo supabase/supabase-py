@@ -6,7 +6,7 @@ from httpx import QueryParams, Response
 from pydantic import TypeAdapter
 
 from ..helpers import (
-    is_valid_uuid,
+    validate_uuid,
     model_validate,
     parse_link_response,
     parse_user_response,
@@ -151,7 +151,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        self._validate_uuid(uid)
+        validate_uuid(uid)
 
         response = await self._request(
             "GET",
@@ -170,8 +170,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        self._validate_uuid(uid)
-        response = await self._request(
+        validate_uuid(uid)
             "PUT",
             f"admin/users/{uid}",
             body=attributes,
@@ -185,7 +184,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        self._validate_uuid(id)
+        validate_uuid(id)
         body = {"should_soft_delete": should_soft_delete}
         await self._request("DELETE", f"admin/users/{id}", body=body)
 
@@ -193,8 +192,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         self,
         params: AuthMFAAdminListFactorsParams,
     ) -> AuthMFAAdminListFactorsResponse:
-        self._validate_uuid(params.get("user_id"))
-        response = await self._request(
+        validate_uuid(params.get("user_id"))
             "GET",
             f"admin/users/{params.get('user_id')}/factors",
         )
@@ -204,23 +202,16 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         self,
         params: AuthMFAAdminDeleteFactorParams,
     ) -> AuthMFAAdminDeleteFactorResponse:
-        self._validate_uuid(params.get("user_id"))
-        self._validate_uuid(params.get("id"))
-        response = await self._request(
+        validate_uuid(params.get("user_id"))
+        validate_uuid(params.get("id"))
             "DELETE",
             f"admin/users/{params.get('user_id')}/factors/{params.get('id')}",
         )
         return model_validate(AuthMFAAdminDeleteFactorResponse, response.content)
 
-    def _validate_uuid(self, id: str | None) -> None:
-        if id is None:
-            raise ValueError("Invalid id, id cannot be none")
-        if not is_valid_uuid(id):
-            raise ValueError(f"Invalid id, '{id}' is not a valid uuid")
-
     async def _list_oauth_clients(
         self,
-        params: PageParams = None,
+        params: PageParams | None = None,
     ) -> OAuthClientListResponse:
         """
         Lists all OAuth clients with optional pagination.
@@ -303,6 +294,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
+        validate_uuid(client_id)
         return await self._request(
             "GET",
             f"admin/oauth/clients/{client_id}",
