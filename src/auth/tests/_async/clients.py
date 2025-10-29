@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from random import random
 from time import time
 from typing import Optional
@@ -26,7 +27,8 @@ class OptionalCredentials(TypedDict):
     password: NotRequired[Optional[str]]
 
 
-class Credentials(TypedDict):
+@dataclass
+class Credentials:
     email: str
     phone: str
     password: str
@@ -37,11 +39,11 @@ def mock_user_credentials(
 ) -> Credentials:
     fake = Faker()
     rand_numbers = str(int(time()))
-    return {
-        "email": options.get("email") or fake.email(),
-        "phone": options.get("phone") or f"1{rand_numbers[-11:]}",
-        "password": options.get("password") or fake.password(),
-    }
+    return Credentials(
+        email=options.get("email") or fake.email(),
+        phone=options.get("phone") or f"1{rand_numbers[-11:]}",
+        password=options.get("password") or fake.password(),
+    )
 
 
 def mock_verification_otp() -> str:
@@ -74,8 +76,8 @@ async def create_new_user_with_email(
     )
     response = await service_role_api_client().create_user(
         {
-            "email": credentials["email"],
-            "password": credentials["password"],
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     return response.user
@@ -125,9 +127,7 @@ async def auth_client_with_session() -> AsyncGoTrueClient:
         persist_session=False,
     )
     credentials = mock_user_credentials()
-    await client.sign_up(
-        {"email": credentials["email"], "password": credentials["password"]}
-    )
+    await client.sign_up({"email": credentials.email, "password": credentials.password})
     return client
 
 

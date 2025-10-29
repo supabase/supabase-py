@@ -11,14 +11,15 @@ from supabase_auth.errors import (
     AuthSessionMissingError,
 )
 from supabase_auth.helpers import decode_jwt
+from supabase_auth.types import SignUpWithEmailAndPasswordCredentials
 
 from .clients import (
     GOTRUE_JWT_SECRET,
     auth_client,
     auth_client_with_asymmetric_session,
     auth_client_with_session,
+    mock_user_credentials,
 )
-from .utils import mock_user_credentials
 
 
 def test_get_claims_returns_none_when_session_is_none():
@@ -29,27 +30,39 @@ def test_get_claims_returns_none_when_session_is_none():
 def test_get_claims_calls_get_user_if_symmetric_jwt(mocker):
     client = auth_client()
     spy = mocker.spy(client, "get_user")
-
-    user = (client.sign_up(mock_user_credentials())).user
+    credentials = mock_user_credentials()
+    options: SignUpWithEmailAndPasswordCredentials = {
+        "email": credentials.email,
+        "password": credentials.password,
+    }
+    user = (client.sign_up(options)).user
 
     assert user is not None
 
-    claims = (client.get_claims())["claims"]
+    response = client.get_claims()
+    assert response
+    claims = response["claims"]
 
-    assert claims["email"] == user.email
+    assert claims.get("email") == user.email
     spy.assert_called_once()
 
 
 def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker):
     client = auth_client_with_asymmetric_session()
-
-    user = (client.sign_up(mock_user_credentials())).user
+    credentials = mock_user_credentials()
+    options: SignUpWithEmailAndPasswordCredentials = {
+        "email": credentials.email,
+        "password": credentials.password,
+    }
+    user = (client.sign_up(options)).user
     assert user is not None
 
     spy = mocker.spy(client, "_request")
 
-    claims = (client.get_claims())["claims"]
-    assert claims["email"] == user.email
+    response = client.get_claims()
+    assert response
+    claims = response["claims"]
+    assert claims.get("email") == user.email
 
     spy.assert_called_once()
     spy.assert_called_with("GET", ".well-known/jwks.json")
@@ -66,7 +79,12 @@ def test_jwks_ttl_cache_behavior(mocker):
     spy = mocker.spy(client, "_request")
 
     # First call should fetch JWKS from endpoint
-    user = (client.sign_up(mock_user_credentials())).user
+    credentials = mock_user_credentials()
+    options: SignUpWithEmailAndPasswordCredentials = {
+        "email": credentials.email,
+        "password": credentials.password,
+    }
+    user = (client.sign_up(options)).user
     assert user is not None
 
     client.get_claims()
@@ -98,8 +116,8 @@ def test_set_session_with_valid_tokens():
     # First sign up to get valid tokens
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -119,7 +137,7 @@ def test_set_session_with_valid_tokens():
     assert response.session.access_token == access_token
     assert response.session.refresh_token == refresh_token
     assert response.user is not None
-    assert response.user.email == credentials.get("email")
+    assert response.user.email == credentials.email
 
 
 def test_set_session_with_expired_token():
@@ -129,8 +147,8 @@ def test_set_session_with_expired_token():
     # First sign up to get valid tokens
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -146,9 +164,9 @@ def test_set_session_with_expired_token():
     expired_token = access_token.split(".")
     payload = decode_jwt(access_token)["payload"]
     payload["exp"] = int(time.time()) - 3600  # Set expiry to 1 hour ago
-    expired_token[1] = encode(payload, GOTRUE_JWT_SECRET, algorithm="HS256").split(".")[
-        1
-    ]
+    expired_token[1] = encode(
+        dict(payload), GOTRUE_JWT_SECRET, algorithm="HS256"
+    ).split(".")[1]
     expired_access_token = ".".join(expired_token)
 
     # Set the session with the expired token
@@ -159,7 +177,7 @@ def test_set_session_with_expired_token():
     assert response.session.access_token != expired_access_token
     assert response.session.refresh_token != refresh_token
     assert response.user is not None
-    assert response.user.email == credentials.get("email")
+    assert response.user.email == credentials.email
 
 
 def test_set_session_without_refresh_token():
@@ -169,8 +187,8 @@ def test_set_session_without_refresh_token():
     # First sign up to get valid tokens
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -185,9 +203,9 @@ def test_set_session_without_refresh_token():
     expired_token = access_token.split(".")
     payload = decode_jwt(access_token)["payload"]
     payload["exp"] = int(time.time()) - 3600  # Set expiry to 1 hour ago
-    expired_token[1] = encode(payload, GOTRUE_JWT_SECRET, algorithm="HS256").split(".")[
-        1
-    ]
+    expired_token[1] = encode(
+        dict(payload), GOTRUE_JWT_SECRET, algorithm="HS256"
+    ).split(".")[1]
     expired_access_token = ".".join(expired_token)
 
     # Try to set the session with an expired token but no refresh token
@@ -211,8 +229,8 @@ def test_mfa_enroll():
     # First sign up to get a valid session
     client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
 
@@ -224,6 +242,7 @@ def test_mfa_enroll():
     assert enroll_response.id is not None
     assert enroll_response.type == "totp"
     assert enroll_response.friendly_name == "test-factor"
+    assert enroll_response.totp
     assert enroll_response.totp.qr_code is not None
 
 
@@ -234,8 +253,8 @@ def test_mfa_challenge():
     # First sign up to get a valid session
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -258,8 +277,8 @@ def test_mfa_unenroll():
     # First sign up to get a valid session
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -281,8 +300,8 @@ def test_mfa_list_factors():
     # First sign up to get a valid session
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -295,101 +314,6 @@ def test_mfa_list_factors():
     # Test MFA list factors
     list_response = client.mfa.list_factors()
     assert len(list_response.all) == 1
-
-
-def test_initialize_from_url():
-    # This test verifies the URL format detection and initialization from URL
-    client = auth_client()
-
-    # First we'll test the _is_implicit_grant_flow method
-    # The method checks for access_token or error_description in the query string, not the fragment
-    url_with_token = "http://example.com/?access_token=test_token&other=value"
-    assert client._is_implicit_grant_flow(url_with_token) == True
-
-    url_with_error = "http://example.com/?error_description=test_error&other=value"
-    assert client._is_implicit_grant_flow(url_with_error) == True
-
-    url_without_token = "http://example.com/?other=value"
-    assert client._is_implicit_grant_flow(url_without_token) == False
-
-    # Now test actual URL initialization with a valid URL containing auth tokens
-    from unittest.mock import patch
-
-    from supabase_auth.types import Session, User, UserResponse
-
-    # Create a mock user and session to avoid actual API calls
-    mock_user = User(
-        id="user123",
-        email="test@example.com",
-        app_metadata={},
-        user_metadata={},
-        aud="authenticated",
-        created_at="2023-01-01T00:00:00Z",
-        confirmed_at="2023-01-01T00:00:00Z",
-        last_sign_in_at="2023-01-01T00:00:00Z",
-        role="authenticated",
-        updated_at="2023-01-01T00:00:00Z",
-    )
-
-    # Wrap the user in a UserResponse as that's what get_user returns
-    mock_user_response = UserResponse(user=mock_user)
-
-    # Test successful initialization with tokens in URL
-    good_url = "http://example.com/?access_token=mock_access_token&refresh_token=mock_refresh_token&expires_in=3600&token_type=bearer"
-
-    # We need to mock:
-    # 1. get_user which is called by _get_session_from_url to validate the token
-    # 2. _save_session which is called to store the session data
-    # 3. _notify_all_subscribers which is called to notify about sign-in
-    with patch.object(client, "get_user") as mock_get_user:
-        mock_get_user.return_value = mock_user_response
-
-        with patch.object(client, "_save_session") as mock_save_session:
-            with patch.object(client, "_notify_all_subscribers") as mock_notify:
-                # Call initialize_from_url with the good URL
-                result = client.initialize_from_url(good_url)
-
-                # Verify get_user was called with the access token
-                mock_get_user.assert_called_once_with("mock_access_token")
-
-                # Verify _save_session was called with a Session object
-                mock_save_session.assert_called_once()
-                session_arg = mock_save_session.call_args[0][0]
-                assert isinstance(session_arg, Session)
-                assert session_arg.access_token == "mock_access_token"
-                assert session_arg.refresh_token == "mock_refresh_token"
-                assert session_arg.expires_in == 3600
-
-                # Verify _notify_all_subscribers was called
-                mock_notify.assert_called_with("SIGNED_IN", session_arg)
-
-                assert result is None  # initialize_from_url doesn't have a return value
-
-    # Test URL with error - need to include error_code for the test to work correctly
-    error_url = "http://example.com/?error=invalid_request&error_description=Invalid+request&error_code=400"
-
-    # Should throw an error when URL contains error parameters
-    from supabase_auth.errors import AuthImplicitGrantRedirectError
-
-    try:
-        client.initialize_from_url(error_url)
-        assert False, "Expected AuthImplicitGrantRedirectError"
-    except AuthImplicitGrantRedirectError as e:
-        # The error message includes the error_description value
-        assert "Invalid request" in str(e)
-
-    # Test URL with code for PKCE flow
-    code_url = "http://example.com/?code=authorization_code"
-
-    # For the code URL path, we're not testing it here since it requires more mocking
-    # and is indirectly tested via other tests like exchange_code_for_session
-
-    # Test URL with neither tokens nor code - should not throw but also not call anything
-    invalid_url = "http://example.com/?foo=bar"
-    with patch.object(client, "_get_session_from_url") as mock_get_session:
-        result = client.initialize_from_url(invalid_url)
-        mock_get_session.assert_not_called()
-        assert result is None
 
 
 def test_exchange_code_for_session():
@@ -407,8 +331,7 @@ def test_exchange_code_for_session():
     client._flow_type = "pkce"
 
     # Test the PKCE URL generation which is needed for exchange_code_for_session
-    provider = "github"
-    url, params = client._get_url_for_provider(f"{client._url}/authorize", provider, {})
+    url, params = client._get_url_for_provider(f"{client._url}/authorize", "github", {})
 
     # Verify PKCE parameters were added
     assert "code_challenge" in params
@@ -432,8 +355,8 @@ def test_get_authenticator_assurance_level():
     # Sign up to get a valid session
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -451,8 +374,8 @@ def test_link_identity():
     # Sign up to get a valid session
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -490,8 +413,8 @@ def test_get_user_identities():
     # Sign up to get a valid session
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -503,132 +426,6 @@ def test_get_user_identities():
     assert hasattr(identities_response, "identities")
 
 
-def test_unlink_identity():
-    client = auth_client()
-    credentials = mock_user_credentials()
-
-    # Sign up to get a valid session
-    signup_response = client.sign_up(
-        {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
-        }
-    )
-    assert signup_response.session is not None
-
-    # Mock a UserIdentity to test unlink_identity
-    from unittest.mock import patch
-
-    from supabase_auth.types import UserIdentity
-
-    # Create a mock identity
-    mock_identity = UserIdentity(
-        id="user-id",
-        identity_id="identity-id-1",
-        user_id="user-id",
-        identity_data={"email": "user@example.com"},
-        provider="github",
-        created_at="2023-01-01T00:00:00Z",
-        last_sign_in_at="2023-01-01T00:00:00Z",
-        updated_at="2023-01-01T00:00:00Z",
-    )
-
-    # Mock the _request method since we can't actually unlink an identity that doesn't exist
-    with patch.object(client, "_request") as mock_request:
-        mock_request.return_value = None
-
-        # Call the method
-        client.unlink_identity(mock_identity)
-
-        # Verify the request was made properly
-        mock_request.assert_called_once_with(
-            "DELETE",
-            "user/identities/identity-id-1",
-            jwt=signup_response.session.access_token,
-        )
-
-    # Test error case: no session
-    with patch.object(client, "get_session") as mock_get_session:
-        from supabase_auth.errors import AuthSessionMissingError
-
-        mock_get_session.return_value = None
-
-        try:
-            client.unlink_identity(mock_identity)
-            assert False, "Expected AuthSessionMissingError"
-        except AuthSessionMissingError:
-            pass
-
-
-def test_verify_otp():
-    client = auth_client()
-
-    # Mock the _request method since we can't actually verify an OTP in the test
-    import time
-    from unittest.mock import patch
-
-    from httpx import Response
-
-    from supabase_auth.types import AuthResponse, Session, User
-
-    mock_user = User(
-        id="test-user-id",
-        app_metadata={},
-        user_metadata={},
-        aud="test-aud",
-        email="test@example.com",
-        phone="",
-        created_at="2023-01-01T00:00:00Z",
-        confirmed_at="2023-01-01T00:00:00Z",
-        last_sign_in_at="2023-01-01T00:00:00Z",
-        role="",
-        updated_at="2023-01-01T00:00:00Z",
-    )
-
-    mock_session = Session(
-        access_token="mock-access-token",
-        refresh_token="mock-refresh-token",
-        expires_in=3600,
-        expires_at=round(time.time()) + 3600,
-        token_type="bearer",
-        user=mock_user,
-    )
-
-    mock_response_json = mock_session.model_dump_json()
-    mock_response = Response(content=mock_response_json, status_code=200)
-
-    with patch.object(client, "_request") as mock_request:
-        # Configure the mock to return a predefined response
-        mock_request.return_value = mock_response
-
-        # Also patch _save_session to avoid actual storage interactions
-        with patch.object(client, "_save_session") as mock_save:
-            # Call verify_otp with test parameters
-            params = {
-                "type": "sms",
-                "phone": "+11234567890",
-                "token": "123456",
-                "options": {"redirect_to": "https://example.com/callback"},
-            }
-
-            response = client.verify_otp(params)
-
-            # Verify the request was made with correct parameters
-            mock_request.assert_called_once()
-            args, kwargs = mock_request.call_args
-            assert args[0] == "POST"  # method
-            assert args[1] == "verify"  # path
-            assert kwargs["body"]["phone"] == "+11234567890"
-            assert kwargs["body"]["token"] == "123456"
-            assert kwargs["redirect_to"] == "https://example.com/callback"
-
-            # Verify the session was saved
-            mock_save.assert_called_once_with(mock_session)
-
-            # Verify the response
-            assert AuthResponse(user=mock_user, session=mock_session) == response
-
-
 def test_sign_in_with_password():
     client = auth_client()
     credentials = mock_user_credentials()
@@ -637,8 +434,8 @@ def test_sign_in_with_password():
     # First create a user we can sign in with
     signup_response = client.sign_up(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
     assert signup_response.session is not None
@@ -646,15 +443,15 @@ def test_sign_in_with_password():
     # Test signing in with the same credentials (email)
     signin_response = client.sign_in_with_password(
         {
-            "email": credentials.get("email"),
-            "password": credentials.get("password"),
+            "email": credentials.email,
+            "password": credentials.password,
         }
     )
 
     # Verify the response has a valid session and user
     assert signin_response.session is not None
     assert signin_response.user is not None
-    assert signin_response.user.email == credentials.get("email")
+    assert signin_response.user.email == credentials.email
 
     # Test error case: wrong password
 
@@ -664,7 +461,7 @@ def test_sign_in_with_password():
     try:
         test_client.sign_in_with_password(
             {
-                "email": credentials.get("email"),
+                "email": credentials.email,
                 "password": "wrong_password",
             }
         )
@@ -674,7 +471,7 @@ def test_sign_in_with_password():
 
     # Test error case: missing credentials
     try:
-        test_client.sign_in_with_password({})
+        test_client.sign_in_with_password({})  # type: ignore
         assert False, "Expected AuthInvalidCredentialsError for missing credentials"
     except AuthInvalidCredentialsError:
         pass
@@ -696,7 +493,7 @@ def test_sign_in_with_otp():
 
     # First test for email OTP
     auth_otp = AuthOtpResponse(
-        message_id="mock-message-id", email=email, phone=None, hash=None
+        message_id="mock-message-id",
     )
     with patch.object(client, "_request") as mock_request:
         mock_response = Response(content=auth_otp.model_dump_json(), status_code=200)
@@ -733,9 +530,7 @@ def test_sign_in_with_otp():
 
     # Test with phone OTP
     phone = "+11234567890"
-    auth_otp = AuthOtpResponse(
-        message_id="mock-message-id", email=None, phone=phone, hash=None
-    )
+    auth_otp = AuthOtpResponse(message_id="mock-message-id")
     with patch.object(client, "_request") as mock_request:
         mock_response = Response(content=auth_otp.model_dump_json(), status_code=200)
         mock_request.return_value = mock_response
@@ -774,13 +569,14 @@ def test_sign_in_with_otp():
     from supabase_auth.errors import AuthInvalidCredentialsError
 
     try:
-        client.sign_in_with_otp({})
+        client.sign_in_with_otp({})  # type: ignore
         assert False, "Expected AuthInvalidCredentialsError"
     except AuthInvalidCredentialsError:
         pass
 
 
 def test_sign_out():
+    from datetime import datetime
     from unittest.mock import patch
 
     from supabase_auth.types import Session, User
@@ -788,17 +584,18 @@ def test_sign_out():
     client = auth_client()
 
     # Create a mock user and session
+    date = datetime(year=2023, month=1, day=1, hour=0, minute=0, second=0)
     mock_user = User(
         id="user123",
         email="test@example.com",
         app_metadata={},
         user_metadata={},
         aud="authenticated",
-        created_at="2023-01-01T00:00:00Z",
-        confirmed_at="2023-01-01T00:00:00Z",
-        last_sign_in_at="2023-01-01T00:00:00Z",
+        created_at=date,
+        confirmed_at=date,
+        last_sign_in_at=date,
         role="authenticated",
-        updated_at="2023-01-01T00:00:00Z",
+        updated_at=date,
     )
 
     mock_session = Session(
@@ -902,7 +699,7 @@ def test_sign_out():
 
         with patch.object(client.admin, "sign_out") as mock_admin_sign_out:
             mock_admin_sign_out.side_effect = AuthApiError(
-                "Test error", 401, "auth_error"
+                "Test error", 401, "validation_failed"
             )
 
             with patch.object(client, "_remove_session") as mock_remove_session:

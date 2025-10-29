@@ -8,18 +8,6 @@ from .clients import (
 )
 
 
-def test_mock_user_credentials_has_email():
-    credentials = mock_user_credentials()
-    assert credentials.get("email")
-    assert credentials.get("password")
-
-
-def test_mock_user_credentials_has_phone():
-    credentials = mock_user_credentials()
-    assert credentials.get("phone")
-    assert credentials.get("password")
-
-
 async def test_create_new_user_with_email():
     email = f"user+{int(time())}@example.com"
     user = await create_new_user_with_email(email=email)

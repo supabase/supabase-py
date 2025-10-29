@@ -97,7 +97,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             },
             redirect_to=params.get("options", {}).get("redirect_to"),
         )
-        print(response.content)
+
         return parse_link_response(response)
 
     # User Admin API

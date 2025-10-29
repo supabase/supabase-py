@@ -624,7 +624,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             "reauthenticate",
             jwt=session.access_token,
         )
-        return parse_auth_response(response)
+        return AuthResponse(user=None, session=None)
 
     def get_session(self) -> Optional[Session]:
         """

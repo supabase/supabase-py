@@ -61,7 +61,7 @@ class SyncGoTrueBaseAPI:
             headers["Authorization"] = f"Bearer {jwt}"
         query = query or QueryParams()
         if redirect_to:
-            query["redirect_to"] = redirect_to
+            query = query.set("redirect_to", redirect_to)
         try:
             response = self._http_client.request(
                 method,
@@ -70,6 +70,7 @@ class SyncGoTrueBaseAPI:
                 params=query,
                 json=model_dump(body) if isinstance(body, BaseModel) else body,
             )
+
             response.raise_for_status()
             return response
         except (HTTPStatusError, RuntimeError) as e:

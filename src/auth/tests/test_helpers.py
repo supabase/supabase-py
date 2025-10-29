@@ -40,7 +40,7 @@ from supabase_auth.types import (
     User,
 )
 
-from ._sync.utils import mock_access_token
+from ._sync.clients import mock_access_token
 
 TEST_URL = "http://localhost"
 
