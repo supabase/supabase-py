@@ -234,13 +234,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
             no_resolve_json=True,
         )
 
-        data = response.json()
-        # API may return either a list directly or a dict with "clients" key
-        clients_data = data.get("clients", data) if isinstance(data, dict) else data
-        result = OAuthClientListResponse(
-            clients=[model_validate(OAuthClient, client) for client in clients_data],
-            aud=data.get("aud") if isinstance(data, dict) else None,
-        )
+        result = model_validate(OAuthClientListResponse, response.content)
 
         # Parse pagination headers
         total = response.headers.get("x-total-count")

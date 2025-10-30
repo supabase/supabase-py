@@ -621,9 +621,17 @@ def test_create_oauth_client():
 
 def test_list_oauth_clients():
     """Test listing OAuth clients."""
-    response = service_role_api_client().oauth.list_clients()
-    assert response.clients is not None
-    assert isinstance(response.clients, list)
+    client = service_role_api_client()
+    client.oauth.create_client(
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client",
+            redirect_uris=["https://example.com/callback"],
+        )
+    )
+    response = client.oauth.list_clients()
+    assert len(response.clients) > 0
+    assert any(client.client_name == "Test OAuth Client" for client in response.clients)
+    assert any(client.client_id is not None for client in response.clients)
 
 
 def test_get_oauth_client():
