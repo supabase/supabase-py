@@ -957,6 +957,22 @@ class CreateOAuthClientParams(BaseModel):
     scope: Optional[str] = None
     """Space-separated list of scope values"""
 
+class UpdateOAuthClientParams(BaseModel):
+    """
+    Parameters for updating an existing OAuth client.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client_name: Optional[str] = None
+    """Human-readable name of the OAuth client"""
+    client_uri: Optional[str] = None
+    """URI of the OAuth client"""
+    logo_uri: Optional[str] = None
+    """URI of the OAuth client's logo"""
+    redirect_uris: Optional[List[str]] = None
+    """Array of allowed redirect URIs"""
+    grant_types: Optional[List[OAuthClientGrantType]] = None
+    """Array of allowed grant types"""
 
 class OAuthClientResponse(BaseModel):
     """

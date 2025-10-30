@@ -27,6 +27,7 @@ from ..types import (
     OAuthClientResponse,
     PageParams,
     SignOutScope,
+    UpdateOAuthClientParams,
     User,
     UserList,
     UserResponse,
@@ -62,6 +63,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         self.oauth.list_clients = self._list_oauth_clients # type: ignore
         self.oauth.create_client = self._create_oauth_client # type: ignore
         self.oauth.get_client = self._get_oauth_client # type: ignore
+        self.oauth.update_client = self._update_oauth_client # type: ignore
         self.oauth.delete_client = self._delete_oauth_client # type: ignore
         self.oauth.regenerate_client_secret = self._regenerate_oauth_client_secret # type: ignore
 
@@ -296,6 +298,29 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         return OAuthClientResponse(
             client=model_validate(OAuthClient, response.content)
         )
+
+    async def _update_oauth_client(
+        self,
+        client_id: str,
+        params: UpdateOAuthClientParams,
+    ) -> OAuthClientResponse:
+        """
+        Updates an OAuth client.
+        Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        validate_uuid(client_id)
+        response = await self._request(
+            "PUT",
+            f"admin/oauth/clients/{client_id}",
+            body=params,
+        )
+        return OAuthClientResponse(
+            client=model_validate(OAuthClient, response.content)
+        )
+
     async def _delete_oauth_client(
         self,
         client_id: str,

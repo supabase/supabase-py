@@ -3,6 +3,7 @@ from ..types import (
     OAuthClientListResponse,
     OAuthClientResponse,
     PageParams,
+    UpdateOAuthClientParams,
 )
 from typing import Optional
 
@@ -45,6 +46,20 @@ class AsyncGoTrueAdminOAuthAPI:
     ) -> OAuthClientResponse:
         """
         Gets details of a specific OAuth client.
+        Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        raise NotImplementedError()  # pragma: no cover
+
+    async def update_client(
+        self,
+        client_id: str,
+        params: UpdateOAuthClientParams,
+    ) -> OAuthClientResponse:
+        """
+        Updates an OAuth client.
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
