@@ -29,8 +29,8 @@ from ..types import (
     TransformOptions,
     UploadData,
     UploadResponse,
-    URLOptions,
     UploadSignedUrlFileOptions,
+    URLOptions,
     transform_to_dict,
 )
 from ..utils import StorageException
@@ -149,10 +149,7 @@ class SyncBucketActionsMixin:
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
 
-        options = {}
-        if file_options is not None:
-            options = file_options.model_dump()
-
+        options: UploadSignedUrlFileOptions = file_options or {}
         cache_control = options.get("cache-control")
         # cacheControl is also passed as form data
         # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89

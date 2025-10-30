@@ -141,8 +141,13 @@ class CreateSignedUploadUrlOptions(BaseModel):
     upsert: str
 
 
-class UploadSignedUrlFileOptions(BaseModel):
-    cache_control: str = Field(validation_alias="cache-control")
-    content_type: str = Field(validation_alias="content-type")
-    metadata: Dict[str, Any]
-    headers: Dict[str, str]
+UploadSignedUrlFileOptions = TypedDict(
+    "UploadSignedUrlFileOptions",
+    {
+        "cache-control": str,
+        "content-type": str,
+        "metadata": Dict[str, Any],
+        "headers": Dict[str, str],
+    },
+    total=False,
+)
