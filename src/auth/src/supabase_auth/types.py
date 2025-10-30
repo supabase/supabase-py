@@ -869,6 +869,154 @@ class JWKSet(TypedDict):
     keys: List[JWK]
 
 
+OAuthClientGrantType = Literal["authorization_code", "refresh_token"]
+"""
+OAuth client grant types supported by the OAuth 2.1 server.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientResponseType = Literal["code"]
+"""
+OAuth client response types supported by the OAuth 2.1 server.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientType = Literal["public", "confidential"]
+"""
+OAuth client type indicating whether the client can keep credentials confidential.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientRegistrationType = Literal["dynamic", "manual"]
+"""
+OAuth client registration type.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientTokenEndpointAuthMethod = Literal["none", "client_secret_basic", "client_secret_post"]
+"""
+OAuth client token endpoint authentication method.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+
+class OAuthClient(BaseModel):
+    """
+    OAuth client object returned from the OAuth 2.1 server.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client_id: str
+    """Unique client identifier"""
+    client_name: str
+    """Human-readable name of the client application"""
+    client_secret: Optional[str] = None
+    """Client secret for confidential clients (only returned on registration/regeneration)"""
+    client_type: OAuthClientType
+    """Type of the client"""
+    token_endpoint_auth_method: OAuthClientTokenEndpointAuthMethod
+    """Authentication method for the token endpoint"""
+    registration_type: OAuthClientRegistrationType
+    """Registration type of the client"""
+    client_uri: Optional[str] = None
+    """URL of the client application's homepage"""
+    logo_uri: Optional[str] = None
+    """URL of the client application's logo"""
+    redirect_uris: List[str]
+    """Array of redirect URIs used by the client"""
+    grant_types: List[OAuthClientGrantType]
+    """OAuth grant types the client is authorized to use"""
+    response_types: List[OAuthClientResponseType]
+    """OAuth response types the client can use"""
+    scope: Optional[str] = None
+    """Space-separated list of scope values"""
+    created_at: str
+    """Timestamp when the client was created"""
+    updated_at: str
+    """Timestamp when the client was last updated"""
+
+
+class CreateOAuthClientParams(BaseModel):
+    """
+    Parameters for creating a new OAuth client.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client_name: str
+    """Human-readable name of the OAuth client"""
+    client_uri: Optional[str] = None
+    """URL of the client application's homepage"""
+    logo_uri: Optional[str] = None
+    """URL of the client application's logo"""
+    redirect_uris: List[str]
+    """Array of redirect URIs used by the client"""
+    grant_types: Optional[List[OAuthClientGrantType]] = None
+    """OAuth grant types the client is authorized to use (optional, defaults to authorization_code and refresh_token)"""
+    response_types: Optional[List[OAuthClientResponseType]] = None
+    """OAuth response types the client can use (optional, defaults to code)"""
+    scope: Optional[str] = None
+    """Space-separated list of scope values"""
+
+class UpdateOAuthClientParams(BaseModel):
+    """
+    Parameters for updating an existing OAuth client.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client_name: Optional[str] = None
+    """Human-readable name of the OAuth client"""
+    client_uri: Optional[str] = None
+    """URI of the OAuth client"""
+    logo_uri: Optional[str] = None
+    """URI of the OAuth client's logo"""
+    redirect_uris: Optional[List[str]] = None
+    """Array of allowed redirect URIs"""
+    grant_types: Optional[List[OAuthClientGrantType]] = None
+    """Array of allowed grant types"""
+
+class OAuthClientResponse(BaseModel):
+    """
+    Response type for OAuth client operations.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client: Optional[OAuthClient] = None
+
+
+class Pagination(BaseModel):
+    """
+    Pagination information for list responses.
+    """
+
+    next_page: Optional[int] = None
+    last_page: int = 0
+    total: int = 0
+
+
+class OAuthClientListResponse(BaseModel):
+    """
+    Response type for listing OAuth clients.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    clients: List[OAuthClient]
+    aud: Optional[str] = None
+    next_page: Optional[int] = None
+    last_page: int = 0
+    total: int = 0
+
+
+class PageParams(BaseModel):
+    """
+    Pagination parameters.
+    """
+
+    page: Optional[int] = None
+    """Page number"""
+    per_page: Optional[int] = None
+    """Number of items per page"""
+
+
 for model in [
     AMREntry,
     AuthResponse,
@@ -889,6 +1037,10 @@ for model in [
     AuthMFAAdminDeleteFactorResponse,
     AuthMFAAdminListFactorsResponse,
     GenerateLinkProperties,
+    OAuthClient,
+    OAuthClientResponse,
+    OAuthClientListResponse,
+    Pagination,
 ]:
     try:
         # pydantic > 2
