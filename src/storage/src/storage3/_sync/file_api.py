@@ -15,6 +15,7 @@ from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
 from ..exceptions import StorageApiError
 from ..types import (
     BaseBucket,
+    CreateSignedUploadUrlOptions,
     CreateSignedUrlResponse,
     CreateSignedURLsOptions,
     DownloadOptions,
@@ -28,6 +29,7 @@ from ..types import (
     TransformOptions,
     UploadData,
     UploadResponse,
+    UploadSignedUrlFileOptions,
     URLOptions,
     transform_to_dict,
 )
@@ -84,7 +86,11 @@ class SyncBucketActionsMixin:
 
         return response
 
-    def create_signed_upload_url(self, path: str) -> SignedUploadURL:
+    def create_signed_upload_url(
+        self,
+        path: str,
+        options: Optional[CreateSignedUploadUrlOptions] = None,
+    ) -> SignedUploadURL:
         """
         Creates a signed upload URL.
 
@@ -92,10 +98,16 @@ class SyncBucketActionsMixin:
         ----------
         path
             The file path, including the file name. For example `folder/image.png`.
+        options
+            Additional options for the upload url creation.
         """
+        headers: dict[str, str] = dict()
+        if options is not None and options.upsert:
+            headers.update({"x-upsert": options.upsert})
+
         path_parts = relative_path_to_parts(path)
         response = self._request(
-            "POST", ["object", "upload", "sign", self.id, *path_parts]
+            "POST", ["object", "upload", "sign", self.id, *path_parts], headers=headers
         )
         data = response.json()
         full_url: urllib.parse.ParseResult = urllib.parse.urlparse(
@@ -116,7 +128,7 @@ class SyncBucketActionsMixin:
         path: str,
         token: str,
         file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[FileOptions] = None,
+        file_options: Optional[UploadSignedUrlFileOptions] = None,
     ) -> UploadResponse:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
@@ -137,20 +149,18 @@ class SyncBucketActionsMixin:
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
 
-        if file_options is None:
-            file_options = {}
-
-        cache_control = file_options.get("cache-control")
+        options: UploadSignedUrlFileOptions = file_options or {}
+        cache_control = options.get("cache-control")
         # cacheControl is also passed as form data
         # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89
         _data = {}
         if cache_control:
-            file_options["cache-control"] = f"max-age={cache_control}"
+            options["cache-control"] = f"max-age={cache_control}"
             _data = {"cacheControl": cache_control}
         headers = {
             **self._client.headers,
             **DEFAULT_FILE_OPTIONS,
-            **file_options,
+            **options,
         }
         filename = path_parts[-1]
 
