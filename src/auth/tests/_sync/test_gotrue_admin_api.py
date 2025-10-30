@@ -653,17 +653,16 @@ def test_get_oauth_client():
 def test_delete_oauth_client():
     """Test deleting an OAuth client."""
     # First create a client
-    create_response = service_role_api_client().oauth.create_client(
+    client = service_role_api_client()
+    create_response = client.oauth.create_client(
         CreateOAuthClientParams(
             client_name="Test OAuth Client for Delete",
             redirect_uris=["https://example.com/callback"],
         )
     )
-    if create_response.client:
-        client_id = create_response.client.client_id
-        response = service_role_api_client().oauth.delete_client(client_id)
-        # DELETE operations return an empty response
-        assert response is not None
+    assert create_response.client is not None
+    client_id = create_response.client.client_id
+    client.oauth.delete_client(client_id)
 
 
 def test_regenerate_oauth_client_secret():

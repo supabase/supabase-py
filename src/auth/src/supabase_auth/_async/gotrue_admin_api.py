@@ -299,7 +299,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
     async def _delete_oauth_client(
         self,
         client_id: str,
-    ) -> OAuthClientResponse:
+    ) -> None:
         """
         Deletes an OAuth client.
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
@@ -308,12 +308,9 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Never expose your `service_role` key in the browser.
         """
         validate_uuid(client_id)
-        response = await self._request(
+        await self._request(
             "DELETE",
             f"admin/oauth/clients/{client_id}",
-        )
-        return OAuthClientResponse(
-            client=model_validate(OAuthClient, response.content) if response.content else None
         )
 
     async def _regenerate_oauth_client_secret(
