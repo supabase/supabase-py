@@ -171,6 +171,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Never expose your `service_role` key in the browser.
         """
         validate_uuid(uid)
+        response = await self._request(
             "PUT",
             f"admin/users/{uid}",
             body=attributes,
@@ -193,6 +194,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         params: AuthMFAAdminListFactorsParams,
     ) -> AuthMFAAdminListFactorsResponse:
         validate_uuid(params.get("user_id"))
+        response = await self._request(
             "GET",
             f"admin/users/{params.get('user_id')}/factors",
         )
@@ -204,6 +206,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
     ) -> AuthMFAAdminDeleteFactorResponse:
         validate_uuid(params.get("user_id"))
         validate_uuid(params.get("id"))
+        response = await self._request(
             "DELETE",
             f"admin/users/{params.get('user_id')}/factors/{params.get('id')}",
         )
@@ -220,13 +223,10 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        query = {}
         if params:
-            if params.page is not None:
-                query["page"] = str(params.page)
-            if params.per_page is not None:
-                query["per_page"] = str(params.per_page)
-
+            query = QueryParams(page=params.page, per_page=params.per_page)
+        else:
+            query = None
         response = await self._request(
             "GET",
             "admin/oauth/clients",
@@ -274,15 +274,15 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        return await self._request(
+        response = await self._request(
             "POST",
             "admin/oauth/clients",
             body=params,
-            xform=lambda data: OAuthClientResponse(
-                client=model_validate(OAuthClient, data)
-            ),
         )
 
+        return OAuthClientResponse(
+            client=model_validate(OAuthClient, response.content)
+        )
     async def _get_oauth_client(
         self,
         client_id: str,
@@ -295,14 +295,13 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Never expose your `service_role` key in the browser.
         """
         validate_uuid(client_id)
-        return await self._request(
+        response = await self._request(
             "GET",
             f"admin/oauth/clients/{client_id}",
-            xform=lambda data: OAuthClientResponse(
-                client=model_validate(OAuthClient, data)
-            ),
         )
-
+        return OAuthClientResponse(
+            client=model_validate(OAuthClient, response.content)
+        )
     async def _delete_oauth_client(
         self,
         client_id: str,
@@ -315,12 +314,12 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Never expose your `service_role` key in the browser.
         """
         validate_uuid(client_id)
-        return await self._request(
+        response = await self._request(
             "DELETE",
             f"admin/oauth/clients/{client_id}",
-            xform=lambda data: OAuthClientResponse(
-                client=model_validate(OAuthClient, data) if data else None
-            ),
+        )
+        return OAuthClientResponse(
+            client=model_validate(OAuthClient, response.content) if response.content else None
         )
 
     async def _regenerate_oauth_client_secret(
@@ -335,10 +334,10 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Never expose your `service_role` key in the browser.
         """
         validate_uuid(client_id)
-        return await self._request(
+        response = await self._request(
             "POST",
             f"admin/oauth/clients/{client_id}/regenerate_secret",
-            xform=lambda data: OAuthClientResponse(
-                client=model_validate(OAuthClient, data)
-            ),
+        )
+        return OAuthClientResponse(
+            client=model_validate(OAuthClient, response.content)
         )

@@ -6,11 +6,10 @@ from httpx import QueryParams, Response
 from pydantic import TypeAdapter
 
 from ..helpers import (
-    is_valid_uuid,
+    validate_uuid,
     model_validate,
     parse_link_response,
     parse_user_response,
-    validate_uuid,
 )
 from ..http_clients import SyncClient
 from ..types import (
@@ -152,7 +151,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        self._validate_uuid(uid)
+        validate_uuid(uid)
 
         response = self._request(
             "GET",
@@ -171,7 +170,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        self._validate_uuid(uid)
+        validate_uuid(uid)
         response = self._request(
             "PUT",
             f"admin/users/{uid}",
@@ -186,7 +185,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        self._validate_uuid(id)
+        validate_uuid(id)
         body = {"should_soft_delete": should_soft_delete}
         self._request("DELETE", f"admin/users/{id}", body=body)
 
@@ -194,7 +193,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         self,
         params: AuthMFAAdminListFactorsParams,
     ) -> AuthMFAAdminListFactorsResponse:
-        self._validate_uuid(params.get("user_id"))
+        validate_uuid(params.get("user_id"))
         response = self._request(
             "GET",
             f"admin/users/{params.get('user_id')}/factors",
@@ -205,19 +204,13 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         self,
         params: AuthMFAAdminDeleteFactorParams,
     ) -> AuthMFAAdminDeleteFactorResponse:
-        self._validate_uuid(params.get("user_id"))
-        self._validate_uuid(params.get("id"))
+        validate_uuid(params.get("user_id"))
+        validate_uuid(params.get("id"))
         response = self._request(
             "DELETE",
             f"admin/users/{params.get('user_id')}/factors/{params.get('id')}",
         )
         return model_validate(AuthMFAAdminDeleteFactorResponse, response.content)
-
-    def _validate_uuid(self, id: str | None) -> None:
-        if id is None:
-            raise ValueError("Invalid id, id cannot be none")
-        if not is_valid_uuid(id):
-            raise ValueError(f"Invalid id, '{id}' is not a valid uuid")
 
     def _list_oauth_clients(
         self,
@@ -230,13 +223,10 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        query = {}
         if params:
-            if params.page is not None:
-                query["page"] = str(params.page)
-            if params.per_page is not None:
-                query["per_page"] = str(params.per_page)
-
+            query = QueryParams(page=params.page, per_page=params.per_page)
+        else:
+            query = None
         response = self._request(
             "GET",
             "admin/oauth/clients",
@@ -284,15 +274,15 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        return self._request(
+        response = self._request(
             "POST",
             "admin/oauth/clients",
             body=params,
-            xform=lambda data: OAuthClientResponse(
-                client=model_validate(OAuthClient, data)
-            ),
         )
 
+        return OAuthClientResponse(
+            client=model_validate(OAuthClient, response.content)
+        )
     def _get_oauth_client(
         self,
         client_id: str,
@@ -305,14 +295,13 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Never expose your `service_role` key in the browser.
         """
         validate_uuid(client_id)
-        return self._request(
+        response = self._request(
             "GET",
             f"admin/oauth/clients/{client_id}",
-            xform=lambda data: OAuthClientResponse(
-                client=model_validate(OAuthClient, data)
-            ),
         )
-
+        return OAuthClientResponse(
+            client=model_validate(OAuthClient, response.content)
+        )
     def _delete_oauth_client(
         self,
         client_id: str,
@@ -325,12 +314,12 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Never expose your `service_role` key in the browser.
         """
         validate_uuid(client_id)
-        return self._request(
+        response = self._request(
             "DELETE",
             f"admin/oauth/clients/{client_id}",
-            xform=lambda data: OAuthClientResponse(
-                client=model_validate(OAuthClient, data) if data else None
-            ),
+        )
+        return OAuthClientResponse(
+            client=model_validate(OAuthClient, response.content) if response.content else None
         )
 
     def _regenerate_oauth_client_secret(
@@ -345,10 +334,10 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Never expose your `service_role` key in the browser.
         """
         validate_uuid(client_id)
-        return self._request(
+        response = self._request(
             "POST",
             f"admin/oauth/clients/{client_id}/regenerate_secret",
-            xform=lambda data: OAuthClientResponse(
-                client=model_validate(OAuthClient, data)
-            ),
+        )
+        return OAuthClientResponse(
+            client=model_validate(OAuthClient, response.content)
         )

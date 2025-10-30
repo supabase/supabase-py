@@ -299,6 +299,8 @@ def is_valid_uuid(value: str) -> bool:
     except ValueError:
         return False
 
-def validate_uuid(id: str) -> None:
+def validate_uuid(id: str | None) -> None:
+    if id is None:
+        raise ValueError("Invalid id, id is None")
     if not is_valid_uuid(id):
         raise ValueError(f"Invalid id, '{id}' is not a valid uuid")

@@ -1774,7 +1774,7 @@ wheels = [
 
 [[package]]
 name = "postgrest"
-version = "2.22.2"
+version = "2.22.3"
 source = { editable = "src/postgrest" }
 dependencies = [
     { name = "deprecation" },
@@ -2312,7 +2312,7 @@ wheels = [
 
 [[package]]
 name = "realtime"
-version = "2.22.2"
+version = "2.22.3"
 source = { editable = "src/realtime" }
 dependencies = [
     { name = "pydantic" },
@@ -2898,7 +2898,7 @@ wheels = [
 
 [[package]]
 name = "storage3"
-version = "2.22.2"
+version = "2.22.3"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
@@ -2998,7 +2998,7 @@ wheels = [
 
 [[package]]
 name = "supabase"
-version = "2.22.2"
+version = "2.22.3"
 source = { editable = "src/supabase" }
 dependencies = [
     { name = "httpx" },
@@ -3061,7 +3061,7 @@ tests = [
 
 [[package]]
 name = "supabase-auth"
-version = "2.22.2"
+version = "2.22.3"
 source = { editable = "src/auth" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -3072,16 +3072,22 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "faker" },
+    { name = "pylsp-mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-depends" },
     { name = "pytest-mock" },
+    { name = "python-lsp-ruff" },
+    { name = "python-lsp-server" },
     { name = "respx" },
     { name = "ruff" },
     { name = "unasync" },
 ]
 lints = [
+    { name = "pylsp-mypy" },
+    { name = "python-lsp-ruff" },
+    { name = "python-lsp-server" },
     { name = "ruff" },
     { name = "unasync" },
 ]
@@ -3105,16 +3111,22 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "faker", specifier = ">=37.4.0" },
+    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "pytest-depends", specifier = ">=1.0.1" },
     { name = "pytest-mock", specifier = ">=3.14.0" },
+    { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
+    { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "respx", specifier = ">=0.20.2,<0.23.0" },
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 lints = [
+    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
+    { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
@@ -3130,7 +3142,7 @@ tests = [
 
 [[package]]
 name = "supabase-functions"
-version = "2.22.2"
+version = "2.22.3"
 source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },

@@ -9,7 +9,7 @@ from supabase_auth.errors import (
     AuthSessionMissingError,
     AuthWeakPasswordError,
 )
-
+from supabase_auth.types import CreateOAuthClientParams
 from .clients import (
     auth_client,
     auth_client_with_session,
@@ -609,10 +609,10 @@ async def test_delete_factor_invalid_id_raises_error():
 async def test_create_oauth_client():
     """Test creating an OAuth client."""
     response = await service_role_api_client().oauth.create_client(
-        {
-            "client_name": "Test OAuth Client",
-            "redirect_uris": ["https://example.com/callback"],
-        }
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client",
+            redirect_uris=["https://example.com/callback"],
+        )
     )
     assert response.client is not None
     assert response.client.client_name == "Test OAuth Client"
@@ -630,10 +630,10 @@ async def test_get_oauth_client():
     """Test getting an OAuth client by ID."""
     # First create a client
     create_response = await service_role_api_client().oauth.create_client(
-        {
-            "client_name": "Test OAuth Client for Get",
-            "redirect_uris": ["https://example.com/callback"],
-        }
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client for Get",
+            redirect_uris=["https://example.com/callback"],
+        )
     )
     if create_response.client:
         client_id = create_response.client.client_id
@@ -646,10 +646,10 @@ async def test_delete_oauth_client():
     """Test deleting an OAuth client."""
     # First create a client
     create_response = await service_role_api_client().oauth.create_client(
-        {
-            "client_name": "Test OAuth Client for Delete",
-            "redirect_uris": ["https://example.com/callback"],
-        }
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client for Delete",
+            redirect_uris=["https://example.com/callback"],
+        )
     )
     if create_response.client:
         client_id = create_response.client.client_id
@@ -662,10 +662,10 @@ async def test_regenerate_oauth_client_secret():
     """Test regenerating an OAuth client secret."""
     # First create a client
     create_response = await service_role_api_client().oauth.create_client(
-        {
-            "client_name": "Test OAuth Client for Regenerate",
-            "redirect_uris": ["https://example.com/callback"],
-        }
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client for Regenerate",
+            redirect_uris=["https://example.com/callback"],
+        )
     )
     if create_response.client:
         client_id = create_response.client.client_id

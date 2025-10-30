@@ -9,7 +9,7 @@ from supabase_auth.errors import (
     AuthSessionMissingError,
     AuthWeakPasswordError,
 )
-
+from supabase_auth.types import CreateOAuthClientParams
 from .clients import (
     auth_client,
     auth_client_with_session,
@@ -142,13 +142,11 @@ def test_modify_confirm_email_using_update_user_by_id():
 
 def test_invalid_credential_sign_in_with_phone():
     try:
-        response = (
-            client_api_auto_confirm_off_signups_enabled_client().sign_in_with_password(
-                {
-                    "phone": "+123456789",
-                    "password": "strong_pwd",
-                }
-            )
+        response = client_api_auto_confirm_off_signups_enabled_client().sign_in_with_password(
+            {
+                "phone": "+123456789",
+                "password": "strong_pwd",
+            }
         )
     except AuthApiError as e:
         assert e.to_dict()
@@ -156,13 +154,11 @@ def test_invalid_credential_sign_in_with_phone():
 
 def test_invalid_credential_sign_in_with_email():
     try:
-        response = (
-            client_api_auto_confirm_off_signups_enabled_client().sign_in_with_password(
-                {
-                    "email": "unknown_user@unknowndomain.com",
-                    "password": "strong_pwd",
-                }
-            )
+        response = client_api_auto_confirm_off_signups_enabled_client().sign_in_with_password(
+            {
+                "email": "unknown_user@unknowndomain.com",
+                "password": "strong_pwd",
+            }
         )
     except AuthApiError as e:
         assert e.to_dict()
@@ -363,10 +359,12 @@ def test_sign_in_with_sso():
 
 
 def test_sign_in_with_oauth():
-    assert client_api_auto_confirm_off_signups_enabled_client().sign_in_with_oauth(
-        {
-            "provider": "google",
-        }
+    assert (
+        client_api_auto_confirm_off_signups_enabled_client().sign_in_with_oauth(
+            {
+                "provider": "google",
+            }
+        )
     )
 
 
@@ -606,3 +604,73 @@ def test_delete_factor_invalid_id_raises_error():
         service_role_api_client()._delete_factor(
             {"user_id": str(uuid.uuid4()), "id": "invalid_id"}
         )
+
+
+def test_create_oauth_client():
+    """Test creating an OAuth client."""
+    response = service_role_api_client().oauth.create_client(
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client",
+            redirect_uris=["https://example.com/callback"],
+        )
+    )
+    assert response.client is not None
+    assert response.client.client_name == "Test OAuth Client"
+    assert response.client.client_id is not None
+
+
+def test_list_oauth_clients():
+    """Test listing OAuth clients."""
+    response = service_role_api_client().oauth.list_clients()
+    assert response.clients is not None
+    assert isinstance(response.clients, list)
+
+
+def test_get_oauth_client():
+    """Test getting an OAuth client by ID."""
+    # First create a client
+    create_response = service_role_api_client().oauth.create_client(
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client for Get",
+            redirect_uris=["https://example.com/callback"],
+        )
+    )
+    if create_response.client:
+        client_id = create_response.client.client_id
+        response = service_role_api_client().oauth.get_client(client_id)
+        assert response.client is not None
+        assert response.client.client_id == client_id
+
+
+def test_delete_oauth_client():
+    """Test deleting an OAuth client."""
+    # First create a client
+    create_response = service_role_api_client().oauth.create_client(
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client for Delete",
+            redirect_uris=["https://example.com/callback"],
+        )
+    )
+    if create_response.client:
+        client_id = create_response.client.client_id
+        response = service_role_api_client().oauth.delete_client(client_id)
+        # DELETE operations return an empty response
+        assert response is not None
+
+
+def test_regenerate_oauth_client_secret():
+    """Test regenerating an OAuth client secret."""
+    # First create a client
+    create_response = service_role_api_client().oauth.create_client(
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client for Regenerate",
+            redirect_uris=["https://example.com/callback"],
+        )
+    )
+    if create_response.client:
+        client_id = create_response.client.client_id
+        response = service_role_api_client().oauth.regenerate_client_secret(
+            client_id
+        )
+        assert response.client is not None
+        assert response.client.client_secret is not None

@@ -4,6 +4,7 @@ from ..types import (
     OAuthClientResponse,
     PageParams,
 )
+from typing import Optional
 
 
 class SyncGoTrueAdminOAuthAPI:
@@ -14,7 +15,7 @@ class SyncGoTrueAdminOAuthAPI:
 
     def list_clients(
         self,
-        params: PageParams | None = None,
+        params: Optional[PageParams] = None,
     ) -> OAuthClientListResponse:
         """
         Lists all OAuth clients with optional pagination.
