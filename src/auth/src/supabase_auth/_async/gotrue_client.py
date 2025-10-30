@@ -1184,7 +1184,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         if auth_response.session:
             await self._save_session(auth_response.session)
             self._notify_all_subscribers("SIGNED_IN", auth_response.session)
-        return response
+        return auth_response
 
     async def _fetch_jwks(self, kid: str, jwks: JWKSet) -> JWK:
         jwk: Optional[JWK] = None
