@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from functools import partial
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+from httpx import QueryParams, Response
+from pydantic import TypeAdapter
 
 from ..helpers import (
     is_valid_uuid,
@@ -21,6 +23,7 @@ from ..types import (
     InviteUserByEmailOptions,
     SignOutScope,
     User,
+    UserList,
     UserResponse,
 )
 from .gotrue_admin_mfa_api import AsyncGoTrueAdminMFAAPI
@@ -45,18 +48,19 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
             verify=verify,
             proxy=proxy,
         )
+        # TODO(@o-santi): why is is this done this way?
         self.mfa = AsyncGoTrueAdminMFAAPI()
-        self.mfa.list_factors = self._list_factors
-        self.mfa.delete_factor = self._delete_factor
+        self.mfa.list_factors = self._list_factors  # type: ignore
+        self.mfa.delete_factor = self._delete_factor  # type: ignore
 
     async def sign_out(self, jwt: str, scope: SignOutScope = "global") -> None:
         """
         Removes a logged-in session.
         """
-        return await self._request(
+        await self._request(
             "POST",
             "logout",
-            query={"scope": scope},
+            query=QueryParams(scope=scope),
             jwt=jwt,
             no_resolve_json=True,
         )
@@ -69,19 +73,19 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         """
         Sends an invite link to an email address.
         """
-        return await self._request(
+        response = await self._request(
             "POST",
             "invite",
             body={"email": email, "data": options.get("data")},
             redirect_to=options.get("redirect_to"),
-            xform=parse_user_response,
         )
+        return parse_user_response(response)
 
     async def generate_link(self, params: GenerateLinkParams) -> GenerateLinkResponse:
         """
         Generates email links and OTPs to be sent via a custom email provider.
         """
-        return await self._request(
+        response = await self._request(
             "POST",
             "admin/generate_link",
             body={
@@ -92,8 +96,9 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
                 "data": params.get("options", {}).get("data"),
             },
             redirect_to=params.get("options", {}).get("redirect_to"),
-            xform=parse_link_response,
         )
+
+        return parse_link_response(response)
 
     # User Admin API
 
@@ -104,30 +109,28 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        return await self._request(
+        response = await self._request(
             "POST",
             "admin/users",
             body=attributes,
-            xform=parse_user_response,
         )
+        return parse_user_response(response)
 
-    async def list_users(self, page: int = None, per_page: int = None) -> List[User]:
+    async def list_users(
+        self, page: Optional[int] = None, per_page: Optional[int] = None
+    ) -> List[User]:
         """
         Get a list of users.
 
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        return await self._request(
+        response = await self._request(
             "GET",
             "admin/users",
-            query={"page": page, "per_page": per_page},
-            xform=lambda data: (
-                [model_validate(User, user) for user in data["users"]]
-                if "users" in data
-                else []
-            ),
+            query=QueryParams(page=page, per_page=per_page),
         )
+        return model_validate(UserList, response.content).users
 
     async def get_user_by_id(self, uid: str) -> UserResponse:
         """
@@ -138,11 +141,11 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         """
         self._validate_uuid(uid)
 
-        return await self._request(
+        response = await self._request(
             "GET",
             f"admin/users/{uid}",
-            xform=parse_user_response,
         )
+        return parse_user_response(response)
 
     async def update_user_by_id(
         self,
@@ -156,12 +159,12 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Never expose your `service_role` key in the browser.
         """
         self._validate_uuid(uid)
-        return await self._request(
+        response = await self._request(
             "PUT",
             f"admin/users/{uid}",
             body=attributes,
-            xform=parse_user_response,
         )
+        return parse_user_response(response)
 
     async def delete_user(self, id: str, should_soft_delete: bool = False) -> None:
         """
@@ -172,18 +175,18 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         """
         self._validate_uuid(id)
         body = {"should_soft_delete": should_soft_delete}
-        return await self._request("DELETE", f"admin/users/{id}", body=body)
+        await self._request("DELETE", f"admin/users/{id}", body=body)
 
     async def _list_factors(
         self,
         params: AuthMFAAdminListFactorsParams,
     ) -> AuthMFAAdminListFactorsResponse:
         self._validate_uuid(params.get("user_id"))
-        return await self._request(
+        response = await self._request(
             "GET",
             f"admin/users/{params.get('user_id')}/factors",
-            xform=partial(model_validate, AuthMFAAdminListFactorsResponse),
         )
+        return model_validate(AuthMFAAdminListFactorsResponse, response.content)
 
     async def _delete_factor(
         self,
@@ -191,12 +194,14 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
     ) -> AuthMFAAdminDeleteFactorResponse:
         self._validate_uuid(params.get("user_id"))
         self._validate_uuid(params.get("id"))
-        return await self._request(
+        response = await self._request(
             "DELETE",
             f"admin/users/{params.get('user_id')}/factors/{params.get('id')}",
-            xform=partial(model_validate, AuthMFAAdminDeleteFactorResponse),
         )
+        return model_validate(AuthMFAAdminDeleteFactorResponse, response.content)
 
-    def _validate_uuid(self, id: str) -> None:
+    def _validate_uuid(self, id: str | None) -> None:
+        if id is None:
+            raise ValueError("Invalid id, id cannot be none")
         if not is_valid_uuid(id):
             raise ValueError(f"Invalid id, '{id}' is not a valid uuid")

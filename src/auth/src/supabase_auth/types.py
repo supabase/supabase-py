@@ -4,7 +4,7 @@ from datetime import datetime
 from time import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, with_config
 
 try:
     # > 2
@@ -15,7 +15,7 @@ except ImportError:
     # < 2
     from pydantic import root_validator
 
-    model_validator_v1_v2_compat = root_validator
+    model_validator_v1_v2_compat = root_validator  # type: ignore
 
 from typing_extensions import Literal, NotRequired, TypedDict
 
@@ -82,6 +82,11 @@ class AMREntry(BaseModel):
     """
 
 
+class AMREntryDict(TypedDict):
+    timestamp: int
+    method: Union[Literal["password", "otp", "oauth", "mfa/totp"], str]
+
+
 class Options(TypedDict):
     redirect_to: NotRequired[str]
     captcha_token: NotRequired[str]
@@ -122,6 +127,10 @@ class LinkIdentityResponse(BaseModel):
 
 class IdentitiesResponse(BaseModel):
     identities: List[UserIdentity]
+
+
+class UserList(BaseModel):
+    users: List[User]
 
 
 class UserResponse(BaseModel):
@@ -810,12 +819,14 @@ class SignOutOptions(TypedDict):
     scope: NotRequired[SignOutScope]
 
 
+@with_config(extra="allow")
 class JWTHeader(TypedDict):
     alg: Literal["RS256", "ES256", "HS256"]
     typ: str
-    kid: str
+    kid: NotRequired[str]
 
 
+# TODO: useless, only kept for backwards compatibility
 class RequiredClaims(TypedDict):
     iss: str
     sub: str
@@ -827,8 +838,17 @@ class RequiredClaims(TypedDict):
     session_id: str
 
 
-class JWTPayload(RequiredClaims, total=False):
-    pass
+@with_config(extra="allow")
+class JWTPayload(TypedDict, total=False):
+    iss: str
+    sub: str
+    auth: Union[str, List[str]]
+    exp: int
+    iat: int
+    role: str
+    aal: AuthenticatorAssuranceLevels
+    session_id: str
+    amr: NotRequired[List[AMREntryDict]]
 
 
 class ClaimsResponse(TypedDict):
@@ -837,6 +857,7 @@ class ClaimsResponse(TypedDict):
     signature: bytes
 
 
+@with_config(extra="allow")
 class JWK(TypedDict, total=False):
     kty: Literal["RSA", "EC", "oct"]
     key_ops: List[str]
@@ -871,7 +892,7 @@ for model in [
 ]:
     try:
         # pydantic > 2
-        model.model_rebuild()
+        model.model_rebuild()  # type: ignore
     except AttributeError:
         # pydantic < 2
-        model.update_forward_refs()
+        model.update_forward_refs()  # type: ignore

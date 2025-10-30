@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import re
 import secrets
@@ -8,14 +9,17 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from json import loads
-from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, cast
+from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union, cast
 from urllib.parse import urlparse
 
 from httpx import HTTPStatusError, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
-from .constants import API_VERSION_HEADER_NAME, API_VERSIONS, BASE64URL_REGEX
+from .constants import (
+    API_VERSION_HEADER_NAME,
+    API_VERSIONS_2024_01_01_TIMESTAMP,
+    BASE64URL_REGEX,
+)
 from .errors import (
     AuthApiError,
     AuthError,
@@ -42,15 +46,15 @@ from .types import (
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def model_validate(model: Type[TBaseModel], contents) -> TBaseModel:
+def model_validate(model: Type[TBaseModel], contents: Union[str, bytes]) -> TBaseModel:
     """Compatibility layer between pydantic 1 and 2 for parsing an instance
     of a BaseModel from varied"""
     try:
         # pydantic > 2
-        return model.model_validate(contents)
+        return model.model_validate_json(contents)
     except AttributeError:
         # pydantic < 2
-        return model.parse_obj(contents)
+        return model.parse_raw(contents)
 
 
 def model_dump(model: BaseModel) -> Dict[str, Any]:
@@ -73,59 +77,51 @@ def model_dump_json(model: BaseModel) -> str:
         return model.json()
 
 
-def parse_auth_response(data: Any) -> AuthResponse:
-    session: Optional[Session] = None
-    if (
-        "access_token" in data
-        and "refresh_token" in data
-        and "expires_in" in data
-        and data["access_token"]
-        and data["refresh_token"]
-        and data["expires_in"]
-    ):
-        session = model_validate(Session, data)
-    user_data = data.get("user", data)
-    user = model_validate(User, user_data) if user_data else None
-    return AuthResponse(session=session, user=user)
+def parse_auth_response(response: Response) -> AuthResponse:
+    try:
+        session = model_validate(Session, response.content)
+        user = session.user
+    except:
+        session = None
+        user = model_validate(User, response.content)
+    return AuthResponse(user=user, session=session)
 
 
-def parse_auth_otp_response(data: Any) -> AuthOtpResponse:
-    return model_validate(AuthOtpResponse, data)
+def parse_auth_otp_response(response: Response) -> AuthOtpResponse:
+    return model_validate(AuthOtpResponse, response.content)
 
 
-def parse_link_identity_response(data: Any) -> LinkIdentityResponse:
-    return model_validate(LinkIdentityResponse, data)
+def parse_link_identity_response(response: Response) -> LinkIdentityResponse:
+    return model_validate(LinkIdentityResponse, response.content)
 
 
-def parse_link_response(data: Any) -> GenerateLinkResponse:
-    properties = GenerateLinkProperties(
-        action_link=data.get("action_link"),
-        email_otp=data.get("email_otp"),
-        hashed_token=data.get("hashed_token"),
-        redirect_to=data.get("redirect_to"),
-        verification_type=data.get("verification_type"),
-    )
-    user = model_validate(
-        User, {k: v for k, v in data.items() if k not in model_dump(properties)}
-    )
+def parse_link_response(response: Response) -> GenerateLinkResponse:
+    properties = model_validate(GenerateLinkProperties, response.content)
+    user = model_validate(User, response.content)
     return GenerateLinkResponse(properties=properties, user=user)
 
 
-def parse_user_response(data: Any) -> UserResponse:
-    if "user" not in data:
-        data = {"user": data}
-    return model_validate(UserResponse, data)
+UserParser: TypeAdapter = TypeAdapter(Union[UserResponse, User])
 
 
-def parse_sso_response(data: Any) -> SSOResponse:
-    return model_validate(SSOResponse, data)
+def parse_user_response(response: Response) -> UserResponse:
+    parsed = UserParser.validate_json(response.content)
+    return UserResponse(user=parsed) if isinstance(parsed, User) else parsed
 
 
-def parse_jwks(response: Any) -> JWKSet:
-    if "keys" not in response or len(response["keys"]) == 0:
+def parse_sso_response(response: Response) -> SSOResponse:
+    return model_validate(SSOResponse, response.content)
+
+
+JWKSetParser = TypeAdapter(JWKSet)
+
+
+def parse_jwks(response: Response) -> JWKSet:
+    jwk = JWKSetParser.validate_json(response.content)
+    if len(jwk["keys"]) == 0:
         raise AuthInvalidJwtError("JWKS is empty")
 
-    return {"keys": response["keys"]}
+    return jwk
 
 
 def get_error_message(error: Any) -> str:
@@ -136,18 +132,9 @@ def get_error_message(error: Any) -> str:
     return next((error[prop] for prop in props if filter(prop)), str(error))
 
 
-def get_error_code(error: Any) -> str:
-    return error.get("error_code", None) if isinstance(error, dict) else None
-
-
-def looks_like_http_status_error(exception: Exception) -> bool:
-    return isinstance(exception, HTTPStatusError)
-
-
-def handle_exception(exception: Exception) -> AuthError:
-    if not looks_like_http_status_error(exception):
-        return AuthRetryableError(get_error_message(exception), 0)
-    error = cast(HTTPStatusError, exception)
+def handle_exception(error: HTTPStatusError | RuntimeError) -> AuthError:
+    if not isinstance(error, HTTPStatusError):
+        return AuthRetryableError(get_error_message(error), 0)
     try:
         network_error_codes = [502, 503, 504]
         if error.response.status_code in network_error_codes:
@@ -161,8 +148,10 @@ def handle_exception(exception: Exception) -> AuthError:
 
         if (
             response_api_version
-            and datetime.timestamp(response_api_version)
-            >= API_VERSIONS.get("2024-01-01").get("timestamp")
+            and (
+                datetime.timestamp(response_api_version)
+                >= API_VERSIONS_2024_01_01_TIMESTAMP
+            )
             and isinstance(data, dict)
             and data
             and isinstance(data.get("code"), str)
@@ -180,18 +169,18 @@ def handle_exception(exception: Exception) -> AuthError:
                 and isinstance(data.get("weak_password"), dict)
                 and data.get("weak_password")
                 and isinstance(data.get("weak_password"), list)
-                and len(data.get("weak_password"))
+                and len(data["weak_password"])
             ):
                 return AuthWeakPasswordError(
                     get_error_message(data),
                     error.response.status_code,
-                    data.get("weak_password").get("reasons"),
+                    data["weak_password"].get("reasons"),
                 )
         elif error_code == "weak_password":
             return AuthWeakPasswordError(
                 get_error_message(data),
                 error.response.status_code,
-                data.get("weak_password", {}).get("reasons", {}),
+                data["weak_password"].get("reasons", {}),
             )
 
         return AuthApiError(
@@ -224,20 +213,26 @@ class DecodedJWT(TypedDict):
     raw: Dict[str, str]
 
 
+JWTHeaderParser = TypeAdapter(JWTHeader)
+JWTPayloadParser = TypeAdapter(JWTPayload)
+
+
 def decode_jwt(token: str) -> DecodedJWT:
     parts = token.split(".")
     if len(parts) != 3:
         raise AuthInvalidJwtError("Invalid JWT structure")
 
-    # regex check for base64url
-    for part in parts:
-        if not re.match(BASE64URL_REGEX, part, re.IGNORECASE):
-            raise AuthInvalidJwtError("JWT not in base64url format")
+    try:
+        header = base64url_to_bytes(parts[0])
+        payload = base64url_to_bytes(parts[1])
+        signature = base64url_to_bytes(parts[2])
+    except binascii.Error:
+        raise AuthInvalidJwtError("Invalid JWT structure")
 
     return DecodedJWT(
-        header=JWTHeader(**loads(str_from_base64url(parts[0]))),
-        payload=JWTPayload(**loads(str_from_base64url(parts[1]))),
-        signature=base64url_to_bytes(parts[2]),
+        header=JWTHeaderParser.validate_json(header),
+        payload=JWTPayloadParser.validate_json(payload),
+        signature=signature,
         raw={
             "header": parts[0],
             "payload": parts[1],

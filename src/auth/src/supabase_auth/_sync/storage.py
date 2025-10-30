@@ -16,12 +16,13 @@ class SyncSupportedStorage(ABC):
 
 
 class SyncMemoryStorage(SyncSupportedStorage):
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage: Dict[str, str] = {}
 
     def get_item(self, key: str) -> Optional[str]:
         if key in self.storage:
             return self.storage[key]
+        return None
 
     def set_item(self, key: str, value: str) -> None:
         self.storage[key] = value

@@ -2,15 +2,13 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, Optional, TypeVar, overload
 
-from httpx import Response
+from httpx import HTTPStatusError, QueryParams, Response
 from pydantic import BaseModel
 from typing_extensions import Literal, Self
 
-from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS
+from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS_2024_01_01_NAME
 from ..helpers import handle_exception, model_dump
 from ..http_clients import SyncClient
-
-T = TypeVar("T")
 
 
 class SyncGoTrueBaseAPI:
@@ -41,7 +39,6 @@ class SyncGoTrueBaseAPI:
     def close(self) -> None:
         self._http_client.aclose()
 
-    @overload
     def _request(
         self,
         method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
@@ -50,65 +47,21 @@ class SyncGoTrueBaseAPI:
         jwt: Optional[str] = None,
         redirect_to: Optional[str] = None,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
-        body: Optional[Any] = None,
-        no_resolve_json: Literal[False] = False,
-        xform: Callable[[Any], T],
-    ) -> T: ...  # pragma: no cover
-
-    @overload
-    def _request(
-        self,
-        method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
-        path: str,
-        *,
-        jwt: Optional[str] = None,
-        redirect_to: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
-        body: Optional[Any] = None,
-        no_resolve_json: Literal[True],
-        xform: Callable[[Response], T],
-    ) -> T: ...  # pragma: no cover
-
-    @overload
-    def _request(
-        self,
-        method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
-        path: str,
-        *,
-        jwt: Optional[str] = None,
-        redirect_to: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        query: Optional[QueryParams] = None,
         body: Optional[Any] = None,
         no_resolve_json: bool = False,
-    ) -> None: ...  # pragma: no cover
-
-    def _request(
-        self,
-        method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
-        path: str,
-        *,
-        jwt: Optional[str] = None,
-        redirect_to: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
-        body: Optional[Any] = None,
-        no_resolve_json: bool = False,
-        xform: Optional[Callable[[Any], T]] = None,
-    ) -> Optional[T]:
+    ) -> Response:
         url = f"{self._url}/{path}"
         headers = {**self._headers, **(headers or {})}
         if API_VERSION_HEADER_NAME not in headers:
-            headers[API_VERSION_HEADER_NAME] = API_VERSIONS["2024-01-01"].get("name")
+            headers[API_VERSION_HEADER_NAME] = API_VERSIONS_2024_01_01_NAME
         if "Content-Type" not in headers:
             headers["Content-Type"] = "application/json;charset=UTF-8"
         if jwt:
             headers["Authorization"] = f"Bearer {jwt}"
-        query = query or {}
+        query = query or QueryParams()
         if redirect_to:
-            query["redirect_to"] = redirect_to
+            query = query.set("redirect_to", redirect_to)
         try:
             response = self._http_client.request(
                 method,
@@ -117,9 +70,8 @@ class SyncGoTrueBaseAPI:
                 params=query,
                 json=model_dump(body) if isinstance(body, BaseModel) else body,
             )
+
             response.raise_for_status()
-            result = response if no_resolve_json else response.json()
-            if xform:
-                return xform(result)
-        except Exception as e:
+            return response
+        except (HTTPStatusError, RuntimeError) as e:
             raise handle_exception(e)

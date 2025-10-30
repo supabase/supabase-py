@@ -1,6 +1,87 @@
+from dataclasses import dataclass
+from random import random
+from time import time
+from typing import Optional
+
+from faker import Faker
 from jwt import encode
+from typing_extensions import NotRequired, TypedDict
 
 from supabase_auth import SyncGoTrueAdminAPI, SyncGoTrueClient
+from supabase_auth.types import User
+
+
+def mock_access_token() -> str:
+    return encode(
+        {
+            "sub": "1234567890",
+            "role": "anon_key",
+        },
+        GOTRUE_JWT_SECRET,
+    )
+
+
+class OptionalCredentials(TypedDict):
+    email: NotRequired[Optional[str]]
+    phone: NotRequired[Optional[str]]
+    password: NotRequired[Optional[str]]
+
+
+@dataclass
+class Credentials:
+    email: str
+    phone: str
+    password: str
+
+
+def mock_user_credentials(
+    options: OptionalCredentials = {},
+) -> Credentials:
+    fake = Faker()
+    rand_numbers = str(int(time()))
+    return Credentials(
+        email=options.get("email") or fake.email(),
+        phone=options.get("phone") or f"1{rand_numbers[-11:]}",
+        password=options.get("password") or fake.password(),
+    )
+
+
+def mock_verification_otp() -> str:
+    return str(int(100000 + random() * 900000))
+
+
+def mock_user_metadata():
+    fake = Faker()
+    return {
+        "profile_image": fake.url(),
+    }
+
+
+def mock_app_metadata():
+    return {
+        "roles": ["editor", "publisher"],
+    }
+
+
+def create_new_user_with_email(
+    *,
+    email: Optional[str] = None,
+    password: Optional[str] = None,
+) -> User:
+    credentials = mock_user_credentials(
+        {
+            "email": email,
+            "password": password,
+        }
+    )
+    response = service_role_api_client().create_user(
+        {
+            "email": credentials.email,
+            "password": credentials.password,
+        }
+    )
+    return response.user
+
 
 SIGNUP_ENABLED_AUTO_CONFIRM_OFF_PORT = 9999
 SIGNUP_ENABLED_AUTO_CONFIRM_ON_PORT = 9998
@@ -31,7 +112,7 @@ AUTH_ADMIN_JWT = encode(
 )
 
 
-def auth_client():
+def auth_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -39,12 +120,15 @@ def auth_client():
     )
 
 
-def auth_client_with_session():
-    return SyncGoTrueClient(
+def auth_client_with_session() -> SyncGoTrueClient:
+    client = SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=False,
     )
+    credentials = mock_user_credentials()
+    client.sign_up({"email": credentials.email, "password": credentials.password})
+    return client
 
 
 def auth_client_with_asymmetric_session() -> SyncGoTrueClient:
@@ -55,7 +139,7 @@ def auth_client_with_asymmetric_session() -> SyncGoTrueClient:
     )
 
 
-def auth_subscription_client():
+def auth_subscription_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -63,7 +147,7 @@ def auth_subscription_client():
     )
 
 
-def client_api_auto_confirm_enabled_client():
+def client_api_auto_confirm_enabled_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -71,7 +155,7 @@ def client_api_auto_confirm_enabled_client():
     )
 
 
-def client_api_auto_confirm_off_signups_enabled_client():
+def client_api_auto_confirm_off_signups_enabled_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
@@ -79,7 +163,7 @@ def client_api_auto_confirm_off_signups_enabled_client():
     )
 
 
-def client_api_auto_confirm_disabled_client():
+def client_api_auto_confirm_disabled_client() -> SyncGoTrueClient:
     return SyncGoTrueClient(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
@@ -87,7 +171,7 @@ def client_api_auto_confirm_disabled_client():
     )
 
 
-def auth_admin_api_auto_confirm_enabled_client():
+def auth_admin_api_auto_confirm_enabled_client() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         headers={
@@ -96,7 +180,7 @@ def auth_admin_api_auto_confirm_enabled_client():
     )
 
 
-def auth_admin_api_auto_confirm_disabled_client():
+def auth_admin_api_auto_confirm_disabled_client() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         headers={
@@ -113,7 +197,7 @@ SERVICE_ROLE_JWT = encode(
 )
 
 
-def service_role_api_client():
+def service_role_api_client() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         headers={
@@ -122,7 +206,7 @@ def service_role_api_client():
     )
 
 
-def service_role_api_client_with_sms():
+def service_role_api_client_with_sms() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         headers={
@@ -131,7 +215,7 @@ def service_role_api_client_with_sms():
     )
 
 
-def service_role_api_client_no_sms():
+def service_role_api_client_no_sms() -> SyncGoTrueAdminAPI:
     return SyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         headers={

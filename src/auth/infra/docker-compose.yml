@@ -21,6 +21,7 @@ services:
       GOTRUE_LOG_LEVEL: DEBUG
       GOTRUE_OPERATOR_TOKEN: super-secret-operator-token
       DATABASE_URL: 'postgres://postgres:postgres@db:5432/postgres?sslmode=disable'
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'true'
       GOTRUE_EXTERNAL_GOOGLE_ENABLED: 'true'
       GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: 53566906701-bmhc1ndue7hild39575gkpimhs06b7ds.apps.googleusercontent.com
       GOTRUE_EXTERNAL_GOOGLE_SECRET: Sm3s8RE85rDcS36iMy8YjrpC
@@ -61,6 +62,7 @@ services:
       GOTRUE_LOG_LEVEL: DEBUG
       GOTRUE_OPERATOR_TOKEN: super-secret-operator-token
       DATABASE_URL: 'postgres://postgres:postgres@db:5432/postgres?sslmode=disable'
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'true'
       GOTRUE_EXTERNAL_PHONE_ENABLED: 'true'
       GOTRUE_SMTP_HOST: mail
       GOTRUE_SMTP_PORT: 2500
@@ -90,6 +92,7 @@ services:
       GOTRUE_SMS_AUTOCONFIRM: 'true'
       GOTRUE_LOG_LEVEL: DEBUG
       GOTRUE_OPERATOR_TOKEN: super-secret-operator-token
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'true'
       DATABASE_URL: 'postgres://postgres:postgres@db:5432/postgres?sslmode=disable'
       GOTRUE_EXTERNAL_PHONE_ENABLED: 'true'
       GOTRUE_SMTP_HOST: mail
@@ -119,6 +122,7 @@ services:
       GOTRUE_LOG_LEVEL: DEBUG
       GOTRUE_OPERATOR_TOKEN: super-secret-operator-token
       DATABASE_URL: 'postgres://postgres:postgres@db:5432/postgres?sslmode=disable'
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'true'
       GOTRUE_EXTERNAL_PHONE_ENABLED: 'false'
       GOTRUE_EXTERNAL_EMAIL_ENABLED: 'false'
       GOTRUE_SMTP_HOST: mail

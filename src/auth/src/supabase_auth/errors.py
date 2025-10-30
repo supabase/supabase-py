@@ -86,11 +86,17 @@ ErrorCode = Literal[
     "invalid_credentials",
     "email_address_not_authorized",
     "email_address_invalid",
+    "invalid_jwt",
 ]
 
 
+class UserDoesntExist(Exception):
+    def __init__(self, access_token: str):
+        self.access_token = access_token
+
+
 class AuthError(Exception):
-    def __init__(self, message: str, code: ErrorCode) -> None:
+    def __init__(self, message: str, code: ErrorCode | None) -> None:
         Exception.__init__(self, message)
         self.message = message
         self.name = "AuthError"
@@ -101,11 +107,11 @@ class AuthApiErrorDict(TypedDict):
     name: str
     message: str
     status: int
-    code: ErrorCode
+    code: ErrorCode | None
 
 
 class AuthApiError(AuthError):
-    def __init__(self, message: str, status: int, code: ErrorCode) -> None:
+    def __init__(self, message: str, status: int, code: Optional[ErrorCode]) -> None:
         AuthError.__init__(self, message, code)
         self.name = "AuthApiError"
         self.status = status
@@ -128,7 +134,9 @@ class AuthUnknownError(AuthError):
 
 
 class CustomAuthError(AuthError):
-    def __init__(self, message: str, name: str, status: int, code: ErrorCode) -> None:
+    def __init__(
+        self, message: str, name: str, status: int, code: Optional[ErrorCode]
+    ) -> None:
         AuthError.__init__(self, message, code)
         self.name = name
         self.status = status
@@ -138,6 +146,7 @@ class CustomAuthError(AuthError):
             "name": self.name,
             "message": self.message,
             "status": self.status,
+            "code": self.code,
         }
 
 
@@ -193,6 +202,7 @@ class AuthImplicitGrantRedirectError(CustomAuthError):
             "message": self.message,
             "status": self.status,
             "details": self.details,
+            "code": self.code,
         }
 
 
@@ -207,6 +217,10 @@ class AuthRetryableError(CustomAuthError):
         )
 
 
+class AuthApiErrorWithReasonsDict(AuthApiErrorDict):
+    reasons: List[str]
+
+
 class AuthWeakPasswordError(CustomAuthError):
     def __init__(self, message: str, status: int, reasons: List[str]) -> None:
         CustomAuthError.__init__(
@@ -218,12 +232,13 @@ class AuthWeakPasswordError(CustomAuthError):
         )
         self.reasons = reasons
 
-    def to_dict(self) -> AuthApiErrorDict:
+    def to_dict(self) -> AuthApiErrorWithReasonsDict:
         return {
             "name": self.name,
             "message": self.message,
             "status": self.status,
             "reasons": self.reasons,
+            "code": self.code,
         }
 
 
