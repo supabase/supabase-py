@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.4](https://github.com/supabase/supabase-py/compare/v2.22.3...v2.22.4) (2025-10-30)
+
+
+### Bug Fixes
+
+* **auth:** mypy auth ([#1282](https://github.com/supabase/supabase-py/issues/1282)) ([5c07a73](https://github.com/supabase/supabase-py/commit/5c07a73df1f40c30aa6ae695b57de99220d9f612))
+
 ## [2.22.3](https://github.com/supabase/supabase-py/compare/v2.22.2...v2.22.3) (2025-10-28)
 
 
