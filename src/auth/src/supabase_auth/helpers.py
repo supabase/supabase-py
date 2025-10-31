@@ -9,16 +9,15 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union, cast
+from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union
 from urllib.parse import urlparse
 
 from httpx import HTTPStatusError, Response
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from .constants import (
     API_VERSION_HEADER_NAME,
     API_VERSIONS_2024_01_01_TIMESTAMP,
-    BASE64URL_REGEX,
 )
 from .errors import (
     AuthApiError,
@@ -81,7 +80,7 @@ def parse_auth_response(response: Response) -> AuthResponse:
     try:
         session = model_validate(Session, response.content)
         user = session.user
-    except:
+    except ValidationError:
         session = None
         user = model_validate(User, response.content)
     return AuthResponse(user=user, session=session)
@@ -126,9 +125,10 @@ def parse_jwks(response: Response) -> JWKSet:
 
 def get_error_message(error: Any) -> str:
     props = ["msg", "message", "error_description", "error"]
-    filter = lambda prop: (
-        prop in error if isinstance(error, dict) else hasattr(error, prop)
-    )
+
+    def filter(prop) -> bool:
+        return prop in error if isinstance(error, dict) else hasattr(error, prop)
+
     return next((error[prop] for prop in props if filter(prop)), str(error))
 
 
@@ -226,8 +226,8 @@ def decode_jwt(token: str) -> DecodedJWT:
         header = base64url_to_bytes(parts[0])
         payload = base64url_to_bytes(parts[1])
         signature = base64url_to_bytes(parts[2])
-    except binascii.Error:
-        raise AuthInvalidJwtError("Invalid JWT structure")
+    except binascii.Error as e:
+        raise AuthInvalidJwtError("Invalid JWT structure") from e
 
     return DecodedJWT(
         header=JWTHeaderParser.validate_json(header),
@@ -240,7 +240,7 @@ def decode_jwt(token: str) -> DecodedJWT:
     )
 
 
-def generate_pkce_verifier(length=64):
+def generate_pkce_verifier(length=64) -> str:
     """Generate a random PKCE verifier of the specified length."""
     if length < 43 or length > 128:
         raise ValueError("PKCE verifier length must be between 43 and 128 characters")
@@ -251,7 +251,7 @@ def generate_pkce_verifier(length=64):
     return "".join(secrets.choice(charset) for _ in range(length))
 
 
-def generate_pkce_challenge(code_verifier):
+def generate_pkce_challenge(code_verifier) -> str:
     """Generate a code challenge from a PKCE verifier."""
     # Hash the verifier using SHA-256
     verifier_bytes = code_verifier.encode("utf-8")
@@ -263,7 +263,7 @@ def generate_pkce_challenge(code_verifier):
 API_VERSION_REGEX = r"^2[0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])$"
 
 
-def parse_response_api_version(response: Response):
+def parse_response_api_version(response: Response) -> Optional[datetime]:
     api_version = response.headers.get(API_VERSION_HEADER_NAME)
 
     if not api_version:
@@ -275,7 +275,7 @@ def parse_response_api_version(response: Response):
     try:
         dt = datetime.strptime(api_version, "%Y-%m-%d")
         return dt
-    except Exception as e:
+    except Exception:
         return None
 
 

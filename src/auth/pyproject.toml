@@ -59,14 +59,14 @@ select = [
   # pyupgrade
   "UP",
   # flake8-bugbear
-  # "B",
+  "B",
   # flake8-simplify
   # "SIM",
   # isort
   "I",
+  "ANN2"
 ]
-ignore = ["F401", "F403", "F841", "E712", "E501", "E402", "E722", "E731", "UP006", "UP035"]
-# isort.required-imports = ["from __future__ import annotations"]
+ignore = ["F403", "E501", "E402", "UP006", "UP035"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

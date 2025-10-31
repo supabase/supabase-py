@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import time
 from contextlib import suppress
-from functools import partial
-from json import loads
-from typing import Callable, Dict, List, Mapping, Optional, Tuple, Union
-from urllib.parse import parse_qs, urlencode, urlparse
+from typing import Callable, Dict, List, Optional, Tuple
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
-from httpx import QueryParams
+from httpx import QueryParams, Response
 from jwt import get_algorithm_by_name
 from typing_extensions import cast
 
@@ -33,7 +31,6 @@ from ..helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    model_dump,
     model_dump_json,
     model_validate,
     parse_auth_otp_response,
@@ -50,7 +47,6 @@ from ..types import (
     JWK,
     AMREntry,
     AuthChangeEvent,
-    AuthenticatorAssuranceLevels,
     AuthFlowType,
     AuthMFAChallengeResponse,
     AuthMFAEnrollResponse,
@@ -86,6 +82,7 @@ from ..types import (
     SignUpWithEmailAndPasswordCredentialsOptions,
     SignUpWithPasswordCredentials,
     SignUpWithPhoneAndPasswordCredentialsOptions,
+    SSOResponse,
     Subscription,
     UpdateUserOptions,
     UserAttributes,
@@ -361,7 +358,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             self._notify_all_subscribers("SIGNED_IN", auth_response.session)
         return auth_response
 
-    def sign_in_with_sso(self, credentials: SignInWithSSOCredentials):
+    def sign_in_with_sso(self, credentials: SignInWithSSOCredentials) -> SSOResponse:
         """
         Attempts a single-sign on using an enterprise Identity Provider. A
         successful SSO attempt will redirect the current page to the identity
@@ -474,7 +471,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             return IdentitiesResponse(identities=response.user.identities or [])
         raise AuthSessionMissingError()
 
-    def unlink_identity(self, identity: UserIdentity):
+    def unlink_identity(self, identity: UserIdentity) -> Response:
         session = self.get_session()
         if not session:
             raise AuthSessionMissingError()
@@ -619,7 +616,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         if not session:
             raise AuthSessionMissingError()
 
-        response = self._request(
+        self._request(
             "GET",
             "reauthenticate",
             jwt=session.access_token,
@@ -672,7 +669,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         return parse_user_response(self._request("GET", "user", jwt=jwt))
 
     def update_user(
-        self, attributes: UserAttributes, options: UpdateUserOptions = {}
+        self, attributes: UserAttributes, options: Optional[UpdateUserOptions] = None
     ) -> UserResponse:
         """
         Updates user data, if there is a logged in user.
@@ -680,11 +677,12 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         session = self.get_session()
         if not session:
             raise AuthSessionMissingError()
+        update_options = options or {}
         response = self._request(
             "PUT",
             "user",
             body=attributes,
-            redirect_to=options.get("email_redirect_to"),
+            redirect_to=update_options.get("email_redirect_to"),
             jwt=session.access_token,
         )
         user_response = parse_user_response(response)
@@ -758,7 +756,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         session = self._call_refresh_token(refresh_token)
         return AuthResponse(session=session, user=session.user)
 
-    def sign_out(self, options: SignOutOptions = {"scope": "global"}) -> None:
+    def sign_out(self, options: Optional[SignOutOptions] = None) -> None:
         """
         `sign_out` will remove the logged in user from the
         current session and log them out - removing all items from storage and then trigger a `"SIGNED_OUT"` event.
@@ -768,13 +766,14 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         There is no way to revoke a user's access token jwt until it expires.
         It is recommended to set a shorter expiry on the jwt for this reason.
         """
+        signout_options = options or {"scope": "global"}
         with suppress(AuthApiError):
             session = self.get_session()
             access_token = session.access_token if session else None
             if access_token:
-                self.admin.sign_out(access_token, options["scope"])
+                self.admin.sign_out(access_token, signout_options["scope"])
 
-        if options["scope"] != "others":
+        if signout_options["scope"] != "others":
             self._remove_session()
             self._notify_all_subscribers("SIGNED_OUT", None)
 
@@ -798,31 +797,35 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         self._state_change_emitters[unique_id] = subscription
         return subscription
 
-    def reset_password_for_email(self, email: str, options: Options = {}) -> None:
+    def reset_password_for_email(
+        self, email: str, options: Optional[Options] = None
+    ) -> None:
         """
         Sends a password reset request to an email address.
         """
+        reset_options = options or {}
         self._request(
             "POST",
             "recover",
             body={
                 "email": email,
                 "gotrue_meta_security": {
-                    "captcha_token": options.get("captcha_token"),
+                    "captcha_token": reset_options.get("captcha_token"),
                 },
             },
-            redirect_to=options.get("redirect_to"),
+            redirect_to=reset_options.get("redirect_to"),
         )
 
     def reset_password_email(
         self,
         email: str,
-        options: Options = {},
+        options: Optional[Options] = None,
     ) -> None:
         """
         Sends a password reset request to an email address.
         """
-        self.reset_password_for_email(email, options)
+
+        self.reset_password_for_email(email, options or {})
 
     # MFA methods
 
@@ -1086,7 +1089,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         if value <= 0 or not self._auto_refresh_token:
             return
 
-        def refresh_token_function():
+        def refresh_token_function() -> None:
             self._network_retries += 1
             try:
                 session = self.get_session()
@@ -1267,7 +1270,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             try:
                 # Try to cancel the timer
                 self._refresh_token_timer.cancel()
-            except:
+            except Exception:
                 # Ignore errors if event loop is closed or selector is not registered
                 pass
             finally:

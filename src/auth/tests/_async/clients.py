@@ -35,14 +35,15 @@ class Credentials:
 
 
 def mock_user_credentials(
-    options: OptionalCredentials = {},
+    options: Optional[OptionalCredentials] = None,
 ) -> Credentials:
     fake = Faker()
+    user_options = options or {}
     rand_numbers = str(int(time()))
     return Credentials(
-        email=options.get("email") or fake.email(),
-        phone=options.get("phone") or f"1{rand_numbers[-11:]}",
-        password=options.get("password") or fake.password(),
+        email=user_options.get("email") or fake.email(),
+        phone=user_options.get("phone") or f"1{rand_numbers[-11:]}",
+        password=user_options.get("password") or fake.password(),
     )
 
 
@@ -50,14 +51,22 @@ def mock_verification_otp() -> str:
     return str(int(100000 + random() * 900000))
 
 
-def mock_user_metadata():
+class UserMetadata(TypedDict):
+    profile_image: str
+
+
+def mock_user_metadata() -> UserMetadata:
     fake = Faker()
     return {
         "profile_image": fake.url(),
     }
 
 
-def mock_app_metadata():
+class AppMetadata(TypedDict):
+    roles: list[str]
+
+
+def mock_app_metadata() -> AppMetadata:
     return {
         "roles": ["editor", "publisher"],
     }

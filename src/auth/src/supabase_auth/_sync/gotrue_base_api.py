@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, TypeVar, overload
+from typing import Any, Dict, Optional
 
 from httpx import HTTPStatusError, QueryParams, Response
 from pydantic import BaseModel
@@ -20,7 +20,7 @@ class SyncGoTrueBaseAPI:
         http_client: Optional[SyncClient],
         verify: bool = True,
         proxy: Optional[str] = None,
-    ):
+    ) -> None:
         self._url = url
         self._headers = headers
         self._http_client = http_client or SyncClient(
@@ -74,4 +74,4 @@ class SyncGoTrueBaseAPI:
             response.raise_for_status()
             return response
         except (HTTPStatusError, RuntimeError) as e:
-            raise handle_exception(e)
+            raise handle_exception(e)  # noqa

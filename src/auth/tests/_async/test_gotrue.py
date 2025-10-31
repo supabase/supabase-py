@@ -1,5 +1,4 @@
 import time
-import unittest
 from uuid import uuid4
 
 import pytest
@@ -22,12 +21,12 @@ from .clients import (
 )
 
 
-async def test_get_claims_returns_none_when_session_is_none():
+async def test_get_claims_returns_none_when_session_is_none() -> None:
     claims = await auth_client().get_claims()
     assert claims is None
 
 
-async def test_get_claims_calls_get_user_if_symmetric_jwt(mocker):
+async def test_get_claims_calls_get_user_if_symmetric_jwt(mocker) -> None:
     client = auth_client()
     spy = mocker.spy(client, "get_user")
     credentials = mock_user_credentials()
@@ -47,7 +46,7 @@ async def test_get_claims_calls_get_user_if_symmetric_jwt(mocker):
     spy.assert_called_once()
 
 
-async def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker):
+async def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker) -> None:
     client = auth_client_with_asymmetric_session()
     credentials = mock_user_credentials()
     options: SignUpWithEmailAndPasswordCredentials = {
@@ -73,7 +72,7 @@ async def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker):
     assert client._jwks["keys"][0]["kid"] == expected_keyid
 
 
-async def test_jwks_ttl_cache_behavior(mocker):
+async def test_jwks_ttl_cache_behavior(mocker) -> None:
     client = auth_client_with_asymmetric_session()
 
     spy = mocker.spy(client, "_request")
@@ -109,7 +108,7 @@ async def test_jwks_ttl_cache_behavior(mocker):
         mocker.patch("time.time", original_time)
 
 
-async def test_set_session_with_valid_tokens():
+async def test_set_session_with_valid_tokens() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -140,7 +139,7 @@ async def test_set_session_with_valid_tokens():
     assert response.user.email == credentials.email
 
 
-async def test_set_session_with_expired_token():
+async def test_set_session_with_expired_token() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -180,7 +179,7 @@ async def test_set_session_with_expired_token():
     assert response.user.email == credentials.email
 
 
-async def test_set_session_without_refresh_token():
+async def test_set_session_without_refresh_token() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -213,7 +212,7 @@ async def test_set_session_without_refresh_token():
         await client.set_session(expired_access_token, "")
 
 
-async def test_set_session_with_invalid_token():
+async def test_set_session_with_invalid_token() -> None:
     client = auth_client()
 
     # Try to set the session with invalid tokens
@@ -221,7 +220,7 @@ async def test_set_session_with_invalid_token():
         await client.set_session("invalid.token.here", "invalid_refresh_token")
 
 
-async def test_mfa_enroll():
+async def test_mfa_enroll() -> None:
     client = await auth_client_with_session()
 
     credentials = mock_user_credentials()
@@ -246,7 +245,7 @@ async def test_mfa_enroll():
     assert enroll_response.totp.qr_code is not None
 
 
-async def test_mfa_challenge():
+async def test_mfa_challenge() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -270,7 +269,7 @@ async def test_mfa_challenge():
     assert challenge_response.expires_at is not None
 
 
-async def test_mfa_unenroll():
+async def test_mfa_unenroll() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -293,7 +292,7 @@ async def test_mfa_unenroll():
     assert unenroll_response.id == enroll_response.id
 
 
-async def test_mfa_list_factors():
+async def test_mfa_list_factors() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -316,7 +315,7 @@ async def test_mfa_list_factors():
     assert len(list_response.all) == 1
 
 
-async def test_exchange_code_for_session():
+async def test_exchange_code_for_session() -> None:
     client = auth_client()
 
     # We'll test the flow type setting instead of the actual exchange, since the
@@ -344,7 +343,7 @@ async def test_exchange_code_for_session():
     assert code_verifier is not None
 
 
-async def test_get_authenticator_assurance_level():
+async def test_get_authenticator_assurance_level() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -369,7 +368,7 @@ async def test_get_authenticator_assurance_level():
     assert aal_response.current_authentication_methods is not None
 
 
-async def test_link_identity():
+async def test_link_identity() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -385,8 +384,6 @@ async def test_link_identity():
     from unittest.mock import patch
 
     from httpx import Response
-
-    from supabase_auth.types import OAuthResponse
 
     # Since the test server has manual linking disabled, we'll mock the URL generation
     with patch.object(client, "_get_url_for_provider") as mock_url_provider:
@@ -408,7 +405,7 @@ async def test_link_identity():
             assert response.url == mock_url
 
 
-async def test_get_user_identities():
+async def test_get_user_identities() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -428,7 +425,7 @@ async def test_get_user_identities():
     assert hasattr(identities_response, "identities")
 
 
-async def test_sign_in_with_password():
+async def test_sign_in_with_password() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
     from supabase_auth.errors import AuthApiError, AuthInvalidCredentialsError
@@ -467,19 +464,21 @@ async def test_sign_in_with_password():
                 "password": "wrong_password",
             }
         )
-        assert False, "Expected AuthApiError for wrong password"
+        raise AssertionError("Expected AuthApiError for wrong password")
     except AuthApiError:
         pass
 
     # Test error case: missing credentials
     try:
         await test_client.sign_in_with_password({})  # type: ignore
-        assert False, "Expected AuthInvalidCredentialsError for missing credentials"
+        raise AssertionError(
+            "Expected AuthInvalidCredentialsError for missing credentials"
+        )
     except AuthInvalidCredentialsError:
         pass
 
 
-async def test_sign_in_with_otp():
+async def test_sign_in_with_otp() -> None:
     client = auth_client()
 
     # Test with email OTP
@@ -519,7 +518,7 @@ async def test_sign_in_with_otp():
         assert args[0] == "POST"
         assert args[1] == "otp"
         assert kwargs["body"]["email"] == email
-        assert kwargs["body"]["create_user"] == True
+        assert kwargs["body"]["create_user"]
         assert kwargs["body"]["data"] == {"custom": "data"}
         assert (
             kwargs["body"]["gotrue_meta_security"]["captcha_token"]
@@ -555,7 +554,7 @@ async def test_sign_in_with_otp():
         assert args[0] == "POST"
         assert args[1] == "otp"
         assert kwargs["body"]["phone"] == phone
-        assert kwargs["body"]["create_user"] == True
+        assert kwargs["body"]["create_user"]
         assert kwargs["body"]["data"] == {"custom": "data"}
         assert kwargs["body"]["channel"] == "whatsapp"
         assert (
@@ -572,12 +571,12 @@ async def test_sign_in_with_otp():
 
     try:
         await client.sign_in_with_otp({})  # type: ignore
-        assert False, "Expected AuthInvalidCredentialsError"
+        raise AssertionError("Expected AuthInvalidCredentialsError")
     except AuthInvalidCredentialsError:
         pass
 
 
-async def test_sign_out():
+async def test_sign_out() -> None:
     from datetime import datetime
     from unittest.mock import patch
 
