@@ -1165,7 +1165,9 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         query = query.set("provider", provider)
         return f"{url}?{query}", query
 
-    async def exchange_code_for_session(self, params: CodeExchangeParams):
+    async def exchange_code_for_session(
+        self, params: CodeExchangeParams
+    ) -> AuthResponse:
         code_verifier = params.get("code_verifier") or await self._storage.get_item(
             f"{self._storage_key}-code-verifier"
         )

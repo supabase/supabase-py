@@ -6,10 +6,10 @@ from httpx import QueryParams, Response
 from pydantic import TypeAdapter
 
 from ..helpers import (
-    validate_uuid,
     model_validate,
     parse_link_response,
     parse_user_response,
+    validate_uuid,
 )
 from ..http_clients import AsyncClient
 from ..types import (
@@ -57,15 +57,15 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         )
         # TODO(@o-santi): why is is this done this way?
         self.mfa = AsyncGoTrueAdminMFAAPI()
-        self.mfa.list_factors = self._list_factors # type: ignore
-        self.mfa.delete_factor = self._delete_factor # type: ignore
+        self.mfa.list_factors = self._list_factors  # type: ignore
+        self.mfa.delete_factor = self._delete_factor  # type: ignore
         self.oauth = AsyncGoTrueAdminOAuthAPI()
-        self.oauth.list_clients = self._list_oauth_clients # type: ignore
-        self.oauth.create_client = self._create_oauth_client # type: ignore
-        self.oauth.get_client = self._get_oauth_client # type: ignore
-        self.oauth.update_client = self._update_oauth_client # type: ignore
-        self.oauth.delete_client = self._delete_oauth_client # type: ignore
-        self.oauth.regenerate_client_secret = self._regenerate_oauth_client_secret # type: ignore
+        self.oauth.list_clients = self._list_oauth_clients  # type: ignore
+        self.oauth.create_client = self._create_oauth_client  # type: ignore
+        self.oauth.get_client = self._get_oauth_client  # type: ignore
+        self.oauth.update_client = self._update_oauth_client  # type: ignore
+        self.oauth.delete_client = self._delete_oauth_client  # type: ignore
+        self.oauth.regenerate_client_secret = self._regenerate_oauth_client_secret  # type: ignore
 
     async def sign_out(self, jwt: str, scope: SignOutScope = "global") -> None:
         """
@@ -276,9 +276,8 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
             body=params,
         )
 
-        return OAuthClientResponse(
-            client=model_validate(OAuthClient, response.content)
-        )
+        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
+
     async def _get_oauth_client(
         self,
         client_id: str,
@@ -295,9 +294,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
             "GET",
             f"admin/oauth/clients/{client_id}",
         )
-        return OAuthClientResponse(
-            client=model_validate(OAuthClient, response.content)
-        )
+        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
 
     async def _update_oauth_client(
         self,
@@ -317,9 +314,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
             f"admin/oauth/clients/{client_id}",
             body=params,
         )
-        return OAuthClientResponse(
-            client=model_validate(OAuthClient, response.content)
-        )
+        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
 
     async def _delete_oauth_client(
         self,
@@ -354,6 +349,4 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
             "POST",
             f"admin/oauth/clients/{client_id}/regenerate_secret",
         )
-        return OAuthClientResponse(
-            client=model_validate(OAuthClient, response.content)
-        )
+        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))

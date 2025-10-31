@@ -441,9 +441,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         )
         return OAuthResponse(provider=provider, url=url_with_qs)
 
-    def link_identity(
-        self, credentials: SignInWithOAuthCredentials
-    ) -> OAuthResponse:
+    def link_identity(self, credentials: SignInWithOAuthCredentials) -> OAuthResponse:
         provider = credentials["provider"]
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
@@ -743,9 +741,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         self._notify_all_subscribers("TOKEN_REFRESHED", session)
         return AuthResponse(session=session, user=session.user)
 
-    def refresh_session(
-        self, refresh_token: Optional[str] = None
-    ) -> AuthResponse:
+    def refresh_session(self, refresh_token: Optional[str] = None) -> AuthResponse:
         """
         Returns a new session, regardless of expiry status.
 
@@ -1153,9 +1149,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         if self._flow_type == "pkce":
             code_verifier = generate_pkce_verifier()
             code_challenge = generate_pkce_challenge(code_verifier)
-            self._storage.set_item(
-                f"{self._storage_key}-code-verifier", code_verifier
-            )
+            self._storage.set_item(f"{self._storage_key}-code-verifier", code_verifier)
             code_challenge_method = (
                 "plain" if code_verifier == code_challenge else "s256"
             )
@@ -1165,7 +1159,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         query = query.set("provider", provider)
         return f"{url}?{query}", query
 
-    def exchange_code_for_session(self, params: CodeExchangeParams):
+    def exchange_code_for_session(self, params: CodeExchangeParams) -> AuthResponse:
         code_verifier = params.get("code_verifier") or self._storage.get_item(
             f"{self._storage_key}-code-verifier"
         )
