@@ -673,7 +673,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         return parse_user_response(await self._request("GET", "user", jwt=jwt))
 
     async def update_user(
-        self, attributes: UserAttributes, options: UpdateUserOptions = {}
+        self, attributes: UserAttributes, options: Optional[UpdateUserOptions]
     ) -> UserResponse:
         """
         Updates user data, if there is a logged in user.
@@ -681,11 +681,12 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         session = await self.get_session()
         if not session:
             raise AuthSessionMissingError()
+        update_options = options or {}
         response = await self._request(
             "PUT",
             "user",
             body=attributes,
-            redirect_to=options.get("email_redirect_to"),
+            redirect_to=update_options.get("email_redirect_to"),
             jwt=session.access_token,
         )
         user_response = parse_user_response(response)
@@ -761,7 +762,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         session = await self._call_refresh_token(refresh_token)
         return AuthResponse(session=session, user=session.user)
 
-    async def sign_out(self, options: SignOutOptions = {"scope": "global"}) -> None:
+    async def sign_out(self, options: Optional[SignOutOptions] = None) -> None:
         """
         `sign_out` will remove the logged in user from the
         current session and log them out - removing all items from storage and then trigger a `"SIGNED_OUT"` event.
@@ -771,13 +772,14 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         There is no way to revoke a user's access token jwt until it expires.
         It is recommended to set a shorter expiry on the jwt for this reason.
         """
+        signout_options = options or {"scope": "global"}
         with suppress(AuthApiError):
             session = await self.get_session()
             access_token = session.access_token if session else None
             if access_token:
-                await self.admin.sign_out(access_token, options["scope"])
+                await self.admin.sign_out(access_token, signout_options["scope"])
 
-        if options["scope"] != "others":
+        if signout_options["scope"] != "others":
             await self._remove_session()
             self._notify_all_subscribers("SIGNED_OUT", None)
 
@@ -801,31 +803,35 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         self._state_change_emitters[unique_id] = subscription
         return subscription
 
-    async def reset_password_for_email(self, email: str, options: Options = {}) -> None:
+    async def reset_password_for_email(
+        self, email: str, options: Optional[Options] = None
+    ) -> None:
         """
         Sends a password reset request to an email address.
         """
+        reset_options = options or {}
         await self._request(
             "POST",
             "recover",
             body={
                 "email": email,
                 "gotrue_meta_security": {
-                    "captcha_token": options.get("captcha_token"),
+                    "captcha_token": reset_options.get("captcha_token"),
                 },
             },
-            redirect_to=options.get("redirect_to"),
+            redirect_to=reset_options.get("redirect_to"),
         )
 
     async def reset_password_email(
         self,
         email: str,
-        options: Options = {},
+        options: Optional[Options] = None,
     ) -> None:
         """
         Sends a password reset request to an email address.
         """
-        await self.reset_password_for_email(email, options)
+
+        await self.reset_password_for_email(email, options or {})
 
     # MFA methods
 

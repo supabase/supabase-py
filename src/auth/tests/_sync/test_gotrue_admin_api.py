@@ -305,7 +305,7 @@ def test_sign_out_with_an_valid_access_token() -> None:
 def test_sign_out_with_an_invalid_access_token() -> None:
     try:
         service_role_api_client().sign_out("this-is-a-bad-token")
-        assert False
+        raise AssertionError()
     except AuthError:
         pass
 
@@ -321,7 +321,7 @@ def test_verify_otp_with_non_existent_phone_number() -> None:
                 "type": "sms",
             },
         )
-        assert False
+        raise AssertionError()
     except AuthError as e:
         assert e.message == "Token has expired or is invalid"
 
@@ -337,7 +337,7 @@ def test_verify_otp_with_invalid_phone_number() -> None:
                 "type": "sms",
             },
         )
-        assert False
+        raise AssertionError()
     except AuthError as e:
         assert e.message == "Invalid phone number format (E.164 required)"
 

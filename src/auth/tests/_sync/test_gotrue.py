@@ -462,14 +462,16 @@ def test_sign_in_with_password() -> None:
                 "password": "wrong_password",
             }
         )
-        assert False, "Expected AuthApiError for wrong password"
+        raise AssertionError("Expected AuthApiError for wrong password")
     except AuthApiError:
         pass
 
     # Test error case: missing credentials
     try:
         test_client.sign_in_with_password({})  # type: ignore
-        assert False, "Expected AuthInvalidCredentialsError for missing credentials"
+        raise AssertionError(
+            "Expected AuthInvalidCredentialsError for missing credentials"
+        )
     except AuthInvalidCredentialsError:
         pass
 
@@ -567,7 +569,7 @@ def test_sign_in_with_otp() -> None:
 
     try:
         client.sign_in_with_otp({})  # type: ignore
-        assert False, "Expected AuthInvalidCredentialsError"
+        raise AssertionError("Expected AuthInvalidCredentialsError")
     except AuthInvalidCredentialsError:
         pass
 

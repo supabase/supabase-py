@@ -41,15 +41,16 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         self,
         *,
         url: str = "",
-        headers: Dict[str, str] = {},
+        headers: Optional[Dict[str, str]] = None,
         http_client: Optional[AsyncClient] = None,
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:
+        http_headers = headers or {}
         AsyncGoTrueBaseAPI.__init__(
             self,
             url=url,
-            headers=headers,
+            headers=http_headers,
             http_client=http_client,
             verify=verify,
             proxy=proxy,
@@ -81,16 +82,17 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
     async def invite_user_by_email(
         self,
         email: str,
-        options: InviteUserByEmailOptions = {},
+        options: Optional[InviteUserByEmailOptions] = None,
     ) -> UserResponse:
         """
         Sends an invite link to an email address.
         """
+        email_options = options or {}
         response = await self._request(
             "POST",
             "invite",
-            body={"email": email, "data": options.get("data")},
-            redirect_to=options.get("redirect_to"),
+            body={"email": email, "data": email_options.get("data")},
+            redirect_to=email_options.get("redirect_to"),
         )
         return parse_user_response(response)
 
