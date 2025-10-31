@@ -673,7 +673,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         return parse_user_response(await self._request("GET", "user", jwt=jwt))
 
     async def update_user(
-        self, attributes: UserAttributes, options: Optional[UpdateUserOptions]
+        self, attributes: UserAttributes, options: Optional[UpdateUserOptions] = None
     ) -> UserResponse:
         """
         Updates user data, if there is a logged in user.
