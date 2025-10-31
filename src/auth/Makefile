@@ -2,14 +2,9 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
-tests: ruff mypy pytest
+tests: mypy pytest
 help::
 	@echo "  tests          -- run all tests for supabase_auth"
-
-ruff:
-	uv run ruff check tests src/supabase_auth
-help::
-	@echo "  ruff           -- run ruff checks"
 
 pytest: start-infra
 	uv run --package supabase_auth pytest --cov=./ --cov-report=xml --cov-report=html -vv
