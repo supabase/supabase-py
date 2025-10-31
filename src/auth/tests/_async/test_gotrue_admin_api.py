@@ -10,6 +10,7 @@ from supabase_auth.errors import (
     AuthWeakPasswordError,
 )
 from supabase_auth.types import CreateOAuthClientParams, UpdateOAuthClientParams
+
 from .clients import (
     auth_client,
     auth_client_with_session,
@@ -649,6 +650,7 @@ async def test_get_oauth_client():
         assert response.client is not None
         assert response.client.client_id == client_id
 
+
 # Server is not yet released, so this test is not yet relevant.
 # async def test_update_oauth_client():
 #     """Test updating an OAuth client."""
@@ -670,6 +672,7 @@ async def test_get_oauth_client():
 #     )
 #     assert response.client is not None
 #     assert response.client.client_name == "Updated Test OAuth Client"
+
 
 async def test_delete_oauth_client():
     """Test deleting an OAuth client."""

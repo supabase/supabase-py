@@ -331,9 +331,7 @@ def test_exchange_code_for_session():
     client._flow_type = "pkce"
 
     # Test the PKCE URL generation which is needed for exchange_code_for_session
-    url, params = client._get_url_for_provider(
-        f"{client._url}/authorize", "github", {}
-    )
+    url, params = client._get_url_for_provider(f"{client._url}/authorize", "github", {})
 
     # Verify PKCE parameters were added
     assert "code_challenge" in params

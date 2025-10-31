@@ -893,7 +893,9 @@ OAuth client registration type.
 Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 """
 
-OAuthClientTokenEndpointAuthMethod = Literal["none", "client_secret_basic", "client_secret_post"]
+OAuthClientTokenEndpointAuthMethod = Literal[
+    "none", "client_secret_basic", "client_secret_post"
+]
 """
 OAuth client token endpoint authentication method.
 Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
@@ -957,6 +959,7 @@ class CreateOAuthClientParams(BaseModel):
     scope: Optional[str] = None
     """Space-separated list of scope values"""
 
+
 class UpdateOAuthClientParams(BaseModel):
     """
     Parameters for updating an existing OAuth client.
@@ -973,6 +976,7 @@ class UpdateOAuthClientParams(BaseModel):
     """Array of allowed redirect URIs"""
     grant_types: Optional[List[OAuthClientGrantType]] = None
     """Array of allowed grant types"""
+
 
 class OAuthClientResponse(BaseModel):
     """

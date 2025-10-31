@@ -1165,7 +1165,9 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         query = query.set("provider", provider)
         return f"{url}?{query}", query
 
-    async def exchange_code_for_session(self, params: CodeExchangeParams):
+    async def exchange_code_for_session(
+        self, params: CodeExchangeParams
+    ) -> AuthResponse:
         code_verifier = params.get("code_verifier") or await self._storage.get_item(
             f"{self._storage_key}-code-verifier"
         )
@@ -1184,7 +1186,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         if auth_response.session:
             await self._save_session(auth_response.session)
             self._notify_all_subscribers("SIGNED_IN", auth_response.session)
-        return response
+        return auth_response
 
     async def _fetch_jwks(self, kid: str, jwks: JWKSet) -> JWK:
         jwk: Optional[JWK] = None

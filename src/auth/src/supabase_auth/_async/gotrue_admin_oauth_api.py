@@ -1,3 +1,5 @@
+from typing import Optional
+
 from ..types import (
     CreateOAuthClientParams,
     OAuthClientListResponse,
@@ -5,7 +7,6 @@ from ..types import (
     PageParams,
     UpdateOAuthClientParams,
 )
-from typing import Optional
 
 
 class AsyncGoTrueAdminOAuthAPI:
