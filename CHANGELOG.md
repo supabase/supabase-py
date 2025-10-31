@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.23.0](https://github.com/supabase/supabase-py/compare/v2.22.4...v2.23.0) (2025-10-31)
+
+
+### Features
+
+* **auth:** add OAuth 2.1 client admin endpoints ([#1240](https://github.com/supabase/supabase-py/issues/1240)) ([9ab912b](https://github.com/supabase/supabase-py/commit/9ab912b7b3363af4576e78c76ce8c6f2721cc039))
+
+
+### Bug Fixes
+
+* **auth:** more linting rules ([#1289](https://github.com/supabase/supabase-py/issues/1289)) ([a892c43](https://github.com/supabase/supabase-py/commit/a892c43701b0809eb4e3face210cc44866a77bed))
+* **auth:** return auth_response from exchange_code_for_session instead of response dict ([#1288](https://github.com/supabase/supabase-py/issues/1288)) ([7159116](https://github.com/supabase/supabase-py/commit/715911654ece1c326785e0c62fde5572ba3dcd74))
+* **storage:** add upsert option for signed bucket ([#1283](https://github.com/supabase/supabase-py/issues/1283)) ([ce4381a](https://github.com/supabase/supabase-py/commit/ce4381aa5a20c7ea8f748d885a447b52223bc1c9))
+
 ## [2.22.4](https://github.com/supabase/supabase-py/compare/v2.22.3...v2.22.4) (2025-10-30)
 
 
