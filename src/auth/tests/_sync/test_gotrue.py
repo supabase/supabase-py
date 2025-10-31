@@ -514,7 +514,7 @@ def test_sign_in_with_otp() -> None:
         assert args[0] == "POST"
         assert args[1] == "otp"
         assert kwargs["body"]["email"] == email
-        assert kwargs["body"]["create_user"] == True
+        assert kwargs["body"]["create_user"]
         assert kwargs["body"]["data"] == {"custom": "data"}
         assert (
             kwargs["body"]["gotrue_meta_security"]["captcha_token"]
@@ -550,7 +550,7 @@ def test_sign_in_with_otp() -> None:
         assert args[0] == "POST"
         assert args[1] == "otp"
         assert kwargs["body"]["phone"] == phone
-        assert kwargs["body"]["create_user"] == True
+        assert kwargs["body"]["create_user"]
         assert kwargs["body"]["data"] == {"custom": "data"}
         assert kwargs["body"]["channel"] == "whatsapp"
         assert (

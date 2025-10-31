@@ -1274,7 +1274,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             try:
                 # Try to cancel the timer
                 self._refresh_token_timer.cancel()
-            except:
+            except Exception:
                 # Ignore errors if event loop is closed or selector is not registered
                 pass
             finally:

@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union
 from urllib.parse import urlparse
 
 from httpx import HTTPStatusError, Response
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from .constants import (
     API_VERSION_HEADER_NAME,
@@ -80,7 +80,7 @@ def parse_auth_response(response: Response) -> AuthResponse:
     try:
         session = model_validate(Session, response.content)
         user = session.user
-    except:
+    except ValidationError:
         session = None
         user = model_validate(User, response.content)
     return AuthResponse(user=user, session=session)
@@ -125,9 +125,10 @@ def parse_jwks(response: Response) -> JWKSet:
 
 def get_error_message(error: Any) -> str:
     props = ["msg", "message", "error_description", "error"]
-    filter = lambda prop: (
-        prop in error if isinstance(error, dict) else hasattr(error, prop)
-    )
+
+    def filter(prop) -> bool:
+        return prop in error if isinstance(error, dict) else hasattr(error, prop)
+
     return next((error[prop] for prop in props if filter(prop)), str(error))
 
 
