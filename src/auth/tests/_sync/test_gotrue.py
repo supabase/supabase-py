@@ -1,5 +1,4 @@
 import time
-import unittest
 from uuid import uuid4
 
 import pytest
@@ -22,12 +21,12 @@ from .clients import (
 )
 
 
-def test_get_claims_returns_none_when_session_is_none():
+def test_get_claims_returns_none_when_session_is_none() -> None:
     claims = auth_client().get_claims()
     assert claims is None
 
 
-def test_get_claims_calls_get_user_if_symmetric_jwt(mocker):
+def test_get_claims_calls_get_user_if_symmetric_jwt(mocker) -> None:
     client = auth_client()
     spy = mocker.spy(client, "get_user")
     credentials = mock_user_credentials()
@@ -47,7 +46,7 @@ def test_get_claims_calls_get_user_if_symmetric_jwt(mocker):
     spy.assert_called_once()
 
 
-def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker):
+def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker) -> None:
     client = auth_client_with_asymmetric_session()
     credentials = mock_user_credentials()
     options: SignUpWithEmailAndPasswordCredentials = {
@@ -73,7 +72,7 @@ def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker):
     assert client._jwks["keys"][0]["kid"] == expected_keyid
 
 
-def test_jwks_ttl_cache_behavior(mocker):
+def test_jwks_ttl_cache_behavior(mocker) -> None:
     client = auth_client_with_asymmetric_session()
 
     spy = mocker.spy(client, "_request")
@@ -109,7 +108,7 @@ def test_jwks_ttl_cache_behavior(mocker):
         mocker.patch("time.time", original_time)
 
 
-def test_set_session_with_valid_tokens():
+def test_set_session_with_valid_tokens() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -140,7 +139,7 @@ def test_set_session_with_valid_tokens():
     assert response.user.email == credentials.email
 
 
-def test_set_session_with_expired_token():
+def test_set_session_with_expired_token() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -180,7 +179,7 @@ def test_set_session_with_expired_token():
     assert response.user.email == credentials.email
 
 
-def test_set_session_without_refresh_token():
+def test_set_session_without_refresh_token() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -213,7 +212,7 @@ def test_set_session_without_refresh_token():
         client.set_session(expired_access_token, "")
 
 
-def test_set_session_with_invalid_token():
+def test_set_session_with_invalid_token() -> None:
     client = auth_client()
 
     # Try to set the session with invalid tokens
@@ -221,7 +220,7 @@ def test_set_session_with_invalid_token():
         client.set_session("invalid.token.here", "invalid_refresh_token")
 
 
-def test_mfa_enroll():
+def test_mfa_enroll() -> None:
     client = auth_client_with_session()
 
     credentials = mock_user_credentials()
@@ -246,7 +245,7 @@ def test_mfa_enroll():
     assert enroll_response.totp.qr_code is not None
 
 
-def test_mfa_challenge():
+def test_mfa_challenge() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -270,7 +269,7 @@ def test_mfa_challenge():
     assert challenge_response.expires_at is not None
 
 
-def test_mfa_unenroll():
+def test_mfa_unenroll() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -293,7 +292,7 @@ def test_mfa_unenroll():
     assert unenroll_response.id == enroll_response.id
 
 
-def test_mfa_list_factors():
+def test_mfa_list_factors() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -316,7 +315,7 @@ def test_mfa_list_factors():
     assert len(list_response.all) == 1
 
 
-def test_exchange_code_for_session():
+def test_exchange_code_for_session() -> None:
     client = auth_client()
 
     # We'll test the flow type setting instead of the actual exchange, since the
@@ -342,7 +341,7 @@ def test_exchange_code_for_session():
     assert code_verifier is not None
 
 
-def test_get_authenticator_assurance_level():
+def test_get_authenticator_assurance_level() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -367,7 +366,7 @@ def test_get_authenticator_assurance_level():
     assert aal_response.current_authentication_methods is not None
 
 
-def test_link_identity():
+def test_link_identity() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -383,8 +382,6 @@ def test_link_identity():
     from unittest.mock import patch
 
     from httpx import Response
-
-    from supabase_auth.types import OAuthResponse
 
     # Since the test server has manual linking disabled, we'll mock the URL generation
     with patch.object(client, "_get_url_for_provider") as mock_url_provider:
@@ -406,7 +403,7 @@ def test_link_identity():
             assert response.url == mock_url
 
 
-def test_get_user_identities():
+def test_get_user_identities() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
 
@@ -426,7 +423,7 @@ def test_get_user_identities():
     assert hasattr(identities_response, "identities")
 
 
-def test_sign_in_with_password():
+def test_sign_in_with_password() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
     from supabase_auth.errors import AuthApiError, AuthInvalidCredentialsError
@@ -477,7 +474,7 @@ def test_sign_in_with_password():
         pass
 
 
-def test_sign_in_with_otp():
+def test_sign_in_with_otp() -> None:
     client = auth_client()
 
     # Test with email OTP
@@ -575,7 +572,7 @@ def test_sign_in_with_otp():
         pass
 
 
-def test_sign_out():
+def test_sign_out() -> None:
     from datetime import datetime
     from unittest.mock import patch
 

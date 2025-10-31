@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
-from httpx import QueryParams, Response
-from pydantic import TypeAdapter
+from httpx import QueryParams
 
 from ..helpers import (
     model_validate,

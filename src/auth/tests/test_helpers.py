@@ -25,19 +25,9 @@ from supabase_auth.helpers import (
     model_dump,
     model_dump_json,
     model_validate,
-    parse_auth_response,
-    parse_jwks,
     parse_link_identity_response,
-    parse_link_response,
     parse_response_api_version,
-    parse_sso_response,
-    parse_user_response,
     validate_exp,
-)
-from supabase_auth.types import (
-    GenerateLinkResponse,
-    Session,
-    User,
 )
 
 from ._sync.clients import mock_access_token
@@ -45,7 +35,7 @@ from ._sync.clients import mock_access_token
 TEST_URL = "http://localhost"
 
 
-def test_handle_exception_with_api_version_and_error_code():
+def test_handle_exception_with_api_version_and_error_code() -> None:
     err = {
         "name": "without API version and error code",
         "code": "unexpected_failure",
@@ -65,7 +55,7 @@ def test_handle_exception_with_api_version_and_error_code():
         assert exc.value.name == err["ename"]
 
 
-def test_handle_exception_without_api_version_and_weak_password_error_code():
+def test_handle_exception_without_api_version_and_weak_password_error_code() -> None:
     err = {
         "name": "without API version and weak password error code with payload",
         "code": "weak_password",
@@ -87,7 +77,7 @@ def test_handle_exception_without_api_version_and_weak_password_error_code():
         assert exc.value.name == err["ename"]
 
 
-def test_handle_exception_with_api_version_2024_01_01_and_error_code():
+def test_handle_exception_with_api_version_2024_01_01_and_error_code() -> None:
     err = {
         "name": "with API version 2024-01-01 and error code",
         "code": "unexpected_failure",
@@ -107,16 +97,17 @@ def test_handle_exception_with_api_version_2024_01_01_and_error_code():
         assert exc.value.name == err["ename"]
 
 
-def test_parse_response_api_version_with_valid_date():
+def test_parse_response_api_version_with_valid_date() -> None:
     headers = Headers({API_VERSION_HEADER_NAME: "2024-01-01"})
     response = Response(headers=headers, status_code=200)
     api_ver = parse_response_api_version(response)
+    assert api_ver
     assert datetime.timestamp(api_ver) == datetime.timestamp(
         datetime.strptime("2024-01-01", "%Y-%m-%d")
     )
 
 
-def test_parse_response_api_version_with_invalid_dates():
+def test_parse_response_api_version_with_invalid_dates() -> None:
     dates = ["2024-01-32", "", "notadate", "Sat Feb 24 2024 17:59:17 GMT+0100"]
     for date in dates:
         headers = Headers({API_VERSION_HEADER_NAME: date})
@@ -125,12 +116,12 @@ def test_parse_response_api_version_with_invalid_dates():
         assert api_ver is None
 
 
-def test_parse_link_identity_response():
+def test_parse_link_identity_response() -> None:
     resp = Response(content=f'{{"url": "{TEST_URL}/hello-world"}}', status_code=200)
     assert parse_link_identity_response(resp)
 
 
-def test_decode_jwt():
+def test_decode_jwt() -> None:
     assert decode_jwt(mock_access_token())
 
     with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure") as exc:
@@ -138,7 +129,7 @@ def test_decode_jwt():
     assert exc.value is not None
 
 
-def test_generate_pkce_verifier():
+def test_generate_pkce_verifier() -> None:
     assert isinstance(generate_pkce_verifier(45), str)
     with pytest.raises(
         ValueError, match=r"PKCE verifier length must be between 43 and 128 characters"
@@ -147,12 +138,12 @@ def test_generate_pkce_verifier():
     assert exc.value is not None
 
 
-def test_generate_pkce_challenge():
+def test_generate_pkce_challenge() -> None:
     pkce = generate_pkce_verifier(45)
     assert isinstance(generate_pkce_challenge(pkce), str)
 
 
-def test_parse_response_api_version_invalid_date():
+def test_parse_response_api_version_invalid_date() -> None:
     mock_response = MagicMock(spec=Response)
     mock_response.headers = {API_VERSION_HEADER_NAME: "2023-02-30"}  # Invalid date
 
@@ -161,24 +152,22 @@ def test_parse_response_api_version_invalid_date():
 
 
 # Test for pydantic v1 compatibility in model_validate
-def test_model_validate_pydantic_v1():
-    # We need to patch the actual calls inside the function
-    with patch("supabase_auth.helpers.TBaseModel") as MockType:
-        # Mock the behavior of the try block to raise AttributeError
-        mock_model = MagicMock()
-        mock_model.model_validate_json.side_effect = AttributeError
-        mock_model.parse_raw.return_value = "parsed_obj_result"
+def test_model_validate_pydantic_v1() -> None:
+    # Mock the behavior of the try block to raise AttributeError
+    mock_model = MagicMock()
+    mock_model.model_validate_json.side_effect = AttributeError
+    mock_model.parse_raw.return_value = "parsed_obj_result"
 
-        # Use the patched model in the actual function
-        result = model_validate(mock_model, {"test": "data"})  # type: ignore
+    # Use the patched model in the actual function
+    result = model_validate(mock_model, {"test": "data"})  # type: ignore
 
-        # Check that parse_obj was called
-        mock_model.parse_raw.assert_called_once_with({"test": "data"})
-        assert result == "parsed_obj_result"
+    # Check that parse_obj was called
+    mock_model.parse_raw.assert_called_once_with({"test": "data"})
+    assert result == "parsed_obj_result"
 
 
 # Test for pydantic v1 compatibility in model_dump
-def test_model_dump_pydantic_v1():
+def test_model_dump_pydantic_v1() -> None:
     # Create a mock model with necessary behavior
     mock_model = MagicMock(spec=BaseModel)
     mock_model.model_dump.side_effect = AttributeError
@@ -193,7 +182,7 @@ def test_model_dump_pydantic_v1():
 
 
 # Test for pydantic v1 compatibility in model_dump_json
-def test_model_dump_json_pydantic_v1():
+def test_model_dump_json_pydantic_v1() -> None:
     # Create a mock model with necessary behavior
     mock_model = MagicMock(spec=BaseModel)
     mock_model.model_dump_json.side_effect = AttributeError
@@ -207,7 +196,7 @@ def test_model_dump_json_pydantic_v1():
     mock_model.json.assert_called_once()
 
 
-def test_handle_exception_network_error():
+def test_handle_exception_network_error() -> None:
     # Test case for network errors (502, 503, 504)
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 503
@@ -221,7 +210,7 @@ def test_handle_exception_network_error():
     assert result.status == 503
 
 
-def test_handle_exception_with_weak_password_attribute():
+def test_handle_exception_with_weak_password_attribute() -> None:
     # In the implementation there's a logical error in the code:
     # It checks if data.get("weak_password") is BOTH a dict AND a list
     # This can never be true. Let's just test the error_code path which works.
@@ -246,7 +235,7 @@ def test_handle_exception_with_weak_password_attribute():
         assert result.code is None
 
 
-def test_handle_exception_weak_password_with_error_code():
+def test_handle_exception_weak_password_with_error_code() -> None:
     # Test case for weak password identified by error_code
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 400
@@ -269,7 +258,7 @@ def test_handle_exception_weak_password_with_error_code():
         assert result.reasons == ["Password too simple"]
 
 
-def test_handle_exception_with_new_api_version():
+def test_handle_exception_with_new_api_version() -> None:
     # Test case for new API version with "code" field
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 400
@@ -296,7 +285,7 @@ def test_handle_exception_with_new_api_version():
         assert result.status == 400
 
 
-def test_handle_exception_unknown_error():
+def test_handle_exception_unknown_error() -> None:
     # Test case for when json() raises an exception
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 500
@@ -311,7 +300,7 @@ def test_handle_exception_unknown_error():
     assert "Server error" in result.message
 
 
-def test_validate_exp_with_expired_exp():
+def test_validate_exp_with_expired_exp() -> None:
     # Set expiry to 1 hour ago
     exp = int(datetime.now().timestamp()) - 3600
 
@@ -319,7 +308,7 @@ def test_validate_exp_with_expired_exp():
         validate_exp(exp)
 
 
-def test_validate_exp_with_valid_exp():
+def test_validate_exp_with_valid_exp() -> None:
     # Set expiry to 1 hour in the future
     exp = int(datetime.now().timestamp()) + 3600
 
@@ -327,7 +316,7 @@ def test_validate_exp_with_valid_exp():
     validate_exp(exp)
 
 
-def test_is_http_url():
+def test_is_http_url() -> None:
     from supabase_auth.helpers import is_http_url
 
     # Test valid HTTP URLs
@@ -343,7 +332,7 @@ def test_is_http_url():
     assert is_http_url("not a url") is False
 
 
-def test_handle_exception_weak_password_branch():
+def test_handle_exception_weak_password_branch() -> None:
     """Specifically targeting the unreachable branch in handle_exception with weak_password.
 
     This test attempts to test the branch where weak_password needs to be both a dict and a list,
@@ -361,7 +350,7 @@ def test_handle_exception_weak_password_branch():
 
     # Create a special mock dict that pretends to be both a dict and a list
     class WeirdDict(dict):
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             self.reasons = ["Password too short"]
 
@@ -380,7 +369,7 @@ def test_handle_exception_weak_password_branch():
     # First, we need to monkey patch the implementation temporarily to reach our branch
     original_isinstance = isinstance
 
-    def patched_isinstance(obj, cls):
+    def patched_isinstance(obj, cls):  # noqa
         # Make weak_password appear as both dict and list when needed
         if obj == mock_response.json()["weak_password"] and cls in (dict, list):
             return True

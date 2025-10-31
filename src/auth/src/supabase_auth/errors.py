@@ -91,7 +91,7 @@ ErrorCode = Literal[
 
 
 class UserDoesntExist(Exception):
-    def __init__(self, access_token: str):
+    def __init__(self, access_token: str) -> None:
         self.access_token = access_token
 
 

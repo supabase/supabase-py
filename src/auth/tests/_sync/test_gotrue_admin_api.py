@@ -5,11 +5,10 @@ import pytest
 from supabase_auth.errors import (
     AuthApiError,
     AuthError,
-    AuthInvalidCredentialsError,
     AuthSessionMissingError,
     AuthWeakPasswordError,
 )
-from supabase_auth.types import CreateOAuthClientParams, UpdateOAuthClientParams
+from supabase_auth.types import CreateOAuthClientParams
 
 from .clients import (
     auth_client,
@@ -25,13 +24,13 @@ from .clients import (
 )
 
 
-def test_create_user_should_create_a_new_user():
+def test_create_user_should_create_a_new_user() -> None:
     credentials = mock_user_credentials()
     response = create_new_user_with_email(email=credentials.email)
     assert response.email == credentials.email
 
 
-def test_create_user_with_user_metadata():
+def test_create_user_with_user_metadata() -> None:
     user_metadata = mock_user_metadata()
     credentials = mock_user_credentials()
     response = service_role_api_client().create_user(
@@ -46,7 +45,7 @@ def test_create_user_with_user_metadata():
     assert "profile_image" in response.user.user_metadata
 
 
-def test_create_user_with_user_and_app_metadata():
+def test_create_user_with_user_and_app_metadata() -> None:
     user_metadata = mock_user_metadata()
     app_metadata = mock_app_metadata()
     credentials = mock_user_credentials()
@@ -64,7 +63,7 @@ def test_create_user_with_user_and_app_metadata():
     assert "providers" in response.user.app_metadata
 
 
-def test_list_users_should_return_registered_users():
+def test_list_users_should_return_registered_users() -> None:
     credentials = mock_user_credentials()
     create_new_user_with_email(email=credentials.email)
     users = service_role_api_client().list_users()
@@ -74,7 +73,7 @@ def test_list_users_should_return_registered_users():
     assert credentials.email in emails
 
 
-def test_get_user_by_id_should_a_registered_user_given_its_user_identifier():
+def test_get_user_by_id_should_a_registered_user_given_its_user_identifier() -> None:
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
     assert user.id
@@ -82,7 +81,7 @@ def test_get_user_by_id_should_a_registered_user_given_its_user_identifier():
     assert response.user.email == credentials.email
 
 
-def test_modify_email_using_update_user_by_id():
+def test_modify_email_using_update_user_by_id() -> None:
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
     response = service_role_api_client().update_user_by_id(
@@ -94,7 +93,7 @@ def test_modify_email_using_update_user_by_id():
     assert response.user.email == f"new_{user.email}"
 
 
-def test_modify_user_metadata_using_update_user_by_id():
+def test_modify_user_metadata_using_update_user_by_id() -> None:
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
     user_metadata = {"favorite_color": "yellow"}
@@ -108,7 +107,7 @@ def test_modify_user_metadata_using_update_user_by_id():
     assert response.user.user_metadata == user_metadata
 
 
-def test_modify_app_metadata_using_update_user_by_id():
+def test_modify_app_metadata_using_update_user_by_id() -> None:
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
     app_metadata = {"roles": ["admin", "publisher"]}
@@ -122,7 +121,7 @@ def test_modify_app_metadata_using_update_user_by_id():
     assert "roles" in response.user.app_metadata
 
 
-def test_modify_confirm_email_using_update_user_by_id():
+def test_modify_confirm_email_using_update_user_by_id() -> None:
     credentials = mock_user_credentials()
     response = client_api_auto_confirm_off_signups_enabled_client().sign_up(
         {
@@ -132,44 +131,40 @@ def test_modify_confirm_email_using_update_user_by_id():
     )
     assert response.user
     assert not response.user.email_confirmed_at
-    response = service_role_api_client().update_user_by_id(
+    auth_response = service_role_api_client().update_user_by_id(
         response.user.id,
         {
             "email_confirm": True,
         },
     )
-    assert response.user.email_confirmed_at
+    assert auth_response.user.email_confirmed_at
 
 
-def test_invalid_credential_sign_in_with_phone():
+def test_invalid_credential_sign_in_with_phone() -> None:
     try:
-        response = (
-            client_api_auto_confirm_off_signups_enabled_client().sign_in_with_password(
-                {
-                    "phone": "+123456789",
-                    "password": "strong_pwd",
-                }
-            )
+        client_api_auto_confirm_off_signups_enabled_client().sign_in_with_password(
+            {
+                "phone": "+123456789",
+                "password": "strong_pwd",
+            }
         )
     except AuthApiError as e:
         assert e.to_dict()
 
 
-def test_invalid_credential_sign_in_with_email():
+def test_invalid_credential_sign_in_with_email() -> None:
     try:
-        response = (
-            client_api_auto_confirm_off_signups_enabled_client().sign_in_with_password(
-                {
-                    "email": "unknown_user@unknowndomain.com",
-                    "password": "strong_pwd",
-                }
-            )
+        client_api_auto_confirm_off_signups_enabled_client().sign_in_with_password(
+            {
+                "email": "unknown_user@unknowndomain.com",
+                "password": "strong_pwd",
+            }
         )
     except AuthApiError as e:
         assert e.to_dict()
 
 
-def test_sign_in_with_otp_email():
+def test_sign_in_with_otp_email() -> None:
     try:
         client_api_auto_confirm_off_signups_enabled_client().sign_in_with_otp(
             {
@@ -180,7 +175,7 @@ def test_sign_in_with_otp_email():
         assert e.to_dict()
 
 
-def test_sign_in_with_otp_phone():
+def test_sign_in_with_otp_phone() -> None:
     try:
         client_api_auto_confirm_off_signups_enabled_client().sign_in_with_otp(
             {
@@ -191,41 +186,41 @@ def test_sign_in_with_otp_phone():
         assert e.to_dict()
 
 
-def test_resend():
+def test_resend() -> None:
     client_api_auto_confirm_off_signups_enabled_client().resend(
         {"phone": "+112345678", "type": "sms"}
     )
 
 
-def test_reauthenticate():
+def test_reauthenticate() -> None:
     client = auth_client_with_session()
     client.reauthenticate()
 
 
-def test_refresh_session():
+def test_refresh_session() -> None:
     client = auth_client_with_session()
     client.refresh_session()
 
 
-def test_reset_password_for_email():
+def test_reset_password_for_email() -> None:
     credentials = mock_user_credentials()
     client = auth_client_with_session()
     client.reset_password_email(email=credentials.email)
 
 
-def test_resend_missing_credentials():
+def test_resend_missing_credentials() -> None:
     credentials = mock_user_credentials()
     client_api_auto_confirm_off_signups_enabled_client().resend(
         {"type": "email_change", "email": credentials.email}
     )
 
 
-def test_sign_in_anonymously():
+def test_sign_in_anonymously() -> None:
     client = auth_client_with_session()
     client.sign_in_anonymously()
 
 
-def test_delete_user_should_be_able_delete_an_existing_user():
+def test_delete_user_should_be_able_delete_an_existing_user() -> None:
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
     service_role_api_client().delete_user(user.id)
@@ -234,7 +229,9 @@ def test_delete_user_should_be_able_delete_an_existing_user():
     assert credentials.email not in emails
 
 
-def test_generate_link_supports_sign_up_with_generate_confirmation_signup_link():
+def test_generate_link_supports_sign_up_with_generate_confirmation_signup_link() -> (
+    None
+):
     credentials = mock_user_credentials()
     redirect_to = "http://localhost:9999/welcome"
     user_metadata = {"status": "alpha"}
@@ -252,7 +249,9 @@ def test_generate_link_supports_sign_up_with_generate_confirmation_signup_link()
     assert response.user.user_metadata == user_metadata
 
 
-def test_generate_link_supports_updating_emails_with_generate_email_change_links():  # noqa: E501
+def test_generate_link_supports_updating_emails_with_generate_email_change_links() -> (
+    None
+):  # noqa: E501
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
     assert user.email
@@ -272,7 +271,7 @@ def test_generate_link_supports_updating_emails_with_generate_email_change_links
     assert response.user.new_email == credentials.email
 
 
-def test_invite_user_by_email_creates_a_new_user_with_an_invited_at_timestamp():
+def test_invite_user_by_email_creates_a_new_user_with_an_invited_at_timestamp() -> None:
     credentials = mock_user_credentials()
     redirect_to = "http://localhost:9999/welcome"
     user_metadata = {"status": "alpha"}
@@ -286,7 +285,7 @@ def test_invite_user_by_email_creates_a_new_user_with_an_invited_at_timestamp():
     assert response.user.invited_at
 
 
-def test_sign_out_with_an_valid_access_token():
+def test_sign_out_with_an_valid_access_token() -> None:
     credentials = mock_user_credentials()
     client = auth_client_with_session()
     response = client.sign_up(
@@ -299,7 +298,7 @@ def test_sign_out_with_an_valid_access_token():
     service_role_api_client().sign_out(response.session.access_token)
 
 
-def test_sign_out_with_an_invalid_access_token():
+def test_sign_out_with_an_invalid_access_token() -> None:
     try:
         service_role_api_client().sign_out("this-is-a-bad-token")
         assert False
@@ -307,7 +306,7 @@ def test_sign_out_with_an_invalid_access_token():
         pass
 
 
-def test_verify_otp_with_non_existent_phone_number():
+def test_verify_otp_with_non_existent_phone_number() -> None:
     credentials = mock_user_credentials()
     otp = mock_verification_otp()
     try:
@@ -323,7 +322,7 @@ def test_verify_otp_with_non_existent_phone_number():
         assert e.message == "Token has expired or is invalid"
 
 
-def test_verify_otp_with_invalid_phone_number():
+def test_verify_otp_with_invalid_phone_number() -> None:
     credentials = mock_user_credentials()
     otp = mock_verification_otp()
     try:
@@ -339,7 +338,7 @@ def test_verify_otp_with_invalid_phone_number():
         assert e.message == "Invalid phone number format (E.164 required)"
 
 
-def test_sign_in_with_id_token():
+def test_sign_in_with_id_token() -> None:
     try:
         (
             client_api_auto_confirm_off_signups_enabled_client().sign_in_with_id_token(
@@ -353,7 +352,7 @@ def test_sign_in_with_id_token():
         assert e.to_dict()
 
 
-def test_sign_in_with_sso():
+def test_sign_in_with_sso() -> None:
     with pytest.raises(AuthApiError, match=r"SAML 2.0 is disabled") as exc:
         client_api_auto_confirm_off_signups_enabled_client().sign_in_with_sso(
             {
@@ -363,7 +362,7 @@ def test_sign_in_with_sso():
     assert exc.value is not None
 
 
-def test_sign_in_with_oauth():
+def test_sign_in_with_oauth() -> None:
     assert client_api_auto_confirm_off_signups_enabled_client().sign_in_with_oauth(
         {
             "provider": "google",
@@ -371,7 +370,7 @@ def test_sign_in_with_oauth():
     )
 
 
-def test_link_identity_missing_session():
+def test_link_identity_missing_session() -> None:
     with pytest.raises(AuthSessionMissingError) as exc:
         client_api_auto_confirm_off_signups_enabled_client().link_identity(
             {
@@ -381,7 +380,7 @@ def test_link_identity_missing_session():
     assert exc.value is not None
 
 
-def test_get_item_from_memory_storage():
+def test_get_item_from_memory_storage() -> None:
     credentials = mock_user_credentials()
     client = auth_client()
     client.sign_up(
@@ -400,7 +399,7 @@ def test_get_item_from_memory_storage():
     assert client._storage.get_item(client._storage_key) is not None
 
 
-def test_remove_item_from_memory_storage():
+def test_remove_item_from_memory_storage() -> None:
     credentials = mock_user_credentials()
     client = auth_client()
     client.sign_up(
@@ -419,7 +418,7 @@ def test_remove_item_from_memory_storage():
     client._storage.remove_item(client._storage_key)
 
 
-def test_list_factors():
+def test_list_factors() -> None:
     credentials = mock_user_credentials()
     client = auth_client()
     client.sign_up(
@@ -440,7 +439,7 @@ def test_list_factors():
     assert isinstance(factors.totp, list) and isinstance(factors.phone, list)
 
 
-def test_start_auto_refresh_token():
+def test_start_auto_refresh_token() -> None:
     credentials = mock_user_credentials()
     client = auth_client()
     client._auto_refresh_token = True
@@ -459,7 +458,7 @@ def test_start_auto_refresh_token():
     )
 
 
-def test_recover_and_refresh():
+def test_recover_and_refresh() -> None:
     credentials = mock_user_credentials()
     client = auth_client()
     client._auto_refresh_token = True
@@ -479,7 +478,7 @@ def test_recover_and_refresh():
     client._recover_and_refresh()
 
 
-def test_get_user_identities():
+def test_get_user_identities() -> None:
     credentials = mock_user_credentials()
     client = auth_client()
     client._auto_refresh_token = True
@@ -501,7 +500,7 @@ def test_get_user_identities():
     ] == credentials.email
 
 
-def test_update_user():
+def test_update_user() -> None:
     credentials = mock_user_credentials()
     client = auth_client()
     client._auto_refresh_token = True
@@ -520,7 +519,7 @@ def test_update_user():
     )
 
 
-def test_create_user_with_app_metadata():
+def test_create_user_with_app_metadata() -> None:
     app_metadata = mock_app_metadata()
     credentials = mock_user_credentials()
     response = service_role_api_client().create_user(
@@ -535,7 +534,7 @@ def test_create_user_with_app_metadata():
     assert "providers" in response.user.app_metadata
 
 
-def test_weak_email_password_error():
+def test_weak_email_password_error() -> None:
     credentials = mock_user_credentials()
     try:
         client_api_auto_confirm_off_signups_enabled_client().sign_up(
@@ -548,7 +547,7 @@ def test_weak_email_password_error():
         assert e.to_dict()
 
 
-def test_weak_phone_password_error():
+def test_weak_phone_password_error() -> None:
     credentials = mock_user_credentials()
     try:
         client_api_auto_confirm_off_signups_enabled_client().sign_up(
@@ -561,14 +560,14 @@ def test_weak_phone_password_error():
         assert e.to_dict()
 
 
-def test_get_user_by_id_invalid_id_raises_error():
+def test_get_user_by_id_invalid_id_raises_error() -> None:
     with pytest.raises(
         ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
     ):
         service_role_api_client().get_user_by_id("invalid_id")
 
 
-def test_update_user_by_id_invalid_id_raises_error():
+def test_update_user_by_id_invalid_id_raises_error() -> None:
     with pytest.raises(
         ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
     ):
@@ -577,21 +576,21 @@ def test_update_user_by_id_invalid_id_raises_error():
         )
 
 
-def test_delete_user_invalid_id_raises_error():
+def test_delete_user_invalid_id_raises_error() -> None:
     with pytest.raises(
         ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
     ):
         service_role_api_client().delete_user("invalid_id")
 
 
-def test_list_factors_invalid_id_raises_error():
+def test_list_factors_invalid_id_raises_error() -> None:
     with pytest.raises(
         ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
     ):
         service_role_api_client()._list_factors({"user_id": "invalid_id"})
 
 
-def test_delete_factor_invalid_id_raises_error():
+def test_delete_factor_invalid_id_raises_error() -> None:
     # invalid user id
     with pytest.raises(
         ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
@@ -609,7 +608,7 @@ def test_delete_factor_invalid_id_raises_error():
         )
 
 
-def test_create_oauth_client():
+def test_create_oauth_client() -> None:
     """Test creating an OAuth client."""
     response = service_role_api_client().oauth.create_client(
         CreateOAuthClientParams(
@@ -622,7 +621,7 @@ def test_create_oauth_client():
     assert response.client.client_id is not None
 
 
-def test_list_oauth_clients():
+def test_list_oauth_clients() -> None:
     """Test listing OAuth clients."""
     client = service_role_api_client()
     client.oauth.create_client(
@@ -637,7 +636,7 @@ def test_list_oauth_clients():
     assert any(client.client_id is not None for client in response.clients)
 
 
-def test_get_oauth_client():
+def test_get_oauth_client() -> None:
     """Test getting an OAuth client by ID."""
     # First create a client
     create_response = service_role_api_client().oauth.create_client(
@@ -654,7 +653,7 @@ def test_get_oauth_client():
 
 
 # Server is not yet released, so this test is not yet relevant.
-# async def test_update_oauth_client():
+# async def test_update_oauth_client() -> None:
 #     """Test updating an OAuth client."""
 #     # First create a client
 #     client = service_role_api_client()
@@ -676,7 +675,7 @@ def test_get_oauth_client():
 #     assert response.client.client_name == "Updated Test OAuth Client"
 
 
-def test_delete_oauth_client():
+def test_delete_oauth_client() -> None:
     """Test deleting an OAuth client."""
     # First create a client
     client = service_role_api_client()
@@ -691,7 +690,7 @@ def test_delete_oauth_client():
     client.oauth.delete_client(client_id)
 
 
-def test_regenerate_oauth_client_secret():
+def test_regenerate_oauth_client_secret() -> None:
     """Test regenerating an OAuth client secret."""
     # First create a client
     create_response = service_role_api_client().oauth.create_client(

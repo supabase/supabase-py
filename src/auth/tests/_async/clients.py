@@ -50,14 +50,22 @@ def mock_verification_otp() -> str:
     return str(int(100000 + random() * 900000))
 
 
-def mock_user_metadata():
+class UserMetadata(TypedDict):
+    profile_image: str
+
+
+def mock_user_metadata() -> UserMetadata:
     fake = Faker()
     return {
         "profile_image": fake.url(),
     }
 
 
-def mock_app_metadata():
+class AppMetadata(TypedDict):
+    roles: list[str]
+
+
+def mock_app_metadata() -> AppMetadata:
     return {
         "roles": ["editor", "publisher"],
     }

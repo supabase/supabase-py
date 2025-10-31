@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import time
 from contextlib import suppress
-from functools import partial
-from json import loads
-from typing import Callable, Dict, List, Mapping, Optional, Tuple, Union
-from urllib.parse import parse_qs, urlencode, urlparse
+from typing import Callable, Dict, List, Optional, Tuple
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
-from httpx import QueryParams
+from httpx import QueryParams, Response
 from jwt import get_algorithm_by_name
 from typing_extensions import cast
 
@@ -33,7 +31,6 @@ from ..helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    model_dump,
     model_dump_json,
     model_validate,
     parse_auth_otp_response,
@@ -50,7 +47,6 @@ from ..types import (
     JWK,
     AMREntry,
     AuthChangeEvent,
-    AuthenticatorAssuranceLevels,
     AuthFlowType,
     AuthMFAChallengeResponse,
     AuthMFAEnrollResponse,
@@ -86,6 +82,7 @@ from ..types import (
     SignUpWithEmailAndPasswordCredentialsOptions,
     SignUpWithPasswordCredentials,
     SignUpWithPhoneAndPasswordCredentialsOptions,
+    SSOResponse,
     Subscription,
     UpdateUserOptions,
     UserAttributes,
@@ -361,7 +358,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             self._notify_all_subscribers("SIGNED_IN", auth_response.session)
         return auth_response
 
-    def sign_in_with_sso(self, credentials: SignInWithSSOCredentials):
+    def sign_in_with_sso(self, credentials: SignInWithSSOCredentials) -> SSOResponse:
         """
         Attempts a single-sign on using an enterprise Identity Provider. A
         successful SSO attempt will redirect the current page to the identity
@@ -474,7 +471,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             return IdentitiesResponse(identities=response.user.identities or [])
         raise AuthSessionMissingError()
 
-    def unlink_identity(self, identity: UserIdentity):
+    def unlink_identity(self, identity: UserIdentity) -> Response:
         session = self.get_session()
         if not session:
             raise AuthSessionMissingError()
@@ -619,7 +616,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         if not session:
             raise AuthSessionMissingError()
 
-        response = self._request(
+        self._request(
             "GET",
             "reauthenticate",
             jwt=session.access_token,
@@ -1086,7 +1083,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         if value <= 0 or not self._auto_refresh_token:
             return
 
-        def refresh_token_function():
+        def refresh_token_function() -> None:
             self._network_retries += 1
             try:
                 session = self.get_session()

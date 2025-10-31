@@ -73,14 +73,14 @@ def download_directory(repository: Repository, sha: str, server_path: str) -> No
                 print("Error processing %s: %s", content.path, exc)
 
 
-def usage():
+def usage() -> None:
     """
     Prints the usage command lines
     """
     print("usage: gh-download --repo=repo --branch=branch --folder=folder")
 
 
-def main(argv):
+def main(argv) -> None:
     """
     Main function block
     """

@@ -17,11 +17,11 @@ class Timer:
     def start(self) -> None:
         if asyncio.iscoroutinefunction(self._function):
 
-            async def schedule():
+            async def schedule() -> None:
                 await asyncio.sleep(self._milliseconds / 1000)
                 await cast(Coroutine[Any, Any, None], self._function())
 
-            def cleanup(_):
+            def cleanup(_) -> None:
                 self._task = None
 
             self._task = asyncio.create_task(schedule())
