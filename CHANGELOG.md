@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.2](https://github.com/supabase/supabase-py/compare/v2.23.1...v2.23.2) (2025-11-03)
+
+
+### Bug Fixes
+
+* **storage:** read _base_url instead of _client.base_url inside signed url creation ([#1295](https://github.com/supabase/supabase-py/issues/1295)) ([a81b074](https://github.com/supabase/supabase-py/commit/a81b0746fef6e06c0f405fd75c6d2a862fce1682))
+
 ## [2.23.1](https://github.com/supabase/supabase-py/compare/v2.23.0...v2.23.1) (2025-11-03)
 
 
