@@ -322,7 +322,7 @@ def test_client_create_signed_upload_url(
     data = storage_file_client.create_signed_upload_url(path)
     assert data["path"] == path
     assert data["token"]
-    expected_url = f"{storage_file_client._client.base_url}object/upload/sign/{storage_file_client.id}/{path.lstrip('/')}"
+    expected_url = f"{storage_file_client._base_url}object/upload/sign/{storage_file_client.id}/{path.lstrip('/')}"
     assert data["signed_url"].startswith(expected_url)
 
 
