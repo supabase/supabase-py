@@ -111,7 +111,7 @@ class AsyncBucketActionsMixin:
         )
         data = response.json()
         full_url: urllib.parse.ParseResult = urllib.parse.urlparse(
-            str(self._client.base_url) + cast(str, data["url"]).lstrip("/")
+            str(self._base_url) + cast(str, data["url"]).lstrip("/")
         )
         query_params = urllib.parse.parse_qs(full_url.query)
         if not query_params.get("token"):
