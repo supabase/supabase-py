@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.1](https://github.com/supabase/supabase-py/compare/v2.23.0...v2.23.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* **auth:** pass ConfigDict into with_config instead of kwargs ([#1292](https://github.com/supabase/supabase-py/issues/1292)) ([78b6d53](https://github.com/supabase/supabase-py/commit/78b6d533f03a1d577fdf23da14911e20c500ea4e))
+
 ## [2.23.0](https://github.com/supabase/supabase-py/compare/v2.22.4...v2.23.0) (2025-10-31)
 
 
