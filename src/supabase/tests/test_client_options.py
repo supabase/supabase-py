@@ -12,6 +12,7 @@ class TestClientOptions:
             headers={"key": "value"},
             auto_refresh_token=False,
             persist_session=False,
+            storage=storage,
         )
 
         actual = options.replace(schema="new schema")
