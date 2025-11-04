@@ -1,12 +1,11 @@
 from typing import Dict, Optional
 
+from httpx import AsyncClient
 from supabase_auth import (
     AsyncGoTrueClient,
-    AsyncMemoryStorage,
     AsyncSupportedStorage,
     AuthFlowType,
 )
-from supabase_auth.http_clients import AsyncClient
 
 
 class AsyncSupabaseAuthClient(AsyncGoTrueClient):
@@ -20,12 +19,12 @@ class AsyncSupabaseAuthClient(AsyncGoTrueClient):
         storage_key: Optional[str] = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
-        storage: AsyncSupportedStorage = AsyncMemoryStorage(),
+        storage: Optional[AsyncSupportedStorage] = None,
         http_client: Optional[AsyncClient] = None,
         flow_type: AuthFlowType = "implicit",
         verify: bool = True,
         proxy: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Instantiate a SupabaseAuthClient instance.
 

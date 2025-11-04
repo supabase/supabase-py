@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from httpx import QueryParams
+from httpx import AsyncClient, QueryParams
 
 from ..helpers import (
     model_validate,
@@ -10,7 +10,6 @@ from ..helpers import (
     parse_user_response,
     validate_uuid,
 )
-from ..http_clients import AsyncClient
 from ..types import (
     AdminUserAttributes,
     AuthMFAAdminDeleteFactorParams,

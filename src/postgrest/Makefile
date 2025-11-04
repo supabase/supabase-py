@@ -12,7 +12,7 @@ help::
 	@echo "  pytest         -- run pytest on postgrest package"
 
 mypy:
-	uv run --package supabase_functions mypy src/postgrest tests
+	uv run --package postgrest mypy src/postgrest tests
 help::
 	@echo "  mypy           -- run mypy on postgrest package"
 
@@ -60,4 +60,4 @@ help::
 build:
 	uv build --package postgrest
 help::
-	@echo "  build          -- invoke uv build on storage3 package"
+	@echo "  build          -- invoke uv build on postgrest package"

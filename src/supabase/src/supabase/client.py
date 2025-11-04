@@ -1,3 +1,7 @@
+from postgrest import APIError as PostgrestAPIError
+from postgrest import APIResponse as PostgrestAPIResponse
+from realtime import AuthorizationError, NotConnectedError
+from storage3.utils import StorageException
 from supabase_auth.errors import (
     AuthApiError,
     AuthError,
@@ -8,10 +12,6 @@ from supabase_auth.errors import (
     AuthUnknownError,
     AuthWeakPasswordError,
 )
-from postgrest import APIError as PostgrestAPIError
-from postgrest import APIResponse as PostgrestAPIResponse
-from realtime import AuthorizationError, NotConnectedError
-from storage3.utils import StorageException
 from supabase_functions.errors import (
     FunctionsError,
     FunctionsHttpError,
@@ -27,9 +27,8 @@ from ._async.client import create_client as create_async_client
 
 # Sync Client
 from ._sync.auth_client import SyncSupabaseAuthClient as SupabaseAuthClient
-from ._sync.client import SyncClient as Client
+from ._sync.client import Client, create_client
 from ._sync.client import SyncStorageClient as SupabaseStorageClient
-from ._sync.client import create_client
 
 # Lib
 from .lib.client_options import AsyncClientOptions

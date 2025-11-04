@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from httpx import HTTPStatusError, QueryParams, Response
+from httpx import AsyncClient, HTTPStatusError, QueryParams, Response
 from pydantic import BaseModel
 from typing_extensions import Literal, Self
 
 from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS_2024_01_01_NAME
 from ..helpers import handle_exception, model_dump
-from ..http_clients import AsyncClient
 
 
 class AsyncGoTrueBaseAPI:

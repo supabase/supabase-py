@@ -201,7 +201,7 @@ class RealtimeChannelConfig(TypedDict):
 
 
 class RealtimeChannelOptions(TypedDict):
-    config: RealtimeChannelConfig
+    config: NotRequired[RealtimeChannelConfig]
 
 
 @with_config(ConfigDict(extra="allow"))

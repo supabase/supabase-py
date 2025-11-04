@@ -1,19 +1,17 @@
-from supabase_auth import SyncMemoryStorage
+from supabase_auth import AsyncMemoryStorage, SyncMemoryStorage
 
 from supabase import AClientOptions, ClientOptions
 
 
 class TestClientOptions:
-    def test_replace_returns_updated_aclient_options(self):
-        storage = SyncMemoryStorage()
-        storage.set_item("key", "value")
+    async def test_replace_returns_updated_aclient_options(self) -> None:
+        storage = AsyncMemoryStorage()
+        await storage.set_item("key", "value")
         options = AClientOptions(
             schema="schema",
             headers={"key": "value"},
             auto_refresh_token=False,
             persist_session=False,
-            storage=storage,
-            realtime={"key": "value"},
         )
 
         actual = options.replace(schema="new schema")
@@ -23,12 +21,11 @@ class TestClientOptions:
             auto_refresh_token=False,
             persist_session=False,
             storage=storage,
-            realtime={"key": "value"},
         )
 
         assert actual == expected
 
-    def test_replace_returns_updated_options(self):
+    def test_replace_returns_updated_options(self) -> None:
         storage = SyncMemoryStorage()
         storage.set_item("key", "value")
         options = ClientOptions(
@@ -37,7 +34,6 @@ class TestClientOptions:
             auto_refresh_token=False,
             persist_session=False,
             storage=storage,
-            realtime={"key": "value"},
         )
 
         actual = options.replace(schema="new schema")
@@ -48,12 +44,11 @@ class TestClientOptions:
             auto_refresh_token=False,
             persist_session=False,
             storage=storage,
-            realtime={"key": "value"},
         )
 
         assert actual == expected
 
-    def test_replace_updates_only_new_options(self):
+    def test_replace_updates_only_new_options(self) -> None:
         # Arrange
         storage = SyncMemoryStorage()
         storage.set_item("key", "value")

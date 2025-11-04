@@ -3,9 +3,9 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from supabase_auth import AsyncMemoryStorage
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import AsyncHTTPTransport, Limits, Timeout
+from supabase_auth import AsyncMemoryStorage
 
 from supabase import (
     AsyncClient,
@@ -36,8 +36,8 @@ async def test_supabase_exception() -> None:
 
 
 async def test_postgrest_client() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = await create_async_client(url, key)
     assert client.table("sample")
@@ -45,24 +45,24 @@ async def test_postgrest_client() -> None:
 
 
 async def test_rpc_client() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = await create_async_client(url, key)
     assert client.rpc("test_fn")
 
 
 async def test_function_initialization() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = await create_async_client(url, key)
     assert client.functions
 
 
 async def test_uses_key_as_authorization_header_by_default() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = await create_async_client(url, key)
 
@@ -80,8 +80,8 @@ async def test_uses_key_as_authorization_header_by_default() -> None:
 
 
 async def test_schema_update() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = await create_async_client(url, key)
     assert client.postgrest
@@ -89,8 +89,8 @@ async def test_schema_update() -> None:
 
 
 async def test_updates_the_authorization_header_on_auth_events() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = await create_async_client(url, key)
 
@@ -121,8 +121,8 @@ async def test_updates_the_authorization_header_on_auth_events() -> None:
 
 
 async def test_supports_setting_a_global_authorization_header() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     authorization = "Bearer secretuserjwt"
 
@@ -143,9 +143,9 @@ async def test_supports_setting_a_global_authorization_header() -> None:
     assert client.storage.session.headers.get("Authorization") == authorization
 
 
-async def test_mutable_headers_issue():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+async def test_mutable_headers_issue() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     shared_options = AsyncClientOptions(
         storage=AsyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
@@ -160,9 +160,9 @@ async def test_mutable_headers_issue():
     assert client1.options.headers["Authorization"] == "Bearer modified-token"
 
 
-async def test_global_authorization_header_issue():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+async def test_global_authorization_header_issue() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     authorization = "Bearer secretuserjwt"
     options = AsyncClientOptions(headers={"Authorization": authorization})
@@ -172,9 +172,9 @@ async def test_global_authorization_header_issue():
     assert client.options.headers.get("apiKey") == key
 
 
-async def test_httpx_client():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+async def test_httpx_client() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     transport = AsyncHTTPTransport(
         retries=10,
@@ -203,9 +203,9 @@ async def test_httpx_client():
         assert client.functions._client.timeout == Timeout(2.0)
 
 
-async def test_custom_headers():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+async def test_custom_headers() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     options = AsyncClientOptions(
         headers={
@@ -220,9 +220,9 @@ async def test_custom_headers():
     assert client.options.headers.get("x-version") == "1.0"
 
 
-async def test_custom_headers_immutable():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+async def test_custom_headers_immutable() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     options = AsyncClientOptions(
         headers={
@@ -241,14 +241,14 @@ async def test_custom_headers_immutable():
     assert client2.options.headers.get("x-app-name") == "apple"
 
 
-async def test_httpx_client_base_url_isolation():
+async def test_httpx_client_base_url_isolation() -> None:
     """Test that shared httpx_client doesn't cause base_url mutation between services.
     This test reproduces the issue where accessing PostgREST after Storage causes
     Storage requests to hit the wrong endpoint (404 errors).
     See: https://github.com/supabase/supabase-py/issues/1244
     """
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     # Create client with shared httpx instance
     timeout = Timeout(10.0, read=60.0)

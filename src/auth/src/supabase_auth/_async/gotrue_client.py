@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
-from httpx import QueryParams, Response
+from httpx import AsyncClient, QueryParams, Response
 from jwt import get_algorithm_by_name
 from typing_extensions import cast
 
@@ -41,7 +41,6 @@ from ..helpers import (
     parse_user_response,
     validate_exp,
 )
-from ..http_clients import AsyncClient
 from ..timer import Timer
 from ..types import (
     JWK,
