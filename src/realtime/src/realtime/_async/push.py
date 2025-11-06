@@ -135,9 +135,11 @@ class AsyncPush:
     def trigger(self, status: RealtimeAcknowledgementStatus, response) -> None:
         self.received_resp = (status, response)
         if status == RealtimeAcknowledgementStatus.Ok:
+            self._cancel_timeout()
             for ok_callback in self.ok_callbacks:
                 ok_callback(response)
         elif status == RealtimeAcknowledgementStatus.Error:
+            self._cancel_timeout()
             for error_callback in self.error_callbacks:
                 error_callback(response)
         elif status == RealtimeAcknowledgementStatus.Timeout:
