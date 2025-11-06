@@ -4,7 +4,7 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
-tests: pytest
+tests: mypy pytest
 help::
 	@echo "  tests          -- run all tests for supabase package"
 
