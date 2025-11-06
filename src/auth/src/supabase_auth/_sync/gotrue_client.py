@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
-from httpx import QueryParams, Response
+from httpx import Client, QueryParams, Response
 from jwt import get_algorithm_by_name
 from typing_extensions import cast
 
@@ -41,7 +41,6 @@ from ..helpers import (
     parse_user_response,
     validate_exp,
 )
-from ..http_clients import SyncClient
 from ..timer import Timer
 from ..types import (
     JWK,
@@ -106,7 +105,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         auto_refresh_token: bool = True,
         persist_session: bool = True,
         storage: Optional[SyncSupportedStorage] = None,
-        http_client: Optional[SyncClient] = None,
+        http_client: Optional[Client] = None,
         flow_type: AuthFlowType = "implicit",
         verify: bool = True,
         proxy: Optional[str] = None,

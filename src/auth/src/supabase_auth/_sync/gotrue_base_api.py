@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from httpx import HTTPStatusError, QueryParams, Response
+from httpx import Client, HTTPStatusError, QueryParams, Response
 from pydantic import BaseModel
 from typing_extensions import Literal, Self
 
 from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS_2024_01_01_NAME
 from ..helpers import handle_exception, model_dump
-from ..http_clients import SyncClient
 
 
 class SyncGoTrueBaseAPI:
@@ -17,13 +16,13 @@ class SyncGoTrueBaseAPI:
         *,
         url: str,
         headers: Dict[str, str],
-        http_client: Optional[SyncClient],
+        http_client: Optional[Client],
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:
         self._url = url
         self._headers = headers
-        self._http_client = http_client or SyncClient(
+        self._http_client = http_client or Client(
             verify=bool(verify),
             proxy=proxy,
             follow_redirects=True,
@@ -37,7 +36,7 @@ class SyncGoTrueBaseAPI:
         self.close()
 
     def close(self) -> None:
-        self._http_client.aclose()
+        self._http_client.close()
 
     def _request(
         self,

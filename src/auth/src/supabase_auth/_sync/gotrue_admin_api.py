@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from httpx import QueryParams
+from httpx import Client, QueryParams
 
 from ..helpers import (
     model_validate,
@@ -10,7 +10,6 @@ from ..helpers import (
     parse_user_response,
     validate_uuid,
 )
-from ..http_clients import SyncClient
 from ..types import (
     AdminUserAttributes,
     AuthMFAAdminDeleteFactorParams,
@@ -42,7 +41,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         *,
         url: str = "",
         headers: Optional[Dict[str, str]] = None,
-        http_client: Optional[SyncClient] = None,
+        http_client: Optional[Client] = None,
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:

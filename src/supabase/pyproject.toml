@@ -55,6 +55,25 @@ lints = [
 [tool.uv]
 default-groups = [ "dev" ]
 
+[tool.ruff.lint]
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  "B",
+  # flake8-simplify
+  # "SIM",
+  # isort
+  "I",
+  "ANN2"
+]
+ignore = ["F403", "E501", "E402", "UP006", "UP035"]
+
+
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
