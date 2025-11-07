@@ -7,6 +7,10 @@
 
 * add more workspace linting rules ([#1304](https://github.com/supabase/supabase-py/issues/1304)) ([31704ac](https://github.com/supabase/supabase-py/commit/31704aceae8757c08fe314925337202337f6adb1))
 
+### Breaking changes
+
+* Removed `SyncClient` classes from both `supabase_auth` and `supabase_functions`, in favor of plain `httpx.Client`s instead.
+
 ## [2.23.3](https://github.com/supabase/supabase-py/compare/v2.23.2...v2.23.3) (2025-11-06)
 
 
