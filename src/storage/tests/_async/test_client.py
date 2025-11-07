@@ -9,7 +9,6 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient as HttpxClient
 from httpx import HTTPStatusError, Response
-
 from storage3 import AsyncStorageClient
 from storage3.exceptions import StorageApiError
 from storage3.utils import StorageException
@@ -39,10 +38,10 @@ def uuid_factory() -> Callable[[], str]:
 async def delete_left_buckets(
     request: pytest.FixtureRequest,
     storage: AsyncStorageClient,
-):
+) -> None:
     """Ensures no test buckets are left when a test that created a bucket fails"""
 
-    async def afinalizer():
+    async def afinalizer() -> None:
         for bucket_id in temp_test_buckets_ids:
             try:
                 await storage.empty_bucket(bucket_id)
@@ -558,7 +557,7 @@ async def test_client_exists_json_decode_error(
     """Test exists method handling of json.JSONDecodeError"""
     from json import JSONDecodeError
 
-    async def mock_head(*args, **kwargs):
+    async def mock_head(*args, **kwargs) -> None:
         raise JSONDecodeError("Expecting value", "", 0)
 
     monkeypatch.setattr(storage_file_client_public._client, "head", mock_head)

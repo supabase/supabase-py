@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Dict, Literal, Optional, TypedDict, Union
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter
 from typing_extensions import ReadOnly
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
@@ -104,7 +104,7 @@ class UploadResponse:
     full_path: str
     fullPath: str
 
-    def __init__(self, path: str, Key: str):
+    def __init__(self, path: str, Key: str) -> None:
         self.path = path
         self.full_path = Key
         self.fullPath = Key

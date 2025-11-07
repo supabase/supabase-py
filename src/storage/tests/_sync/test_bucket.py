@@ -2,16 +2,13 @@ from unittest.mock import Mock
 
 import pytest
 from httpx import Client, Headers, HTTPStatusError, Response
-
 from storage3 import SyncBucket, SyncStorageBucketAPI
 from storage3.exceptions import StorageApiError
 from storage3.types import CreateOrUpdateBucketOptions
 
-from ..test_client import valid_url
-
 
 @pytest.fixture
-def mock_client():
+def mock_client() -> Mock:
     return Mock()
 
 
@@ -26,13 +23,13 @@ def storage_api(mock_client: Client, headers: Headers) -> SyncStorageBucketAPI:
 
 
 @pytest.fixture
-def mock_response():
+def mock_response() -> Mock:
     response = Mock(spec=Response)
     response.raise_for_status = Mock()
     return response
 
 
-def test_list_buckets(storage_api, mock_client, mock_response):
+def test_list_buckets(storage_api, mock_client, mock_response) -> None:
     # Mock response data
     mock_response.json.return_value = [
         {
@@ -68,7 +65,7 @@ def test_list_buckets(storage_api, mock_client, mock_response):
     mock_client.request.assert_called_once_with("GET", "bucket", json=None, headers={})
 
 
-def test_get_bucket(storage_api, mock_client, mock_response):
+def test_get_bucket(storage_api, mock_client, mock_response) -> None:
     bucket_id = "test-bucket"
     mock_response.json.return_value = {
         "id": bucket_id,
@@ -95,7 +92,7 @@ def test_get_bucket(storage_api, mock_client, mock_response):
     )
 
 
-def test_create_bucket(storage_api, mock_client, mock_response):
+def test_create_bucket(storage_api, mock_client, mock_response) -> None:
     bucket_id = "new-bucket"
     bucket_name = "New Bucket"
     options = CreateOrUpdateBucketOptions(
@@ -122,7 +119,7 @@ def test_create_bucket(storage_api, mock_client, mock_response):
     )
 
 
-def test_create_bucket_minimal(storage_api, mock_client, mock_response):
+def test_create_bucket_minimal(storage_api, mock_client, mock_response) -> None:
     bucket_id = "minimal-bucket"
     mock_response.json.return_value = {"message": "Bucket created successfully"}
     mock_client.request.return_value = mock_response
@@ -135,7 +132,7 @@ def test_create_bucket_minimal(storage_api, mock_client, mock_response):
     )
 
 
-def test_update_bucket(storage_api, mock_client, mock_response):
+def test_update_bucket(storage_api, mock_client, mock_response) -> None:
     bucket_id = "update-bucket"
     options = CreateOrUpdateBucketOptions(public=False, file_size_limit=2000000)
 
@@ -158,7 +155,7 @@ def test_update_bucket(storage_api, mock_client, mock_response):
     )
 
 
-def test_empty_bucket(storage_api, mock_client, mock_response):
+def test_empty_bucket(storage_api, mock_client, mock_response) -> None:
     bucket_id = "empty-bucket"
     mock_response.json.return_value = {"message": "Bucket emptied successfully"}
     mock_client.request.return_value = mock_response
@@ -171,7 +168,7 @@ def test_empty_bucket(storage_api, mock_client, mock_response):
     )
 
 
-def test_delete_bucket(storage_api, mock_client, mock_response):
+def test_delete_bucket(storage_api, mock_client, mock_response) -> None:
     bucket_id = "delete-bucket"
     mock_response.json.return_value = {"message": "Bucket deleted successfully"}
     mock_client.request.return_value = mock_response
@@ -184,7 +181,7 @@ def test_delete_bucket(storage_api, mock_client, mock_response):
     )
 
 
-def test_request_error_handling(storage_api, mock_client):
+def test_request_error_handling(storage_api, mock_client) -> None:
     error_response = Mock(spec=Response)
     error_response.json.return_value = {
         "message": "Test error message",
@@ -212,7 +209,7 @@ def test_request_error_handling(storage_api, mock_client):
 )
 def test_request_methods(
     storage_api, mock_client, mock_response, method, path, json_data
-):
+) -> None:
     mock_client.request.return_value = mock_response
     storage_api._request(method, [path], json_data)
     mock_client.request.assert_called_once_with(

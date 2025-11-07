@@ -78,7 +78,9 @@ class SyncBucketActionsMixin:
             response.raise_for_status()
         except HTTPStatusError as exc:
             resp = exc.response.json()
-            raise StorageApiError(resp["message"], resp["error"], resp["statusCode"])
+            raise StorageApiError(
+                resp["message"], resp["error"], resp["statusCode"]
+            ) from exc
 
         # close the resource before returning the response
         if files and "file" in files and isinstance(files["file"][1], BufferedReader):
@@ -200,7 +202,7 @@ class SyncBucketActionsMixin:
         return {"signedURL": str(signedURL), "signedUrl": str(signedURL)}
 
     def create_signed_url(
-        self, path: str, expires_in: int, options: URLOptions = {}
+        self, path: str, expires_in: int, options: Optional[URLOptions] = None
     ) -> SignedUrlResponse:
         """
         Parameters
@@ -214,10 +216,11 @@ class SyncBucketActionsMixin:
         """
         json: dict[str, str | bool | TransformOptions] = {"expiresIn": str(expires_in)}
         download_query = {}
-        if download := options.get("download"):
+        url_options = options or {}
+        if download := url_options.get("download"):
             json.update({"download": download})
             download_query = {"download": "" if download is True else download}
-        if transform := options.get("transform"):
+        if transform := url_options.get("transform"):
             json.update({"transform": transform})
 
         path_parts = relative_path_to_parts(path)
@@ -231,7 +234,10 @@ class SyncBucketActionsMixin:
         return self._make_signed_url(data.signedURL, download_query)
 
     def create_signed_urls(
-        self, paths: List[str], expires_in: int, options: CreateSignedURLsOptions = {}
+        self,
+        paths: List[str],
+        expires_in: int,
+        options: Optional[CreateSignedURLsOptions] = None,
     ) -> List[CreateSignedUrlResponse]:
         """
         Parameters
@@ -248,7 +254,8 @@ class SyncBucketActionsMixin:
             "expiresIn": str(expires_in),
         }
         download_query = {}
-        if download := options.get("download"):
+        url_options = options or {}
+        if download := url_options.get("download"):
             json.update({"download": download})
             download_query = {"download": "" if download is True else download}
 
@@ -271,7 +278,7 @@ class SyncBucketActionsMixin:
             signed_urls.append(signed_item)
         return signed_urls
 
-    def get_public_url(self, path: str, options: URLOptions = {}) -> str:
+    def get_public_url(self, path: str, options: Optional[URLOptions] = None) -> str:
         """
         Parameters
         ----------
@@ -279,12 +286,15 @@ class SyncBucketActionsMixin:
             file path, including the path and file name. For example `folder/image.png`.
         """
         download_query = {}
-        if download := options.get("download"):
+        url_options = options or {}
+        if download := url_options.get("download"):
             download_query = {"download": "" if download is True else download}
 
-        render_path = ["render", "image"] if options.get("transform") else ["object"]
+        render_path = (
+            ["render", "image"] if url_options.get("transform") else ["object"]
+        )
         transformation = (
-            transform_to_dict(t) if (t := options.get("transform")) else dict()
+            transform_to_dict(t) if (t := url_options.get("transform")) else dict()
         )
 
         path_parts = relative_path_to_parts(path)
@@ -426,7 +436,7 @@ class SyncBucketActionsMixin:
         )
         return response.json()
 
-    def download(self, path: str, options: DownloadOptions = {}) -> bytes:
+    def download(self, path: str, options: Optional[DownloadOptions] = None) -> bytes:
         """
         Downloads a file.
 
@@ -435,13 +445,14 @@ class SyncBucketActionsMixin:
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         """
+        url_options = options or {}
         render_path = (
             ["render", "image", "authenticated"]
-            if options.get("transform")
+            if url_options.get("transform")
             else ["object"]
         )
 
-        transform_options = options.get("transform") or {}
+        transform_options = url_options.get("transform") or {}
 
         path_parts = relative_path_to_parts(path)
         response = self._request(

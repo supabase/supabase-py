@@ -1,10 +1,9 @@
 from deprecation import fail_if_not_removed
-
 from storage3.utils import SyncClient
 
 
 @fail_if_not_removed
-def test_sync_client():
+def test_sync_client() -> None:
     client = SyncClient()
     # Verify that aclose method exists and calls close
     assert hasattr(client, "aclose")
