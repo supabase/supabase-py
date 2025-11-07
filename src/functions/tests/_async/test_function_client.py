@@ -1,3 +1,4 @@
+from typing import Dict
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -11,23 +12,25 @@ from supabase_functions.version import __version__
 
 
 @pytest.fixture
-def valid_url():
+def valid_url() -> str:
     return "https://example.com"
 
 
 @pytest.fixture
-def default_headers():
+def default_headers() -> Dict[str, str]:
     return {"Authorization": "Bearer valid.jwt.token"}
 
 
 @pytest.fixture
-def client(valid_url, default_headers):
+def client(valid_url: str, default_headers: Dict[str, str]) -> AsyncFunctionsClient:
     return AsyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
 
 
-async def test_init_with_valid_params(valid_url, default_headers):
+async def test_init_with_valid_params(
+    valid_url: str, default_headers: Dict[str, str]
+) -> None:
     client = AsyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
@@ -38,18 +41,20 @@ async def test_init_with_valid_params(valid_url, default_headers):
 
 
 @pytest.mark.parametrize("invalid_url", ["not-a-url", "ftp://invalid.com", "", None])
-def test_init_with_invalid_url(invalid_url, default_headers):
+def test_init_with_invalid_url(
+    invalid_url: str, default_headers: Dict[str, str]
+) -> None:
     with pytest.raises(ValueError, match="url must be a valid HTTP URL string"):
         AsyncFunctionsClient(url=invalid_url, headers=default_headers, timeout=10)
 
 
-async def test_set_auth_valid_token(client: AsyncFunctionsClient):
+async def test_set_auth_valid_token(client: AsyncFunctionsClient) -> None:
     valid_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
     client.set_auth(valid_token)
     assert client.headers["Authorization"] == f"Bearer {valid_token}"
 
 
-async def test_invoke_success_json(client: AsyncFunctionsClient):
+async def test_invoke_success_json(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"message": "success"}
     mock_response.raise_for_status = Mock()
@@ -70,7 +75,7 @@ async def test_invoke_success_json(client: AsyncFunctionsClient):
         assert kwargs["json"] == {"test": "data"}
 
 
-async def test_invoke_success_binary(client: AsyncFunctionsClient):
+async def test_invoke_success_binary(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.content = b"binary content"
     mock_response.raise_for_status = Mock()
@@ -87,7 +92,7 @@ async def test_invoke_success_binary(client: AsyncFunctionsClient):
         mock_request.assert_called_once()
 
 
-async def test_invoke_with_region(client: AsyncFunctionsClient):
+async def test_invoke_with_region(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"message": "success"}
     mock_response.raise_for_status = Mock()
@@ -107,7 +112,7 @@ async def test_invoke_with_region(client: AsyncFunctionsClient):
         assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
 
 
-async def test_invoke_with_region_string(client: AsyncFunctionsClient):
+async def test_invoke_with_region_string(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"message": "success"}
     mock_response.raise_for_status = Mock()
@@ -128,7 +133,7 @@ async def test_invoke_with_region_string(client: AsyncFunctionsClient):
         assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
 
 
-async def test_invoke_with_http_error(client: AsyncFunctionsClient):
+async def test_invoke_with_http_error(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"error": "Custom error message"}
     mock_response.raise_for_status.side_effect = HTTPError("HTTP Error")
@@ -143,7 +148,7 @@ async def test_invoke_with_http_error(client: AsyncFunctionsClient):
             await client.invoke("test-function")
 
 
-async def test_invoke_with_relay_error(client: AsyncFunctionsClient):
+async def test_invoke_with_relay_error(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"error": "Relay error message"}
     mock_response.raise_for_status = Mock()
@@ -158,12 +163,12 @@ async def test_invoke_with_relay_error(client: AsyncFunctionsClient):
             await client.invoke("test-function")
 
 
-async def test_invoke_invalid_function_name(client: AsyncFunctionsClient):
+async def test_invoke_invalid_function_name(client: AsyncFunctionsClient) -> None:
     with pytest.raises(ValueError, match="function_name must a valid string value."):
         await client.invoke("")
 
 
-async def test_invoke_with_string_body(client: AsyncFunctionsClient):
+async def test_invoke_with_string_body(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"message": "success"}
     mock_response.raise_for_status = Mock()
@@ -180,7 +185,7 @@ async def test_invoke_with_string_body(client: AsyncFunctionsClient):
         assert kwargs["headers"]["Content-Type"] == "text/plain"
 
 
-async def test_invoke_with_json_body(client: AsyncFunctionsClient):
+async def test_invoke_with_json_body(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"message": "success"}
     mock_response.raise_for_status = Mock()
@@ -197,7 +202,7 @@ async def test_invoke_with_json_body(client: AsyncFunctionsClient):
         assert kwargs["headers"]["Content-Type"] == "application/json"
 
 
-async def test_init_with_httpx_client():
+async def test_init_with_httpx_client() -> None:
     # Create a custom httpx client with specific options
     headers = {"x-user-agent": "my-app/0.0.1"}
     custom_client = AsyncClient(

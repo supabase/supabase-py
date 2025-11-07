@@ -1,7 +1,6 @@
 from typing import Dict
 
 import pytest
-
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient, create_client
 
 
@@ -15,7 +14,7 @@ def valid_headers() -> Dict[str, str]:
     return {"Authorization": "Bearer test_token", "Content-Type": "application/json"}
 
 
-def test_create_async_client(valid_url, valid_headers):
+def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
     # Test creating async client with explicit verify=True
     client = create_client(
         url=valid_url, headers=valid_headers, is_async=True, verify=True
@@ -26,7 +25,7 @@ def test_create_async_client(valid_url, valid_headers):
     assert all(client.headers[key] == value for key, value in valid_headers.items())
 
 
-def test_create_sync_client(valid_url, valid_headers):
+def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
     # Test creating sync client with explicit verify=True
     client = create_client(
         url=valid_url, headers=valid_headers, is_async=False, verify=True
@@ -37,7 +36,7 @@ def test_create_sync_client(valid_url, valid_headers):
     assert all(client.headers[key] == value for key, value in valid_headers.items())
 
 
-def test_type_hints():
+def test_type_hints() -> None:
     from typing import Union, get_type_hints
 
     hints = get_type_hints(create_client)

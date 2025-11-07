@@ -1,7 +1,7 @@
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
-from httpx import Client, HTTPError, Response, QueryParams
+from httpx import Client, HTTPError, QueryParams, Response
 from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError
@@ -22,7 +22,7 @@ class SyncFunctionsClient:
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,
         http_client: Optional[Client] = None,
-    ):
+    ) -> None:
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)
@@ -133,7 +133,7 @@ class SyncFunctionsClient:
             region = invoke_options.get("region")
             if region:
                 if not isinstance(region, FunctionRegion):
-                    warn(f"Use FunctionRegion({region})")
+                    warn(f"Use FunctionRegion({region})", stacklevel=2)
                     region = FunctionRegion(region)
 
                 if region.value != "any":
