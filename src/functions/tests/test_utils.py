@@ -90,7 +90,7 @@ def test_base64url_regex() -> None:
     reason="StrEnum import test only relevant for Python 3.11+",
 )
 def test_strenum_import_python_311_plus() -> None:
-    from enum import StrEnum as BuiltinStrEnum
+    from enum import StrEnum as BuiltinStrEnum  # type: ignore
 
     assert isinstance(FunctionRegion.Any, BuiltinStrEnum)
 
