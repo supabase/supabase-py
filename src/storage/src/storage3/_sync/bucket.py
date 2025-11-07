@@ -37,7 +37,9 @@ class SyncStorageBucketAPI:
             response.raise_for_status()
         except HTTPStatusError as exc:
             resp = exc.response.json()
-            raise StorageApiError(resp["message"], resp["error"], resp["statusCode"])
+            raise StorageApiError(
+                resp["message"], resp["error"], resp["statusCode"]
+            ) from exc
 
         return response
 

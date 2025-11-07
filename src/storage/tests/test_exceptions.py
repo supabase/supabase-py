@@ -1,7 +1,7 @@
 from storage3.exceptions import StorageApiError
 
 
-def test_storage_api_error_initialization():
+def test_storage_api_error_initialization() -> None:
     # Arrange
     message = "Test error message"
     code = "TEST_ERROR"
@@ -21,7 +21,7 @@ def test_storage_api_error_initialization():
     )
 
 
-def test_storage_api_error_to_dict():
+def test_storage_api_error_to_dict() -> None:
     # Arrange
     error = StorageApiError("Test message", "TEST_CODE", 404)
 
@@ -37,7 +37,7 @@ def test_storage_api_error_to_dict():
     }
 
 
-def test_storage_api_error_inheritance():
+def test_storage_api_error_inheritance() -> None:
     # Arrange & Act
     error = StorageApiError("Test message", "TEST_CODE", 500)
 

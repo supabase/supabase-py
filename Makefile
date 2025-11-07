@@ -30,6 +30,9 @@ help::
 	@echo "  stop-infra     -- Stop all infra used by tests."
 	@echo "                    NOTE: run this command to ensure all containers are stopped after tests"
 
+mypy: $(call FORALL_PKGS,mypy)
+help::
+	@echo "  mypy          -- Run mypy on all files"
 
 ruff:
 	@uv run ruff check --fix

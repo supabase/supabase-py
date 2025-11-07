@@ -2,7 +2,6 @@ from typing import Dict
 
 import pytest
 from httpx import AsyncClient, Client, Timeout
-
 from storage3 import AsyncStorageClient, SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT
 
@@ -17,7 +16,7 @@ def valid_headers() -> Dict[str, str]:
     return {"Authorization": "Bearer test_token", "apikey": "test_api_key"}
 
 
-def test_create_async_client(valid_url, valid_headers):
+def test_create_async_client(valid_url, valid_headers) -> None:
     client = AsyncStorageClient(url=valid_url, headers=valid_headers)
 
     assert isinstance(client, AsyncStorageClient)
@@ -27,7 +26,7 @@ def test_create_async_client(valid_url, valid_headers):
     assert client._client.timeout == Timeout(DEFAULT_TIMEOUT)
 
 
-def test_create_sync_client(valid_url, valid_headers):
+def test_create_sync_client(valid_url, valid_headers) -> None:
     client = SyncStorageClient(url=valid_url, headers=valid_headers)
 
     assert isinstance(client, SyncStorageClient)
@@ -37,7 +36,7 @@ def test_create_sync_client(valid_url, valid_headers):
     assert client._client.timeout == Timeout(DEFAULT_TIMEOUT)
 
 
-def test_async_storage_client(valid_url, valid_headers):
+def test_async_storage_client(valid_url, valid_headers) -> None:
     headers = {"x-user-agent": "my-app/0.0.1"}
     http_client = AsyncClient(headers=headers)
     client = AsyncStorageClient(
@@ -50,7 +49,7 @@ def test_async_storage_client(valid_url, valid_headers):
     assert client._client.timeout == Timeout(5.0)
 
 
-def test_sync_storage_client(valid_url, valid_headers):
+def test_sync_storage_client(valid_url, valid_headers) -> None:
     headers = {"x-user-agent": "my-app/0.0.1"}
     http_client = Client(headers=headers)
     client = SyncStorageClient(
@@ -63,7 +62,7 @@ def test_sync_storage_client(valid_url, valid_headers):
     assert client._client.timeout == Timeout(5.0)
 
 
-def test_async_storage_client_with_httpx(valid_url, valid_headers):
+def test_async_storage_client_with_httpx(valid_url, valid_headers) -> None:
     client = AsyncStorageClient(url=valid_url, headers=valid_headers)
 
     assert isinstance(client, AsyncStorageClient)
@@ -73,7 +72,7 @@ def test_async_storage_client_with_httpx(valid_url, valid_headers):
     assert client._client.timeout == Timeout(DEFAULT_TIMEOUT)
 
 
-def test_sync_storage_client_with_httpx(valid_url, valid_headers):
+def test_sync_storage_client_with_httpx(valid_url, valid_headers) -> None:
     client = SyncStorageClient(url=valid_url, headers=valid_headers)
 
     assert isinstance(client, SyncStorageClient)
@@ -83,7 +82,7 @@ def test_sync_storage_client_with_httpx(valid_url, valid_headers):
     assert client._client.timeout == Timeout(DEFAULT_TIMEOUT)
 
 
-def test_custom_timeout(valid_url, valid_headers):
+def test_custom_timeout(valid_url, valid_headers) -> None:
     custom_timeout = 30
 
     async_client = AsyncStorageClient(

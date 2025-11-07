@@ -7,7 +7,7 @@ import pytest
 _test_failed_incremental: Dict[str, Dict[Tuple[int, ...], str]] = {}
 
 
-def pytest_runtest_makereport(item, call):
+def pytest_runtest_makereport(item, call) -> None:
     if "incremental" in item.keywords:
         # incremental marker is used
         if call.excinfo is not None:
@@ -29,7 +29,7 @@ def pytest_runtest_makereport(item, call):
             )
 
 
-def pytest_runtest_setup(item):
+def pytest_runtest_setup(item) -> None:
     if "incremental" in item.keywords:
         # retrieve the class name of the test
         cls_name = str(item.cls)

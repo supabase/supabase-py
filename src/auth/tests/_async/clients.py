@@ -5,10 +5,9 @@ from typing import Optional
 
 from faker import Faker
 from jwt import encode
-from typing_extensions import NotRequired, TypedDict
-
 from supabase_auth import AsyncGoTrueAdminAPI, AsyncGoTrueClient
 from supabase_auth.types import User
+from typing_extensions import NotRequired, TypedDict
 
 
 def mock_access_token() -> str:

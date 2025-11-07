@@ -3,7 +3,6 @@ from uuid import uuid4
 
 import pytest
 from jwt import encode
-
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -489,7 +488,6 @@ async def test_sign_in_with_otp() -> None:
     from unittest.mock import patch
 
     from httpx import Response
-
     from supabase_auth.types import AuthOtpResponse
 
     # First test for email OTP
