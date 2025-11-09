@@ -272,11 +272,13 @@ class AsyncClient:
         proxy: Optional[str] = None,
     ) -> AsyncSupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
+        # If storage is None (which happens when using base ClientOptions), provide async default
+        storage = client_options.storage if client_options.storage is not None else AsyncMemoryStorage()
         return AsyncSupabaseAuthClient(
             url=auth_url,
             auto_refresh_token=client_options.auto_refresh_token,
             persist_session=client_options.persist_session,
-            storage=client_options.storage,
+            storage=storage,
             headers=client_options.headers,
             flow_type=client_options.flow_type,
             verify=verify,

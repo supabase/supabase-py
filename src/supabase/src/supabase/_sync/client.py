@@ -271,11 +271,13 @@ class Client:
         proxy: Optional[str] = None,
     ) -> SyncSupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
+        # If storage is None (which happens when using base ClientOptions), provide sync default
+        storage = client_options.storage if client_options.storage is not None else SyncMemoryStorage()
         return SyncSupabaseAuthClient(
             url=auth_url,
             auto_refresh_token=client_options.auto_refresh_token,
             persist_session=client_options.persist_session,
-            storage=client_options.storage,
+            storage=storage,
             headers=client_options.headers,
             flow_type=client_options.flow_type,
             verify=verify,

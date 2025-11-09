@@ -39,6 +39,12 @@ class ClientOptions:
     persist_session: bool = True
     """Whether to persist a logged in session to storage."""
 
+    storage: Optional[Union[AsyncSupportedStorage, SyncSupportedStorage]] = None
+    """A storage provider. Used to store the logged in session."""
+
+    httpx_client: Optional[Union[AsyncHttpxClient, SyncHttpxClient]] = None
+    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
+
     realtime: Optional[RealtimeClientOptions] = None
     """Options passed to the realtime-py instance"""
 
@@ -88,7 +94,7 @@ class AsyncClientOptions(ClientOptions):
             auto_refresh_token or self.auto_refresh_token
         )
         client_options.persist_session = persist_session or self.persist_session
-        client_options.storage = storage or self.storage
+        client_options.storage = storage or self.storage or AsyncMemoryStorage()
         client_options.realtime = realtime or self.realtime
         client_options.httpx_client = httpx_client or self.httpx_client
         client_options.postgrest_client_timeout = (
@@ -131,7 +137,7 @@ class SyncClientOptions(ClientOptions):
             auto_refresh_token or self.auto_refresh_token
         )
         client_options.persist_session = persist_session or self.persist_session
-        client_options.storage = storage or self.storage
+        client_options.storage = storage or self.storage or SyncMemoryStorage()
         client_options.realtime = realtime or self.realtime
         client_options.httpx_client = httpx_client or self.httpx_client
         client_options.postgrest_client_timeout = (
