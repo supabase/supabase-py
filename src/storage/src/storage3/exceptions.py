@@ -3,6 +3,11 @@ from typing import TypedDict
 from .utils import StorageException
 
 
+class VectorBucketException(Exception):
+    def __init__(self, msg: str) -> None:
+        self.msg = msg
+
+
 class StorageApiErrorDict(TypedDict):
     name: str
     message: str
