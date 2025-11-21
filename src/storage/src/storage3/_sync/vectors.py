@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from httpx import AsyncClient, Headers, Response
+from httpx import Client, Headers, Response
 from yarl import URL
 
 from ..exceptions import VectorBucketException
@@ -23,15 +23,15 @@ from ..types import (
 
 
 class PartialRequest:
-    def __init__(self, session: AsyncClient, base_url: URL, headers: Headers) -> None:
+    def __init__(self, session: Client, base_url: URL, headers: Headers) -> None:
         self._session = session
         self._base_url = base_url
         self.headers = headers
 
-    async def send(
+    def send(
         self, http_method: RequestMethod, path: list[str], body: JSON = None
     ) -> Response:
-        return await self._session.request(
+        return self._session.request(
             method=http_method,
             json=body,
             url=str(self._base_url.joinpath(*path)),
@@ -39,7 +39,7 @@ class PartialRequest:
         )
 
 
-class AsyncVectorBucketScope:
+class SyncVectorBucketScope:
     def __init__(self, request: PartialRequest, bucket_name: str) -> None:
         self._request = request
         self._bucket_name = bucket_name
@@ -47,7 +47,7 @@ class AsyncVectorBucketScope:
     def with_metadata(self, **data: JSON) -> JSON:
         return {"vectorBucketName": self._bucket_name, **data}
 
-    async def create_index(
+    def create_index(
         self,
         dimension: int,
         distance_metric: DistanceMetric,
@@ -60,14 +60,14 @@ class AsyncVectorBucketScope:
             dataType=data_type,
             metadataConfiguration=dict(metadata) if metadata else None,
         )
-        await self._request.send(http_method="POST", path=["CreateIndex"], body=body)
+        self._request.send(http_method="POST", path=["CreateIndex"], body=body)
 
-    async def get_index(self, index_name: str) -> VectorIndex:
+    def get_index(self, index_name: str) -> VectorIndex:
         body = self.with_metadata(indexName=index_name)
         data = self._request.send(http_method="POST", path=["GetIndex"], body=body)
         return VectorIndex.model_validate(data)
 
-    async def list_indexes(
+    def list_indexes(
         self,
         next_token: Optional[str] = None,
         max_results: Optional[int] = None,
@@ -79,15 +79,15 @@ class AsyncVectorBucketScope:
         data = self._request.send(http_method="POST", path=["ListIndexes"], body=body)
         return ListIndexesResponse.model_validate(data)
 
-    async def delete_index(self, index_name: str) -> None:
+    def delete_index(self, index_name: str) -> None:
         body = self.with_metadata(indexName=index_name)
-        await self._request.send(http_method="POST", path=["DeleteIndex"], body=body)
+        self._request.send(http_method="POST", path=["DeleteIndex"], body=body)
 
-    def index(self, index_name: str) -> AsyncVectorIndexScope:
-        return AsyncVectorIndexScope(self._request, self._bucket_name, index_name)
+    def index(self, index_name: str) -> SyncVectorIndexScope:
+        return SyncVectorIndexScope(self._request, self._bucket_name, index_name)
 
 
-class AsyncVectorIndexScope:
+class SyncVectorIndexScope:
     def __init__(
         self, request: PartialRequest, bucket_name: str, index_name: str
     ) -> None:
@@ -102,11 +102,11 @@ class AsyncVectorIndexScope:
             **data,
         }
 
-    async def put(self, vectors: List[VectorObject]) -> None:
+    def put(self, vectors: List[VectorObject]) -> None:
         body = self.with_metadata(vectors=list(dict(v) for v in vectors))
-        await self._request.send(http_method="POST", path=["PutVectors"], body=body)
+        self._request.send(http_method="POST", path=["PutVectors"], body=body)
 
-    async def get(
+    def get(
         self, *keys: str, return_data: bool = True, return_metadata: bool = True
     ) -> GetVectorsResponse:
         body = self.with_metadata(
@@ -115,7 +115,7 @@ class AsyncVectorIndexScope:
         data = self._request.send(http_method="POST", path=["GetVectors"], body=body)
         return GetVectorsResponse.model_validate(data)
 
-    async def list(
+    def list(
         self,
         max_results: Optional[int] = None,
         next_token: Optional[str] = None,
@@ -132,12 +132,10 @@ class AsyncVectorIndexScope:
             segmentCount=segment_count,
             segmentIndex=segment_index,
         )
-        data = await self._request.send(
-            http_method="POST", path=["ListVectors"], body=body
-        )
+        data = self._request.send(http_method="POST", path=["ListVectors"], body=body)
         return ListVectorsResponse.model_validate(data)
 
-    async def query(
+    def query(
         self,
         query_vector: VectorData,
         topK: Optional[int] = None,
@@ -152,24 +150,19 @@ class AsyncVectorIndexScope:
             returnDistance=return_distance,
             returnMetadata=return_metadata,
         )
-        data = await self._request.send(
-            http_method="POST", path=["QueryVectors"], body=body
-        )
+        data = self._request.send(http_method="POST", path=["QueryVectors"], body=body)
         return QueryVectorsResponse.model_validate(data)
 
-    async def delete(self, keys: List[str]) -> None:
+    def delete(self, keys: List[str]) -> None:
         if 1 < len(keys) or len(keys) > 500:
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
         body = self.with_metadata(keys=keys)
-        await self._request.send(http_method="POST", path=["DeleteVectors"], body=body)
+        self._request.send(http_method="POST", path=["DeleteVectors"], body=body)
 
 
-class AsyncStorageVectorsClient:
-    def __init__(self, url: str, headers: Headers, session: AsyncClient) -> None:
-        if url and url[-1] != "/":
-            print("Storage endpoint URL should have a trailing slash.")
-            url += "/"
+class SyncStorageVectorsClient:
+    def __init__(self, url: URL, headers: Headers, session: Client) -> None:
         self._request = PartialRequest(session, base_url=URL(url), headers=headers)
 
-    def from_(self, bucket_name: str) -> AsyncVectorBucketScope:
-        return AsyncVectorBucketScope(self._request, bucket_name)
+    def from_(self, bucket_name: str) -> SyncVectorBucketScope:
+        return SyncVectorBucketScope(self._request, bucket_name)

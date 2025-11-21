@@ -10,6 +10,7 @@ from storage3.constants import DEFAULT_TIMEOUT
 from ..version import __version__
 from .bucket import SyncStorageBucketAPI
 from .file_api import SyncBucketProxy
+from .vectors import SyncStorageVectorsClient
 
 __all__ = [
     "SyncStorageClient",
@@ -80,3 +81,10 @@ class SyncStorageClient(SyncStorageBucketAPI):
             The unique identifier of the bucket
         """
         return SyncBucketProxy(id, self._base_url, self._headers, self._client)
+
+    def vectors(self) -> SyncStorageVectorsClient:
+        return SyncStorageVectorsClient(
+            url=self._base_url,
+            headers=self._headers,
+            session=self.session,
+        )
