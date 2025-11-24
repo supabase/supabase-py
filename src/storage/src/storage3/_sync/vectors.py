@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from httpx import Client, Headers, Response
+from httpx import Client, Headers
 from yarl import URL
 
 from ..exceptions import VectorBucketException
@@ -14,33 +14,16 @@ from ..types import (
     ListVectorsResponse,
     MetadataConfiguration,
     QueryVectorsResponse,
-    RequestMethod,
     VectorData,
     VectorFilter,
     VectorIndex,
     VectorObject,
 )
-
-
-class PartialRequest:
-    def __init__(self, session: Client, base_url: URL, headers: Headers) -> None:
-        self._session = session
-        self._base_url = base_url
-        self.headers = headers
-
-    def send(
-        self, http_method: RequestMethod, path: list[str], body: JSON = None
-    ) -> Response:
-        return self._session.request(
-            method=http_method,
-            json=body,
-            url=str(self._base_url.joinpath(*path)),
-            headers=self.headers,
-        )
+from .request import RequestBuilder
 
 
 class SyncVectorBucketScope:
-    def __init__(self, request: PartialRequest, bucket_name: str) -> None:
+    def __init__(self, request: RequestBuilder, bucket_name: str) -> None:
         self._request = request
         self._bucket_name = bucket_name
 
@@ -65,7 +48,7 @@ class SyncVectorBucketScope:
     def get_index(self, index_name: str) -> VectorIndex:
         body = self.with_metadata(indexName=index_name)
         data = self._request.send(http_method="POST", path=["GetIndex"], body=body)
-        return VectorIndex.model_validate(data)
+        return VectorIndex.model_validate(data.content)
 
     def list_indexes(
         self,
@@ -77,7 +60,7 @@ class SyncVectorBucketScope:
             next_token=next_token, max_results=max_results, prefix=prefix
         )
         data = self._request.send(http_method="POST", path=["ListIndexes"], body=body)
-        return ListIndexesResponse.model_validate(data)
+        return ListIndexesResponse.model_validate(data.content)
 
     def delete_index(self, index_name: str) -> None:
         body = self.with_metadata(indexName=index_name)
@@ -89,7 +72,7 @@ class SyncVectorBucketScope:
 
 class SyncVectorIndexScope:
     def __init__(
-        self, request: PartialRequest, bucket_name: str, index_name: str
+        self, request: RequestBuilder, bucket_name: str, index_name: str
     ) -> None:
         self._request = request
         self._bucket_name = bucket_name
@@ -113,7 +96,7 @@ class SyncVectorIndexScope:
             keys=keys, returnData=return_data, returnMetadata=return_metadata
         )
         data = self._request.send(http_method="POST", path=["GetVectors"], body=body)
-        return GetVectorsResponse.model_validate(data)
+        return GetVectorsResponse.model_validate(data.content)
 
     def list(
         self,
@@ -133,7 +116,7 @@ class SyncVectorIndexScope:
             segmentIndex=segment_index,
         )
         data = self._request.send(http_method="POST", path=["ListVectors"], body=body)
-        return ListVectorsResponse.model_validate(data)
+        return ListVectorsResponse.model_validate(data.content)
 
     def query(
         self,
@@ -151,7 +134,7 @@ class SyncVectorIndexScope:
             returnMetadata=return_metadata,
         )
         data = self._request.send(http_method="POST", path=["QueryVectors"], body=body)
-        return QueryVectorsResponse.model_validate(data)
+        return QueryVectorsResponse.model_validate(data.content)
 
     def delete(self, keys: List[str]) -> None:
         if 1 < len(keys) or len(keys) > 500:
@@ -162,7 +145,7 @@ class SyncVectorIndexScope:
 
 class SyncStorageVectorsClient:
     def __init__(self, url: URL, headers: Headers, session: Client) -> None:
-        self._request = PartialRequest(session, base_url=URL(url), headers=headers)
+        self._request = RequestBuilder(session, base_url=URL(url), headers=headers)
 
     def from_(self, bucket_name: str) -> SyncVectorBucketScope:
         return SyncVectorBucketScope(self._request, bucket_name)

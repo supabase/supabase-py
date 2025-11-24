@@ -226,3 +226,21 @@ class ListVectorsResponse(BaseModel):
 
 class QueryVectorsResponse(BaseModel):
     matches: List[VectorMatch]
+
+
+class AnalyticsBucket(BaseModel):
+    name: str
+    type: Literal["ANALYTICS"]
+    format: str
+    create_at: datetime
+    updated_at: datetime
+
+
+SortColumn = Literal["id", "name", "created_at", "updated_at"]
+SortOrder = Literal["asc", "desc"]
+
+AnalyticsBucketsParser = TypeAdapter(List[AnalyticsBucket])
+
+
+class AnalyticsBucketDeleteResponse(BaseModel):
+    message: str
