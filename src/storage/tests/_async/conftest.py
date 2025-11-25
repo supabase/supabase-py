@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
@@ -9,7 +10,16 @@ from storage3 import AsyncStorageClient
 
 
 def pytest_configure(config) -> None:
-    load_dotenv(dotenv_path="tests/tests.env")
+    # Get the path to tests.env relative to this conftest file
+    # Try tests.env.local first (git-ignored), then fall back to tests.env
+    tests_dir = Path(__file__).parent.parent
+    tests_env_local = tests_dir / "tests.env.local"
+    tests_env = tests_dir / "tests.env"
+    
+    if tests_env_local.exists():
+        load_dotenv(dotenv_path=str(tests_env_local))
+    elif tests_env.exists():
+        load_dotenv(dotenv_path=str(tests_env))
 
 
 @pytest.fixture

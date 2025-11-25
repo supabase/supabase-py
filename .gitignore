@@ -288,3 +288,7 @@ venv.bak/
 dmypy.json
 
 .cursor/
+
+# Test environment files with sensitive credentials
+**/tests.env
+**/tests.env.local
