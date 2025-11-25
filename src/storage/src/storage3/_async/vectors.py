@@ -32,12 +32,14 @@ class AsyncVectorBucketScope:
 
     async def create_index(
         self,
+        index_name: str,
         dimension: int,
         distance_metric: DistanceMetric,
         data_type: str,
         metadata: Optional[MetadataConfiguration] = None,
     ) -> None:
         body = self.with_metadata(
+            indexName=index_name,
             dimension=dimension,
             distanceMetric=distance_metric,
             dataType=data_type,
@@ -90,7 +92,7 @@ class AsyncVectorIndexScope:
         }
 
     async def put(self, vectors: List[VectorObject]) -> None:
-        body = self.with_metadata(vectors=list(dict(v) for v in vectors))
+        body = self.with_metadata(vectors=[v.as_json() for v in vectors])
         await self._request.send(http_method="POST", path=["PutVectors"], body=body)
 
     async def get(
@@ -159,3 +161,14 @@ class AsyncStorageVectorsClient:
 
     def from_(self, bucket_name: str) -> AsyncVectorBucketScope:
         return AsyncVectorBucketScope(self._request, bucket_name)
+
+    async def create_bucket(self, bucket_name: str) -> None:
+        body = {"vectorBucketName": bucket_name}
+        await self._request.send(
+            http_method="POST", path=["CreateVectorBucket"], body=body
+        )
+
+    # async def get_bucket(self, bucket_name: str) -> GetBucketResponse:
+    #     body = { 'vectorBucketName': bucket_name }
+    #     data = await self._request.send(http_method='POST', path=['GetVectorBucket'], body=body)
+    #     return GetVectorsResponse.model_validate(data.content)

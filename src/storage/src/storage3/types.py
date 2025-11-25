@@ -207,6 +207,9 @@ class VectorObject(BaseModel):
     data: VectorData
     metadata: Optional[dict[str, Any]] = None
 
+    def as_json(self) -> JSON:
+        return {"key": self.key, "data": dict(self.data), "metadata": self.metadata}
+
 
 class VectorMatch(BaseModel):
     key: str

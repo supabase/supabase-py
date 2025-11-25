@@ -19,10 +19,12 @@ class RequestBuilder:
         body: JSON = None,
         query_params: Optional[QueryParams] = None,
     ) -> Response:
-        return await self._session.request(
+        data = await self._session.request(
             method=http_method,
             json=body,
             url=str(self._base_url.joinpath(*path)),
             headers=self.headers,
             params=query_params or QueryParams(),
         )
+        data.raise_for_status()
+        return data
