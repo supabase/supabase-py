@@ -5,30 +5,41 @@ from typing import List, Optional
 from httpx import AsyncClient, Headers
 from yarl import URL
 
-from ..exceptions import VectorBucketException
+from ..exceptions import StorageApiError, VectorBucketException
 from ..types import (
     JSON,
     DistanceMetric,
+    GetVectorBucketResponse,
+    GetVectorIndexResponse,
     GetVectorsResponse,
-    ListIndexesResponse,
+    ListVectorBucketsResponse,
+    ListVectorIndexesResponse,
     ListVectorsResponse,
     MetadataConfiguration,
     QueryVectorsResponse,
+    VectorBucket,
     VectorData,
     VectorFilter,
     VectorIndex,
+    VectorMatch,
     VectorObject,
 )
-from .request import RequestBuilder
+from .request import AsyncRequestBuilder
+
+
+# used to not send non-required values as `null`
+# for they cannot be null
+def remove_none(**kwargs: JSON) -> JSON:
+    return {key: val for key, val in kwargs.items() if val is not None}
 
 
 class AsyncVectorBucketScope:
-    def __init__(self, request: RequestBuilder, bucket_name: str) -> None:
+    def __init__(self, request: AsyncRequestBuilder, bucket_name: str) -> None:
         self._request = request
         self._bucket_name = bucket_name
 
     def with_metadata(self, **data: JSON) -> JSON:
-        return {"vectorBucketName": self._bucket_name, **data}
+        return remove_none(vectorBucketName=self._bucket_name, **data)
 
     async def create_index(
         self,
@@ -47,26 +58,29 @@ class AsyncVectorBucketScope:
         )
         await self._request.send(http_method="POST", path=["CreateIndex"], body=body)
 
-    async def get_index(self, index_name: str) -> VectorIndex:
+    async def get_index(self, index_name: str) -> Optional[VectorIndex]:
         body = self.with_metadata(indexName=index_name)
-        data = await self._request.send(
-            http_method="POST", path=["GetIndex"], body=body
-        )
-        return VectorIndex.model_validate(data.content)
+        try:
+            data = await self._request.send(
+                http_method="POST", path=["GetIndex"], body=body
+            )
+            return GetVectorIndexResponse.model_validate_json(data.content).index
+        except StorageApiError:
+            return None
 
     async def list_indexes(
         self,
         next_token: Optional[str] = None,
         max_results: Optional[int] = None,
         prefix: Optional[str] = None,
-    ) -> ListIndexesResponse:
+    ) -> ListVectorIndexesResponse:
         body = self.with_metadata(
             next_token=next_token, max_results=max_results, prefix=prefix
         )
         data = await self._request.send(
             http_method="POST", path=["ListIndexes"], body=body
         )
-        return ListIndexesResponse.model_validate(data.content)
+        return ListVectorIndexesResponse.model_validate_json(data.content)
 
     async def delete_index(self, index_name: str) -> None:
         body = self.with_metadata(indexName=index_name)
@@ -78,18 +92,18 @@ class AsyncVectorBucketScope:
 
 class AsyncVectorIndexScope:
     def __init__(
-        self, request: RequestBuilder, bucket_name: str, index_name: str
+        self, request: AsyncRequestBuilder, bucket_name: str, index_name: str
     ) -> None:
         self._request = request
         self._bucket_name = bucket_name
         self._index_name = index_name
 
     def with_metadata(self, **data: JSON) -> JSON:
-        return {
-            "vectorBucketName": self._bucket_name,
-            "indexName": self._index_name,
+        return remove_none(
+            vectorBucketName=self._bucket_name,
+            indexName=self._index_name,
             **data,
-        }
+        )
 
     async def put(self, vectors: List[VectorObject]) -> None:
         body = self.with_metadata(vectors=[v.as_json() for v in vectors])
@@ -97,14 +111,14 @@ class AsyncVectorIndexScope:
 
     async def get(
         self, *keys: str, return_data: bool = True, return_metadata: bool = True
-    ) -> GetVectorsResponse:
+    ) -> List[VectorMatch]:
         body = self.with_metadata(
             keys=keys, returnData=return_data, returnMetadata=return_metadata
         )
         data = await self._request.send(
             http_method="POST", path=["GetVectors"], body=body
         )
-        return GetVectorsResponse.model_validate(data.content)
+        return GetVectorsResponse.model_validate_json(data.content).vectors
 
     async def list(
         self,
@@ -126,7 +140,7 @@ class AsyncVectorIndexScope:
         data = await self._request.send(
             http_method="POST", path=["ListVectors"], body=body
         )
-        return ListVectorsResponse.model_validate(data.content)
+        return ListVectorsResponse.model_validate_json(data.content)
 
     async def query(
         self,
@@ -146,7 +160,7 @@ class AsyncVectorIndexScope:
         data = await self._request.send(
             http_method="POST", path=["QueryVectors"], body=body
         )
-        return QueryVectorsResponse.model_validate(data.content)
+        return QueryVectorsResponse.model_validate_json(data.content)
 
     async def delete(self, keys: List[str]) -> None:
         if 1 < len(keys) or len(keys) > 500:
@@ -157,7 +171,7 @@ class AsyncVectorIndexScope:
 
 class AsyncStorageVectorsClient:
     def __init__(self, url: URL, headers: Headers, session: AsyncClient) -> None:
-        self._request = RequestBuilder(session, base_url=URL(url), headers=headers)
+        self._request = AsyncRequestBuilder(session, base_url=URL(url), headers=headers)
 
     def from_(self, bucket_name: str) -> AsyncVectorBucketScope:
         return AsyncVectorBucketScope(self._request, bucket_name)
@@ -168,7 +182,32 @@ class AsyncStorageVectorsClient:
             http_method="POST", path=["CreateVectorBucket"], body=body
         )
 
-    # async def get_bucket(self, bucket_name: str) -> GetBucketResponse:
-    #     body = { 'vectorBucketName': bucket_name }
-    #     data = await self._request.send(http_method='POST', path=['GetVectorBucket'], body=body)
-    #     return GetVectorsResponse.model_validate(data.content)
+    async def get_bucket(self, bucket_name: str) -> Optional[VectorBucket]:
+        body = {"vectorBucketName": bucket_name}
+        try:
+            data = await self._request.send(
+                http_method="POST", path=["GetVectorBucket"], body=body
+            )
+            return GetVectorBucketResponse.model_validate_json(
+                data.content
+            ).vectorBucket
+        except StorageApiError:
+            return None
+
+    async def list_buckets(
+        self,
+        prefix: Optional[str] = None,
+        max_results: Optional[int] = None,
+        next_token: Optional[str] = None,
+    ) -> ListVectorBucketsResponse:
+        body = remove_none(prefix=prefix, maxResults=max_results, nextToken=next_token)
+        data = await self._request.send(
+            http_method="POST", path=["ListVectorBuckets"], body=body
+        )
+        return ListVectorBucketsResponse.model_validate_json(data.content)
+
+    async def delete_bucket(self, bucket_name: str) -> None:
+        body = {"vectorBucketName": bucket_name}
+        await self._request.send(
+            http_method="POST", path=["DeleteVectorBucket"], body=body
+        )

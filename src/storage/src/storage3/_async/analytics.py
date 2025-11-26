@@ -9,11 +9,11 @@ from ..types import (
     SortColumn,
     SortOrder,
 )
-from .request import RequestBuilder
+from .request import AsyncRequestBuilder
 
 
 class AsyncStorageAnalyticsClient:
-    def __init__(self, request: RequestBuilder) -> None:
+    def __init__(self, request: AsyncRequestBuilder) -> None:
         self._request = request
 
     async def create(self, bucket_name: str) -> AnalyticsBucket:

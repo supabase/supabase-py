@@ -10,7 +10,7 @@ from ..types import (
     JSON,
     DistanceMetric,
     GetVectorsResponse,
-    ListIndexesResponse,
+    ListVectorIndexesResponse,
     ListVectorsResponse,
     MetadataConfiguration,
     QueryVectorsResponse,
@@ -55,12 +55,12 @@ class SyncVectorBucketScope:
         next_token: Optional[str] = None,
         max_results: Optional[int] = None,
         prefix: Optional[str] = None,
-    ) -> ListIndexesResponse:
+    ) -> ListVectorIndexesResponse:
         body = self.with_metadata(
             next_token=next_token, max_results=max_results, prefix=prefix
         )
         data = self._request.send(http_method="POST", path=["ListIndexes"], body=body)
-        return ListIndexesResponse.model_validate(data.content)
+        return ListVectorIndexesResponse.model_validate(data.content)
 
     def delete_index(self, index_name: str) -> None:
         body = self.with_metadata(indexName=index_name)

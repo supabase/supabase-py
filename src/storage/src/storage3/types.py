@@ -159,13 +159,11 @@ UploadSignedUrlFileOptions = TypedDict(
     total=False,
 )
 
-DistanceMetric: TypeAlias = Literal["cosine", "euclidean", "dotproduct"]
+DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
 
 
 class MetadataConfiguration(BaseModel):
-    non_filterable_metadata_keys: Optional[List[str]] = Field(
-        alias="nonFilterableMetadaKeys", default=None
-    )
+    nonFilterableMetadataKeys: Optional[List[str]]
 
 
 class ListIndexesOptions(BaseModel):
@@ -178,9 +176,9 @@ class ListIndexesResponseItem(BaseModel):
     indexName: str
 
 
-class ListIndexesResponse(BaseModel):
+class ListVectorIndexesResponse(BaseModel):
     indexes: List[ListIndexesResponseItem]
-    nextToken: Optional[str]
+    nextToken: Optional[str] = None
 
 
 class VectorIndex(BaseModel):
@@ -195,6 +193,10 @@ class VectorIndex(BaseModel):
     creation_time: Optional[datetime] = None
 
 
+class GetVectorIndexResponse(BaseModel):
+    index: VectorIndex
+
+
 VectorFilter = Dict[str, Any]
 
 
@@ -205,7 +207,7 @@ class VectorData(BaseModel):
 class VectorObject(BaseModel):
     key: str
     data: VectorData
-    metadata: Optional[dict[str, Any]] = None
+    metadata: Optional[dict[str, Union[str, bool, float]]] = None
 
     def as_json(self) -> JSON:
         return {"key": self.key, "data": dict(self.data), "metadata": self.metadata}
@@ -224,7 +226,7 @@ class GetVectorsResponse(BaseModel):
 
 class ListVectorsResponse(BaseModel):
     vectors: List[VectorMatch]
-    nextToken: Optional[str]
+    nextToken: Optional[str] = None
 
 
 class QueryVectorsResponse(BaseModel):
@@ -247,3 +249,27 @@ AnalyticsBucketsParser = TypeAdapter(List[AnalyticsBucket])
 
 class AnalyticsBucketDeleteResponse(BaseModel):
     message: str
+
+
+class VectorBucketEncryptionConfiguration(BaseModel):
+    kmsKeyArn: Optional[str] = None
+    sseType: Optional[str] = None
+
+
+class VectorBucket(BaseModel):
+    vectorBucketName: str
+    creationTime: Optional[datetime] = None
+    encryptionConfiguration: Optional[VectorBucketEncryptionConfiguration] = None
+
+
+class GetVectorBucketResponse(BaseModel):
+    vectorBucket: VectorBucket
+
+
+class ListVectorBucketsItem(BaseModel):
+    vectorBucketName: str
+
+
+class ListVectorBucketsResponse(BaseModel):
+    vectorBuckets: List[ListVectorBucketsItem]
+    nextToken: Optional[str] = None

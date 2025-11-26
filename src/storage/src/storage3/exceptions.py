@@ -1,4 +1,6 @@
-from typing import TypedDict
+from typing import Optional, TypedDict, Union
+
+from pydantic import BaseModel
 
 from .utils import StorageException
 
@@ -8,17 +10,24 @@ class VectorBucketException(Exception):
         self.msg = msg
 
 
+class VectorBucketErrorMessage(BaseModel):
+    statusCode: Union[str, int]
+    error: str
+    message: str
+    code: Optional[str] = None
+
+
 class StorageApiErrorDict(TypedDict):
     name: str
     message: str
     code: str
-    status: int
+    status: Union[int, str]
 
 
 class StorageApiError(StorageException):
     """Error raised when an operation on the storage API fails."""
 
-    def __init__(self, message: str, code: str, status: int) -> None:
+    def __init__(self, message: str, code: str, status: Union[int, str]) -> None:
         error_message = (
             f"{{'statusCode': {status}, 'error': {code}, 'message': {message}}}"
         )
