@@ -95,6 +95,6 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
         request = AsyncRequestBuilder(
             session=self.session,
             headers=self._headers,
-            base_url=self._base_url.joinpath("v1", "analytics"),
+            base_url=self._base_url.joinpath("v1", "iceberg"),
         )
         return AsyncStorageAnalyticsClient(request=request)

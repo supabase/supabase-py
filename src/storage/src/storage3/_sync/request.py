@@ -41,7 +41,7 @@ class SyncRequestBuilder:
                 ) from exc
             except ValidationError as exc:
                 raise StorageApiError(
-                    message="The request failed, but could not parse error message response.",
+                    message=f"The request failed, but could not parse error message response:'{response.text}'",
                     code="LibraryError",
                     status=response.status_code,
                 ) from exc

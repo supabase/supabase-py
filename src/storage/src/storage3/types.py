@@ -235,9 +235,9 @@ class QueryVectorsResponse(BaseModel):
 
 class AnalyticsBucket(BaseModel):
     name: str
-    type: Literal["ANALYTICS"]
-    format: str
-    create_at: datetime
+    type: Optional[Literal["ANALYTICS"]] = None
+    format: Optional[str] = None
+    created_at: datetime
     updated_at: datetime
 
 

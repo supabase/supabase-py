@@ -95,6 +95,6 @@ class SyncStorageClient(SyncStorageBucketAPI):
         request = SyncRequestBuilder(
             session=self.session,
             headers=self._headers,
-            base_url=self._base_url.joinpath("v1", "analytics"),
+            base_url=self._base_url.joinpath("v1", "iceberg"),
         )
         return SyncStorageAnalyticsClient(request=request)
