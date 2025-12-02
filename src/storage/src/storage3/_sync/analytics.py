@@ -9,11 +9,11 @@ from ..types import (
     SortColumn,
     SortOrder,
 )
-from .request import RequestBuilder
+from .request import SyncRequestBuilder
 
 
 class SyncStorageAnalyticsClient:
-    def __init__(self, request: RequestBuilder) -> None:
+    def __init__(self, request: SyncRequestBuilder) -> None:
         self._request = request
 
     def create(self, bucket_name: str) -> AnalyticsBucket:

@@ -8,8 +8,10 @@ from httpx import Client, Headers
 from storage3.constants import DEFAULT_TIMEOUT
 
 from ..version import __version__
+from .analytics import SyncStorageAnalyticsClient
 from .bucket import SyncStorageBucketAPI
 from .file_api import SyncBucketProxy
+from .request import SyncRequestBuilder
 from .vectors import SyncStorageVectorsClient
 
 __all__ = [
@@ -84,7 +86,15 @@ class SyncStorageClient(SyncStorageBucketAPI):
 
     def vectors(self) -> SyncStorageVectorsClient:
         return SyncStorageVectorsClient(
-            url=self._base_url,
+            url=self._base_url.joinpath("v1", "vector"),
             headers=self._headers,
             session=self.session,
         )
+
+    def analytics(self) -> SyncStorageAnalyticsClient:
+        request = SyncRequestBuilder(
+            session=self.session,
+            headers=self._headers,
+            base_url=self._base_url.joinpath("v1", "analytics"),
+        )
+        return SyncStorageAnalyticsClient(request=request)
