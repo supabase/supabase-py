@@ -15,11 +15,17 @@ def pytest_configure(config) -> None:
     tests_dir = Path(__file__).parent.parent
     tests_env_local = tests_dir / "tests.env.local"
     tests_env = tests_dir / "tests.env"
-    
+
     if tests_env_local.exists():
         load_dotenv(dotenv_path=str(tests_env_local))
     elif tests_env.exists():
         load_dotenv(dotenv_path=str(tests_env))
+
+    # Register custom markers
+    config.addinivalue_line(
+        "markers",
+        "uses_shared_bucket: mark test as using shared bucket (can run when quota is low)",
+    )
 
 
 @pytest.fixture

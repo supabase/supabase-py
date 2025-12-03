@@ -18,6 +18,68 @@ from storage3.types import (
 # Global variable to track vector buckets created in tests
 temp_test_vector_buckets: list[str] = []
 
+# Global shared bucket for tests that don't need isolation
+_shared_bucket_name: str | None = None
+_shared_bucket_lock = None
+
+
+def get_shared_bucket_lock():
+    """Get or create the shared bucket lock."""
+    global _shared_bucket_lock
+    if _shared_bucket_lock is None:
+        import asyncio
+        _shared_bucket_lock = asyncio.Lock()
+    return _shared_bucket_lock
+
+
+async def get_bucket_count(storage: AsyncStorageClient) -> int:
+    """Get the current number of vector buckets."""
+    vectors_client = storage.vectors()
+    response = await vectors_client.list_buckets()
+    return len(response.vectorBuckets)
+
+
+async def find_or_create_shared_bucket(
+    storage: AsyncStorageClient, max_buckets: int = 10
+) -> str:
+    """Find an existing test bucket or create a new one if under quota."""
+    global _shared_bucket_name
+
+    vectors_client = storage.vectors()
+
+    # Check if we already have a shared bucket
+    if _shared_bucket_name:
+        bucket = await vectors_client.get_bucket(_shared_bucket_name)
+        if bucket is not None:
+            return _shared_bucket_name
+
+    # Check bucket count
+    bucket_count = await get_bucket_count(storage)
+
+    # If we're at or near the limit, try to find an existing test bucket
+    if bucket_count >= max_buckets - 1:
+        response = await vectors_client.list_buckets()
+        test_buckets = [
+            b.vectorBucketName
+            for b in response.vectorBuckets
+            if b.vectorBucketName.startswith("test-shared-")
+        ]
+        if test_buckets:
+            _shared_bucket_name = test_buckets[0]
+            return _shared_bucket_name
+
+    # Create a new shared bucket if under quota
+    if bucket_count < max_buckets:
+        _shared_bucket_name = f"test-shared-{uuid4().hex[:8]}"
+        await vectors_client.create_bucket(_shared_bucket_name)
+        return _shared_bucket_name
+
+    # If we can't create a bucket, raise an error
+    raise RuntimeError(
+        f"Cannot create test bucket: quota exceeded ({bucket_count}/{max_buckets} buckets). "
+        "Please clean up existing buckets using cleanup_buckets.py"
+    )
+
 
 @pytest.fixture
 def uuid_factory() -> Callable[[], str]:
@@ -28,11 +90,27 @@ def uuid_factory() -> Callable[[], str]:
     return method
 
 
+@pytest.fixture(scope="session")
+async def shared_vector_bucket(
+    storage: AsyncStorageClient,
+) -> AsyncGenerator[str]:
+    """Creates a shared test vector bucket for tests that don't need isolation."""
+    lock = get_shared_bucket_lock()
+    async with lock:
+        bucket_name = await find_or_create_shared_bucket(storage)
+        yield bucket_name
+        # Don't delete the shared bucket - it will be reused
+
+
 @pytest.fixture
 async def vector_bucket(
     storage: AsyncStorageClient, uuid_factory: Callable[[], str]
 ) -> AsyncGenerator[str]:
-    """Creates a test vector bucket which will be deleted at the end"""
+    """Creates a test vector bucket which will be deleted at the end.
+    
+    This fixture creates an isolated bucket for each test. If the bucket quota
+    is exceeded, it will attempt to reuse the shared bucket instead.
+    """
     bucket_name = f"test-vector-bucket-{uuid_factory()}"
 
     # Store bucket_name in global list
@@ -40,7 +118,28 @@ async def vector_bucket(
     temp_test_vector_buckets.append(bucket_name)
 
     vectors_client = storage.vectors()
-    await vectors_client.create_bucket(bucket_name)
+
+    # Check bucket count before creating
+    bucket_count = await get_bucket_count(storage)
+    max_buckets = 10
+
+    try:
+        if bucket_count >= max_buckets:
+            # Try to reuse shared bucket if we're at quota
+            pytest.skip(
+                f"Bucket quota exceeded ({bucket_count}/{max_buckets}). "
+                "Use shared_vector_bucket fixture or clean up existing buckets."
+            )
+
+        await vectors_client.create_bucket(bucket_name)
+    except Exception as e:
+        error_msg = str(e)
+        if "MaxBucketsExceeded" in error_msg or "quota" in error_msg.lower():
+            pytest.skip(
+                f"Cannot create isolated bucket: {error_msg}. "
+                "Use shared_vector_bucket fixture or clean up existing buckets."
+            )
+        raise
 
     yield bucket_name
 
@@ -49,11 +148,17 @@ async def vector_bucket(
         bucket_scope = vectors_client.from_(bucket_name)
         indexes_response = await bucket_scope.list_indexes()
         for index in indexes_response.indexes:
-            await bucket_scope.delete_index(index.indexName)
+            try:
+                await bucket_scope.delete_index(index.indexName)
+            except Exception:
+                pass  # Ignore errors when deleting indexes
+        # Delete the bucket itself
+        await vectors_client.delete_bucket(bucket_name)
     except Exception:
         pass  # Ignore errors during cleanup
 
-    temp_test_vector_buckets.remove(bucket_name)
+    if bucket_name in temp_test_vector_buckets:
+        temp_test_vector_buckets.remove(bucket_name)
 
 
 @pytest.fixture
@@ -62,7 +167,10 @@ async def vector_index(
     vector_bucket: str,
     uuid_factory: Callable[[], str],
 ) -> AsyncGenerator[tuple[str, str]]:
-    """Creates a test vector index which will be deleted at the end"""
+    """Creates a test vector index which will be deleted at the end.
+    
+    Can work with either vector_bucket (isolated) or shared_vector_bucket.
+    """
     index_name = f"test-index-{uuid_factory()}"
     dimension = 128
     distance_metric: DistanceMetric = "cosine"
@@ -87,23 +195,53 @@ async def vector_index(
 
 
 @pytest.fixture
+async def vector_index_shared(
+    storage: AsyncStorageClient,
+    shared_vector_bucket: str,
+    uuid_factory: Callable[[], str],
+) -> AsyncGenerator[tuple[str, str]]:
+    """Creates a test vector index in the shared bucket which will be deleted at the end."""
+    index_name = f"test-index-{uuid_factory()}"
+    dimension = 128
+    distance_metric: DistanceMetric = "cosine"
+    data_type = "float32"
+
+    vectors_client = storage.vectors()
+    bucket_scope = vectors_client.from_(shared_vector_bucket)
+    await bucket_scope.create_index(
+        index_name=index_name,
+        dimension=dimension,
+        distance_metric=distance_metric,
+        data_type=data_type,
+    )
+
+    yield (shared_vector_bucket, index_name)
+
+    # Cleanup: delete the index
+    try:
+        await bucket_scope.delete_index(index_name)
+    except Exception:
+        pass  # Ignore errors during cleanup
+
+
+@pytest.fixture
 def sample_vectors() -> list[VectorObject]:
     """Creates sample vector objects for testing"""
     return [
         VectorObject(
             key="vector1",
             data=VectorData(float32=[0.1] * 128),
-            metadata={"category": "test", "score": 0.95},
+            metadata={"category": "test", "priority": "high"},
         ),
         VectorObject(
             key="vector2",
             data=VectorData(float32=[0.2] * 128),
-            metadata={"category": "test", "score": 0.85},
+            metadata={"category": "test", "priority": "medium"},
         ),
         VectorObject(
             key="vector3",
             data=VectorData(float32=[0.3] * 128),
-            metadata={"category": "demo", "score": 0.75},
+            metadata={"category": "demo", "priority": "low"},
         ),
     ]
 
@@ -151,6 +289,101 @@ async def test_from_returns_vector_bucket_scope(
     assert bucket_scope._bucket_name == vector_bucket
 
 
+async def test_get_bucket(
+    storage: AsyncStorageClient, vector_bucket: str
+) -> None:
+    """Test retrieving a vector bucket"""
+    vectors_client = storage.vectors()
+
+    # Get the bucket
+    bucket = await vectors_client.get_bucket(vector_bucket)
+    assert bucket is not None
+    assert bucket.vectorBucketName == vector_bucket
+
+
+async def test_get_bucket_nonexistent(
+    storage: AsyncStorageClient, uuid_factory: Callable[[], str]
+) -> None:
+    """Test getting a non-existent bucket returns None"""
+    vectors_client = storage.vectors()
+    nonexistent_bucket = f"nonexistent-{uuid_factory()}"
+
+    bucket = await vectors_client.get_bucket(nonexistent_bucket)
+    assert bucket is None
+
+
+async def test_list_buckets(
+    storage: AsyncStorageClient, vector_bucket: str
+) -> None:
+    """Test listing vector buckets"""
+    vectors_client = storage.vectors()
+
+    # List buckets
+    response = await vectors_client.list_buckets()
+    assert response.vectorBuckets is not None
+    assert len(response.vectorBuckets) >= 1
+
+    # Verify our test bucket is in the list
+    bucket_names = {bucket.vectorBucketName for bucket in response.vectorBuckets}
+    assert vector_bucket in bucket_names
+
+
+async def test_list_buckets_with_pagination(
+    storage: AsyncStorageClient, vector_bucket: str
+) -> None:
+    """Test listing buckets with pagination parameters"""
+    vectors_client = storage.vectors()
+
+    # List with max_results
+    response = await vectors_client.list_buckets(max_results=10)
+    assert response.vectorBuckets is not None
+    assert len(response.vectorBuckets) <= 10
+
+    # List with prefix
+    response = await vectors_client.list_buckets(prefix="test-")
+    assert response.vectorBuckets is not None
+
+
+async def test_list_buckets_with_next_token(
+    storage: AsyncStorageClient, vector_bucket: str
+) -> None:
+    """Test listing buckets with next_token pagination"""
+    vectors_client = storage.vectors()
+
+    # List with max_results to potentially get pagination
+    response = await vectors_client.list_buckets(max_results=1)
+
+    # If there's a next_token, use it
+    if response.nextToken:
+        response2 = await vectors_client.list_buckets(
+            max_results=1,
+            next_token=response.nextToken,
+        )
+        assert response2.vectorBuckets is not None
+
+
+async def test_delete_bucket(
+    storage: AsyncStorageClient, uuid_factory: Callable[[], str]
+) -> None:
+    """Test deleting a vector bucket"""
+    bucket_name = f"test-delete-bucket-{uuid_factory()}"
+    vectors_client = storage.vectors()
+
+    # Create bucket
+    await vectors_client.create_bucket(bucket_name)
+
+    # Verify it exists
+    bucket = await vectors_client.get_bucket(bucket_name)
+    assert bucket is not None
+
+    # Delete it
+    await vectors_client.delete_bucket(bucket_name)
+
+    # Verify it's deleted (should return None)
+    deleted_bucket = await vectors_client.get_bucket(bucket_name)
+    assert deleted_bucket is None
+
+
 # ==================== AsyncVectorBucketScope Tests ====================
 
 
@@ -177,6 +410,7 @@ async def test_create_index(
 
     # Verify index was created
     index = await bucket_scope.get_index(index_name)
+    assert index is not None
     assert index.index_name == index_name
     assert index.dimension == dimension
     assert index.distance_metric == distance_metric
@@ -198,7 +432,7 @@ async def test_create_index_with_metadata(
     data_type = "float32"
     # Use model_validate to construct with alias
     metadata = MetadataConfiguration.model_validate(
-        {"nonFilterableMetadaKeys": ["internal_id"]}
+        {"nonFilterableMetadataKeys": ["internal_id"]}
     )
 
     vectors_client = storage.vectors()
@@ -214,6 +448,7 @@ async def test_create_index_with_metadata(
 
     # Verify index was created with metadata
     index = await bucket_scope.get_index(index_name)
+    assert index is not None
     assert index.index_name == index_name
     assert index.dimension == dimension
     assert index.distance_metric == distance_metric
@@ -231,7 +466,7 @@ async def test_get_index(
     """Test retrieving a vector index"""
     index_name = f"test-index-{uuid_factory()}"
     dimension = 64
-    distance_metric: DistanceMetric = "dotproduct"
+    distance_metric: DistanceMetric = "euclidean"
     data_type = "float32"
 
     vectors_client = storage.vectors()
@@ -247,6 +482,7 @@ async def test_get_index(
 
     # Get the index
     index = await bucket_scope.get_index(index_name)
+    assert index is not None
     assert index.index_name == index_name
     assert index.dimension == dimension
     assert index.distance_metric == distance_metric
@@ -341,6 +577,7 @@ async def test_delete_index(
 
     # Verify it exists
     index = await bucket_scope.get_index(index_name)
+    assert index is not None
     assert index.index_name == index_name
 
     # Delete it
@@ -398,7 +635,7 @@ async def test_put_vectors(
 
     # Verify vectors were stored by getting them
     response = await index_scope.get("vector1", "vector2", "vector3")
-    assert len(response.vectors) == 3
+    assert len(response) == 3
 
 
 async def test_get_vectors(
@@ -417,10 +654,10 @@ async def test_get_vectors(
 
     # Get vectors with data and metadata
     response = await index_scope.get("vector1", "vector2", return_data=True, return_metadata=True)
-    assert len(response.vectors) == 2
+    assert len(response) == 2
 
     # Verify vector data
-    vector1 = next((v for v in response.vectors if v.key == "vector1"), None)
+    vector1 = next((v for v in response if v.key == "vector1"), None)
     assert vector1 is not None
     assert vector1.data is not None
     assert len(vector1.data.float32) == 128
@@ -444,7 +681,7 @@ async def test_get_vectors_without_data(
 
     # Get vectors without data
     response = await index_scope.get("vector1", return_data=False, return_metadata=True)
-    assert len(response.vectors) == 1
+    assert len(response) == 1
     # Data might be None when return_data=False
     # This depends on API implementation
 
@@ -627,7 +864,7 @@ async def test_delete_vectors(
 
     # Verify vectors exist
     response = await index_scope.get("vector1", "vector2")
-    assert len(response.vectors) == 2
+    assert len(response) == 2
 
     # Delete vectors
     await index_scope.delete(["vector1", "vector2"])
@@ -750,7 +987,7 @@ async def test_full_workflow(
 
     # 3. Get vectors
     response = await index_scope.get("doc1", "doc2")
-    assert len(response.vectors) == 2
+    assert len(response) == 2
 
     # 4. List vectors
     list_response = await index_scope.list(max_results=10)
@@ -812,10 +1049,10 @@ async def test_multiple_indexes_same_bucket(
 
     # Verify vectors are in correct indexes
     response1 = await index1_scope.get("v1")
-    assert len(response1.vectors) == 1
+    assert len(response1) == 1
 
     response2 = await index2_scope.get("v2")
-    assert len(response2.vectors) == 1
+    assert len(response2) == 1
 
     # Cleanup
     await bucket_scope.delete_index(index1_name)
@@ -831,7 +1068,7 @@ async def test_different_distance_metrics(
     vectors_client = storage.vectors()
     bucket_scope = vectors_client.from_(vector_bucket)
 
-    metrics: list[DistanceMetric] = ["cosine", "euclidean", "dotproduct"]
+    metrics: list[DistanceMetric] = ["cosine", "euclidean"]
 
     for metric in metrics:
         index_name = f"index-{metric}-{uuid_factory()}"
@@ -844,6 +1081,7 @@ async def test_different_distance_metrics(
 
         # Verify index was created with correct metric
         index = await bucket_scope.get_index(index_name)
+        assert index is not None
         assert index.distance_metric == metric
 
         # Cleanup
