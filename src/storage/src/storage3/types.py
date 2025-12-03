@@ -163,7 +163,9 @@ DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
 
 
 class MetadataConfiguration(BaseModel):
-    nonFilterableMetadataKeys: Optional[List[str]]
+    non_filterable_metadata_keys: Optional[List[str]] = Field(
+        alias="nonFilterableMetadataKeys"
+    )
 
 
 class ListIndexesOptions(BaseModel):
