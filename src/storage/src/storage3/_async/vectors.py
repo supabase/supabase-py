@@ -163,7 +163,7 @@ class AsyncVectorIndexScope:
         return QueryVectorsResponse.model_validate_json(data.content)
 
     async def delete(self, keys: List[str]) -> None:
-        if 1 < len(keys) or len(keys) > 500:
+        if len(keys) < 1 or len(keys) > 500:
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
         body = self.with_metadata(keys=keys)
         await self._request.send(http_method="POST", path=["DeleteVectors"], body=body)
