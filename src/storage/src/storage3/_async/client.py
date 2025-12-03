@@ -8,8 +8,11 @@ from httpx import AsyncClient, Headers
 from storage3.constants import DEFAULT_TIMEOUT
 
 from ..version import __version__
+from .analytics import AsyncStorageAnalyticsClient
 from .bucket import AsyncStorageBucketAPI
 from .file_api import AsyncBucketProxy
+from .request import AsyncRequestBuilder
+from .vectors import AsyncStorageVectorsClient
 
 __all__ = [
     "AsyncStorageClient",
@@ -80,3 +83,18 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
             The unique identifier of the bucket
         """
         return AsyncBucketProxy(id, self._base_url, self._headers, self._client)
+
+    def vectors(self) -> AsyncStorageVectorsClient:
+        return AsyncStorageVectorsClient(
+            url=self._base_url.joinpath("v1", "vector"),
+            headers=self._headers,
+            session=self.session,
+        )
+
+    def analytics(self) -> AsyncStorageAnalyticsClient:
+        request = AsyncRequestBuilder(
+            session=self.session,
+            headers=self._headers,
+            base_url=self._base_url.joinpath("v1", "iceberg"),
+        )
+        return AsyncStorageAnalyticsClient(request=request)
