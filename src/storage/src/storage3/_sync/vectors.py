@@ -17,11 +17,8 @@ from ..types import (
     ListVectorsResponse,
     MetadataConfiguration,
     QueryVectorsResponse,
-    VectorBucket,
     VectorData,
     VectorFilter,
-    VectorIndex,
-    VectorMatch,
     VectorObject,
 )
 from .request import SyncRequestBuilder
@@ -54,15 +51,17 @@ class SyncVectorBucketScope:
             dimension=dimension,
             distanceMetric=distance_metric,
             dataType=data_type,
-            metadataConfiguration=dict(metadata) if metadata else None,
+            metadataConfiguration=metadata.model_dump(by_alias=True)
+            if metadata
+            else None,
         )
         self._request.send(http_method="POST", path=["CreateIndex"], body=body)
 
-    def get_index(self, index_name: str) -> Optional[VectorIndex]:
+    def get_index(self, index_name: str) -> Optional[GetVectorIndexResponse]:
         body = self.with_metadata(indexName=index_name)
         try:
             data = self._request.send(http_method="POST", path=["GetIndex"], body=body)
-            return GetVectorIndexResponse.model_validate_json(data.content).index
+            return GetVectorIndexResponse.model_validate_json(data.content)
         except StorageApiError:
             return None
 
@@ -102,17 +101,19 @@ class SyncVectorIndexScope:
         )
 
     def put(self, vectors: List[VectorObject]) -> None:
-        body = self.with_metadata(vectors=[v.as_json() for v in vectors])
+        body = self.with_metadata(
+            vectors=[v.model_dump(exclude_none=True) for v in vectors]
+        )
         self._request.send(http_method="POST", path=["PutVectors"], body=body)
 
     def get(
         self, *keys: str, return_data: bool = True, return_metadata: bool = True
-    ) -> List[VectorMatch]:
+    ) -> GetVectorsResponse:
         body = self.with_metadata(
             keys=keys, returnData=return_data, returnMetadata=return_metadata
         )
         data = self._request.send(http_method="POST", path=["GetVectors"], body=body)
-        return GetVectorsResponse.model_validate_json(data.content).vectors
+        return GetVectorsResponse.model_validate_json(data.content)
 
     def list(
         self,
@@ -153,7 +154,7 @@ class SyncVectorIndexScope:
         return QueryVectorsResponse.model_validate_json(data.content)
 
     def delete(self, keys: List[str]) -> None:
-        if 1 < len(keys) or len(keys) > 500:
+        if len(keys) < 1 or len(keys) > 500:
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
         body = self.with_metadata(keys=keys)
         self._request.send(http_method="POST", path=["DeleteVectors"], body=body)
@@ -170,15 +171,13 @@ class SyncStorageVectorsClient:
         body = {"vectorBucketName": bucket_name}
         self._request.send(http_method="POST", path=["CreateVectorBucket"], body=body)
 
-    def get_bucket(self, bucket_name: str) -> Optional[VectorBucket]:
+    def get_bucket(self, bucket_name: str) -> Optional[GetVectorBucketResponse]:
         body = {"vectorBucketName": bucket_name}
         try:
             data = self._request.send(
                 http_method="POST", path=["GetVectorBucket"], body=body
             )
-            return GetVectorBucketResponse.model_validate_json(
-                data.content
-            ).vectorBucket
+            return GetVectorBucketResponse.model_validate_json(data.content)
         except StorageApiError:
             return None
 
