@@ -42,7 +42,6 @@ class AsyncStorageAnalyticsClient:
         data = await self._request.send(
             http_method="GET", path=["bucket"], query_params=filtered_params
         )
-        print(data.content)
         return AnalyticsBucketsParser.validate_json(data.content)
 
     async def delete(self, bucket_name: str) -> AnalyticsBucketDeleteResponse:
