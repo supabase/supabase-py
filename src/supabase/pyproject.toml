@@ -1,6 +1,6 @@
 [project]
 name = "supabase"
-version = "2.24.0" # {x-release-please-version}
+version = "2.25.0" # {x-release-please-version}
 description = "Supabase client for Python."
 authors = [
   { name = "Joel Lee", email = "joel@joellee.org" },
@@ -22,11 +22,11 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-  "realtime == 2.24.0", # x-release-please-version
-  "supabase_functions == 2.24.0", # x-release-please-version
-  "storage3 == 2.24.0", # x-release-please-version
-  "supabase_auth == 2.24.0", # x-release-please-version
-  "postgrest == 2.24.0", # x-release-please-version
+  "realtime == 2.25.0", # x-release-please-version
+  "supabase_functions == 2.25.0", # x-release-please-version
+  "storage3 == 2.25.0", # x-release-please-version
+  "supabase_auth == 2.25.0", # x-release-please-version
+  "postgrest == 2.25.0", # x-release-please-version
   "httpx >=0.26,<0.29",
 ]
 

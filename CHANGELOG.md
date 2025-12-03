@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.25.0](https://github.com/supabase/supabase-py/compare/v2.24.0...v2.25.0) (2025-12-03)
+
+
+### Features
+
+* **storage:** add vector and analytics buckets support ([#1318](https://github.com/supabase/supabase-py/issues/1318)) ([fd0c122](https://github.com/supabase/supabase-py/commit/fd0c1220e4fbf13f0953953df0b58ddeadce0bd9))
+
 ## [2.24.0](https://github.com/supabase/supabase-py/compare/v2.23.3...v2.24.0) (2025-11-07)
 
 
