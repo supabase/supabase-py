@@ -54,7 +54,9 @@ class AsyncVectorBucketScope:
             dimension=dimension,
             distanceMetric=distance_metric,
             dataType=data_type,
-            metadataConfiguration=dict(metadata) if metadata else None,
+            metadataConfiguration=metadata.model_dump(by_alias=True)
+            if metadata
+            else None,
         )
         await self._request.send(http_method="POST", path=["CreateIndex"], body=body)
 
@@ -106,7 +108,9 @@ class AsyncVectorIndexScope:
         )
 
     async def put(self, vectors: List[VectorObject]) -> None:
-        body = self.with_metadata(vectors=[v.as_json() for v in vectors])
+        body = self.with_metadata(
+            vectors=[v.model_dump(exclude_none=True) for v in vectors]
+        )
         await self._request.send(http_method="POST", path=["PutVectors"], body=body)
 
     async def get(
@@ -149,7 +153,7 @@ class AsyncVectorIndexScope:
         filter: Optional[VectorFilter] = None,
         return_distance: bool = True,
         return_metadata: bool = True,
-    ) -> QueryVectorsResponse:
+    ) -> List[VectorMatch]:
         body = self.with_metadata(
             queryVector=dict(query_vector),
             topK=topK,
@@ -160,10 +164,10 @@ class AsyncVectorIndexScope:
         data = await self._request.send(
             http_method="POST", path=["QueryVectors"], body=body
         )
-        return QueryVectorsResponse.model_validate_json(data.content)
+        return QueryVectorsResponse.model_validate_json(data.content).vectors
 
     async def delete(self, keys: List[str]) -> None:
-        if 1 < len(keys) or len(keys) > 500:
+        if len(keys) < 1 or len(keys) > 500:
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
         body = self.with_metadata(keys=keys)
         await self._request.send(http_method="POST", path=["DeleteVectors"], body=body)

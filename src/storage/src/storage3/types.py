@@ -207,14 +207,11 @@ class VectorObject(BaseModel, extra=Extra.ignore):
     data: VectorData
     metadata: Optional[dict[str, Union[str, bool, float]]] = None
 
-    def as_json(self) -> JSON:
-        return {"key": self.key, "data": dict(self.data), "metadata": self.metadata}
-
 
 class VectorMatch(BaseModel, extra=Extra.ignore):
     key: str
     data: Optional[VectorData] = None
-    distance: Optional[int] = None
+    distance: Optional[float] = None
     metadata: Optional[dict[str, Any]] = None
 
 
@@ -228,7 +225,7 @@ class ListVectorsResponse(BaseModel, extra=Extra.ignore):
 
 
 class QueryVectorsResponse(BaseModel, extra=Extra.ignore):
-    matches: List[VectorMatch]
+    vectors: List[VectorMatch]
 
 
 class AnalyticsBucket(BaseModel, extra=Extra.ignore):
