@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from httpx import QueryParams
+from pyiceberg.catalog.rest import RestCatalog
 
 from ..types import (
     AnalyticsBucket,
@@ -49,3 +50,24 @@ class AsyncStorageAnalyticsClient:
             http_method="DELETE", path=["bucket", bucket_name]
         )
         return AnalyticsBucketDeleteResponse.model_validate_json(data.content)
+
+    async def catalog(
+        self,
+        catalog_name: str,
+        access_key: Optional[str] = None,
+    ) -> RestCatalog:
+        catalog_uri = self._request._base_url
+        s3_endpoint = self._request._base_url.parent.joinpath("s3")
+        return RestCatalog(
+            catalog_name,
+            warehouse=catalog_name,  # TODO: what should go here?
+            uri=str(catalog_uri),
+            **{
+                "py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO",
+                "s3.endpoint": str(s3_endpoint),
+                # "s3.access-key-id": S3_ACCESS_KEY,
+                # "s3.secret-access-key": S3_SECRET_KEY,
+                # "s3.region": S3_REGION,
+                "s3.force-virtual-addressing": "False",
+            },
+        )
