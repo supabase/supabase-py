@@ -51,23 +51,24 @@ class AsyncStorageAnalyticsClient:
         )
         return AnalyticsBucketDeleteResponse.model_validate_json(data.content)
 
-    async def catalog(
-        self,
-        catalog_name: str,
-        access_key: Optional[str] = None,
+    def catalog(
+        self, catalog_name: str, access_key_id: str, secret_access_key: str
     ) -> RestCatalog:
         catalog_uri = self._request._base_url
         s3_endpoint = self._request._base_url.parent.joinpath("s3")
+        service_key = self._request.headers.get("apiKey")
+        assert service_key, "apiKey must be passed in the headers."
         return RestCatalog(
             catalog_name,
             warehouse=catalog_name,  # TODO: what should go here?
             uri=str(catalog_uri),
+            token=service_key,
             **{
                 "py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO",
                 "s3.endpoint": str(s3_endpoint),
-                # "s3.access-key-id": S3_ACCESS_KEY,
-                # "s3.secret-access-key": S3_SECRET_KEY,
-                # "s3.region": S3_REGION,
+                "s3.access-key-id": access_key_id,
+                "s3.secret-access-key": secret_access_key,
+                "s3.region": "us-east-1",
                 "s3.force-virtual-addressing": "False",
             },
         )
