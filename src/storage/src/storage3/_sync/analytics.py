@@ -58,7 +58,7 @@ class SyncStorageAnalyticsClient:
         assert service_key, "apiKey must be passed in the headers."
         return RestCatalog(
             catalog_name,
-            warehouse=catalog_name,  # TODO: what should go here?
+            warehouse=catalog_name,
             uri=str(catalog_uri),
             token=service_key,
             **{
@@ -66,7 +66,6 @@ class SyncStorageAnalyticsClient:
                 "s3.endpoint": str(s3_endpoint),
                 "s3.access-key-id": access_key_id,
                 "s3.secret-access-key": secret_access_key,
-                "s3.region": "us-east-1",
                 "s3.force-virtual-addressing": "False",
             },
         )
