@@ -127,7 +127,15 @@ def test_encode_user_broadcast_push_json_with_metadata():
     assert result[0] == 3  # userBroadcastPush kind
     assert result[5] > 0  # metadata length (should have metadata)
     # Verify metadata contains "extra" but not "store"
-    metadata_start = 1 + 5 + 2 + 1 + 3 + 10  # header + lengths
+    # Format: kind(1) + join_ref_len(1) + ref_len(1) + topic_len(1) + user_event_len(1) + metadata_len(1) + encoding(1) = 7 bytes header
+    # Then: join_ref(2) + ref(1) + topic(3) + user_event(10) = 16 bytes
+    # So metadata starts at: 7 + 16 = 23
+    header_len = 7
+    join_ref_len = result[1]
+    ref_len = result[2]
+    topic_len = result[3]
+    user_event_len = result[4]
+    metadata_start = header_len + join_ref_len + ref_len + topic_len + user_event_len
     metadata_len = result[5]
     metadata_bytes = result[metadata_start:metadata_start + metadata_len]
     metadata = json.loads(metadata_bytes.decode("utf-8"))
@@ -323,6 +331,9 @@ def test_encode_validation_errors():
     
     # Test metadata too long
     serializer_with_meta = Serializer(allowed_metadata_keys=["extra"])
+    # Create metadata that will exceed 255 chars when JSON stringified
+    # JSON format: {"extra":"aaa..."} = 2 + 9 + 1 + 1 + N + 1 = 14 + N
+    # So we need N > 241 to exceed 255 total
     with pytest.raises(ValueError, match="metadata length"):
         serializer_with_meta._encode_user_broadcast_push_internal(
             {
@@ -332,7 +343,7 @@ def test_encode_validation_errors():
                 "payload": {
                     "event": "user-event",
                     "payload": {},
-                    "extra": "a" * 240,  # Will exceed 255 when JSON stringified
+                    "extra": "a" * 260,  # Will exceed 255 when JSON stringified
                 },
             },
             1,

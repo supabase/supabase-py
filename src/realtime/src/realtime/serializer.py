@@ -88,7 +88,7 @@ class Serializer:
             msg.get("topic"),
             msg.get("event"),
             payload,
-        ])
+        ], separators=(',', ':'))
 
     def _binary_encode_push(self, message: Dict[str, Any]) -> bytes:
         """
@@ -215,8 +215,10 @@ class Serializer:
         payload = message.get("payload", {})
         user_event = payload.get("event", "")
         
-        # Filter metadata based on allowed keys
+        # Filter metadata based on allowed keys (exclude special fields: type, event, payload)
         rest = self._pick(payload, self.allowed_metadata_keys)
+        # Remove special fields that shouldn't be in metadata
+        rest = {k: v for k, v in rest.items() if k not in ("type", "event", "payload")}
         metadata = json.dumps(rest) if rest else ""
         
         # Validate lengths don't exceed uint8 max value (255)
@@ -384,13 +386,13 @@ class Serializer:
 
     def _decode_broadcast(self, buffer: bytes) -> Dict[str, Any]:
         """Decode a broadcast message."""
-        if len(buffer) < self.HEADER_LENGTH + 3:
+        if len(buffer) < self.HEADER_LENGTH + 2:
             return {}
         
         topic_size = buffer[1]
         event_size = buffer[2]
         
-        offset = self.HEADER_LENGTH + 3
+        offset = self.HEADER_LENGTH + 2  # kind(1) + topic_len(1) + event_len(1) = 3, but offset is after reading lengths
         
         topic = buffer[offset:offset + topic_size].decode("utf-8")
         offset += topic_size
