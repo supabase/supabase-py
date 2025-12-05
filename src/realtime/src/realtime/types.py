@@ -17,7 +17,10 @@ from typing_extensions import (
 # Constants
 DEFAULT_TIMEOUT = 10
 PHOENIX_CHANNEL = "phoenix"
-VSN = "1.0.0"
+VSN_1_0_0 = "1.0.0"
+VSN_2_0_0 = "2.0.0"
+DEFAULT_VSN = VSN_1_0_0
+VSN = DEFAULT_VSN  # Backward compatibility
 DEFAULT_HEARTBEAT_INTERVAL = 25
 
 # Type variables and custom types
