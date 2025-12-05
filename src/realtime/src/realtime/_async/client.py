@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncRealtimeClient:
+    serializer: Optional[Serializer]
     def __init__(
         self,
         url: str,
@@ -375,6 +376,7 @@ class AsyncRealtimeClient:
             msg = Message(**message)
         
         # Encode message based on serializer version
+        message_data: Union[str, bytes]
         if self.vsn == VSN_2_0_0 and self.serializer:
             # Convert Message to dict for serializer
             msg_dict = {
