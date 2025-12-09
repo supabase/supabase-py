@@ -465,7 +465,10 @@ class AsyncBucketActionsMixin:
         response = await self._request(
             "GET",
             [*render_path, self.id, *path_parts],
-            query_params={**transform_to_dict(transform_options), **query_params},
+            query_params={
+                **transform_to_dict(transform_options),
+                **(query_params or {}),
+            },
         )
         return response.content
 
