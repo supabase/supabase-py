@@ -86,7 +86,7 @@ class SyncStorageClient(SyncStorageBucketAPI):
 
     def vectors(self) -> SyncStorageVectorsClient:
         return SyncStorageVectorsClient(
-            url=self._base_url.joinpath("v1", "vector"),
+            url=self._base_url.joinpath("vector"),
             headers=self._headers,
             session=self.session,
         )
@@ -95,6 +95,6 @@ class SyncStorageClient(SyncStorageBucketAPI):
         request = SyncRequestBuilder(
             session=self.session,
             headers=self._headers,
-            base_url=self._base_url.joinpath("v1", "iceberg"),
+            base_url=self._base_url.joinpath("iceberg"),
         )
         return SyncStorageAnalyticsClient(request=request)
