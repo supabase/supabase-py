@@ -28,6 +28,7 @@ dependencies = [
   "supabase_auth == 2.25.1", # x-release-please-version
   "postgrest == 2.25.1", # x-release-please-version
   "httpx >=0.26,<0.29",
+  "yarl>=1.22.0",
 ]
 
 [project.urls]
