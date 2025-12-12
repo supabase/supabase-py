@@ -17,6 +17,7 @@ from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_auth import AsyncMemoryStorage
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import AsyncFunctionsClient
+from yarl import URL
 
 from ..lib.client_options import AsyncClientOptions as ClientOptions
 from ..lib.client_options import AsyncHttpxClient
@@ -65,7 +66,9 @@ class AsyncClient:
         if options is None:
             options = ClientOptions(storage=AsyncMemoryStorage())
 
-        self.supabase_url = supabase_url
+        self.supabase_url = (
+            URL(supabase_url) if supabase_url.endswith("/") else URL(supabase_url + "/")
+        )
         self.supabase_key = supabase_key
         self.options = copy.copy(options)
         self.options.headers = {
@@ -73,15 +76,17 @@ class AsyncClient:
             **self._get_auth_headers(),
         }
 
-        self.rest_url = f"{supabase_url}/rest/v1"
-        self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
-        self.auth_url = f"{supabase_url}/auth/v1"
-        self.storage_url = f"{supabase_url}/storage/v1/"
-        self.functions_url = f"{supabase_url}/functions/v1"
+        self.rest_url = self.supabase_url.joinpath("rest", "v1")
+        self.realtime_url = self.supabase_url.joinpath("realtime", "v1").with_scheme(
+            "wss" if self.supabase_url.scheme == "https" else "ws"
+        )
+        self.auth_url = self.supabase_url.joinpath("auth", "v1")
+        self.storage_url = self.supabase_url.joinpath("storage", "v1")
+        self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
         # Instantiate clients.
         self.auth = self._init_supabase_auth_client(
-            auth_url=self.auth_url,
+            auth_url=str(self.auth_url),
             client_options=self.options,
         )
         self.realtime = self._init_realtime_client(
@@ -178,7 +183,7 @@ class AsyncClient:
     def postgrest(self) -> AsyncPostgrestClient:
         if self._postgrest is None:
             self._postgrest = self._init_postgrest_client(
-                rest_url=self.rest_url,
+                rest_url=str(self.rest_url),
                 headers=self.options.headers,
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
@@ -191,7 +196,7 @@ class AsyncClient:
     def storage(self) -> AsyncStorageClient:
         if self._storage is None:
             self._storage = self._init_storage_client(
-                storage_url=self.storage_url,
+                storage_url=str(self.storage_url),
                 headers=self.options.headers,
                 storage_client_timeout=self.options.storage_client_timeout,
                 http_client=self.options.httpx_client,
@@ -202,7 +207,7 @@ class AsyncClient:
     def functions(self) -> AsyncFunctionsClient:
         if self._functions is None:
             self._functions = AsyncFunctionsClient(
-                url=self.functions_url,
+                url=str(self.functions_url),
                 headers=self.options.headers,
                 timeout=(
                     self.options.function_client_timeout
@@ -233,13 +238,15 @@ class AsyncClient:
 
     @staticmethod
     def _init_realtime_client(
-        realtime_url: str,
+        realtime_url: URL,
         supabase_key: str,
         options: Optional[RealtimeClientOptions] = None,
     ) -> AsyncRealtimeClient:
         realtime_options = options or {}
         """Private method for creating an instance of the realtime-py client."""
-        return AsyncRealtimeClient(realtime_url, token=supabase_key, **realtime_options)
+        return AsyncRealtimeClient(
+            str(realtime_url), token=supabase_key, **realtime_options
+        )
 
     @staticmethod
     def _init_storage_client(
