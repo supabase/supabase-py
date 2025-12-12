@@ -26,6 +26,7 @@ dependencies = [
   "deprecation >=2.1.0",
   "pydantic >=2.11.7",
   "yarl>=1.20.1",
+  "pyiceberg>=0.10.0",
 ]
 
 [project.urls]
