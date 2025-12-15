@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.26.0](https://github.com/supabase/supabase-py/compare/v2.25.1...v2.26.0) (2025-12-15)
+
+
+### Features
+
+* **storage:** add pyiceberg wrapper ([#1326](https://github.com/supabase/supabase-py/issues/1326)) ([08e3b4c](https://github.com/supabase/supabase-py/commit/08e3b4caa47badae3df9116c277b3df326e84a53))
+* **supabase:** use yarl URL builder in supabase as well ([#1331](https://github.com/supabase/supabase-py/issues/1331)) ([78ebf2c](https://github.com/supabase/supabase-py/commit/78ebf2c62107bd2cfc7e2ee4bcdd3388f091a6e3))
+
+
+### Bug Fixes
+
+* **storage:** remove v1 from path concatenation ([#1330](https://github.com/supabase/supabase-py/issues/1330)) ([e3ddf40](https://github.com/supabase/supabase-py/commit/e3ddf408293caa318f25fc2c3048373442ac6edc))
+
 ## [2.25.1](https://github.com/supabase/supabase-py/compare/v2.25.0...v2.25.1) (2025-12-09)
 
 
