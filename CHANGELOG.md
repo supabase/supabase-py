@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.25.1](https://github.com/supabase/supabase-py/compare/v2.25.0...v2.25.1) (2025-12-09)
+
+
+### Bug Fixes
+
+* **storage:** add query parameters option to download ([#1327](https://github.com/supabase/supabase-py/issues/1327)) ([63f7226](https://github.com/supabase/supabase-py/commit/63f72260b8d68cac4185b66517f58cbb2b40365f))
+
 ## [2.25.0](https://github.com/supabase/supabase-py/compare/v2.24.0...v2.25.0) (2025-12-03)
 
 
