@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.27.0](https://github.com/supabase/supabase-py/compare/v2.26.0...v2.27.0) (2025-12-16)
+
+
+### Features
+
+* **auth:** add X (OAuth 2.0) provider ([#1335](https://github.com/supabase/supabase-py/issues/1335)) ([f600f96](https://github.com/supabase/supabase-py/commit/f600f96b521d306f07a21601c58c61dc7fc29c68))
+
+
+### Bug Fixes
+
+* **storage:** replace deprecated pydantic Extra with literal values ([#1334](https://github.com/supabase/supabase-py/issues/1334)) ([6df3545](https://github.com/supabase/supabase-py/commit/6df354578560fdd2a1a50380420c10b436e7bca1))
+
 ## [2.26.0](https://github.com/supabase/supabase-py/compare/v2.25.1...v2.26.0) (2025-12-15)
 
 
