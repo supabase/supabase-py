@@ -58,7 +58,7 @@ class FromHTTPResponse(Protocol[T]):
 Success = TypeVar("Success")
 Failure = TypeVar("Failure", bound=Exception)
 
-Model = TypeVar("Model", bound=BaseModel)
+Model = TypeVar("Model", BaseModel, TypeAdapter)
 
 
 def validate_bytes(model: Model) -> FromHTTPResponse[Model]:
