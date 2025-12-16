@@ -39,7 +39,8 @@ Provider = Literal[
     "slack_oidc",
     "spotify",
     "twitch",
-    "twitter",
+    "twitter",  # Uses OAuth 1.0a
+    "x",  # Uses OAuth 2.0
     "workos",
     "zoom",
 ]
