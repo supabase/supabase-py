@@ -501,13 +501,20 @@ class AsyncRealtimeChannel:
 
     def _broadcast_endpoint_url(self):
         return f"{http_endpoint_url(self.socket.http_endpoint)}/api/broadcast"
-
+    
     async def _rejoin(self) -> None:
         if self.is_leaving:
             return
-        await self.socket._leave_open_topic(self.topic)
+
+        # On reconnect, the server already considers the channel closed.
+        # Sending phx_leave causes the channel to close again during rejoin.
         self.state = ChannelStates.JOINING
+
+        # Reset join push refs to avoid stale replies
+        self.join_push.ref = None
+
         await self.join_push.resend()
+
 
     def _can_push(self):
         return self.socket.is_connected and self._joined_once
