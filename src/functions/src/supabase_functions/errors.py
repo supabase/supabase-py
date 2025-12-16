@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from httpx import Response
+
 
 class FunctionsApiErrorDict(TypedDict):
     name: str
@@ -33,12 +35,16 @@ class FunctionsHttpError(FunctionsError):
         )
 
 
+def on_error_response(response: Response) -> FunctionsHttpError | FunctionsRelayError:
+    is_relay_error = response.headers.get("x-relay-header")
+    if is_relay_error == "true":
+        return FunctionsRelayError(
+            response.text, "FunctionsRelayError", response.status_code
+        )
+    return FunctionsHttpError(response.text, response.status_code)
+
+
 class FunctionsRelayError(FunctionsError):
     """Base exception for relay errors."""
 
-    def __init__(self, message: str, code: int | None = None) -> None:
-        super().__init__(
-            message,
-            "FunctionsRelayError",
-            400 if code is None else code,
-        )
+    pass

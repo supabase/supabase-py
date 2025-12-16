@@ -3,9 +3,7 @@ from typing import Any
 
 import pytest
 from supabase_functions.utils import (
-    BASE64URL_REGEX,
     FunctionRegion,
-    is_http_url,
     is_valid_str_arg,
 )
 
@@ -58,33 +56,6 @@ def test_is_valid_str_arg(test_input: Any, expected: bool) -> None:
         ("", False),
     ],
 )
-def test_is_http_url(test_input: str, expected: bool) -> None:
-    assert is_http_url(test_input) == expected
-
-
-def test_base64url_regex() -> None:
-    import re
-
-    pattern = re.compile(BASE64URL_REGEX, re.IGNORECASE)
-
-    # Valid base64url strings
-    assert pattern.match("abcd")
-    assert pattern.match("1234")
-    assert pattern.match("abc")
-    assert pattern.match("12")
-    assert pattern.match("ab")
-    assert pattern.match("ABCD")
-    assert pattern.match("ABC")
-    assert pattern.match("AB")
-    assert pattern.match("a-b_")
-
-    # Invalid base64url strings
-    assert not pattern.match("a")  # too short
-    assert not pattern.match("abcde")  # invalid length
-    assert not pattern.match("abc!")  # invalid character
-    assert not pattern.match("abc@")  # invalid character
-
-
 @pytest.mark.skipif(
     sys.version_info < (3, 11),
     reason="StrEnum import test only relevant for Python 3.11+",

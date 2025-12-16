@@ -1,0 +1,12 @@
+[project]
+name = "supabase_utils"
+version = "2.26.0"
+description = "Common collection of methods used in the supabase python libraries."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.12.2",
+    "typing-extensions>=4.15.0",
+    "yarl>=1.22.0",
+]
