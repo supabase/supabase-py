@@ -3,7 +3,6 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Concatenate,
     Generic,
     List,
     Literal,
@@ -23,6 +22,7 @@ from httpx import (
     Response,
 )
 from pydantic import BaseModel, TypeAdapter
+from typing_extensions import Concatenate
 from yarl import URL
 
 from .types import JSON
