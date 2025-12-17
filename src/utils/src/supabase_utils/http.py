@@ -6,7 +6,6 @@ from typing import (
     Generic,
     List,
     Literal,
-    ParamSpec,
     Protocol,
     TypeVar,
     overload,
@@ -22,7 +21,7 @@ from httpx import (
     Response,
 )
 from pydantic import BaseModel, TypeAdapter
-from typing_extensions import Concatenate
+from typing_extensions import Concatenate, ParamSpec
 from yarl import URL
 
 from .types import JSON
