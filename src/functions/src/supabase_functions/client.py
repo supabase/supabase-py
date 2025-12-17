@@ -124,7 +124,9 @@ class FunctionsClient(Generic[Executor]):
     @http_endpoint
     def invoke(
         self, function_name: str, invoke_options: Optional[Dict] = None
-    ) -> ServerEndpoint[Union[JSON, bytes], FunctionsHttpError | FunctionsRelayError]:
+    ) -> ServerEndpoint[
+        Union[JSON, bytes], Union[FunctionsHttpError, FunctionsRelayError]
+    ]:
         """Invokes a function
 
         Parameters
