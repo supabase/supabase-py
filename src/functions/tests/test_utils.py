@@ -43,19 +43,6 @@ def test_is_valid_str_arg(test_input: Any, expected: bool) -> None:
     assert is_valid_str_arg(test_input) == expected
 
 
-@pytest.mark.parametrize(
-    "test_input,expected",
-    [
-        ("https://example.com", True),
-        ("http://localhost", True),
-        ("http://127.0.0.1:8000", True),
-        ("https://api.supabase.com", True),
-        ("ftp://example.com", False),
-        ("ws://example.com", False),
-        ("not-a-url", False),
-        ("", False),
-    ],
-)
 @pytest.mark.skipif(
     sys.version_info < (3, 11),
     reason="StrEnum import test only relevant for Python 3.11+",

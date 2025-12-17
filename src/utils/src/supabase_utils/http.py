@@ -97,7 +97,8 @@ class AsyncExecutor:
     async def communicate(
         self, base_url: URL, endpoint: ServerEndpoint[Success, Failure]
     ) -> Success:
-        response = await self.session.send(endpoint.request.to_request(base_url))
+        request = endpoint.request.to_request(base_url)
+        response = await self.session.send(request)
         try:
             response.raise_for_status()
             return endpoint.on_success(response)

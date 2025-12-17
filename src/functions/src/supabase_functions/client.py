@@ -42,6 +42,8 @@ class FunctionsClient(Generic[Executor]):
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,
     ) -> None:
+        if not (url.scheme == "http" or url.scheme == "https"):
+            raise ValueError("url must be a valid HTTP URL string")
         self.headers = {
             "User-Agent": f"supabase-py/functions-py v{__version__}",
             **headers,
@@ -80,23 +82,12 @@ class FunctionsClient(Generic[Executor]):
 
         self.headers["Authorization"] = f"Bearer {token}"
 
-    @http_endpoint
-    def invoke(
-        self, *, function_name: str, invoke_options: Optional[Dict] = None
-    ) -> ServerEndpoint[Union[JSON, bytes], FunctionsHttpError | FunctionsRelayError]:
-        """Invokes a function
-
-        Parameters
-        ----------
-        function_name : the name of the function to invoke
-        invoke_options : object with the following properties
-            `headers`: object representing the headers to send with the request
-            `body`: the body of the request
-            `responseType`: how the response should be parsed. The default is `json`
-        """
+    def _invoke_options_to_request(
+        self, function_name, invoke_options: Optional[Dict] = None
+    ) -> tuple[EndpointRequest, bool]:
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
-        headers = self.headers
+        headers = Headers(self.headers)
         params = QueryParams()
         body = None
         response_type = "text/plain"
@@ -121,16 +112,35 @@ class FunctionsClient(Generic[Executor]):
                 headers["Content-Type"] = "text/plain"
             elif isinstance(body, dict):
                 headers["Content-Type"] = "application/json"
+        request = EndpointRequest(
+            method="POST",
+            path=[function_name],
+            headers=headers,
+            body=body,
+            query_params=params,
+        )
+        return request, response_type == "json"
 
+    @http_endpoint
+    def invoke(
+        self, function_name: str, invoke_options: Optional[Dict] = None
+    ) -> ServerEndpoint[Union[JSON, bytes], FunctionsHttpError | FunctionsRelayError]:
+        """Invokes a function
+
+        Parameters
+        ----------
+        function_name : the name of the function to invoke
+        invoke_options : object with the following properties
+            `headers`: object representing the headers to send with the request
+            `body`: the body of the request
+            `responseType`: how the response should be parsed. The default is `json`
+        """
+        request, is_json = self._invoke_options_to_request(
+            function_name, invoke_options
+        )
         return ServerEndpoint(
-            request=EndpointRequest(
-                method="POST",
-                path=[function_name],
-                headers=Headers(headers),
-                body=body,
-                query_params=params,
-            ),
-            on_success=json_or_bytes(response_type == "json"),
+            request=request,
+            on_success=json_or_bytes(is_json),
             on_failure=on_error_response,
         )
 
