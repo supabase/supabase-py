@@ -236,7 +236,7 @@ class AsyncRealtimeChannel:
 
                         if (
                             server_binding
-                            and server_binding.events == postgres_callback.event
+                            and server_binding.event == postgres_callback.event
                             and server_binding.schema_ == postgres_callback.schema
                             and server_binding.table == postgres_callback.table
                             and server_binding.filter == postgres_callback.filter

@@ -36,8 +36,8 @@ class JoinMessage(BaseModel):
 
 class PostgresRowChange(BaseModel):
     id: int
-    events: RealtimePostgresChangesListenEvent
-    table: str
+    event: RealtimePostgresChangesListenEvent
+    table: Optional[str] = None
     schema_: Optional[str] = Field(alias="schema", default=None)
     filter: Optional[str] = None
 
