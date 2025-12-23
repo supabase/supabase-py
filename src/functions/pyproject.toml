@@ -15,6 +15,7 @@ requires-python = ">=3.9"
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
   "strenum >=0.4.15",
+  "supabase-utils==0.26.1",
   "yarl>=1.20.1",
 ]
 
@@ -42,6 +43,9 @@ dev = [{ include-group = "lints" }, {include-group = "tests" }]
 
 [tool.uv]
 default-groups = [ "dev" ]
+
+[tool.uv.sources]
+supabase-utils = { workspace = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

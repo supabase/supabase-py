@@ -5,7 +5,8 @@ members = [
   "src/supabase",
   "src/storage",
   "src/postgrest",
-  "src/auth"
+  "src/auth",
+  "src/utils",
 ]
 
 [tool.uv.sources]
