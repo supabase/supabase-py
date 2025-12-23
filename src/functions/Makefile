@@ -16,18 +16,6 @@ mypy:
 help::
 	@echo "  mypy           -- run mypy on supabase_functions package"
 
-unasync:
-	uv run --package supabase_functions run-unasync.py
-help::
-	@echo "  unasync        -- invoke run-unasync.py helper"
-
-build-sync: unasync
-	sed -i '0,/SyncMock, /{s/SyncMock, //}' tests/_sync/test_function_client.py
-	sed -i 's/SyncMock/Mock/g' tests/_sync/test_function_client.py
-	sed -i 's/SyncClient/Client/g' tests/_sync/test_function_client.py
-help::
-	@echo "  build-sync     -- generate _sync from _async implementation"
-
 clean:
 	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
 	rm -f .coverage coverage.xml

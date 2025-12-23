@@ -1,7 +1,7 @@
-from typing import Mapping, Sequence, TypeAlias, Union
+from typing import Mapping, Sequence, Union
 
 from pydantic import TypeAdapter
-from typing_extensions import TypeAliasType
+from typing_extensions import TypeAlias, TypeAliasType
 
 JSON: TypeAlias = TypeAliasType(
     "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
