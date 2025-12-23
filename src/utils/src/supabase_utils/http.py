@@ -59,12 +59,22 @@ class FromHTTPResponse(Protocol[T]):
 Success = TypeVar("Success")
 Failure = TypeVar("Failure", bound=Exception)
 
-Model = TypeVar("Model", BaseModel, TypeAdapter)
+Model = TypeVar("Model", bound=BaseModel)
 
 
-def validate_bytes(model: Model) -> FromHTTPResponse[Model]:
+def validate_model(model: type[Model]) -> FromHTTPResponse[Model]:
     def from_response(response: Response) -> Model:
-        return TypeAdapter(model).validate_json(response.content)
+        return model.model_validate_json(response.content)
+
+    return from_response
+
+
+Inner = TypeVar("Inner")
+
+
+def validate_adapter(adapter: TypeAdapter[Inner]) -> FromHTTPResponse[Inner]:
+    def from_response(response: Response) -> Inner:
+        return adapter.validate_json(response.content)
 
     return from_response
 

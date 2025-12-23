@@ -26,3 +26,16 @@ homepage = "https://github.com/supabase/supabase-py"
 repository = "https://github.com/supabase/supabase-py"
 documentation = "https://github.com/supabase/supabase-py/src/utils"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
+
+[tool.mypy]
+python_version = "3.9"
+check_untyped_defs = true
+allow_redefinition = true
+follow_untyped_imports = true # for deprecation module that does not have stubs
+
+no_warn_no_return = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict = true
