@@ -6,8 +6,10 @@ from typing import (
     Generic,
     List,
     Literal,
+    Optional,
     Protocol,
     TypeVar,
+    Union,
     overload,
 )
 
@@ -120,20 +122,20 @@ class http_endpoint(Generic[Params, Success, Failure]):
 
     @overload
     def __get__(
-        self, obj: HasExecutor[SyncExecutor], objtype: type | None = None
+        self, obj: HasExecutor[SyncExecutor], objtype: Optional[type] = None
     ) -> Callable[Params, Success]: ...
 
     @overload
     def __get__(
-        self, obj: HasExecutor[AsyncExecutor], objtype: type | None = None
+        self, obj: HasExecutor[AsyncExecutor], objtype: Optional[type] = None
     ) -> Callable[Params, Awaitable[Success]]: ...
 
     def __get__(
-        self, obj: HasExecutor[Executor], objtype: type | None = None
-    ) -> Callable[Params, Success | Awaitable[Success]]:
+        self, obj: HasExecutor[Executor], objtype: Optional[type] = None
+    ) -> Callable[Params, Union[Success, Awaitable[Success]]]:
         def bound_method(
             *args: Params.args, **kwargs: Params.kwargs
-        ) -> Success | Awaitable[Success]:
+        ) -> Union[Success, Awaitable[Success]]:
             endpoint = self.method(obj, *args, **kwargs)
             return obj.executor.communicate(obj.base_url, endpoint)
 
