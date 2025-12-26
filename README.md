@@ -78,3 +78,17 @@ All the subpackages command are available from the main root by prefixing the co
 make realtime.tests # run only realtime tests
 make storage.clean  # delete temporary files only in the storage package
 ```
+## Minimal Usage Example
+
+```python
+from supabase import create_client
+
+url = "https://your-project-id.supabase.co"
+key = "your-anon-key"
+
+supabase = create_client(url, key)
+
+response = supabase.table("table_name").select("*").execute()
+print(response.data)
+```
+
