@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.27.1](https://github.com/supabase/supabase-py/compare/v2.27.0...v2.27.1) (2026-01-02)
+
+
+### Bug Fixes
+
+* **realtime:** use 'event' instead of 'events' in postgres_changes protocol ([#1339](https://github.com/supabase/supabase-py/issues/1339)) ([c1e7986](https://github.com/supabase/supabase-py/commit/c1e7986c5ef6406b1e966cc7aa69971876ef5934))
+
 ## [2.27.0](https://github.com/supabase/supabase-py/compare/v2.26.0...v2.27.0) (2025-12-16)
 
 
