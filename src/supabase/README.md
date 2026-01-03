@@ -24,24 +24,28 @@ conda install -c conda-forge supabase
 
 ## Usage
 
-Set your Supabase environment variables in a dotenv file, or using the shell:
+## Usage
+
+It is recommended to use environment variables to store your Supabase credentials. 
 
 ```bash
-export SUPABASE_URL="my-url-to-my-awesome-supabase-instance"
-export SUPABASE_KEY="my-supa-dupa-secret-supabase-api-key"
-```
+pip install python-dotenv
 
 Init client:
 
 ```python
 import os
+from dotenv import load_dotenv
 from supabase import create_client, Client
+
+load_dotenv()
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
+
+# Using the Client type hint provides better IDE autocompletion
 supabase: Client = create_client(url, key)
 ```
-
 Use the supabase client to interface with your database.
 
 ### Sign-up
