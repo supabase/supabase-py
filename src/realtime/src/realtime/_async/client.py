@@ -20,6 +20,7 @@ from ..types import (
     PHOENIX_CHANNEL,
     VSN,
     ChannelEvents,
+    ChannelStates,
 )
 from ..utils import is_ws_url
 from .channel import AsyncRealtimeChannel, RealtimeChannelOptions
@@ -105,7 +106,7 @@ class AsyncRealtimeClient:
                 except ValidationError as e:
                     logger.error(f"Unrecognized message format {msg!r}\n{e}")
                     continue
-                logger.info(f"parsed message as {message}")
+                logger.info(f"parsed message as {message!r}")
                 if channel := self.channels.get(message.topic):
                     channel._handle_message(message)
         except websockets.exceptions.ConnectionClosedError as e:
@@ -113,6 +114,10 @@ class AsyncRealtimeClient:
 
     async def _reconnect(self) -> None:
         self._ws_connection = None
+
+        for channel in self.channels.values():
+            channel.state = ChannelStates.ERRORED
+
         await self.connect()
 
         if self.is_connected:
@@ -168,7 +173,7 @@ class AsyncRealtimeClient:
                         f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (backoff={backoff}s)"
                     )
                     await asyncio.sleep(wait_time)
-                    backoff = min(backoff * 2, 60)
+                    backoff = min(backoff, 60)
 
         raise Exception(
             f"Failed to establish WebSocket connection after {self.max_retries} attempts"
