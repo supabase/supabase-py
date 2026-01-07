@@ -505,6 +505,7 @@ class AsyncRealtimeChannel:
     async def _rejoin(self) -> None:
         if self.is_leaving:
             return
+        logger.info(f"Rejoining channel after reconnection: {self.topic}")
         self.state = ChannelStates.JOINING
         await self.join_push.resend()
 

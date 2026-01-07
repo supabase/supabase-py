@@ -115,15 +115,19 @@ class AsyncRealtimeClient:
     async def _reconnect(self) -> None:
         self._ws_connection = None
 
-        for channel in self.channels.values():
+        to_rejoin = [
+            chan
+            for chan in self.channels.values()
+            if chan.state == ChannelStates.JOINED or chan.state == ChannelStates.JOINING
+        ]
+        for channel in to_rejoin:
             channel.state = ChannelStates.ERRORED
 
         await self.connect()
 
         if self.is_connected:
-            for topic, channel in self.channels.items():
-                logger.info(f"Rejoining channel after reconnection: {topic}")
-                await channel._rejoin()
+            rejoins = [asyncio.Task(chan._rejoin()) for chan in to_rejoin]
+            await asyncio.wait(rejoins)
 
     async def connect(self) -> None:
         """
