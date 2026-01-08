@@ -78,3 +78,11 @@ All the subpackages command are available from the main root by prefixing the co
 make realtime.tests # run only realtime tests
 make storage.clean  # delete temporary files only in the storage package
 ```
+### Windows Development Notes
+
+If you are developing on Windows, some commands differ from the Unix-based examples above.
+
+#### Python and virtual environment
+- Use the `py` launcher instead of `python`
+- Create and activate a virtual environment with:
+
