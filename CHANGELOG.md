@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.27.2](https://github.com/supabase/supabase-py/compare/v2.27.1...v2.27.2) (2026-01-14)
+
+
+### Bug Fixes
+
+* **ci:** generate new token for release-please ([#1348](https://github.com/supabase/supabase-py/issues/1348)) ([c2ad37f](https://github.com/supabase/supabase-py/commit/c2ad37f9dc2c5a73d9a1ea06f723e0810ab6aecd))
+* **ci:** run CI when .github files change ([#1349](https://github.com/supabase/supabase-py/issues/1349)) ([a221aac](https://github.com/supabase/supabase-py/commit/a221aac029a36693e325125ad036c34936617247))
+* **realtime:** ammend reconnect logic to not unsubscribe ([#1346](https://github.com/supabase/supabase-py/issues/1346)) ([cfbe594](https://github.com/supabase/supabase-py/commit/cfbe5943cbc45679bd85dcfd6860c98435912011))
+
 ## [2.27.1](https://github.com/supabase/supabase-py/compare/v2.27.0...v2.27.1) (2026-01-06)
 
 
