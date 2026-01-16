@@ -22,6 +22,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone Repository
@@ -39,7 +40,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Run Tests
-        run: make ci
+        run: make ${{ matrix.package }}.tests
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
