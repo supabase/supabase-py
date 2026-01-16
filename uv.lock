@@ -1978,7 +1978,7 @@ wheels = [
 
 [[package]]
 name = "postgrest"
-version = "2.25.1"
+version = "2.27.2"
 source = { editable = "src/postgrest" }
 dependencies = [
     { name = "deprecation" },
@@ -2659,7 +2659,7 @@ wheels = [
 
 [[package]]
 name = "realtime"
-version = "2.25.1"
+version = "2.27.2"
 source = { editable = "src/realtime" }
 dependencies = [
     { name = "pydantic" },
@@ -3270,7 +3270,7 @@ wheels = [
 
 [[package]]
 name = "storage3"
-version = "2.25.1"
+version = "2.27.2"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
@@ -3384,7 +3384,7 @@ wheels = [
 
 [[package]]
 name = "supabase"
-version = "2.25.1"
+version = "2.27.2"
 source = { editable = "src/supabase" }
 dependencies = [
     { name = "httpx" },
@@ -3398,6 +3398,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -3429,6 +3430,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "mypy", specifier = ">=1.18.2" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-asyncio", specifier = ">=0.24,<1.1" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
@@ -3449,7 +3451,7 @@ tests = [
 
 [[package]]
 name = "supabase-auth"
-version = "2.25.1"
+version = "2.27.2"
 source = { editable = "src/auth" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -3530,7 +3532,7 @@ tests = [
 
 [[package]]
 name = "supabase-functions"
-version = "2.25.1"
+version = "2.27.2"
 source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
