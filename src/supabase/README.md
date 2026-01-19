@@ -30,6 +30,17 @@ Set your Supabase environment variables in a dotenv file, or using the shell:
 export SUPABASE_URL="my-url-to-my-awesome-supabase-instance"
 export SUPABASE_KEY="my-supa-dupa-secret-supabase-api-key"
 ```
+> ℹ️ **Where do these values come from?**
+>
+> You can find `SUPABASE_URL` and `SUPABASE_KEY` in your Supabase project dashboard:
+>
+> 1. Go to **Settings → API**
+> 2. Copy:
+>    - **Project URL** → `SUPABASE_URL`
+>    - **anon public key** → `SUPABASE_KEY`
+>
+> ⚠️ Never expose your `service_role` key in client-side or public repositories.
+
 
 Init client:
 
