@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from json import JSONDecodeError
 from re import search
 from typing import (
@@ -25,9 +26,9 @@ from httpx import Response as RequestResponse
 from pydantic import BaseModel, ValidationError
 from yarl import URL
 
-try:
-    from typing import Self  # type: ignore
-except ImportError:
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
     from typing_extensions import Self
 
 try:

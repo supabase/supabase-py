@@ -17,11 +17,12 @@ permissions:
 
 jobs:
   test:
-    name: Test / OS ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    name: py${{ matrix.python-version }} | ${{ matrix.package }} @ ${{ matrix.os }} 
     strategy:
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone Repository
@@ -39,7 +40,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Run Tests
-        run: make ci
+        run: make ${{ matrix.package }}.tests
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
@@ -59,7 +60,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
-          carryforward: "run-ubuntu-latest-3.9,run-ubuntu-latest-3.10,run-ubuntu-latest-3.11,run-ubuntu-latest-3.12,run-ubuntu-latest-3.13,run-ubuntu-latest-3.14"
 
   release-please:
     needs: test
