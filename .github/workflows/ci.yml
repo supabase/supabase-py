@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   test:
-    name: Test ${{ matrix.package }} / ${{ matrix.os }} / ${{ matrix.python-version }} 
+    name: py${{ matrix.python-version }} | ${{ matrix.package }} tests @ ${{ matrix.os }} 
     strategy:
       matrix:
         os: [ubuntu-latest]
