@@ -26,7 +26,7 @@ from pydantic import BaseModel, ValidationError
 from yarl import URL
 
 try:
-    from typing import Self  # type: ignore
+    from typing import Self
 except ImportError:
     from typing_extensions import Self
 
