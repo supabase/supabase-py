@@ -196,6 +196,8 @@ class AsyncBucketActionsMixin:
         )
         data: UploadData = response.json()
 
+        # TODO(v3): return a different type here
+        # as the response never contains an `Id`
         return UploadResponse(path=path, Key=data["Key"], id=None)
 
     def _make_signed_url(
