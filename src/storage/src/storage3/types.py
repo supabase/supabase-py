@@ -103,11 +103,13 @@ class UploadData(TypedDict, total=False):
 
 @dataclass
 class UploadResponse:
+    id: Optional[str]
     path: str
     full_path: str
     fullPath: str
 
-    def __init__(self, path: str, Key: str) -> None:
+    def __init__(self, path: str, Key: str, id: Optional[str]) -> None:
+        self.id = id
         self.path = path
         self.full_path = Key
         self.fullPath = Key
