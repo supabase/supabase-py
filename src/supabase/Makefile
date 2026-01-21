@@ -14,7 +14,7 @@ help::
 	@echo "  pytest         -- run pytest on supabase package"
 
 mypy:
-	uv run --package supabase mypy src/supabase tests
+	uv run --package supabase --group tests mypy src/supabase tests
 help::
 	@echo "  mypy           -- run mypy on supabase package"
 
