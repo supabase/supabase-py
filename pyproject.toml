@@ -13,6 +13,7 @@ members = [
 realtime = { workspace = true }
 supabase_functions  = { workspace = true }
 supabase_auth = { workspace = true }
+supabase_utils = { workspace = true }
 storage3 = { workspace = true }
 postgrest = { workspace = true }
 supabase = { workspace = true }
