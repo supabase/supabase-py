@@ -3278,7 +3278,6 @@ dependencies = [
     { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
     { name = "pyiceberg" },
-    { name = "supabase-utils" },
     { name = "yarl" },
 ]
 
@@ -3326,7 +3325,6 @@ requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pyiceberg", specifier = ">=0.10.0" },
-    { name = "supabase-utils", editable = "src/utils" },
     { name = "yarl", specifier = ">=1.20.1" },
 ]
 
@@ -3541,6 +3539,7 @@ version = "2.27.2"
 source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
+    { name = "pydantic" },
     { name = "strenum" },
     { name = "supabase-utils" },
     { name = "yarl" },
@@ -3575,6 +3574,7 @@ tests = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
+    { name = "pydantic", specifier = ">=2.12.2" },
     { name = "strenum", specifier = ">=0.4.15" },
     { name = "supabase-utils", editable = "src/utils" },
     { name = "yarl", specifier = ">=1.20.1" },

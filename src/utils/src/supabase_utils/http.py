@@ -26,26 +26,36 @@ from pydantic import BaseModel, TypeAdapter
 from typing_extensions import Concatenate, ParamSpec
 from yarl import URL
 
-from .types import JSON
-
 HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
 
 
 @dataclass
 class EndpointRequest:
     method: HTTPRequestMethod
-    headers: Headers
     path: List[str]
-    json: Optional[JSON] = None
+    json: Optional[BaseModel] = None
+    headers: Headers = field(default_factory=Headers)
     query_params: QueryParams = field(default_factory=QueryParams)
 
     def to_request(self, base_url: URL) -> Request:
+        if self.json:
+            body = self.json.model_dump_json()
+            content_type = "text/html; charset=utf-8"
+            headers = Headers(
+                {
+                    "Content-Type": content_type,
+                    **self.headers,
+                }
+            )
+        else:
+            body = None
+            headers = self.headers
         return Request(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
-            headers=self.headers,
+            headers=headers,
             params=self.query_params,
-            json=self.json,
+            content=body,
         )
 
 

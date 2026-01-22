@@ -6,30 +6,19 @@ from supabase_utils.http import (
     AsyncExecutor,
     EndpointRequest,
     Executor,
-    FromHTTPResponse,
     ServerEndpoint,
     SyncExecutor,
     http_endpoint,
 )
-from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
 from .errors import FunctionsHttpError, FunctionsRelayError, on_error_response
 from .utils import (
     FunctionRegion,
+    InvokeOptions,
     is_valid_str_arg,
 )
 from .version import __version__
-
-
-def json_or_bytes(json: bool) -> FromHTTPResponse[Union[bytes, JSON]]:
-    def from_response(response: Response) -> Union[bytes, JSON]:
-        if json:
-            return JSONParser.validate_json(response.content)
-        else:
-            return response.content
-
-    return from_response
 
 
 class FunctionsClient(Generic[Executor]):
@@ -83,31 +72,28 @@ class FunctionsClient(Generic[Executor]):
         self.headers["Authorization"] = f"Bearer {token}"
 
     def _invoke_options_to_request(
-        self, function_name, invoke_options: Optional[Dict] = None
-    ) -> tuple[EndpointRequest, bool]:
+        self, function_name: str, invoke_options: Optional[InvokeOptions] = None
+    ) -> EndpointRequest:
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
         headers = Headers(self.headers)
         params = QueryParams()
         body = None
-        response_type = "text/plain"
 
         if invoke_options is not None:
-            headers.update(invoke_options.get("headers", {}))
-            response_type = invoke_options.get("responseType", "text/plain")
-
-            region = invoke_options.get("region")
+            headers.update(invoke_options.headers)
+            region = invoke_options.region
             if region:
                 if not isinstance(region, FunctionRegion):
                     warn(f"Use FunctionRegion({region})", stacklevel=2)
                     region = FunctionRegion(region)
 
-                if region.value != "any":
+                if region != FunctionRegion.Any:
                     headers["x-region"] = region.value
                     # Add region as query parameter
                     params = params.set("forceFunctionRegion", region.value)
 
-            body = invoke_options.get("body")
+            body = invoke_options.body
             if isinstance(body, str):
                 headers["Content-Type"] = "text/plain"
             elif isinstance(body, dict):
@@ -119,14 +105,12 @@ class FunctionsClient(Generic[Executor]):
             json=body,
             query_params=params,
         )
-        return request, response_type == "json"
+        return request
 
     @http_endpoint
     def invoke(
-        self, function_name: str, invoke_options: Optional[Dict] = None
-    ) -> ServerEndpoint[
-        Union[JSON, bytes], Union[FunctionsHttpError, FunctionsRelayError]
-    ]:
+        self, function_name: str, invoke_options: Optional[InvokeOptions] = None
+    ) -> ServerEndpoint[Response, Union[FunctionsHttpError, FunctionsRelayError]]:
         """Invokes a function
 
         Parameters
@@ -137,12 +121,10 @@ class FunctionsClient(Generic[Executor]):
             `body`: the body of the request
             `responseType`: how the response should be parsed. The default is `json`
         """
-        request, is_json = self._invoke_options_to_request(
-            function_name, invoke_options
-        )
+        request = self._invoke_options_to_request(function_name, invoke_options)
         return ServerEndpoint(
             request=request,
-            on_success=json_or_bytes(is_json),
+            on_success=lambda response: response,
             on_failure=on_error_response,
         )
 
