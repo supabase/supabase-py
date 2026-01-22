@@ -56,8 +56,8 @@ class FromHTTPResponse(Protocol[T]):
     def __call__(self, response: Response) -> T: ...
 
 
-Success = TypeVar("Success")
-Failure = TypeVar("Failure", bound=Exception)
+Success = TypeVar("Success", covariant=True)
+Failure = TypeVar("Failure", covariant=True, bound=Exception)
 
 Model = TypeVar("Model", bound=BaseModel)
 
