@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (
     Any,
     Awaitable,
@@ -35,9 +35,9 @@ HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
 class EndpointRequest:
     method: HTTPRequestMethod
     headers: Headers
-    query_params: QueryParams
     path: List[str]
-    body: JSON
+    json: Optional[JSON] = None
+    query_params: QueryParams = field(default_factory=QueryParams)
 
     def to_request(self, base_url: URL) -> Request:
         return Request(
@@ -45,7 +45,7 @@ class EndpointRequest:
             url=str(base_url.joinpath(*self.path)),
             headers=self.headers,
             params=self.query_params,
-            json=self.body,
+            json=self.json,
         )
 
 

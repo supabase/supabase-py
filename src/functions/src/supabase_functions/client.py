@@ -116,7 +116,7 @@ class FunctionsClient(Generic[Executor]):
             method="POST",
             path=[function_name],
             headers=headers,
-            body=body,
+            json=body,
             query_params=params,
         )
         return request, response_type == "json"
