@@ -1,5 +1,5 @@
 import sys
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from httpx import AsyncClient as AsyncClient  # noqa: F401
 from pydantic import BaseModel, Field
@@ -34,7 +34,7 @@ class FunctionRegion(StrEnum):
 
 
 class InvokeOptions(BaseModel):
-    body: JSON
+    body: Union[bytes, str, Dict[str, JSON], None] = None
     region: Optional[FunctionRegion] = None
     headers: Dict[str, str] = Field(default_factory=dict)
     response_type: Optional[str] = None

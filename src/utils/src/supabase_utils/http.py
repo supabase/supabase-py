@@ -26,6 +26,8 @@ from pydantic import BaseModel, TypeAdapter
 from typing_extensions import Concatenate, ParamSpec
 from yarl import URL
 
+from .types import JSON, JSONParser
+
 HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
 
 
@@ -33,29 +35,43 @@ HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
 class EndpointRequest:
     method: HTTPRequestMethod
     path: List[str]
-    json: Optional[BaseModel] = None
+    body: Optional[bytes] = None
     headers: Headers = field(default_factory=Headers)
     query_params: QueryParams = field(default_factory=QueryParams)
 
+    def bytes(self, bs: bytes) -> "EndpointRequest":
+        self.headers["Content-Type"] = "application/octet-stream"
+        self.body = bs
+        return self
+
+    def plain_text(self, text: str) -> "EndpointRequest":
+        self.headers["Content-Type"] = "text/plain; charset=utf-8"
+        self.body = text.encode("utf-8")
+        return self
+
+    def model(self, model: BaseModel) -> "EndpointRequest":
+        body = model.__pydantic_serializer__.to_json(model)
+        self.headers["Content-Type"] = "application/json"
+        self.body = body
+        return self
+
+    def json(self, json: JSON) -> "EndpointRequest":
+        body = JSONParser.dump_json(json)
+        self.headers["Content-Type"] = "application/json"
+        self.body = body
+        return self
+
+    def query_param(self, key: str, value: str) -> "EndpointRequest":
+        self.query_params = self.query_params.set(key, value)
+        return self
+
     def to_request(self, base_url: URL) -> Request:
-        if self.json:
-            body = self.json.model_dump_json()
-            content_type = "text/html; charset=utf-8"
-            headers = Headers(
-                {
-                    "Content-Type": content_type,
-                    **self.headers,
-                }
-            )
-        else:
-            body = None
-            headers = self.headers
         return Request(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
-            headers=headers,
+            headers=self.headers,
             params=self.query_params,
-            content=body,
+            content=self.body,
         )
 
 

@@ -7,7 +7,7 @@ from httpx import Client, HTTPStatusError, Response, Timeout
 # Import the class to test
 from supabase_functions import SyncFunctionsClient
 from supabase_functions.errors import FunctionsHttpError, FunctionsRelayError
-from supabase_functions.utils import FunctionRegion
+from supabase_functions.utils import FunctionRegion, InvokeOptions
 from supabase_functions.version import __version__
 from yarl import URL
 
@@ -64,11 +64,9 @@ def test_invoke_success_json(client: SyncFunctionsClient) -> None:
     with patch.object(client._client, "send", new_callable=Mock) as mock_request:
         mock_request.return_value = mock_response
 
-        result = client.invoke(
-            "test-function", {"responseType": "json", "body": {"test": "data"}}
-        )
+        result = client.invoke("test-function", InvokeOptions(body={"test": "data"}))
 
-        assert result == {"message": "success"}
+        assert result.content == '{"message": "success"}'
         mock_request.assert_called_once()
         _, kwargs = mock_request.call_args
 
@@ -84,7 +82,7 @@ def test_invoke_success_binary(client: SyncFunctionsClient) -> None:
 
         result = client.invoke("test-function")
 
-        assert result == b"binary content"
+        assert result.content == b"binary content"
         mock_request.assert_called_once()
 
 
@@ -97,26 +95,7 @@ def test_invoke_with_region(client: SyncFunctionsClient) -> None:
     with patch.object(client._client, "send", new_callable=Mock) as mock_request:
         mock_request.return_value = mock_response
 
-        client.invoke("test-function", {"region": FunctionRegion("us-east-1")})
-
-        (request,), _kwargs = mock_request.call_args
-        # Check that x-region header is present
-        assert request.headers["x-region"] == "us-east-1"
-        # Check that the URL contains the forceFunctionRegion query parameter
-        assert URL(str(request.url)).query["forceFunctionRegion"] == "us-east-1"
-
-
-def test_invoke_with_region_string(client: SyncFunctionsClient) -> None:
-    mock_response = Mock(spec=Response)
-    mock_response.content = '{"message": "success"}'
-    mock_response.raise_for_status = Mock()
-    mock_response.headers = {}
-
-    with patch.object(client._client, "send", new_callable=Mock) as mock_request:
-        mock_request.return_value = mock_response
-
-        with pytest.warns(UserWarning, match=r"Use FunctionRegion\(us-east-1\)"):
-            client.invoke("test-function", {"region": "us-east-1"})
+        client.invoke("test-function", InvokeOptions(region=FunctionRegion.UsEast1))
 
         (request,), _kwargs = mock_request.call_args
         # Check that x-region header is present
@@ -173,10 +152,10 @@ def test_invoke_with_string_body(client: SyncFunctionsClient) -> None:
     with patch.object(client._client, "send", new_callable=Mock) as mock_request:
         mock_request.return_value = mock_response
 
-        client.invoke("test-function", {"body": "string data"})
+        client.invoke("test-function", InvokeOptions(body="string data"))
 
         (request,), _kwargs = mock_request.call_args
-        assert request.headers["Content-Type"] == "text/plain"
+        assert request.headers["Content-Type"] == "text/plain; charset=utf-8"
 
 
 def test_invoke_with_json_body(client: SyncFunctionsClient) -> None:
@@ -188,7 +167,7 @@ def test_invoke_with_json_body(client: SyncFunctionsClient) -> None:
     with patch.object(client._client, "send", new_callable=Mock) as mock_request:
         mock_request.return_value = mock_response
 
-        client.invoke("test-function", {"body": {"key": "value"}})
+        client.invoke("test-function", InvokeOptions(body={"key": "value"}))
 
         (request,), _kwargs = mock_request.call_args
         assert request.headers["Content-Type"] == "application/json"

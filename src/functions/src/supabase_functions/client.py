@@ -1,7 +1,7 @@
 from typing import Dict, Generic, Literal, Optional, Union, overload
 from warnings import warn
 
-from httpx import AsyncClient, Client, Headers, QueryParams, Response
+from httpx import AsyncClient, Client, Headers, Response
 from supabase_utils.http import (
     AsyncExecutor,
     EndpointRequest,
@@ -77,34 +77,32 @@ class FunctionsClient(Generic[Executor]):
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
         headers = Headers(self.headers)
-        params = QueryParams()
         body = None
 
-        if invoke_options is not None:
-            headers.update(invoke_options.headers)
-            region = invoke_options.region
-            if region:
-                if not isinstance(region, FunctionRegion):
-                    warn(f"Use FunctionRegion({region})", stacklevel=2)
-                    region = FunctionRegion(region)
-
-                if region != FunctionRegion.Any:
-                    headers["x-region"] = region.value
-                    # Add region as query parameter
-                    params = params.set("forceFunctionRegion", region.value)
-
-            body = invoke_options.body
-            if isinstance(body, str):
-                headers["Content-Type"] = "text/plain"
-            elif isinstance(body, dict):
-                headers["Content-Type"] = "application/json"
         request = EndpointRequest(
             method="POST",
             path=[function_name],
             headers=headers,
-            json=body,
-            query_params=params,
         )
+
+        if invoke_options is not None:
+            request.headers.update(invoke_options.headers)
+            region = invoke_options.region
+            if region and region != FunctionRegion.Any:
+                request.headers["x-region"] = region.value
+                # Add region as query parameter
+                request.query_param("forceFunctionRegion", region.value)
+
+            if method := invoke_options.method:
+                request.method = method
+
+            body = invoke_options.body
+            if isinstance(body, str):
+                request.plain_text(body)
+            elif isinstance(body, dict):
+                request.json(body)
+            elif isinstance(body, bytes):
+                request.bytes(body)
         return request
 
     @http_endpoint
