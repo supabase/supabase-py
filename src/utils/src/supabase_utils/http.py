@@ -50,15 +50,13 @@ class EndpointRequest:
         return self
 
     def model(self, model: BaseModel) -> "EndpointRequest":
-        body = model.__pydantic_serializer__.to_json(model)
         self.headers["Content-Type"] = "application/json"
-        self.body = body
+        self.body = model.__pydantic_serializer__.to_json(model)
         return self
 
     def json(self, json: JSON) -> "EndpointRequest":
-        body = JSONParser.dump_json(json)
         self.headers["Content-Type"] = "application/json"
-        self.body = body
+        self.body = JSONParser.dump_json(json)
         return self
 
     def query_param(self, key: str, value: str) -> "EndpointRequest":
