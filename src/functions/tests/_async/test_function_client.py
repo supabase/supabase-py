@@ -7,7 +7,7 @@ from httpx import AsyncClient, HTTPStatusError, Response, Timeout
 # Import the class to test
 from supabase_functions import AsyncFunctionsClient
 from supabase_functions.errors import FunctionsHttpError, FunctionsRelayError
-from supabase_functions.utils import FunctionRegion, InvokeOptions
+from supabase_functions.utils import FunctionRegion
 from supabase_functions.version import __version__
 from yarl import URL
 
@@ -64,9 +64,7 @@ async def test_invoke_success_json(client: AsyncFunctionsClient) -> None:
     with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
         mock_request.return_value = mock_response
 
-        result = await client.invoke(
-            "test-function", InvokeOptions(body={"test": "data"})
-        )
+        result = await client.invoke("test-function", body={"test": "data"})
         assert result.content == '{"message": "success"}'
         mock_request.assert_called_once()
         _, kwargs = mock_request.call_args
@@ -96,9 +94,7 @@ async def test_invoke_with_region(client: AsyncFunctionsClient) -> None:
     with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
         mock_request.return_value = mock_response
 
-        await client.invoke(
-            "test-function", InvokeOptions(region=FunctionRegion.UsEast1)
-        )
+        await client.invoke("test-function", region=FunctionRegion.UsEast1)
 
         (request,), _kwargs = mock_request.call_args
         # Check that x-region header is present
@@ -155,7 +151,7 @@ async def test_invoke_with_string_body(client: AsyncFunctionsClient) -> None:
     with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
         mock_request.return_value = mock_response
 
-        await client.invoke("test-function", InvokeOptions(body="string data"))
+        await client.invoke("test-function", body="string data")
 
         (request,), _kwargs = mock_request.call_args
         assert request.headers["Content-Type"] == "text/plain; charset=utf-8"
@@ -170,7 +166,7 @@ async def test_invoke_with_json_body(client: AsyncFunctionsClient) -> None:
     with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
         mock_request.return_value = mock_response
 
-        await client.invoke("test-function", InvokeOptions(body={"key": "value"}))
+        await client.invoke("test-function", body={"key": "value"})
 
         (request,), _kwargs = mock_request.call_args
         assert request.headers["Content-Type"] == "application/json"

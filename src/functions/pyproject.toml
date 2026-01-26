@@ -57,3 +57,13 @@ filterwarnings = [
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.mypy]
+check_untyped_defs = true
+allow_redefinition = true
+
+no_warn_no_return = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true

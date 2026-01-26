@@ -1,10 +1,6 @@
 import sys
-from typing import Dict, Optional, Union
 
 from httpx import AsyncClient as AsyncClient  # noqa: F401
-from pydantic import BaseModel, Field
-from supabase_utils.http import HTTPRequestMethod
-from supabase_utils.types import JSON
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -31,14 +27,6 @@ class FunctionRegion(StrEnum):
     UsEast1 = "us-east-1"
     UsWest1 = "us-west-1"
     UsWest2 = "us-west-2"
-
-
-class InvokeOptions(BaseModel):
-    body: Union[bytes, str, Dict[str, JSON], None] = None
-    region: Optional[FunctionRegion] = None
-    headers: Dict[str, str] = Field(default_factory=dict)
-    response_type: Optional[str] = None
-    method: Optional[HTTPRequestMethod] = None
 
 
 def is_valid_str_arg(target: str) -> bool:
