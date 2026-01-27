@@ -232,7 +232,7 @@ class AsyncRealtimeChannel:
                             if i < len(server_postgres_changes)
                             else None
                         )
-                        logger.info(f"{server_binding}, {postgres_callback}")
+                        logger.debug(f"{server_binding}, {postgres_callback}")
 
                         if (
                             server_binding
@@ -505,7 +505,7 @@ class AsyncRealtimeChannel:
     async def _rejoin(self) -> None:
         if self.is_leaving:
             return
-        logger.info(f"Rejoining channel after reconnection: {self.topic}")
+        logger.debug(f"Rejoining channel after reconnection: {self.topic}")
         self.state = ChannelStates.JOINING
         await self.join_push.resend()
 
@@ -516,7 +516,7 @@ class AsyncRealtimeChannel:
         await self.push(ChannelEvents.presence, {"event": event, "payload": data})
 
     def _handle_message(self, message: ServerMessage):
-        logger.info(f"{self.topic} : {message!r}")
+        logger.debug(f"{self.topic} : {message!r}")
         if isinstance(message, SystemMessage):
             if isinstance(message.payload, SuccessSystemPayload):
                 for callback in self.system_callbacks:
