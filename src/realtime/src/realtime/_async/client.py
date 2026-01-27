@@ -99,14 +99,14 @@ class AsyncRealtimeClient:
 
         try:
             async for msg in self._ws_connection:
-                logger.info(f"receive: {msg!r}")
+                logger.debug(f"receive: {msg!r}")
 
                 try:
                     message = ServerMessageAdapter.validate_json(msg)
                 except ValidationError as e:
                     logger.error(f"Unrecognized message format {msg!r}\n{e}")
                     continue
-                logger.info(f"parsed message as {message!r}")
+                logger.debug(f"parsed message as {message!r}")
                 if channel := self.channels.get(message.topic):
                     channel._handle_message(message)
         except websockets.exceptions.ConnectionClosedError as e:
@@ -148,19 +148,19 @@ class AsyncRealtimeClient:
         """
 
         if self.is_connected:
-            logger.info("WebSocket connection already established")
+            logger.debug("WebSocket connection already established")
             return
 
         retries = 0
         backoff = self.initial_backoff
 
-        logger.info(f"Attempting to connect to WebSocket at {self.url}")
+        logger.debug(f"Attempting to connect to WebSocket at {self.url}")
 
         while retries < self.max_retries:
             try:
                 ws = await connect(self.url)
                 self._ws_connection = ws
-                logger.info("WebSocket connection established successfully")
+                logger.debug("WebSocket connection established successfully")
                 return await self._on_connect()
             except Exception as e:
                 retries += 1
@@ -173,7 +173,7 @@ class AsyncRealtimeClient:
                     raise
                 else:
                     wait_time = backoff * (2 ** (retries - 1))
-                    logger.info(
+                    logger.debug(
                         f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (backoff={backoff}s)"
                     )
                     await asyncio.sleep(wait_time)
@@ -208,7 +208,7 @@ class AsyncRealtimeClient:
         )
 
         if self.auto_reconnect:
-            logger.info("Initiating auto-reconnect sequence...")
+            logger.debug("Initiating auto-reconnect sequence...")
             await self._reconnect()
         else:
             logger.error("Auto-reconnect disabled, terminating connection")
@@ -353,7 +353,7 @@ class AsyncRealtimeClient:
             )
             msg = Message(**message)
         message_str = msg.model_dump_json()
-        logger.info(f"send: {message_str}")
+        logger.debug(f"send: {message_str}")
 
         async def send_message():
             if not self._ws_connection:
