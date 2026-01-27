@@ -48,7 +48,7 @@ def test_is_valid_str_arg(test_input: Any, expected: bool) -> None:
     reason="StrEnum import test only relevant for Python 3.11+",
 )
 def test_strenum_import_python_311_plus() -> None:
-    from enum import StrEnum as BuiltinStrEnum
+    from enum import StrEnum as BuiltinStrEnum  # type: ignore
 
     assert isinstance(FunctionRegion.Any, BuiltinStrEnum)
 

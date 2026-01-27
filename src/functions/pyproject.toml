@@ -66,4 +66,3 @@ no_warn_no_return = true
 warn_return_any = true
 warn_unused_configs = true
 warn_redundant_casts = true
-warn_unused_ignores = true
