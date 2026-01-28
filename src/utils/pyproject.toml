@@ -24,7 +24,7 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/supabase/supabase-py"
 repository = "https://github.com/supabase/supabase-py"
-documentation = "https://github.com/supabase/supabase-py/src/utils"
+documentation = "https://github.com/supabase/supabase-py/tree/main/src/utils"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [tool.mypy]
