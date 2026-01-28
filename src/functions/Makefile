@@ -12,7 +12,7 @@ help::
 	@echo "  pytest         -- run pytest on supabase_functions package"
 
 mypy:
-	uv run --package supabase_functions mypy src/supabase_functions tests
+	uv run --package supabase_functions mypy --strict src/supabase_functions tests
 help::
 	@echo "  mypy           -- run mypy on supabase_functions package"
 

@@ -3,13 +3,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 from httpx import Client, HTTPStatusError, Response, Timeout
+from yarl import URL
 
 # Import the class to test
 from supabase_functions import SyncFunctionsClient
 from supabase_functions.errors import FunctionsHttpError, FunctionsRelayError
 from supabase_functions.utils import FunctionRegion
 from supabase_functions.version import __version__
-from yarl import URL
 
 
 @pytest.fixture

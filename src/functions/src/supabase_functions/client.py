@@ -26,7 +26,7 @@ class FunctionsClient(Generic[Executor]):
     def __init__(
         self,
         url: URL,
-        headers: Dict,
+        headers: Dict[str, str],
         executor: Executor,
         timeout: Optional[int] = None,
         verify: Optional[bool] = None,
@@ -78,7 +78,6 @@ class FunctionsClient(Generic[Executor]):
         body: Union[bytes, str, Dict[str, JSON], None],
         region: Optional[FunctionRegion],
         headers: Optional[Dict[str, str]],
-        response_type: Optional[str],
         method: Optional[HTTPRequestMethod],
     ) -> EndpointRequest:
         if not is_valid_str_arg(function_name):
@@ -114,7 +113,6 @@ class FunctionsClient(Generic[Executor]):
         body: Union[bytes, str, Dict[str, JSON], None] = None,
         region: Optional[FunctionRegion] = None,
         headers: Optional[Dict[str, str]] = None,
-        response_type: Optional[str] = None,
         method: Optional[HTTPRequestMethod] = None,
     ) -> ServerEndpoint[Response, Union[FunctionsHttpError, FunctionsRelayError]]:
         """Invokes a function
@@ -128,7 +126,7 @@ class FunctionsClient(Generic[Executor]):
             `responseType`: how the response should be parsed. The default is `json`
         """
         request = self._invoke_options_to_request(
-            function_name, body, region, headers, response_type, method
+            function_name, body, region, headers, method
         )
         return ServerEndpoint(
             request=request,
@@ -141,7 +139,7 @@ class AsyncFunctionsClient(FunctionsClient[AsyncExecutor]):
     def __init__(
         self,
         url: str,
-        headers: Dict,
+        headers: Dict[str, str],
         timeout: Optional[int] = None,
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,
@@ -175,7 +173,7 @@ class SyncFunctionsClient(FunctionsClient[SyncExecutor]):
     def __init__(
         self,
         url: str,
-        headers: Dict,
+        headers: Dict[str, str],
         timeout: Optional[int] = None,
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,

@@ -2,6 +2,7 @@ import sys
 from typing import Any
 
 import pytest
+
 from supabase_functions.utils import (
     FunctionRegion,
     is_valid_str_arg,
