@@ -44,21 +44,10 @@ def test_is_valid_str_arg(test_input: Any, expected: bool) -> None:
     assert is_valid_str_arg(test_input) == expected
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="StrEnum import test only relevant for Python 3.11+",
-)
 def test_strenum_import_python_311_plus() -> None:
-    from enum import StrEnum as BuiltinStrEnum  # type: ignore
+    if sys.version_info >= (3, 11):
+        from enum import StrEnum as StrEnum
+    else:
+        from strenum import StrEnum
 
-    assert isinstance(FunctionRegion.Any, BuiltinStrEnum)
-
-
-@pytest.mark.skipif(
-    sys.version_info >= (3, 11),
-    reason="strenum import test only relevant for Python < 3.11",
-)
-def test_strenum_import_python_310_and_below() -> None:
-    from strenum import StrEnum as ExternalStrEnum
-
-    assert isinstance(FunctionRegion.Any, ExternalStrEnum)
+    assert isinstance(FunctionRegion.Any, StrEnum)

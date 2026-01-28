@@ -66,7 +66,7 @@ def test_invoke_success_json(client: SyncFunctionsClient) -> None:
 
         result = client.invoke("test-function", body={"test": "data"})
 
-        assert result.content == '{"message": "success"}'
+        assert result.content == b'{"message": "success"}'
         mock_request.assert_called_once()
         _, kwargs = mock_request.call_args
 
