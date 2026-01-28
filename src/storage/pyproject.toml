@@ -27,6 +27,8 @@ dependencies = [
   "pydantic >=2.11.7",
   "yarl>=1.20.1",
   "pyiceberg>=0.10.0",
+  "supabase_utils==2.27.2",
+  "typing-extensions>=4.15.0",
 ]
 
 [project.urls]
@@ -58,6 +60,9 @@ dev = [
   { include-group = "lints" },
   { include-group = "tests" },
   { include-group = "docs" },
+  "basedpyright>=1.37.1",
+  "pyrefly>=0.49.0",
+  "ty>=0.0.13",
 ]
 
 [tool.pytest.ini_options]
@@ -68,7 +73,6 @@ filterwarnings = [
 ]
 
 [tool.mypy]
-python_version = "3.9"
 follow_untyped_imports = true # for deprecation module that does not have stubs
 check_untyped_defs = true
 allow_redefinition = true
