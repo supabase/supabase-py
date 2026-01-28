@@ -223,6 +223,6 @@ def create_client(
     verify: bool = True,
 ) -> Union[AsyncFunctionsClient, SyncFunctionsClient]:
     if is_async:
-        return AsyncFunctionsClient(url, headers, verify)
+        return AsyncFunctionsClient(url, headers, verify=verify)
     else:
-        return SyncFunctionsClient(url, headers, verify)
+        return SyncFunctionsClient(url, headers, verify=verify)
