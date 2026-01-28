@@ -1,15 +1,19 @@
 from typing import Dict, Generic, Literal, Optional, Union, overload
 from warnings import warn
 
-from httpx import AsyncClient, Client, Headers, Response
+from httpx import AsyncClient, Client, Headers, QueryParams, Response
 from supabase_utils.http import (
     AsyncExecutor,
-    EndpointRequest,
+    BytesRequest,
+    EmptyRequest,
     Executor,
     HTTPRequestMethod,
-    ServerEndpoint,
+    JSONRequest,
+    ResponseHandler,
     SyncExecutor,
-    http_endpoint,
+    TextRequest,
+    ToHttpxRequest,
+    http_request,
 )
 from supabase_utils.types import JSON
 from yarl import URL
@@ -79,34 +83,53 @@ class FunctionsClient(Generic[Executor]):
         region: Optional[FunctionRegion],
         headers: Optional[Dict[str, str]],
         method: Optional[HTTPRequestMethod],
-    ) -> EndpointRequest:
+    ) -> ToHttpxRequest:
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
 
-        request = EndpointRequest(
-            method="POST",
-            path=[function_name],
-            headers=Headers(self.headers),
-        )
+        method = method or "POST"
+        path = [function_name]
+        new_headers = Headers(self.headers)
+        query_params = QueryParams()
 
-        request.headers.update(headers or dict())
+        if headers:
+            new_headers.update(headers)
         if region and region != FunctionRegion.Any:
-            request.headers["x-region"] = region.value
+            new_headers["x-region"] = region.value
             # Add region as query parameter
-            request.query_param("forceFunctionRegion", region.value)
-
-        if method:
-            request.method = method
+            query_params = query_params.set("forceFunctionRegion", region.value)
 
         if isinstance(body, str):
-            request.plain_text(body)
+            return TextRequest(
+                text=body,
+                method=method,
+                path=path,
+                headers=new_headers,
+                query_params=query_params,
+            )
         elif isinstance(body, dict):
-            request.json(body)
+            return JSONRequest(
+                body=body,
+                method=method,
+                path=path,
+                headers=new_headers,
+                query_params=query_params,
+                exclude_none=False,
+            )
         elif isinstance(body, bytes):
-            request.bytes(body)
-        return request
+            return BytesRequest(
+                body=body,
+                method=method,
+                path=path,
+                headers=new_headers,
+                query_params=query_params,
+            )
+        else:
+            return EmptyRequest(
+                method=method, path=path, headers=new_headers, query_params=query_params
+            )
 
-    @http_endpoint
+    @http_request
     def invoke(
         self,
         function_name: str,
@@ -114,7 +137,7 @@ class FunctionsClient(Generic[Executor]):
         region: Optional[FunctionRegion] = None,
         headers: Optional[Dict[str, str]] = None,
         method: Optional[HTTPRequestMethod] = None,
-    ) -> ServerEndpoint[Response, Union[FunctionsHttpError, FunctionsRelayError]]:
+    ) -> ResponseHandler[Response, Union[FunctionsHttpError, FunctionsRelayError]]:
         """Invokes a function
 
         Parameters
@@ -128,7 +151,7 @@ class FunctionsClient(Generic[Executor]):
         request = self._invoke_options_to_request(
             function_name, body, region, headers, method
         )
-        return ServerEndpoint(
+        return ResponseHandler(
             request=request,
             on_success=lambda response: response,
             on_failure=on_error_response,

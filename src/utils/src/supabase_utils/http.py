@@ -19,8 +19,10 @@ from httpx import (
     Headers,
     HTTPStatusError,
     QueryParams,
-    Request,
     Response,
+)
+from httpx import (
+    Request as HttpxRequest,
 )
 from pydantic import BaseModel, TypeAdapter
 from typing_extensions import Concatenate, ParamSpec
@@ -32,39 +34,28 @@ HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
 
 
 @dataclass
-class EndpointRequest:
-    method: HTTPRequestMethod
+class EmptyRequest:
     path: List[str]
-    body: Optional[bytes] = None
-    headers: Headers = field(default_factory=Headers)
-    query_params: QueryParams = field(default_factory=QueryParams)
+    method: HTTPRequestMethod
+    headers: Headers = field(default_factory=Headers, kw_only=True)
+    query_params: QueryParams = field(default_factory=QueryParams, kw_only=True)
 
-    def bytes(self, bs: bytes) -> "EndpointRequest":
+    def to_request(self, base_url: URL) -> HttpxRequest:
+        return HttpxRequest(
+            method=self.method,
+            url=str(base_url.joinpath(*self.path)),
+            headers=self.headers,
+            params=self.query_params,
+        )
+
+
+@dataclass
+class BytesRequest(EmptyRequest):
+    body: bytes
+
+    def to_request(self, base_url: URL) -> HttpxRequest:
         self.headers["Content-Type"] = "application/octet-stream"
-        self.body = bs
-        return self
-
-    def plain_text(self, text: str) -> "EndpointRequest":
-        self.headers["Content-Type"] = "text/plain; charset=utf-8"
-        self.body = text.encode("utf-8")
-        return self
-
-    def model(self, model: BaseModel) -> "EndpointRequest":
-        self.headers["Content-Type"] = "application/json"
-        self.body = model.__pydantic_serializer__.to_json(model)
-        return self
-
-    def json(self, json: JSON) -> "EndpointRequest":
-        self.headers["Content-Type"] = "application/json"
-        self.body = JSONParser.dump_json(json)
-        return self
-
-    def query_param(self, key: str, value: str) -> "EndpointRequest":
-        self.query_params = self.query_params.set(key, value)
-        return self
-
-    def to_request(self, base_url: URL) -> Request:
-        return Request(
+        return HttpxRequest(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
             headers=self.headers,
@@ -73,10 +64,47 @@ class EndpointRequest:
         )
 
 
+@dataclass
+class JSONRequest(EmptyRequest):
+    body: Union[JSON, BaseModel]
+    exclude_none: bool = True
+
+    def to_request(self, base_url: URL) -> HttpxRequest:
+        if isinstance(self.body, BaseModel):
+            content = self.body.__pydantic_serializer__.to_json(
+                self.body, exclude_none=self.exclude_none
+            )
+        else:
+            content = JSONParser.dump_json(self.body)
+        self.headers["Content-Type"] = "application/json"
+        return HttpxRequest(
+            method=self.method,
+            url=str(base_url.joinpath(*self.path)),
+            headers=self.headers,
+            params=self.query_params,
+            content=content,
+        )
+
+
+@dataclass
+class TextRequest(EmptyRequest):
+    text: str
+
+    def to_request(self, base_url: URL) -> HttpxRequest:
+        self.headers["Content-Type"] = "text/plain; charset=utf-8"
+        return HttpxRequest(
+            method=self.method,
+            url=str(base_url.joinpath(*self.path)),
+            headers=self.headers,
+            params=self.query_params,
+            content=self.text.encode("utf-8"),
+        )
+
+
 T = TypeVar("T", covariant=True)
 
 
-class FromHTTPResponse(Protocol[T]):
+class FromHttpxResponse(Protocol[T]):
     def __call__(self, response: Response) -> T: ...
 
 
@@ -86,7 +114,7 @@ Failure = TypeVar("Failure", covariant=True, bound=Exception)
 Model = TypeVar("Model", bound=BaseModel)
 
 
-def validate_model(model: type[Model]) -> FromHTTPResponse[Model]:
+def validate_model(model: type[Model]) -> FromHttpxResponse[Model]:
     def from_response(response: Response) -> Model:
         return model.model_validate_json(response.content)
 
@@ -96,18 +124,22 @@ def validate_model(model: type[Model]) -> FromHTTPResponse[Model]:
 Inner = TypeVar("Inner")
 
 
-def validate_adapter(adapter: TypeAdapter[Inner]) -> FromHTTPResponse[Inner]:
+def validate_adapter(adapter: TypeAdapter[Inner]) -> FromHttpxResponse[Inner]:
     def from_response(response: Response) -> Inner:
         return adapter.validate_json(response.content)
 
     return from_response
 
 
+class ToHttpxRequest(Protocol):
+    def to_request(self, base_url: URL) -> HttpxRequest: ...
+
+
 @dataclass
-class ServerEndpoint(Generic[Success, Failure]):
-    request: EndpointRequest
-    on_success: FromHTTPResponse[Success]
-    on_failure: FromHTTPResponse[Failure]
+class ResponseHandler(Generic[Success, Failure]):
+    request: ToHttpxRequest
+    on_success: FromHttpxResponse[Success]
+    on_failure: FromHttpxResponse[Failure]
 
 
 class SyncExecutor:
@@ -115,14 +147,14 @@ class SyncExecutor:
         self.session = session
 
     def communicate(
-        self, base_url: URL, endpoint: ServerEndpoint[Success, Failure]
+        self, base_url: URL, handler: ResponseHandler[Success, Failure]
     ) -> Success:
-        response = self.session.send(endpoint.request.to_request(base_url))
+        response = self.session.send(handler.request.to_request(base_url))
         try:
             response.raise_for_status()
-            return endpoint.on_success(response)
+            return handler.on_success(response)
         except HTTPStatusError:
-            raise endpoint.on_failure(response) from None
+            raise handler.on_failure(response) from None
 
 
 class AsyncExecutor:
@@ -130,15 +162,15 @@ class AsyncExecutor:
         self.session = session
 
     async def communicate(
-        self, base_url: URL, endpoint: ServerEndpoint[Success, Failure]
+        self, base_url: URL, handler: ResponseHandler[Success, Failure]
     ) -> Success:
-        request = endpoint.request.to_request(base_url)
+        request = handler.request.to_request(base_url)
         response = await self.session.send(request)
         try:
             response.raise_for_status()
-            return endpoint.on_success(response)
+            return handler.on_success(response)
         except HTTPStatusError:
-            raise endpoint.on_failure(response) from None
+            raise handler.on_failure(response) from None
 
 
 Params = ParamSpec("Params")
@@ -151,8 +183,8 @@ class HasExecutor(Protocol[Executor]):
 
 
 @dataclass
-class http_endpoint(Generic[Params, Success, Failure]):
-    method: Callable[Concatenate[Any, Params], ServerEndpoint[Success, Failure]]
+class http_request(Generic[Params, Success, Failure]):
+    method: Callable[Concatenate[Any, Params], ResponseHandler[Success, Failure]]
 
     @overload
     def __get__(
