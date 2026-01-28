@@ -57,7 +57,7 @@ def test_set_auth_valid_token(client: SyncFunctionsClient) -> None:
 
 def test_invoke_success_json(client: SyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
-    mock_response.content = '{"message": "success"}'
+    mock_response.content = b'{"message": "success"}'
     mock_response.raise_for_status = Mock()
     mock_response.headers = {}
 

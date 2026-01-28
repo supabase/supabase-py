@@ -57,7 +57,7 @@ async def test_set_auth_valid_token(client: AsyncFunctionsClient) -> None:
 
 async def test_invoke_success_json(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
-    mock_response.content = '{"message": "success"}'
+    mock_response.content = b'{"message": "success"}'
     mock_response.raise_for_status = Mock()
     mock_response.headers = {}
 
