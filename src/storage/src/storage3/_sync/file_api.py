@@ -14,7 +14,7 @@ from yarl import URL
 from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
 from ..exceptions import StorageApiError
 from ..types import (
-    BaseBucket,
+    Bucket,
     CreateSignedUploadUrlOptions,
     CreateSignedUrlResponse,
     CreateSignedURLsOptions,
@@ -587,7 +587,7 @@ class SyncBucketActionsMixin:
         return self._upload_or_update("PUT", path_parts, file, file_options)
 
 
-class SyncBucket(BaseBucket):
+class SyncBucket(Bucket):
     """Represents a storage bucket."""
 
 

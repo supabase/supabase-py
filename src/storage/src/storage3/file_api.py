@@ -2,41 +2,37 @@ from __future__ import annotations
 
 import base64
 import json
-import urllib.parse
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union, cast
+from typing import Any, Dict, Generic, List, Literal, Optional, Union
 
-from httpx import AsyncClient, Headers, HTTPStatusError, Response
+from httpx import Headers, Response
+from supabase_utils.http import EndpointRequest, Executor, ServerEndpoint, http_endpoint
 from yarl import URL
 
-from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
-from ..exceptions import StorageApiError
-from ..types import (
-    Bucket,
-    CreateSignedUploadUrlOptions,
+from .constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
+from .exceptions import parse_api_error
+from .types import (
     CreateSignedUrlResponse,
     CreateSignedURLsOptions,
     DownloadOptions,
     FileOptions,
     ListBucketFilesOptions,
-    RequestMethod,
     SignedUploadURL,
+    SignedUploadUrlResponse,
     SignedUrlJsonResponse,
     SignedUrlResponse,
     SignedUrlsJsonResponse,
+    StorageEndpoint,
     TransformOptions,
     UploadData,
     UploadResponse,
-    UploadSignedUrlFileOptions,
     URLOptions,
     transform_to_dict,
 )
-from ..utils import StorageException
 
-__all__ = ["AsyncBucket"]
-
+__all__ = ["BucketProxy"]
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
     url = URL(path)
@@ -44,59 +40,30 @@ def relative_path_to_parts(path: str) -> tuple[str, ...]:
         return url.parts[1:]
     return url.parts
 
-
-class AsyncBucketActionsMixin:
+@dataclass
+class BucketProxy(Generic[Executor]):
     """Functions needed to access the file API."""
 
     id: str
     _base_url: URL
-    _client: AsyncClient
+    _executor: Executor
     _headers: Headers
 
-    async def _request(
-        self,
-        method: RequestMethod,
-        path: list[str],
-        headers: Optional[dict[str, Any]] = None,
-        json: Optional[dict[Any, Any]] = None,
-        files: Optional[Any] = None,
-        query_params: Optional[dict[str, str]] = None,
-        **kwargs: Any,
-    ) -> Response:
-        try:
-            url_path = self._base_url.joinpath(*path).with_query(query_params)
-            headers = headers or dict()
-            headers.update(self._headers)
-            response = await self._client.request(
-                method,
-                str(url_path),
-                headers=headers,
-                json=json,
-                files=files,
-                **kwargs,
-            )
-            response.raise_for_status()
-        except HTTPStatusError as exc:
-            try:
-                resp = exc.response.json()
-                raise StorageApiError(
-                    resp["message"], resp["error"], resp["statusCode"]
-                ) from exc
-            except KeyError as err:
-                message = f"Unable to parse error message: {resp.text}"
-                raise StorageApiError(message, "InternalError", 400) from err
+    def parse_signed_url_response(self, response: Response) -> SignedUploadURL:
+        signed_url_upload = SignedUploadUrlResponse.model_validate_json(response.content)
+        url = self._base_url.join(URL(signed_url_upload.url))
+        return SignedUploadURL(
+            signed_url=str(url),
+            token=signed_url_upload.token,
+        )
+        raise
 
-        # close the resource before returning the response
-        if files and "file" in files and isinstance(files["file"][1], BufferedReader):
-            files["file"][1].close()
-
-        return response
-
-    async def create_signed_upload_url(
+    @http_endpoint
+    def create_signed_upload_url(
         self,
         path: str,
-        options: Optional[CreateSignedUploadUrlOptions] = None,
-    ) -> SignedUploadURL:
+        upsert: Optional[str] = None,
+    ) -> StorageEndpoint[SignedUploadURL]:
         """
         Creates a signed upload URL.
 
@@ -107,35 +74,33 @@ class AsyncBucketActionsMixin:
         options
             Additional options for the upload url creation.
         """
-        headers: dict[str, str] = dict()
-        if options is not None and options.upsert:
-            headers.update({"x-upsert": options.upsert})
+        headers = Headers(self._headers)
+        if upsert:
+            headers["x-upsert"] = upsert
 
-        path_parts = relative_path_to_parts(path)
-        response = await self._request(
-            "POST", ["object", "upload", "sign", self.id, *path_parts], headers=headers
+        path_parts: tuple[str,...] = relative_path_to_parts(path)
+        request = EndpointRequest(
+            method="POST",
+            path=["object", "upload", "sign", self.id, *path_parts],
+            headers=headers
         )
-        data = response.json()
-        full_url: urllib.parse.ParseResult = urllib.parse.urlparse(
-            str(self._base_url) + cast(str, data["url"]).lstrip("/")
+        return ServerEndpoint(
+            request=request,
+            on_success=self.parse_signed_url_response,
+            on_failure=parse_api_error
         )
-        query_params = urllib.parse.parse_qs(full_url.query)
-        if not query_params.get("token"):
-            raise StorageException("No token sent by the API")
-        return {
-            "signed_url": full_url.geturl(),
-            "signedUrl": full_url.geturl(),
-            "token": query_params["token"][0],
-            "path": path,
-        }
 
-    async def upload_to_signed_url(
+    @http_endpoint
+    def upload_to_signed_url(
         self,
         path: str,
         token: str,
         file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[UploadSignedUrlFileOptions] = None,
-    ) -> UploadResponse:
+        cache_control: Optional[str] = None,
+        content_type: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> StorageEndpoint[UploadResponse]:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
 
@@ -147,27 +112,21 @@ class AsyncBucketActionsMixin:
             The token generated from :meth:`.create_signed_url`
         file
             The file contents or a file-like object to upload
-        file_options
-            Additional options for the uploaded file
         """
-        path_parts = relative_path_to_parts(path)
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)
         query_params = {"token": token}
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
 
-        options: UploadSignedUrlFileOptions = file_options or {}
-        cache_control = options.get("cache-control")
-        # cacheControl is also passed as form data
-        # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89
+        headers_obj = Headers(headers)
+        headers_obj.update(DEFAULT_FILE_OPTIONS)
+        headers_obj.update(self._headers)
         _data = {}
         if cache_control:
-            options["cache-control"] = f"max-age={cache_control}"
+            headers_obj["cache-control"] = f"max-age={cache_control}"
+            # cacheControl is also passed as form data
+            # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89
             _data = {"cacheControl": cache_control}
-        headers = {
-            **self._client.headers,
-            **DEFAULT_FILE_OPTIONS,
-            **options,
-        }
         filename = path_parts[-1]
 
         if (
@@ -196,7 +155,7 @@ class AsyncBucketActionsMixin:
         )
         data: UploadData = response.json()
 
-        return UploadResponse(path=path, Key=data["Key"])
+        return UploadResponse(Key=data["Key"])
 
     def _make_signed_url(
         self, signed_url: str, download_query: dict[str, str]
@@ -587,17 +546,3 @@ class AsyncBucketActionsMixin:
     ) -> UploadResponse:
         path_parts = relative_path_to_parts(path)
         return await self._upload_or_update("PUT", path_parts, file, file_options)
-
-
-class AsyncBucket(Bucket):
-    """Represents a storage bucket."""
-
-
-@dataclass
-class AsyncBucketProxy(AsyncBucketActionsMixin):
-    """A bucket proxy, this contains the minimum required fields to query the File API."""
-
-    id: str
-    _base_url: URL
-    _headers: Headers
-    _client: AsyncClient = field(repr=False)

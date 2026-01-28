@@ -1,23 +1,21 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Any, Dict, List, Literal, Optional, TypeVar, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
-from typing_extensions import ReadOnly, TypeAlias, TypeAliasType
+from pydantic.dataclasses import dataclass
+from supabase_utils.http import ServerEndpoint
+from typing_extensions import ReadOnly, TypeAlias, TypedDict
+
+from .exceptions import StorageApiError
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 
-# https://docs.pydantic.dev/2.11/concepts/types/#named-recursive-types
-JSON = TypeAliasType(
-    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
-)
-JSONAdapter: TypeAdapter = TypeAdapter(JSON)
+T = TypeVar("T")
+StorageEndpoint: TypeAlias = ServerEndpoint[T, StorageApiError]
 
-
-class BaseBucket(BaseModel, extra="ignore"):
+class Bucket(BaseModel, extra="ignore"):
     """Represents a file storage bucket."""
 
     id: str
@@ -36,19 +34,14 @@ class _sortByType(TypedDict, total=False):
     column: str
     order: Literal["asc", "desc"]
 
-
-class SignedUploadURL(TypedDict):
-    signed_url: str
-    signedUrl: str
+class SignedUploadUrlResponse(BaseModel):
+    url: str
     token: str
-    path: str
-
-
-class CreateOrUpdateBucketOptions(TypedDict, total=False):
-    public: bool
-    file_size_limit: int
-    allowed_mime_types: list[str]
-
+    
+@dataclass
+class SignedUploadURL:
+    signed_url: str
+    token: str
 
 class ListBucketFilesOptions(TypedDict, total=False):
     limit: int
@@ -68,6 +61,15 @@ class TransformOptions(TypedDict, total=False):
 def transform_to_dict(t: TransformOptions) -> dict[str, str]:
     return {key: str(val) for key, val in t.items()}
 
+class CreateOrUpdateBucketBody(BaseModel):
+    id: str
+    name: Optional[str]
+    public: Optional[bool]
+    file_size_limit: Optional[int]
+    allowed_mime_types: Optional[list[str]]
+
+class MessageResponse(BaseModel):
+    message: str
 
 class URLOptions(TypedDict, total=False):
     download: Union[str, bool]
@@ -103,17 +105,7 @@ class UploadData(TypedDict, total=False):
 
 @dataclass
 class UploadResponse:
-    path: str
     full_path: str
-    fullPath: str
-
-    def __init__(self, path: str, Key: str) -> None:
-        self.path = path
-        self.full_path = Key
-        self.fullPath = Key
-
-    dict = asdict
-
 
 class SignedUrlResponse(TypedDict):
     signedURL: str
@@ -138,22 +130,6 @@ class SignedUrlsJsonItem(BaseModel, extra="ignore"):
 
 
 SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
-
-
-class CreateSignedUploadUrlOptions(BaseModel, extra="ignore"):
-    upsert: str
-
-
-UploadSignedUrlFileOptions = TypedDict(
-    "UploadSignedUrlFileOptions",
-    {
-        "cache-control": str,
-        "content-type": str,
-        "metadata": Dict[str, Any],
-        "headers": Dict[str, str],
-    },
-    total=False,
-)
 
 DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
 

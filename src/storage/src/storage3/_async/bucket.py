@@ -7,7 +7,6 @@ from yarl import URL
 
 from ..exceptions import StorageApiError
 from ..types import CreateOrUpdateBucketOptions, RequestMethod
-from .file_api import AsyncBucket
 
 __all__ = ["AsyncStorageBucketAPI"]
 
