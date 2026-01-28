@@ -1,0 +1,40 @@
+[project]
+name = "supabase_utils"
+version = "2.27.2" # {x-release-please-version}
+authors = [
+  { name = "Leonardo Santiago", email="leonardo.santiago@supabase.io" }
+]
+maintainers = [
+  { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+requires-python = ">=3.9"
+description = "Common collection of methods used in the supabase python libraries."
+readme = "README.md"
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.12.2",
+    "typing-extensions>=4.15.0",
+    "yarl>=1.22.0",
+]
+
+[project.urls]
+homepage = "https://github.com/supabase/supabase-py"
+repository = "https://github.com/supabase/supabase-py"
+documentation = "https://github.com/supabase/supabase-py/tree/main/src/utils"
+changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
+
+[tool.mypy]
+check_untyped_defs = true
+allow_redefinition = true
+follow_untyped_imports = true # for deprecation module that does not have stubs
+
+no_warn_no_return = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict = true
