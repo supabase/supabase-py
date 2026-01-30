@@ -1,13 +1,17 @@
 from dataclasses import dataclass, field
 from typing import (
+    IO,
     Any,
     Awaitable,
     Callable,
+    Dict,
     Generic,
     List,
     Literal,
+    Mapping,
     Optional,
     Protocol,
+    Tuple,
     TypeVar,
     Union,
     overload,
@@ -70,13 +74,13 @@ class JSONRequest(EmptyRequest):
     exclude_none: bool = True
 
     def to_request(self, base_url: URL) -> HttpxRequest:
+        self.headers["Content-Type"] = "application/json"
         if isinstance(self.body, BaseModel):
             content = self.body.__pydantic_serializer__.to_json(
                 self.body, exclude_none=self.exclude_none
             )
         else:
             content = JSONParser.dump_json(self.body)
-        self.headers["Content-Type"] = "application/json"
         return HttpxRequest(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
@@ -98,6 +102,22 @@ class TextRequest(EmptyRequest):
             headers=self.headers,
             params=self.query_params,
             content=self.text.encode("utf-8"),
+        )
+
+
+@dataclass
+class MultipartFormDataRequest(EmptyRequest):
+    files: Mapping[str, Tuple[str, Union[IO[bytes], bytes], str]]
+    data: Dict[str, str]
+
+    def to_request(self, base_url: URL) -> HttpxRequest:
+        return HttpxRequest(
+            method=self.method,
+            url=str(base_url.joinpath(*self.path)),
+            headers=self.headers,
+            params=self.query_params,
+            files=self.files,
+            data=self.data,
         )
 
 
@@ -136,10 +156,27 @@ class ToHttpxRequest(Protocol):
 
 
 @dataclass
-class ResponseHandler(Generic[Success, Failure]):
+class ResponseHandler(Generic[Success]):
     request: ToHttpxRequest
-    on_success: FromHttpxResponse[Success]
-    on_failure: FromHttpxResponse[Failure]
+    callback: FromHttpxResponse[Success]
+
+
+def ResponseCases(
+    request: ToHttpxRequest,
+    on_success: FromHttpxResponse[Success],
+    on_failure: FromHttpxResponse[Failure],
+) -> ResponseHandler[Success]:
+    def callback(response: Response) -> Success:
+        try:
+            response.raise_for_status()
+            return on_success(response)
+        except HTTPStatusError:
+            raise on_failure(response) from None
+
+    return ResponseHandler(
+        request=request,
+        callback=callback,
+    )
 
 
 class SyncExecutor:
@@ -147,14 +184,10 @@ class SyncExecutor:
         self.session = session
 
     def communicate(
-        self, base_url: URL, handler: ResponseHandler[Success, Failure]
+        self, base_url: URL, resp_callback: ResponseHandler[Success]
     ) -> Success:
-        response = self.session.send(handler.request.to_request(base_url))
-        try:
-            response.raise_for_status()
-            return handler.on_success(response)
-        except HTTPStatusError:
-            raise handler.on_failure(response) from None
+        response = self.session.send(resp_callback.request.to_request(base_url))
+        return resp_callback.callback(response)
 
 
 class AsyncExecutor:
@@ -162,15 +195,10 @@ class AsyncExecutor:
         self.session = session
 
     async def communicate(
-        self, base_url: URL, handler: ResponseHandler[Success, Failure]
+        self, base_url: URL, resp_callback: ResponseHandler[Success]
     ) -> Success:
-        request = handler.request.to_request(base_url)
-        response = await self.session.send(request)
-        try:
-            response.raise_for_status()
-            return handler.on_success(response)
-        except HTTPStatusError:
-            raise handler.on_failure(response) from None
+        response = await self.session.send(resp_callback.request.to_request(base_url))
+        return resp_callback.callback(response)
 
 
 Params = ParamSpec("Params")
@@ -183,8 +211,8 @@ class HasExecutor(Protocol[Executor]):
 
 
 @dataclass
-class http_request(Generic[Params, Success, Failure]):
-    method: Callable[Concatenate[Any, Params], ResponseHandler[Success, Failure]]
+class handle_http_response(Generic[Params, Success]):
+    method: Callable[Concatenate[Any, Params], ResponseHandler[Success]]
 
     @overload
     def __get__(
@@ -202,7 +230,7 @@ class http_request(Generic[Params, Success, Failure]):
         def bound_method(
             *args: Params.args, **kwargs: Params.kwargs
         ) -> Union[Success, Awaitable[Success]]:
-            endpoint = self.method(obj, *args, **kwargs)
-            return obj.executor.communicate(obj.base_url, endpoint)
+            handler = self.method(obj, *args, **kwargs)
+            return obj.executor.communicate(obj.base_url, handler)
 
         return bound_method

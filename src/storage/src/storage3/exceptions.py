@@ -8,19 +8,23 @@ class VectorBucketException(Exception):
     def __init__(self, msg: str) -> None:
         self.msg = msg
 
+
 class VectorBucketErrorMessage(BaseModel):
     statusCode: Union[str, int]
     error: str
     message: str
     code: Optional[str] = None
 
+
 class StorageException(Exception):
     """Error raised when an operation on the storage API fails."""
-    
+
+
 class StorageApiError(StorageException, BaseModel):
     message: str
     code: str
     status: Union[int, str]
+
 
 def parse_api_error(response: Response) -> StorageApiError:
     try:

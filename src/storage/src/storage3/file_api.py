@@ -1,47 +1,59 @@
 from __future__ import annotations
 
 import base64
-import json
 from dataclasses import dataclass
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Literal, Optional, Union
+from typing import Any, Dict, Generic, List, Literal, Optional, Tuple, Union
 
-from httpx import Headers, Response
-from supabase_utils.http import EndpointRequest, Executor, ServerEndpoint, http_endpoint
+from httpx import Headers, QueryParams, Response
+from pydantic import TypeAdapter
+from supabase_utils.http import (
+    EmptyRequest,
+    Executor,
+    FromHttpxResponse,
+    JSONRequest,
+    MultipartFormDataRequest,
+    ResponseCases,
+    ResponseHandler,
+    handle_http_response,
+    validate_adapter,
+    validate_model,
+)
+from supabase_utils.types import JSONParser
 from yarl import URL
 
-from .constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
 from .exceptions import parse_api_error
 from .types import (
+    Bucket,
+    CreateSignedUrlBody,
     CreateSignedUrlResponse,
-    CreateSignedURLsOptions,
-    DownloadOptions,
-    FileOptions,
-    ListBucketFilesOptions,
+    CreateSignedUrlsBody,
+    FileObject,
+    ListBody,
+    MessageResponse,
     SignedUploadURL,
     SignedUploadUrlResponse,
     SignedUrlJsonResponse,
-    SignedUrlResponse,
     SignedUrlsJsonResponse,
-    StorageEndpoint,
+    SortByType,
     TransformOptions,
-    UploadData,
     UploadResponse,
-    URLOptions,
     transform_to_dict,
 )
 
-__all__ = ["BucketProxy"]
+__all__ = ["StorageFileApiClient"]
 
-def relative_path_to_parts(path: str) -> tuple[str, ...]:
+
+def relative_path_to_parts(path: str) -> Tuple[str, ...]:
     url = URL(path)
     if url.absolute or url.parts[0] == "/":
         return url.parts[1:]
     return url.parts
 
+
 @dataclass
-class BucketProxy(Generic[Executor]):
+class StorageFileApiClient(Generic[Executor]):
     """Functions needed to access the file API."""
 
     id: str
@@ -49,8 +61,10 @@ class BucketProxy(Generic[Executor]):
     _executor: Executor
     _headers: Headers
 
-    def parse_signed_url_response(self, response: Response) -> SignedUploadURL:
-        signed_url_upload = SignedUploadUrlResponse.model_validate_json(response.content)
+    def _parse_signed_url_response(self, response: Response) -> SignedUploadURL:
+        signed_url_upload = SignedUploadUrlResponse.model_validate_json(
+            response.content
+        )
         url = self._base_url.join(URL(signed_url_upload.url))
         return SignedUploadURL(
             signed_url=str(url),
@@ -58,12 +72,12 @@ class BucketProxy(Generic[Executor]):
         )
         raise
 
-    @http_endpoint
+    @handle_http_response
     def create_signed_upload_url(
         self,
         path: str,
         upsert: Optional[str] = None,
-    ) -> StorageEndpoint[SignedUploadURL]:
+    ) -> ResponseHandler[SignedUploadURL]:
         """
         Creates a signed upload URL.
 
@@ -78,29 +92,29 @@ class BucketProxy(Generic[Executor]):
         if upsert:
             headers["x-upsert"] = upsert
 
-        path_parts: tuple[str,...] = relative_path_to_parts(path)
-        request = EndpointRequest(
+        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        request = EmptyRequest(
             method="POST",
             path=["object", "upload", "sign", self.id, *path_parts],
-            headers=headers
+            headers=headers,
         )
-        return ServerEndpoint(
+        return ResponseCases(
             request=request,
-            on_success=self.parse_signed_url_response,
-            on_failure=parse_api_error
+            on_success=self._parse_signed_url_response,
+            on_failure=parse_api_error,
         )
 
-    @http_endpoint
+    @handle_http_response
     def upload_to_signed_url(
         self,
         path: str,
         token: str,
         file: Union[BufferedReader, bytes, FileIO, str, Path],
-        cache_control: Optional[str] = None,
-        content_type: Optional[str] = None,
+        content_type: str = "text/plain;charset=UTF-8",
+        cache_control: str = "3600",
         metadata: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
-    ) -> StorageEndpoint[UploadResponse]:
+    ) -> ResponseHandler[UploadResponse]:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
 
@@ -113,60 +127,64 @@ class BucketProxy(Generic[Executor]):
         file
             The file contents or a file-like object to upload
         """
-        path_parts: tuple[str, ...] = relative_path_to_parts(path)
-        query_params = {"token": token}
+        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        query_params = QueryParams({"token": token})
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
 
-        headers_obj = Headers(headers)
-        headers_obj.update(DEFAULT_FILE_OPTIONS)
-        headers_obj.update(self._headers)
-        _data = {}
+        extra_headers = Headers(headers)
+        extra_headers["x-upsert"] = "false"
+        extra_headers.update(self._headers)
+        data = {}
         if cache_control:
-            headers_obj["cache-control"] = f"max-age={cache_control}"
+            extra_headers["cache-control"] = f"max-age={cache_control}"
             # cacheControl is also passed as form data
             # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89
-            _data = {"cacheControl": cache_control}
-        filename = path_parts[-1]
+            data = {"cacheControl": cache_control}
+            filename = path_parts[-1]
 
-        if (
-            isinstance(file, BufferedReader)
-            or isinstance(file, bytes)
-            or isinstance(file, FileIO)
-        ):
+        if isinstance(file, (BufferedReader, bytes, FileIO)):
             # bytes or byte-stream-like object received
-            _file = {"file": (filename, file, headers.pop("content-type"))}
+            file_contents = file
         else:
             # str or pathlib.path received
-            _file = {
-                "file": (
-                    filename,
-                    open(file, "rb"),
-                    headers.pop("content-type"),
-                )
-            }
-        response = await self._request(
-            "PUT",
-            final_url,
-            files=_file,
-            headers=headers,
-            data=_data,
+            with open(file, "rb") as f:
+                file_contents = f.read()
+        files = {"file": (filename, file_contents, content_type)}
+        request = MultipartFormDataRequest(
+            method="PUT",
+            path=final_url,
+            files=files,
+            headers=extra_headers,
+            data=data,
             query_params=query_params,
         )
-        data: UploadData = response.json()
+        return ResponseCases(
+            request=request,
+            on_success=validate_model(UploadResponse),
+            on_failure=parse_api_error,
+        )
 
-        return UploadResponse(Key=data["Key"])
-
-    def _make_signed_url(
-        self, signed_url: str, download_query: dict[str, str]
-    ) -> SignedUrlResponse:
+    def _make_signed_url(self, signed_url: str, download_query: QueryParams) -> str:
         url = URL(signed_url[1:])  # ignore starting slash
-        signedURL = self._base_url.join(url).extend_query(download_query)
-        return {"signedURL": str(signedURL), "signedUrl": str(signedURL)}
+        signed = self._base_url.join(url).extend_query(download_query)
+        return str(signed)
 
-    async def create_signed_url(
-        self, path: str, expires_in: int, options: Optional[URLOptions] = None
-    ) -> SignedUrlResponse:
+    def _parse_signed_url(self, download_query: QueryParams) -> FromHttpxResponse[str]:
+        def from_response(response: Response) -> str:
+            signed_url_obj = SignedUrlJsonResponse.model_validate_json(response.content)
+            return self._make_signed_url(signed_url_obj.signedURL, download_query)
+
+        return from_response
+
+    @handle_http_response
+    def create_signed_url(
+        self,
+        path: str,
+        expires_in: int,
+        download: Optional[Union[str, bool]] = None,
+        transform: Optional[TransformOptions] = None,
+    ) -> ResponseHandler[str]:
         """
         Parameters
         ----------
@@ -177,31 +195,58 @@ class BucketProxy(Generic[Executor]):
         options
             options to be passed for downloading or transforming the file.
         """
-        json: dict[str, str | bool | TransformOptions] = {"expiresIn": str(expires_in)}
-        download_query = {}
-        url_options = options or {}
-        if download := url_options.get("download"):
-            json.update({"download": download})
-            download_query = {"download": "" if download is True else download}
-        if transform := url_options.get("transform"):
-            json.update({"transform": transform})
+        download_query = QueryParams()
+        if download:
+            download_query = download_query.set(
+                "download", "" if download is True else download
+            )
 
-        path_parts = relative_path_to_parts(path)
-        response = await self._request(
-            "POST",
-            ["object", "sign", self.id, *path_parts],
-            json=json,
+        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        body = CreateSignedUrlBody(
+            expires_in=expires_in,
+            download=download,
+            transform=transform,
+        )
+        request = JSONRequest(
+            method="POST",
+            path=["object", "sign", self.id, *path_parts],
+            headers=self._headers,
+            body=body,
+            exclude_none=True,
         )
 
-        data = SignedUrlJsonResponse.model_validate_json(response.content)
-        return self._make_signed_url(data.signedURL, download_query)
+        return ResponseCases(
+            request=request,
+            on_success=self._parse_signed_url(download_query),
+            on_failure=parse_api_error,
+        )
 
-    async def create_signed_urls(
+    def _parse_signed_urls(
+        self, download_query: QueryParams
+    ) -> FromHttpxResponse[List[CreateSignedUrlResponse]]:
+        def from_response(response: Response) -> List[CreateSignedUrlResponse]:
+            data = SignedUrlsJsonResponse.validate_json(response.content)
+            signed_urls = []
+            for item in data:
+                # Prepare URL
+                url = self._make_signed_url(item.signedURL, download_query)
+                signed_item = CreateSignedUrlResponse(
+                    error=item.error,
+                    path=item.path,
+                    signedURL=url,
+                )
+                signed_urls.append(signed_item)
+            return signed_urls
+
+        return from_response
+
+    @handle_http_response
+    def create_signed_urls(
         self,
         paths: List[str],
         expires_in: int,
-        options: Optional[CreateSignedURLsOptions] = None,
-    ) -> List[CreateSignedUrlResponse]:
+        download: Optional[Union[bool, str]] = None,
+    ) -> ResponseHandler[List[CreateSignedUrlResponse]]:
         """
         Parameters
         ----------
@@ -212,37 +257,35 @@ class BucketProxy(Generic[Executor]):
         options
             options to be passed for downloading the file.
         """
-        json: dict[str, str | bool | None | list[str]] = {
-            "paths": paths,
-            "expiresIn": str(expires_in),
-        }
-        download_query = {}
-        url_options = options or {}
-        if download := url_options.get("download"):
-            json.update({"download": download})
-            download_query = {"download": "" if download is True else download}
+        download_query = QueryParams()
+        if download:
+            download_query = download_query.set(
+                "download", "" if download is True else download
+            )
 
-        response = await self._request(
-            "POST",
-            ["object", "sign", self.id],
-            json=json,
+        body = CreateSignedUrlsBody(
+            download=download,
+            expires_in=expires_in,
+            paths=paths,
         )
-        data = SignedUrlsJsonResponse.validate_json(response.content)
-        signed_urls = []
-        for item in data:
-            # Prepare URL
-            url = self._make_signed_url(item.signedURL, download_query)
-            signed_item: CreateSignedUrlResponse = {
-                "error": item.error,
-                "path": item.path,
-                "signedURL": url["signedURL"],
-                "signedUrl": url["signedURL"],
-            }
-            signed_urls.append(signed_item)
-        return signed_urls
 
-    async def get_public_url(
-        self, path: str, options: Optional[URLOptions] = None
+        request = JSONRequest(
+            method="POST",
+            path=["object", "sign", self.id],
+            body=body,
+            headers=self._headers,
+        )
+        return ResponseCases(
+            request=request,
+            on_success=self._parse_signed_urls(download_query),
+            on_failure=parse_api_error,
+        )
+
+    def get_public_url(
+        self,
+        path: str,
+        download: Optional[Union[bool, str]] = None,
+        transform_options: Optional[TransformOptions] = None,
     ) -> str:
         """
         Parameters
@@ -250,16 +293,15 @@ class BucketProxy(Generic[Executor]):
         path
             file path, including the path and file name. For example `folder/image.png`.
         """
-        download_query = {}
-        url_options = options or {}
-        if download := url_options.get("download"):
-            download_query = {"download": "" if download is True else download}
+        download_query = QueryParams()
+        if download:
+            download_query = download_query.set(
+                "download", "" if download is True else download
+            )
 
-        render_path = (
-            ["render", "image"] if url_options.get("transform") else ["object"]
-        )
+        render_path = ["render", "image"] if transform_options else ["object"]
         transformation = (
-            transform_to_dict(t) if (t := url_options.get("transform")) else dict()
+            transform_to_dict(transform_options) if transform_options else dict()
         )
 
         path_parts = relative_path_to_parts(path)
@@ -270,7 +312,8 @@ class BucketProxy(Generic[Executor]):
         )
         return str(url)
 
-    async def move(self, from_path: str, to_path: str) -> dict[str, str]:
+    @handle_http_response
+    def move(self, from_path: str, to_path: str) -> ResponseHandler[MessageResponse]:
         """
         Moves an existing file, optionally renaming it at the same time.
 
@@ -281,18 +324,24 @@ class BucketProxy(Generic[Executor]):
         to_path
             The new file path, including the new file name. For example `folder/image-copy.png`.
         """
-        res = await self._request(
-            "POST",
-            ["object", "move"],
-            json={
+        request = JSONRequest(
+            method="POST",
+            path=["object", "move"],
+            body={
                 "bucketId": self.id,
                 "sourceKey": from_path,
                 "destinationKey": to_path,
             },
+            headers=self._headers,
         )
-        return res.json()
+        return ResponseCases(
+            request=request,
+            on_success=validate_model(MessageResponse),
+            on_failure=parse_api_error,
+        )
 
-    async def copy(self, from_path: str, to_path: str) -> dict[str, str]:
+    @handle_http_response
+    def copy(self, from_path: str, to_path: str) -> ResponseHandler[MessageResponse]:
         """
         Copies an existing file to a new path in the same bucket.
 
@@ -303,18 +352,24 @@ class BucketProxy(Generic[Executor]):
         to_path
             The new file path, including the new file name. For example `folder/image-copy.png`.
         """
-        res = await self._request(
-            "POST",
-            ["object", "copy"],
-            json={
+        request = JSONRequest(
+            method="POST",
+            path=["object", "copy"],
+            body={
                 "bucketId": self.id,
                 "sourceKey": from_path,
                 "destinationKey": to_path,
             },
+            headers=self._headers,
         )
-        return res.json()
+        return ResponseCases(
+            request=request,
+            on_success=validate_model(MessageResponse),
+            on_failure=parse_api_error,
+        )
 
-    async def remove(self, paths: list[str]) -> list[dict[str, Any]]:
+    @handle_http_response
+    def remove(self, paths: list[str]) -> ResponseHandler[list[Bucket]]:
         """
         Deletes files within the same bucket
 
@@ -323,17 +378,23 @@ class BucketProxy(Generic[Executor]):
         paths
             An array or list of files to be deletes, including the path and file name. For example [`folder/image.png`].
         """
-        response = await self._request(
-            "DELETE",
-            ["object", self.id],
-            json={"prefixes": paths},
+        request = JSONRequest(
+            method="DELETE",
+            path=["object", self.id],
+            body={"prefixes": paths},
+            headers=self._headers,
         )
-        return response.json()
+        return ResponseCases(
+            request=request,
+            on_success=validate_adapter(TypeAdapter(list[Bucket])),
+            on_failure=parse_api_error,
+        )
 
-    async def info(
+    @handle_http_response
+    def info(
         self,
         path: str,
-    ) -> dict[str, Any]:
+    ) -> ResponseHandler[FileObject]:
         """
         Lists info for a particular file.
 
@@ -342,17 +403,23 @@ class BucketProxy(Generic[Executor]):
         path
             The path to the file.
         """
-        path_parts = relative_path_to_parts(path)  # split paths by /
-        response = await self._request(
-            "GET",
-            ["object", "info", self.id, *path_parts],
+        path_parts: Tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
+        request = EmptyRequest(
+            method="GET",
+            path=["object", "info", self.id, *path_parts],
+            headers=self._headers,
         )
-        return response.json()
+        return ResponseCases(
+            request=request,
+            on_success=validate_model(FileObject),
+            on_failure=parse_api_error,
+        )
 
-    async def exists(
+    @handle_http_response
+    def exists(
         self,
         path: str,
-    ) -> bool:
+    ) -> ResponseHandler[bool]:
         """
         Returns True if the file exists, False otherwise.
 
@@ -361,21 +428,35 @@ class BucketProxy(Generic[Executor]):
         path
             The path to the file.
         """
-        try:
-            path_parts = relative_path_to_parts(path)  # split paths by /
-            response = await self._request(
-                "HEAD",
-                ["object", self.id, *path_parts],
-            )
-            return response.status_code == 200
-        except json.JSONDecodeError:
-            return False
 
-    async def list(
+        def return_false_on_400(response: Response) -> bool:
+            if response.is_success:
+                return True
+            elif 400 <= response.status_code <= 401:
+                return False
+            else:
+                raise parse_api_error(response)
+
+        path_parts: Tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
+        request = EmptyRequest(
+            method="HEAD",
+            path=["object", self.id, *path_parts],
+            headers=self._headers,
+        )
+        return ResponseHandler(
+            request=request,
+            callback=return_false_on_400,
+        )
+
+    @handle_http_response
+    def list(
         self,
         path: Optional[str] = None,
-        options: Optional[ListBucketFilesOptions] = None,
-    ) -> list[dict[str, Any]]:
+        limit: int = 100,
+        offset: int = 0,
+        search: Optional[str] = None,
+        sortBy: Optional[SortByType] = None,
+    ) -> ResponseHandler[list[FileObject]]:
         """
         Lists all the files within a bucket.
 
@@ -386,27 +467,32 @@ class BucketProxy(Generic[Executor]):
         options
             Search options, including `limit`, `offset`, `sortBy` and `search`.
         """
-        extra_options = options or {}
-        extra_headers = {"Content-Type": "application/json"}
-        body = {
-            **DEFAULT_SEARCH_OPTIONS,
-            **extra_options,
-            "prefix": path or "",
-        }
-        response = await self._request(
-            "POST",
-            ["object", "list", self.id],
-            json=body,
-            headers=extra_headers,
+        body = ListBody(
+            prefix=path or "",
+            limit=limit,
+            offset=offset,
+            sortBy=sortBy or SortByType(),
+            search=search,
         )
-        return response.json()
+        request = JSONRequest(
+            method="POST",
+            path=["object", "list", self.id],
+            body=body,
+            headers=self._headers,
+        )
+        return ResponseCases(
+            request=request,
+            on_success=validate_adapter(TypeAdapter(list[FileObject])),
+            on_failure=parse_api_error,
+        )
 
-    async def download(
+    @handle_http_response
+    def download(
         self,
         path: str,
-        options: Optional[DownloadOptions] = None,
+        transform: Optional[TransformOptions] = None,
         query_params: Optional[Dict[str, str]] = None,
-    ) -> bytes:
+    ) -> ResponseHandler[bytes]:
         """
         Downloads a file.
 
@@ -415,33 +501,35 @@ class BucketProxy(Generic[Executor]):
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         """
-        url_options = options or DownloadOptions()
-        render_path = (
-            ["render", "image", "authenticated"]
-            if url_options.get("transform")
-            else ["object"]
+        render_path: List[str] = ["object"]
+        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        params = QueryParams(query_params)
+        if transform:
+            params = params.merge(transform_to_dict(transform))
+            render_path = ["render", "image", "authenticated"]
+        request = EmptyRequest(
+            method="GET",
+            path=[*render_path, self.id, *path_parts],
+            query_params=params,
+            headers=self._headers,
+        )
+        return ResponseCases(
+            request=request,
+            on_success=lambda response: response.bytes,
+            on_failure=parse_api_error,
         )
 
-        transform_options = url_options.get("transform") or TransformOptions()
-
-        path_parts = relative_path_to_parts(path)
-        response = await self._request(
-            "GET",
-            [*render_path, self.id, *path_parts],
-            query_params={
-                **transform_to_dict(transform_options),
-                **(query_params or {}),
-            },
-        )
-        return response.content
-
-    async def _upload_or_update(
+    def _upload_or_update(
         self,
         method: Literal["POST", "PUT"],
         path: tuple[str, ...],
         file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[FileOptions] = None,
-    ) -> UploadResponse:
+        cache_control: str,
+        content_type: str,
+        upsert: str,
+        metadata: Optional[Dict[str, Any]],
+        headers: Optional[Dict[str, str]],
+    ) -> ResponseHandler[UploadResponse]:
         """
         Uploads a file to an existing bucket.
 
@@ -455,73 +543,68 @@ class BucketProxy(Generic[Executor]):
         file_options
             HTTP headers.
         """
-        if file_options is None:
-            file_options = {}
-        cache_control = file_options.pop("cache-control", None)
-        _data = {}
 
-        upsert = file_options.pop("upsert", None)
-        if upsert:
-            file_options.update({"x-upsert": upsert})
+        extra_headers = Headers(self._headers)
 
-        metadata = file_options.pop("metadata", None)
-        file_opts_headers = file_options.pop("headers", None)
+        extra_headers["x-upsert"] = upsert
+        extra_headers["cache-control"] = cache_control
+        extra_headers["content-type"] = content_type
 
-        headers = {
-            **self._client.headers,
-            **DEFAULT_FILE_OPTIONS,
-            **file_options,
-        }
+        if headers:
+            extra_headers.update(headers)
 
+        data = {}
         if metadata:
-            metadata_str = json.dumps(metadata)
-            headers["x-metadata"] = base64.b64encode(metadata_str.encode())
-            _data.update({"metadata": metadata_str})
-
-        if file_opts_headers:
-            headers.update({**file_opts_headers})
+            metadata_bytes = JSONParser.dump_json(metadata)
+            extra_headers["x-metadata"] = base64.b64encode(metadata_bytes).decode(
+                "utf-8"
+            )
+            data["metadata"] = metadata_bytes.decode("utf-8")
 
         # Only include x-upsert on a POST method
         if method != "POST":
-            del headers["x-upsert"]
+            del extra_headers["x-upsert"]
 
         filename = path[-1]
 
         if cache_control:
-            headers["cache-control"] = f"max-age={cache_control}"
-            _data.update({"cacheControl": cache_control})
+            extra_headers["cache-control"] = f"max-age={cache_control}"
+            data["cacheControl"] = cache_control
 
-        if (
-            isinstance(file, BufferedReader)
-            or isinstance(file, bytes)
-            or isinstance(file, FileIO)
-        ):
+        if isinstance(file, (BufferedReader, bytes, FileIO)):
             # bytes or byte-stream-like object received
-            files = {"file": (filename, file, headers.pop("content-type"))}
+            file_contents = file
         else:
             # str or pathlib.path received
-            files = {
-                "file": (
-                    filename,
-                    open(file, "rb"),
-                    headers.pop("content-type"),
-                )
-            }
+            with open(file, "rb") as f:
+                file_contents = f.read()
 
-        response = await self._request(
-            method, ["object", self.id, *path], files=files, headers=headers, data=_data
+        files = {"file": (filename, file_contents, content_type)}
+        request = MultipartFormDataRequest(
+            method=method,
+            path=["object", self.id, *path],
+            files=files,
+            headers=extra_headers,
+            data=data,
         )
 
-        data: UploadData = response.json()
+        return ResponseCases(
+            request=request,
+            on_success=validate_model(UploadResponse),
+            on_failure=parse_api_error,
+        )
 
-        return UploadResponse(path="/".join(path), Key=data["Key"])
-
-    async def upload(
+    @handle_http_response
+    def upload(
         self,
         path: str,
         file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[FileOptions] = None,
-    ) -> UploadResponse:
+        cache_control: str = "3600",
+        content_type: str = "text/plain;charset=UTF-8",
+        upsert: str = "false",
+        metadata: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> ResponseHandler[UploadResponse]:
         """
         Uploads a file to an existing bucket.
 
@@ -536,13 +619,36 @@ class BucketProxy(Generic[Executor]):
             HTTP headers.
         """
         path_parts = relative_path_to_parts(path)
-        return await self._upload_or_update("POST", path_parts, file, file_options)
+        return self._upload_or_update(
+            method="POST",
+            path=path_parts,
+            file=file,
+            cache_control=cache_control,
+            content_type=content_type,
+            upsert=upsert,
+            metadata=metadata,
+            headers=headers,
+        )
 
-    async def update(
+    @handle_http_response
+    def update(
         self,
         path: str,
         file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[FileOptions] = None,
-    ) -> UploadResponse:
+        cache_control: str = "3600",
+        content_type: str = "text/plain;charset=UTF-8",
+        upsert: str = "false",
+        metadata: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> ResponseHandler[UploadResponse]:
         path_parts = relative_path_to_parts(path)
-        return await self._upload_or_update("PUT", path_parts, file, file_options)
+        return self._upload_or_update(
+            method="PUT",
+            path=path_parts,
+            file=file,
+            cache_control=cache_control,
+            content_type=content_type,
+            upsert=upsert,
+            metadata=metadata,
+            headers=headers,
+        )

@@ -1,19 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, TypeVar, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
-from supabase_utils.http import ServerEndpoint
 from typing_extensions import ReadOnly, TypeAlias, TypedDict
-
-from .exceptions import StorageApiError
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 
-T = TypeVar("T")
-StorageEndpoint: TypeAlias = ServerEndpoint[T, StorageApiError]
 
 class Bucket(BaseModel, extra="ignore"):
     """Represents a file storage bucket."""
@@ -30,26 +25,32 @@ class Bucket(BaseModel, extra="ignore"):
 
 
 # used in bucket.list method's option parameter
-class _sortByType(TypedDict, total=False):
-    column: str
-    order: Literal["asc", "desc"]
+@dataclass
+class SortByType:
+    column: str = "name"
+    order: Literal["asc", "desc"] = "asc"
+
+
+class ListBody(BaseModel):
+    prefix: str
+    limit: int
+    offset: int
+    search: Optional[str]
+    sortBy: SortByType
+
 
 class SignedUploadUrlResponse(BaseModel):
     url: str
     token: str
-    
+
+
 @dataclass
 class SignedUploadURL:
     signed_url: str
     token: str
 
-class ListBucketFilesOptions(TypedDict, total=False):
-    limit: int
-    offset: int
-    sortBy: _sortByType
-    search: str
 
-
+@dataclass
 class TransformOptions(TypedDict, total=False):
     height: ReadOnly[int]
     width: ReadOnly[int]
@@ -58,8 +59,21 @@ class TransformOptions(TypedDict, total=False):
     quality: ReadOnly[int]
 
 
+class CreateSignedUrlBody(BaseModel):
+    expires_in: int
+    download: Optional[Union[str, bool]]
+    transform: Optional[TransformOptions]
+
+
+class CreateSignedUrlsBody(BaseModel):
+    paths: List[str]
+    expires_in: int
+    download: Optional[Union[str, bool]]
+
+
 def transform_to_dict(t: TransformOptions) -> dict[str, str]:
     return {key: str(val) for key, val in t.items()}
+
 
 class CreateOrUpdateBucketBody(BaseModel):
     id: str
@@ -68,34 +82,24 @@ class CreateOrUpdateBucketBody(BaseModel):
     file_size_limit: Optional[int]
     allowed_mime_types: Optional[list[str]]
 
+
 class MessageResponse(BaseModel):
     message: str
 
-class URLOptions(TypedDict, total=False):
-    download: Union[str, bool]
-    transform: TransformOptions
 
-
-class CreateSignedURLsOptions(TypedDict, total=False):
-    download: Union[str, bool]
-
-
-class DownloadOptions(TypedDict, total=False):
-    transform: TransformOptions
-
-
-FileOptions = TypedDict(
-    "FileOptions",
-    {
-        "cache-control": str,
-        "content-type": str,
-        "x-upsert": str,
-        "upsert": str,
-        "metadata": Dict[str, Any],
-        "headers": Dict[str, str],
-    },
-    total=False,
-)
+class FileObject(BaseModel):
+    id: str
+    version: str
+    name: str
+    bucket_id: str
+    updated_at: datetime
+    created_at: datetime
+    size: Optional[int] = None
+    cache_control: Optional[str] = None
+    content_type: Optional[str] = None
+    etag: Optional[str]
+    last_modified: Optional[str]
+    metadata: Dict[str, Any]
 
 
 class UploadData(TypedDict, total=False):
@@ -103,20 +107,15 @@ class UploadData(TypedDict, total=False):
     Key: str
 
 
+class UploadResponse(BaseModel):
+    Key: str
+
+
 @dataclass
-class UploadResponse:
-    full_path: str
-
-class SignedUrlResponse(TypedDict):
-    signedURL: str
-    signedUrl: str
-
-
-class CreateSignedUrlResponse(TypedDict):
+class CreateSignedUrlResponse:
     error: Optional[str]
     path: str
     signedURL: str
-    signedUrl: str
 
 
 class SignedUrlJsonResponse(BaseModel, extra="ignore"):
