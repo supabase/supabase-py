@@ -12,3 +12,4 @@ Examples(WIP)
 
       API </api/api>
       Client </api/client>
+   Metadata Update </examples/metadata_update>
