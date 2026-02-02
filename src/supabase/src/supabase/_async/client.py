@@ -81,7 +81,7 @@ class AsyncClient:
             "wss" if self.supabase_url.scheme == "https" else "ws"
         )
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
-        self.storage_url = self.supabase_url.joinpath("storage", "v1")
+        self.storage_url = self.supabase_url.joinpath("storage", "v1", "/")
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
         # Instantiate clients.
