@@ -21,7 +21,7 @@ from yarl import URL
 from .analytics import StorageAnalyticsClient
 from .exceptions import parse_api_error
 from .file_api import StorageFileApiClient
-from .types import Bucket, CreateOrUpdateBucketBody, MessageResponse
+from .types import Bucket, BucketName, CreateOrUpdateBucketBody, MessageResponse
 from .vectors import StorageVectorsClient
 from .version import __version__
 
@@ -46,7 +46,7 @@ class StorageClient(Generic[Executor]):
         if url and url[-1] != "/":
             print("Storage endpoint URL should have a trailing slash.")
             url += "/"
-        self._base_url = URL(url)
+        self.base_url = URL(url)
         self._headers = Headers(headers)
 
     def from_(self, id: str) -> StorageFileApiClient[Executor]:
@@ -57,11 +57,11 @@ class StorageClient(Generic[Executor]):
         id
             The unique identifier of the bucket
         """
-        return StorageFileApiClient(id, self._base_url, self.executor, self._headers)
+        return StorageFileApiClient(id, self.base_url, self.executor, self._headers)
 
     def vectors(self) -> StorageVectorsClient[Executor]:
         return StorageVectorsClient(
-            base_url=self._base_url.joinpath("vector"),
+            base_url=self.base_url.joinpath("vector"),
             _headers=self._headers,
             executor=self.executor,
         )
@@ -69,7 +69,7 @@ class StorageClient(Generic[Executor]):
     def analytics(self) -> StorageAnalyticsClient[Executor]:
         return StorageAnalyticsClient(
             _headers=self._headers,
-            base_url=self._base_url.joinpath("iceberg"),
+            base_url=self.base_url.joinpath("iceberg"),
             executor=self.executor,
         )
 
@@ -116,7 +116,7 @@ class StorageClient(Generic[Executor]):
         public: Optional[bool] = None,
         file_size_limit: Optional[int] = None,
         allowed_mime_types: Optional[list[str]] = None,
-    ) -> ResponseHandler[Bucket]:
+    ) -> ResponseHandler[BucketName]:
         """Creates a new storage bucket.
 
         Parameters
@@ -143,9 +143,10 @@ class StorageClient(Generic[Executor]):
             body=body,
             exclude_none=True,
         )
+
         return ResponseCases(
             request=request,
-            on_success=validate_model(Bucket),
+            on_success=validate_model(BucketName),
             on_failure=parse_api_error,
         )
 
@@ -201,6 +202,7 @@ class StorageClient(Generic[Executor]):
             path=["bucket", id, "empty"],
             headers=self._headers,
         )
+
         return ResponseCases(
             request=request,
             on_success=validate_model(MessageResponse),
@@ -234,11 +236,12 @@ class AsyncStorageClient(StorageClient[AsyncExecutor]):
         self,
         url: str,
         headers: dict[str, str],
+        timeout: Optional[int] = None,
         http_client: Optional[AsyncClient] = None,
     ) -> None:
         client = http_client or AsyncClient(
             headers=headers,
-            timeout=DEFAULT_TIMEOUT,
+            timeout=timeout or DEFAULT_TIMEOUT,
             http2=True,
             follow_redirects=True,
         )
@@ -246,20 +249,33 @@ class AsyncStorageClient(StorageClient[AsyncExecutor]):
             self, url=url, headers=headers, executor=AsyncExecutor(session=client)
         )
 
+    async def __aenter__(self) -> AsyncStorageClient:
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        await self.executor.session.aclose()
+
 
 class SyncStorageClient(StorageClient[SyncExecutor]):
     def __init__(
         self,
         url: str,
         headers: dict[str, str],
+        timeout: Optional[int] = None,
         http_client: Optional[Client] = None,
     ) -> None:
         client = http_client or Client(
             headers=headers,
-            timeout=DEFAULT_TIMEOUT,
+            timeout=timeout or DEFAULT_TIMEOUT,
             http2=True,
             follow_redirects=True,
         )
         StorageClient.__init__(
             self, url=url, headers=headers, executor=SyncExecutor(session=client)
         )
+
+    def __enter__(self) -> SyncStorageClient:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.executor.session.close()

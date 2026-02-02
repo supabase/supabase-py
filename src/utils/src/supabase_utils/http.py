@@ -58,11 +58,12 @@ class BytesRequest(EmptyRequest):
     body: bytes
 
     def to_request(self, base_url: URL) -> HttpxRequest:
-        self.headers["Content-Type"] = "application/octet-stream"
+        headers = Headers(self.headers)
+        headers["Content-Type"] = "application/octet-stream"
         return HttpxRequest(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
-            headers=self.headers,
+            headers=headers,
             params=self.query_params,
             content=self.body,
         )
@@ -74,7 +75,8 @@ class JSONRequest(EmptyRequest):
     exclude_none: bool = True
 
     def to_request(self, base_url: URL) -> HttpxRequest:
-        self.headers["Content-Type"] = "application/json"
+        headers = Headers(self.headers)
+        headers["Content-Type"] = "application/json"
         if isinstance(self.body, BaseModel):
             content = self.body.__pydantic_serializer__.to_json(
                 self.body, exclude_none=self.exclude_none
@@ -84,7 +86,7 @@ class JSONRequest(EmptyRequest):
         return HttpxRequest(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
-            headers=self.headers,
+            headers=headers,
             params=self.query_params,
             content=content,
         )
@@ -95,11 +97,12 @@ class TextRequest(EmptyRequest):
     text: str
 
     def to_request(self, base_url: URL) -> HttpxRequest:
-        self.headers["Content-Type"] = "text/plain; charset=utf-8"
+        headers = Headers(self.headers)
+        headers["Content-Type"] = "text/plain; charset=utf-8"
         return HttpxRequest(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
-            headers=self.headers,
+            headers=headers,
             params=self.query_params,
             content=self.text.encode("utf-8"),
         )

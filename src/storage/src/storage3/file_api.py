@@ -31,6 +31,7 @@ from .types import (
     CreateSignedUrlsBody,
     FileObject,
     ListBody,
+    ListFileObject,
     MessageResponse,
     SignedUploadURL,
     SignedUploadUrlResponse,
@@ -57,15 +58,15 @@ class StorageFileApiClient(Generic[Executor]):
     """Functions needed to access the file API."""
 
     id: str
-    _base_url: URL
-    _executor: Executor
+    base_url: URL
+    executor: Executor
     _headers: Headers
 
     def _parse_signed_url_response(self, response: Response) -> SignedUploadURL:
         signed_url_upload = SignedUploadUrlResponse.model_validate_json(
             response.content
         )
-        url = self._base_url.join(URL(signed_url_upload.url))
+        url = self.base_url.join(URL(signed_url_upload.url))
         return SignedUploadURL(
             signed_url=str(url),
             token=signed_url_upload.token,
@@ -88,7 +89,7 @@ class StorageFileApiClient(Generic[Executor]):
         options
             Additional options for the upload url creation.
         """
-        headers = Headers(self._headers)
+        headers = Headers()
         if upsert:
             headers["x-upsert"] = upsert
 
@@ -167,7 +168,7 @@ class StorageFileApiClient(Generic[Executor]):
 
     def _make_signed_url(self, signed_url: str, download_query: QueryParams) -> str:
         url = URL(signed_url[1:])  # ignore starting slash
-        signed = self._base_url.join(url).extend_query(download_query)
+        signed = self.base_url.join(url).extend_query(download_query)
         return str(signed)
 
     def _parse_signed_url(self, download_query: QueryParams) -> FromHttpxResponse[str]:
@@ -233,7 +234,7 @@ class StorageFileApiClient(Generic[Executor]):
                 signed_item = CreateSignedUrlResponse(
                     error=item.error,
                     path=item.path,
-                    signedURL=url,
+                    signed_url=url,
                 )
                 signed_urls.append(signed_item)
             return signed_urls
@@ -285,7 +286,7 @@ class StorageFileApiClient(Generic[Executor]):
         self,
         path: str,
         download: Optional[Union[bool, str]] = None,
-        transform_options: Optional[TransformOptions] = None,
+        transform: Optional[TransformOptions] = None,
     ) -> str:
         """
         Parameters
@@ -299,14 +300,12 @@ class StorageFileApiClient(Generic[Executor]):
                 "download", "" if download is True else download
             )
 
-        render_path = ["render", "image"] if transform_options else ["object"]
-        transformation = (
-            transform_to_dict(transform_options) if transform_options else dict()
-        )
+        render_path = ["render", "image"] if transform else ["object"]
+        transformation = transform_to_dict(transform) if transform else dict()
 
         path_parts = relative_path_to_parts(path)
         url = (
-            self._base_url.joinpath(*render_path, "public", self.id, *path_parts)
+            self.base_url.joinpath(*render_path, "public", self.id, *path_parts)
             .with_query(download_query)
             .extend_query(transformation)
         )
@@ -456,7 +455,7 @@ class StorageFileApiClient(Generic[Executor]):
         offset: int = 0,
         search: Optional[str] = None,
         sortBy: Optional[SortByType] = None,
-    ) -> ResponseHandler[list[FileObject]]:
+    ) -> ResponseHandler[List[ListFileObject]]:
         """
         Lists all the files within a bucket.
 
@@ -482,7 +481,7 @@ class StorageFileApiClient(Generic[Executor]):
         )
         return ResponseCases(
             request=request,
-            on_success=validate_adapter(TypeAdapter(list[FileObject])),
+            on_success=validate_adapter(TypeAdapter(List[ListFileObject])),
             on_failure=parse_api_error,
         )
 
@@ -502,20 +501,25 @@ class StorageFileApiClient(Generic[Executor]):
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         """
         render_path: List[str] = ["object"]
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
         params = QueryParams(query_params)
         if transform:
             params = params.merge(transform_to_dict(transform))
             render_path = ["render", "image", "authenticated"]
+        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
         request = EmptyRequest(
             method="GET",
             path=[*render_path, self.id, *path_parts],
             query_params=params,
             headers=self._headers,
         )
+
+        def get_bytes(response: Response) -> bytes:
+            print(response.content)
+            return response.content
+
         return ResponseCases(
             request=request,
-            on_success=lambda response: response.bytes,
+            on_success=get_bytes,
             on_failure=parse_api_error,
         )
 
@@ -544,14 +548,13 @@ class StorageFileApiClient(Generic[Executor]):
             HTTP headers.
         """
 
-        extra_headers = Headers(self._headers)
+        extra_headers = Headers(headers)
 
         extra_headers["x-upsert"] = upsert
         extra_headers["cache-control"] = cache_control
         extra_headers["content-type"] = content_type
 
-        if headers:
-            extra_headers.update(headers)
+        extra_headers.update(self._headers)
 
         data = {}
         if metadata:

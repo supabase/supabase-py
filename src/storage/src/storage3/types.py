@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
-from typing_extensions import ReadOnly, TypeAlias, TypedDict
+from typing_extensions import TypeAlias, TypedDict
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 
@@ -21,7 +21,11 @@ class Bucket(BaseModel, extra="ignore"):
     updated_at: datetime
     file_size_limit: Optional[int]
     allowed_mime_types: Optional[list[str]]
-    type: Optional[str] = None
+    type: Optional[Literal["STANDARD", "ANALYTICS"]]
+
+
+class BucketName(BaseModel, extra="ignore"):
+    name: str
 
 
 # used in bucket.list method's option parameter
@@ -51,12 +55,12 @@ class SignedUploadURL:
 
 
 @dataclass
-class TransformOptions(TypedDict, total=False):
-    height: ReadOnly[int]
-    width: ReadOnly[int]
-    resize: ReadOnly[Literal["cover", "contain", "fill"]]
-    format: ReadOnly[Literal["origin", "avif"]]
-    quality: ReadOnly[int]
+class TransformOptions:
+    height: Optional[int] = None
+    width: Optional[int] = None
+    resize: Optional[Literal["cover", "contain", "fill"]] = None
+    format: Optional[Literal["origin", "avif"]] = None
+    quality: Optional[int] = None
 
 
 class CreateSignedUrlBody(BaseModel):
@@ -102,6 +106,17 @@ class FileObject(BaseModel):
     metadata: Dict[str, Any]
 
 
+class ListFileObject(BaseModel):
+    id: str
+    name: str
+    owner: Optional[str] = None
+    bucket_id: Optional[str] = None
+    updated_at: datetime
+    created_at: datetime
+    metadata: Dict[str, Any]
+    buckets: Optional[Bucket] = None
+
+
 class UploadData(TypedDict, total=False):
     Id: str
     Key: str
@@ -115,7 +130,7 @@ class UploadResponse(BaseModel):
 class CreateSignedUrlResponse:
     error: Optional[str]
     path: str
-    signedURL: str
+    signed_url: str
 
 
 class SignedUrlJsonResponse(BaseModel, extra="ignore"):
