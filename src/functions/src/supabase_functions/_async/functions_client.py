@@ -1,3 +1,4 @@
+import sys
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
@@ -28,8 +29,17 @@ class AsyncFunctionsClient:
         self.url = URL(url)
         self.headers = {
             "User-Agent": f"supabase-py/functions-py v{__version__}",
+            "X-Python-Version": sys.version,
+            "X-OS": sys.platform,
             **headers,
         }
+
+        if sys.version_info < (3, 10):
+            warn(
+                "Python 3.9 has reached EOL, and is not going to be supported in future versions. Please, upgrade to a newer python version",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         if timeout is not None:
             warn(

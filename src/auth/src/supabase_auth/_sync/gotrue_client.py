@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import time
 from contextlib import suppress
 from typing import Callable, Dict, List, Optional, Tuple
@@ -11,7 +12,6 @@ from jwt import get_algorithm_by_name
 from typing_extensions import cast
 
 from ..constants import (
-    DEFAULT_HEADERS,
     EXPIRY_MARGIN,
     GOTRUE_URL,
     MAX_RETRIES,
@@ -89,6 +89,7 @@ from ..types import (
     UserResponse,
     VerifyOtpParams,
 )
+from ..version import __version__
 from .gotrue_admin_api import SyncGoTrueAdminAPI
 from .gotrue_base_api import SyncGoTrueBaseAPI
 from .gotrue_mfa_api import SyncGoTrueMFAAPI
@@ -110,10 +111,17 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:
+        extra_headers = {
+            "User-Agent": f"supabase-py/supabase_auth v{__version__}",
+            "X-Python-Version": sys.version,
+            "X-OS": sys.platform,
+        }
+        if headers:
+            extra_headers.update(headers)
         SyncGoTrueBaseAPI.__init__(
             self,
             url=url or GOTRUE_URL,
-            headers=headers or DEFAULT_HEADERS,
+            headers=extra_headers,
             http_client=http_client,
             verify=verify,
             proxy=proxy,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from typing import Any, Dict, Optional, Union, cast
 from warnings import warn
 
@@ -35,6 +36,20 @@ class AsyncPostgrestClient(BasePostgrestClient):
         proxy: Optional[str] = None,
         http_client: Optional[AsyncClient] = None,
     ) -> None:
+        headers = {
+            "User-Agent": f"supabase-py/functions-py v{__version__}",
+            "X-Python-Version": sys.version,
+            "X-OS": sys.platform,
+            **headers,
+        }
+
+        if sys.version_info < (3, 10):
+            warn(
+                "Python 3.9 has reached EOL, and is not going to be supported in future versions. Please, upgrade to a newer python version",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         if timeout is not None:
             warn(
                 "The 'timeout' parameter is deprecated. Please configure it in the http client instead.",

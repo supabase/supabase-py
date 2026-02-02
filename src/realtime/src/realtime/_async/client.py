@@ -2,9 +2,11 @@ import asyncio
 import json
 import logging
 import re
+import sys
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Union
 from urllib.parse import urlencode, urlparse, urlunparse
+from warnings import warn
 
 import websockets
 from pydantic import ValidationError
@@ -65,6 +67,13 @@ class AsyncRealtimeClient:
         """
         if not is_ws_url(url):
             raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
+        if sys.version_info < (3, 10):
+            warn(
+                "Python 3.9 has reached EOL, and is not going to be supported in future versions. Please, upgrade to a newer python version",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self.url = f"{re.sub(r'https://', 'wss://', re.sub(r'http://', 'ws://', url, flags=re.IGNORECASE), flags=re.IGNORECASE)}/websocket"
         if token:
             self.url += f"?apikey={token}"
