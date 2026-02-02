@@ -17,7 +17,6 @@ from supabase_auth import SyncMemoryStorage
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
 from yarl import URL
-from urllib.parse import urljoin
 
 from ..lib.client_options import SyncClientOptions as ClientOptions
 from ..lib.client_options import SyncHttpxClient
