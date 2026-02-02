@@ -17,6 +17,7 @@ from supabase_auth import SyncMemoryStorage
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
 from yarl import URL
+from urllib.parse import urljoin
 
 from ..lib.client_options import SyncClientOptions as ClientOptions
 from ..lib.client_options import SyncHttpxClient
@@ -29,7 +30,6 @@ class SupabaseException(Exception):
     def __init__(self, message: str) -> None:
         self.message = message
         super().__init__(self.message)
-
 
 class Client:
     """Supabase client class."""
@@ -80,7 +80,9 @@ class Client:
             "wss" if self.supabase_url.scheme == "https" else "ws"
         )
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
-        self.storage_url = self.supabase_url.joinpath("storage", "v1", "/")
+        temp_path = self.supabase_url.joinpath("storage", "v1")
+        self.storage_url = f"{str(temp_path).rstrip('/')}/"
+        print(f"DEBUG: Setting storage_url to {self.storage_url} (type: {type(self.storage_url)})")
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
         # Instantiate clients.
@@ -195,7 +197,7 @@ class Client:
     def storage(self) -> SyncStorageClient:
         if self._storage is None:
             self._storage = self._init_storage_client(
-                storage_url=str(self.storage_url),
+                storage_url=self.storage_url,
                 headers=self.options.headers,
                 storage_client_timeout=self.options.storage_client_timeout,
                 http_client=self.options.httpx_client,

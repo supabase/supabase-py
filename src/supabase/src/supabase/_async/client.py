@@ -31,7 +31,6 @@ class SupabaseException(Exception):
         self.message = message
         super().__init__(self.message)
 
-
 class AsyncClient:
     """Supabase client class."""
 
@@ -81,7 +80,8 @@ class AsyncClient:
             "wss" if self.supabase_url.scheme == "https" else "ws"
         )
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
-        self.storage_url = self.supabase_url.joinpath("storage", "v1", "/")
+        temp_path = self.supabase_url.joinpath("storage", "v1")
+        self.storage_url = f"{str(temp_path).rstrip('/')}/"
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
         # Instantiate clients.
@@ -196,7 +196,7 @@ class AsyncClient:
     def storage(self) -> AsyncStorageClient:
         if self._storage is None:
             self._storage = self._init_storage_client(
-                storage_url=str(self.storage_url),
+                storage_url=self.storage_url,
                 headers=self.options.headers,
                 storage_client_timeout=self.options.storage_client_timeout,
                 http_client=self.options.httpx_client,
