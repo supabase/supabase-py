@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from types import TracebackType
 from typing import Generic, Optional
 
 from httpx import AsyncClient, Client, Headers
@@ -26,6 +27,10 @@ from .vectors import StorageVectorsClient
 from .version import __version__
 
 DEFAULT_TIMEOUT = 20
+
+__all__ = [
+    "StorageClient",
+]
 
 
 class StorageClient(Generic[Executor]):
@@ -252,7 +257,12 @@ class AsyncStorageClient(StorageClient[AsyncExecutor]):
     async def __aenter__(self) -> AsyncStorageClient:
         return self
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: Optional[type[Exception]],
+        exc: Optional[Exception],
+        tb: Optional[TracebackType],
+    ) -> None:
         await self.executor.session.aclose()
 
 
@@ -277,5 +287,10 @@ class SyncStorageClient(StorageClient[SyncExecutor]):
     def __enter__(self) -> SyncStorageClient:
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[type[Exception]],
+        exc: Optional[Exception],
+        tb: Optional[TracebackType],
+    ) -> None:
         self.executor.session.close()

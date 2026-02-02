@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Literal, Union, overload
 
-from storage3.client import AsyncStorageClient, StorageFileApiClient, SyncStorageClient
+from storage3.client import AsyncStorageClient, SyncStorageClient
+from storage3.file_api import StorageFileApiClient
 from storage3.version import __version__
 
 __all__ = [

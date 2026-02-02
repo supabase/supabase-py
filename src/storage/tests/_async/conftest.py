@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from storage3 import AsyncStorageClient
 
 
-def pytest_configure(config) -> None:
+def pytest_configure(config: pytest.Config) -> None:
     load_dotenv(dotenv_path="tests/tests.env")
 
 

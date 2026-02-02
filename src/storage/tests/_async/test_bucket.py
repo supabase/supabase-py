@@ -69,7 +69,9 @@ async def test_list_buckets(
     mock_client.send.assert_called_once()
 
 
-async def test_get_bucket(storage_api, mock_client, mock_response) -> None:
+async def test_get_bucket(
+    storage_api: AsyncStorageClient, mock_client: Mock, mock_response: Mock
+) -> None:
     bucket_id = "test-bucket"
     mock_response.content = f'''{{
         "id": "{bucket_id}",
@@ -94,7 +96,9 @@ async def test_get_bucket(storage_api, mock_client, mock_response) -> None:
     mock_client.send.assert_called_once()
 
 
-async def test_create_bucket(storage_api, mock_client, mock_response) -> None:
+async def test_create_bucket(
+    storage_api: AsyncStorageClient, mock_client: Mock, mock_response: Mock
+) -> None:
     bucket_id = "new-bucket"
     bucket_name = "New Bucket"
 
@@ -113,7 +117,9 @@ async def test_create_bucket(storage_api, mock_client, mock_response) -> None:
     mock_client.send.assert_called_once()
 
 
-async def test_create_bucket_minimal(storage_api, mock_client, mock_response) -> None:
+async def test_create_bucket_minimal(
+    storage_api: AsyncStorageClient, mock_client: Mock, mock_response: Mock
+) -> None:
     bucket_id = "minimal-bucket"
     mock_response.content = f'{{"name": "{bucket_id}"}}'
     mock_client.send.return_value = mock_response
@@ -124,7 +130,9 @@ async def test_create_bucket_minimal(storage_api, mock_client, mock_response) ->
     mock_client.send.assert_called_once()
 
 
-async def test_update_bucket(storage_api, mock_client, mock_response) -> None:
+async def test_update_bucket(
+    storage_api: AsyncStorageClient, mock_client: Mock, mock_response: Mock
+) -> None:
     bucket_id = "update-bucket"
 
     mock_response.content = b'{"message": "Bucket updated successfully"}'
@@ -138,7 +146,9 @@ async def test_update_bucket(storage_api, mock_client, mock_response) -> None:
     mock_client.send.assert_called_once()
 
 
-async def test_empty_bucket(storage_api, mock_client, mock_response) -> None:
+async def test_empty_bucket(
+    storage_api: AsyncStorageClient, mock_client: Mock, mock_response: Mock
+) -> None:
     bucket_id = "empty-bucket"
     mock_response.content = b'{"message": "Bucket emptied successfully"}'
     mock_client.send.return_value = mock_response
@@ -149,7 +159,9 @@ async def test_empty_bucket(storage_api, mock_client, mock_response) -> None:
     mock_client.send.assert_called_once()
 
 
-async def test_delete_bucket(storage_api, mock_client, mock_response) -> None:
+async def test_delete_bucket(
+    storage_api: AsyncStorageClient, mock_client: Mock, mock_response: Mock
+) -> None:
     bucket_id = "delete-bucket"
     mock_response.content = b'{"message": "Bucket deleted successfully"}'
     mock_client.send.return_value = mock_response
