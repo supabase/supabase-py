@@ -64,19 +64,19 @@ class TransformOptions:
 
 
 class CreateSignedUrlBody(BaseModel):
-    expires_in: int
+    expiresIn: int
     download: Optional[Union[str, bool]]
     transform: Optional[TransformOptions]
 
 
 class CreateSignedUrlsBody(BaseModel):
     paths: List[str]
-    expires_in: int
+    expiresIn: int
     download: Optional[Union[str, bool]]
 
 
 def transform_to_dict(t: TransformOptions) -> dict[str, str]:
-    return {key: str(val) for key, val in t.items()}
+    return {key: str(val) for key, val in t.__dict__.items() if val}
 
 
 class CreateOrUpdateBucketBody(BaseModel):
@@ -96,14 +96,13 @@ class FileObject(BaseModel):
     version: str
     name: str
     bucket_id: str
-    updated_at: datetime
     created_at: datetime
+    metadata: Dict[str, Any]
+    last_modified: Optional[datetime] = None
     size: Optional[int] = None
     cache_control: Optional[str] = None
     content_type: Optional[str] = None
-    etag: Optional[str]
-    last_modified: Optional[str]
-    metadata: Dict[str, Any]
+    etag: Optional[str] = None
 
 
 class ListFileObject(BaseModel):

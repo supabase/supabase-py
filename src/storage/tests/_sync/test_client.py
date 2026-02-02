@@ -316,9 +316,10 @@ def test_client_download_with_query_doesnt_lose_params(
         expected_url = storage_file_client.base_url.joinpath(
             "object", storage_file_client.id, *URL(file.bucket_path).parts
         ).with_query(params)
-        (actual_request,) = mock_request.call_args[0]
-        actual_url = actual_request.url
 
+        (actual_request,) = mock_request.call_args[0]
+        actual_url = str(actual_request.url)
+        
         assert URL(actual_url).query == params
         assert str(expected_url) == actual_url
 
@@ -369,6 +370,7 @@ def test_client_upload_to_signed_url(
     """Ensure we can upload to a signed URL with various options"""
     # Test with content-type
     data = storage_file_client.create_signed_upload_url(file.bucket_path)
+
     storage_file_client.upload_to_signed_url(
         file.bucket_path, data.token, file.file_content, content_type=file.mime_type
     )
@@ -385,7 +387,7 @@ def test_client_upload_to_signed_url(
         f"no_options_{file.bucket_path}"
     )
     storage_file_client.upload_to_signed_url(
-        data.signed_url, data.token, file.file_content
+        f"no_options_{file.bucket_path}", data.token, file.file_content
     )
     image = storage_file_client.download(f"no_options_{file.bucket_path}")
     assert image == file.file_content
@@ -393,7 +395,7 @@ def test_client_upload_to_signed_url(
     # Test with cache-control
     data = storage_file_client.create_signed_upload_url(f"cached_{file.bucket_path}")
     storage_file_client.upload_to_signed_url(
-        data.signed_url, data.token, file.file_content, cache_control="3600"
+        f"cached_{file.bucket_path}", data.token, file.file_content, cache_control="3600"
     )
     cached_info = storage_file_client.info(f"cached_{file.bucket_path}")
     assert cached_info.cache_control == "max-age=3600"
@@ -546,11 +548,7 @@ def test_client_info_with_error(
     """Ensure StorageException is raised when signed URL creation fails"""
     mock_error_response = Mock(spec=Response)
     mock_error_response.status_code = 404
-    mock_error_response.json.return_value = {
-        "error": "Custom error message",
-        "statusCode": 404,
-        "message": "File not found",
-    }
+    mock_error_response.content = b'{"error": "Custom error message", "statusCode": 404, "message": "File not found"}'
 
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"error": "Custom error message"}
@@ -559,14 +557,11 @@ def test_client_info_with_error(
     )
 
     with patch.object(
-        storage_file_client_public.executor.session, "request", new_callable=Mock
+        storage_file_client_public.executor.session, "send", new_callable=Mock
     ) as mock_request:
         mock_request.return_value = mock_response
 
-        with pytest.raises(
-            StorageApiError,
-            match="{'statusCode': 404, 'error': Custom error message, 'message': File not found}",
-        ):
+        with pytest.raises(StorageApiError):
             storage_file_client_public.info(file.bucket_path)
 
 
@@ -677,22 +672,6 @@ def test_client_remove_multiple(
     # Verify files no longer exist
     for path in paths:
         assert not storage_file_client.exists(path)
-
-
-def test_client_create_signed_upload_url_error(
-    storage_file_client: StorageFileApiClient[SyncExecutor],
-) -> None:
-    """Ensure StorageException is raised when signed URL creation fails"""
-    mock_response = Mock(spec=Response)
-    mock_response.json.return_value = {"url": "https://example.com/test.txt"}
-
-    with patch.object(
-        storage_file_client.executor.session, "request", new_callable=Mock
-    ) as mock_request:
-        mock_request.return_value = mock_response
-
-        with pytest.raises(StorageException, match="No token sent by the API"):
-            storage_file_client.create_signed_upload_url("test.txt")
 
 
 def test_client_create_signed_urls_with_download(

@@ -25,7 +25,6 @@ from yarl import URL
 
 from .exceptions import parse_api_error
 from .types import (
-    Bucket,
     CreateSignedUrlBody,
     CreateSignedUrlResponse,
     CreateSignedUrlsBody,
@@ -66,12 +65,13 @@ class StorageFileApiClient(Generic[Executor]):
         signed_url_upload = SignedUploadUrlResponse.model_validate_json(
             response.content
         )
-        url = self.base_url.join(URL(signed_url_upload.url))
+        path_parts = URL(signed_url_upload.url.lstrip("/"))
+        url = self.base_url.join(path_parts)
+
         return SignedUploadURL(
             signed_url=str(url),
             token=signed_url_upload.token,
         )
-        raise
 
     @handle_http_response
     def create_signed_upload_url(
@@ -89,7 +89,7 @@ class StorageFileApiClient(Generic[Executor]):
         options
             Additional options for the upload url creation.
         """
-        headers = Headers()
+        headers = Headers(self._headers)
         if upsert:
             headers["x-upsert"] = upsert
 
@@ -99,6 +99,7 @@ class StorageFileApiClient(Generic[Executor]):
             path=["object", "upload", "sign", self.id, *path_parts],
             headers=headers,
         )
+
         return ResponseCases(
             request=request,
             on_success=self._parse_signed_url_response,
@@ -135,14 +136,11 @@ class StorageFileApiClient(Generic[Executor]):
 
         extra_headers = Headers(headers)
         extra_headers["x-upsert"] = "false"
+        extra_headers["cache-control"] = f"max-age={cache_control}"
         extra_headers.update(self._headers)
-        data = {}
-        if cache_control:
-            extra_headers["cache-control"] = f"max-age={cache_control}"
-            # cacheControl is also passed as form data
-            # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89
-            data = {"cacheControl": cache_control}
-            filename = path_parts[-1]
+        
+        data = {"cacheControl": cache_control}
+        filename = path_parts[-1]
 
         if isinstance(file, (BufferedReader, bytes, FileIO)):
             # bytes or byte-stream-like object received
@@ -160,6 +158,7 @@ class StorageFileApiClient(Generic[Executor]):
             data=data,
             query_params=query_params,
         )
+
         return ResponseCases(
             request=request,
             on_success=validate_model(UploadResponse),
@@ -204,7 +203,7 @@ class StorageFileApiClient(Generic[Executor]):
 
         path_parts: Tuple[str, ...] = relative_path_to_parts(path)
         body = CreateSignedUrlBody(
-            expires_in=expires_in,
+            expiresIn=expires_in,
             download=download,
             transform=transform,
         )
@@ -266,7 +265,7 @@ class StorageFileApiClient(Generic[Executor]):
 
         body = CreateSignedUrlsBody(
             download=download,
-            expires_in=expires_in,
+            expiresIn=expires_in,
             paths=paths,
         )
 
@@ -340,7 +339,7 @@ class StorageFileApiClient(Generic[Executor]):
         )
 
     @handle_http_response
-    def copy(self, from_path: str, to_path: str) -> ResponseHandler[MessageResponse]:
+    def copy(self, from_path: str, to_path: str) -> ResponseHandler[UploadResponse]:
         """
         Copies an existing file to a new path in the same bucket.
 
@@ -361,14 +360,15 @@ class StorageFileApiClient(Generic[Executor]):
             },
             headers=self._headers,
         )
+
         return ResponseCases(
             request=request,
-            on_success=validate_model(MessageResponse),
+            on_success=validate_model(UploadResponse),
             on_failure=parse_api_error,
         )
 
     @handle_http_response
-    def remove(self, paths: list[str]) -> ResponseHandler[list[Bucket]]:
+    def remove(self, paths: list[str]) -> ResponseHandler[list[FileObject]]:
         """
         Deletes files within the same bucket
 
@@ -385,7 +385,7 @@ class StorageFileApiClient(Generic[Executor]):
         )
         return ResponseCases(
             request=request,
-            on_success=validate_adapter(TypeAdapter(list[Bucket])),
+            on_success=validate_adapter(TypeAdapter(list[FileObject])),
             on_failure=parse_api_error,
         )
 
@@ -513,13 +513,9 @@ class StorageFileApiClient(Generic[Executor]):
             headers=self._headers,
         )
 
-        def get_bytes(response: Response) -> bytes:
-            print(response.content)
-            return response.content
-
         return ResponseCases(
             request=request,
-            on_success=get_bytes,
+            on_success=lambda response: response.content,
             on_failure=parse_api_error,
         )
 
@@ -551,11 +547,13 @@ class StorageFileApiClient(Generic[Executor]):
         extra_headers = Headers(headers)
 
         extra_headers["x-upsert"] = upsert
-        extra_headers["cache-control"] = cache_control
-        extra_headers["content-type"] = content_type
+        extra_headers["cache-control"] = f"max-age={cache_control}"
 
         extra_headers.update(self._headers)
 
+        data = {
+            "cacheControl": cache_control
+        }
         data = {}
         if metadata:
             metadata_bytes = JSONParser.dump_json(metadata)
@@ -569,10 +567,6 @@ class StorageFileApiClient(Generic[Executor]):
             del extra_headers["x-upsert"]
 
         filename = path[-1]
-
-        if cache_control:
-            extra_headers["cache-control"] = f"max-age={cache_control}"
-            data["cacheControl"] = cache_control
 
         if isinstance(file, (BufferedReader, bytes, FileIO)):
             # bytes or byte-stream-like object received

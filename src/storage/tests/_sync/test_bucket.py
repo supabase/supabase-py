@@ -1,10 +1,10 @@
 from unittest.mock import Mock
 
 import pytest
-from httpx import Client, Headers, HTTPStatusError, Response
-from storage3 import SyncBucket, SyncStorageBucketAPI
+from httpx import Client, HTTPStatusError, Response
+from storage3 import SyncStorageClient
 from storage3.exceptions import StorageApiError
-from storage3.types import CreateOrUpdateBucketOptions
+from storage3.types import Bucket
 
 
 @pytest.fixture
@@ -13,13 +13,13 @@ def mock_client() -> Mock:
 
 
 @pytest.fixture
-def headers() -> Headers:
-    return Headers()
+def headers() -> dict[str, str]:
+    return {}
 
 
 @pytest.fixture
-def storage_api(mock_client: Client, headers: Headers) -> SyncStorageBucketAPI:
-    return SyncStorageBucketAPI(mock_client, "", headers)
+def storage_api(mock_client: Client, headers: dict[str, str]) -> SyncStorageClient:
+    return SyncStorageClient(http_client=mock_client, url="", headers=headers)
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ def test_list_buckets(storage_api, mock_client, mock_response) -> None:
     buckets = storage_api.list_buckets()
 
     assert len(buckets) == 2
-    assert all(isinstance(bucket, SyncBucket) for bucket in buckets)
+    assert all(isinstance(bucket, Bucket) for bucket in buckets)
     assert buckets[0].id == "bucket1"
     assert buckets[1].id == "bucket2"
 
