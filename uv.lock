@@ -3411,7 +3411,6 @@ lints = [
     { name = "unasync" },
 ]
 tests = [
-    { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -3444,7 +3443,6 @@ lints = [
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 tests = [
-    { name = "mypy", specifier = ">=1.18.2" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-asyncio", specifier = ">=0.24,<1.1" },
     { name = "pytest-cov", specifier = ">=6.2.1" },

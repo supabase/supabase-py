@@ -82,7 +82,6 @@ class Client:
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
         temp_path = self.supabase_url.joinpath("storage", "v1")
         self.storage_url = f"{str(temp_path).rstrip('/')}/"
-        print(f"DEBUG: Setting storage_url to {self.storage_url} (type: {type(self.storage_url)})")
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
         # Instantiate clients.
