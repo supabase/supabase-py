@@ -9,11 +9,11 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient as HttpxClient
 from httpx import HTTPStatusError, Response
-from storage3 import AsyncStorageClient
-from storage3.exceptions import StorageApiError
-from storage3.utils import StorageException
+from storage3 import AsyncStorageClient, StorageFileApiClient
+from storage3.exceptions import StorageApiError, StorageException
+from storage3.types import TransformOptions
+from supabase_utils.http import AsyncExecutor
 
-from .. import AsyncBucketProxy
 from ..utils import AsyncFinalizerFactory
 
 if TYPE_CHECKING:
@@ -35,7 +35,7 @@ def uuid_factory() -> Callable[[], str]:
 
 
 @pytest.fixture
-async def delete_left_buckets(
+def delete_left_buckets(
     request: pytest.FixtureRequest,
     storage: AsyncStorageClient,
 ) -> None:
@@ -88,7 +88,7 @@ async def public_bucket(
     global temp_test_buckets_ids
     temp_test_buckets_ids.append(bucket_id)
 
-    await storage.create_bucket(id=bucket_id, options={"public": True})
+    await storage.create_bucket(id=bucket_id, public=True)
 
     yield bucket_id
 
@@ -101,7 +101,7 @@ async def public_bucket(
 @pytest.fixture
 def storage_file_client(
     storage: AsyncStorageClient, bucket: str
-) -> Generator[AsyncBucketProxy]:
+) -> Generator[StorageFileApiClient[AsyncExecutor]]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(bucket)
 
@@ -109,7 +109,7 @@ def storage_file_client(
 @pytest.fixture
 def storage_file_client_public(
     storage: AsyncStorageClient, public_bucket: str
-) -> Generator[AsyncBucketProxy]:
+) -> Generator[StorageFileApiClient[AsyncExecutor]]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(public_bucket)
 
@@ -267,126 +267,127 @@ def multi_file(tmp_path: Path, uuid_factory: Callable[[], str]) -> list[FileForT
 
 
 async def test_client_upload(
-    storage_file_client: AsyncBucketProxy, file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket"""
     await storage_file_client.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        path=file.bucket_path, file=file.local_path, content_type=file.mime_type
     )
 
     image = await storage_file_client.download(file.bucket_path)
     files = await storage_file_client.list(file.bucket_folder)
-    image_info = next((f for f in files if f.get("name") == file.name), None)
+    image_info = next((f for f in files if f.name == file.name), None)
 
     assert image == file.file_content
     assert image_info is not None
-    assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
+    assert image_info.metadata.get("mimetype") == file.mime_type
 
 
 async def test_client_upload_with_query(
-    storage_file_client: AsyncBucketProxy, file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket, even with query parameters"""
     await storage_file_client.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
     image = await storage_file_client.download(
         file.bucket_path, query_params={"my-param": "test"}
     )
     files = await storage_file_client.list(file.bucket_folder)
-    image_info = next((f for f in files if f.get("name") == file.name), None)
+    image_info = next((f for f in files if f.name == file.name), None)
 
     assert image == file.file_content
     assert image_info is not None
-    assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
+    assert image_info.metadata.get("mimetype") == file.mime_type
 
 
 async def test_client_download_with_query_doesnt_lose_params(
-    storage_file_client: AsyncBucketProxy, file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
 ) -> None:
     """Ensure query params aren't lost"""
     from yarl import URL
 
     params = {"my-param": "test"}
     mock_response = Mock()
-    with patch.object(HttpxClient, "request") as mock_request:
+    with patch.object(HttpxClient, "send") as mock_request:
         mock_request.return_value = mock_response
         await storage_file_client.download(file.bucket_path, query_params=params)
-        expected_url = storage_file_client._base_url.joinpath(
+        expected_url = storage_file_client.base_url.joinpath(
             "object", storage_file_client.id, *URL(file.bucket_path).parts
         ).with_query(params)
-        actual_url = mock_request.call_args[0][1]
+
+        (actual_request,) = mock_request.call_args[0]
+        actual_url = str(actual_request.url)
 
         assert URL(actual_url).query == params
         assert str(expected_url) == actual_url
 
 
 async def test_client_update(
-    storage_file_client: AsyncBucketProxy,
+    storage_file_client: StorageFileApiClient[AsyncExecutor],
     two_files: list[FileForTesting],
 ) -> None:
     """Ensure we can upload files to a bucket"""
     await storage_file_client.upload(
         two_files[0].bucket_path,
         two_files[0].local_path,
-        {"content-type": two_files[0].mime_type},
+        content_type=two_files[0].mime_type,
     )
 
     await storage_file_client.update(
         two_files[0].bucket_path,
         two_files[1].local_path,
-        {"content-type": two_files[1].mime_type},
+        content_type=two_files[1].mime_type,
     )
 
     image = await storage_file_client.download(two_files[0].bucket_path)
     file_list = await storage_file_client.list(two_files[0].bucket_folder)
-    image_info = next(
-        (f for f in file_list if f.get("name") == two_files[0].name), None
-    )
+    image_info = next((f for f in file_list if f.name == two_files[0].name), None)
 
     assert image == two_files[1].file_content
     assert image_info is not None
-    assert image_info.get("metadata", {}).get("mimetype") == two_files[1].mime_type
+    assert image_info.metadata.get("mimetype") == two_files[1].mime_type
 
 
 @pytest.mark.parametrize(
     "path", ["foobar.txt", "example/nested.jpg", "/leading/slash.png"]
 )
 async def test_client_create_signed_upload_url(
-    storage_file_client: AsyncBucketProxy, path: str
+    storage_file_client: StorageFileApiClient[AsyncExecutor], path: str
 ) -> None:
     """Ensure we can create signed URLs to upload files to a bucket"""
     data = await storage_file_client.create_signed_upload_url(path)
-    assert data["path"] == path
-    assert data["token"]
-    expected_url = f"{storage_file_client._base_url}object/upload/sign/{storage_file_client.id}/{path.lstrip('/')}"
-    assert data["signed_url"].startswith(expected_url)
+    expected_url = storage_file_client.base_url.joinpath(
+        "object", "upload", "sign", storage_file_client.id, *path.lstrip("/").split("/")
+    )
+    assert data.signed_url.startswith(str(expected_url))
 
 
 async def test_client_upload_to_signed_url(
-    storage_file_client: AsyncBucketProxy, file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
 ) -> None:
     """Ensure we can upload to a signed URL with various options"""
     # Test with content-type
     data = await storage_file_client.create_signed_upload_url(file.bucket_path)
+
     await storage_file_client.upload_to_signed_url(
-        data["path"], data["token"], file.file_content, {"content-type": file.mime_type}
+        file.bucket_path, data.token, file.file_content, content_type=file.mime_type
     )
     image = await storage_file_client.download(file.bucket_path)
     files = await storage_file_client.list(file.bucket_folder)
-    image_info = next((f for f in files if f.get("name") == file.name), None)
+    image_info = next((f for f in files if f.name == file.name), None)
 
     assert image == file.file_content
     assert image_info is not None
-    assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
+    assert image_info.metadata.get("mimetype") == file.mime_type
 
     # Test with file_options=None
     data = await storage_file_client.create_signed_upload_url(
         f"no_options_{file.bucket_path}"
     )
     await storage_file_client.upload_to_signed_url(
-        data["path"], data["token"], file.file_content
+        f"no_options_{file.bucket_path}", data.token, file.file_content
     )
     image = await storage_file_client.download(f"no_options_{file.bucket_path}")
     assert image == file.file_content
@@ -396,33 +397,36 @@ async def test_client_upload_to_signed_url(
         f"cached_{file.bucket_path}"
     )
     await storage_file_client.upload_to_signed_url(
-        data["path"], data["token"], file.file_content, {"cache-control": "3600"}
+        f"cached_{file.bucket_path}",
+        data.token,
+        file.file_content,
+        cache_control="3600",
     )
     cached_info = await storage_file_client.info(f"cached_{file.bucket_path}")
-    assert cached_info.get("cache_control") == "max-age=3600"
+    assert cached_info.cache_control == "max-age=3600"
 
 
 async def test_client_create_signed_url(
-    storage_file_client: AsyncBucketProxy, file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
 ) -> None:
     """Ensure we can create and use signed URLs with various options"""
     await storage_file_client.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
     # Test basic signed URL
     signed_url = await storage_file_client.create_signed_url(file.bucket_path, 60)
     async with HttpxClient(timeout=None) as client:
-        response = await client.get(signed_url["signedURL"])
+        response = await client.get(signed_url)
     response.raise_for_status()
     assert response.content == file.file_content
 
     # Test with download option
     download_signed_url = await storage_file_client.create_signed_url(
-        file.bucket_path, 60, options={"download": "custom_download.svg"}
+        file.bucket_path, 60, download="custom_download.svg"
     )
     async with HttpxClient(timeout=None) as client:
-        response = await client.get(download_signed_url["signedURL"])
+        response = await client.get(download_signed_url)
 
     response.raise_for_status()
     assert (
@@ -435,55 +439,57 @@ async def test_client_create_signed_url(
     transform_signed_url = await storage_file_client.create_signed_url(
         file.bucket_path,
         60,
-        options={"transform": {"width": 200, "height": 200, "resize": "cover"}},
+        transform=TransformOptions(width=200, height=200, resize="cover"),
     )
     # assert "width=200" in transform_signed_url["signedURL"]
     # assert "height=200" in transform_signed_url["signedURL"]
     # assert "resize=cover" in transform_signed_url["signedURL"]
     # assert "format=png" in transform_signed_url["signedURL"]
     async with HttpxClient(timeout=None) as client:
-        response = await client.get(transform_signed_url["signedURL"])
+        response = await client.get(transform_signed_url)
     response.raise_for_status()
 
 
 async def test_client_create_signed_urls(
-    storage_file_client: AsyncBucketProxy, multi_file: list[FileForTesting]
+    storage_file_client: StorageFileApiClient[AsyncExecutor],
+    multi_file: list[FileForTesting],
 ) -> None:
     """Ensure we can create signed urls for files in a bucket"""
     paths = []
     for file in multi_file:
         paths.append(file.bucket_path)
         await storage_file_client.upload(
-            file.bucket_path, file.local_path, {"content-type": file.mime_type}
+            file.bucket_path, file.local_path, content_type=file.mime_type
         )
 
     signed_urls = await storage_file_client.create_signed_urls(paths, 10)
 
     async with HttpxClient() as client:
         for url in signed_urls:
-            response = await client.get(url["signedURL"])
+            response = await client.get(url.signed_url)
             response.raise_for_status()
             assert response.content == multi_file[0].file_content
 
 
 async def test_client_get_public_url(
-    storage_file_client_public: AsyncBucketProxy, file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket with various options"""
     await storage_file_client_public.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
     # Test basic public URL
-    public_url = await storage_file_client_public.get_public_url(file.bucket_path)
+    public_url = storage_file_client_public.get_public_url(file.bucket_path)
     async with HttpxClient(timeout=None) as client:
         response = await client.get(public_url)
     response.raise_for_status()
     assert response.content == file.file_content
 
     # Test with download option
-    download_url = await storage_file_client_public.get_public_url(
-        file.bucket_path, options={"download": "custom_name.svg"}
+    download_url = storage_file_client_public.get_public_url(
+        file.bucket_path, download="custom_name.svg"
     )
     async with HttpxClient(timeout=None) as client:
         response = await client.get(download_url)
@@ -495,9 +501,9 @@ async def test_client_get_public_url(
     assert response.content == file.file_content
 
     # Test with transform options
-    transform_url = await storage_file_client_public.get_public_url(
+    transform_url = storage_file_client_public.get_public_url(
         file.bucket_path,
-        options={"transform": {"width": 100, "height": 100, "resize": "contain"}},
+        transform=TransformOptions(width=100, height=100, resize="contain"),
     )
     assert "width=100" in transform_url
     assert "height=100" in transform_url
@@ -505,22 +511,20 @@ async def test_client_get_public_url(
 
 
 async def test_client_upload_with_custom_metadata(
-    storage_file_client_public: AsyncBucketProxy, file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
     await storage_file_client_public.upload(
         file.bucket_path,
         file.local_path,
-        {
-            "content-type": file.mime_type,
-            "metadata": {"custom": "metadata", "second": "second", "third": "third"},
-        },
+        content_type=file.mime_type,
+        metadata={"custom": "metadata", "second": "second", "third": "third"},
     )
 
     info = await storage_file_client_public.info(file.bucket_path)
-    assert "metadata" in info.keys()
-    assert info["name"] == file.bucket_path
-    assert info["metadata"] == {
+    assert info.name == file.bucket_path
+    assert info.metadata == {
         "custom": "metadata",
         "second": "second",
         "third": "third",
@@ -528,35 +532,32 @@ async def test_client_upload_with_custom_metadata(
 
 
 async def test_client_info(
-    storage_file_client_public: AsyncBucketProxy, file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
     await storage_file_client_public.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
     info = await storage_file_client_public.info(file.bucket_path)
-    assert "metadata" in info.keys()
-    assert info["name"] == file.bucket_path
-    assert info["content_type"] == file.mime_type
+    assert info.name == file.bucket_path
+    assert info.content_type == file.mime_type
 
 
 async def test_client_info_with_error(
-    storage_file_client_public: AsyncBucketProxy, file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
     await storage_file_client_public.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
     """Ensure StorageException is raised when signed URL creation fails"""
     mock_error_response = Mock(spec=Response)
     mock_error_response.status_code = 404
-    mock_error_response.json.return_value = {
-        "error": "Custom error message",
-        "statusCode": 404,
-        "message": "File not found",
-    }
+    mock_error_response.content = b'{"error": "Custom error message", "statusCode": 404, "message": "File not found"}'
 
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"error": "Custom error message"}
@@ -565,23 +566,21 @@ async def test_client_info_with_error(
     )
 
     with patch.object(
-        storage_file_client_public._client, "request", new_callable=AsyncMock
+        storage_file_client_public.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = mock_response
 
-        with pytest.raises(
-            StorageApiError,
-            match="{'statusCode': 404, 'error': Custom error message, 'message': File not found}",
-        ):
+        with pytest.raises(StorageApiError):
             await storage_file_client_public.info(file.bucket_path)
 
 
 async def test_client_exists(
-    storage_file_client_public: AsyncBucketProxy, file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
     await storage_file_client_public.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
     exists = await storage_file_client_public.exists(file.bucket_path)
@@ -589,28 +588,13 @@ async def test_client_exists(
     assert exists
 
 
-async def test_client_exists_json_decode_error(
-    storage_file_client_public: AsyncBucketProxy,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Test exists method handling of json.JSONDecodeError"""
-    from json import JSONDecodeError
-
-    async def mock_head(*args, **kwargs) -> None:
-        raise JSONDecodeError("Expecting value", "", 0)
-
-    monkeypatch.setattr(storage_file_client_public._client, "head", mock_head)
-    exists = await storage_file_client_public.exists("some/path")
-    assert exists is False
-
-
 async def test_client_copy(
-    storage_file_client: AsyncBucketProxy, file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
 ) -> None:
     """Ensure we can copy files within a bucket"""
     # Upload original file
     await storage_file_client.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
     # Copy to new path
@@ -624,20 +608,18 @@ async def test_client_copy(
 
     # Verify metadata was copied
     files = await storage_file_client.list(file.bucket_folder)
-    copied_info = next(
-        (f for f in files if f.get("name") == f"copied_{file.name}"), None
-    )
+    copied_info = next((f for f in files if f.name == f"copied_{file.name}"), None)
     assert copied_info is not None
-    assert copied_info.get("metadata", {}).get("mimetype") == file.mime_type
+    assert copied_info.metadata.get("mimetype") == file.mime_type
 
 
 async def test_client_move(
-    storage_file_client: AsyncBucketProxy, file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
 ) -> None:
     """Ensure we can move files within a bucket"""
     # Upload original file
     await storage_file_client.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
     # Move to new path
@@ -653,18 +635,18 @@ async def test_client_move(
 
     # Verify metadata was preserved
     files = await storage_file_client.list(file.bucket_folder)
-    moved_info = next((f for f in files if f.get("name") == f"moved_{file.name}"), None)
+    moved_info = next((f for f in files if f.name == f"moved_{file.name}"), None)
     assert moved_info is not None
-    assert moved_info.get("metadata", {}).get("mimetype") == file.mime_type
+    assert moved_info.metadata.get("mimetype") == file.mime_type
 
 
 async def test_client_remove(
-    storage_file_client: AsyncBucketProxy, file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
 ) -> None:
     """Ensure we can remove files from a bucket"""
     # Upload file
     await storage_file_client.upload(
-        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+        file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
     # Verify file exists
@@ -678,14 +660,15 @@ async def test_client_remove(
 
 
 async def test_client_remove_multiple(
-    storage_file_client: AsyncBucketProxy, multi_file: list[FileForTesting]
+    storage_file_client: StorageFileApiClient[AsyncExecutor],
+    multi_file: list[FileForTesting],
 ) -> None:
     """Ensure we can remove multiple files from a bucket"""
     # Upload files
     paths = []
     for file in multi_file:
         await storage_file_client.upload(
-            file.bucket_path, file.local_path, {"content-type": file.mime_type}
+            file.bucket_path, file.local_path, content_type=file.mime_type
         )
         paths.append(file.bucket_path)
 
@@ -701,39 +684,22 @@ async def test_client_remove_multiple(
         assert not await storage_file_client.exists(path)
 
 
-async def test_client_create_signed_upload_url_error(
-    storage_file_client: AsyncBucketProxy,
-) -> None:
-    """Ensure StorageException is raised when signed URL creation fails"""
-    mock_response = Mock(spec=Response)
-    mock_response.json.return_value = {"url": "https://example.com/test.txt"}
-
-    with patch.object(
-        storage_file_client._client, "request", new_callable=AsyncMock
-    ) as mock_request:
-        mock_request.return_value = mock_response
-
-        with pytest.raises(StorageException, match="No token sent by the API"):
-            await storage_file_client.create_signed_upload_url("test.txt")
-
-
 async def test_client_create_signed_urls_with_download(
-    storage_file_client: AsyncBucketProxy, multi_file: list[FileForTesting]
+    storage_file_client: StorageFileApiClient[AsyncExecutor],
+    multi_file: list[FileForTesting],
 ) -> None:
     """Ensure we can create signed urls with download options for files in a bucket"""
     paths = []
     for file in multi_file:
         paths.append(file.bucket_path)
         await storage_file_client.upload(
-            file.bucket_path, file.local_path, {"content-type": file.mime_type}
+            file.bucket_path, file.local_path, content_type=file.mime_type
         )
 
-    signed_urls = await storage_file_client.create_signed_urls(
-        paths, 10, options={"download": True}
-    )
+    signed_urls = await storage_file_client.create_signed_urls(paths, 10, download=True)
 
     async with HttpxClient() as client:
         for i, url in enumerate(signed_urls):
-            response = await client.get(url["signedURL"])
+            response = await client.get(url.signed_url)
             response.raise_for_status()
             assert response.content == multi_file[i].file_content

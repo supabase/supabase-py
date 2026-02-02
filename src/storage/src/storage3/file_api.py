@@ -138,7 +138,7 @@ class StorageFileApiClient(Generic[Executor]):
         extra_headers["x-upsert"] = "false"
         extra_headers["cache-control"] = f"max-age={cache_control}"
         extra_headers.update(self._headers)
-        
+
         data = {"cacheControl": cache_control}
         filename = path_parts[-1]
 
@@ -551,9 +551,7 @@ class StorageFileApiClient(Generic[Executor]):
 
         extra_headers.update(self._headers)
 
-        data = {
-            "cacheControl": cache_control
-        }
+        data = {"cacheControl": cache_control}
         data = {}
         if metadata:
             metadata_bytes = JSONParser.dump_json(metadata)

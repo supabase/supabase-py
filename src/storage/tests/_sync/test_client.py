@@ -319,7 +319,7 @@ def test_client_download_with_query_doesnt_lose_params(
 
         (actual_request,) = mock_request.call_args[0]
         actual_url = str(actual_request.url)
-        
+
         assert URL(actual_url).query == params
         assert str(expected_url) == actual_url
 
@@ -395,7 +395,10 @@ def test_client_upload_to_signed_url(
     # Test with cache-control
     data = storage_file_client.create_signed_upload_url(f"cached_{file.bucket_path}")
     storage_file_client.upload_to_signed_url(
-        f"cached_{file.bucket_path}", data.token, file.file_content, cache_control="3600"
+        f"cached_{file.bucket_path}",
+        data.token,
+        file.file_content,
+        cache_control="3600",
     )
     cached_info = storage_file_client.info(f"cached_{file.bucket_path}")
     assert cached_info.cache_control == "max-age=3600"

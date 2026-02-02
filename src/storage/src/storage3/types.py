@@ -21,7 +21,7 @@ class Bucket(BaseModel, extra="ignore"):
     updated_at: datetime
     file_size_limit: Optional[int]
     allowed_mime_types: Optional[list[str]]
-    type: Optional[Literal["STANDARD", "ANALYTICS"]]
+    type: Optional[Literal["STANDARD", "ANALYTICS"]] = None
 
 
 class BucketName(BaseModel, extra="ignore"):
