@@ -18,7 +18,7 @@ Example
     key: str = os.environ.get("SUPABASE_KEY")
     supabase: Client = create_client(url, key)
 
-    def update_user_metadata(user_id: str):
+    def update_user_metadata():
         # Metadata fields accept dictionaries/JSON
         new_app_metadata = {
             "plan": "premium",
@@ -30,17 +30,15 @@ Example
             "language": "en"
         }
 
-        # Update the user
-        response = supabase.auth.update_user({
-            "id": user_id,
-            "app_metadata": new_app_metadata,
-            "user_metadata": new_user_metadata,
-        }).execute()
-
-        if response.error:
-            print(f"Error: {response.error}")
-        else:
+        try:
+            # Update the currently authenticated user
+            response = supabase.auth.update_user({
+                "app_metadata": new_app_metadata,
+                "user_metadata": new_user_metadata,
+            })
             print("Successfully updated metadata.")
+        except Exception as e:
+            print(f"Error: {e}")
 
     if __name__ == "__main__":
-        update_user_metadata("your-user-id")
+        update_user_metadata()

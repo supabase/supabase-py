@@ -10,6 +10,6 @@ Examples(WIP)
    :maxdepth: 2
    :caption: API Reference:
 
-      API </api/api>
-      Client </api/client>
+   API </api/api>
+   Client </api/client>
    Metadata Update </examples/metadata_update>
