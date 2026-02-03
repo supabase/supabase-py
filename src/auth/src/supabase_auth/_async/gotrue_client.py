@@ -114,7 +114,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         proxy: Optional[str] = None,
     ) -> None:
         extra_headers = {
-            "User-Agent": f"supabase-py/supabase_auth v{__version__}",
+            "X-Client-Info": f"supabase-py/supabase_auth v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),
             "X-Supabase-Client-Platform-Version": platform.release(),
             "X-Supabase-Client-Runtime": "python",
