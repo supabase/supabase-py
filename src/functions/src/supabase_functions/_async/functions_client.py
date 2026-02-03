@@ -29,7 +29,7 @@ class AsyncFunctionsClient:
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)
         self.headers = {
-            "X-Client-Info": f"supabase-py/functions-py v{__version__}",
+            "X-Client-Info": f"supabase-py/supabase_functions v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),
             "X-Supabase-Client-Platform-Version": platform.release(),
             "X-Supabase-Client-Runtime": "python",
