@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import platform
+import sys
 from typing import Any, Dict, Optional, Union, cast
 from warnings import warn
 
@@ -35,6 +37,22 @@ class AsyncPostgrestClient(BasePostgrestClient):
         proxy: Optional[str] = None,
         http_client: Optional[AsyncClient] = None,
     ) -> None:
+        headers = {
+            "X-Client-Info": f"supabase-py/postgrest-py v{__version__}",
+            "X-Supabase-Client-Platform": platform.system(),
+            "X-Supabase-Client-Platform-Version": platform.release(),
+            "X-Supabase-Client-Runtime": "python",
+            "X-Supabase-Client-Runtime-Version": platform.python_version(),
+            **headers,
+        }
+
+        if sys.version_info < (3, 10):
+            warn(
+                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         if timeout is not None:
             warn(
                 "The 'timeout' parameter is deprecated. Please configure it in the http client instead.",

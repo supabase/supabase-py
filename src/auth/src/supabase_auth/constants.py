@@ -1,14 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict
-
-from .version import __version__
 
 GOTRUE_URL = "http://localhost:9999"
-DEFAULT_HEADERS: Dict[str, str] = {
-    "X-Client-Info": f"gotrue-py/{__version__}",
-}
 EXPIRY_MARGIN = 10  # seconds
 MAX_RETRIES = 10
 RETRY_INTERVAL = 2  # deciseconds

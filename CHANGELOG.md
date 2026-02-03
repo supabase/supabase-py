@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.27.3](https://github.com/supabase/supabase-py/compare/v2.27.2...v2.27.3) (2026-02-03)
+
+
+### Bug Fixes
+
+* deprecate python 3.9 in all packages ([#1365](https://github.com/supabase/supabase-py/issues/1365)) ([cc72ed7](https://github.com/supabase/supabase-py/commit/cc72ed75d4c2d05514476d4e8f2786f5e09a174b))
+* ensure storage_url has trailing slash to prevent warning ([#1367](https://github.com/supabase/supabase-py/issues/1367)) ([4267ff1](https://github.com/supabase/supabase-py/commit/4267ff134542a742c8cabb1daf01597c3198494d))
+
 ## [2.27.2](https://github.com/supabase/supabase-py/compare/v2.27.1...v2.27.2) (2026-01-14)
 
 
