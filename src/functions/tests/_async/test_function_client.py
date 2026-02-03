@@ -35,8 +35,11 @@ async def test_init_with_valid_params(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
     assert str(client.url) == valid_url
-    assert "User-Agent" in client.headers
-    assert client.headers["User-Agent"] == f"supabase-py/functions-py v{__version__}"
+    assert "X-Client-Info" in client.headers
+    assert (
+        client.headers["X-Client-Info"]
+        == f"supabase-py/supabase_functions v{__version__}"
+    )
     assert client._client.timeout == Timeout(10)
 
 

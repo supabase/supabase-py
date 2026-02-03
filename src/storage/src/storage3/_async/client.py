@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import platform
+import sys
 from typing import Optional
 from warnings import warn
 
@@ -32,9 +34,20 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
         http_client: Optional[AsyncClient] = None,
     ) -> None:
         headers = {
-            "User-Agent": f"supabase-py/storage3 v{__version__}",
+            "X-Client-Info": f"supabase-py/storage3 v{__version__}",
+            "X-Supabase-Client-Platform": platform.system(),
+            "X-Supabase-Client-Platform-Version": platform.release(),
+            "X-Supabase-Client-Runtime": "python",
+            "X-Supabase-Client-Runtime-Version": platform.python_version(),
             **headers,
         }
+
+        if sys.version_info < (3, 10):
+            warn(
+                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         if timeout is not None:
             warn(

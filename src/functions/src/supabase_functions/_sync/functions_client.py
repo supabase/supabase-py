@@ -1,3 +1,5 @@
+import platform
+import sys
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
@@ -27,9 +29,20 @@ class SyncFunctionsClient:
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)
         self.headers = {
-            "User-Agent": f"supabase-py/functions-py v{__version__}",
+            "X-Client-Info": f"supabase-py/supabase_functions v{__version__}",
+            "X-Supabase-Client-Platform": platform.system(),
+            "X-Supabase-Client-Platform-Version": platform.release(),
+            "X-Supabase-Client-Runtime": "python",
+            "X-Supabase-Client-Runtime-Version": platform.python_version(),
             **headers,
         }
+
+        if sys.version_info < (3, 10):
+            warn(
+                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         if timeout is not None:
             warn(
