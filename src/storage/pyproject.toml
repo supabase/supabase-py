@@ -18,7 +18,7 @@ classifiers = [
 ]
 license = "MIT"
 readme = "README.md"
-version = "2.27.2" # {x-release-please-version}
+version = "2.27.3" # {x-release-please-version}
 requires-python = ">=3.9"
 
 dependencies = [
