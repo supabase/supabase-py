@@ -34,7 +34,7 @@ class SyncStorageClient(SyncStorageBucketAPI):
         http_client: Optional[Client] = None,
     ) -> None:
         headers = {
-            "X-Client-Info": f"supabase-py/functions-py v{__version__}",
+            "X-Client-Info": f"supabase-py/storage3 v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),
             "X-Supabase-Client-Platform-Version": platform.release(),
             "X-Supabase-Client-Runtime": "python",
