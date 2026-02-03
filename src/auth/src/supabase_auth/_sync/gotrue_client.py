@@ -114,7 +114,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         proxy: Optional[str] = None,
     ) -> None:
         extra_headers = {
-            "User-Agent": f"supabase-py/supabase_auth v{__version__}",
+            "X-Client-Info": f"supabase-py/supabase_auth v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),
             "X-Supabase-Client-Platform-Version": platform.release(),
             "X-Supabase-Client-Runtime": "python",
@@ -125,7 +125,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
 
         if sys.version_info < (3, 10):
             warn(
-                "Python 3.9 has reached EOL, and is not going to be supported in future versions. Please, upgrade to a newer python version",
+                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
                 DeprecationWarning,
                 stacklevel=2,
             )

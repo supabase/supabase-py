@@ -69,7 +69,7 @@ class AsyncRealtimeClient:
             raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
         if sys.version_info < (3, 10):
             warn(
-                "Python 3.9 has reached EOL, and is not going to be supported in future versions. Please, upgrade to a newer python version",
+                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
                 DeprecationWarning,
                 stacklevel=2,
             )
