@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import platform
 import sys
 import time
 from contextlib import suppress
 from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
+from warnings import warn
 
 from httpx import Client, QueryParams, Response
 from jwt import get_algorithm_by_name
@@ -113,11 +115,21 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
     ) -> None:
         extra_headers = {
             "User-Agent": f"supabase-py/supabase_auth v{__version__}",
-            "X-Python-Version": sys.version,
-            "X-OS": sys.platform,
+            "X-Supabase-Client-Platform": platform.system(),
+            "X-Supabase-Client-Platform-Version": platform.release(),
+            "X-Supabase-Client-Runtime": "python",
+            "X-Supabase-Client-Runtime-Version": platform.python_version(),
         }
         if headers:
             extra_headers.update(headers)
+
+        if sys.version_info < (3, 10):
+            warn(
+                "Python 3.9 has reached EOL, and is not going to be supported in future versions. Please, upgrade to a newer python version",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         SyncGoTrueBaseAPI.__init__(
             self,
             url=url or GOTRUE_URL,

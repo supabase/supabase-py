@@ -1,3 +1,4 @@
+import platform
 import sys
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
@@ -28,9 +29,11 @@ class SyncFunctionsClient:
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)
         self.headers = {
-            "User-Agent": f"supabase-py/functions-py v{__version__}",
-            "X-Python-Version": sys.version,
-            "X-OS": sys.platform,
+            "X-Client-Info": f"supabase-py/functions-py v{__version__}",
+            "X-Supabase-Client-Platform": platform.system(),
+            "X-Supabase-Client-Platform-Version": platform.release(),
+            "X-Supabase-Client-Runtime": "python",
+            "X-Supabase-Client-Runtime-Version": platform.python_version(),
             **headers,
         }
 
