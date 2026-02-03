@@ -1,5 +1,5 @@
+import platform
 from typing import Dict, Generic, Literal, Optional, Union, overload
-from warnings import warn
 
 from httpx import AsyncClient, Client, Headers, QueryParams, Response
 from supabase_utils.http import (
@@ -9,17 +9,16 @@ from supabase_utils.http import (
     Executor,
     HTTPRequestMethod,
     JSONRequest,
-    ResponseCases,
     ResponseHandler,
     SyncExecutor,
     TextRequest,
     ToHttpxRequest,
-    handle_http_response,
+    http_request,
 )
 from supabase_utils.types import JSON
 from yarl import URL
 
-from .errors import on_error_response
+from .errors import FunctionsHttpError, FunctionsRelayError, on_error_response
 from .utils import (
     FunctionRegion,
     is_valid_str_arg,
@@ -28,40 +27,17 @@ from .version import __version__
 
 
 class FunctionsClient(Generic[Executor]):
-    def __init__(
-        self,
-        url: URL,
-        headers: Dict[str, str],
-        executor: Executor,
-        timeout: Optional[int] = None,
-        verify: Optional[bool] = None,
-        proxy: Optional[str] = None,
-    ) -> None:
+    def __init__(self, url: URL, headers: Dict[str, str], executor: Executor) -> None:
         if not (url.scheme == "http" or url.scheme == "https"):
             raise ValueError("url must be a valid HTTP URL string")
         self.headers = {
-            "User-Agent": f"supabase-py/functions-py v{__version__}",
+            "X-Client-Info": f"supabase-py/supabase_functions v{__version__}",
+            "X-Supabase-Client-Platform": platform.system(),
+            "X-Supabase-Client-Platform-Version": platform.release(),
+            "X-Supabase-Client-Runtime": "python",
+            "X-Supabase-Client-Runtime-Version": platform.python_version(),
             **headers,
         }
-
-        if timeout is not None:
-            warn(
-                "The 'timeout' parameter is deprecated. Please configure it in the http client instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if verify is not None:
-            warn(
-                "The 'verify' parameter is deprecated. Please configure it in the http client instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if proxy is not None:
-            warn(
-                "The 'proxy' parameter is deprecated. Please configure it in the http client instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         self.executor: Executor = executor
         self.base_url = url
@@ -130,7 +106,7 @@ class FunctionsClient(Generic[Executor]):
                 method=method, path=path, headers=new_headers, query_params=query_params
             )
 
-    @handle_http_response
+    @http_request
     def invoke(
         self,
         function_name: str,
@@ -138,7 +114,7 @@ class FunctionsClient(Generic[Executor]):
         region: Optional[FunctionRegion] = None,
         headers: Optional[Dict[str, str]] = None,
         method: Optional[HTTPRequestMethod] = None,
-    ) -> ResponseHandler[Response]:
+    ) -> ResponseHandler[Response, Union[FunctionsHttpError, FunctionsRelayError]]:
         """Invokes a function
 
         Parameters
@@ -152,7 +128,7 @@ class FunctionsClient(Generic[Executor]):
         request = self._invoke_options_to_request(
             function_name, body, region, headers, method
         )
-        return ResponseCases(
+        return ResponseHandler(
             request=request,
             on_success=lambda response: response,
             on_failure=on_error_response,
@@ -188,8 +164,6 @@ class AsyncFunctionsClient(FunctionsClient[AsyncExecutor]):
             url=self.url,
             executor=AsyncExecutor(session=self._client),
             headers=headers,
-            timeout=timeout,
-            proxy=proxy,
         )
 
 
@@ -222,8 +196,6 @@ class SyncFunctionsClient(FunctionsClient[SyncExecutor]):
             url=self.url,
             executor=SyncExecutor(session=self._client),
             headers=headers,
-            timeout=timeout,
-            proxy=proxy,
         )
 
 

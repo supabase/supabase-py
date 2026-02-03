@@ -80,7 +80,7 @@ class Client:
             "wss" if self.supabase_url.scheme == "https" else "ws"
         )
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
-        self.storage_url = self.supabase_url.joinpath("storage", "v1")
+        self.storage_url = self.supabase_url.joinpath("storage", "v1", "")
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
         # Instantiate clients.
@@ -341,7 +341,9 @@ class Client:
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
-        self.options.headers["Authorization"] = self._create_auth_header(access_token)
+        auth_header = self._create_auth_header(access_token)
+        self.options.headers["Authorization"] = auth_header
+        self.auth._headers["Authorization"] = auth_header
 
 
 def create_client(
