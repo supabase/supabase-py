@@ -33,6 +33,21 @@ class SyncStorageClient(SyncStorageBucketAPI):
         proxy: Optional[str] = None,
         http_client: Optional[Client] = None,
     ) -> None:
+        """
+        Initialize the SyncStorageClient with connection metadata and an HTTP session.
+        
+        Parameters:
+            url (str): Base URL for storage API endpoints.
+            headers (dict[str, str]): Request headers; client metadata (client info, platform, runtime, runtime version) are merged into this dict.
+            timeout (Optional[int]): Deprecated — used to set the session timeout if provided; prefer configuring timeout on the HTTP client.
+            verify (Optional[bool]): Deprecated — used to set TLS verification for the session if provided; prefer configuring this on the HTTP client.
+            proxy (Optional[str]): Deprecated — used to set the session proxy if provided; prefer configuring this on the HTTP client.
+            http_client (Optional[Client]): If provided, used directly as the underlying HTTP session; otherwise a new httpx Client is created and configured.
+        
+        Notes:
+            - Emits a DeprecationWarning when running on Python < 3.10.
+            - Emits DeprecationWarning(s) if `timeout`, `verify`, or `proxy` are supplied.
+        """
         headers = {
             "X-Client-Info": f"supabase-py/storage3 v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),

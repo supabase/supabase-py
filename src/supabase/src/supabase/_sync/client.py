@@ -334,6 +334,13 @@ class Client:
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Optional[Session]
     ) -> None:
+        """
+        Handle auth state change events by clearing cached service clients and updating the Authorization header.
+        
+        Parameters:
+            event (AuthChangeEvent): The authentication event type (e.g., "SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT").
+            session (Optional[Session]): The current session; when provided its access_token is used for the Authorization header, otherwise the client's supabase_key is used.
+        """
         access_token = self.supabase_key
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             # reset postgrest and storage instance on event change
@@ -351,31 +358,14 @@ def create_client(
     supabase_key: str,
     options: Optional[ClientOptions] = None,
 ) -> Client:
-    """Create client function to instantiate supabase client like JS runtime.
-
-    Parameters
-    ----------
-    supabase_url: str
-        The URL to the Supabase instance that should be connected to.
-    supabase_key: str
-        The API key to the Supabase instance that should be connected to.
-    **options
-        Any extra settings to be optionally specified - also see the
-        `DEFAULT_OPTIONS` dict.
-
-    Examples
-    --------
-    Instantiating the client.
-    >>> import os
-    >>> from supabase import create_client, Client
-    >>>
-    >>> url: str = os.environ.get("SUPABASE_TEST_URL")
-    >>> key: str = os.environ.get("SUPABASE_TEST_KEY")
-    >>> supabase: Client = create_client(url, key)
-
-    Returns
-    -------
-    Client
+    """
+    Create and return a Supabase Client configured for the given URL and API key.
+    
+    Parameters:
+        options (ClientOptions, optional): Additional client settings; see DEFAULT_OPTIONS for defaults.
+    
+    Returns:
+        Client: A configured Client instance connected to the specified Supabase project.
     """
     return Client.create(
         supabase_url=supabase_url, supabase_key=supabase_key, options=options

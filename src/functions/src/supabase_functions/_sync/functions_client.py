@@ -25,6 +25,26 @@ class SyncFunctionsClient:
         proxy: Optional[str] = None,
         http_client: Optional[Client] = None,
     ) -> None:
+        """
+        Initialize the SyncFunctionsClient with connection settings and default headers.
+        
+        Constructs the HTTP client (or uses the provided one), validates the base URL, builds default X-* client headers merged with the provided headers, and sets verification and timeout behaviour.
+        
+        Parameters:
+            url (str): Base HTTP URL for functions; must be a valid HTTP(s) URL.
+            headers (Dict): Additional headers to merge into default client headers.
+            timeout (Optional[int]): Deprecated; legacy request timeout in seconds (absolute value taken). If None, defaults to 60.
+            verify (Optional[bool]): Deprecated; whether to verify TLS certificates. If None, defaults to True.
+            proxy (Optional[str]): Deprecated; proxy URL to use for the HTTP client.
+            http_client (Optional[Client]): An existing httpx Client to use instead of creating one.
+        
+        Raises:
+            ValueError: If `url` is not a valid HTTP or HTTPS URL.
+        
+        Notes:
+            - Passing `timeout`, `verify`, or `proxy` emits DeprecationWarning suggesting configuration on the provided http client instead.
+            - Emits a DeprecationWarning on Python versions earlier than 3.10.
+        """
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)

@@ -335,6 +335,13 @@ class AsyncClient:
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Optional[Session]
     ) -> None:
+        """
+        Handle authentication state changes by updating cached service clients, refreshing authorization headers, and scheduling a realtime client auth update.
+        
+        Parameters:
+            event (AuthChangeEvent): The authentication event name; when one of "SIGNED_IN", "TOKEN_REFRESHED", or "SIGNED_OUT" the client clears cached Postgrest, Storage, and Functions instances and refreshes the access token from `session`.
+            session (Optional[Session]): The current session object; when present its `access_token` is used for Authorization header and realtime auth. If absent, the client's Supabase key is used as a fallback.
+        """
         access_token = self.supabase_key
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             # reset postgrest and storage instance on event change

@@ -113,6 +113,21 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:
+        """
+        Initialize the client and configure connection, storage, token refresh behavior, and environment headers.
+        
+        Parameters:
+            url (Optional[str]): Base GoTrue endpoint; defaults to the library's GOTRUE_URL when not provided.
+            headers (Optional[Dict[str, str]]): Additional HTTP headers merged into client headers (environment metadata are always added).
+            storage_key (Optional[str]): Key used to persist session data; defaults to the module STORAGE_KEY.
+            auto_refresh_token (bool): Whether the client should automatically refresh access tokens before expiry.
+            persist_session (bool): Whether to persist session data to the provided storage backend.
+            storage (Optional[AsyncSupportedStorage]): Async storage backend used for session persistence; falls back to an in-memory storage if not supplied.
+            http_client (Optional[AsyncClient]): Optional custom HTTP client used for requests.
+            flow_type (AuthFlowType): Authorization flow mode, e.g., "implicit" or "pkce", used when building provider URLs and exchanging codes.
+            verify (bool): Whether to verify TLS certificates for outgoing HTTP requests.
+            proxy (Optional[str]): Optional proxy URL to route HTTP requests through.
+        """
         extra_headers = {
             "X-Client-Info": f"supabase-py/supabase_auth v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),

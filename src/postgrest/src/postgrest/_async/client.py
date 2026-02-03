@@ -37,6 +37,20 @@ class AsyncPostgrestClient(BasePostgrestClient):
         proxy: Optional[str] = None,
         http_client: Optional[AsyncClient] = None,
     ) -> None:
+        """
+        Initialize the AsyncPostgrestClient configured for a PostgREST endpoint.
+        
+        Creates a client with the given base_url and schema, augments provided headers with client and runtime metadata (library version, OS, and Python version), emits a DeprecationWarning when running on Python < 3.10, and either uses the supplied AsyncClient or constructs a new one configured with the resolved headers, timeout, verification, and proxy settings.
+        
+        Parameters:
+            base_url (str): Base URL of the PostgREST endpoint.
+            schema (str): Database schema to target (default "public").
+            headers (Dict[str, str]): Additional HTTP headers; these are merged with client/runtime metadata before use.
+            timeout (int | float | Timeout | None): Deprecated — client timeout value; if provided a DeprecationWarning is issued and the value is applied to the client configuration.
+            verify (bool | None): Deprecated — whether to verify TLS certificates; if provided a DeprecationWarning is issued and the value is used to set verification behavior.
+            proxy (str | None): Deprecated — proxy URL to use; if provided a DeprecationWarning is issued and the value is applied to the client configuration.
+            http_client (AsyncClient | None): Optional custom AsyncClient instance to use for HTTP requests; when omitted, a new AsyncClient is created with the resolved settings.
+        """
         headers = {
             "X-Client-Info": f"supabase-py/postgrest-py v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),

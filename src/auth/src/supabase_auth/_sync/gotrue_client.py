@@ -113,6 +113,21 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:
+        """
+        Constructs a SyncGoTrueClient configured with connection, storage, and authentication behavior.
+        
+        Parameters:
+            url (Optional[str]): Base GoTrue server URL; falls back to the library default when omitted.
+            headers (Optional[Dict[str, str]]): Additional HTTP headers to merge into client headers (client and platform metadata are always included).
+            storage_key (Optional[str]): Key used to persist session data in storage; defaults to the module's STORAGE_KEY.
+            auto_refresh_token (bool): Whether the client should automatically refresh access tokens before they expire.
+            persist_session (bool): Whether sessions are persisted to the provided storage (False keeps session in memory only).
+            storage (Optional[SyncSupportedStorage]): Storage backend used to persist sessions; defaults to in-memory storage when omitted.
+            http_client (Optional[Client]): Custom HTTP client instance to use for requests; if omitted, a default client is used.
+            flow_type (AuthFlowType): Authentication flow type to use for OAuth/PKCE behavior (e.g., "implicit" or "pkce").
+            verify (bool): Whether TLS certificate verification is enabled for outbound HTTP requests.
+            proxy (Optional[str]): Optional proxy URL to route HTTP requests through.
+        """
         extra_headers = {
             "User-Agent": f"supabase-py/supabase_auth v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),

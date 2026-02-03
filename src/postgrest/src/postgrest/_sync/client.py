@@ -37,6 +37,23 @@ class SyncPostgrestClient(BasePostgrestClient):
         proxy: Optional[str] = None,
         http_client: Optional[Client] = None,
     ) -> None:
+        """
+        Initialize the synchronous PostgREST client configured for a specific base URL and schema.
+        
+        Parameters:
+            base_url (str): Base URL of the PostgREST API.
+            schema (str): Database schema to target. Defaults to "public".
+            headers (Dict[str, str]): Additional HTTP headers; client metadata headers are added and override duplicates.
+            timeout (int | float | Timeout | None): Request timeout in seconds or an httpx Timeout object; if None, a module default is used. Passing a value emits a DeprecationWarning.
+            verify (Optional[bool]): Whether SSL verification is enabled; defaults to True. Passing a value emits a DeprecationWarning.
+            proxy (Optional[str]): Optional proxy URL to route requests through. Passing a value emits a DeprecationWarning.
+            http_client (Optional[Client]): Optional preconfigured httpx Client to use for requests; when provided, it is used as the underlying session.
+        
+        Notes:
+            - The constructor adds client metadata headers (client/version, platform, runtime) to the provided headers.
+            - A DeprecationWarning is emitted when running on Python versions earlier than 3.10.
+            - Deprecated parameters (`timeout`, `verify`, `proxy`) will emit DeprecationWarning advising configuration on the HTTP client instead.
+        """
         headers = {
             "X-Client-Info": f"supabase-py/postgrest-py v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),

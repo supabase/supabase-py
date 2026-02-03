@@ -25,6 +25,26 @@ class AsyncFunctionsClient:
         proxy: Optional[str] = None,
         http_client: Optional[AsyncClient] = None,
     ) -> None:
+        """
+        Initialize the async functions client with connection settings and default headers.
+        
+        Parameters:
+            url (str): Base HTTP URL for the functions endpoint; must be a valid HTTP URL.
+            headers (Dict): Additional headers to merge with client metadata headers.
+            timeout (Optional[int]): Deprecated. Absolute timeout in seconds to use when creating the internal HTTP client; if omitted defaults to 60.
+            verify (Optional[bool]): Deprecated. Whether to verify TLS for the internal HTTP client; if omitted defaults to True.
+            proxy (Optional[str]): Deprecated. Proxy URL to pass to the internal HTTP client.
+            http_client (Optional[AsyncClient]): Optional preconfigured AsyncClient instance to use instead of creating a new one.
+        
+        Notes:
+            - Adds runtime and client metadata headers (X-Client-Info, X-Supabase-Client-Platform, X-Supabase-Client-Platform-Version, X-Supabase-Client-Runtime, X-Supabase-Client-Runtime-Version) merged with `headers`.
+            - Emits a DeprecationWarning if running on Python < 3.10.
+            - Emits DeprecationWarning(s) if `timeout`, `verify`, or `proxy` are provided.
+            - If `http_client` is not provided, constructs an AsyncClient configured with the resolved `verify`, `timeout`, and `proxy`, and with follow_redirects and http2 enabled.
+        
+        Raises:
+            ValueError: If `url` is not a valid HTTP URL.
+        """
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)

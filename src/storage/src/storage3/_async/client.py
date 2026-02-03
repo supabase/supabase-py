@@ -33,6 +33,17 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
         proxy: Optional[str] = None,
         http_client: Optional[AsyncClient] = None,
     ) -> None:
+        """
+        Initialize the AsyncStorageClient and configure its HTTP session and headers.
+        
+        Parameters:
+            url (str): Base URL for storage API endpoints.
+            headers (dict[str, str]): Additional request headers; merged with client-identifying X- headers added by the constructor.
+            timeout (Optional[int]): Deprecated. If provided, used as the client's timeout (absolute value); a deprecation warning is emitted.
+            verify (Optional[bool]): Deprecated. If provided, sets TLS verification for the underlying HTTP client and emits a deprecation warning.
+            proxy (Optional[str]): Deprecated. If provided, sets the proxy for the underlying HTTP client and emits a deprecation warning.
+            http_client (Optional[AsyncClient]): Optional preconfigured httpx AsyncClient to use; when omitted a new AsyncClient is created with the assembled headers, timeout, proxy, and verify settings.
+        """
         headers = {
             "X-Client-Info": f"supabase-py/storage3 v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),

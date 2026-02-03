@@ -53,17 +53,17 @@ class AsyncRealtimeClient:
         timeout: int = DEFAULT_TIMEOUT,
     ) -> None:
         """
-        Initialize a RealtimeClient instance for WebSocket communication.
-
-        :param url: WebSocket URL of the Realtime server. Starts with `ws://` or `wss://`.
-                   Also accepts default Supabase URL: `http://` or `https://`.
-        :param token: Authentication token for the WebSocket connection.
-        :param auto_reconnect: If True, automatically attempt to reconnect on disconnection. Defaults to True.
-        :param params: Optional parameters for the connection. Defaults to None.
-        :param hb_interval: Interval (in seconds) for sending heartbeat messages to keep the connection alive. Defaults to 25.
-        :param max_retries: Maximum number of reconnection attempts. Defaults to 5.
-        :param initial_backoff: Initial backoff time (in seconds) for reconnection attempts. Defaults to 1.0.
-        :param timeout: Connection timeout in seconds. Defaults to DEFAULT_TIMEOUT.
+        Initialize the client with WebSocket endpoint, authentication, reconnection, and heartbeat settings.
+        
+        Parameters:
+            url (str): Realtime server URL. Accepts ws:// or wss:// URLs and also http:// or https:// (which are normalized to ws/wss).
+            token (Optional[str]): API/access token used for authenticating the connection.
+            auto_reconnect (bool): Whether the client should attempt automatic reconnection after disconnection.
+            params (Optional[Dict[str, Any]]): Additional query parameters included when constructing the endpoint URL.
+            hb_interval (int): Heartbeat interval in seconds used to keep the connection alive.
+            max_retries (int): Maximum number of connection retry attempts before giving up.
+            initial_backoff (float): Initial backoff delay in seconds used for exponential retry backoff.
+            timeout (int): Connection timeout in seconds.
         """
         if not is_ws_url(url):
             raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
