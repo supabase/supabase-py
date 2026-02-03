@@ -1,6 +1,5 @@
 import platform
 from typing import Dict, Generic, Literal, Optional, Union, overload
-from warnings import warn
 
 from httpx import AsyncClient, Client, Headers, QueryParams, Response
 from supabase_utils.http import (
@@ -28,15 +27,7 @@ from .version import __version__
 
 
 class FunctionsClient(Generic[Executor]):
-    def __init__(
-        self,
-        url: URL,
-        headers: Dict[str, str],
-        executor: Executor,
-        timeout: Optional[int] = None,
-        verify: Optional[bool] = None,
-        proxy: Optional[str] = None,
-    ) -> None:
+    def __init__(self, url: URL, headers: Dict[str, str], executor: Executor) -> None:
         if not (url.scheme == "http" or url.scheme == "https"):
             raise ValueError("url must be a valid HTTP URL string")
         self.headers = {
@@ -47,25 +38,6 @@ class FunctionsClient(Generic[Executor]):
             "X-Supabase-Client-Runtime-Version": platform.python_version(),
             **headers,
         }
-
-        if timeout is not None:
-            warn(
-                "The 'timeout' parameter is deprecated. Please configure it in the http client instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if verify is not None:
-            warn(
-                "The 'verify' parameter is deprecated. Please configure it in the http client instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if proxy is not None:
-            warn(
-                "The 'proxy' parameter is deprecated. Please configure it in the http client instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         self.executor: Executor = executor
         self.base_url = url
@@ -192,8 +164,6 @@ class AsyncFunctionsClient(FunctionsClient[AsyncExecutor]):
             url=self.url,
             executor=AsyncExecutor(session=self._client),
             headers=headers,
-            timeout=timeout,
-            proxy=proxy,
         )
 
 
@@ -226,8 +196,6 @@ class SyncFunctionsClient(FunctionsClient[SyncExecutor]):
             url=self.url,
             executor=SyncExecutor(session=self._client),
             headers=headers,
-            timeout=timeout,
-            proxy=proxy,
         )
 
 
