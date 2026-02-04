@@ -19,7 +19,7 @@ classifiers = [
 license = "MIT"
 readme = "README.md"
 version = "2.27.3" # {x-release-please-version}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
