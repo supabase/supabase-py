@@ -1,7 +1,7 @@
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from realtime import AuthorizationError, NotConnectedError
-from storage3.utils import StorageException
+from storage3.exceptions import StorageException
 from supabase_auth.errors import (
     AuthApiError,
     AuthError,

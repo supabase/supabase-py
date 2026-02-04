@@ -12,7 +12,6 @@ from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
 from realtime import RealtimeChannelOptions, SyncRealtimeChannel, SyncRealtimeClient
 from storage3 import SyncStorageClient
-from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_auth import SyncMemoryStorage
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
@@ -251,23 +250,14 @@ class Client:
     def _init_storage_client(
         storage_url: str,
         headers: Dict[str, str],
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
-        verify: bool = True,
-        proxy: Optional[str] = None,
+        storage_client_timeout: Optional[int] = None,
         http_client: Union[SyncHttpxClient, None] = None,
     ) -> SyncStorageClient:
-        if http_client is not None:
-            # If an http client is provided, use it
-            return SyncStorageClient(
-                url=storage_url, headers=headers, http_client=http_client
-            )
         return SyncStorageClient(
             url=storage_url,
             headers=headers,
             timeout=storage_client_timeout,
-            verify=verify,
-            proxy=proxy,
-            http_client=None,
+            http_client=http_client,
         )
 
     @staticmethod

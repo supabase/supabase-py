@@ -5,7 +5,6 @@ from httpx import AsyncClient as AsyncHttpxClient
 from httpx import Client as SyncHttpxClient
 from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
-from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_auth import (
     AsyncMemoryStorage,
     AsyncSupportedStorage,
@@ -47,7 +46,7 @@ class ClientOptions:
     )
     """Timeout passed to the SyncPostgrestClient instance."""
 
-    storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT
+    storage_client_timeout: Optional[int] = None
     """Timeout passed to the SyncStorageClient instance"""
 
     function_client_timeout: int = DEFAULT_FUNCTION_CLIENT_TIMEOUT
@@ -77,7 +76,7 @@ class AsyncClientOptions(ClientOptions):
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+        storage_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
     ) -> "AsyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
@@ -120,7 +119,7 @@ class SyncClientOptions(ClientOptions):
         postgrest_client_timeout: Union[
             int, float, Timeout
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+        storage_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
     ) -> "SyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
