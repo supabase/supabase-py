@@ -9,16 +9,17 @@ from supabase_utils.http import (
     Executor,
     HTTPRequestMethod,
     JSONRequest,
+    ResponseCases,
     ResponseHandler,
     SyncExecutor,
     TextRequest,
     ToHttpxRequest,
-    http_request,
+    handle_http_response,
 )
 from supabase_utils.types import JSON
 from yarl import URL
 
-from .errors import FunctionsHttpError, FunctionsRelayError, on_error_response
+from .errors import on_error_response
 from .utils import (
     FunctionRegion,
     is_valid_str_arg,
@@ -106,7 +107,7 @@ class FunctionsClient(Generic[Executor]):
                 method=method, path=path, headers=new_headers, query_params=query_params
             )
 
-    @http_request
+    @handle_http_response
     def invoke(
         self,
         function_name: str,
@@ -114,7 +115,7 @@ class FunctionsClient(Generic[Executor]):
         region: Optional[FunctionRegion] = None,
         headers: Optional[Dict[str, str]] = None,
         method: Optional[HTTPRequestMethod] = None,
-    ) -> ResponseHandler[Response, Union[FunctionsHttpError, FunctionsRelayError]]:
+    ) -> ResponseHandler[Response]:
         """Invokes a function
 
         Parameters
@@ -128,7 +129,7 @@ class FunctionsClient(Generic[Executor]):
         request = self._invoke_options_to_request(
             function_name, body, region, headers, method
         )
-        return ResponseHandler(
+        return ResponseCases(
             request=request,
             on_success=lambda response: response,
             on_failure=on_error_response,
