@@ -204,11 +204,14 @@ async def test_httpx_client() -> None:
             client.storage.executor.session.headers.get("x-user-agent")
             == "my-app/0.0.1"
         )
-        assert client.functions._client.headers.get("x-user-agent") == "my-app/0.0.1"
+        assert (
+            client.functions.executor.session.headers.get("x-user-agent")
+            == "my-app/0.0.1"
+        )
         assert client.postgrest.session.timeout == Timeout(2.0)
         assert client.auth._http_client.timeout == Timeout(2.0)
         assert client.storage.executor.session.timeout == Timeout(2.0)
-        assert client.functions._client.timeout == Timeout(2.0)
+        assert client.functions.executor.session.timeout == Timeout(2.0)
 
 
 async def test_custom_headers() -> None:
