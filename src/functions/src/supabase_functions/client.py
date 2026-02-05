@@ -140,29 +140,22 @@ class AsyncFunctionsClient(FunctionsClient[AsyncExecutor]):
         self,
         url: str,
         headers: Dict[str, str],
-        timeout: int | None = None,
-        verify: bool | None = None,
+        timeout: int = 60,
+        verify: bool = True,
         proxy: str | None = None,
         http_client: AsyncClient | None = None,
     ) -> None:
-        self.url = URL(url)  # kept for backwards compatibility
-        self.verify = (
-            bool(verify) if verify is not None else True
-        )  # kept for backwards compatibility
-        self.timeout = (
-            int(abs(timeout)) if timeout is not None else 60
-        )  # kept for backwards compatibility
-        self._client = http_client or AsyncClient(  # kept for backwards compatibility
-            verify=self.verify,
-            timeout=self.timeout,
+        http_client = http_client or AsyncClient(
+            verify=verify,
+            timeout=timeout,
             proxy=proxy,
             follow_redirects=True,
             http2=True,
         )
         FunctionsClient.__init__(
             self,
-            url=self.url,
-            executor=AsyncExecutor(session=self._client),
+            url=URL(url),
+            executor=AsyncExecutor(session=http_client),
             headers=headers,
         )
 
@@ -172,29 +165,22 @@ class SyncFunctionsClient(FunctionsClient[SyncExecutor]):
         self,
         url: str,
         headers: Dict[str, str],
-        timeout: int | None = None,
-        verify: bool | None = None,
+        timeout: int = 60,
+        verify: bool = True,
         proxy: str | None = None,
         http_client: Client | None = None,
     ) -> None:
-        self.url = URL(url)  # kept for backwards compatibility
-        self.verify = (
-            bool(verify) if verify is not None else True
-        )  # kept for backwards compatibility
-        self.timeout = (
-            int(abs(timeout)) if timeout is not None else 60
-        )  # kept for backwards compatibility
-        self._client = http_client or Client(  # kept for backwards compatibility
-            verify=self.verify,
-            timeout=self.timeout,
+        http_client = http_client or Client(  # kept for backwards compatibility
+            verify=verify,
+            timeout=timeout,
             proxy=proxy,
             follow_redirects=True,
             http2=True,
         )
         FunctionsClient.__init__(
             self,
-            url=self.url,
-            executor=SyncExecutor(session=self._client),
+            url=URL(url),
+            executor=SyncExecutor(session=http_client),
             headers=headers,
         )
 
