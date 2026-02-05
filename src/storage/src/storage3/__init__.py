@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Union, overload
+from typing import Literal, overload
 
 from storage3.client import AsyncStorageClient, SyncStorageClient
 from storage3.file_api import StorageFileApiClient
@@ -29,7 +29,7 @@ def create_client(
 
 def create_client(
     url: str, headers: dict[str, str], *, is_async: bool
-) -> Union[AsyncStorageClient, SyncStorageClient]:
+) -> AsyncStorageClient | SyncStorageClient:
     if is_async:
         return AsyncStorageClient(url, headers)
     else:

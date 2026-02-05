@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import platform
 from types import TracebackType
-from typing import Generic, Optional
+from typing import Generic
 
 from httpx import AsyncClient, Client, Headers
 from pydantic import TypeAdapter
@@ -122,10 +122,10 @@ class StorageClient(Generic[Executor]):
     def create_bucket(
         self,
         id: str,
-        name: Optional[str] = None,
-        public: Optional[bool] = None,
-        file_size_limit: Optional[int] = None,
-        allowed_mime_types: Optional[list[str]] = None,
+        name: str | None = None,
+        public: bool | None = None,
+        file_size_limit: int | None = None,
+        allowed_mime_types: list[str] | None = None,
     ) -> ResponseHandler[BucketName]:
         """Creates a new storage bucket.
 
@@ -164,9 +164,9 @@ class StorageClient(Generic[Executor]):
     def update_bucket(
         self,
         id: str,
-        public: Optional[bool] = None,
-        file_size_limit: Optional[int] = None,
-        allowed_mime_types: Optional[list[str]] = None,
+        public: bool | None = None,
+        file_size_limit: int | None = None,
+        allowed_mime_types: list[str] | None = None,
     ) -> ResponseHandler[MessageResponse]:
         """Update a storage bucket.
 
@@ -246,8 +246,8 @@ class AsyncStorageClient(StorageClient[AsyncExecutor]):
         self,
         url: str,
         headers: dict[str, str],
-        timeout: Optional[int] = None,
-        http_client: Optional[AsyncClient] = None,
+        timeout: int | None = None,
+        http_client: AsyncClient | None = None,
     ) -> None:
         client = http_client or AsyncClient(
             headers=headers,
@@ -264,9 +264,9 @@ class AsyncStorageClient(StorageClient[AsyncExecutor]):
 
     async def __aexit__(
         self,
-        exc_type: Optional[type[Exception]],
-        exc: Optional[Exception],
-        tb: Optional[TracebackType],
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
     ) -> None:
         await self.executor.session.aclose()
 
@@ -276,8 +276,8 @@ class SyncStorageClient(StorageClient[SyncExecutor]):
         self,
         url: str,
         headers: dict[str, str],
-        timeout: Optional[int] = None,
-        http_client: Optional[Client] = None,
+        timeout: int | None = None,
+        http_client: Client | None = None,
     ) -> None:
         client = http_client or Client(
             headers=headers,
@@ -294,8 +294,8 @@ class SyncStorageClient(StorageClient[SyncExecutor]):
 
     def __exit__(
         self,
-        exc_type: Optional[type[Exception]],
-        exc: Optional[Exception],
-        tb: Optional[TracebackType],
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
     ) -> None:
         self.executor.session.close()

@@ -2,6 +2,7 @@ from typing import Dict
 
 import pytest
 from httpx import AsyncClient, Client, Timeout
+
 from storage3 import AsyncStorageClient, SyncStorageClient
 from storage3.client import DEFAULT_TIMEOUT
 

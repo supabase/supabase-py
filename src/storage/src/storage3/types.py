@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
@@ -19,9 +19,9 @@ class Bucket(BaseModel, extra="ignore"):
     public: bool
     created_at: datetime
     updated_at: datetime
-    file_size_limit: Optional[int]
-    allowed_mime_types: Optional[list[str]]
-    type: Optional[Literal["STANDARD", "ANALYTICS"]] = None
+    file_size_limit: int | None
+    allowed_mime_types: list[str] | None
+    type: Literal["STANDARD", "ANALYTICS"] | None = None
 
 
 class BucketName(BaseModel, extra="ignore"):
@@ -39,7 +39,7 @@ class ListBody(BaseModel):
     prefix: str
     limit: int
     offset: int
-    search: Optional[str]
+    search: str | None
     sortBy: SortByType
 
 
@@ -56,23 +56,23 @@ class SignedUploadURL:
 
 @dataclass
 class TransformOptions:
-    height: Optional[int] = None
-    width: Optional[int] = None
-    resize: Optional[Literal["cover", "contain", "fill"]] = None
-    format: Optional[Literal["origin", "avif"]] = None
-    quality: Optional[int] = None
+    height: int | None = None
+    width: int | None = None
+    resize: Literal["cover", "contain", "fill"] | None = None
+    format: Literal["origin", "avif"] | None = None
+    quality: int | None = None
 
 
 class CreateSignedUrlBody(BaseModel):
     expiresIn: int
-    download: Optional[Union[str, bool]]
-    transform: Optional[TransformOptions]
+    download: str | bool | None
+    transform: TransformOptions | None
 
 
 class CreateSignedUrlsBody(BaseModel):
     paths: List[str]
     expiresIn: int
-    download: Optional[Union[str, bool]]
+    download: str | bool | None
 
 
 def transform_to_dict(t: TransformOptions) -> dict[str, str]:
@@ -81,10 +81,10 @@ def transform_to_dict(t: TransformOptions) -> dict[str, str]:
 
 class CreateOrUpdateBucketBody(BaseModel):
     id: str
-    name: Optional[str]
-    public: Optional[bool]
-    file_size_limit: Optional[int]
-    allowed_mime_types: Optional[list[str]]
+    name: str | None
+    public: bool | None
+    file_size_limit: int | None
+    allowed_mime_types: list[str] | None
 
 
 class MessageResponse(BaseModel):
@@ -98,22 +98,22 @@ class FileObject(BaseModel):
     bucket_id: str
     created_at: datetime
     metadata: Dict[str, Any]
-    last_modified: Optional[datetime] = None
-    size: Optional[int] = None
-    cache_control: Optional[str] = None
-    content_type: Optional[str] = None
-    etag: Optional[str] = None
+    last_modified: datetime | None = None
+    size: int | None = None
+    cache_control: str | None = None
+    content_type: str | None = None
+    etag: str | None = None
 
 
 class ListFileObject(BaseModel):
     id: str
     name: str
-    owner: Optional[str] = None
-    bucket_id: Optional[str] = None
+    owner: str | None = None
+    bucket_id: str | None = None
     updated_at: datetime
     created_at: datetime
     metadata: Dict[str, Any]
-    buckets: Optional[Bucket] = None
+    buckets: Bucket | None = None
 
 
 class UploadData(TypedDict, total=False):
@@ -127,7 +127,7 @@ class UploadResponse(BaseModel):
 
 @dataclass
 class CreateSignedUrlResponse:
-    error: Optional[str]
+    error: str | None
     path: str
     signed_url: str
 
@@ -137,7 +137,7 @@ class SignedUrlJsonResponse(BaseModel, extra="ignore"):
 
 
 class SignedUrlsJsonItem(BaseModel, extra="ignore"):
-    error: Optional[str]
+    error: str | None
     path: str
     signedURL: str
 
@@ -148,15 +148,15 @@ DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
 
 
 class MetadataConfiguration(BaseModel, extra="ignore"):
-    non_filterable_metadata_keys: Optional[List[str]] = Field(
+    non_filterable_metadata_keys: List[str] | None = Field(
         alias="nonFilterableMetadataKeys"
     )
 
 
 class ListIndexesOptions(BaseModel, extra="ignore"):
-    nextToken: Optional[str] = None
-    maxResults: Optional[int] = None
-    prefix: Optional[str] = None
+    nextToken: str | None = None
+    maxResults: int | None = None
+    prefix: str | None = None
 
 
 class ListIndexesResponseItem(BaseModel, extra="ignore"):
@@ -165,7 +165,7 @@ class ListIndexesResponseItem(BaseModel, extra="ignore"):
 
 class ListVectorIndexesResponse(BaseModel, extra="ignore"):
     indexes: List[ListIndexesResponseItem]
-    nextToken: Optional[str] = None
+    nextToken: str | None = None
 
 
 class VectorIndex(BaseModel, extra="ignore"):
@@ -174,10 +174,10 @@ class VectorIndex(BaseModel, extra="ignore"):
     data_type: str = Field(alias="dataType")
     dimension: int
     distance_metric: DistanceMetric = Field(alias="distanceMetric")
-    metadata: Optional[MetadataConfiguration] = Field(
+    metadata: MetadataConfiguration | None = Field(
         alias="metadataConfiguration", default=None
     )
-    creation_time: Optional[datetime] = None
+    creation_time: datetime | None = None
 
 
 class GetVectorIndexResponse(BaseModel, extra="ignore"):
@@ -194,14 +194,14 @@ class VectorData(BaseModel, extra="ignore"):
 class VectorObject(BaseModel, extra="ignore"):
     key: str
     data: VectorData
-    metadata: Optional[dict[str, Union[str, bool, float]]] = None
+    metadata: dict[str, str | bool | float] | None = None
 
 
 class VectorMatch(BaseModel, extra="ignore"):
     key: str
-    data: Optional[VectorData] = None
-    distance: Optional[float] = None
-    metadata: Optional[dict[str, Any]] = None
+    data: VectorData | None = None
+    distance: float | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class GetVectorsResponse(BaseModel, extra="ignore"):
@@ -210,7 +210,7 @@ class GetVectorsResponse(BaseModel, extra="ignore"):
 
 class ListVectorsResponse(BaseModel, extra="ignore"):
     vectors: List[VectorMatch]
-    nextToken: Optional[str] = None
+    nextToken: str | None = None
 
 
 class QueryVectorsResponse(BaseModel, extra="ignore"):
@@ -219,8 +219,8 @@ class QueryVectorsResponse(BaseModel, extra="ignore"):
 
 class AnalyticsBucket(BaseModel, extra="ignore"):
     name: str
-    type: Optional[Literal["ANALYTICS"]] = None
-    format: Optional[str] = None
+    type: Literal["ANALYTICS"] | None = None
+    format: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -236,14 +236,14 @@ class AnalyticsBucketDeleteResponse(BaseModel, extra="ignore"):
 
 
 class VectorBucketEncryptionConfiguration(BaseModel, extra="ignore"):
-    kmsKeyArn: Optional[str] = None
-    sseType: Optional[str] = None
+    kmsKeyArn: str | None = None
+    sseType: str | None = None
 
 
 class VectorBucket(BaseModel, extra="ignore"):
     vectorBucketName: str
-    creationTime: Optional[datetime] = None
-    encryptionConfiguration: Optional[VectorBucketEncryptionConfiguration] = None
+    creationTime: datetime | None = None
+    encryptionConfiguration: VectorBucketEncryptionConfiguration | None = None
 
 
 class GetVectorBucketResponse(BaseModel, extra="ignore"):
@@ -256,4 +256,4 @@ class ListVectorBucketsItem(BaseModel, extra="ignore"):
 
 class ListVectorBucketsResponse(BaseModel, extra="ignore"):
     vectorBuckets: List[ListVectorBucketsItem]
-    nextToken: Optional[str] = None
+    nextToken: str | None = None

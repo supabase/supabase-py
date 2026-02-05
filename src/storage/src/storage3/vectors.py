@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, List, Optional
+from typing import Generic, List
 
 from httpx import Headers, Response
 from supabase_utils.http import (
@@ -55,7 +55,7 @@ class VectorBucketScope(Generic[Executor]):
         dimension: int,
         distance_metric: DistanceMetric,
         data_type: str,
-        metadata: Optional[MetadataConfiguration] = None,
+        metadata: MetadataConfiguration | None = None,
     ) -> ResponseHandler[None]:
         body = self.with_metadata(
             indexName=index_name,
@@ -81,7 +81,7 @@ class VectorBucketScope(Generic[Executor]):
     @handle_http_response
     def get_index(
         self, index_name: str
-    ) -> ResponseHandler[Optional[GetVectorIndexResponse]]:
+    ) -> ResponseHandler[GetVectorIndexResponse | None]:
         body = self.with_metadata(indexName=index_name)
         request = JSONRequest(
             method="POST",
@@ -90,7 +90,7 @@ class VectorBucketScope(Generic[Executor]):
             headers=self._headers,
         )
 
-        def maybe_index(response: Response) -> Optional[GetVectorIndexResponse]:
+        def maybe_index(response: Response) -> GetVectorIndexResponse | None:
             if response.is_success:
                 return GetVectorIndexResponse.model_validate_json(response.content)
             elif 400 <= response.status_code <= 401:
@@ -106,9 +106,9 @@ class VectorBucketScope(Generic[Executor]):
     @handle_http_response
     def list_indexes(
         self,
-        next_token: Optional[str] = None,
-        max_results: Optional[int] = None,
-        prefix: Optional[str] = None,
+        next_token: str | None = None,
+        max_results: int | None = None,
+        prefix: str | None = None,
     ) -> ResponseHandler[ListVectorIndexesResponse]:
         body = self.with_metadata(
             next_token=next_token, max_results=max_results, prefix=prefix
@@ -200,12 +200,12 @@ class VectorIndexScope(Generic[Executor]):
     @handle_http_response
     def list(
         self,
-        max_results: Optional[int] = None,
-        next_token: Optional[str] = None,
+        max_results: int | None = None,
+        next_token: str | None = None,
         return_data: bool = True,
         return_metadata: bool = True,
-        segment_count: Optional[int] = None,
-        segment_index: Optional[int] = None,
+        segment_count: int | None = None,
+        segment_index: int | None = None,
     ) -> ResponseHandler[ListVectorsResponse]:
         body = self.with_metadata(
             maxResults=max_results,
@@ -228,8 +228,8 @@ class VectorIndexScope(Generic[Executor]):
     def query(
         self,
         query_vector: VectorData,
-        topK: Optional[int] = None,
-        filter: Optional[VectorFilter] = None,
+        topK: int | None = None,
+        filter: VectorFilter | None = None,
         return_distance: bool = True,
         return_metadata: bool = True,
     ) -> ResponseHandler[QueryVectorsResponse]:
@@ -299,7 +299,7 @@ class StorageVectorsClient(Generic[Executor]):
     @handle_http_response
     def get_bucket(
         self, bucket_name: str
-    ) -> ResponseHandler[Optional[GetVectorBucketResponse]]:
+    ) -> ResponseHandler[GetVectorBucketResponse | None]:
         body = {"vectorBucketName": bucket_name}
         request = JSONRequest(
             method="POST",
@@ -310,7 +310,7 @@ class StorageVectorsClient(Generic[Executor]):
 
         def maybe_vector_bucket(
             response: Response,
-        ) -> Optional[GetVectorBucketResponse]:
+        ) -> GetVectorBucketResponse | None:
             if response.is_success:
                 return GetVectorBucketResponse.model_validate_json(response.content)
             elif 400 <= response.status_code <= 401:
@@ -326,9 +326,9 @@ class StorageVectorsClient(Generic[Executor]):
     @handle_http_response
     def list_buckets(
         self,
-        prefix: Optional[str] = None,
-        max_results: Optional[int] = None,
-        next_token: Optional[str] = None,
+        prefix: str | None = None,
+        max_results: int | None = None,
+        next_token: str | None = None,
     ) -> ResponseHandler[ListVectorBucketsResponse]:
         body = {"prefix": prefix, "maxResults": max_results, "nextToken": next_token}
         request = JSONRequest(

@@ -83,6 +83,23 @@ warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 
+[tool.ruff.lint]
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  # "B",
+  # flake8-simplify
+  # "SIM",
+  # isort
+  "I",
+]
+ignore = ["E712", "E501", "E402", "UP006", "UP035"]
+
 [tool.uv]
 default-groups = [ "dev" ]
 

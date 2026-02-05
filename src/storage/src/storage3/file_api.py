@@ -4,7 +4,7 @@ import base64
 from dataclasses import dataclass
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, Generic, List, Literal, Tuple
 
 from httpx import Headers, QueryParams, Response
 from pydantic import TypeAdapter
@@ -77,7 +77,7 @@ class StorageFileApiClient(Generic[Executor]):
     def create_signed_upload_url(
         self,
         path: str,
-        upsert: Optional[str] = None,
+        upsert: str | None = None,
     ) -> ResponseHandler[SignedUploadURL]:
         """
         Creates a signed upload URL.
@@ -111,11 +111,11 @@ class StorageFileApiClient(Generic[Executor]):
         self,
         path: str,
         token: str,
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
+        file: BufferedReader | bytes | FileIO | str | Path,
         content_type: str = "text/plain;charset=UTF-8",
         cache_control: str = "3600",
-        metadata: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        metadata: Dict[str, Any] | None = None,
+        headers: Dict[str, str] | None = None,
     ) -> ResponseHandler[UploadResponse]:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
@@ -182,8 +182,8 @@ class StorageFileApiClient(Generic[Executor]):
         self,
         path: str,
         expires_in: int,
-        download: Optional[Union[str, bool]] = None,
-        transform: Optional[TransformOptions] = None,
+        download: str | bool | None = None,
+        transform: TransformOptions | None = None,
     ) -> ResponseHandler[str]:
         """
         Parameters
@@ -245,7 +245,7 @@ class StorageFileApiClient(Generic[Executor]):
         self,
         paths: List[str],
         expires_in: int,
-        download: Optional[Union[bool, str]] = None,
+        download: bool | str | None = None,
     ) -> ResponseHandler[List[CreateSignedUrlResponse]]:
         """
         Parameters
@@ -284,8 +284,8 @@ class StorageFileApiClient(Generic[Executor]):
     def get_public_url(
         self,
         path: str,
-        download: Optional[Union[bool, str]] = None,
-        transform: Optional[TransformOptions] = None,
+        download: bool | str | None = None,
+        transform: TransformOptions | None = None,
     ) -> str:
         """
         Parameters
@@ -450,11 +450,11 @@ class StorageFileApiClient(Generic[Executor]):
     @handle_http_response
     def list(
         self,
-        path: Optional[str] = None,
+        path: str | None = None,
         limit: int = 100,
         offset: int = 0,
-        search: Optional[str] = None,
-        sortBy: Optional[SortByType] = None,
+        search: str | None = None,
+        sortBy: SortByType | None = None,
     ) -> ResponseHandler[List[ListFileObject]]:
         """
         Lists all the files within a bucket.
@@ -489,8 +489,8 @@ class StorageFileApiClient(Generic[Executor]):
     def download(
         self,
         path: str,
-        transform: Optional[TransformOptions] = None,
-        query_params: Optional[Dict[str, str]] = None,
+        transform: TransformOptions | None = None,
+        query_params: Dict[str, str] | None = None,
     ) -> ResponseHandler[bytes]:
         """
         Downloads a file.
@@ -523,12 +523,12 @@ class StorageFileApiClient(Generic[Executor]):
         self,
         method: Literal["POST", "PUT"],
         path: tuple[str, ...],
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
+        file: BufferedReader | bytes | FileIO | str | Path,
         cache_control: str,
         content_type: str,
         upsert: str,
-        metadata: Optional[Dict[str, Any]],
-        headers: Optional[Dict[str, str]],
+        metadata: Dict[str, Any] | None,
+        headers: Dict[str, str] | None,
     ) -> ResponseHandler[UploadResponse]:
         """
         Uploads a file to an existing bucket.
@@ -593,12 +593,12 @@ class StorageFileApiClient(Generic[Executor]):
     def upload(
         self,
         path: str,
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
+        file: BufferedReader | bytes | FileIO | str | Path,
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
         upsert: str = "false",
-        metadata: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        metadata: Dict[str, Any] | None = None,
+        headers: Dict[str, str] | None = None,
     ) -> ResponseHandler[UploadResponse]:
         """
         Uploads a file to an existing bucket.
@@ -629,12 +629,12 @@ class StorageFileApiClient(Generic[Executor]):
     def update(
         self,
         path: str,
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
+        file: BufferedReader | bytes | FileIO | str | Path,
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
         upsert: str = "false",
-        metadata: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        metadata: Dict[str, Any] | None = None,
+        headers: Dict[str, str] | None = None,
     ) -> ResponseHandler[UploadResponse]:
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(

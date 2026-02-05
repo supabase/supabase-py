@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 from httpx import Response
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.dataclasses import dataclass
@@ -15,17 +13,17 @@ class VectorBucketException(StorageException):
 
 
 class VectorBucketErrorMessage(BaseModel):
-    statusCode: Union[str, int]
+    statusCode: str | int
     error: str
     message: str
-    code: Optional[str] = None
+    code: str | None = None
 
 
 @dataclass
 class StorageApiError(StorageException):
     message: str
     code: str
-    status: Union[int, str]
+    status: int | str
 
 
 StorageApiErrorParser = TypeAdapter(StorageApiError)

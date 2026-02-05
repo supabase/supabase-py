@@ -2,6 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 from httpx import Client, Response
+
 from storage3 import SyncStorageClient
 from storage3.types import Bucket, MessageResponse
 

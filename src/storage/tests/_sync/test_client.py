@@ -9,10 +9,11 @@ from uuid import uuid4
 import pytest
 from httpx import Client as HttpxClient
 from httpx import HTTPStatusError, Response
+from supabase_utils.http import SyncExecutor
+
 from storage3 import StorageFileApiClient, SyncStorageClient
 from storage3.exceptions import StorageApiError, StorageException
 from storage3.types import TransformOptions
-from supabase_utils.http import SyncExecutor
 
 from ..utils import SyncFinalizerFactory
 
