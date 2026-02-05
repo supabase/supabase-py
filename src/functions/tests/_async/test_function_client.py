@@ -35,13 +35,13 @@ async def test_init_with_valid_params(
     client = AsyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
-    assert str(client.url) == valid_url
+    assert str(client.base_url) == valid_url
     assert "X-Client-Info" in client.headers
     assert (
         client.headers["X-Client-Info"]
         == f"supabase-py/supabase_functions v{__version__}"
     )
-    assert client._client.timeout == Timeout(10)
+    assert client.executor.session.timeout == Timeout(10)
 
 
 @pytest.mark.parametrize("invalid_url", ["not-a-url", "ftp://invalid.com", ""])
@@ -64,7 +64,9 @@ async def test_invoke_success_json(client: AsyncFunctionsClient) -> None:
     mock_response.raise_for_status = Mock()
     mock_response.headers = {}
 
-    with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
+    with patch.object(
+        client.executor.session, "send", new_callable=AsyncMock
+    ) as mock_request:
         mock_request.return_value = mock_response
 
         result = await client.invoke("test-function", body={"test": "data"})
@@ -79,7 +81,9 @@ async def test_invoke_success_binary(client: AsyncFunctionsClient) -> None:
     mock_response.raise_for_status = Mock()
     mock_response.headers = {}
 
-    with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
+    with patch.object(
+        client.executor.session, "send", new_callable=AsyncMock
+    ) as mock_request:
         mock_request.return_value = mock_response
 
         result = await client.invoke("test-function")
@@ -94,7 +98,9 @@ async def test_invoke_with_region(client: AsyncFunctionsClient) -> None:
     mock_response.raise_for_status = Mock()
     mock_response.headers = {}
 
-    with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
+    with patch.object(
+        client.executor.session, "send", new_callable=AsyncMock
+    ) as mock_request:
         mock_request.return_value = mock_response
 
         await client.invoke("test-function", region=FunctionRegion.UsEast1)
@@ -116,7 +122,9 @@ async def test_invoke_with_http_error(client: AsyncFunctionsClient) -> None:
     )
     mock_response.headers = {}
 
-    with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
+    with patch.object(
+        client.executor.session, "send", new_callable=AsyncMock
+    ) as mock_request:
         mock_request.return_value = mock_response
 
         with pytest.raises(FunctionsHttpError):
@@ -133,7 +141,9 @@ async def test_invoke_with_relay_error(client: AsyncFunctionsClient) -> None:
     )
     mock_response.headers = {"x-relay-header": "true"}
 
-    with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
+    with patch.object(
+        client.executor.session, "send", new_callable=AsyncMock
+    ) as mock_request:
         mock_request.return_value = mock_response
 
         with pytest.raises(FunctionsRelayError):
@@ -151,7 +161,9 @@ async def test_invoke_with_string_body(client: AsyncFunctionsClient) -> None:
     mock_response.raise_for_status = Mock()
     mock_response.headers = {}
 
-    with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
+    with patch.object(
+        client.executor.session, "send", new_callable=AsyncMock
+    ) as mock_request:
         mock_request.return_value = mock_response
 
         await client.invoke("test-function", body="string data")
@@ -166,7 +178,9 @@ async def test_invoke_with_json_body(client: AsyncFunctionsClient) -> None:
     mock_response.raise_for_status = Mock()
     mock_response.headers = {}
 
-    with patch.object(client._client, "send", new_callable=AsyncMock) as mock_request:
+    with patch.object(
+        client.executor.session, "send", new_callable=AsyncMock
+    ) as mock_request:
         mock_request.return_value = mock_response
 
         await client.invoke("test-function", body={"key": "value"})
@@ -191,10 +205,10 @@ async def test_init_with_httpx_client() -> None:
     )
 
     # Verify the custom client options are preserved
-    assert client._client.timeout == Timeout(30)
-    assert client._client.follow_redirects is True
-    assert client._client.max_redirects == 5
-    assert client._client.headers.get("x-user-agent") == "my-app/0.0.1"
+    assert client.executor.session.timeout == Timeout(30)
+    assert client.executor.session.follow_redirects is True
+    assert client.executor.session.max_redirects == 5
+    assert client.executor.session.headers.get("x-user-agent") == "my-app/0.0.1"
 
     # Verify the client is properly configured with our custom client
-    assert client._client is custom_client
+    assert client.executor.session is custom_client

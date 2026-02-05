@@ -1,46 +1,37 @@
-from typing import Optional, TypedDict, Union
-
-from pydantic import BaseModel
-
-from .utils import StorageException
+from httpx import Response
+from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic.dataclasses import dataclass
 
 
-class VectorBucketException(Exception):
+class StorageException(Exception):
+    """Error raised when an operation on the storage API fails."""
+
+
+class VectorBucketException(StorageException):
     def __init__(self, msg: str) -> None:
         self.msg = msg
 
 
 class VectorBucketErrorMessage(BaseModel):
-    statusCode: Union[str, int]
+    statusCode: str | int
     error: str
     message: str
-    code: Optional[str] = None
+    code: str | None = None
 
 
-class StorageApiErrorDict(TypedDict):
-    name: str
+@dataclass
+class StorageApiError(StorageException):
     message: str
     code: str
-    status: Union[int, str]
+    status: int | str
 
 
-class StorageApiError(StorageException):
-    """Error raised when an operation on the storage API fails."""
+StorageApiErrorParser = TypeAdapter(StorageApiError)
 
-    def __init__(self, message: str, code: str, status: Union[int, str]) -> None:
-        error_message = (
-            f"{{'statusCode': {status}, 'error': {code}, 'message': {message}}}"
-        )
-        super().__init__(error_message)
-        self.name = "StorageApiError"
-        self.message = message
-        self.code = code
-        self.status = status
 
-    def to_dict(self) -> StorageApiErrorDict:
-        return {
-            "name": self.name,
-            "code": self.code,
-            "message": self.message,
-            "status": self.status,
-        }
+def parse_api_error(response: Response) -> StorageApiError:
+    try:
+        return StorageApiErrorParser.validate_json(response.content)
+    except ValidationError:
+        message = f"Unable to parse error message: {response.text}"
+        return StorageApiError(message=message, code="InternalError", status=400)

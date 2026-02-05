@@ -13,7 +13,6 @@ from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
 from realtime import AsyncRealtimeChannel, AsyncRealtimeClient, RealtimeChannelOptions
 from storage3 import AsyncStorageClient
-from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_auth import AsyncMemoryStorage
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import AsyncFunctionsClient
@@ -209,11 +208,7 @@ class AsyncClient:
             self._functions = AsyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
-                timeout=(
-                    self.options.function_client_timeout
-                    if self.options.httpx_client is None
-                    else None
-                ),
+                timeout=self.options.function_client_timeout,
                 http_client=self.options.httpx_client,
             )
         return self._functions
@@ -252,23 +247,14 @@ class AsyncClient:
     def _init_storage_client(
         storage_url: str,
         headers: Dict[str, str],
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
-        verify: bool = True,
-        proxy: Optional[str] = None,
+        storage_client_timeout: Optional[int] = None,
         http_client: Union[AsyncHttpxClient, None] = None,
     ) -> AsyncStorageClient:
-        if http_client is not None:
-            # If an http client is provided, use it
-            return AsyncStorageClient(
-                url=storage_url, headers=headers, http_client=http_client
-            )
         return AsyncStorageClient(
             url=storage_url,
             headers=headers,
             timeout=storage_client_timeout,
-            verify=verify,
-            proxy=proxy,
-            http_client=None,
+            http_client=http_client,
         )
 
     @staticmethod
