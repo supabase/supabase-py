@@ -60,12 +60,11 @@ class FunctionsClient(Generic[Executor]):
         body: bytes | str | Dict[str, JSON] | None,
         region: FunctionRegion | None,
         headers: Dict[str, str] | None,
-        method: HTTPRequestMethod | None,
+        method: HTTPRequestMethod,
     ) -> ToHttpxRequest:
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
 
-        method = method or "POST"
         path = [function_name]
         new_headers = Headers(self.headers)
         query_params = QueryParams()
@@ -114,7 +113,7 @@ class FunctionsClient(Generic[Executor]):
         body: bytes | str | Dict[str, JSON] | None = None,
         region: FunctionRegion | None = None,
         headers: Dict[str, str] | None = None,
-        method: HTTPRequestMethod | None = None,
+        method: HTTPRequestMethod = "POST",
     ) -> ResponseHandler[Response]:
         """Invokes a function
 
