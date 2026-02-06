@@ -78,6 +78,42 @@ class CreateSignedURLsOptions(TypedDict, total=False):
     download: Union[str, bool]
 
 
+class SortByV2(TypedDict, total=False):
+    column: Literal["name", "updated_at", "created_at"]
+    order: Literal["asc", "desc"]
+
+
+class SearchV2Options(TypedDict, total=False):
+    limit: int
+    prefix: str
+    cursor: str
+    with_delimiter: bool
+    sortBy: SortByV2
+
+
+class SearchV2Object(BaseModel):
+    id: str
+    name: str
+    updated_at: datetime
+    created_at: datetime
+    metadata: Dict[str, Any]
+    key: Optional[str] = None
+
+
+class SearchV2Folder(BaseModel):
+    key: str
+    name: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class SearchV2Result(BaseModel):
+    hasNext: bool
+    folders: List[SearchV2Folder]
+    objects: List[SearchV2Object]
+    nextCursor: Optional[str] = None
+
+
 class DownloadOptions(TypedDict, total=False):
     transform: TransformOptions
 
