@@ -302,6 +302,7 @@ class AsyncRealtimeClient:
         """
         if channel.topic in self.channels:
             await self.channels[channel.topic].unsubscribe()
+            self._remove_channel(channel)
 
         if len(self.channels) == 0:
             await self.close()
