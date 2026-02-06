@@ -103,8 +103,8 @@ class SearchV2Object(BaseModel):
 class SearchV2Folder(BaseModel):
     key: str
     name: str
-    updated_at: datetime
-    created_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class SearchV2Result(BaseModel):
