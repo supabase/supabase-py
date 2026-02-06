@@ -235,7 +235,10 @@ class User(BaseModel):
     updated_at: Optional[datetime] = None
     identities: Optional[List[UserIdentity]] = None
     is_anonymous: bool = False
+    is_sso_user: bool = False
     factors: Optional[List[Factor]] = None
+    deleted_at: Optional[str] = None
+    banned_until: Optional[str] = None
 
 
 class UserAttributes(TypedDict):
