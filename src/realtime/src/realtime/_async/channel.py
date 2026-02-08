@@ -189,6 +189,24 @@ class AsyncRealtimeChannel:
                 "Tried to subscribe multiple times. 'subscribe' can only be called a single time per channel instance"
             )
         else:
+            subscribe_result: asyncio.Future[None] = (
+                asyncio.get_running_loop().create_future()
+            )
+
+            def complete_subscription(
+                state: RealtimeSubscribeStates, error: Optional[Exception]
+            ) -> None:
+                if callback:
+                    try:
+                        callback(state, error)
+                    except Exception as exc:
+                        if not subscribe_result.done():
+                            subscribe_result.set_exception(exc)
+                        return
+
+                if not subscribe_result.done():
+                    subscribe_result.set_result(None)
+
             config: RealtimeChannelConfig = self.params["config"]
             broadcast = config.get("broadcast")
             presence = config.get("presence") or RealtimeChannelPresenceConfig(
@@ -245,7 +263,7 @@ class AsyncRealtimeChannel:
                             new_postgres_bindings.append(postgres_callback)
                         else:
                             asyncio.create_task(self.unsubscribe())
-                            callback and callback(
+                            complete_subscription(
                                 RealtimeSubscribeStates.CHANNEL_ERROR,
                                 Exception(
                                     "mismatch between server and client bindings for postgres changes"
@@ -254,16 +272,16 @@ class AsyncRealtimeChannel:
                             return
 
                 self.postgres_changes_callbacks = new_postgres_bindings
-                callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
+                complete_subscription(RealtimeSubscribeStates.SUBSCRIBED, None)
 
             def on_join_push_error(payload: Dict[str, Any]):
-                callback and callback(
+                complete_subscription(
                     RealtimeSubscribeStates.CHANNEL_ERROR,
                     Exception(json.dumps(payload)),
                 )
 
             def on_join_push_timeout(*args):
-                callback and callback(RealtimeSubscribeStates.TIMED_OUT, None)
+                complete_subscription(RealtimeSubscribeStates.TIMED_OUT, None)
 
             self.join_push.receive(
                 RealtimeAcknowledgementStatus.Ok, on_join_push_ok
@@ -272,6 +290,7 @@ class AsyncRealtimeChannel:
             )
 
             await self._rejoin()
+            await subscribe_result
 
         return self
 
