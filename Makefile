@@ -1,6 +1,6 @@
 .PHONY: ci, default, clean, start-infra, stop-infra
 
-PACKAGES := functions realtime storage auth postgrest supabase
+PACKAGES := utils functions realtime storage auth postgrest supabase
 FORALL_PKGS = $(foreach pkg, $(PACKAGES), $(pkg).$(1))
 
 help::
@@ -57,6 +57,9 @@ help::
 
 realtime.%:
 	@$(MAKE) -C src/realtime $*
+
+utils.%:
+	@$(MAKE) -C src/utils $*
 
 functions.%:
 	@$(MAKE) -C src/functions $*

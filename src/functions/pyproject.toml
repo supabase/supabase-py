@@ -14,7 +14,9 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
+  "pydantic>=2.12.2",
   "strenum >=0.4.15",
+  "supabase-utils==2.27.2",
   "yarl>=1.20.1",
 ]
 
@@ -32,7 +34,6 @@ tests = [
   "pytest-asyncio >=0.21.1,<1.2.0",
 ]
 lints = [
-  "unasync>=0.6.0",
   "ruff >=0.12.1",
   "python-lsp-server (>=1.12.2,<2.0.0)",
   "pylsp-mypy (>=0.7.0,<0.8.0)",
@@ -43,6 +44,9 @@ dev = [{ include-group = "lints" }, {include-group = "tests" }]
 [tool.uv]
 default-groups = [ "dev" ]
 
+[tool.uv.sources]
+supabase-utils = { workspace = true }
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 addopts = "tests"
@@ -50,6 +54,32 @@ filterwarnings = [
     "ignore::DeprecationWarning", # ignore deprecation warnings globally
 ]
 
+[tool.ruff.lint]
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  # "B",
+  # flake8-simplify
+  # "SIM",
+  # isort
+  "I",
+]
+ignore = ["E712", "E501", "E402", "UP006", "UP035"]
+
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.mypy]
+strict = true
+allow_redefinition = true
+
+no_warn_no_return = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
