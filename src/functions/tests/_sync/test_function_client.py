@@ -89,6 +89,27 @@ def test_invoke_success_binary(client: SyncFunctionsClient) -> None:
 
         assert result == b"binary content"
         mock_request.assert_called_once()
+        args, _ = mock_request.call_args
+        assert args[0] == "POST"
+
+
+def test_invoke_with_custom_method(client: SyncFunctionsClient) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.content = b"binary content"
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(client._client, "request", new_callable=Mock) as mock_request:
+        mock_request.return_value = mock_response
+
+        result = client.invoke(
+            "test-function", {"body": {"test": "data"}}, method="PUT"
+        )
+
+        assert result == b"binary content"
+        args, kwargs = mock_request.call_args
+        assert args[0] == "PUT"
+        assert kwargs["json"] == {"test": "data"}
 
 
 def test_invoke_with_region(client: SyncFunctionsClient) -> None:

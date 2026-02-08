@@ -93,6 +93,29 @@ async def test_invoke_success_binary(client: AsyncFunctionsClient) -> None:
 
         assert result == b"binary content"
         mock_request.assert_called_once()
+        args, _ = mock_request.call_args
+        assert args[0] == "POST"
+
+
+async def test_invoke_with_custom_method(client: AsyncFunctionsClient) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.content = b"binary content"
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        result = await client.invoke(
+            "test-function", {"body": {"test": "data"}}, method="PUT"
+        )
+
+        assert result == b"binary content"
+        args, kwargs = mock_request.call_args
+        assert args[0] == "PUT"
+        assert kwargs["json"] == {"test": "data"}
 
 
 async def test_invoke_with_region(client: AsyncFunctionsClient) -> None:

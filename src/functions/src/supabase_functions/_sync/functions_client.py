@@ -120,7 +120,12 @@ class SyncFunctionsClient:
         self.headers["Authorization"] = f"Bearer {token}"
 
     def invoke(
-        self, function_name: str, invoke_options: Optional[Dict] = None
+        self,
+        function_name: str,
+        invoke_options: Optional[Dict] = None,
+        method: Literal[
+            "GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"
+        ] = "POST",
     ) -> Union[Dict, bytes]:
         """Invokes a function
 
@@ -131,6 +136,7 @@ class SyncFunctionsClient:
             `headers`: object representing the headers to send with the request
             `body`: the body of the request
             `responseType`: how the response should be parsed. The default is `json`
+        method : HTTP method to use for invoking the function. The default is `POST`.
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
@@ -161,7 +167,7 @@ class SyncFunctionsClient:
                 headers["Content-Type"] = "application/json"
 
         response = self._request(
-            "POST", [function_name], headers=headers, json=body, params=params
+            method, [function_name], headers=headers, json=body, params=params
         )
         is_relay_error = response.headers.get("x-relay-header")
 
