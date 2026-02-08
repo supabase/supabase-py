@@ -136,11 +136,18 @@ def test_response_status_code_outside_ok(postgrest_client: SyncPostgrestClient):
         assert exc_response["errors"][0].get("code") == 400
 
 
-def test_response_maybe_single(postgrest_client: SyncPostgrestClient):
+def test_response_maybe_single_returns_none_on_zero_rows(
+    postgrest_client: SyncPostgrestClient,
+):
     with patch(
         "postgrest._sync.request_builder.SyncSingleRequestBuilder.execute",
         side_effect=APIError(
-            {"message": "mock error", "code": "400", "hint": "mock", "details": "mock"}
+            {
+                "message": "JSON object requested, multiple (or no) rows returned",
+                "code": "PGRST116",
+                "hint": None,
+                "details": "The result contains 0 rows",
+            }
         ),
     ):
         client = (
@@ -150,12 +157,30 @@ def test_response_maybe_single(postgrest_client: SyncPostgrestClient):
         assert (
             client.request.headers.get("Accept") == "application/vnd.pgrst.object+json"
         )
+        assert client.execute() is None
+
+
+def test_response_maybe_single_raises_non_zero_rows_error(
+    postgrest_client: SyncPostgrestClient,
+):
+    with patch(
+        "postgrest._sync.request_builder.SyncSingleRequestBuilder.execute",
+        side_effect=APIError(
+            {
+                "message": "JSON object requested, multiple (or no) rows returned",
+                "code": "PGRST116",
+                "hint": None,
+                "details": "The result contains 2 rows",
+            }
+        ),
+    ):
+        client = (
+            postgrest_client.from_("test").select("a", "b").eq("c", "d").maybe_single()
+        )
         with pytest.raises(APIError) as exc_info:
             client.execute()
-        assert isinstance(exc_info, pytest.ExceptionInfo)
-        exc_response = exc_info.value.json()
-        assert isinstance(exc_response.get("message"), str)
-        assert "code" in exc_response and int(exc_response["code"]) == 204
+        assert exc_info.value.code == "PGRST116"
+        assert exc_info.value.details == "The result contains 2 rows"
 
 
 # https://github.com/supabase/postgrest-py/issues/595

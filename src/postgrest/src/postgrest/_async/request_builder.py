@@ -104,23 +104,20 @@ class AsyncMaybeSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    @staticmethod
+    def _is_zero_rows_error(error: APIError) -> bool:
+        return any(
+            field is not None and "0 rows" in field
+            for field in (error.details, error.message, error.hint)
+        )
+
     async def execute(self) -> Optional[SingleAPIResponse]:
-        r = None
         try:
-            r = await AsyncSingleRequestBuilder(self.request).execute()
-        except APIError as e:
-            if e.details and "The result contains 0 rows" in e.details:
+            return await AsyncSingleRequestBuilder(self.request).execute()
+        except APIError as error:
+            if self._is_zero_rows_error(error):
                 return None
-        if not r:
-            raise APIError(
-                {
-                    "message": "Missing response",
-                    "code": "204",
-                    "hint": "Please check traceback of the code",
-                    "details": "Postgrest couldn't retrieve response, please check traceback of the code. Please create an issue in `supabase-community/postgrest-py` if needed.",
-                }
-            )
-        return r
+            raise
 
 
 class AsyncFilterRequestBuilder(
