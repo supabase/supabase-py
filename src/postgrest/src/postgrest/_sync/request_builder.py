@@ -26,11 +26,24 @@ from ..types import JSON, ReturnMethod
 from ..utils import model_validate_json
 
 ReqConfig = RequestConfig[Client]
+QueryBuilderT = TypeVar("QueryBuilderT", bound="SyncQueryRequestBuilder")
 
 
 class SyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
+
+    def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
+        _, params, _, _ = pre_select(*columns, count=None)
+        self.request.params = self.request.params.add("select", params["select"])
+        prefer_header = self.request.headers.get("Prefer")
+        if not prefer_header:
+            self.request.headers["Prefer"] = "return=representation"
+        elif "return=representation" not in [
+            value.strip() for value in prefer_header.split(",")
+        ]:
+            self.request.headers["Prefer"] = f"{prefer_header},return=representation"
+        return self
 
     def execute(self) -> APIResponse:
         """Execute the query.
