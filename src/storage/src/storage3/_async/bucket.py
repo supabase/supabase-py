@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Optional
+from warnings import warn
 
 from httpx import AsyncClient, Headers, HTTPStatusError, Response
 from yarl import URL
@@ -17,7 +18,11 @@ class AsyncStorageBucketAPI:
 
     def __init__(self, session: AsyncClient, url: str, headers: Headers) -> None:
         if url and url[-1] != "/":
-            print("Storage endpoint URL should have a trailing slash.")
+            warn(
+                "Storage endpoint URL should have a trailing slash. The URL has been automatically corrected.",
+                UserWarning,
+                stacklevel=2,
+            )
             url += "/"
         self._base_url = URL(url)
         self._client = session

@@ -8,6 +8,11 @@ from storage3.constants import DEFAULT_TIMEOUT
 
 @pytest.fixture
 def valid_url() -> str:
+    return "https://example.com/storage/v1/"
+
+
+@pytest.fixture
+def url_without_trailing_slash() -> str:
     return "https://example.com/storage/v1"
 
 
@@ -34,6 +39,30 @@ def test_create_sync_client(valid_url, valid_headers) -> None:
         client._client.headers[key] == value for key, value in valid_headers.items()
     )
     assert client._client.timeout == Timeout(DEFAULT_TIMEOUT)
+
+
+def test_create_async_client_warns_without_trailing_slash(
+    url_without_trailing_slash, valid_headers
+) -> None:
+    with pytest.warns(
+        UserWarning, match="Storage endpoint URL should have a trailing slash"
+    ):
+        client = AsyncStorageClient(
+            url=url_without_trailing_slash, headers=valid_headers
+        )
+
+    assert str(client._base_url) == "https://example.com/storage/v1/"
+
+
+def test_create_sync_client_warns_without_trailing_slash(
+    url_without_trailing_slash, valid_headers
+) -> None:
+    with pytest.warns(
+        UserWarning, match="Storage endpoint URL should have a trailing slash"
+    ):
+        client = SyncStorageClient(url=url_without_trailing_slash, headers=valid_headers)
+
+    assert str(client._base_url) == "https://example.com/storage/v1/"
 
 
 def test_async_storage_client(valid_url, valid_headers) -> None:
