@@ -772,3 +772,34 @@ async def test_client_list_v2_folder(
     assert len(result.folders) == 1
     folder = result.folders[0]
     assert folder.key == file.bucket_folder
+
+
+async def test_client_list_v2_paginated(
+    storage_file_client: AsyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]
+    for suffix in suffixes:
+        await storage_file_client.upload(
+            file.bucket_path + suffix, file.local_path, {"content-type": file.mime_type}
+        )
+
+    has_next = True
+    cursor = ""
+    pages = 0
+    while has_next:
+        result = await storage_file_client.list_v2(
+            {
+                "with_delimiter": True,
+                "prefix": f"{file.bucket_folder}/",
+                "limit": 2,
+                "cursor": cursor,
+            }
+        )
+        has_next = result.hasNext
+        cursor = result.nextCursor or ""
+
+        assert len(result.objects) == 2
+        assert all(f.name.startswith(file.bucket_path) for f in result.objects)
+        pages += 1
+    assert pages == 4
