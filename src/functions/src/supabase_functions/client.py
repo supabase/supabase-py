@@ -1,5 +1,5 @@
 import platform
-from typing import Dict, Generic, Literal, Optional, Union, overload
+from typing import Dict, Generic, Literal, overload
 
 from httpx import AsyncClient, Client, Headers, QueryParams, Response
 from supabase_utils.http import (
@@ -9,16 +9,17 @@ from supabase_utils.http import (
     Executor,
     HTTPRequestMethod,
     JSONRequest,
+    ResponseCases,
     ResponseHandler,
     SyncExecutor,
     TextRequest,
     ToHttpxRequest,
-    http_request,
+    handle_http_response,
 )
 from supabase_utils.types import JSON
 from yarl import URL
 
-from .errors import FunctionsHttpError, FunctionsRelayError, on_error_response
+from .errors import on_error_response
 from .utils import (
     FunctionRegion,
     is_valid_str_arg,
@@ -56,15 +57,14 @@ class FunctionsClient(Generic[Executor]):
     def _invoke_options_to_request(
         self,
         function_name: str,
-        body: Union[bytes, str, Dict[str, JSON], None],
-        region: Optional[FunctionRegion],
-        headers: Optional[Dict[str, str]],
-        method: Optional[HTTPRequestMethod],
+        body: bytes | str | Dict[str, JSON] | None,
+        region: FunctionRegion | None,
+        headers: Dict[str, str] | None,
+        method: HTTPRequestMethod,
     ) -> ToHttpxRequest:
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
 
-        method = method or "POST"
         path = [function_name]
         new_headers = Headers(self.headers)
         query_params = QueryParams()
@@ -106,15 +106,15 @@ class FunctionsClient(Generic[Executor]):
                 method=method, path=path, headers=new_headers, query_params=query_params
             )
 
-    @http_request
+    @handle_http_response
     def invoke(
         self,
         function_name: str,
-        body: Union[bytes, str, Dict[str, JSON], None] = None,
-        region: Optional[FunctionRegion] = None,
-        headers: Optional[Dict[str, str]] = None,
-        method: Optional[HTTPRequestMethod] = None,
-    ) -> ResponseHandler[Response, Union[FunctionsHttpError, FunctionsRelayError]]:
+        body: bytes | str | Dict[str, JSON] | None = None,
+        region: FunctionRegion | None = None,
+        headers: Dict[str, str] | None = None,
+        method: HTTPRequestMethod = "POST",
+    ) -> ResponseHandler[Response]:
         """Invokes a function
 
         Parameters
@@ -128,7 +128,7 @@ class FunctionsClient(Generic[Executor]):
         request = self._invoke_options_to_request(
             function_name, body, region, headers, method
         )
-        return ResponseHandler(
+        return ResponseCases(
             request=request,
             on_success=lambda response: response,
             on_failure=on_error_response,
@@ -140,29 +140,22 @@ class AsyncFunctionsClient(FunctionsClient[AsyncExecutor]):
         self,
         url: str,
         headers: Dict[str, str],
-        timeout: Optional[int] = None,
-        verify: Optional[bool] = None,
-        proxy: Optional[str] = None,
-        http_client: Optional[AsyncClient] = None,
+        timeout: int = 60,
+        verify: bool = True,
+        proxy: str | None = None,
+        http_client: AsyncClient | None = None,
     ) -> None:
-        self.url = URL(url)  # kept for backwards compatibility
-        self.verify = (
-            bool(verify) if verify is not None else True
-        )  # kept for backwards compatibility
-        self.timeout = (
-            int(abs(timeout)) if timeout is not None else 60
-        )  # kept for backwards compatibility
-        self._client = http_client or AsyncClient(  # kept for backwards compatibility
-            verify=self.verify,
-            timeout=self.timeout,
+        http_client = http_client or AsyncClient(
+            verify=verify,
+            timeout=timeout,
             proxy=proxy,
             follow_redirects=True,
             http2=True,
         )
         FunctionsClient.__init__(
             self,
-            url=self.url,
-            executor=AsyncExecutor(session=self._client),
+            url=URL(url),
+            executor=AsyncExecutor(session=http_client),
             headers=headers,
         )
 
@@ -172,29 +165,22 @@ class SyncFunctionsClient(FunctionsClient[SyncExecutor]):
         self,
         url: str,
         headers: Dict[str, str],
-        timeout: Optional[int] = None,
-        verify: Optional[bool] = None,
-        proxy: Optional[str] = None,
-        http_client: Optional[Client] = None,
+        timeout: int = 60,
+        verify: bool = True,
+        proxy: str | None = None,
+        http_client: Client | None = None,
     ) -> None:
-        self.url = URL(url)  # kept for backwards compatibility
-        self.verify = (
-            bool(verify) if verify is not None else True
-        )  # kept for backwards compatibility
-        self.timeout = (
-            int(abs(timeout)) if timeout is not None else 60
-        )  # kept for backwards compatibility
-        self._client = http_client or Client(  # kept for backwards compatibility
-            verify=self.verify,
-            timeout=self.timeout,
+        http_client = http_client or Client(  # kept for backwards compatibility
+            verify=verify,
+            timeout=timeout,
             proxy=proxy,
             follow_redirects=True,
             http2=True,
         )
         FunctionsClient.__init__(
             self,
-            url=self.url,
-            executor=SyncExecutor(session=self._client),
+            url=URL(url),
+            executor=SyncExecutor(session=http_client),
             headers=headers,
         )
 
@@ -217,7 +203,7 @@ def create_client(
     *,
     is_async: bool,
     verify: bool = True,
-) -> Union[AsyncFunctionsClient, SyncFunctionsClient]:
+) -> AsyncFunctionsClient | SyncFunctionsClient:
     if is_async:
         return AsyncFunctionsClient(url, headers, verify=verify)
     else:

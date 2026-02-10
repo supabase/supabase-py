@@ -19,7 +19,7 @@ classifiers = [
 license = "MIT"
 readme = "README.md"
 version = "2.28.0" # {x-release-please-version}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
@@ -27,6 +27,8 @@ dependencies = [
   "pydantic >=2.11.7",
   "yarl>=1.20.1",
   "pyiceberg>=0.10.0",
+  "supabase_utils==2.27.2",
+  "typing-extensions>=4.15.0",
 ]
 
 [project.urls]
@@ -68,15 +70,32 @@ filterwarnings = [
 ]
 
 [tool.mypy]
-python_version = "3.9"
+strict = true
 follow_untyped_imports = true # for deprecation module that does not have stubs
 check_untyped_defs = true
 allow_redefinition = true
 
-# warn_return_any = true
+warn_return_any = true
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+
+[tool.ruff.lint]
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  # "B",
+  # flake8-simplify
+  # "SIM",
+  # isort
+  "I",
+]
+ignore = ["E712", "E501", "E402", "UP006", "UP035"]
 
 [tool.uv]
 default-groups = [ "dev" ]

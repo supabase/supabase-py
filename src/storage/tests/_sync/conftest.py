@@ -5,10 +5,11 @@ from collections.abc import Generator
 
 import pytest
 from dotenv import load_dotenv
+
 from storage3 import SyncStorageClient
 
 
-def pytest_configure(config) -> None:
+def pytest_configure(config: pytest.Config) -> None:
     load_dotenv(dotenv_path="tests/tests.env")
 
 
@@ -25,5 +26,5 @@ def storage() -> Generator[SyncStorageClient]:
             "Authorization": f"Bearer {key}",
         },
     ) as client:
-        client.session.timeout = None
+        client.executor.session.timeout = None
         yield client
