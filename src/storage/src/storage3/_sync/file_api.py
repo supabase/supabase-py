@@ -22,6 +22,8 @@ from ..types import (
     FileOptions,
     ListBucketFilesOptions,
     RequestMethod,
+    SearchV2Options,
+    SearchV2Result,
     SignedUploadURL,
     SignedUrlJsonResponse,
     SignedUrlResponse,
@@ -439,6 +441,18 @@ class SyncBucketActionsMixin:
             headers=extra_headers,
         )
         return response.json()
+
+    def list_v2(
+        self,
+        options: Optional[SearchV2Options] = None,
+    ) -> SearchV2Result:
+        body = {**options} if options else {}
+        response = self._request(
+            "POST",
+            ["object", "list-v2", self.id],
+            json=body,
+        )
+        return SearchV2Result.model_validate_json(response.content)
 
     def download(
         self,
