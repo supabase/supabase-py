@@ -735,3 +735,38 @@ def test_client_create_signed_urls_with_download(
             response = client.get(url["signedURL"])
             response.raise_for_status()
             assert response.content == multi_file[i].file_content
+
+
+def test_client_list_v2(
+    storage_file_client: SyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+    )
+
+    result = storage_file_client.list_v2()
+
+    assert not result.hasNext
+    assert len(result.folders) == 0
+    assert len(result.objects) == 1
+    object = result.objects[0]
+    assert object.name == file.bucket_path
+    assert object.metadata.get("mimetype") == file.mime_type
+
+
+def test_client_list_v2_folder(
+    storage_file_client: SyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+    )
+
+    result = storage_file_client.list_v2({"with_delimiter": True})
+
+    assert not result.hasNext
+    assert len(result.objects) == 0
+    assert len(result.folders) == 1
+    folder = result.folders[0]
+    assert folder.key == file.bucket_folder
