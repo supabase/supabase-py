@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.28.0](https://github.com/supabase/supabase-py/compare/v2.27.3...v2.28.0) (2026-02-10)
+
+
+### Features
+
+* **storage:** add list_v2 method to file_api client ([#1377](https://github.com/supabase/supabase-py/issues/1377)) ([259f4ad](https://github.com/supabase/supabase-py/commit/259f4ad42d4022eed2c44e0e9a316271cfccbde4))
+
+
+### Bug Fixes
+
+* **auth:** add missing is_sso_user, deleted_at, banned_until to User model ([#1375](https://github.com/supabase/supabase-py/issues/1375)) ([7f84a62](https://github.com/supabase/supabase-py/commit/7f84a629968b9269f233e75e28f973c1cae530d6))
+* **realtime:** ensure remove_channel removes channel from channels dict ([#1373](https://github.com/supabase/supabase-py/issues/1373)) ([0923314](https://github.com/supabase/supabase-py/commit/09233140397e7921ab054dbf4d88d1899d30c244))
+* **realtime:** use pop with default in _handle_message to prevent KeyError ([#1388](https://github.com/supabase/supabase-py/issues/1388)) ([baea26f](https://github.com/supabase/supabase-py/commit/baea26f7ce7f0572b4e96caaf27add29127349fe))
+* **storage3:** replace print() with warnings.warn() for trailing slash notice ([#1380](https://github.com/supabase/supabase-py/issues/1380)) ([50b099f](https://github.com/supabase/supabase-py/commit/50b099fa06efa643d1d43830e4497e21972e46bc))
+
 ## [2.27.3](https://github.com/supabase/supabase-py/compare/v2.27.2...v2.27.3) (2026-02-03)
 
 
