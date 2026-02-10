@@ -105,6 +105,50 @@ class FileObject(BaseModel):
     etag: str | None = None
 
 
+class SortByV2(TypedDict, total=False):
+    column: Literal["name", "updated_at", "created_at"]
+    order: Literal["asc", "desc"]
+
+
+class SearchV2Options(TypedDict, total=False):
+    limit: int
+    prefix: str
+    cursor: str
+    with_delimiter: bool
+    sortBy: SortByV2
+
+
+class SearchV2Object(BaseModel):
+    id: str
+    name: str
+    updated_at: datetime
+    created_at: datetime
+    metadata: Dict[str, Any]
+    key: str | None = None
+
+
+class SearchV2Folder(BaseModel):
+    key: str
+    name: str
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class SearchV2Body(BaseModel):
+    limit: int | None = None
+    prefix: str | None = None
+    cursor: str | None = None
+    with_delimiter: bool | None = None
+    sortBy: SortByV2 | None = None
+
+
+class SearchV2Result(BaseModel):
+    hasNext: bool
+    folders: List[SearchV2Folder]
+    objects: List[SearchV2Object]
+    nextCursor: str | None = None
+
+
 class ListFileObject(BaseModel):
     id: str
     name: str

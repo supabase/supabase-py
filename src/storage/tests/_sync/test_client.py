@@ -697,3 +697,67 @@ def test_client_create_signed_urls_with_download(
             response = client.get(url.signed_url)
             response.raise_for_status()
             assert response.content == multi_file[i].file_content
+
+
+def test_client_list_v2(
+    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, content_type=file.mime_type
+    )
+
+    result = storage_file_client.list_v2()
+
+    assert not result.hasNext
+    assert len(result.folders) == 0
+    assert len(result.objects) == 1
+    object = result.objects[0]
+    assert object.name == file.bucket_path
+    assert object.metadata.get("mimetype") == file.mime_type
+
+
+def test_client_list_v2_folder(
+    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, content_type=file.mime_type
+    )
+
+    result = storage_file_client.list_v2(with_delimiter=True)
+
+    assert not result.hasNext
+    assert len(result.objects) == 0
+    assert len(result.folders) == 1
+    folder = result.folders[0]
+    assert folder.key == file.bucket_folder
+
+
+def test_client_list_v2_paginated(
+    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]
+    for suffix in suffixes:
+        storage_file_client.upload(
+            file.bucket_path + suffix, file.local_path, content_type=file.mime_type
+        )
+
+    has_next = True
+    cursor = ""
+    pages = 0
+    while has_next:
+        result = storage_file_client.list_v2(
+            with_delimiter=True,
+            prefix=f"{file.bucket_folder}/",
+            limit=2,
+            cursor=cursor,
+        )
+        has_next = result.hasNext
+        cursor = result.nextCursor or ""
+
+        assert len(result.objects) == 2
+        assert all(f.name.startswith(file.bucket_path) for f in result.objects)
+        pages += 1
+    assert pages == 4

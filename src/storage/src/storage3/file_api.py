@@ -32,11 +32,14 @@ from .types import (
     ListBody,
     ListFileObject,
     MessageResponse,
+    SearchV2Body,
+    SearchV2Result,
     SignedUploadURL,
     SignedUploadUrlResponse,
     SignedUrlJsonResponse,
     SignedUrlsJsonResponse,
     SortByType,
+    SortByV2,
     TransformOptions,
     UploadResponse,
     transform_to_dict,
@@ -482,6 +485,35 @@ class StorageFileApiClient(Generic[Executor]):
         return ResponseCases(
             request=request,
             on_success=validate_adapter(TypeAdapter(List[ListFileObject])),
+            on_failure=parse_api_error,
+        )
+
+    @handle_http_response
+    def list_v2(
+        self,
+        limit: int | None = None,
+        prefix: str | None = None,
+        cursor: str | None = None,
+        with_delimiter: bool | None = None,
+        sort_by: SortByV2 | None = None,
+    ) -> ResponseHandler[SearchV2Result]:
+        body = SearchV2Body(
+            limit=limit,
+            prefix=prefix,
+            cursor=cursor,
+            with_delimiter=with_delimiter,
+            sortBy=sort_by,
+        )
+        request = JSONRequest(
+            method="POST",
+            path=["object", "list-v2", self.id],
+            body=body,
+            exclude_none=True,
+            headers=self._headers,
+        )
+        return ResponseCases(
+            request=request,
+            on_success=validate_model(SearchV2Result),
             on_failure=parse_api_error,
         )
 
