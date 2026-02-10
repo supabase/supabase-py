@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Optional
 
 
 class SyncSupportedStorage(ABC):
@@ -17,7 +17,7 @@ class SyncSupportedStorage(ABC):
 
 class SyncMemoryStorage(SyncSupportedStorage):
     def __init__(self) -> None:
-        self.storage: Dict[str, str] = {}
+        self.storage: dict[str, str] = {}
 
     def get_item(self, key: str) -> Optional[str]:
         if key in self.storage:

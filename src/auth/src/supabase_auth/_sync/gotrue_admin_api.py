@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 from httpx import Client, QueryParams
 
@@ -40,7 +40,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         self,
         *,
         url: str = "",
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         http_client: Optional[Client] = None,
         verify: bool = True,
         proxy: Optional[str] = None,
@@ -132,7 +132,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
 
     def list_users(
         self, page: Optional[int] = None, per_page: Optional[int] = None
-    ) -> List[User]:
+    ) -> list[User]:
         """
         Get a list of users.
 

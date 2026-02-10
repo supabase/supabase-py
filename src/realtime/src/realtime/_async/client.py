@@ -4,7 +4,7 @@ import logging
 import re
 import sys
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 from urllib.parse import urlencode, urlparse, urlunparse
 from warnings import warn
 
@@ -46,7 +46,7 @@ class AsyncRealtimeClient:
         url: str,
         token: Optional[str] = None,
         auto_reconnect: bool = True,
-        params: Optional[Dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
         hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
         max_retries: int = 5,
         initial_backoff: float = 1.0,
@@ -81,12 +81,12 @@ class AsyncRealtimeClient:
         self.params = params or {}
         self.apikey = token
         self.access_token = token
-        self.send_buffer: List[Callable] = []
+        self.send_buffer: list[Callable] = []
         self.hb_interval = hb_interval
         self._ws_connection: Optional[ClientConnection] = None
         self.ref = 0
         self.auto_reconnect = auto_reconnect
-        self.channels: Dict[str, AsyncRealtimeChannel] = {}
+        self.channels: dict[str, AsyncRealtimeChannel] = {}
         self.max_retries = max_retries
         self.initial_backoff = initial_backoff
         self.timeout = timeout
@@ -288,7 +288,7 @@ class AsyncRealtimeClient:
 
         return chan
 
-    def get_channels(self) -> List[AsyncRealtimeChannel]:
+    def get_channels(self) -> list[AsyncRealtimeChannel]:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: AsyncRealtimeChannel) -> None:
@@ -340,7 +340,7 @@ class AsyncRealtimeClient:
         self.ref += 1
         return f"{self.ref}"
 
-    async def send(self, message: Union[Message, Dict[str, Any]]) -> None:
+    async def send(self, message: Union[Message, dict[str, Any]]) -> None:
         """
         Send a message through the WebSocket connection.
 
@@ -350,7 +350,7 @@ class AsyncRealtimeClient:
         once the connection is re-established.
 
         Args:
-            message (Dict[str, Any]): The message to be sent, as a dictionary.
+            message (dict[str, Any]): The message to be sent, as a dictionary.
 
         Returns:
             None

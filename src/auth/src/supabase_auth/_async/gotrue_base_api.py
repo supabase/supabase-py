@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from httpx import AsyncClient, HTTPStatusError, QueryParams, Response
 from pydantic import BaseModel
@@ -15,7 +15,7 @@ class AsyncGoTrueBaseAPI:
         self,
         *,
         url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         http_client: Optional[AsyncClient],
         verify: bool = True,
         proxy: Optional[str] = None,
@@ -45,7 +45,7 @@ class AsyncGoTrueBaseAPI:
         *,
         jwt: Optional[str] = None,
         redirect_to: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         query: Optional[QueryParams] = None,
         body: Optional[Any] = None,
         no_resolve_json: bool = False,

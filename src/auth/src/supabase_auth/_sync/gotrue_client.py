@@ -4,7 +4,7 @@ import platform
 import sys
 import time
 from contextlib import suppress
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Optional
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 from warnings import warn
@@ -103,7 +103,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         self,
         *,
         url: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         storage_key: Optional[str] = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
@@ -150,7 +150,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         self._in_memory_session: Optional[Session] = None
         self._refresh_token_timer: Optional[Timer] = None
         self._network_retries = 0
-        self._state_change_emitters: Dict[str, Subscription] = {}
+        self._state_change_emitters: dict[str, Subscription] = {}
         self._flow_type = flow_type
 
         self.admin = SyncGoTrueAdminAPI(
@@ -586,7 +586,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         options = credentials.get("options", {})
         email_redirect_to: Optional[str] = options.get("email_redirect_to")  # type: ignore
         captcha_token = options.get("captcha_token")
-        body: Dict[str, object] = {  # improve later
+        body: dict[str, object] = {  # improve later
             "type": type,
             "gotrue_meta_security": {
                 "captcha_token": captcha_token,
@@ -983,7 +983,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
     def _get_session_from_url(
         self,
         url: str,
-    ) -> Tuple[Session, Optional[str]]:
+    ) -> tuple[Session, Optional[str]]:
         if not self._is_implicit_grant_flow(url):
             raise AuthImplicitGrantRedirectError("Not a valid implicit grant flow url.")
         result = urlparse(url)
@@ -1151,7 +1151,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
 
     def _get_param(
         self,
-        query_params: Dict[str, List[str]],
+        query_params: dict[str, list[str]],
         name: str,
     ) -> Optional[str]:
         return query_params[name][0] if name in query_params else None
@@ -1165,8 +1165,8 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         self,
         url: str,
         provider: Provider,
-        params: Dict[str, str],
-    ) -> Tuple[str, QueryParams]:
+        params: dict[str, str],
+    ) -> tuple[str, QueryParams]:
         query = QueryParams(params)
         if self._flow_type == "pkce":
             code_verifier = generate_pkce_verifier()
@@ -1270,7 +1270,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
 
         algorithm = get_algorithm_by_name(header["alg"])
         jwk_set = self._fetch_jwks(header["kid"], jwks or {"keys": []})
-        signing_key = algorithm.from_jwk(cast(Dict[str, str], jwk_set))
+        signing_key = algorithm.from_jwk(cast(dict[str, str], jwk_set))
 
         # verify the signature
         is_valid = algorithm.verify(

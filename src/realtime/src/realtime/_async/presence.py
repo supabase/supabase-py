@@ -3,7 +3,7 @@ Defines the RealtimePresence class and its dependencies.
 """
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 from ..types import (
     Presence,

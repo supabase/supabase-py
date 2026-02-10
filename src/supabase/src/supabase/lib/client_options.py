@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import Client as SyncHttpxClient
@@ -29,7 +29,7 @@ class ClientOptions:
     Must be on the list of exposed schemas in Supabase. Defaults to 'public'.
     """
 
-    headers: Dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
+    headers: dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
     """Optional headers for initializing the client."""
 
     auto_refresh_token: bool = True
@@ -67,7 +67,7 @@ class AsyncClientOptions(ClientOptions):
     def replace(
         self,
         schema: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
         storage: Optional[AsyncSupportedStorage] = None,
@@ -110,7 +110,7 @@ class SyncClientOptions(ClientOptions):
     def replace(
         self,
         schema: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,

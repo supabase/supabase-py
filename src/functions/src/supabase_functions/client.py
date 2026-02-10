@@ -1,5 +1,5 @@
 import platform
-from typing import Dict, Generic, Literal, overload
+from typing import Generic, Literal, overload
 
 from httpx import AsyncClient, Client, Headers, QueryParams, Response
 from supabase_utils.http import (
@@ -28,7 +28,7 @@ from .version import __version__
 
 
 class FunctionsClient(Generic[Executor]):
-    def __init__(self, url: URL, headers: Dict[str, str], executor: Executor) -> None:
+    def __init__(self, url: URL, headers: dict[str, str], executor: Executor) -> None:
         if not (url.scheme == "http" or url.scheme == "https"):
             raise ValueError("url must be a valid HTTP URL string")
         self.headers = {
@@ -57,9 +57,9 @@ class FunctionsClient(Generic[Executor]):
     def _invoke_options_to_request(
         self,
         function_name: str,
-        body: bytes | str | Dict[str, JSON] | None,
+        body: bytes | str | dict[str, JSON] | None,
         region: FunctionRegion | None,
-        headers: Dict[str, str] | None,
+        headers: dict[str, str] | None,
         method: HTTPRequestMethod,
     ) -> ToHttpxRequest:
         if not is_valid_str_arg(function_name):
@@ -110,9 +110,9 @@ class FunctionsClient(Generic[Executor]):
     def invoke(
         self,
         function_name: str,
-        body: bytes | str | Dict[str, JSON] | None = None,
+        body: bytes | str | dict[str, JSON] | None = None,
         region: FunctionRegion | None = None,
-        headers: Dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         method: HTTPRequestMethod = "POST",
     ) -> ResponseHandler[Response]:
         """Invokes a function
@@ -139,7 +139,7 @@ class AsyncFunctionsClient(FunctionsClient[AsyncExecutor]):
     def __init__(
         self,
         url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         timeout: int = 60,
         verify: bool = True,
         proxy: str | None = None,
@@ -164,7 +164,7 @@ class SyncFunctionsClient(FunctionsClient[SyncExecutor]):
     def __init__(
         self,
         url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         timeout: int = 60,
         verify: bool = True,
         proxy: str | None = None,

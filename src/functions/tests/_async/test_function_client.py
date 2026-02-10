@@ -1,4 +1,4 @@
-from typing import Dict
+
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -18,19 +18,19 @@ def valid_url() -> str:
 
 
 @pytest.fixture
-def default_headers() -> Dict[str, str]:
+def default_headers() -> dict[str, str]:
     return {"Authorization": "Bearer valid.jwt.token"}
 
 
 @pytest.fixture
-def client(valid_url: str, default_headers: Dict[str, str]) -> AsyncFunctionsClient:
+def client(valid_url: str, default_headers: dict[str, str]) -> AsyncFunctionsClient:
     return AsyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
 
 
 async def test_init_with_valid_params(
-    valid_url: str, default_headers: Dict[str, str]
+    valid_url: str, default_headers: dict[str, str]
 ) -> None:
     client = AsyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
@@ -46,7 +46,7 @@ async def test_init_with_valid_params(
 
 @pytest.mark.parametrize("invalid_url", ["not-a-url", "ftp://invalid.com", ""])
 def test_init_with_invalid_url(
-    invalid_url: str, default_headers: Dict[str, str]
+    invalid_url: str, default_headers: dict[str, str]
 ) -> None:
     with pytest.raises(Exception, match="url must be a valid HTTP URL string"):
         AsyncFunctionsClient(url=invalid_url, headers=default_headers, timeout=10)

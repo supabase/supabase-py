@@ -9,7 +9,7 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union
+from typing import Any, Optional, TypedDict, TypeVar, Union
 from urllib.parse import urlparse
 
 from httpx import HTTPStatusError, Response
@@ -45,7 +45,7 @@ from .types import (
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def model_validate(model: Type[TBaseModel], contents: Union[str, bytes]) -> TBaseModel:
+def model_validate(model: type[TBaseModel], contents: Union[str, bytes]) -> TBaseModel:
     """Compatibility layer between pydantic 1 and 2 for parsing an instance
     of a BaseModel from varied"""
     try:
@@ -56,7 +56,7 @@ def model_validate(model: Type[TBaseModel], contents: Union[str, bytes]) -> TBas
         return model.parse_raw(contents)
 
 
-def model_dump(model: BaseModel) -> Dict[str, Any]:
+def model_dump(model: BaseModel) -> dict[str, Any]:
     """Compatibility layer between pydantic 1 and 2 for dumping a model's contents as a dict"""
     try:
         # pydantic > 2
@@ -210,7 +210,7 @@ class DecodedJWT(TypedDict):
     header: JWTHeader
     payload: JWTPayload
     signature: bytes
-    raw: Dict[str, str]
+    raw: dict[str, str]
 
 
 JWTHeaderParser = TypeAdapter(JWTHeader)

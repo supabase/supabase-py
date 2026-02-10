@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Type, TypeVar, cast, get_origin
+from typing import Any, TypeVar, cast, get_origin
 from urllib.parse import urlparse
 
 from deprecation import deprecated
@@ -48,7 +48,7 @@ def is_http_url(url: URL) -> bool:
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def model_validate_json(model: Type[TBaseModel], contents) -> TBaseModel:
+def model_validate_json(model: type[TBaseModel], contents) -> TBaseModel:
     """Compatibility layer between pydantic 1 and 2 for parsing an instance
     of a BaseModel from varied"""
     try:

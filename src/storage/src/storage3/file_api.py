@@ -4,7 +4,7 @@ import base64
 from dataclasses import dataclass
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Literal, Tuple
+from typing import Any, Generic, Literal
 
 from httpx import Headers, QueryParams, Response
 from pydantic import TypeAdapter
@@ -48,7 +48,7 @@ from .types import (
 __all__ = ["StorageFileApiClient"]
 
 
-def relative_path_to_parts(path: str) -> Tuple[str, ...]:
+def relative_path_to_parts(path: str) -> tuple[str, ...]:
     url = URL(path)
     if url.absolute or url.parts[0] == "/":
         return url.parts[1:]
@@ -96,7 +96,7 @@ class StorageFileApiClient(Generic[Executor]):
         if upsert:
             headers["x-upsert"] = upsert
 
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)
         request = EmptyRequest(
             method="POST",
             path=["object", "upload", "sign", self.id, *path_parts],
@@ -117,8 +117,8 @@ class StorageFileApiClient(Generic[Executor]):
         file: BufferedReader | bytes | FileIO | str | Path,
         content_type: str = "text/plain;charset=UTF-8",
         cache_control: str = "3600",
-        metadata: Dict[str, Any] | None = None,
-        headers: Dict[str, str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> ResponseHandler[UploadResponse]:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
@@ -132,7 +132,7 @@ class StorageFileApiClient(Generic[Executor]):
         file
             The file contents or a file-like object to upload
         """
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)
         query_params = QueryParams({"token": token})
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
@@ -204,7 +204,7 @@ class StorageFileApiClient(Generic[Executor]):
                 "download", "" if download is True else download
             )
 
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)
         body = CreateSignedUrlBody(
             expiresIn=expires_in,
             download=download,
@@ -226,8 +226,8 @@ class StorageFileApiClient(Generic[Executor]):
 
     def _parse_signed_urls(
         self, download_query: QueryParams
-    ) -> FromHttpxResponse[List[CreateSignedUrlResponse]]:
-        def from_response(response: Response) -> List[CreateSignedUrlResponse]:
+    ) -> FromHttpxResponse[list[CreateSignedUrlResponse]]:
+        def from_response(response: Response) -> list[CreateSignedUrlResponse]:
             data = SignedUrlsJsonResponse.validate_json(response.content)
             signed_urls = []
             for item in data:
@@ -246,10 +246,10 @@ class StorageFileApiClient(Generic[Executor]):
     @handle_http_response
     def create_signed_urls(
         self,
-        paths: List[str],
+        paths: list[str],
         expires_in: int,
         download: bool | str | None = None,
-    ) -> ResponseHandler[List[CreateSignedUrlResponse]]:
+    ) -> ResponseHandler[list[CreateSignedUrlResponse]]:
         """
         Parameters
         ----------
@@ -405,7 +405,7 @@ class StorageFileApiClient(Generic[Executor]):
         path
             The path to the file.
         """
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
         request = EmptyRequest(
             method="GET",
             path=["object", "info", self.id, *path_parts],
@@ -439,7 +439,7 @@ class StorageFileApiClient(Generic[Executor]):
             else:
                 raise parse_api_error(response)
 
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
         request = EmptyRequest(
             method="HEAD",
             path=["object", self.id, *path_parts],
@@ -458,7 +458,7 @@ class StorageFileApiClient(Generic[Executor]):
         offset: int = 0,
         search: str | None = None,
         sortBy: SortByType | None = None,
-    ) -> ResponseHandler[List[ListFileObject]]:
+    ) -> ResponseHandler[list[ListFileObject]]:
         """
         Lists all the files within a bucket.
 
@@ -484,7 +484,7 @@ class StorageFileApiClient(Generic[Executor]):
         )
         return ResponseCases(
             request=request,
-            on_success=validate_adapter(TypeAdapter(List[ListFileObject])),
+            on_success=validate_adapter(TypeAdapter(list[ListFileObject])),
             on_failure=parse_api_error,
         )
 
@@ -522,7 +522,7 @@ class StorageFileApiClient(Generic[Executor]):
         self,
         path: str,
         transform: TransformOptions | None = None,
-        query_params: Dict[str, str] | None = None,
+        query_params: dict[str, str] | None = None,
     ) -> ResponseHandler[bytes]:
         """
         Downloads a file.
@@ -532,12 +532,12 @@ class StorageFileApiClient(Generic[Executor]):
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         """
-        render_path: List[str] = ["object"]
+        render_path: list[str] = ["object"]
         params = QueryParams(query_params)
         if transform:
             params = params.merge(transform_to_dict(transform))
             render_path = ["render", "image", "authenticated"]
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)
         request = EmptyRequest(
             method="GET",
             path=[*render_path, self.id, *path_parts],
@@ -559,8 +559,8 @@ class StorageFileApiClient(Generic[Executor]):
         cache_control: str,
         content_type: str,
         upsert: str,
-        metadata: Dict[str, Any] | None,
-        headers: Dict[str, str] | None,
+        metadata: dict[str, Any] | None,
+        headers: dict[str, str] | None,
     ) -> ResponseHandler[UploadResponse]:
         """
         Uploads a file to an existing bucket.
@@ -629,8 +629,8 @@ class StorageFileApiClient(Generic[Executor]):
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
         upsert: str = "false",
-        metadata: Dict[str, Any] | None = None,
-        headers: Dict[str, str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> ResponseHandler[UploadResponse]:
         """
         Uploads a file to an existing bucket.
@@ -665,8 +665,8 @@ class StorageFileApiClient(Generic[Executor]):
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
         upsert: str = "false",
-        metadata: Dict[str, Any] | None = None,
-        headers: Dict[str, str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> ResponseHandler[UploadResponse]:
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(

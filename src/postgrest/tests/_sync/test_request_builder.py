@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, List
+from typing import Any, Iterable
 
 import pytest
 from httpx import Client, Headers, QueryParams, Request, Response
@@ -287,7 +287,7 @@ def csv_api_response() -> str:
 
 
 @pytest.fixture
-def api_response_with_error() -> Dict[str, Any]:
+def api_response_with_error() -> dict[str, Any]:
     return {
         "message": "Route GET:/countries?select=%2A not found",
         "error": "Not Found",
@@ -296,7 +296,7 @@ def api_response_with_error() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def api_response() -> List[Dict[str, Any]]:
+def api_response() -> list[dict[str, Any]]:
     return [
         {
             "id": 1,
@@ -318,7 +318,7 @@ def api_response() -> List[Dict[str, Any]]:
 
 
 @pytest.fixture
-def single_api_response() -> Dict[str, Any]:
+def single_api_response() -> dict[str, Any]:
     return {
         "id": 1,
         "name": "Bonaire, Sint Eustatius and Saba",
@@ -389,7 +389,7 @@ def request_response_with_prefer_header_with_count_and_content_range(
 def request_response_with_data(
     prefer_header_with_count: str,
     content_range_header_with_count: str,
-    api_response: List[Dict[str, Any]],
+    api_response: list[dict[str, Any]],
 ) -> Response:
     return Response(
         status_code=200,
@@ -407,7 +407,7 @@ def request_response_with_data(
 def request_response_with_single_data(
     prefer_header_with_count: str,
     content_range_header_with_count: str,
-    single_api_response: Dict[str, Any],
+    single_api_response: dict[str, Any],
 ) -> Response:
     return Response(
         status_code=200,
@@ -431,15 +431,15 @@ def request_response_with_csv_data(csv_api_response: str) -> Response:
 
 
 class TestApiResponse:
-    def test_response_raises_when_api_error(self, api_response_with_error: List[JSON]):
+    def test_response_raises_when_api_error(self, api_response_with_error: list[JSON]):
         with pytest.raises(ValueError):
             APIResponse(data=api_response_with_error)
 
-    def test_parses_valid_response_only_data(self, api_response: List[JSON]):
+    def test_parses_valid_response_only_data(self, api_response: list[JSON]):
         result = APIResponse(data=api_response)
         assert result.data == api_response
 
-    def test_parses_valid_response_data_and_count(self, api_response: List[JSON]):
+    def test_parses_valid_response_data_and_count(self, api_response: list[JSON]):
         count = len(api_response)
         result = APIResponse(data=api_response, count=count)
         assert result.data == api_response
@@ -502,7 +502,7 @@ class TestApiResponse:
         )
 
     def test_from_http_request_response_constructor(
-        self, request_response_with_data: Response, api_response: List[Dict[str, Any]]
+        self, request_response_with_data: Response, api_response: list[dict[str, Any]]
     ):
         result = APIResponse.from_http_request_response(request_response_with_data)
         assert result.data == api_response
@@ -511,7 +511,7 @@ class TestApiResponse:
     def test_single_from_http_request_response_constructor(
         self,
         request_response_with_single_data: Response,
-        single_api_response: Dict[str, Any],
+        single_api_response: dict[str, Any],
     ):
         result = SingleAPIResponse.from_http_request_response(
             request_response_with_single_data

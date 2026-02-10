@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Generic, List
+from typing import Generic
 
 from httpx import Headers, QueryParams
 from pyiceberg.catalog.rest import RestCatalog
@@ -54,7 +54,7 @@ class StorageAnalyticsClient(Generic[Executor]):
         sort_column: SortColumn | None = None,
         sort_order: SortOrder | None = None,
         search: str | None = None,
-    ) -> ResponseHandler[List[AnalyticsBucket]]:
+    ) -> ResponseHandler[list[AnalyticsBucket]]:
         params = dict(
             limit=limit,
             offset=offset,

@@ -1,7 +1,7 @@
 import asyncio
 import copy
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from httpx import Timeout
 from postgrest import (
@@ -151,7 +151,7 @@ class AsyncClient:
     def rpc(
         self,
         fn: str,
-        params: Optional[Dict[Any, Any]] = None,
+        params: Optional[dict[Any, Any]] = None,
         count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
@@ -219,7 +219,7 @@ class AsyncClient:
         """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
         return self.realtime.channel(topic, params or {})
 
-    def get_channels(self) -> List[AsyncRealtimeChannel]:
+    def get_channels(self) -> list[AsyncRealtimeChannel]:
         """Returns all realtime channels."""
         return self.realtime.get_channels()
 
@@ -246,7 +246,7 @@ class AsyncClient:
     @staticmethod
     def _init_storage_client(
         storage_url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         storage_client_timeout: Optional[int] = None,
         http_client: Union[AsyncHttpxClient, None] = None,
     ) -> AsyncStorageClient:
@@ -280,7 +280,7 @@ class AsyncClient:
     @staticmethod
     def _init_postgrest_client(
         rest_url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         schema: str,
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         verify: bool = True,
@@ -306,7 +306,7 @@ class AsyncClient:
     def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
-    def _get_auth_headers(self, authorization: Optional[str] = None) -> Dict[str, str]:
+    def _get_auth_headers(self, authorization: Optional[str] = None) -> dict[str, str]:
         if authorization is None:
             authorization = self.options.headers.get(
                 "Authorization", self._create_auth_header(self.supabase_key)

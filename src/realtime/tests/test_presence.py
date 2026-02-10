@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import os
-from typing import Dict, List, Tuple
 
 import pytest
 from dotenv import load_dotenv
@@ -30,19 +29,19 @@ async def test_presence(socket: AsyncRealtimeClient):
 
     channel: AsyncRealtimeChannel = socket.channel("room")
 
-    join_events: List[Tuple[str, List[Dict], List[Presence]]] = []
-    leave_events: List[Tuple[str, List[Dict], List[Presence]]] = []
+    join_events: list[tuple[str, list[dict], list[Presence]]] = []
+    leave_events: list[tuple[str, list[dict], list[Presence]]] = []
 
     sync_event = asyncio.Event()
 
     def on_sync():
         sync_event.set()
 
-    def on_join(key: str, current_presences: List[Dict], new_presences: List[Presence]):
+    def on_join(key: str, current_presences: list[dict], new_presences: list[Presence]):
         join_events.append((key, current_presences, new_presences))
 
     def on_leave(
-        key: str, current_presences: List[Dict], left_presences: List[Presence]
+        key: str, current_presences: list[dict], left_presences: list[Presence]
     ):
         leave_events.append((key, current_presences, left_presences))
 

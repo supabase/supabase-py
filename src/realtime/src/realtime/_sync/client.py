@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .channel import RealtimeChannelOptions, SyncRealtimeChannel
 
@@ -11,7 +11,7 @@ class SyncRealtimeClient:
         url: str,
         token: str,
         auto_reconnect: bool = True,
-        params: Optional[Dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
         hb_interval: int = 30,
         max_retries: int = 5,
         initial_backoff: float = 1.0,
@@ -38,7 +38,7 @@ class SyncRealtimeClient:
         """
         raise NotImplementedError(NOT_IMPLEMENTED_MESSAGE)
 
-    def get_channels(self) -> List[SyncRealtimeChannel]:
+    def get_channels(self) -> list[SyncRealtimeChannel]:
         raise NotImplementedError(NOT_IMPLEMENTED_MESSAGE)
 
     def remove_channel(self, channel: SyncRealtimeChannel) -> None:

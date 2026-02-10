@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 from httpx import AsyncClient, BasicAuth, Client, Headers, Timeout
 from yarl import URL
@@ -17,7 +17,7 @@ class BasePostgrestClient(ABC):
         base_url: URL,
         *,
         schema: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         timeout: Union[int, float, Timeout],
         verify: bool = True,
         proxy: Optional[str] = None,

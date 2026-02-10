@@ -4,14 +4,11 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    Dict,
     Generic,
-    List,
     Literal,
     Mapping,
     Optional,
     Protocol,
-    Tuple,
     TypeVar,
     Union,
     overload,
@@ -39,7 +36,7 @@ HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
 
 @dataclass
 class EmptyRequest:
-    path: List[str]
+    path: list[str]
     method: HTTPRequestMethod
     headers: Headers = field(default_factory=Headers, kw_only=True)
     query_params: QueryParams = field(default_factory=QueryParams, kw_only=True)
@@ -110,8 +107,8 @@ class TextRequest(EmptyRequest):
 
 @dataclass
 class MultipartFormDataRequest(EmptyRequest):
-    files: Mapping[str, Tuple[str, Union[IO[bytes], bytes], str]]
-    data: Dict[str, str]
+    files: Mapping[str, tuple[str, Union[IO[bytes], bytes], str]]
+    data: dict[str, str]
 
     def to_request(self, base_url: URL) -> HttpxRequest:
         return HttpxRequest(

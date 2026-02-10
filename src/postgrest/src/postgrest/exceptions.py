@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -24,7 +24,7 @@ class APIError(Exception):
     Base exception for all API errors.
     """
 
-    _raw_error: Dict[str, str]
+    _raw_error: dict[str, str]
     message: Optional[str]
     """The error message."""
     code: Optional[str]
@@ -34,7 +34,7 @@ class APIError(Exception):
     details: Optional[str]
     """The error details."""
 
-    def __init__(self, error: Dict[str, Any]) -> None:
+    def __init__(self, error: dict[str, Any]) -> None:
         self._raw_error = error
         self.message = error.get("message")
         self.code = error.get("code")
@@ -50,7 +50,7 @@ class APIError(Exception):
         complete_error_text = f"{error_text}{message_text}{hint_text}{details_text}"
         return complete_error_text or "Empty error"
 
-    def json(self) -> Dict[str, str]:
+    def json(self) -> dict[str, str]:
         """Convert the error into a dictionary.
 
         Returns:

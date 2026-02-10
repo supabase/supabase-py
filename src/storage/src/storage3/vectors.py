@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, List
+from typing import Generic
 
 from httpx import Headers, Response
 from supabase_utils.http import (
@@ -163,7 +163,7 @@ class VectorIndexScope(Generic[Executor]):
         )
 
     @handle_http_response
-    def put(self, vectors: List[VectorObject]) -> ResponseHandler[None]:
+    def put(self, vectors: list[VectorObject]) -> ResponseHandler[None]:
         body = self.with_metadata(
             vectors=[v.model_dump(exclude_none=True) for v in vectors]
         )
@@ -253,7 +253,7 @@ class VectorIndexScope(Generic[Executor]):
         )
 
     @handle_http_response
-    def delete(self, keys: List[str]) -> ResponseHandler[None]:
+    def delete(self, keys: list[str]) -> ResponseHandler[None]:
         if len(keys) < 1 or len(keys) > 500:
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
         body = self.with_metadata(keys=keys)

@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 
 from httpx import AsyncClient
 from supabase_auth import (
@@ -15,7 +15,7 @@ class AsyncSupabaseAuthClient(AsyncGoTrueClient):
         self,
         *,
         url: str,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         storage_key: Optional[str] = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
@@ -30,7 +30,7 @@ class AsyncSupabaseAuthClient(AsyncGoTrueClient):
 
         Args:
             url (str): The URL of the Supabase instance.
-            headers (Optional[Dict[str, str]]): Optional headers to include in requests.
+            headers (Optional[dict[str, str]]): Optional headers to include in requests.
             storage_key (Optional[str]): Key to store session information.
             auto_refresh_token (bool): Whether to automatically refresh the token. Defaults to True.
             persist_session (bool): Whether to persist the session. Defaults to True.

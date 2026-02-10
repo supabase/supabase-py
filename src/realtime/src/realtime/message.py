@@ -1,4 +1,4 @@
-from typing import Any, List, Literal, Mapping, Optional, Union
+from typing import Any, Literal, Mapping, Optional, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
 from typing_extensions import TypeAlias, TypedDict
@@ -43,7 +43,7 @@ class PostgresRowChange(BaseModel):
 
 
 class ReplyPostgresChanges(BaseModel):
-    postgres_changes: Optional[List[PostgresRowChange]] = None
+    postgres_changes: Optional[list[PostgresRowChange]] = None
 
 
 class SuccessReplyMessage(BaseModel):

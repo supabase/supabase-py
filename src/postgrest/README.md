@@ -6,7 +6,7 @@
 
 ### Requirements
 
-- Python >= 3.9
+- Python >= 3.10
 - PostgreSQL >= 13
 - PostgREST >= 11
 

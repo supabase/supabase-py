@@ -1,5 +1,3 @@
-from typing import Dict
-
 import pytest
 
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient, create_client
@@ -11,11 +9,11 @@ def valid_url() -> str:
 
 
 @pytest.fixture
-def valid_headers() -> Dict[str, str]:
+def valid_headers() -> dict[str, str]:
     return {"Authorization": "Bearer test_token", "Content-Type": "application/json"}
 
 
-def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
+def test_create_async_client(valid_url: str, valid_headers: dict[str, str]) -> None:
     # Test creating async client with explicit verify=True
     client = create_client(
         url=valid_url, headers=valid_headers, is_async=True, verify=True
@@ -26,7 +24,7 @@ def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> N
     assert all(client.headers[key] == value for key, value in valid_headers.items())
 
 
-def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
+def test_create_sync_client(valid_url: str, valid_headers: dict[str, str]) -> None:
     # Test creating sync client with explicit verify=True
     client = create_client(
         url=valid_url, headers=valid_headers, is_async=False, verify=True
