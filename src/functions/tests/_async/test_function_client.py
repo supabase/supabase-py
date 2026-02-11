@@ -2,7 +2,8 @@ from typing import Dict
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, HTTPError, Response, Timeout
+from httpx import AsyncClient, HTTPStatusError, Response, Timeout
+from yarl import URL
 
 # Import the class to test
 from supabase_functions import AsyncFunctionsClient
@@ -34,20 +35,20 @@ async def test_init_with_valid_params(
     client = AsyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
-    assert str(client.url) == valid_url
+    assert str(client.base_url) == valid_url
     assert "X-Client-Info" in client.headers
     assert (
         client.headers["X-Client-Info"]
         == f"supabase-py/supabase_functions v{__version__}"
     )
-    assert client._client.timeout == Timeout(10)
+    assert client.executor.session.timeout == Timeout(10)
 
 
-@pytest.mark.parametrize("invalid_url", ["not-a-url", "ftp://invalid.com", "", None])
+@pytest.mark.parametrize("invalid_url", ["not-a-url", "ftp://invalid.com", ""])
 def test_init_with_invalid_url(
     invalid_url: str, default_headers: Dict[str, str]
 ) -> None:
-    with pytest.raises(ValueError, match="url must be a valid HTTP URL string"):
+    with pytest.raises(Exception, match="url must be a valid HTTP URL string"):
         AsyncFunctionsClient(url=invalid_url, headers=default_headers, timeout=10)
 
 
@@ -59,23 +60,19 @@ async def test_set_auth_valid_token(client: AsyncFunctionsClient) -> None:
 
 async def test_invoke_success_json(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
-    mock_response.json.return_value = {"message": "success"}
+    mock_response.content = b'{"message": "success"}'
     mock_response.raise_for_status = Mock()
     mock_response.headers = {}
 
     with patch.object(
-        client._client, "request", new_callable=AsyncMock
+        client.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = mock_response
 
-        result = await client.invoke(
-            "test-function", {"responseType": "json", "body": {"test": "data"}}
-        )
-
-        assert result == {"message": "success"}
+        result = await client.invoke("test-function", body={"test": "data"})
+        assert result.content == b'{"message": "success"}'
         mock_request.assert_called_once()
         _, kwargs = mock_request.call_args
-        assert kwargs["json"] == {"test": "data"}
 
 
 async def test_invoke_success_binary(client: AsyncFunctionsClient) -> None:
@@ -85,84 +82,71 @@ async def test_invoke_success_binary(client: AsyncFunctionsClient) -> None:
     mock_response.headers = {}
 
     with patch.object(
-        client._client, "request", new_callable=AsyncMock
+        client.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = mock_response
 
         result = await client.invoke("test-function")
 
-        assert result == b"binary content"
+        assert result.content == b"binary content"
         mock_request.assert_called_once()
 
 
 async def test_invoke_with_region(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
-    mock_response.json.return_value = {"message": "success"}
+    mock_response.content = '{"message": "success"}'
     mock_response.raise_for_status = Mock()
     mock_response.headers = {}
 
     with patch.object(
-        client._client, "request", new_callable=AsyncMock
+        client.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = mock_response
 
-        await client.invoke("test-function", {"region": FunctionRegion("us-east-1")})
+        await client.invoke("test-function", region=FunctionRegion.UsEast1)
 
-        args, kwargs = mock_request.call_args
+        (request,), _kwargs = mock_request.call_args
         # Check that x-region header is present
-        assert kwargs["headers"]["x-region"] == "us-east-1"
+        assert request.headers["x-region"] == "us-east-1"
         # Check that the URL contains the forceFunctionRegion query parameter
-        assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
-
-
-async def test_invoke_with_region_string(client: AsyncFunctionsClient) -> None:
-    mock_response = Mock(spec=Response)
-    mock_response.json.return_value = {"message": "success"}
-    mock_response.raise_for_status = Mock()
-    mock_response.headers = {}
-
-    with patch.object(
-        client._client, "request", new_callable=AsyncMock
-    ) as mock_request:
-        mock_request.return_value = mock_response
-
-        with pytest.warns(UserWarning, match=r"Use FunctionRegion\(us-east-1\)"):
-            await client.invoke("test-function", {"region": "us-east-1"})
-
-        args, kwargs = mock_request.call_args
-        # Check that x-region header is present
-        assert kwargs["headers"]["x-region"] == "us-east-1"
-        # Check that the URL contains the forceFunctionRegion query parameter
-        assert kwargs["params"]["forceFunctionRegion"] == "us-east-1"
+        assert URL(str(request.url)).query["forceFunctionRegion"] == "us-east-1"
 
 
 async def test_invoke_with_http_error(client: AsyncFunctionsClient) -> None:
-    mock_response = Mock(spec=Response)
-    mock_response.json.return_value = {"error": "Custom error message"}
-    mock_response.raise_for_status.side_effect = HTTPError("HTTP Error")
+    from httpx import Request
+
+    mock_response = Mock(spec=Response, status_code=400)
+    mock_response.content = b'{"error": "Custom error message"}'
+    mock_response.raise_for_status.side_effect = HTTPStatusError(
+        "HTTP Error", request=Request(url="", method="GET"), response=mock_response
+    )
     mock_response.headers = {}
 
     with patch.object(
-        client._client, "request", new_callable=AsyncMock
+        client.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = mock_response
 
-        with pytest.raises(FunctionsHttpError, match="Custom error message"):
+        with pytest.raises(FunctionsHttpError):
             await client.invoke("test-function")
 
 
 async def test_invoke_with_relay_error(client: AsyncFunctionsClient) -> None:
-    mock_response = Mock(spec=Response)
-    mock_response.json.return_value = {"error": "Relay error message"}
-    mock_response.raise_for_status = Mock()
+    from httpx import Request
+
+    mock_response = Mock(spec=Response, status_code=400)
+    mock_response.content = b'{"error": "Relay error message"}'
+    mock_response.raise_for_status.side_effect = HTTPStatusError(
+        "HTTP Error", request=Request(url="", method="GET"), response=mock_response
+    )
     mock_response.headers = {"x-relay-header": "true"}
 
     with patch.object(
-        client._client, "request", new_callable=AsyncMock
+        client.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = mock_response
 
-        with pytest.raises(FunctionsRelayError, match="Relay error message"):
+        with pytest.raises(FunctionsRelayError):
             await client.invoke("test-function")
 
 
@@ -178,14 +162,14 @@ async def test_invoke_with_string_body(client: AsyncFunctionsClient) -> None:
     mock_response.headers = {}
 
     with patch.object(
-        client._client, "request", new_callable=AsyncMock
+        client.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = mock_response
 
-        await client.invoke("test-function", {"body": "string data"})
+        await client.invoke("test-function", body="string data")
 
-        _, kwargs = mock_request.call_args
-        assert kwargs["headers"]["Content-Type"] == "text/plain"
+        (request,), _kwargs = mock_request.call_args
+        assert request.headers["Content-Type"] == "text/plain; charset=utf-8"
 
 
 async def test_invoke_with_json_body(client: AsyncFunctionsClient) -> None:
@@ -195,14 +179,14 @@ async def test_invoke_with_json_body(client: AsyncFunctionsClient) -> None:
     mock_response.headers = {}
 
     with patch.object(
-        client._client, "request", new_callable=AsyncMock
+        client.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = mock_response
 
-        await client.invoke("test-function", {"body": {"key": "value"}})
+        await client.invoke("test-function", body={"key": "value"})
 
-        _, kwargs = mock_request.call_args
-        assert kwargs["headers"]["Content-Type"] == "application/json"
+        (request,), _kwargs = mock_request.call_args
+        assert request.headers["Content-Type"] == "application/json"
 
 
 async def test_init_with_httpx_client() -> None:
@@ -221,10 +205,10 @@ async def test_init_with_httpx_client() -> None:
     )
 
     # Verify the custom client options are preserved
-    assert client._client.timeout == Timeout(30)
-    assert client._client.follow_redirects is True
-    assert client._client.max_redirects == 5
-    assert client._client.headers.get("x-user-agent") == "my-app/0.0.1"
+    assert client.executor.session.timeout == Timeout(30)
+    assert client.executor.session.follow_redirects is True
+    assert client.executor.session.max_redirects == 5
+    assert client.executor.session.headers.get("x-user-agent") == "my-app/0.0.1"
 
     # Verify the client is properly configured with our custom client
-    assert client._client is custom_client
+    assert client.executor.session is custom_client

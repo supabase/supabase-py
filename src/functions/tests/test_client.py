@@ -1,6 +1,7 @@
 from typing import Dict
 
 import pytest
+
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient, create_client
 
 
@@ -21,7 +22,7 @@ def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> N
     )
 
     assert isinstance(client, AsyncFunctionsClient)
-    assert str(client.url) == valid_url
+    assert str(client.base_url) == valid_url
     assert all(client.headers[key] == value for key, value in valid_headers.items())
 
 
@@ -32,12 +33,12 @@ def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> No
     )
 
     assert isinstance(client, SyncFunctionsClient)
-    assert str(client.url) == valid_url
+    assert str(client.base_url) == valid_url
     assert all(client.headers[key] == value for key, value in valid_headers.items())
 
 
 def test_type_hints() -> None:
-    from typing import Union, get_type_hints
+    from typing import get_type_hints
 
     hints = get_type_hints(create_client)
 
@@ -45,4 +46,4 @@ def test_type_hints() -> None:
     assert hints["headers"] == dict[str, str]
     assert hints["is_async"] is bool
     assert hints["verify"] is bool
-    assert hints["return"] == Union[AsyncFunctionsClient, SyncFunctionsClient]
+    assert hints["return"] == AsyncFunctionsClient | SyncFunctionsClient
