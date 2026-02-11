@@ -245,7 +245,11 @@ class AsyncRealtimeChannel:
         def on_join_push_ok(payload: ReplyPostgresChanges):
             server_postgres_changes = payload.postgres_changes
 
-            if self.postgres_changes_callbacks and not server_postgres_changes:
+            if self.postgres_changes_callbacks and (
+                not server_postgres_changes
+                or len(server_postgres_changes)
+                != len(self.postgres_changes_callbacks)
+            ):
                 asyncio.create_task(self.unsubscribe())
                 _internal_callback(
                     RealtimeSubscribeStates.CHANNEL_ERROR,
@@ -309,7 +313,7 @@ class AsyncRealtimeChannel:
         
         # Wait for the future to resolve or timeout
         # Use the provided timeout or fall back to the socket/push timeout
-        wait_timeout = timeout or self.timeout
+        wait_timeout = timeout if timeout is not None else self.timeout
         try:
             await asyncio.wait_for(future, timeout=wait_timeout)
         except asyncio.TimeoutError:
