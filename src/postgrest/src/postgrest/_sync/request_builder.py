@@ -109,17 +109,16 @@ class SyncMaybeSingleRequestBuilder:
         try:
             r = SyncSingleRequestBuilder(self.request).execute()
         except APIError as e:
-            if e.details and "The result contains 0 rows" in e.details:
+            if e.code == "PGRST116" and e.details and ("0 rows" in e.details or "no rows" in e.details):
                 return None
-        if not r:
-            raise APIError(
-                {
-                    "message": "Missing response",
-                    "code": "204",
-                    "hint": "Please check traceback of the code",
-                    "details": "Postgrest couldn't retrieve response, please check traceback of the code. Please create an issue in `supabase-community/postgrest-py` if needed.",
-                }
-            )
+            if e.code == "PGRST116" and e.message and ("0 rows" in e.message or "no rows" in e.message):
+                return None
+            raise e
+
+        # Check if the result is successful but empty (e.g. 200 OK with [])
+        if r and isinstance(r.data, list) and len(r.data) == 0:
+            return None
+
         return r
 
 
