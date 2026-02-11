@@ -14,7 +14,12 @@ from realtime import (
     RealtimePostgresChangesListenEvent,
     RealtimeSubscribeStates,
 )
-from realtime.message import Message
+from realtime.message import (
+    Message,
+    ReplyMessage,
+    SuccessReplyMessage,
+    ReplyPostgresChanges,
+)
 from realtime.types import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_TIMEOUT, ChannelEvents
 
 load_dotenv()
@@ -529,8 +534,9 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
         nonlocal callback_called
         callback_called = True
 
-    # Subscribe to the channel
-    await channel.subscribe(mock_callback)
+    # Subscribe to the channel in background
+    task = asyncio.create_task(channel.subscribe(mock_callback))
+    await asyncio.sleep(0.01)
 
     # Verify that send was called with the correct payload
     assert mock_ws.send.called, "WebSocket send should have been called"
@@ -544,6 +550,19 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
     assert message_data["event"] == "phx_join"
     assert "ref" in message_data
     assert "payload" in message_data
+
+    # Simulate server response
+    reply = ReplyMessage(
+        event=ChannelEvents.reply,
+        topic=channel.topic,
+        ref=message_data["ref"],
+        payload=SuccessReplyMessage(
+            status="ok",
+            response=ReplyPostgresChanges(postgres_changes=[])
+        )
+    )
+    channel._handle_message(reply)
+    await task
 
     # Verify the payload contains the correct broadcast replay configuration
     payload = message_data["payload"]
@@ -601,8 +620,9 @@ async def test_subscribe_to_channel_with_empty_replay_config(
         nonlocal callback_called
         callback_called = True
 
-    # Subscribe to the channel
-    await channel.subscribe(mock_callback)
+    # Subscribe to the channel in background
+    task = asyncio.create_task(channel.subscribe(mock_callback))
+    await asyncio.sleep(0.01)
 
     # Verify that send was called
     assert mock_ws.send.called, "WebSocket send should have been called"
@@ -610,6 +630,19 @@ async def test_subscribe_to_channel_with_empty_replay_config(
     # Get the sent message
     sent_message = mock_ws.send.call_args[0][0]
     message_data = json.loads(sent_message)
+
+    # Simulate server response
+    reply = ReplyMessage(
+        event=ChannelEvents.reply,
+        topic=channel.topic,
+        ref=message_data["ref"],
+        payload=SuccessReplyMessage(
+            status="ok",
+            response=ReplyPostgresChanges(postgres_changes=[])
+        )
+    )
+    channel._handle_message(reply)
+    await task
 
     # Verify the payload structure
     payload = message_data["payload"]
@@ -658,8 +691,9 @@ async def test_subscribe_to_channel_without_replay_config(socket: AsyncRealtimeC
         nonlocal callback_called
         callback_called = True
 
-    # Subscribe to the channel
-    await channel.subscribe(mock_callback)
+    # Subscribe to the channel in background
+    task = asyncio.create_task(channel.subscribe(mock_callback))
+    await asyncio.sleep(0.01)
 
     # Verify that send was called
     assert mock_ws.send.called, "WebSocket send should have been called"
@@ -667,6 +701,19 @@ async def test_subscribe_to_channel_without_replay_config(socket: AsyncRealtimeC
     # Get the sent message
     sent_message = mock_ws.send.call_args[0][0]
     message_data = json.loads(sent_message)
+
+    # Simulate server response
+    reply = ReplyMessage(
+        event=ChannelEvents.reply,
+        topic=channel.topic,
+        ref=message_data["ref"],
+        payload=SuccessReplyMessage(
+            status="ok",
+            response=ReplyPostgresChanges(postgres_changes=[])
+        )
+    )
+    channel._handle_message(reply)
+    await task
 
     # Verify the payload structure
     payload = message_data["payload"]
