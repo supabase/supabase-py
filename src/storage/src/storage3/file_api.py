@@ -584,7 +584,7 @@ class StorageFileApiClient(Generic[Executor]):
         extra_headers.update(self._headers)
 
         data = {"cacheControl": cache_control}
-        data = {}
+
         if metadata:
             metadata_bytes = JSONParser.dump_json(metadata)
             extra_headers["x-metadata"] = base64.b64encode(metadata_bytes).decode(
