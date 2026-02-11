@@ -123,13 +123,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         if headers:
             extra_headers.update(headers)
 
-        if sys.version_info < (3, 10):
-            warn(
-                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
         AsyncGoTrueBaseAPI.__init__(
             self,
             url=url or GOTRUE_URL,

@@ -67,12 +67,6 @@ class AsyncRealtimeClient:
         """
         if not is_ws_url(url):
             raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
-        if sys.version_info < (3, 10):
-            warn(
-                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         self.url = f"{re.sub(r'https://', 'wss://', re.sub(r'http://', 'ws://', url, flags=re.IGNORECASE), flags=re.IGNORECASE)}/websocket"
         if token:
