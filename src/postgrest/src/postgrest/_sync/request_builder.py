@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
-from httpx import BasicAuth, Client, Headers, QueryParams, Response
+from httpx import Client, BasicAuth, Headers, QueryParams, Response
 from pydantic import ValidationError
 from typing_extensions import override
 from yarl import URL
@@ -109,10 +109,10 @@ class SyncMaybeSingleRequestBuilder:
         try:
             r = SyncSingleRequestBuilder(self.request).execute()
         except APIError as e:
-            if e.code == "PGRST116" and e.details and ("0 rows" in e.details or "no rows" in e.details):
-                return None
-            if e.code == "PGRST116" and e.message and ("0 rows" in e.message or "no rows" in e.message):
-                return None
+            if e.code == "PGRST116":
+                haystack = f"{e.details or ''} {e.message or ''}".lower()
+                if "0 rows" in haystack or "no rows" in haystack:
+                    return None
             raise e
 
         # Check if the result is successful but empty (e.g. 200 OK with [])
@@ -248,7 +248,7 @@ class SyncRequestBuilder:  #
             *columns: The names of the columns to fetch.
             count: The method to use to get the count of rows returned.
         Returns:
-            :class:`SyncSelectRequestBuilder`
+            :class:`AsyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_select(*columns, count=count, head=head)
         headers.update(self.headers)
@@ -283,7 +283,7 @@ class SyncRequestBuilder:  #
                 Otherwise, use the default value for the column.
                 Only applies for bulk inserts.
         Returns:
-            :class:`SyncQueryRequestBuilder`
+            :class:`AsyncQueryRequestBuilder`
         """
         method, params, headers, json = pre_insert(
             json,
@@ -327,7 +327,7 @@ class SyncRequestBuilder:  #
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
         Returns:
-            :class:`SyncQueryRequestBuilder`
+            :class:`AsyncQueryRequestBuilder`
         """
         method, params, headers, json = pre_upsert(
             json,
@@ -363,7 +363,7 @@ class SyncRequestBuilder:  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SyncFilterRequestBuilder`
+            :class:`AsyncFilterRequestBuilder`
         """
         method, params, headers, json = pre_update(
             json,
@@ -394,7 +394,7 @@ class SyncRequestBuilder:  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SyncFilterRequestBuilder`
+            :class:`AsyncFilterRequestBuilder`
         """
         method, params, headers, json = pre_delete(
             count=count,

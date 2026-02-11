@@ -43,3 +43,10 @@ ignore = ["F403", "E501", "E402", "UP006", "UP035"]
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true
+
+[dependency-groups]
+dev = [
+    "aioresponses>=0.7.8",
+    "responses>=0.25.8",
+    "respx>=0.22.0",
+]

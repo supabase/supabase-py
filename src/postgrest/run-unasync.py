@@ -5,7 +5,15 @@ import unasync
 paths = Path("src/postgrest").glob("**/*.py")
 tests = Path("tests").glob("**/*.py")
 
-rules = (unasync._DEFAULT_RULE,)
+rules = [
+    unasync.Rule(
+        fromdir="/_async/",
+        todir="/_sync/",
+        additional_replacements={
+            "AsyncClient": "Client",
+        },
+    )
+]
 
 files = [str(p) for p in list(paths) + list(tests)]
 

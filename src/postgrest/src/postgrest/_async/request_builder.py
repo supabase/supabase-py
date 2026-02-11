@@ -109,10 +109,10 @@ class AsyncMaybeSingleRequestBuilder:
         try:
             r = await AsyncSingleRequestBuilder(self.request).execute()
         except APIError as e:
-            if e.code == "PGRST116" and e.details and ("0 rows" in e.details or "no rows" in e.details):
-                return None
-            if e.code == "PGRST116" and e.message and ("0 rows" in e.message or "no rows" in e.message):
-                return None
+            if e.code == "PGRST116":
+                haystack = f"{e.details or ''} {e.message or ''}".lower()
+                if "0 rows" in haystack or "no rows" in haystack:
+                    return None
             raise e
 
         # Check if the result is successful but empty (e.g. 200 OK with [])
