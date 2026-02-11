@@ -26,7 +26,7 @@ from httpx import (
     Request as HttpxRequest,
 )
 from pydantic import BaseModel, TypeAdapter
-from typing_extensions import Concatenate, ParamSpec
+from typing import Concatenate, ParamSpec
 from yarl import URL
 
 from .types import JSON, JSONParser

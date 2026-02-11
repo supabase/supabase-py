@@ -4,14 +4,13 @@ import platform
 import sys
 import time
 from contextlib import suppress
-from typing import Callable, Optional
+from typing import Callable, Optional, cast
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 from warnings import warn
 
 from httpx import Client, QueryParams, Response
 from jwt import get_algorithm_by_name
-from typing_extensions import cast
 
 from ..constants import (
     EXPIRY_MARGIN,

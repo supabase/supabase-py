@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
-from typing_extensions import TypeAlias, TypedDict
+from typing import TypeAlias, TypedDict
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 

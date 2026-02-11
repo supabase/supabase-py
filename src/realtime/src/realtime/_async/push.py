@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Literal, Mapping, Optional, overload
 
-from typing_extensions import assert_never, overload
+from typing_extensions import assert_never
 
 from ..message import Message, ReplyPostgresChanges
 from ..types import DEFAULT_TIMEOUT, Callback, RealtimeAcknowledgementStatus, _Hook

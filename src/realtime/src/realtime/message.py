@@ -1,7 +1,7 @@
 from typing import Any, Literal, Mapping, Optional, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
-from typing_extensions import TypeAlias, TypedDict
+from typing import TypeAlias, TypedDict
 
 from .types import (
     BroadcastPayload,

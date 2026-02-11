@@ -17,7 +17,7 @@ except ImportError:
 
     model_validator_v1_v2_compat = root_validator  # type: ignore
 
-from typing_extensions import Literal, NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 Provider = Literal[
     "apple",

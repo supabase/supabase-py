@@ -2,17 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Literal, Optional, TypeVar
+from typing import Any, Callable, Literal, Optional, TypeVar, TypedDict, Generic, ParamSpec, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, with_config
-from typing_extensions import (
-    Generic,
-    NotRequired,
-    ParamSpec,
-    Required,
-    TypeAlias,
-    TypedDict,
-)
+from typing_extensions import NotRequired, Required
 
 # Constants
 DEFAULT_TIMEOUT = 10
