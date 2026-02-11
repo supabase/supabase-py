@@ -20,7 +20,7 @@ class AsyncPush:
         self,
         channel: AsyncRealtimeChannel,
         event: str,
-        payload: Optional[Mapping[str, Any]] = None,
+        payload: Mapping[str, Any] | None = None,
         timeout: int = DEFAULT_TIMEOUT,
     ):
         self.channel = channel
@@ -28,12 +28,10 @@ class AsyncPush:
         self.payload = payload or {}
         self.timeout = timeout
         self.rec_hooks: list[_Hook] = []
-        self.ref: Optional[str] = None
-        self.received_resp: Optional[
-            tuple[RealtimeAcknowledgementStatus, dict[str, Any]]
-        ] = None
+        self.ref: str | None = None
+        self.received_resp: tuple[RealtimeAcknowledgementStatus, dict[str, Any]] | None = None
         self.sent = False
-        self.timeout_task: Optional[asyncio.Task] = None
+        self.timeout_task: asyncio.Task | None = None
         self.ok_callbacks: list[Callback[[ReplyPostgresChanges], None]] = []
         self.error_callbacks: list[Callback[[dict[str, Any]], None]] = []
         self.timeout_callbacks: list[Callback[[], None]] = []

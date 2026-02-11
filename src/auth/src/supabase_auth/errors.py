@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
-
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 ErrorCode = Literal[
     "unexpected_failure",
@@ -111,7 +109,7 @@ class AuthApiErrorDict(TypedDict):
 
 
 class AuthApiError(AuthError):
-    def __init__(self, message: str, status: int, code: Optional[ErrorCode]) -> None:
+    def __init__(self, message: str, status: int, code: ErrorCode | None) -> None:
         AuthError.__init__(self, message, code)
         self.name = "AuthApiError"
         self.status = status
@@ -135,7 +133,7 @@ class AuthUnknownError(AuthError):
 
 class CustomAuthError(AuthError):
     def __init__(
-        self, message: str, name: str, status: int, code: Optional[ErrorCode]
+        self, message: str, name: str, status: int, code: ErrorCode | None
     ) -> None:
         AuthError.__init__(self, message, code)
         self.name = name
@@ -178,14 +176,14 @@ class AuthImplicitGrantRedirectErrorDetails(TypedDict):
 
 
 class AuthImplicitGrantRedirectErrorDict(AuthApiErrorDict):
-    details: Optional[AuthImplicitGrantRedirectErrorDetails]
+    details: AuthImplicitGrantRedirectErrorDetails | None
 
 
 class AuthImplicitGrantRedirectError(CustomAuthError):
     def __init__(
         self,
         message: str,
-        details: Optional[AuthImplicitGrantRedirectErrorDetails] = None,
+        details: AuthImplicitGrantRedirectErrorDetails | None = None,
     ) -> None:
         CustomAuthError.__init__(
             self,

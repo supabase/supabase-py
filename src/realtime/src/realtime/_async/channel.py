@@ -69,7 +69,7 @@ class AsyncRealtimeChannel:
         self,
         socket: AsyncRealtimeClient,
         topic: str,
-        params: Optional[RealtimeChannelOptions] = None,
+        params: RealtimeChannelOptions | None = None,
     ) -> None:
         """
         Initialize the Channel object.
@@ -102,9 +102,7 @@ class AsyncRealtimeChannel:
         self.broadcast_callbacks: list[BroadcastCallback] = []
         self.system_callbacks: list[Callable[[SuccessSystemPayload], None]] = []
         self.postgres_changes_callbacks: list[PostgresChangesCallback] = []
-        self.subscribe_callback: Optional[
-            Callable[[RealtimeSubscribeStates, Optional[Exception]], None]
-        ] = None
+        self.subscribe_callback: Callable[[RealtimeSubscribeStates, Exception | None], None] | None = None
 
         self.rejoin_timer = AsyncTimer(
             self._rejoin_until_connected, lambda tries: 2**tries
@@ -169,9 +167,7 @@ class AsyncRealtimeChannel:
     # Core channel methods
     async def subscribe(
         self,
-        callback: Optional[
-            Callable[[RealtimeSubscribeStates, Optional[Exception]], None]
-        ] = None,
+        callback: Callable[[RealtimeSubscribeStates, Exception | None], None] | None = None,
     ) -> AsyncRealtimeChannel:
         """
         Subscribe to the channel. Can only be called once per channel instance.
@@ -227,7 +223,7 @@ class AsyncRealtimeChannel:
                     for i, postgres_callback in enumerate(
                         self.postgres_changes_callbacks
                     ):
-                        server_binding: Optional[PostgresRowChange] = (
+                        server_binding: PostgresRowChange | None = (
                             server_postgres_changes[i]
                             if i < len(server_postgres_changes)
                             else None
@@ -296,7 +292,7 @@ class AsyncRealtimeChannel:
         await leave_push.send()
 
     async def push(
-        self, event: str, payload: dict[str, Any], timeout: Optional[int] = None
+        self, event: str, payload: dict[str, Any], timeout: int | None = None
     ) -> AsyncPush:
         """
         Push a message to the channel.
@@ -373,9 +369,9 @@ class AsyncRealtimeChannel:
         self,
         event: RealtimePostgresChangesListenEvent,
         callback: Callable[[PostgresChangesPayload], None],
-        table: Optional[str] = None,
-        schema: Optional[str] = None,
-        filter: Optional[str] = None,
+        table: str | None = None,
+        schema: str | None = None,
+        filter: str | None = None,
     ) -> AsyncRealtimeChannel:
         """
         Set up a listener for Postgres database changes.

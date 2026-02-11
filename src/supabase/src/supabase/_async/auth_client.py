@@ -1,4 +1,3 @@
-from typing import Optional
 
 from httpx import AsyncClient
 from supabase_auth import (
@@ -15,15 +14,15 @@ class AsyncSupabaseAuthClient(AsyncGoTrueClient):
         self,
         *,
         url: str,
-        headers: Optional[dict[str, str]] = None,
-        storage_key: Optional[str] = None,
+        headers: dict[str, str] | None = None,
+        storage_key: str | None = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
-        storage: Optional[AsyncSupportedStorage] = None,
-        http_client: Optional[AsyncClient] = None,
+        storage: AsyncSupportedStorage | None = None,
+        http_client: AsyncClient | None = None,
         flow_type: AuthFlowType = "implicit",
         verify: bool = True,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
     ) -> None:
         """
         Instantiate a SupabaseAuthClient instance.

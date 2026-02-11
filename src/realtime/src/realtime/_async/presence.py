@@ -31,9 +31,9 @@ class AsyncRealtimePresence:
 
     def __init__(self):
         self.state: RealtimePresenceState = {}
-        self.on_join_callback: Optional[PresenceOnJoinCallback] = None
-        self.on_leave_callback: Optional[PresenceOnLeaveCallback] = None
-        self.on_sync_callback: Optional[Callable[[], None]] = None
+        self.on_join_callback: PresenceOnJoinCallback | None = None
+        self.on_leave_callback: PresenceOnLeaveCallback | None = None
+        self.on_sync_callback: Callable[[], None] | None = None
 
     def on_join(self, callback: PresenceOnJoinCallback):
         self.on_join_callback = callback

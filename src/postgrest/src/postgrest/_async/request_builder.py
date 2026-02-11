@@ -104,7 +104,7 @@ class AsyncMaybeSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
-    async def execute(self) -> Optional[SingleAPIResponse]:
+    async def execute(self) -> SingleAPIResponse | None:
         r = None
         try:
             r = await AsyncSingleRequestBuilder(self.request).execute()
@@ -240,8 +240,8 @@ class AsyncRequestBuilder:  #
     def select(
         self,
         *columns: str,
-        count: Optional[CountMethod] = None,
-        head: Optional[bool] = None,
+        count: CountMethod | None = None,
+        head: bool | None = None,
     ) -> AsyncSelectRequestBuilder:
         """Run a SELECT query.
 
@@ -268,7 +268,7 @@ class AsyncRequestBuilder:  #
         self,
         json: JSON,
         *,
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
         upsert: bool = False,
         default_to_null: bool = True,
@@ -309,7 +309,7 @@ class AsyncRequestBuilder:  #
         self,
         json: JSON,
         *,
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
         ignore_duplicates: bool = False,
         on_conflict: str = "",
@@ -354,7 +354,7 @@ class AsyncRequestBuilder:  #
         self,
         json: JSON,
         *,
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
     ) -> AsyncFilterRequestBuilder:
         """Run an UPDATE query.
@@ -386,7 +386,7 @@ class AsyncRequestBuilder:  #
     def delete(
         self,
         *,
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
     ) -> AsyncFilterRequestBuilder:
         """Run a DELETE query.

@@ -19,7 +19,7 @@ class SyncRealtimeChannel:
         self,
         socket: SyncRealtimeClient,
         topic: str,
-        params: Optional[RealtimeChannelOptions] = None,
+        params: RealtimeChannelOptions | None = None,
     ) -> None:
         """
         Initialize the Channel object.

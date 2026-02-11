@@ -8,5 +8,5 @@ from ..types import PresenceOpts
 
 
 class SyncRealtimePresence:
-    def __init__(self, channel, opts: Optional[PresenceOpts] = None):
+    def __init__(self, channel, opts: PresenceOpts | None = None):
         pass

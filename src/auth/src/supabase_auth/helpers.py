@@ -9,7 +9,7 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from typing import Any, Optional, TypedDict, TypeVar, Union
+from typing import Any, TypedDict, TypeVar, Union
 from urllib.parse import urlparse
 
 from httpx import HTTPStatusError, Response
@@ -45,7 +45,7 @@ from .types import (
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def model_validate(model: type[TBaseModel], contents: Union[str, bytes]) -> TBaseModel:
+def model_validate(model: type[TBaseModel], contents: str | bytes) -> TBaseModel:
     """Compatibility layer between pydantic 1 and 2 for parsing an instance
     of a BaseModel from varied"""
     try:
@@ -263,7 +263,7 @@ def generate_pkce_challenge(code_verifier) -> str:
 API_VERSION_REGEX = r"^2[0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])$"
 
 
-def parse_response_api_version(response: Response) -> Optional[datetime]:
+def parse_response_api_version(response: Response) -> datetime | None:
     api_version = response.headers.get(API_VERSION_HEADER_NAME)
 
     if not api_version:

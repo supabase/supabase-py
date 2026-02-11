@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Literal, Optional, TypeVar, TypedDict, Generic, ParamSpec, TypeAlias
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Literal,
+    Optional,
+    ParamSpec,
+    TypeAlias,
+    TypedDict,
+    TypeVar,
+)
 
 from pydantic import BaseModel, ConfigDict, Field, with_config
 from typing_extensions import NotRequired, Required
@@ -89,9 +99,9 @@ class PostgresChangesData(TypedDict):
     table: str
     commit_timestamp: str
     type: RealtimePostgresChangesListenEvent
-    errors: Optional[str]
+    errors: str | None
     columns: list[PostgresChangesColumn]
-    record: NotRequired[Optional[dict[str, Any]]]
+    record: NotRequired[dict[str, Any] | None]
     old_record: NotRequired[dict[str, Any]]  # todo: improve this
 
 
@@ -125,10 +135,10 @@ class BroadcastCallback:
 class PostgresChangesCallback:
     callback: Callable[[PostgresChangesPayload], None]
     event: RealtimePostgresChangesListenEvent
-    table: Optional[str]
-    schema: Optional[str]
-    filter: Optional[str]
-    id: Optional[int] = None
+    table: str | None
+    schema: str | None
+    filter: str | None
+    id: int | None = None
 
     def __call__(self, payload: PostgresChangesPayload) -> None:
         event_matches = (
@@ -139,8 +149,8 @@ class PostgresChangesCallback:
             return self.callback(payload)
 
     @property
-    def binding_filter(self) -> dict[str, Optional[str]]:
-        binding: dict[str, Optional[str]] = {"event": self.event}
+    def binding_filter(self) -> dict[str, str | None]:
+        binding: dict[str, str | None] = {"event": self.event}
         if self.schema:
             binding["schema"] = self.schema
         if self.table:
@@ -190,8 +200,8 @@ class RealtimeChannelPresenceConfig(TypedDict):
 
 
 class RealtimeChannelConfig(TypedDict):
-    broadcast: Optional[RealtimeChannelBroadcastConfig]
-    presence: Optional[RealtimeChannelPresenceConfig]
+    broadcast: RealtimeChannelBroadcastConfig | None
+    presence: RealtimeChannelPresenceConfig | None
     private: bool
 
 

@@ -4,13 +4,13 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Concatenate,
     Generic,
     Literal,
     Mapping,
-    Optional,
+    ParamSpec,
     Protocol,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -26,7 +26,6 @@ from httpx import (
     Request as HttpxRequest,
 )
 from pydantic import BaseModel, TypeAdapter
-from typing import Concatenate, ParamSpec
 from yarl import URL
 
 from .types import JSON, JSONParser
@@ -68,7 +67,7 @@ class BytesRequest(EmptyRequest):
 
 @dataclass
 class JSONRequest(EmptyRequest):
-    body: Union[JSON, BaseModel]
+    body: JSON | BaseModel
     exclude_none: bool = True
 
     def to_request(self, base_url: URL) -> HttpxRequest:
@@ -107,7 +106,7 @@ class TextRequest(EmptyRequest):
 
 @dataclass
 class MultipartFormDataRequest(EmptyRequest):
-    files: Mapping[str, tuple[str, Union[IO[bytes], bytes], str]]
+    files: Mapping[str, tuple[str, IO[bytes] | bytes, str]]
     data: dict[str, str]
 
     def to_request(self, base_url: URL) -> HttpxRequest:
@@ -216,20 +215,20 @@ class handle_http_response(Generic[Params, Success]):
 
     @overload
     def __get__(
-        self, obj: HasExecutor[SyncExecutor], objtype: Optional[type] = None
+        self, obj: HasExecutor[SyncExecutor], objtype: type | None = None
     ) -> Callable[Params, Success]: ...
 
     @overload
     def __get__(
-        self, obj: HasExecutor[AsyncExecutor], objtype: Optional[type] = None
+        self, obj: HasExecutor[AsyncExecutor], objtype: type | None = None
     ) -> Callable[Params, Awaitable[Success]]: ...
 
     def __get__(
-        self, obj: HasExecutor[Executor], objtype: Optional[type] = None
-    ) -> Callable[Params, Union[Success, Awaitable[Success]]]:
+        self, obj: HasExecutor[Executor], objtype: type | None = None
+    ) -> Callable[Params, Success | Awaitable[Success]]:
         def bound_method(
             *args: Params.args, **kwargs: Params.kwargs
-        ) -> Union[Success, Awaitable[Success]]:
+        ) -> Success | Awaitable[Success]:
             handler = self.method(obj, *args, **kwargs)
             return obj.executor.communicate(obj.base_url, handler)
 

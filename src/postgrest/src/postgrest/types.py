@@ -16,7 +16,7 @@ else:
 
 # https://docs.pydantic.dev/2.11/concepts/types/#named-recursive-types
 JSON = TypeAliasType(
-    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
+    "JSON", "None | bool | str | int | float | Sequence[JSON] | Mapping[str, JSON]"
 )
 JSONAdapter: TypeAdapter = TypeAdapter(JSON)
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from time import time
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Union
 
 from pydantic import BaseModel, ConfigDict, Field, with_config
 
@@ -72,7 +72,7 @@ class AMREntry(BaseModel):
     identity and at what time.
     """
 
-    method: Union[Literal["password", "otp", "oauth", "mfa/totp"], str]
+    method: Literal["password", "otp", "oauth", "mfa/totp"] | str
     """
     Authentication method name.
     """
@@ -85,7 +85,7 @@ class AMREntry(BaseModel):
 
 class AMREntryDict(TypedDict):
     timestamp: int
-    method: Union[Literal["password", "otp", "oauth", "mfa/totp"], str]
+    method: Literal["password", "otp", "oauth", "mfa/totp"] | str
 
 
 class Options(TypedDict):
@@ -103,14 +103,14 @@ class InviteUserByEmailOptions(TypedDict):
 
 
 class AuthResponse(BaseModel):
-    user: Optional[User] = None
-    session: Optional[Session] = None
+    user: User | None = None
+    session: Session | None = None
 
 
 class AuthOtpResponse(BaseModel):
     user: None = None
     session: None = None
-    message_id: Optional[str] = None
+    message_id: str | None = None
 
 
 class OAuthResponse(BaseModel):
@@ -139,12 +139,12 @@ class UserResponse(BaseModel):
 
 
 class Session(BaseModel):
-    provider_token: Optional[str] = None
+    provider_token: str | None = None
     """
     The oauth provider token. If present, this can be used to make external API
     requests to the oauth provider used.
     """
-    provider_refresh_token: Optional[str] = None
+    provider_refresh_token: str | None = None
     """
     The oauth provider refresh token. If present, this can be used to refresh
     the provider_token via the oauth provider's API.
@@ -160,7 +160,7 @@ class Session(BaseModel):
     The number of seconds until the token expires (since it was issued).
     Returned when a login is confirmed.
     """
-    expires_at: Optional[int] = None
+    expires_at: int | None = None
     """
     A timestamp of when the token will expire. Returned when a login is confirmed.
     """
@@ -182,8 +182,8 @@ class UserIdentity(BaseModel):
     identity_data: dict[str, Any]
     provider: str
     created_at: datetime
-    last_sign_in_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    last_sign_in_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class Factor(BaseModel):
@@ -195,11 +195,11 @@ class Factor(BaseModel):
     """
     ID of the factor.
     """
-    friendly_name: Optional[str] = None
+    friendly_name: str | None = None
     """
     Friendly name of the factor, useful to disambiguate between multiple factors.
     """
-    factor_type: Union[Literal["totp", "phone"], str]
+    factor_type: Literal["totp", "phone"] | str
     """
     Type of factor. Only `totp` supported with this version but may change in
     future versions.
@@ -217,28 +217,28 @@ class User(BaseModel):
     app_metadata: dict[str, Any]
     user_metadata: dict[str, Any]
     aud: str
-    confirmation_sent_at: Optional[datetime] = None
-    recovery_sent_at: Optional[datetime] = None
-    email_change_sent_at: Optional[datetime] = None
-    new_email: Optional[str] = None
-    new_phone: Optional[str] = None
-    invited_at: Optional[datetime] = None
-    action_link: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
+    confirmation_sent_at: datetime | None = None
+    recovery_sent_at: datetime | None = None
+    email_change_sent_at: datetime | None = None
+    new_email: str | None = None
+    new_phone: str | None = None
+    invited_at: datetime | None = None
+    action_link: str | None = None
+    email: str | None = None
+    phone: str | None = None
     created_at: datetime
-    confirmed_at: Optional[datetime] = None
-    email_confirmed_at: Optional[datetime] = None
-    phone_confirmed_at: Optional[datetime] = None
-    last_sign_in_at: Optional[datetime] = None
-    role: Optional[str] = None
-    updated_at: Optional[datetime] = None
-    identities: Optional[list[UserIdentity]] = None
+    confirmed_at: datetime | None = None
+    email_confirmed_at: datetime | None = None
+    phone_confirmed_at: datetime | None = None
+    last_sign_in_at: datetime | None = None
+    role: str | None = None
+    updated_at: datetime | None = None
+    identities: list[UserIdentity] | None = None
     is_anonymous: bool = False
     is_sso_user: bool = False
-    factors: Optional[list[Factor]] = None
-    deleted_at: Optional[str] = None
-    banned_until: Optional[str] = None
+    factors: list[Factor] | None = None
+    deleted_at: str | None = None
+    banned_until: str | None = None
 
 
 class UserAttributes(TypedDict):
@@ -254,7 +254,7 @@ class AdminUserAttributes(UserAttributes, TypedDict):
     app_metadata: NotRequired[Any]
     email_confirm: NotRequired[bool]
     phone_confirm: NotRequired[bool]
-    ban_duration: NotRequired[Union[str, Literal["none"]]]
+    ban_duration: NotRequired[str | Literal["none"]]
     role: NotRequired[str]
     """
     The `role` claim set in the user's access token JWT.
@@ -284,7 +284,7 @@ class Subscription(BaseModel):
     """
     The subscriber UUID. This will be set by the client.
     """
-    callback: Callable[[AuthChangeEvent, Optional[Session]], None]
+    callback: Callable[[AuthChangeEvent, Session | None], None]
     """
     The function to call every time there is an event.
     """
@@ -661,7 +661,7 @@ class AuthMFAEnrollResponse(BaseModel):
     """
     Type of MFA factor. Only `totp` supported for now.
     """
-    totp: Optional[AuthMFAEnrollResponseTotp] = None
+    totp: AuthMFAEnrollResponseTotp | None = None
     """
     TOTP enrollment information.
     """
@@ -670,7 +670,7 @@ class AuthMFAEnrollResponse(BaseModel):
     """
     Friendly name of the factor, useful for distinguishing between factors
     """
-    phone: Optional[str] = None
+    phone: str | None = None
     """
     Phone number of the MFA factor in E.164 format. Used to send messages
     """
@@ -698,7 +698,7 @@ class AuthMFAChallengeResponse(BaseModel):
     """
     Timestamp in UNIX seconds when this challenge will no longer be usable.
     """
-    factor_type: Optional[Literal["totp", "phone"]] = Field(
+    factor_type: Literal["totp", "phone"] | None = Field(
         validation_alias="type", default=None
     )
     """
@@ -725,11 +725,11 @@ AuthenticatorAssuranceLevels = Literal["aal1", "aal2"]
 
 
 class AuthMFAGetAuthenticatorAssuranceLevelResponse(BaseModel):
-    current_level: Optional[AuthenticatorAssuranceLevels] = None
+    current_level: AuthenticatorAssuranceLevels | None = None
     """
     Current AAL level of the session.
     """
-    next_level: Optional[AuthenticatorAssuranceLevels] = None
+    next_level: AuthenticatorAssuranceLevels | None = None
     """
     Next possible AAL level for the session. If the next level is higher
     than the current one, the user should go through MFA.
@@ -812,8 +812,8 @@ class GenerateLinkResponse(BaseModel):
 
 class DecodedJWTDict(TypedDict):
     exp: NotRequired[int]
-    aal: NotRequired[Optional[AuthenticatorAssuranceLevels]]
-    amr: NotRequired[Optional[list[AMREntry]]]
+    aal: NotRequired[AuthenticatorAssuranceLevels | None]
+    amr: NotRequired[list[AMREntry] | None]
 
 
 SignOutScope = Literal["global", "local", "others"]
@@ -836,7 +836,7 @@ class JWTHeader(TypedDict):
 class RequiredClaims(TypedDict):
     iss: str
     sub: str
-    auth: Union[str, list[str]]
+    auth: str | list[str]
     exp: int
     iat: int
     role: str
@@ -850,7 +850,7 @@ class RequiredClaims(TypedDict):
 class JWTPayload(TypedDict, total=False):
     iss: str
     sub: str
-    auth: Union[str, list[str]]
+    auth: str | list[str]
     exp: int
     iat: int
     role: str
@@ -871,8 +871,8 @@ class ClaimsResponse(TypedDict):
 class JWK(TypedDict, total=False):
     kty: Literal["RSA", "EC", "oct"]
     key_ops: list[str]
-    alg: Optional[str]
-    kid: Optional[str]
+    alg: str | None
+    kid: str | None
 
 
 class JWKSet(TypedDict):
@@ -922,7 +922,7 @@ class OAuthClient(BaseModel):
     """Unique client identifier"""
     client_name: str
     """Human-readable name of the client application"""
-    client_secret: Optional[str] = None
+    client_secret: str | None = None
     """Client secret for confidential clients (only returned on registration/regeneration)"""
     client_type: OAuthClientType
     """Type of the client"""
@@ -930,9 +930,9 @@ class OAuthClient(BaseModel):
     """Authentication method for the token endpoint"""
     registration_type: OAuthClientRegistrationType
     """Registration type of the client"""
-    client_uri: Optional[str] = None
+    client_uri: str | None = None
     """URL of the client application's homepage"""
-    logo_uri: Optional[str] = None
+    logo_uri: str | None = None
     """URL of the client application's logo"""
     redirect_uris: list[str]
     """Array of redirect URIs used by the client"""
@@ -940,7 +940,7 @@ class OAuthClient(BaseModel):
     """OAuth grant types the client is authorized to use"""
     response_types: list[OAuthClientResponseType]
     """OAuth response types the client can use"""
-    scope: Optional[str] = None
+    scope: str | None = None
     """Space-separated list of scope values"""
     created_at: str
     """Timestamp when the client was created"""
@@ -956,17 +956,17 @@ class CreateOAuthClientParams(BaseModel):
 
     client_name: str
     """Human-readable name of the OAuth client"""
-    client_uri: Optional[str] = None
+    client_uri: str | None = None
     """URL of the client application's homepage"""
-    logo_uri: Optional[str] = None
+    logo_uri: str | None = None
     """URL of the client application's logo"""
     redirect_uris: list[str]
     """Array of redirect URIs used by the client"""
-    grant_types: Optional[list[OAuthClientGrantType]] = None
+    grant_types: list[OAuthClientGrantType] | None = None
     """OAuth grant types the client is authorized to use (optional, defaults to authorization_code and refresh_token)"""
-    response_types: Optional[list[OAuthClientResponseType]] = None
+    response_types: list[OAuthClientResponseType] | None = None
     """OAuth response types the client can use (optional, defaults to code)"""
-    scope: Optional[str] = None
+    scope: str | None = None
     """Space-separated list of scope values"""
 
 
@@ -976,15 +976,15 @@ class UpdateOAuthClientParams(BaseModel):
     Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
     """
 
-    client_name: Optional[str] = None
+    client_name: str | None = None
     """Human-readable name of the OAuth client"""
-    client_uri: Optional[str] = None
+    client_uri: str | None = None
     """URI of the OAuth client"""
-    logo_uri: Optional[str] = None
+    logo_uri: str | None = None
     """URI of the OAuth client's logo"""
-    redirect_uris: Optional[list[str]] = None
+    redirect_uris: list[str] | None = None
     """Array of allowed redirect URIs"""
-    grant_types: Optional[list[OAuthClientGrantType]] = None
+    grant_types: list[OAuthClientGrantType] | None = None
     """Array of allowed grant types"""
 
 
@@ -994,7 +994,7 @@ class OAuthClientResponse(BaseModel):
     Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
     """
 
-    client: Optional[OAuthClient] = None
+    client: OAuthClient | None = None
 
 
 class Pagination(BaseModel):
@@ -1002,7 +1002,7 @@ class Pagination(BaseModel):
     Pagination information for list responses.
     """
 
-    next_page: Optional[int] = None
+    next_page: int | None = None
     last_page: int = 0
     total: int = 0
 
@@ -1014,8 +1014,8 @@ class OAuthClientListResponse(BaseModel):
     """
 
     clients: list[OAuthClient]
-    aud: Optional[str] = None
-    next_page: Optional[int] = None
+    aud: str | None = None
+    next_page: int | None = None
     last_page: int = 0
     total: int = 0
 
@@ -1025,9 +1025,9 @@ class PageParams(BaseModel):
     Pagination parameters.
     """
 
-    page: Optional[int] = None
+    page: int | None = None
     """Page number"""
-    per_page: Optional[int] = None
+    per_page: int | None = None
     """Number of items per page"""
 
 

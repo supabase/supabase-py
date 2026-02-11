@@ -9,13 +9,13 @@ class APIErrorFromJSON(BaseModel):
     from a json string.
     """
 
-    message: Optional[str]
+    message: str | None
     """The error message."""
-    code: Optional[str]
+    code: str | None
     """The error code."""
-    hint: Optional[str]
+    hint: str | None
     """The error hint."""
-    details: Optional[str]
+    details: str | None
     """The error details."""
 
 
@@ -25,13 +25,13 @@ class APIError(Exception):
     """
 
     _raw_error: dict[str, str]
-    message: Optional[str]
+    message: str | None
     """The error message."""
-    code: Optional[str]
+    code: str | None
     """The error code."""
-    hint: Optional[str]
+    hint: str | None
     """The error hint."""
-    details: Optional[str]
+    details: str | None
     """The error details."""
 
     def __init__(self, error: dict[str, Any]) -> None:

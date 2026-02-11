@@ -1,7 +1,6 @@
-from typing import Any, Literal, Mapping, Optional, Union
+from typing import Any, Literal, Mapping, Optional, TypeAlias, TypedDict, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
-from typing import TypeAlias, TypedDict
 
 from .types import (
     BroadcastPayload,
@@ -23,8 +22,8 @@ class Message(BaseModel):
     event: str
     payload: Mapping[str, Any]
     topic: str
-    ref: Optional[str] = None
-    join_ref: Optional[str] = None
+    ref: str | None = None
+    join_ref: str | None = None
 
 
 class JoinMessage(BaseModel):
@@ -37,13 +36,13 @@ class JoinMessage(BaseModel):
 class PostgresRowChange(BaseModel):
     id: int
     event: RealtimePostgresChangesListenEvent
-    table: Optional[str] = None
-    schema_: Optional[str] = Field(alias="schema", default=None)
-    filter: Optional[str] = None
+    table: str | None = None
+    schema_: str | None = Field(alias="schema", default=None)
+    filter: str | None = None
 
 
 class ReplyPostgresChanges(BaseModel):
-    postgres_changes: Optional[list[PostgresRowChange]] = None
+    postgres_changes: list[PostgresRowChange] | None = None
 
 
 class SuccessReplyMessage(BaseModel):
@@ -59,8 +58,8 @@ class ErrorReplyMessage(BaseModel):
 class ReplyMessage(BaseModel):
     event: Literal[ChannelEvents.reply]
     topic: str
-    payload: Union[SuccessReplyMessage, ErrorReplyMessage]
-    ref: Optional[str]
+    payload: SuccessReplyMessage | ErrorReplyMessage
+    ref: str | None
 
 
 class SuccessSystemPayload(BaseModel):
@@ -80,7 +79,7 @@ class ErrorSystemPayload(BaseModel):
 class SystemMessage(BaseModel):
     event: Literal[ChannelEvents.system]
     topic: str
-    payload: Union[SuccessSystemPayload, ErrorSystemPayload]
+    payload: SuccessSystemPayload | ErrorSystemPayload
     ref: Literal[None]
 
 
@@ -145,32 +144,16 @@ class ChannelErrorMessage(BaseModel):
     event: Literal[ChannelEvents.error]
     topic: str
     payload: dict[str, Any]
-    ref: Optional[str]
+    ref: str | None
 
 
 class ChannelCloseMessage(BaseModel):
     event: Literal[ChannelEvents.close]
     topic: str
     payload: dict[str, Any]
-    ref: Optional[str]
+    ref: str | None
 
 
-ServerMessage: TypeAlias = Union[
-    SystemMessage,
-    ReplyMessage,
-    HeartbeatMessage,
-    BroadcastMessage,
-    PresenceStateMessage,
-    PresenceDiffMessage,
-    PostgresChangesMessage,
-    ChannelErrorMessage,
-    ChannelCloseMessage,
-]
+ServerMessage: TypeAlias = SystemMessage | ReplyMessage | HeartbeatMessage | BroadcastMessage | PresenceStateMessage | PresenceDiffMessage | PostgresChangesMessage | ChannelErrorMessage | ChannelCloseMessage
 ServerMessageAdapter: TypeAdapter[ServerMessage] = TypeAdapter(ServerMessage)
-ClientMessage: TypeAlias = Union[
-    JoinMessage,
-    HeartbeatMessage,
-    BroadcastMessage,
-    PresenceMessage,
-    AccessTokenMessage,
-]
+ClientMessage: TypeAlias = JoinMessage | HeartbeatMessage | BroadcastMessage | PresenceMessage | AccessTokenMessage

@@ -11,7 +11,7 @@ class SyncRealtimeClient:
         url: str,
         token: str,
         auto_reconnect: bool = True,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         hb_interval: int = 30,
         max_retries: int = 5,
         initial_backoff: float = 1.0,
@@ -30,7 +30,7 @@ class SyncRealtimeClient:
         """
 
     def channel(
-        self, topic: str, params: Optional[RealtimeChannelOptions] = None
+        self, topic: str, params: RealtimeChannelOptions | None = None
     ) -> SyncRealtimeChannel:
         """
         :param topic: Initializes a channel and creates a two-way association with the socket
@@ -56,7 +56,7 @@ class SyncRealtimeClient:
         """
         raise NotImplementedError(NOT_IMPLEMENTED_MESSAGE)
 
-    def set_auth(self, token: Optional[str]) -> None:
+    def set_auth(self, token: str | None) -> None:
         """
         Set the authentication token for the connection and update all joined channels.
 

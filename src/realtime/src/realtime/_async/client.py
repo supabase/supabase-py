@@ -44,9 +44,9 @@ class AsyncRealtimeClient:
     def __init__(
         self,
         url: str,
-        token: Optional[str] = None,
+        token: str | None = None,
         auto_reconnect: bool = True,
-        params: Optional[dict[str, Any]] = None,
+        params: dict[str, Any] | None = None,
         hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
         max_retries: int = 5,
         initial_backoff: float = 1.0,
@@ -77,15 +77,15 @@ class AsyncRealtimeClient:
         self.access_token = token
         self.send_buffer: list[Callable] = []
         self.hb_interval = hb_interval
-        self._ws_connection: Optional[ClientConnection] = None
+        self._ws_connection: ClientConnection | None = None
         self.ref = 0
         self.auto_reconnect = auto_reconnect
         self.channels: dict[str, AsyncRealtimeChannel] = {}
         self.max_retries = max_retries
         self.initial_backoff = initial_backoff
         self.timeout = timeout
-        self._listen_task: Optional[asyncio.Task] = None
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._listen_task: asyncio.Task | None = None
+        self._heartbeat_task: asyncio.Task | None = None
 
     @property
     def is_connected(self) -> bool:
@@ -267,7 +267,7 @@ class AsyncRealtimeClient:
                 pass
 
     def channel(
-        self, topic: str, params: Optional[RealtimeChannelOptions] = None
+        self, topic: str, params: RealtimeChannelOptions | None = None
     ) -> AsyncRealtimeChannel:
         """
         Initialize a channel and create a two-way association with the socket.
@@ -311,7 +311,7 @@ class AsyncRealtimeClient:
 
         await self.close()
 
-    async def set_auth(self, token: Optional[str]) -> None:
+    async def set_auth(self, token: str | None) -> None:
         """
         Set the authentication token for the connection and update all joined channels.
 
@@ -334,7 +334,7 @@ class AsyncRealtimeClient:
         self.ref += 1
         return f"{self.ref}"
 
-    async def send(self, message: Union[Message, dict[str, Any]]) -> None:
+    async def send(self, message: Message | dict[str, Any]) -> None:
         """
         Send a message through the WebSocket connection.
 

@@ -9,7 +9,7 @@ class AsyncTimer:
     def __init__(self, callback: Callable, timer_calc: Callable[[int], float]):
         self.callback = callback
         self.timer_calc = timer_calc
-        self.timer: Optional[asyncio.Task] = None
+        self.timer: asyncio.Task | None = None
         self.tries: int = 0
 
     def reset(self):

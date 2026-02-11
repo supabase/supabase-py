@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Optional, Union
 
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import Client as SyncHttpxClient
@@ -38,15 +37,15 @@ class ClientOptions:
     persist_session: bool = True
     """Whether to persist a logged in session to storage."""
 
-    realtime: Optional[RealtimeClientOptions] = None
+    realtime: RealtimeClientOptions | None = None
     """Options passed to the realtime-py instance"""
 
-    postgrest_client_timeout: Union[int, float, Timeout] = (
+    postgrest_client_timeout: int | float | Timeout = (
         DEFAULT_POSTGREST_CLIENT_TIMEOUT
     )
     """Timeout passed to the SyncPostgrestClient instance."""
 
-    storage_client_timeout: Optional[int] = None
+    storage_client_timeout: int | None = None
     """Timeout passed to the SyncStorageClient instance"""
 
     function_client_timeout: int = DEFAULT_FUNCTION_CLIENT_TIMEOUT
@@ -61,23 +60,21 @@ class AsyncClientOptions(ClientOptions):
     storage: AsyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
 
-    httpx_client: Optional[AsyncHttpxClient] = None
+    httpx_client: AsyncHttpxClient | None = None
     """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
 
     def replace(
         self,
-        schema: Optional[str] = None,
-        headers: Optional[dict[str, str]] = None,
-        auto_refresh_token: Optional[bool] = None,
-        persist_session: Optional[bool] = None,
-        storage: Optional[AsyncSupportedStorage] = None,
-        realtime: Optional[RealtimeClientOptions] = None,
-        httpx_client: Optional[AsyncHttpxClient] = None,
-        postgrest_client_timeout: Union[
-            int, float, Timeout
-        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        storage_client_timeout: Optional[int] = None,
-        flow_type: Optional[AuthFlowType] = None,
+        schema: str | None = None,
+        headers: dict[str, str] | None = None,
+        auto_refresh_token: bool | None = None,
+        persist_session: bool | None = None,
+        storage: AsyncSupportedStorage | None = None,
+        realtime: RealtimeClientOptions | None = None,
+        httpx_client: AsyncHttpxClient | None = None,
+        postgrest_client_timeout: int | float | Timeout = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        storage_client_timeout: int | None = None,
+        flow_type: AuthFlowType | None = None,
     ) -> "AsyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = AsyncClientOptions()
@@ -104,23 +101,21 @@ class AsyncClientOptions(ClientOptions):
 class SyncClientOptions(ClientOptions):
     storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
-    httpx_client: Optional[SyncHttpxClient] = None
+    httpx_client: SyncHttpxClient | None = None
     """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
 
     def replace(
         self,
-        schema: Optional[str] = None,
-        headers: Optional[dict[str, str]] = None,
-        auto_refresh_token: Optional[bool] = None,
-        persist_session: Optional[bool] = None,
-        storage: Optional[SyncSupportedStorage] = None,
-        realtime: Optional[RealtimeClientOptions] = None,
-        httpx_client: Optional[SyncHttpxClient] = None,
-        postgrest_client_timeout: Union[
-            int, float, Timeout
-        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        storage_client_timeout: Optional[int] = None,
-        flow_type: Optional[AuthFlowType] = None,
+        schema: str | None = None,
+        headers: dict[str, str] | None = None,
+        auto_refresh_token: bool | None = None,
+        persist_session: bool | None = None,
+        storage: SyncSupportedStorage | None = None,
+        realtime: RealtimeClientOptions | None = None,
+        httpx_client: SyncHttpxClient | None = None,
+        postgrest_client_timeout: int | float | Timeout = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
+        storage_client_timeout: int | None = None,
+        flow_type: AuthFlowType | None = None,
     ) -> "SyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = SyncClientOptions()

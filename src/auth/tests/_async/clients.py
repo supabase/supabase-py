@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from random import random
 from time import time
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 from faker import Faker
 from jwt import encode
@@ -21,9 +21,9 @@ def mock_access_token() -> str:
 
 
 class OptionalCredentials(TypedDict):
-    email: NotRequired[Optional[str]]
-    phone: NotRequired[Optional[str]]
-    password: NotRequired[Optional[str]]
+    email: NotRequired[str | None]
+    phone: NotRequired[str | None]
+    password: NotRequired[str | None]
 
 
 @dataclass
@@ -34,7 +34,7 @@ class Credentials:
 
 
 def mock_user_credentials(
-    options: Optional[OptionalCredentials] = None,
+    options: OptionalCredentials | None = None,
 ) -> Credentials:
     fake = Faker()
     user_options = options or {}
@@ -73,8 +73,8 @@ def mock_app_metadata() -> AppMetadata:
 
 async def create_new_user_with_email(
     *,
-    email: Optional[str] = None,
-    password: Optional[str] = None,
+    email: str | None = None,
+    password: str | None = None,
 ) -> User:
     credentials = mock_user_credentials(
         {
