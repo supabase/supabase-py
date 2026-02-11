@@ -27,7 +27,7 @@ dependencies = [
   "pydantic >=2.11.7",
   "yarl>=1.20.1",
   "pyiceberg>=0.10.0",
-  "supabase_utils==2.27.2",
+  "supabase_utils==2.28.0", # x-release-please-version
   "typing-extensions>=4.15.0",
 ]
 
