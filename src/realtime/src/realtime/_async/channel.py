@@ -240,6 +240,16 @@ class AsyncRealtimeChannel:
         def on_join_push_ok(payload: ReplyPostgresChanges):
             server_postgres_changes = payload.postgres_changes
 
+            if self.postgres_changes_callbacks and not server_postgres_changes:
+                asyncio.create_task(self.unsubscribe())
+                _internal_callback(
+                    RealtimeSubscribeStates.CHANNEL_ERROR,
+                    Exception(
+                        "mismatch between server and client bindings for postgres changes"
+                    ),
+                )
+                return
+
             new_postgres_bindings = []
 
             if server_postgres_changes:
