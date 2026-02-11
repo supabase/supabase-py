@@ -195,9 +195,14 @@ class AsyncRealtimeChannel:
         future = asyncio.get_running_loop().create_future()
 
         def _internal_callback(status: RealtimeSubscribeStates, err: Optional[Exception]):
-            # Call the user-provided callback if it exists
+            # Call the user-provided callback if it exists.
+            # Wrap in try/except so a failing user callback does not
+            # prevent the future from being resolved.
             if callback:
-                callback(status, err)
+                try:
+                    callback(status, err)
+                except Exception:
+                    logger.exception("User subscribe callback raised an exception")
 
             # Resolve/Reject the future based on status
             if not future.done():
@@ -308,7 +313,10 @@ class AsyncRealtimeChannel:
         try:
             await asyncio.wait_for(future, timeout=wait_timeout)
         except asyncio.TimeoutError:
-             # If the python-level await times out before the push timeout callback
+             # If the python-level await times out before the push timeout callback,
+             # clean up the join push to prevent late ACKs from marking the
+             # channel as joined after we have already raised.
+             self.join_push.destroy()
              if not future.done():
                  future.cancel()
              raise TimeoutError(f"Subscribe timed out after {wait_timeout} seconds")
@@ -343,7 +351,7 @@ class AsyncRealtimeChannel:
 
         :param event: The event name to push
         :param payload: The payload to send
-        :param timeout: Optional timeout in milliseconds
+        :param timeout: Optional timeout in seconds
         :return: AsyncPush instance representing the push operation
         :raises: Exception if called before subscribing to the channel
         """
