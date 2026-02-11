@@ -172,14 +172,17 @@ class AsyncRealtimeChannel:
         callback: Optional[
             Callable[[RealtimeSubscribeStates, Optional[Exception]], None]
         ] = None,
+        timeout: Optional[float] = None,
     ) -> AsyncRealtimeChannel:
         """
         Subscribe to the channel. Can only be called once per channel instance.
 
         :param callback: Optional callback function that receives subscription state updates
                         and any errors that occur during subscription
+        :param timeout: Optional timeout in seconds overriding the socket timeout
         :return: The Channel instance for method chaining
         :raises: Exception if called multiple times on the same channel instance
+        :raises: TimeoutError if the subscription times out
         """
         if not self.socket.is_connected:
             await self.socket.connect()
@@ -188,90 +191,139 @@ class AsyncRealtimeChannel:
             raise Exception(
                 "Tried to subscribe multiple times. 'subscribe' can only be called a single time per channel instance"
             )
-        else:
-            config: RealtimeChannelConfig = self.params["config"]
-            broadcast = config.get("broadcast")
-            presence = config.get("presence") or RealtimeChannelPresenceConfig(
-                key="", enabled=False
-            )
-            private = config.get("private", False)
 
-            presence_enabled = self.presence._has_callback_attached or presence.get(
-                "enabled", False
-            )
-            presence["enabled"] = presence_enabled
+        future = asyncio.get_running_loop().create_future()
 
-            config_payload: Dict[str, Any] = {
-                "config": {
-                    "broadcast": broadcast,
-                    "presence": presence,
-                    "private": private,
-                    "postgres_changes": [
-                        c.binding_filter for c in self.postgres_changes_callbacks
-                    ],
-                }
+        def _internal_callback(status: RealtimeSubscribeStates, err: Optional[Exception]):
+            # Call the user-provided callback if it exists.
+            # Wrap in try/except so a failing user callback does not
+            # prevent the future from being resolved.
+            if callback:
+                try:
+                    callback(status, err)
+                except Exception:
+                    logger.exception("User subscribe callback raised an exception")
+
+            # Resolve/Reject the future based on status
+            if not future.done():
+                if status == RealtimeSubscribeStates.SUBSCRIBED:
+                    future.set_result(self)
+                elif status == RealtimeSubscribeStates.CHANNEL_ERROR:
+                    future.set_exception(err or Exception("Channel error"))
+                elif status == RealtimeSubscribeStates.TIMED_OUT:
+                    future.set_exception(TimeoutError("Subscription timed out"))
+
+        config: RealtimeChannelConfig = self.params["config"]
+        broadcast = config.get("broadcast")
+        presence = config.get("presence") or RealtimeChannelPresenceConfig(
+            key="", enabled=False
+        )
+        private = config.get("private", False)
+
+        presence_enabled = self.presence._has_callback_attached or presence.get(
+            "enabled", False
+        )
+        presence["enabled"] = presence_enabled
+
+        config_payload: Dict[str, Any] = {
+            "config": {
+                "broadcast": broadcast,
+                "presence": presence,
+                "private": private,
+                "postgres_changes": [
+                    c.binding_filter for c in self.postgres_changes_callbacks
+                ],
             }
+        }
 
-            if self.socket.access_token:
-                config_payload["access_token"] = self.socket.access_token
+        if self.socket.access_token:
+            config_payload["access_token"] = self.socket.access_token
 
-            self.join_push.update_payload(config_payload)
-            self._joined_once = True
+        self.join_push.update_payload(config_payload)
+        self._joined_once = True
 
-            def on_join_push_ok(payload: ReplyPostgresChanges):
-                server_postgres_changes = payload.postgres_changes
+        def on_join_push_ok(payload: ReplyPostgresChanges):
+            server_postgres_changes = payload.postgres_changes
 
-                new_postgres_bindings = []
-
-                if server_postgres_changes:
-                    for i, postgres_callback in enumerate(
-                        self.postgres_changes_callbacks
-                    ):
-                        server_binding: Optional[PostgresRowChange] = (
-                            server_postgres_changes[i]
-                            if i < len(server_postgres_changes)
-                            else None
-                        )
-                        logger.debug(f"{server_binding}, {postgres_callback}")
-
-                        if (
-                            server_binding
-                            and server_binding.event == postgres_callback.event
-                            and server_binding.schema_ == postgres_callback.schema
-                            and server_binding.table == postgres_callback.table
-                            and server_binding.filter == postgres_callback.filter
-                        ):
-                            postgres_callback.id = server_binding.id
-                            new_postgres_bindings.append(postgres_callback)
-                        else:
-                            asyncio.create_task(self.unsubscribe())
-                            callback and callback(
-                                RealtimeSubscribeStates.CHANNEL_ERROR,
-                                Exception(
-                                    "mismatch between server and client bindings for postgres changes"
-                                ),
-                            )
-                            return
-
-                self.postgres_changes_callbacks = new_postgres_bindings
-                callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
-
-            def on_join_push_error(payload: Dict[str, Any]):
-                callback and callback(
+            if self.postgres_changes_callbacks and (
+                not server_postgres_changes
+                or len(server_postgres_changes)
+                != len(self.postgres_changes_callbacks)
+            ):
+                asyncio.create_task(self.unsubscribe())
+                _internal_callback(
                     RealtimeSubscribeStates.CHANNEL_ERROR,
-                    Exception(json.dumps(payload)),
+                    Exception(
+                        "mismatch between server and client bindings for postgres changes"
+                    ),
                 )
+                return
 
-            def on_join_push_timeout(*args):
-                callback and callback(RealtimeSubscribeStates.TIMED_OUT, None)
+            new_postgres_bindings = []
 
-            self.join_push.receive(
-                RealtimeAcknowledgementStatus.Ok, on_join_push_ok
-            ).receive(RealtimeAcknowledgementStatus.Error, on_join_push_error).receive(
-                RealtimeAcknowledgementStatus.Timeout, on_join_push_timeout
+            if server_postgres_changes:
+                for i, postgres_callback in enumerate(
+                    self.postgres_changes_callbacks
+                ):
+                    server_binding: Optional[PostgresRowChange] = (
+                        server_postgres_changes[i]
+                        if i < len(server_postgres_changes)
+                        else None
+                    )
+                    logger.debug(f"{server_binding}, {postgres_callback}")
+
+                    if (
+                        server_binding
+                        and server_binding.event == postgres_callback.event
+                        and server_binding.schema_ == postgres_callback.schema
+                        and server_binding.table == postgres_callback.table
+                        and server_binding.filter == postgres_callback.filter
+                    ):
+                        postgres_callback.id = server_binding.id
+                        new_postgres_bindings.append(postgres_callback)
+                    else:
+                        asyncio.create_task(self.unsubscribe())
+                        _internal_callback(
+                            RealtimeSubscribeStates.CHANNEL_ERROR,
+                            Exception(
+                                "mismatch between server and client bindings for postgres changes"
+                            ),
+                        )
+                        return
+
+            self.postgres_changes_callbacks = new_postgres_bindings
+            _internal_callback(RealtimeSubscribeStates.SUBSCRIBED, None)
+
+        def on_join_push_error(payload: Dict[str, Any]):
+            _internal_callback(
+                RealtimeSubscribeStates.CHANNEL_ERROR,
+                Exception(json.dumps(payload)),
             )
 
-            await self._rejoin()
+        def on_join_push_timeout(*args):
+            _internal_callback(RealtimeSubscribeStates.TIMED_OUT, None)
+
+        self.join_push.receive(
+            RealtimeAcknowledgementStatus.Ok, on_join_push_ok
+        ).receive(RealtimeAcknowledgementStatus.Error, on_join_push_error).receive(
+            RealtimeAcknowledgementStatus.Timeout, on_join_push_timeout
+        )
+
+        await self._rejoin()
+        
+        # Wait for the future to resolve or timeout
+        # Use the provided timeout or fall back to the socket/push timeout
+        wait_timeout = timeout if timeout is not None else self.timeout
+        try:
+            await asyncio.wait_for(future, timeout=wait_timeout)
+        except asyncio.TimeoutError:
+             # If the python-level await times out before the push timeout callback,
+             # clean up the join push to prevent late ACKs from marking the
+             # channel as joined after we have already raised.
+             self.join_push.destroy()
+             if not future.done():
+                 future.cancel()
+             raise TimeoutError(f"Subscribe timed out after {wait_timeout} seconds")
 
         return self
 
@@ -303,7 +355,7 @@ class AsyncRealtimeChannel:
 
         :param event: The event name to push
         :param payload: The payload to send
-        :param timeout: Optional timeout in milliseconds
+        :param timeout: Optional timeout in seconds
         :return: AsyncPush instance representing the push operation
         :raises: Exception if called before subscribing to the channel
         """
