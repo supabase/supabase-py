@@ -282,3 +282,14 @@ def test_httpx_client_base_url_isolation() -> None:
     assert str(postgrest.base_url).rstrip("/").endswith("/rest/v1"), (
         "PostgREST base_url was mutated after accessing functions"
     )
+
+
+def test_storage_base_url_has_trailing_slash() -> None:
+    """Regression test for https://github.com/supabase/supabase-py/issues/1396."""
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = create_client(url, key)
+    assert str(client.storage._base_url).endswith("/storage/v1/"), (
+        "Storage base_url should include a trailing slash"
+    )
