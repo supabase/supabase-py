@@ -1,20 +1,19 @@
 import platform
 from typing import Dict, Generic, Literal, overload
 
-from httpx import AsyncClient, Client, Headers, QueryParams, Response
+from httpx import AsyncClient, Client, Headers, HTTPStatusError, QueryParams, Response
 from supabase_utils.http import (
-    AsyncExecutor,
+    AsyncHttpIO,
     BytesRequest,
     EmptyRequest,
-    Executor,
+    HttpIO,
+    HttpMethod,
     HTTPRequestMethod,
     JSONRequest,
-    ResponseCases,
-    ResponseHandler,
-    SyncExecutor,
+    SyncHttpIO,
     TextRequest,
     ToHttpxRequest,
-    handle_http_response,
+    handle_http_io,
 )
 from supabase_utils.types import JSON
 from yarl import URL
@@ -27,8 +26,8 @@ from .utils import (
 from .version import __version__
 
 
-class FunctionsClient(Generic[Executor]):
-    def __init__(self, url: URL, headers: Dict[str, str], executor: Executor) -> None:
+class FunctionsClient(Generic[HttpIO]):
+    def __init__(self, url: URL, headers: Dict[str, str], executor: HttpIO) -> None:
         if not (url.scheme == "http" or url.scheme == "https"):
             raise ValueError("url must be a valid HTTP URL string")
         self.headers = {
@@ -40,7 +39,7 @@ class FunctionsClient(Generic[Executor]):
             **headers,
         }
 
-        self.executor: Executor = executor
+        self.executor: HttpIO = executor
         self.base_url = url
 
     def set_auth(self, token: str) -> None:
@@ -106,7 +105,7 @@ class FunctionsClient(Generic[Executor]):
                 method=method, path=path, headers=new_headers, query_params=query_params
             )
 
-    @handle_http_response
+    @handle_http_io
     def invoke(
         self,
         function_name: str,
@@ -114,7 +113,7 @@ class FunctionsClient(Generic[Executor]):
         region: FunctionRegion | None = None,
         headers: Dict[str, str] | None = None,
         method: HTTPRequestMethod = "POST",
-    ) -> ResponseHandler[Response]:
+    ) -> HttpMethod[Response]:
         """Invokes a function
 
         Parameters
@@ -125,17 +124,17 @@ class FunctionsClient(Generic[Executor]):
             `body`: the body of the request
             `responseType`: how the response should be parsed. The default is `json`
         """
-        request = self._invoke_options_to_request(
+        response = yield self._invoke_options_to_request(
             function_name, body, region, headers, method
         )
-        return ResponseCases(
-            request=request,
-            on_success=lambda response: response,
-            on_failure=on_error_response,
-        )
+        try:
+            response.raise_for_status()
+            return response
+        except HTTPStatusError:
+            raise on_error_response(response)
 
 
-class AsyncFunctionsClient(FunctionsClient[AsyncExecutor]):
+class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
     def __init__(
         self,
         url: str,
@@ -155,12 +154,12 @@ class AsyncFunctionsClient(FunctionsClient[AsyncExecutor]):
         FunctionsClient.__init__(
             self,
             url=URL(url),
-            executor=AsyncExecutor(session=http_client),
+            executor=AsyncHttpIO(session=http_client),
             headers=headers,
         )
 
 
-class SyncFunctionsClient(FunctionsClient[SyncExecutor]):
+class SyncFunctionsClient(FunctionsClient[SyncHttpIO]):
     def __init__(
         self,
         url: str,
@@ -180,7 +179,7 @@ class SyncFunctionsClient(FunctionsClient[SyncExecutor]):
         FunctionsClient.__init__(
             self,
             url=URL(url),
-            executor=SyncExecutor(session=http_client),
+            executor=SyncHttpIO(session=http_client),
             headers=headers,
         )
 

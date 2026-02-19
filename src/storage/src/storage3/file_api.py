@@ -10,20 +10,16 @@ from httpx import Headers, QueryParams, Response
 from pydantic import TypeAdapter
 from supabase_utils.http import (
     EmptyRequest,
-    Executor,
-    FromHttpxResponse,
+    HttpIO,
+    HttpMethod,
     JSONRequest,
     MultipartFormDataRequest,
-    ResponseCases,
-    ResponseHandler,
-    handle_http_response,
-    validate_adapter,
-    validate_model,
+    handle_http_io,
 )
 from supabase_utils.types import JSONParser
 from yarl import URL
 
-from .exceptions import parse_api_error
+from .exceptions import parse_api_error, validate_adapter, validate_model
 from .types import (
     CreateSignedUrlBody,
     CreateSignedUrlResponse,
@@ -55,16 +51,22 @@ def relative_path_to_parts(path: str) -> Tuple[str, ...]:
     return url.parts
 
 
+FileObjectsAdapter = TypeAdapter(list[FileObject])
+ListFileObjectsAdapter = TypeAdapter(list[ListFileObject])
+
+
 @dataclass
-class StorageFileApiClient(Generic[Executor]):
+class StorageFileApiClient(Generic[HttpIO]):
     """Functions needed to access the file API."""
 
     id: str
     base_url: URL
-    executor: Executor
+    executor: HttpIO
     _headers: Headers
 
     def _parse_signed_url_response(self, response: Response) -> SignedUploadURL:
+        if not response.is_success:
+            raise parse_api_error(response)
         signed_url_upload = SignedUploadUrlResponse.model_validate_json(
             response.content
         )
@@ -76,12 +78,12 @@ class StorageFileApiClient(Generic[Executor]):
             token=signed_url_upload.token,
         )
 
-    @handle_http_response
+    @handle_http_io
     def create_signed_upload_url(
         self,
         path: str,
         upsert: str | None = None,
-    ) -> ResponseHandler[SignedUploadURL]:
+    ) -> HttpMethod[SignedUploadURL]:
         """
         Creates a signed upload URL.
 
@@ -97,19 +99,15 @@ class StorageFileApiClient(Generic[Executor]):
             headers["x-upsert"] = upsert
 
         path_parts: Tuple[str, ...] = relative_path_to_parts(path)
-        request = EmptyRequest(
+        response = yield EmptyRequest(
             method="POST",
             path=["object", "upload", "sign", self.id, *path_parts],
             headers=headers,
         )
 
-        return ResponseCases(
-            request=request,
-            on_success=self._parse_signed_url_response,
-            on_failure=parse_api_error,
-        )
+        return self._parse_signed_url_response(response)
 
-    @handle_http_response
+    @handle_http_io
     def upload_to_signed_url(
         self,
         path: str,
@@ -119,7 +117,7 @@ class StorageFileApiClient(Generic[Executor]):
         cache_control: str = "3600",
         metadata: Dict[str, Any] | None = None,
         headers: Dict[str, str] | None = None,
-    ) -> ResponseHandler[UploadResponse]:
+    ) -> HttpMethod[UploadResponse]:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
 
@@ -153,7 +151,7 @@ class StorageFileApiClient(Generic[Executor]):
             with open(file, "rb") as f:
                 file_contents = f.read()
         files = {"file": (filename, file_contents, content_type)}
-        request = MultipartFormDataRequest(
+        response = yield MultipartFormDataRequest(
             method="PUT",
             path=final_url,
             files=files,
@@ -162,32 +160,27 @@ class StorageFileApiClient(Generic[Executor]):
             query_params=query_params,
         )
 
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(UploadResponse),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, UploadResponse)
 
     def _make_signed_url(self, signed_url: str, download_query: QueryParams) -> str:
         url = URL(signed_url[1:])  # ignore starting slash
         signed = self.base_url.join(url).extend_query(download_query)
         return str(signed)
 
-    def _parse_signed_url(self, download_query: QueryParams) -> FromHttpxResponse[str]:
-        def from_response(response: Response) -> str:
-            signed_url_obj = SignedUrlJsonResponse.model_validate_json(response.content)
-            return self._make_signed_url(signed_url_obj.signedURL, download_query)
+    def _parse_signed_url(self, response: Response, download_query: QueryParams) -> str:
+        if not response.is_success:
+            raise parse_api_error(response)
+        signed_url_obj = SignedUrlJsonResponse.model_validate_json(response.content)
+        return self._make_signed_url(signed_url_obj.signedURL, download_query)
 
-        return from_response
-
-    @handle_http_response
+    @handle_http_io
     def create_signed_url(
         self,
         path: str,
         expires_in: int,
         download: str | bool | None = None,
         transform: TransformOptions | None = None,
-    ) -> ResponseHandler[str]:
+    ) -> HttpMethod[str]:
         """
         Parameters
         ----------
@@ -210,7 +203,7 @@ class StorageFileApiClient(Generic[Executor]):
             download=download,
             transform=transform,
         )
-        request = JSONRequest(
+        response = yield JSONRequest(
             method="POST",
             path=["object", "sign", self.id, *path_parts],
             headers=self._headers,
@@ -218,38 +211,31 @@ class StorageFileApiClient(Generic[Executor]):
             exclude_none=True,
         )
 
-        return ResponseCases(
-            request=request,
-            on_success=self._parse_signed_url(download_query),
-            on_failure=parse_api_error,
-        )
+        return self._parse_signed_url(response, download_query)
 
     def _parse_signed_urls(
-        self, download_query: QueryParams
-    ) -> FromHttpxResponse[List[CreateSignedUrlResponse]]:
-        def from_response(response: Response) -> List[CreateSignedUrlResponse]:
-            data = SignedUrlsJsonResponse.validate_json(response.content)
-            signed_urls = []
-            for item in data:
-                # Prepare URL
-                url = self._make_signed_url(item.signedURL, download_query)
-                signed_item = CreateSignedUrlResponse(
-                    error=item.error,
-                    path=item.path,
-                    signed_url=url,
-                )
-                signed_urls.append(signed_item)
-            return signed_urls
+        self, response: Response, download_query: QueryParams
+    ) -> List[CreateSignedUrlResponse]:
+        data = SignedUrlsJsonResponse.validate_json(response.content)
+        signed_urls = []
+        for item in data:
+            # Prepare URL
+            url = self._make_signed_url(item.signedURL, download_query)
+            signed_item = CreateSignedUrlResponse(
+                error=item.error,
+                path=item.path,
+                signed_url=url,
+            )
+            signed_urls.append(signed_item)
+        return signed_urls
 
-        return from_response
-
-    @handle_http_response
+    @handle_http_io
     def create_signed_urls(
         self,
         paths: List[str],
         expires_in: int,
         download: bool | str | None = None,
-    ) -> ResponseHandler[List[CreateSignedUrlResponse]]:
+    ) -> HttpMethod[List[CreateSignedUrlResponse]]:
         """
         Parameters
         ----------
@@ -271,18 +257,13 @@ class StorageFileApiClient(Generic[Executor]):
             expiresIn=expires_in,
             paths=paths,
         )
-
-        request = JSONRequest(
+        response = yield JSONRequest(
             method="POST",
             path=["object", "sign", self.id],
             body=body,
             headers=self._headers,
         )
-        return ResponseCases(
-            request=request,
-            on_success=self._parse_signed_urls(download_query),
-            on_failure=parse_api_error,
-        )
+        return self._parse_signed_urls(response, download_query)
 
     def get_public_url(
         self,
@@ -313,8 +294,8 @@ class StorageFileApiClient(Generic[Executor]):
         )
         return str(url)
 
-    @handle_http_response
-    def move(self, from_path: str, to_path: str) -> ResponseHandler[MessageResponse]:
+    @handle_http_io
+    def move(self, from_path: str, to_path: str) -> HttpMethod[MessageResponse]:
         """
         Moves an existing file, optionally renaming it at the same time.
 
@@ -325,7 +306,7 @@ class StorageFileApiClient(Generic[Executor]):
         to_path
             The new file path, including the new file name. For example `folder/image-copy.png`.
         """
-        request = JSONRequest(
+        response = yield JSONRequest(
             method="POST",
             path=["object", "move"],
             body={
@@ -335,14 +316,10 @@ class StorageFileApiClient(Generic[Executor]):
             },
             headers=self._headers,
         )
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(MessageResponse),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, MessageResponse)
 
-    @handle_http_response
-    def copy(self, from_path: str, to_path: str) -> ResponseHandler[UploadResponse]:
+    @handle_http_io
+    def copy(self, from_path: str, to_path: str) -> HttpMethod[UploadResponse]:
         """
         Copies an existing file to a new path in the same bucket.
 
@@ -353,7 +330,7 @@ class StorageFileApiClient(Generic[Executor]):
         to_path
             The new file path, including the new file name. For example `folder/image-copy.png`.
         """
-        request = JSONRequest(
+        response = yield JSONRequest(
             method="POST",
             path=["object", "copy"],
             body={
@@ -364,14 +341,10 @@ class StorageFileApiClient(Generic[Executor]):
             headers=self._headers,
         )
 
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(UploadResponse),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, UploadResponse)
 
-    @handle_http_response
-    def remove(self, paths: list[str]) -> ResponseHandler[list[FileObject]]:
+    @handle_http_io
+    def remove(self, paths: list[str]) -> HttpMethod[list[FileObject]]:
         """
         Deletes files within the same bucket
 
@@ -380,23 +353,19 @@ class StorageFileApiClient(Generic[Executor]):
         paths
             An array or list of files to be deletes, including the path and file name. For example [`folder/image.png`].
         """
-        request = JSONRequest(
+        response = yield JSONRequest(
             method="DELETE",
             path=["object", self.id],
             body={"prefixes": paths},
             headers=self._headers,
         )
-        return ResponseCases(
-            request=request,
-            on_success=validate_adapter(TypeAdapter(list[FileObject])),
-            on_failure=parse_api_error,
-        )
+        return validate_adapter(response, FileObjectsAdapter)
 
-    @handle_http_response
+    @handle_http_io
     def info(
         self,
         path: str,
-    ) -> ResponseHandler[FileObject]:
+    ) -> HttpMethod[FileObject]:
         """
         Lists info for a particular file.
 
@@ -406,22 +375,18 @@ class StorageFileApiClient(Generic[Executor]):
             The path to the file.
         """
         path_parts: Tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
-        request = EmptyRequest(
+        response = yield EmptyRequest(
             method="GET",
             path=["object", "info", self.id, *path_parts],
             headers=self._headers,
         )
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(FileObject),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, FileObject)
 
-    @handle_http_response
+    @handle_http_io
     def exists(
         self,
         path: str,
-    ) -> ResponseHandler[bool]:
+    ) -> HttpMethod[bool]:
         """
         Returns True if the file exists, False otherwise.
 
@@ -430,27 +395,20 @@ class StorageFileApiClient(Generic[Executor]):
         path
             The path to the file.
         """
-
-        def return_false_on_400(response: Response) -> bool:
-            if response.is_success:
-                return True
-            elif 400 <= response.status_code <= 401:
-                return False
-            else:
-                raise parse_api_error(response)
-
         path_parts: Tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
-        request = EmptyRequest(
+        response = yield EmptyRequest(
             method="HEAD",
             path=["object", self.id, *path_parts],
             headers=self._headers,
         )
-        return ResponseHandler(
-            request=request,
-            callback=return_false_on_400,
-        )
+        if response.is_success:
+            return True
+        elif 400 <= response.status_code <= 401:
+            return False
+        else:
+            raise parse_api_error(response)
 
-    @handle_http_response
+    @handle_http_io
     def list(
         self,
         path: str | None = None,
@@ -458,7 +416,7 @@ class StorageFileApiClient(Generic[Executor]):
         offset: int = 0,
         search: str | None = None,
         sortBy: SortByType | None = None,
-    ) -> ResponseHandler[List[ListFileObject]]:
+    ) -> HttpMethod[List[ListFileObject]]:
         """
         Lists all the files within a bucket.
 
@@ -476,19 +434,15 @@ class StorageFileApiClient(Generic[Executor]):
             sortBy=sortBy or SortByType(),
             search=search,
         )
-        request = JSONRequest(
+        response = yield JSONRequest(
             method="POST",
             path=["object", "list", self.id],
             body=body,
             headers=self._headers,
         )
-        return ResponseCases(
-            request=request,
-            on_success=validate_adapter(TypeAdapter(List[ListFileObject])),
-            on_failure=parse_api_error,
-        )
+        return validate_adapter(response, ListFileObjectsAdapter)
 
-    @handle_http_response
+    @handle_http_io
     def list_v2(
         self,
         limit: int | None = None,
@@ -496,7 +450,7 @@ class StorageFileApiClient(Generic[Executor]):
         cursor: str | None = None,
         with_delimiter: bool | None = None,
         sort_by: SortByV2 | None = None,
-    ) -> ResponseHandler[SearchV2Result]:
+    ) -> HttpMethod[SearchV2Result]:
         body = SearchV2Body(
             limit=limit,
             prefix=prefix,
@@ -504,26 +458,22 @@ class StorageFileApiClient(Generic[Executor]):
             with_delimiter=with_delimiter,
             sortBy=sort_by,
         )
-        request = JSONRequest(
+        response = yield JSONRequest(
             method="POST",
             path=["object", "list-v2", self.id],
             body=body,
             exclude_none=True,
             headers=self._headers,
         )
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(SearchV2Result),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, SearchV2Result)
 
-    @handle_http_response
+    @handle_http_io
     def download(
         self,
         path: str,
         transform: TransformOptions | None = None,
         query_params: Dict[str, str] | None = None,
-    ) -> ResponseHandler[bytes]:
+    ) -> HttpMethod[bytes]:
         """
         Downloads a file.
 
@@ -538,18 +488,15 @@ class StorageFileApiClient(Generic[Executor]):
             params = params.merge(transform_to_dict(transform))
             render_path = ["render", "image", "authenticated"]
         path_parts: Tuple[str, ...] = relative_path_to_parts(path)
-        request = EmptyRequest(
+        response = yield EmptyRequest(
             method="GET",
             path=[*render_path, self.id, *path_parts],
             query_params=params,
             headers=self._headers,
         )
-
-        return ResponseCases(
-            request=request,
-            on_success=lambda response: response.content,
-            on_failure=parse_api_error,
-        )
+        if not response.is_success:
+            raise parse_api_error(response)
+        return response.content
 
     def _upload_or_update(
         self,
@@ -561,7 +508,7 @@ class StorageFileApiClient(Generic[Executor]):
         upsert: str,
         metadata: Dict[str, Any] | None,
         headers: Dict[str, str] | None,
-    ) -> ResponseHandler[UploadResponse]:
+    ) -> HttpMethod[UploadResponse]:
         """
         Uploads a file to an existing bucket.
 
@@ -607,7 +554,7 @@ class StorageFileApiClient(Generic[Executor]):
                 file_contents = f.read()
 
         files = {"file": (filename, file_contents, content_type)}
-        request = MultipartFormDataRequest(
+        response = yield MultipartFormDataRequest(
             method=method,
             path=["object", self.id, *path],
             files=files,
@@ -615,13 +562,9 @@ class StorageFileApiClient(Generic[Executor]):
             data=data,
         )
 
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(UploadResponse),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, UploadResponse)
 
-    @handle_http_response
+    @handle_http_io
     def upload(
         self,
         path: str,
@@ -631,7 +574,7 @@ class StorageFileApiClient(Generic[Executor]):
         upsert: str = "false",
         metadata: Dict[str, Any] | None = None,
         headers: Dict[str, str] | None = None,
-    ) -> ResponseHandler[UploadResponse]:
+    ) -> HttpMethod[UploadResponse]:
         """
         Uploads a file to an existing bucket.
 
@@ -657,7 +600,7 @@ class StorageFileApiClient(Generic[Executor]):
             headers=headers,
         )
 
-    @handle_http_response
+    @handle_http_io
     def update(
         self,
         path: str,
@@ -667,7 +610,7 @@ class StorageFileApiClient(Generic[Executor]):
         upsert: str = "false",
         metadata: Dict[str, Any] | None = None,
         headers: Dict[str, str] | None = None,
-    ) -> ResponseHandler[UploadResponse]:
+    ) -> HttpMethod[UploadResponse]:
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(
             method="PUT",

@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient as HttpxClient
 from httpx import HTTPStatusError, Response
-from supabase_utils.http import AsyncExecutor
+from supabase_utils.http import AsyncHttpIO
 
 from storage3 import AsyncStorageClient, StorageFileApiClient
 from storage3.exceptions import StorageApiError, StorageException
@@ -102,7 +102,7 @@ async def public_bucket(
 @pytest.fixture
 def storage_file_client(
     storage: AsyncStorageClient, bucket: str
-) -> Generator[StorageFileApiClient[AsyncExecutor]]:
+) -> Generator[StorageFileApiClient[AsyncHttpIO]]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(bucket)
 
@@ -110,7 +110,7 @@ def storage_file_client(
 @pytest.fixture
 def storage_file_client_public(
     storage: AsyncStorageClient, public_bucket: str
-) -> Generator[StorageFileApiClient[AsyncExecutor]]:
+) -> Generator[StorageFileApiClient[AsyncHttpIO]]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(public_bucket)
 
@@ -268,7 +268,7 @@ def multi_file(tmp_path: Path, uuid_factory: Callable[[], str]) -> list[FileForT
 
 
 async def test_client_upload(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket"""
     await storage_file_client.upload(
@@ -285,7 +285,7 @@ async def test_client_upload(
 
 
 async def test_client_upload_with_query(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket, even with query parameters"""
     await storage_file_client.upload(
@@ -304,7 +304,7 @@ async def test_client_upload_with_query(
 
 
 async def test_client_download_with_query_doesnt_lose_params(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure query params aren't lost"""
     from yarl import URL
@@ -326,7 +326,7 @@ async def test_client_download_with_query_doesnt_lose_params(
 
 
 async def test_client_update(
-    storage_file_client: StorageFileApiClient[AsyncExecutor],
+    storage_file_client: StorageFileApiClient[AsyncHttpIO],
     two_files: list[FileForTesting],
 ) -> None:
     """Ensure we can upload files to a bucket"""
@@ -355,7 +355,7 @@ async def test_client_update(
     "path", ["foobar.txt", "example/nested.jpg", "/leading/slash.png"]
 )
 async def test_client_create_signed_upload_url(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], path: str
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], path: str
 ) -> None:
     """Ensure we can create signed URLs to upload files to a bucket"""
     data = await storage_file_client.create_signed_upload_url(path)
@@ -366,7 +366,7 @@ async def test_client_create_signed_upload_url(
 
 
 async def test_client_upload_to_signed_url(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload to a signed URL with various options"""
     # Test with content-type
@@ -408,7 +408,7 @@ async def test_client_upload_to_signed_url(
 
 
 async def test_client_create_signed_url(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can create and use signed URLs with various options"""
     await storage_file_client.upload(
@@ -452,7 +452,7 @@ async def test_client_create_signed_url(
 
 
 async def test_client_create_signed_urls(
-    storage_file_client: StorageFileApiClient[AsyncExecutor],
+    storage_file_client: StorageFileApiClient[AsyncHttpIO],
     multi_file: list[FileForTesting],
 ) -> None:
     """Ensure we can create signed urls for files in a bucket"""
@@ -473,7 +473,7 @@ async def test_client_create_signed_urls(
 
 
 async def test_client_get_public_url(
-    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    storage_file_client_public: StorageFileApiClient[AsyncHttpIO],
     file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket with various options"""
@@ -512,7 +512,7 @@ async def test_client_get_public_url(
 
 
 async def test_client_upload_with_custom_metadata(
-    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    storage_file_client_public: StorageFileApiClient[AsyncHttpIO],
     file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
@@ -533,7 +533,7 @@ async def test_client_upload_with_custom_metadata(
 
 
 async def test_client_info(
-    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    storage_file_client_public: StorageFileApiClient[AsyncHttpIO],
     file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
@@ -547,7 +547,7 @@ async def test_client_info(
 
 
 async def test_client_info_with_error(
-    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    storage_file_client_public: StorageFileApiClient[AsyncHttpIO],
     file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
@@ -576,7 +576,7 @@ async def test_client_info_with_error(
 
 
 async def test_client_exists(
-    storage_file_client_public: StorageFileApiClient[AsyncExecutor],
+    storage_file_client_public: StorageFileApiClient[AsyncHttpIO],
     file: FileForTesting,
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
@@ -590,7 +590,7 @@ async def test_client_exists(
 
 
 async def test_client_copy(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can copy files within a bucket"""
     # Upload original file
@@ -615,7 +615,7 @@ async def test_client_copy(
 
 
 async def test_client_move(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can move files within a bucket"""
     # Upload original file
@@ -642,7 +642,7 @@ async def test_client_move(
 
 
 async def test_client_remove(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can remove files from a bucket"""
     # Upload file
@@ -661,7 +661,7 @@ async def test_client_remove(
 
 
 async def test_client_remove_multiple(
-    storage_file_client: StorageFileApiClient[AsyncExecutor],
+    storage_file_client: StorageFileApiClient[AsyncHttpIO],
     multi_file: list[FileForTesting],
 ) -> None:
     """Ensure we can remove multiple files from a bucket"""
@@ -686,7 +686,7 @@ async def test_client_remove_multiple(
 
 
 async def test_client_create_signed_urls_with_download(
-    storage_file_client: StorageFileApiClient[AsyncExecutor],
+    storage_file_client: StorageFileApiClient[AsyncHttpIO],
     multi_file: list[FileForTesting],
 ) -> None:
     """Ensure we can create signed urls with download options for files in a bucket"""
@@ -707,7 +707,7 @@ async def test_client_create_signed_urls_with_download(
 
 
 async def test_client_list_v2(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket"""
     await storage_file_client.upload(
@@ -725,7 +725,7 @@ async def test_client_list_v2(
 
 
 async def test_client_list_v2_folder(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket"""
     await storage_file_client.upload(
@@ -742,7 +742,7 @@ async def test_client_list_v2_folder(
 
 
 async def test_client_list_v2_paginated(
-    storage_file_client: StorageFileApiClient[AsyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket"""
     suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]

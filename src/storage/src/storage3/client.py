@@ -7,21 +7,18 @@ from typing import Generic
 from httpx import AsyncClient, Client, Headers
 from pydantic import TypeAdapter
 from supabase_utils.http import (
-    AsyncExecutor,
+    AsyncHttpIO,
     EmptyRequest,
-    Executor,
+    HttpIO,
+    HttpMethod,
     JSONRequest,
-    ResponseCases,
-    ResponseHandler,
-    SyncExecutor,
-    handle_http_response,
-    validate_adapter,
-    validate_model,
+    SyncHttpIO,
+    handle_http_io,
 )
 from yarl import URL
 
 from .analytics import StorageAnalyticsClient
-from .exceptions import parse_api_error
+from .exceptions import validate_adapter, validate_model
 from .file_api import StorageFileApiClient
 from .types import Bucket, BucketName, CreateOrUpdateBucketBody, MessageResponse
 from .vectors import StorageVectorsClient
@@ -33,14 +30,16 @@ __all__ = [
     "StorageClient",
 ]
 
+ListBucketAdapter = TypeAdapter(list[Bucket])
 
-class StorageClient(Generic[Executor]):
+
+class StorageClient(Generic[HttpIO]):
     """Manage storage buckets and files."""
 
     def __init__(
         self,
         url: str,
-        executor: Executor,
+        executor: HttpIO,
         headers: dict[str, str],
     ) -> None:
         headers = {
@@ -52,14 +51,14 @@ class StorageClient(Generic[Executor]):
             **headers,
         }
 
-        self.executor: Executor = executor
+        self.executor: HttpIO = executor
         if url and url[-1] != "/":
             print("Storage endpoint URL should have a trailing slash.")
             url += "/"
         self.base_url = URL(url)
         self._headers = Headers(headers)
 
-    def from_(self, id: str) -> StorageFileApiClient[Executor]:
+    def from_(self, id: str) -> StorageFileApiClient[HttpIO]:
         """Run a storage file operation.
 
         Parameters
@@ -69,37 +68,33 @@ class StorageClient(Generic[Executor]):
         """
         return StorageFileApiClient(id, self.base_url, self.executor, self._headers)
 
-    def vectors(self) -> StorageVectorsClient[Executor]:
+    def vectors(self) -> StorageVectorsClient[HttpIO]:
         return StorageVectorsClient(
             base_url=self.base_url.joinpath("vector"),
             _headers=self._headers,
             executor=self.executor,
         )
 
-    def analytics(self) -> StorageAnalyticsClient[Executor]:
+    def analytics(self) -> StorageAnalyticsClient[HttpIO]:
         return StorageAnalyticsClient(
             _headers=self._headers,
             base_url=self.base_url.joinpath("iceberg"),
             executor=self.executor,
         )
 
-    @handle_http_response
-    def list_buckets(self) -> ResponseHandler[list[Bucket]]:
+    @handle_http_io
+    def list_buckets(self) -> HttpMethod[list[Bucket]]:
         """Retrieves the details of all storage buckets within an existing product."""
         # if the request doesn't error, it is assured to return a list
-        request = EmptyRequest(
+        response = yield EmptyRequest(
             method="GET",
             path=["bucket"],
             headers=self._headers,
         )
-        return ResponseCases(
-            request=request,
-            on_success=validate_adapter(TypeAdapter(list[Bucket])),
-            on_failure=parse_api_error,
-        )
+        return validate_adapter(response, ListBucketAdapter)
 
-    @handle_http_response
-    def get_bucket(self, id: str) -> ResponseHandler[Bucket]:
+    @handle_http_io
+    def get_bucket(self, id: str) -> HttpMethod[Bucket]:
         """Retrieves the details of an existing storage bucket.
 
         Parameters
@@ -107,18 +102,14 @@ class StorageClient(Generic[Executor]):
         id
             The unique identifier of the bucket you would like to retrieve.
         """
-        request = EmptyRequest(
+        response = yield EmptyRequest(
             method="GET",
             path=["bucket", id],
             headers=self._headers,
         )
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(Bucket),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, Bucket)
 
-    @handle_http_response
+    @handle_http_io
     def create_bucket(
         self,
         id: str,
@@ -126,7 +117,7 @@ class StorageClient(Generic[Executor]):
         public: bool | None = None,
         file_size_limit: int | None = None,
         allowed_mime_types: list[str] | None = None,
-    ) -> ResponseHandler[BucketName]:
+    ) -> HttpMethod[BucketName]:
         """Creates a new storage bucket.
 
         Parameters
@@ -146,7 +137,7 @@ class StorageClient(Generic[Executor]):
             file_size_limit=file_size_limit,
             allowed_mime_types=allowed_mime_types,
         )
-        request = JSONRequest(
+        response = yield JSONRequest(
             method="POST",
             path=["bucket"],
             headers=self._headers,
@@ -154,20 +145,16 @@ class StorageClient(Generic[Executor]):
             exclude_none=True,
         )
 
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(BucketName),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, BucketName)
 
-    @handle_http_response
+    @handle_http_io
     def update_bucket(
         self,
         id: str,
         public: bool | None = None,
         file_size_limit: int | None = None,
         allowed_mime_types: list[str] | None = None,
-    ) -> ResponseHandler[MessageResponse]:
+    ) -> HttpMethod[MessageResponse]:
         """Update a storage bucket.
 
         Parameters
@@ -185,21 +172,17 @@ class StorageClient(Generic[Executor]):
             file_size_limit=file_size_limit,
             allowed_mime_types=allowed_mime_types,
         )
-        request = JSONRequest(
+        response = yield JSONRequest(
             method="PUT",
             path=["bucket", id],
             headers=self._headers,
             body=body,
             exclude_none=True,
         )
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(MessageResponse),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, MessageResponse)
 
-    @handle_http_response
-    def empty_bucket(self, id: str) -> ResponseHandler[MessageResponse]:
+    @handle_http_io
+    def empty_bucket(self, id: str) -> HttpMethod[MessageResponse]:
         """Removes all objects inside a single bucket.
 
         Parameters
@@ -207,20 +190,16 @@ class StorageClient(Generic[Executor]):
         id
             The unique identifier of the bucket you would like to empty.
         """
-        request = EmptyRequest(
+        response = yield EmptyRequest(
             method="POST",
             path=["bucket", id, "empty"],
             headers=self._headers,
         )
 
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(MessageResponse),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, MessageResponse)
 
-    @handle_http_response
-    def delete_bucket(self, id: str) -> ResponseHandler[MessageResponse]:
+    @handle_http_io
+    def delete_bucket(self, id: str) -> HttpMethod[MessageResponse]:
         """Deletes an existing bucket. Note that you cannot delete buckets with existing objects inside. You must first
         `empty()` the bucket.
 
@@ -229,19 +208,15 @@ class StorageClient(Generic[Executor]):
         id
             The unique identifier of the bucket you would like to delete.
         """
-        request = EmptyRequest(
+        response = yield EmptyRequest(
             method="DELETE",
             path=["bucket", id],
             headers=self._headers,
         )
-        return ResponseCases(
-            request=request,
-            on_success=validate_model(MessageResponse),
-            on_failure=parse_api_error,
-        )
+        return validate_model(response, MessageResponse)
 
 
-class AsyncStorageClient(StorageClient[AsyncExecutor]):
+class AsyncStorageClient(StorageClient[AsyncHttpIO]):
     def __init__(
         self,
         url: str,
@@ -256,7 +231,7 @@ class AsyncStorageClient(StorageClient[AsyncExecutor]):
             follow_redirects=True,
         )
         StorageClient.__init__(
-            self, url=url, headers=headers, executor=AsyncExecutor(session=client)
+            self, url=url, headers=headers, executor=AsyncHttpIO(session=client)
         )
 
     async def __aenter__(self) -> AsyncStorageClient:
@@ -271,7 +246,7 @@ class AsyncStorageClient(StorageClient[AsyncExecutor]):
         await self.executor.session.aclose()
 
 
-class SyncStorageClient(StorageClient[SyncExecutor]):
+class SyncStorageClient(StorageClient[SyncHttpIO]):
     def __init__(
         self,
         url: str,
@@ -286,7 +261,7 @@ class SyncStorageClient(StorageClient[SyncExecutor]):
             follow_redirects=True,
         )
         StorageClient.__init__(
-            self, url=url, headers=headers, executor=SyncExecutor(session=client)
+            self, url=url, headers=headers, executor=SyncHttpIO(session=client)
         )
 
     def __enter__(self) -> SyncStorageClient:
