@@ -14,6 +14,10 @@ MAX_RETRIES = 10
 RETRY_INTERVAL = 2  # deciseconds
 STORAGE_KEY = "supabase.auth.token"
 
+
+def get_retry_interval(retries: int) -> int:
+    return (RETRY_INTERVAL**retries) * 100
+
 API_VERSION_HEADER_NAME = "X-Supabase-Api-Version"
 API_VERSIONS_2024_01_01_TIMESTAMP = datetime.timestamp(
     datetime.strptime("2024-01-01", "%Y-%m-%d")
