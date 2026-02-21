@@ -32,7 +32,7 @@ help::
 
 mypy: $(call FORALL_PKGS,mypy)
 help::
-	@echo "  mypy          -- Run mypy on all files"
+	@echo "  mypy           -- Run mypy on all files"
 
 ruff:
 	@uv run ruff check --fix

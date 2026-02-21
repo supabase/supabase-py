@@ -283,6 +283,45 @@ async def test_client_upload(
     assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
 
 
+async def test_client_upload_with_query(
+    storage_file_client: AsyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket, even with query parameters"""
+    await storage_file_client.upload(
+        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+    )
+
+    image = await storage_file_client.download(
+        file.bucket_path, query_params={"my-param": "test"}
+    )
+    files = await storage_file_client.list(file.bucket_folder)
+    image_info = next((f for f in files if f.get("name") == file.name), None)
+
+    assert image == file.file_content
+    assert image_info is not None
+    assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
+
+
+async def test_client_download_with_query_doesnt_lose_params(
+    storage_file_client: AsyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure query params aren't lost"""
+    from yarl import URL
+
+    params = {"my-param": "test"}
+    mock_response = Mock()
+    with patch.object(HttpxClient, "request") as mock_request:
+        mock_request.return_value = mock_response
+        await storage_file_client.download(file.bucket_path, query_params=params)
+        expected_url = storage_file_client._base_url.joinpath(
+            "object", storage_file_client.id, *URL(file.bucket_path).parts
+        ).with_query(params)
+        actual_url = mock_request.call_args[0][1]
+
+        assert URL(actual_url).query == params
+        assert str(expected_url) == actual_url
+
+
 async def test_client_update(
     storage_file_client: AsyncBucketProxy,
     two_files: list[FileForTesting],
@@ -698,3 +737,69 @@ async def test_client_create_signed_urls_with_download(
             response = await client.get(url["signedURL"])
             response.raise_for_status()
             assert response.content == multi_file[i].file_content
+
+
+async def test_client_list_v2(
+    storage_file_client: AsyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    await storage_file_client.upload(
+        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+    )
+
+    result = await storage_file_client.list_v2()
+
+    assert not result.hasNext
+    assert len(result.folders) == 0
+    assert len(result.objects) == 1
+    object = result.objects[0]
+    assert object.name == file.bucket_path
+    assert object.metadata.get("mimetype") == file.mime_type
+
+
+async def test_client_list_v2_folder(
+    storage_file_client: AsyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    await storage_file_client.upload(
+        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+    )
+
+    result = await storage_file_client.list_v2({"with_delimiter": True})
+
+    assert not result.hasNext
+    assert len(result.objects) == 0
+    assert len(result.folders) == 1
+    folder = result.folders[0]
+    assert folder.key == file.bucket_folder
+
+
+async def test_client_list_v2_paginated(
+    storage_file_client: AsyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]
+    for suffix in suffixes:
+        await storage_file_client.upload(
+            file.bucket_path + suffix, file.local_path, {"content-type": file.mime_type}
+        )
+
+    has_next = True
+    cursor = ""
+    pages = 0
+    while has_next:
+        result = await storage_file_client.list_v2(
+            {
+                "with_delimiter": True,
+                "prefix": f"{file.bucket_folder}/",
+                "limit": 2,
+                "cursor": cursor,
+            }
+        )
+        has_next = result.hasNext
+        cursor = result.nextCursor or ""
+
+        assert len(result.objects) == 2
+        assert all(f.name.startswith(file.bucket_path) for f in result.objects)
+        pages += 1
+    assert pages == 4

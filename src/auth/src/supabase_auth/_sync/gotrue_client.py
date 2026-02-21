@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import platform
+import sys
 import time
 from contextlib import suppress
 from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
+from warnings import warn
 
 from httpx import Client, QueryParams, Response
 from jwt import get_algorithm_by_name
 from typing_extensions import cast
 
 from ..constants import (
-    DEFAULT_HEADERS,
     EXPIRY_MARGIN,
     GOTRUE_URL,
     MAX_RETRIES,
@@ -89,6 +91,7 @@ from ..types import (
     UserResponse,
     VerifyOtpParams,
 )
+from ..version import __version__
 from .gotrue_admin_api import SyncGoTrueAdminAPI
 from .gotrue_base_api import SyncGoTrueBaseAPI
 from .gotrue_mfa_api import SyncGoTrueMFAAPI
@@ -110,10 +113,27 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:
+        extra_headers = {
+            "X-Client-Info": f"supabase-py/supabase_auth v{__version__}",
+            "X-Supabase-Client-Platform": platform.system(),
+            "X-Supabase-Client-Platform-Version": platform.release(),
+            "X-Supabase-Client-Runtime": "python",
+            "X-Supabase-Client-Runtime-Version": platform.python_version(),
+        }
+        if headers:
+            extra_headers.update(headers)
+
+        if sys.version_info < (3, 10):
+            warn(
+                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         SyncGoTrueBaseAPI.__init__(
             self,
             url=url or GOTRUE_URL,
-            headers=headers or DEFAULT_HEADERS,
+            headers=extra_headers,
             http_client=http_client,
             verify=verify,
             proxy=proxy,

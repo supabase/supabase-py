@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import platform
+import sys
 from typing import Optional
 from warnings import warn
 
@@ -8,8 +10,11 @@ from httpx import AsyncClient, Headers
 from storage3.constants import DEFAULT_TIMEOUT
 
 from ..version import __version__
+from .analytics import AsyncStorageAnalyticsClient
 from .bucket import AsyncStorageBucketAPI
 from .file_api import AsyncBucketProxy
+from .request import AsyncRequestBuilder
+from .vectors import AsyncStorageVectorsClient
 
 __all__ = [
     "AsyncStorageClient",
@@ -29,9 +34,20 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
         http_client: Optional[AsyncClient] = None,
     ) -> None:
         headers = {
-            "User-Agent": f"supabase-py/storage3 v{__version__}",
+            "X-Client-Info": f"supabase-py/storage3 v{__version__}",
+            "X-Supabase-Client-Platform": platform.system(),
+            "X-Supabase-Client-Platform-Version": platform.release(),
+            "X-Supabase-Client-Runtime": "python",
+            "X-Supabase-Client-Runtime-Version": platform.python_version(),
             **headers,
         }
+
+        if sys.version_info < (3, 10):
+            warn(
+                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         if timeout is not None:
             warn(
@@ -80,3 +96,18 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
             The unique identifier of the bucket
         """
         return AsyncBucketProxy(id, self._base_url, self._headers, self._client)
+
+    def vectors(self) -> AsyncStorageVectorsClient:
+        return AsyncStorageVectorsClient(
+            url=self._base_url.joinpath("vector"),
+            headers=self._headers,
+            session=self.session,
+        )
+
+    def analytics(self) -> AsyncStorageAnalyticsClient:
+        request = AsyncRequestBuilder(
+            session=self.session,
+            headers=self._headers,
+            base_url=self._base_url.joinpath("iceberg"),
+        )
+        return AsyncStorageAnalyticsClient(request=request)

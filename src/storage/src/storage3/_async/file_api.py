@@ -6,7 +6,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, List, Literal, Optional, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Union, cast
 
 from httpx import AsyncClient, Headers, HTTPStatusError, Response
 from yarl import URL
@@ -22,6 +22,8 @@ from ..types import (
     FileOptions,
     ListBucketFilesOptions,
     RequestMethod,
+    SearchV2Options,
+    SearchV2Result,
     SignedUploadURL,
     SignedUrlJsonResponse,
     SignedUrlResponse,
@@ -77,10 +79,14 @@ class AsyncBucketActionsMixin:
             )
             response.raise_for_status()
         except HTTPStatusError as exc:
-            resp = exc.response.json()
-            raise StorageApiError(
-                resp["message"], resp["error"], resp["statusCode"]
-            ) from exc
+            try:
+                resp = exc.response.json()
+                raise StorageApiError(
+                    resp["message"], resp["error"], resp["statusCode"]
+                ) from exc
+            except KeyError as err:
+                message = f"Unable to parse error message: {resp.text}"
+                raise StorageApiError(message, "InternalError", 400) from err
 
         # close the resource before returning the response
         if files and "file" in files and isinstance(files["file"][1], BufferedReader):
@@ -438,8 +444,23 @@ class AsyncBucketActionsMixin:
         )
         return response.json()
 
+    async def list_v2(
+        self,
+        options: Optional[SearchV2Options] = None,
+    ) -> SearchV2Result:
+        body = {**options} if options else {}
+        response = await self._request(
+            "POST",
+            ["object", "list-v2", self.id],
+            json=body,
+        )
+        return SearchV2Result.model_validate_json(response.content)
+
     async def download(
-        self, path: str, options: Optional[DownloadOptions] = None
+        self,
+        path: str,
+        options: Optional[DownloadOptions] = None,
+        query_params: Optional[Dict[str, str]] = None,
     ) -> bytes:
         """
         Downloads a file.
@@ -449,20 +470,23 @@ class AsyncBucketActionsMixin:
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         """
-        url_options = options or {}
+        url_options = options or DownloadOptions()
         render_path = (
             ["render", "image", "authenticated"]
             if url_options.get("transform")
             else ["object"]
         )
 
-        transform_options = url_options.get("transform") or {}
+        transform_options = url_options.get("transform") or TransformOptions()
 
         path_parts = relative_path_to_parts(path)
         response = await self._request(
             "GET",
             [*render_path, self.id, *path_parts],
-            query_params=transform_to_dict(transform_options),
+            query_params={
+                **transform_to_dict(transform_options),
+                **(query_params or {}),
+            },
         )
         return response.content
 

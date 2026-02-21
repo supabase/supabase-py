@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import Any, Optional
 
 from httpx import Client, Headers, HTTPStatusError, Response
@@ -17,7 +18,12 @@ class SyncStorageBucketAPI:
 
     def __init__(self, session: Client, url: str, headers: Headers) -> None:
         if url and url[-1] != "/":
-            print("Storage endpoint URL should have a trailing slash.")
+            warnings.warn(
+                "Storage endpoint URL should have a trailing slash. "
+                "The URL has been automatically corrected.",
+                UserWarning,
+                stacklevel=2,
+            )
             url += "/"
         self._base_url = URL(url)
         self._client = session

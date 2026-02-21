@@ -1,5 +1,84 @@
 # Changelog
 
+## [2.28.0](https://github.com/supabase/supabase-py/compare/v2.27.3...v2.28.0) (2026-02-10)
+
+
+### Features
+
+* **storage:** add list_v2 method to file_api client ([#1377](https://github.com/supabase/supabase-py/issues/1377)) ([259f4ad](https://github.com/supabase/supabase-py/commit/259f4ad42d4022eed2c44e0e9a316271cfccbde4))
+
+
+### Bug Fixes
+
+* **auth:** add missing is_sso_user, deleted_at, banned_until to User model ([#1375](https://github.com/supabase/supabase-py/issues/1375)) ([7f84a62](https://github.com/supabase/supabase-py/commit/7f84a629968b9269f233e75e28f973c1cae530d6))
+* **realtime:** ensure remove_channel removes channel from channels dict ([#1373](https://github.com/supabase/supabase-py/issues/1373)) ([0923314](https://github.com/supabase/supabase-py/commit/09233140397e7921ab054dbf4d88d1899d30c244))
+* **realtime:** use pop with default in _handle_message to prevent KeyError ([#1388](https://github.com/supabase/supabase-py/issues/1388)) ([baea26f](https://github.com/supabase/supabase-py/commit/baea26f7ce7f0572b4e96caaf27add29127349fe))
+* **storage3:** replace print() with warnings.warn() for trailing slash notice ([#1380](https://github.com/supabase/supabase-py/issues/1380)) ([50b099f](https://github.com/supabase/supabase-py/commit/50b099fa06efa643d1d43830e4497e21972e46bc))
+
+## [2.27.3](https://github.com/supabase/supabase-py/compare/v2.27.2...v2.27.3) (2026-02-03)
+
+
+### Bug Fixes
+
+* deprecate python 3.9 in all packages ([#1365](https://github.com/supabase/supabase-py/issues/1365)) ([cc72ed7](https://github.com/supabase/supabase-py/commit/cc72ed75d4c2d05514476d4e8f2786f5e09a174b))
+* ensure storage_url has trailing slash to prevent warning ([#1367](https://github.com/supabase/supabase-py/issues/1367)) ([4267ff1](https://github.com/supabase/supabase-py/commit/4267ff134542a742c8cabb1daf01597c3198494d))
+
+## [2.27.2](https://github.com/supabase/supabase-py/compare/v2.27.1...v2.27.2) (2026-01-14)
+
+
+### Bug Fixes
+
+* **ci:** generate new token for release-please ([#1348](https://github.com/supabase/supabase-py/issues/1348)) ([c2ad37f](https://github.com/supabase/supabase-py/commit/c2ad37f9dc2c5a73d9a1ea06f723e0810ab6aecd))
+* **ci:** run CI when .github files change ([#1349](https://github.com/supabase/supabase-py/issues/1349)) ([a221aac](https://github.com/supabase/supabase-py/commit/a221aac029a36693e325125ad036c34936617247))
+* **realtime:** ammend reconnect logic to not unsubscribe ([#1346](https://github.com/supabase/supabase-py/issues/1346)) ([cfbe594](https://github.com/supabase/supabase-py/commit/cfbe5943cbc45679bd85dcfd6860c98435912011))
+
+## [2.27.1](https://github.com/supabase/supabase-py/compare/v2.27.0...v2.27.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* **realtime:** use 'event' instead of 'events' in postgres_changes protocol ([#1339](https://github.com/supabase/supabase-py/issues/1339)) ([c1e7986](https://github.com/supabase/supabase-py/commit/c1e7986c5ef6406b1e966cc7aa69971876ef5934))
+* **storage:** catch bad responses from server ([#1344](https://github.com/supabase/supabase-py/issues/1344)) ([ddb5054](https://github.com/supabase/supabase-py/commit/ddb50547db2742411a7ca78fef243f3c5616d57d))
+
+## [2.27.0](https://github.com/supabase/supabase-py/compare/v2.26.0...v2.27.0) (2025-12-16)
+
+
+### Features
+
+* **auth:** add X (OAuth 2.0) provider ([#1335](https://github.com/supabase/supabase-py/issues/1335)) ([f600f96](https://github.com/supabase/supabase-py/commit/f600f96b521d306f07a21601c58c61dc7fc29c68))
+
+
+### Bug Fixes
+
+* **storage:** replace deprecated pydantic Extra with literal values ([#1334](https://github.com/supabase/supabase-py/issues/1334)) ([6df3545](https://github.com/supabase/supabase-py/commit/6df354578560fdd2a1a50380420c10b436e7bca1))
+
+## [2.26.0](https://github.com/supabase/supabase-py/compare/v2.25.1...v2.26.0) (2025-12-15)
+
+
+### Features
+
+* **storage:** add pyiceberg wrapper ([#1326](https://github.com/supabase/supabase-py/issues/1326)) ([08e3b4c](https://github.com/supabase/supabase-py/commit/08e3b4caa47badae3df9116c277b3df326e84a53))
+* **supabase:** use yarl URL builder in supabase as well ([#1331](https://github.com/supabase/supabase-py/issues/1331)) ([78ebf2c](https://github.com/supabase/supabase-py/commit/78ebf2c62107bd2cfc7e2ee4bcdd3388f091a6e3))
+
+
+### Bug Fixes
+
+* **storage:** remove v1 from path concatenation ([#1330](https://github.com/supabase/supabase-py/issues/1330)) ([e3ddf40](https://github.com/supabase/supabase-py/commit/e3ddf408293caa318f25fc2c3048373442ac6edc))
+
+## [2.25.1](https://github.com/supabase/supabase-py/compare/v2.25.0...v2.25.1) (2025-12-09)
+
+
+### Bug Fixes
+
+* **storage:** add query parameters option to download ([#1327](https://github.com/supabase/supabase-py/issues/1327)) ([63f7226](https://github.com/supabase/supabase-py/commit/63f72260b8d68cac4185b66517f58cbb2b40365f))
+
+## [2.25.0](https://github.com/supabase/supabase-py/compare/v2.24.0...v2.25.0) (2025-12-03)
+
+
+### Features
+
+* **storage:** add vector and analytics buckets support ([#1318](https://github.com/supabase/supabase-py/issues/1318)) ([fd0c122](https://github.com/supabase/supabase-py/commit/fd0c1220e4fbf13f0953953df0b58ddeadce0bd9))
+
 ## [2.24.0](https://github.com/supabase/supabase-py/compare/v2.23.3...v2.24.0) (2025-11-07)
 
 

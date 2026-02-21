@@ -3,7 +3,6 @@ name: CI/CD
 on:
   push:
     paths-ignore:
-      - '.github/**'
       - '.devcontainer/**'
       - 'CHANGELOG.md'
       - 'MAINTAINERS.md'
@@ -18,15 +17,16 @@ permissions:
 
 jobs:
   test:
-    name: Test / OS ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    name: py${{ matrix.python-version }} | ${{ matrix.package }} @ ${{ matrix.os }} 
     strategy:
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install supabase cli latest
         uses: supabase/setup-cli@v1
@@ -40,7 +40,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Run Tests
-        run: make ci
+        run: make ${{ matrix.package }}.tests
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
@@ -60,7 +60,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
-          carryforward: "run-ubuntu-latest-3.9,run-ubuntu-latest-3.10,run-ubuntu-latest-3.11,run-ubuntu-latest-3.12,run-ubuntu-latest-3.13,run-ubuntu-latest-3.14"
 
   release-please:
     needs: test
@@ -74,9 +73,16 @@ jobs:
       contents: write # needed for github actions bot to write to repo
       pull-requests: write
     steps:
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
       - uses: googleapis/release-please-action@v4
         id: release
         with:
+          token: ${{ steps.app-token.outputs.token }}
           target-branch: ${{ github.ref_name }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
@@ -93,7 +99,7 @@ jobs:
       contents: write # needed for github actions bot to write to repo
     steps:
       - name: Clone Repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
