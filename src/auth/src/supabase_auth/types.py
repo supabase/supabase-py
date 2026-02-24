@@ -5,6 +5,7 @@ from time import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, with_config
+from supabase_utils.types import JSON
 
 try:
     # > 2
@@ -241,21 +242,21 @@ class User(BaseModel):
     banned_until: Optional[str] = None
 
 
-class UserAttributes(TypedDict):
-    email: NotRequired[str]
-    phone: NotRequired[str]
-    password: NotRequired[str]
-    data: NotRequired[Any]
-    nonce: NotRequired[str]
+class UserAttributes(BaseModel):
+    email: str | None = None
+    phone: str | None = None
+    password: str | None = None
+    data: JSON = None
+    nonce: str | None = None
 
 
-class AdminUserAttributes(UserAttributes, TypedDict):
-    user_metadata: NotRequired[Any]
-    app_metadata: NotRequired[Any]
-    email_confirm: NotRequired[bool]
-    phone_confirm: NotRequired[bool]
-    ban_duration: NotRequired[Union[str, Literal["none"]]]
-    role: NotRequired[str]
+class AdminUserAttributes(UserAttributes):
+    user_metadata: JSON = None
+    app_metadata: JSON = None
+    email_confirm: bool | None = None
+    phone_confirm: bool | None = None
+    ban_duration: str | None = None
+    role: str | None = None
     """
     The `role` claim set in the user's access token JWT.
 
@@ -263,7 +264,7 @@ class AdminUserAttributes(UserAttributes, TypedDict):
 
     Setting this role to `service_role` is not recommended as it grants the user admin privileges.
     """
-    password_hash: NotRequired[str]
+    password_hash: str | None = None
     """
     The `password_hash` for the user's password.
 
@@ -271,7 +272,7 @@ class AdminUserAttributes(UserAttributes, TypedDict):
 
     Supports bcrypt and argon2 password hashes.
     """
-    id: NotRequired[str]
+    id: str | None = None
     """
     The `id` for the user.
 
@@ -284,7 +285,7 @@ class Subscription(BaseModel):
     """
     The subscriber UUID. This will be set by the client.
     """
-    callback: Callable[[AuthChangeEvent, Optional[Session]], None]
+    callback: Callable[[AuthChangeEvent, Session | None], None]
     """
     The function to call every time there is an event.
     """
@@ -486,48 +487,6 @@ VerifyOtpParams = Union[
     VerifyEmailOtpParams, VerifyMobileOtpParams, VerifyTokenHashParams
 ]
 
-
-class GenerateLinkParamsOptions(TypedDict):
-    redirect_to: NotRequired[str]
-
-
-class GenerateLinkParamsWithDataOptions(GenerateLinkParamsOptions, TypedDict):
-    data: NotRequired[Any]
-
-
-class GenerateSignupLinkParams(TypedDict):
-    type: Literal["signup"]
-    email: str
-    password: str
-    options: NotRequired[GenerateLinkParamsWithDataOptions]
-
-
-class GenerateInviteOrMagiclinkParams(TypedDict):
-    type: Literal["invite", "magiclink"]
-    email: str
-    options: NotRequired[GenerateLinkParamsWithDataOptions]
-
-
-class GenerateRecoveryLinkParams(TypedDict):
-    type: Literal["recovery"]
-    email: str
-    options: NotRequired[GenerateLinkParamsOptions]
-
-
-class GenerateEmailChangeLinkParams(TypedDict):
-    type: Literal["email_change_current", "email_change_new"]
-    email: str
-    new_email: str
-    options: NotRequired[GenerateLinkParamsOptions]
-
-
-GenerateLinkParams = Union[
-    GenerateSignupLinkParams,
-    GenerateInviteOrMagiclinkParams,
-    GenerateRecoveryLinkParams,
-    GenerateEmailChangeLinkParams,
-]
-
 GenerateLinkType = Literal[
     "signup",
     "invite",
@@ -537,6 +496,82 @@ GenerateLinkType = Literal[
     "email_change_new",
 ]
 
+class GenerateLinkBody(BaseModel):
+    type: GenerateLinkType
+    email: str
+    password: str | None = None
+    new_email: str | None = None
+    data: JSON = None    
+
+class GenerateLinkParams(BaseModel):
+    body: GenerateLinkBody
+    redirect_to: str | None = None
+
+    @staticmethod
+    def sign_up(email: str, password: str, data: JSON = None, redirect_to: str | None = None) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="signup",
+                email=email,
+                password=password,
+                data=data,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def invite(email: str, data: JSON=None, redirect_to: str | None = None) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="invite",
+                email=email,
+                data=data,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def magiclink(email: str, data: JSON=None, redirect_to: str | None = None) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="magiclink",
+                email=email,
+                data=data,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def recovery(email: str, redirect_to: str | None = None) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="recovery",
+                email=email,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def email_change_current(email: str, new_email: str, redirect_to: str | None = None) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="email_change_current",
+                email=email,
+                new_email=new_email,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def email_change_new(email: str, new_email: str, redirect_to: str | None = None) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="email_change_new",
+                email=email,
+                new_email=new_email,
+            ),
+            redirect_to=redirect_to,
+        )
 
 class MFAEnrollTOTPParams(TypedDict):
     factor_type: Literal["totp"]
@@ -749,28 +784,10 @@ class AuthMFAAdminDeleteFactorResponse(BaseModel):
     """
 
 
-class AuthMFAAdminDeleteFactorParams(TypedDict):
-    id: str
-    """
-    ID of the MFA factor to delete.
-    """
-    user_id: str
-    """
-    ID of the user whose factor is being deleted.
-    """
-
-
 class AuthMFAAdminListFactorsResponse(BaseModel):
     factors: List[Factor]
     """
     All factors attached to the user.
-    """
-
-
-class AuthMFAAdminListFactorsParams(TypedDict):
-    user_id: str
-    """
-    ID of the user for which to list all MFA factors.
     """
 
 
@@ -1018,17 +1035,6 @@ class OAuthClientListResponse(BaseModel):
     next_page: Optional[int] = None
     last_page: int = 0
     total: int = 0
-
-
-class PageParams(BaseModel):
-    """
-    Pagination parameters.
-    """
-
-    page: Optional[int] = None
-    """Page number"""
-    per_page: Optional[int] = None
-    """Number of items per page"""
 
 
 for model in [

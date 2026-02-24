@@ -20,6 +20,7 @@ dependencies = [
   "httpx[http2] >=0.26,<0.29",
   "pydantic >=1.10,<3",
   "pyjwt[crypto] >=2.10.1",
+  "supabase_utils == 2.28.0", # x-release-please-version
 ]
 
 [project.urls]

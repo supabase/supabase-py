@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union
 from urllib.parse import urlparse
 
-from httpx import HTTPStatusError, Response
+from httpx import HTTPStatusError, QueryParams, Response
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from .constants import (
@@ -305,3 +305,8 @@ def validate_uuid(id: str | None) -> None:
         raise ValueError("Invalid id, id is None")
     if not is_valid_uuid(id):
         raise ValueError(f"Invalid id, '{id}' is not a valid uuid")
+
+def redirect_to_as_query(redirect_to: str | None) -> QueryParams:
+    if redirect_to:
+        return QueryParams({"redirect_to": redirect_to})
+    return QueryParams()
