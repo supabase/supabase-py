@@ -26,6 +26,13 @@ from ..types import JSON, ReturnMethod
 from ..utils import model_validate_json
 
 ReqConfig = RequestConfig[Client]
+_MAYBE_SINGLE_NO_ROWS_DETAILS = "The result contains 0 rows"
+
+
+def _is_maybe_single_no_rows_error(error: APIError) -> bool:
+    return str(error.code) == "204" or (
+        error.details is not None and _MAYBE_SINGLE_NO_ROWS_DETAILS in error.details
+    )
 
 
 class SyncQueryRequestBuilder:
@@ -109,8 +116,8 @@ class SyncMaybeSingleRequestBuilder:
         try:
             r = SyncSingleRequestBuilder(self.request).execute()
         except APIError as e:
-            if e.details and "The result contains 0 rows" in e.details:
-                return None
+            if _is_maybe_single_no_rows_error(e):
+                return SingleAPIResponse(data=None)
         if not r:
             raise APIError(
                 {
@@ -120,6 +127,8 @@ class SyncMaybeSingleRequestBuilder:
                     "details": "Postgrest couldn't retrieve response, please check traceback of the code. Please create an issue in `supabase-community/postgrest-py` if needed.",
                 }
             )
+        if r.data == []:
+            return SingleAPIResponse(data=None, count=r.count)
         return r
 
 

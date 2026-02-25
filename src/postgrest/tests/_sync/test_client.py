@@ -158,6 +158,52 @@ def test_response_maybe_single(postgrest_client: SyncPostgrestClient):
         assert "code" in exc_response and int(exc_response["code"]) == 204
 
 
+def test_maybe_single_returns_none_on_no_rows_204(
+    postgrest_client: SyncPostgrestClient,
+):
+    with patch(
+        "httpx._client.Client.request",
+        return_value=Response(
+            status_code=204,
+            request=Request(method="GET", url="http://example.com"),
+        ),
+    ):
+        response = (
+            postgrest_client.from_("test")
+            .select("a", "b")
+            .eq("c", "d")
+            .maybe_single()
+            .execute()
+        )
+
+    assert response is not None
+    assert response.data is None
+
+
+def test_single_raises_on_no_rows(postgrest_client: SyncPostgrestClient):
+    with patch(
+        "httpx._client.Client.request",
+        return_value=Response(
+            status_code=406,
+            json={
+                "message": "JSON object requested, multiple (or no) rows returned",
+                "code": "PGRST116",
+                "hint": None,
+                "details": "The result contains 0 rows",
+            },
+            request=Request(method="GET", url="http://example.com"),
+        ),
+    ):
+        with pytest.raises(APIError):
+            (
+                postgrest_client.from_("test")
+                .select("a", "b")
+                .eq("c", "d")
+                .single()
+                .execute()
+            )
+
+
 # https://github.com/supabase/postgrest-py/issues/595
 
 
