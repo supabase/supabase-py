@@ -32,6 +32,15 @@ class SupabaseException(Exception):
         super().__init__(self.message)
 
 
+def _validate_client_inputs(supabase_url: Any, supabase_key: Any) -> None:
+    if not isinstance(supabase_url, str) or not supabase_url.strip():
+        raise SupabaseException("supabase_url must be a non-empty string")
+    if not isinstance(supabase_key, str) or not supabase_key.strip():
+        raise SupabaseException("supabase_key must be a non-empty string")
+    if not re.match(r"^(https?)://.+", supabase_url):
+        raise SupabaseException("supabase_url must start with http:// or https://")
+
+
 class AsyncClient:
     """Supabase client class."""
 
@@ -54,14 +63,7 @@ class AsyncClient:
             `DEFAULT_OPTIONS` dict.
         """
 
-        if not supabase_url:
-            raise SupabaseException("supabase_url is required")
-        if not supabase_key:
-            raise SupabaseException("supabase_key is required")
-
-        # Check if the url and key are valid
-        if not re.match(r"^(https?)://.+", supabase_url):
-            raise SupabaseException("Invalid URL")
+        _validate_client_inputs(supabase_url, supabase_key)
 
         if options is None:
             options = ClientOptions(storage=AsyncMemoryStorage())

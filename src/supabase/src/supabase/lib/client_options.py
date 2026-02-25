@@ -74,30 +74,45 @@ class AsyncClientOptions(ClientOptions):
         storage: Optional[AsyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
         httpx_client: Optional[AsyncHttpxClient] = None,
-        postgrest_client_timeout: Union[
-            int, float, Timeout
-        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+        postgrest_client_timeout: Optional[Union[int, float, Timeout]] = None,
+        storage_client_timeout: Optional[int] = None,
+        function_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
     ) -> "AsyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = AsyncClientOptions()
-        client_options.schema = schema or self.schema
-        client_options.headers = headers or self.headers
+        client_options.schema = self.schema if schema is None else schema
+        selected_headers = self.headers if headers is None else headers
+        client_options.headers = selected_headers.copy()
         client_options.auto_refresh_token = (
-            auto_refresh_token or self.auto_refresh_token
+            self.auto_refresh_token
+            if auto_refresh_token is None
+            else auto_refresh_token
         )
-        client_options.persist_session = persist_session or self.persist_session
-        client_options.storage = storage or self.storage
-        client_options.realtime = realtime or self.realtime
-        client_options.httpx_client = httpx_client or self.httpx_client
+        client_options.persist_session = (
+            self.persist_session if persist_session is None else persist_session
+        )
+        client_options.storage = self.storage if storage is None else storage
+        client_options.realtime = self.realtime if realtime is None else realtime
+        client_options.httpx_client = (
+            self.httpx_client if httpx_client is None else httpx_client
+        )
         client_options.postgrest_client_timeout = (
-            postgrest_client_timeout or self.postgrest_client_timeout
+            self.postgrest_client_timeout
+            if postgrest_client_timeout is None
+            else postgrest_client_timeout
         )
         client_options.storage_client_timeout = (
-            storage_client_timeout or self.storage_client_timeout
+            self.storage_client_timeout
+            if storage_client_timeout is None
+            else storage_client_timeout
         )
-        client_options.flow_type = flow_type or self.flow_type
+        client_options.function_client_timeout = (
+            self.function_client_timeout
+            if function_client_timeout is None
+            else function_client_timeout
+        )
+        client_options.flow_type = self.flow_type if flow_type is None else flow_type
         return client_options
 
 
@@ -117,28 +132,43 @@ class SyncClientOptions(ClientOptions):
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
         httpx_client: Optional[SyncHttpxClient] = None,
-        postgrest_client_timeout: Union[
-            int, float, Timeout
-        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+        postgrest_client_timeout: Optional[Union[int, float, Timeout]] = None,
+        storage_client_timeout: Optional[int] = None,
+        function_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
     ) -> "SyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = SyncClientOptions()
-        client_options.schema = schema or self.schema
-        client_options.headers = headers or self.headers
+        client_options.schema = self.schema if schema is None else schema
+        selected_headers = self.headers if headers is None else headers
+        client_options.headers = selected_headers.copy()
         client_options.auto_refresh_token = (
-            auto_refresh_token or self.auto_refresh_token
+            self.auto_refresh_token
+            if auto_refresh_token is None
+            else auto_refresh_token
         )
-        client_options.persist_session = persist_session or self.persist_session
-        client_options.storage = storage or self.storage
-        client_options.realtime = realtime or self.realtime
-        client_options.httpx_client = httpx_client or self.httpx_client
+        client_options.persist_session = (
+            self.persist_session if persist_session is None else persist_session
+        )
+        client_options.storage = self.storage if storage is None else storage
+        client_options.realtime = self.realtime if realtime is None else realtime
+        client_options.httpx_client = (
+            self.httpx_client if httpx_client is None else httpx_client
+        )
         client_options.postgrest_client_timeout = (
-            postgrest_client_timeout or self.postgrest_client_timeout
+            self.postgrest_client_timeout
+            if postgrest_client_timeout is None
+            else postgrest_client_timeout
         )
         client_options.storage_client_timeout = (
-            storage_client_timeout or self.storage_client_timeout
+            self.storage_client_timeout
+            if storage_client_timeout is None
+            else storage_client_timeout
         )
-        client_options.flow_type = flow_type or self.flow_type
+        client_options.function_client_timeout = (
+            self.function_client_timeout
+            if function_client_timeout is None
+            else function_client_timeout
+        )
+        client_options.flow_type = self.flow_type if flow_type is None else flow_type
         return client_options

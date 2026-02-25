@@ -15,24 +15,28 @@ from supabase import (
 )
 
 
-@pytest.mark.xfail(
-    reason="None of these values should be able to instantiate a client object"
+@pytest.mark.parametrize(
+    ("url", "key"),
+    [
+        ("", "supabase-key"),
+        (None, "supabase-key"),
+        ("valeefgpoqwjgpj", "supabase-key"),
+        (139, "supabase-key"),
+        ("https://xyz.supabase.co", ""),
+        ("https://xyz.supabase.co", None),
+        ("https://xyz.supabase.co", 139),
+        ("https://xyz.supabase.co", "   "),
+    ],
 )
-@pytest.mark.parametrize("url", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
-@pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
     """Ensure we can't instantiate client with invalid values."""
-    try:
+    with pytest.raises(SyncSupabaseException):
         _: Client = create_client(url, key)
-    except SyncSupabaseException:
-        pass
 
 
 def test_supabase_exception() -> None:
-    try:
+    with pytest.raises(SyncSupabaseException, match="err"):
         raise SyncSupabaseException("err")
-    except SyncSupabaseException:
-        pass
 
 
 def test_postgrest_client() -> None:
