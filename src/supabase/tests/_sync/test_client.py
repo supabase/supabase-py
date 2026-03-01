@@ -1,4 +1,5 @@
 import os
+import warnings
 from typing import Any
 from unittest.mock import MagicMock, Mock
 
@@ -33,6 +34,24 @@ def test_supabase_exception() -> None:
         raise SyncSupabaseException("err")
     except SyncSupabaseException:
         pass
+
+
+def test_storage_url_has_trailing_slash() -> None:
+    client = create_client("https://example.supabase.co", "test-key")
+    assert str(client.storage_url).endswith("/")
+
+
+def test_storage_client_does_not_warn_about_missing_trailing_slash() -> None:
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        client = create_client("https://example.supabase.co", "test-key")
+        _ = client.storage
+
+    assert all(
+        "Storage endpoint URL should have a trailing slash."
+        not in str(caught_warning.message)
+        for caught_warning in caught_warnings
+    )
 
 
 def test_postgrest_client() -> None:
