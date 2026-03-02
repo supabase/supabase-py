@@ -6,6 +6,17 @@
 
 Python monorepo for all [Supabase](https://supabase.com) libraries.
 
+## Who is this repository for?
+
+This repository is primarily intended for contributors and maintainers of the Supabase Python libraries.
+
+If you are a user looking to use Supabase in your Python application, install the package:
+
+pip install supabase
+
+and follow the official documentation:
+https://supabase.com/docs/reference/python/introduction
+
 - [supabase](src/supabase/README.md)
 - [realtime-py](src/realtime/README.md)
 - [supabase_functions](src/functions/README.md)
@@ -31,7 +42,8 @@ cd supabase-py
 
 ### Dependencies
 
-This repository relies on the following dependencies for development: 
+This repository relies on the following dependencies for development:
+
 - `uv` for python project management.
 - `make` for running project commands.
 - `docker` for both `postgrest` and `auth` test containers.
@@ -56,24 +68,31 @@ If you're using nix, the generated `python` executable should have the correct d
 We use `make` to store and run the relevant commands. The structure is set up such that each sub package can individually set its command in its own `Makefile`, and the job of the main `Makefile` is just coordinate calling each of them.
 
 For instance, in order to run all tests of all packages, you should use the following root command
+
 ```bash
 make ci
 ```
+
 Which internally dispatches `make -C src/{package} tests` calls to each package in the monorepo.
 
 You should also consider using
+
 ```bash
 make ci -jN # where N is the number of max concurrent jobs, or just -j for infinite jobs
 ```
+
 To run each of the packages' tests in parallel. This should be generally faster than running in 1 job, but has the downside of messing up the CLI output, so parsing error messages might not be easy.
 
 Other relevant commands include
+
 ```bash
 make install-hooks # install all commit hooks into the local .git folder
 make stop-infra    # stops all running containers from all packages
 make clean         # delete all intermediary files created by testing
 ```
+
 All the subpackages command are available from the main root by prefixing the command with `{package_name}.`. Examples:
+
 ```bash
 make realtime.tests # run only realtime tests
 make storage.clean  # delete temporary files only in the storage package
