@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+
 from supabase_auth.errors import (
     AuthApiError,
     AuthError,

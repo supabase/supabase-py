@@ -1,45 +1,57 @@
 import asyncio
-from threading import Timer as _Timer
-from typing import Any, Callable, Coroutine, Optional, cast
+from threading import Timer
+from typing import Awaitable, Callable
 
 
-class Timer:
+class AsyncTimer:
     def __init__(
         self,
         seconds: float,
-        function: Callable[[], Optional[Coroutine[Any, Any, None]]],
+        function: Callable[[], Awaitable[None]],
     ) -> None:
         self._milliseconds = seconds
         self._function = function
-        self._task: Optional[asyncio.Task] = None
-        self._timer: Optional[_Timer] = None
+        self._task: asyncio.Task | None = None
 
     def start(self) -> None:
-        if asyncio.iscoroutinefunction(self._function):
+        async def schedule() -> None:
+            await asyncio.sleep(self._milliseconds / 1000)
+            await self._function()
 
-            async def schedule() -> None:
-                await asyncio.sleep(self._milliseconds / 1000)
-                await cast(Coroutine[Any, Any, None], self._function())
+        def cleanup(_) -> None:
+            self._task = None
 
-            def cleanup(_) -> None:
-                self._task = None
-
-            self._task = asyncio.create_task(schedule())
-            self._task.add_done_callback(cleanup)
-        else:
-            self._timer = _Timer(self._milliseconds / 1000, self._function)
-            self._timer.daemon = True
-            self._timer.start()
+        self._task = asyncio.create_task(schedule())
+        self._task.add_done_callback(cleanup)
 
     def cancel(self) -> None:
         if self._task is not None:
             self._task.cancel()
             self._task = None
+
+    def is_alive(self) -> bool:
+        return self._task is not None
+
+
+class SyncTimer:
+    def __init__(
+        self,
+        seconds: float,
+        function: Callable[[], None],
+    ) -> None:
+        self._milliseconds = seconds
+        self._function = function
+        self._timer: Timer | None = None
+
+    def start(self) -> None:
+        self._timer = Timer(self._milliseconds / 1000, self._function)
+        self._timer.daemon = True
+        self._timer.start()
+
+    def cancel(self) -> None:
         if self._timer is not None:
             self._timer.cancel()
             self._timer = None
 
     def is_alive(self) -> bool:
-        return self._task is not None or (
-            self._timer is not None and self._timer.is_alive()
-        )
+        return self._timer is not None and self._timer.is_alive()

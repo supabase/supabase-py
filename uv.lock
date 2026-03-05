@@ -3059,6 +3059,7 @@ dependencies = [
     { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
     { name = "pyjwt", extra = ["crypto"] },
+    { name = "supabase-utils" },
 ]
 
 [package.dev-dependencies]
@@ -3098,6 +3099,7 @@ requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=1.10,<3" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10.1" },
+    { name = "supabase-utils", editable = "src/utils" },
 ]
 
 [package.metadata.requires-dev]
@@ -3203,7 +3205,7 @@ tests = [
 
 [[package]]
 name = "supabase-utils"
-version = "2.27.2"
+version = "2.28.0"
 source = { editable = "src/utils" }
 dependencies = [
     { name = "httpx" },

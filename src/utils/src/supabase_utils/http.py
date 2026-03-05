@@ -45,11 +45,13 @@ class EmptyRequest:
     headers: Headers = field(default_factory=Headers, kw_only=True)
     query_params: QueryParams = field(default_factory=QueryParams, kw_only=True)
 
-    def to_request(self, base_url: URL) -> HttpxRequest:
+    def to_request(self, base_url: URL, default_headers: Headers) -> HttpxRequest:
+        headers = Headers(default_headers)
+        headers.update(self.headers)
         return HttpxRequest(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
-            headers=self.headers,
+            headers=headers,
             params=self.query_params,
         )
 
@@ -58,8 +60,9 @@ class EmptyRequest:
 class BytesRequest(EmptyRequest):
     body: bytes
 
-    def to_request(self, base_url: URL) -> HttpxRequest:
-        headers = Headers(self.headers)
+    def to_request(self, base_url: URL, default_headers: Headers) -> HttpxRequest:
+        headers = Headers(default_headers)
+        headers.update(self.headers)
         headers["Content-Type"] = "application/octet-stream"
         return HttpxRequest(
             method=self.method,
@@ -75,8 +78,9 @@ class JSONRequest(EmptyRequest):
     body: Union[JSON, BaseModel]
     exclude_none: bool = True
 
-    def to_request(self, base_url: URL) -> HttpxRequest:
-        headers = Headers(self.headers)
+    def to_request(self, base_url: URL, default_headers: Headers) -> HttpxRequest:
+        headers = Headers(default_headers)
+        headers.update(self.headers)
         headers["Content-Type"] = "application/json"
         if isinstance(self.body, BaseModel):
             content = self.body.__pydantic_serializer__.to_json(
@@ -97,8 +101,9 @@ class JSONRequest(EmptyRequest):
 class TextRequest(EmptyRequest):
     text: str
 
-    def to_request(self, base_url: URL) -> HttpxRequest:
-        headers = Headers(self.headers)
+    def to_request(self, base_url: URL, default_headers: Headers) -> HttpxRequest:
+        headers = Headers(default_headers)
+        headers.update(self.headers)
         headers["Content-Type"] = "text/plain; charset=utf-8"
         return HttpxRequest(
             method=self.method,
@@ -114,7 +119,9 @@ class MultipartFormDataRequest(EmptyRequest):
     files: Mapping[str, Tuple[str, Union[IO[bytes], bytes], str]]
     data: Dict[str, str]
 
-    def to_request(self, base_url: URL) -> HttpxRequest:
+    def to_request(self, base_url: URL, default_headers: Headers) -> HttpxRequest:
+        headers = Headers(default_headers)
+        headers.update(self.headers)
         return HttpxRequest(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
@@ -131,7 +138,7 @@ Success = TypeVar("Success", covariant=True)
 
 
 class ToHttpxRequest(Protocol):
-    def to_request(self, base_url: URL) -> HttpxRequest: ...
+    def to_request(self, base_url: URL, default_headers: Headers) -> HttpxRequest: ...
 
 
 HttpMethod: TypeAlias = Generator[ToHttpxRequest, Response, Success]
@@ -150,13 +157,20 @@ class SyncHttpIO:
     def __init__(self, session: Client) -> None:
         self.session = session
 
-    def communicate(self, base_url: URL, http_iterator: HttpMethod[Success]) -> Success:
+    def communicate(
+        self,
+        base_url: URL,
+        default_headers: Headers,
+        http_iterator: HttpMethod[Success],
+    ) -> Success:
         return_value_iterator = LoopReturnValue(http_iterator)
         iterator = iter(return_value_iterator)
-        http_request = next(iterator)
         try:
+            http_request = next(iterator)
             while True:
-                response = self.session.send(http_request.to_request(base_url))
+                response = self.session.send(
+                    http_request.to_request(base_url, default_headers)
+                )
                 http_request = iterator.send(response)
         except StopIteration:
             return return_value_iterator.return_value
@@ -167,14 +181,19 @@ class AsyncHttpIO:
         self.session = session
 
     async def communicate(
-        self, base_url: URL, http_iterator: HttpMethod[Success]
+        self,
+        base_url: URL,
+        default_headers: Headers,
+        http_iterator: HttpMethod[Success],
     ) -> Success:
         return_value_iterator = LoopReturnValue(http_iterator)
         iterator = iter(return_value_iterator)
-        http_request = next(iterator)
         try:
+            http_request = next(iterator)
             while True:
-                response = await self.session.send(http_request.to_request(base_url))
+                response = await self.session.send(
+                    http_request.to_request(base_url, default_headers)
+                )
                 http_request = iterator.send(response)
         except StopIteration:
             return return_value_iterator.return_value
@@ -187,6 +206,7 @@ HttpIO = TypeVar("HttpIO", SyncHttpIO, AsyncHttpIO)
 class HasExecutor(Protocol[HttpIO]):
     executor: HttpIO
     base_url: URL
+    default_headers: Headers
 
 
 @dataclass
@@ -210,6 +230,6 @@ class handle_http_io(Generic[Params, Success]):
             *args: Params.args, **kwargs: Params.kwargs
         ) -> Union[Success, Awaitable[Success]]:
             iterator = self.method(obj, *args, **kwargs)
-            return obj.executor.communicate(obj.base_url, iterator)
+            return obj.executor.communicate(obj.base_url, obj.default_headers, iterator)
 
         return bound_method

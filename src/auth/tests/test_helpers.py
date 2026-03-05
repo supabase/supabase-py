@@ -6,6 +6,7 @@ import pytest
 import respx
 from httpx import Headers, HTTPStatusError, Response
 from pydantic import BaseModel
+
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
 )
@@ -338,6 +339,7 @@ def test_handle_exception_weak_password_branch() -> None:
     which is logically impossible, so we'll test it by mocking the implementation details.
     """
     import httpx
+
     from supabase_auth.errors import AuthWeakPasswordError
     from supabase_auth.helpers import handle_exception
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, List, Optional
+from typing import Generic, List
 
 from httpx import Headers, QueryParams
 from supabase_utils.http import (
@@ -15,10 +15,11 @@ from supabase_utils.types import JSON
 from yarl import URL
 
 from .helpers import (
-    model_validate,
+    handle_error_response,
     parse_link_response,
     parse_user_response,
     redirect_to_as_query,
+    validate_model,
     validate_uuid,
 )
 from .types import (
@@ -47,6 +48,7 @@ class SupabaseAuthAdminMFA(Generic[HttpIO]):
 
     executor: HttpIO
     base_url: URL
+    default_headers: Headers
 
     @handle_http_io
     def delete_factor(
@@ -63,24 +65,22 @@ class SupabaseAuthAdminMFA(Generic[HttpIO]):
         validate_uuid(id)
         response = yield EmptyRequest(
             method="DELETE",
-            path=["admin","users", user_id, "factors", id],
+            path=["admin", "users", user_id, "factors", id],
         )
-        return model_validate(AuthMFAAdminDeleteFactorResponse, response.content)
-    
+        return validate_model(response, AuthMFAAdminDeleteFactorResponse)
+
     @handle_http_io
-    def list_factors(
-        self,
-        user_id: str
-    ) -> HttpMethod[AuthMFAAdminListFactorsResponse]:
+    def list_factors(self, user_id: str) -> HttpMethod[AuthMFAAdminListFactorsResponse]:
         """
         Lists all factors attached to a user.
         """
         validate_uuid(user_id)
         response = yield EmptyRequest(
             method="GET",
-            path=["admin","users", user_id, "factors"],
+            path=["admin", "users", user_id, "factors"],
         )
-        return model_validate(AuthMFAAdminListFactorsResponse, response.content)
+        return validate_model(response, AuthMFAAdminListFactorsResponse)
+
 
 @dataclass
 class SupabaseAuthAdminOAuth(Generic[HttpIO]):
@@ -91,6 +91,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
 
     executor: HttpIO
     base_url: URL
+    default_headers: Headers
 
     @handle_http_io
     def list_clients(
@@ -112,7 +113,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             query_params=query,
         )
 
-        result = model_validate(OAuthClientListResponse, response.content)
+        result = validate_model(response, OAuthClientListResponse)
 
         # Parse pagination headers
         total = response.headers.get("x-total-count")
@@ -135,7 +136,6 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
 
         return result
 
-
     @handle_http_io
     def create_client(
         self,
@@ -154,7 +154,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             body=params,
         )
 
-        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
+        return OAuthClientResponse(client=validate_model(response, OAuthClient))
 
     @handle_http_io
     def get_client(
@@ -173,7 +173,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             method="GET",
             path=["admin", "oauth", "clients", client_id],
         )
-        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
+        return OAuthClientResponse(client=validate_model(response, OAuthClient))
 
     @handle_http_io
     def update_client(
@@ -194,7 +194,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             path=["admin", "oauth", "clients", client_id],
             body=params,
         )
-        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
+        return OAuthClientResponse(client=validate_model(response, OAuthClient))
 
     @handle_http_io
     def delete_client(
@@ -209,10 +209,12 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
         Never expose your `service_role` key in the browser.
         """
         validate_uuid(client_id)
-        yield EmptyRequest(
+        response = yield EmptyRequest(
             method="DELETE",
             path=["admin", "oauth", "clients", client_id],
         )
+        if not response.is_success:
+            raise handle_error_response(response)
 
     @handle_http_io
     def regenerate_client_secret(
@@ -231,32 +233,38 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             method="POST",
             path=["admin", "oauth", "clients", client_id, "regenerate_secret"],
         )
-        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
+        return OAuthClientResponse(client=validate_model(response, OAuthClient))
 
 
 class SupabaseAuthAdmin(Generic[HttpIO]):
     def __init__(
-        self,
-        executor: HttpIO,
-        base_url: URL,
+        self, executor: HttpIO, base_url: URL, default_headers: Headers
     ) -> None:
         self.executor: HttpIO = executor
         self.base_url: URL = base_url
-        
-        self.mfa: SupabaseAuthAdminMFA[HttpIO] = SupabaseAuthAdminMFA(self.executor, self.base_url)
-        self.oauth: SupabaseAuthAdminOAuth[HttpIO] = SupabaseAuthAdminOAuth(self.executor, self.base_url)
+        self.default_headers: Headers = default_headers
+
+        self.mfa: SupabaseAuthAdminMFA[HttpIO] = SupabaseAuthAdminMFA(
+            self.executor, self.base_url, default_headers
+        )
+        self.oauth: SupabaseAuthAdminOAuth[HttpIO] = SupabaseAuthAdminOAuth(
+            self.executor, self.base_url, default_headers
+        )
 
     @handle_http_io
     def sign_out(self, jwt: str, scope: SignOutScope = "global") -> HttpMethod[None]:
         """
         Removes a logged-in session.
         """
-        yield EmptyRequest(
+        print(jwt)
+        response = yield EmptyRequest(
             method="POST",
             path=["logout"],
             query_params=QueryParams(scope=scope),
-            headers=Headers({"Authorization": f"Bearer {jwt}"})
+            headers=Headers({"Authorization": f"Bearer {jwt}"}),
         )
+        if not response.is_success:
+            raise handle_error_response(response)
 
     @handle_http_io
     def invite_user_by_email(
@@ -277,7 +285,9 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         return parse_user_response(response)
 
     @handle_http_io
-    def generate_link(self, params: GenerateLinkParams) -> HttpMethod[GenerateLinkResponse]:
+    def generate_link(
+        self, params: GenerateLinkParams
+    ) -> HttpMethod[GenerateLinkResponse]:
         """
         Generates email links and OTPs to be sent via a custom email provider.
         """
@@ -301,16 +311,13 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         Never expose your `service_role` key in the browser.
         """
         response = yield JSONRequest(
-            method="POST",
-            path=["admin", "users"],
-            body=attributes,
-            exclude_none=True
+            method="POST", path=["admin", "users"], body=attributes, exclude_none=True
         )
         return parse_user_response(response)
 
     @handle_http_io
     def list_users(
-        self, page: Optional[int] = None, per_page: Optional[int] = None
+        self, page: int | None = None, per_page: int | None = None
     ) -> HttpMethod[List[User]]:
         """
         Get a list of users.
@@ -323,7 +330,7 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
             path=["admin", "users"],
             query_params=QueryParams(page=page, per_page=per_page),
         )
-        return model_validate(UserList, response.content).users
+        return validate_model(response, UserList).users
 
     @handle_http_io
     def get_user_by_id(self, uid: str) -> HttpMethod[UserResponse]:
@@ -362,7 +369,9 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         return parse_user_response(response)
 
     @handle_http_io
-    def delete_user(self, id: str, should_soft_delete: bool = False) -> HttpMethod[None]:
+    def delete_user(
+        self, id: str, should_soft_delete: bool = False
+    ) -> HttpMethod[None]:
         """
         Delete a user. Requires a `service_role` key.
 
@@ -371,6 +380,8 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         """
         validate_uuid(id)
         body = {"should_soft_delete": should_soft_delete}
-        yield JSONRequest(method="DELETE", path=["admin", "users", id], body=body)
-
-
+        response = yield JSONRequest(
+            method="DELETE", path=["admin", "users", id], body=body
+        )
+        if not response.is_success:
+            raise handle_error_response(response)
