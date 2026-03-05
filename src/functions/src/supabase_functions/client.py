@@ -30,7 +30,7 @@ class FunctionsClient(Generic[HttpIO]):
     def __init__(self, url: URL, headers: Dict[str, str], executor: HttpIO) -> None:
         if not (url.scheme == "http" or url.scheme == "https"):
             raise ValueError("url must be a valid HTTP URL string")
-        self.headers = {
+        self.default_headers = {
             "X-Client-Info": f"supabase-py/supabase_functions v{__version__}",
             "X-Supabase-Client-Platform": platform.system(),
             "X-Supabase-Client-Platform-Version": platform.release(),
@@ -51,7 +51,7 @@ class FunctionsClient(Generic[HttpIO]):
             the new jwt token sent in the authorization header
         """
 
-        self.headers["Authorization"] = f"Bearer {token}"
+        self.default_headers["Authorization"] = f"Bearer {token}"
 
     def _invoke_options_to_request(
         self,
@@ -65,11 +65,9 @@ class FunctionsClient(Generic[HttpIO]):
             raise ValueError("function_name must a valid string value.")
 
         path = [function_name]
-        new_headers = Headers(self.headers)
+        new_headers = Headers(headers)
         query_params = QueryParams()
 
-        if headers:
-            new_headers.update(headers)
         if region and region != FunctionRegion.Any:
             new_headers["x-region"] = region.value
             # Add region as query parameter
