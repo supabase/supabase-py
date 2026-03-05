@@ -39,7 +39,7 @@ def remove_none(**kwargs: JSON) -> JSON:
 @dataclass
 class VectorBucketScope(Generic[HttpIO]):
     base_url: URL
-    _headers: Headers
+    default_headers: Headers
     bucket_name: str
     executor: HttpIO
 
@@ -68,7 +68,6 @@ class VectorBucketScope(Generic[HttpIO]):
             method="POST",
             path=["CreateIndex"],
             body=body,
-            headers=self._headers,
         )
         if not response.is_success:
             raise parse_api_error(response)
@@ -80,7 +79,6 @@ class VectorBucketScope(Generic[HttpIO]):
             method="POST",
             path=["GetIndex"],
             body=body,
-            headers=self._headers,
         )
         if response.is_success:
             return GetVectorIndexResponse.model_validate_json(response.content)
@@ -103,16 +101,13 @@ class VectorBucketScope(Generic[HttpIO]):
             method="POST",
             path=["ListIndexes"],
             body=body,
-            headers=self._headers,
         )
         return validate_model(response, ListVectorIndexesResponse)
 
     @handle_http_io
     def delete_index(self, index_name: str) -> HttpMethod[None]:
         body = self.with_metadata(indexName=index_name)
-        response = yield JSONRequest(
-            method="POST", path=["DeleteIndex"], body=body, headers=self._headers
-        )
+        response = yield JSONRequest(method="POST", path=["DeleteIndex"], body=body)
         if not response.is_success:
             raise parse_api_error(response)
 
@@ -122,7 +117,7 @@ class VectorBucketScope(Generic[HttpIO]):
             index_name=index_name,
             base_url=self.base_url,
             executor=self.executor,
-            _headers=self._headers,
+            default_headers=self.default_headers,
         )
 
 
@@ -131,7 +126,7 @@ class VectorIndexScope(Generic[HttpIO]):
     executor: HttpIO
     bucket_name: str
     index_name: str
-    _headers: Headers
+    default_headers: Headers
     base_url: URL
 
     def with_metadata(self, **data: JSON) -> JSON:
@@ -147,7 +142,9 @@ class VectorIndexScope(Generic[HttpIO]):
             vectors=[v.model_dump(exclude_none=True) for v in vectors]
         )
         response = yield JSONRequest(
-            method="POST", path=["PutVectors"], body=body, headers=self._headers
+            method="POST",
+            path=["PutVectors"],
+            body=body,
         )
         if not response.is_success:
             raise parse_api_error(response)
@@ -165,7 +162,6 @@ class VectorIndexScope(Generic[HttpIO]):
             method="POST",
             path=["GetVectors"],
             body=body,
-            headers=self._headers,
         )
         return validate_model(response, GetVectorsResponse)
 
@@ -188,7 +184,9 @@ class VectorIndexScope(Generic[HttpIO]):
             segmentIndex=segment_index,
         )
         response = yield JSONRequest(
-            method="POST", path=["ListVectors"], body=body, headers=self._headers
+            method="POST",
+            path=["ListVectors"],
+            body=body,
         )
         return validate_model(response, ListVectorsResponse)
 
@@ -212,7 +210,6 @@ class VectorIndexScope(Generic[HttpIO]):
             method="POST",
             path=["QueryVectors"],
             body=body,
-            headers=self._headers,
         )
         return validate_model(response, QueryVectorsResponse)
 
@@ -222,7 +219,9 @@ class VectorIndexScope(Generic[HttpIO]):
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
         body = self.with_metadata(keys=keys)
         response = yield JSONRequest(
-            method="POST", path=["DeleteVectors"], body=body, headers=self._headers
+            method="POST",
+            path=["DeleteVectors"],
+            body=body,
         )
         if not response.is_success:
             raise parse_api_error(response)
@@ -231,15 +230,15 @@ class VectorIndexScope(Generic[HttpIO]):
 @dataclass
 class StorageVectorsClient(Generic[HttpIO]):
     base_url: URL
-    _headers: Headers
+    default_headers: Headers
     executor: HttpIO
 
     def from_(self, bucket_name: str) -> VectorBucketScope[HttpIO]:
         return VectorBucketScope(
             bucket_name=bucket_name,
             base_url=self.base_url,
-            _headers=self._headers,
             executor=self.executor,
+            default_headers=self.default_headers,
         )
 
     @handle_http_io
@@ -249,7 +248,6 @@ class StorageVectorsClient(Generic[HttpIO]):
             method="POST",
             path=["CreateVectorBucket"],
             body=body,
-            headers=self._headers,
         )
         if not response.is_success:
             raise parse_api_error(response)
@@ -263,7 +261,6 @@ class StorageVectorsClient(Generic[HttpIO]):
             method="POST",
             path=["GetVectorBucket"],
             body=body,
-            headers=self._headers,
         )
         if response.is_success:
             return GetVectorBucketResponse.model_validate_json(response.content)
@@ -284,7 +281,6 @@ class StorageVectorsClient(Generic[HttpIO]):
             method="POST",
             path=["ListVectorBuckets"],
             body=body,
-            headers=self._headers,
             exclude_none=True,
         )
         return validate_model(response, ListVectorBucketsResponse)
@@ -296,7 +292,6 @@ class StorageVectorsClient(Generic[HttpIO]):
             method="POST",
             path=["DeleteVectorBucket"],
             body=body,
-            headers=self._headers,
         )
         if not response.is_success:
             raise parse_api_error(response)

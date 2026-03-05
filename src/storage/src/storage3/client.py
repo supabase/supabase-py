@@ -56,7 +56,7 @@ class StorageClient(Generic[HttpIO]):
             print("Storage endpoint URL should have a trailing slash.")
             url += "/"
         self.base_url = URL(url)
-        self._headers = Headers(headers)
+        self.default_headers = Headers(headers)
 
     def from_(self, id: str) -> StorageFileApiClient[HttpIO]:
         """Run a storage file operation.
@@ -66,18 +66,20 @@ class StorageClient(Generic[HttpIO]):
         id
             The unique identifier of the bucket
         """
-        return StorageFileApiClient(id, self.base_url, self.executor, self._headers)
+        return StorageFileApiClient(
+            id, self.base_url, self.executor, self.default_headers
+        )
 
     def vectors(self) -> StorageVectorsClient[HttpIO]:
         return StorageVectorsClient(
             base_url=self.base_url.joinpath("vector"),
-            _headers=self._headers,
+            default_headers=self.default_headers,
             executor=self.executor,
         )
 
     def analytics(self) -> StorageAnalyticsClient[HttpIO]:
         return StorageAnalyticsClient(
-            _headers=self._headers,
+            default_headers=self.default_headers,
             base_url=self.base_url.joinpath("iceberg"),
             executor=self.executor,
         )
@@ -89,7 +91,6 @@ class StorageClient(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="GET",
             path=["bucket"],
-            headers=self._headers,
         )
         return validate_adapter(response, ListBucketAdapter)
 
@@ -105,7 +106,6 @@ class StorageClient(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="GET",
             path=["bucket", id],
-            headers=self._headers,
         )
         return validate_model(response, Bucket)
 
@@ -140,7 +140,6 @@ class StorageClient(Generic[HttpIO]):
         response = yield JSONRequest(
             method="POST",
             path=["bucket"],
-            headers=self._headers,
             body=body,
             exclude_none=True,
         )
@@ -175,7 +174,6 @@ class StorageClient(Generic[HttpIO]):
         response = yield JSONRequest(
             method="PUT",
             path=["bucket", id],
-            headers=self._headers,
             body=body,
             exclude_none=True,
         )
@@ -193,7 +191,6 @@ class StorageClient(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="POST",
             path=["bucket", id, "empty"],
-            headers=self._headers,
         )
 
         return validate_model(response, MessageResponse)
@@ -211,7 +208,6 @@ class StorageClient(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="DELETE",
             path=["bucket", id],
-            headers=self._headers,
         )
         return validate_model(response, MessageResponse)
 
@@ -225,7 +221,6 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
         http_client: AsyncClient | None = None,
     ) -> None:
         client = http_client or AsyncClient(
-            headers=headers,
             timeout=timeout or DEFAULT_TIMEOUT,
             http2=True,
             follow_redirects=True,
@@ -255,7 +250,6 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
         http_client: Client | None = None,
     ) -> None:
         client = http_client or Client(
-            headers=headers,
             timeout=timeout or DEFAULT_TIMEOUT,
             http2=True,
             follow_redirects=True,

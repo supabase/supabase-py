@@ -24,7 +24,7 @@ from .types import (
 
 @dataclass
 class StorageAnalyticsClient(Generic[HttpIO]):
-    _headers: Headers
+    default_headers: Headers
     base_url: URL
     executor: HttpIO
 
@@ -35,7 +35,6 @@ class StorageAnalyticsClient(Generic[HttpIO]):
             method="POST",
             path=["bucket"],
             body=body,
-            headers=self._headers,
         )
         return validate_model(response, AnalyticsBucket)
 
@@ -62,7 +61,6 @@ class StorageAnalyticsClient(Generic[HttpIO]):
             method="GET",
             path=["bucket"],
             query_params=filtered_params,
-            headers=self._headers,
         )
         return validate_adapter(response, AnalyticsBucketsParser)
 
@@ -71,7 +69,6 @@ class StorageAnalyticsClient(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="DELETE",
             path=["bucket", bucket_name],
-            headers=self._headers,
         )
         return validate_model(response, AnalyticsBucketDeleteResponse)
 
@@ -80,7 +77,7 @@ class StorageAnalyticsClient(Generic[HttpIO]):
     ) -> RestCatalog:
         catalog_uri = self.base_url
         s3_endpoint = self.base_url.parent.joinpath("s3")
-        service_key = self._headers.get("apiKey")
+        service_key = self.default_headers.get("apiKey")
         assert service_key, "apiKey must be passed in the headers."
         return RestCatalog(
             catalog_name,

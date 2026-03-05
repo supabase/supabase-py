@@ -62,7 +62,7 @@ class StorageFileApiClient(Generic[HttpIO]):
     id: str
     base_url: URL
     executor: HttpIO
-    _headers: Headers
+    default_headers: Headers
 
     def _parse_signed_url_response(self, response: Response) -> SignedUploadURL:
         if not response.is_success:
@@ -94,7 +94,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         options
             Additional options for the upload url creation.
         """
-        headers = Headers(self._headers)
+        headers = Headers()
         if upsert:
             headers["x-upsert"] = upsert
 
@@ -138,7 +138,6 @@ class StorageFileApiClient(Generic[HttpIO]):
         extra_headers = Headers(headers)
         extra_headers["x-upsert"] = "false"
         extra_headers["cache-control"] = f"max-age={cache_control}"
-        extra_headers.update(self._headers)
 
         data = {"cacheControl": cache_control}
         filename = path_parts[-1]
@@ -206,7 +205,6 @@ class StorageFileApiClient(Generic[HttpIO]):
         response = yield JSONRequest(
             method="POST",
             path=["object", "sign", self.id, *path_parts],
-            headers=self._headers,
             body=body,
             exclude_none=True,
         )
@@ -261,7 +259,6 @@ class StorageFileApiClient(Generic[HttpIO]):
             method="POST",
             path=["object", "sign", self.id],
             body=body,
-            headers=self._headers,
         )
         return self._parse_signed_urls(response, download_query)
 
@@ -314,7 +311,6 @@ class StorageFileApiClient(Generic[HttpIO]):
                 "sourceKey": from_path,
                 "destinationKey": to_path,
             },
-            headers=self._headers,
         )
         return validate_model(response, MessageResponse)
 
@@ -338,7 +334,6 @@ class StorageFileApiClient(Generic[HttpIO]):
                 "sourceKey": from_path,
                 "destinationKey": to_path,
             },
-            headers=self._headers,
         )
 
         return validate_model(response, UploadResponse)
@@ -357,7 +352,6 @@ class StorageFileApiClient(Generic[HttpIO]):
             method="DELETE",
             path=["object", self.id],
             body={"prefixes": paths},
-            headers=self._headers,
         )
         return validate_adapter(response, FileObjectsAdapter)
 
@@ -378,7 +372,6 @@ class StorageFileApiClient(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="GET",
             path=["object", "info", self.id, *path_parts],
-            headers=self._headers,
         )
         return validate_model(response, FileObject)
 
@@ -399,7 +392,6 @@ class StorageFileApiClient(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="HEAD",
             path=["object", self.id, *path_parts],
-            headers=self._headers,
         )
         if response.is_success:
             return True
@@ -438,7 +430,6 @@ class StorageFileApiClient(Generic[HttpIO]):
             method="POST",
             path=["object", "list", self.id],
             body=body,
-            headers=self._headers,
         )
         return validate_adapter(response, ListFileObjectsAdapter)
 
@@ -463,7 +454,6 @@ class StorageFileApiClient(Generic[HttpIO]):
             path=["object", "list-v2", self.id],
             body=body,
             exclude_none=True,
-            headers=self._headers,
         )
         return validate_model(response, SearchV2Result)
 
@@ -492,7 +482,6 @@ class StorageFileApiClient(Generic[HttpIO]):
             method="GET",
             path=[*render_path, self.id, *path_parts],
             query_params=params,
-            headers=self._headers,
         )
         if not response.is_success:
             raise parse_api_error(response)
@@ -527,8 +516,6 @@ class StorageFileApiClient(Generic[HttpIO]):
 
         extra_headers["x-upsert"] = upsert
         extra_headers["cache-control"] = f"max-age={cache_control}"
-
-        extra_headers.update(self._headers)
 
         data = {"cacheControl": cache_control}
 

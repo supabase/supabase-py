@@ -22,8 +22,7 @@ def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> N
 
     assert isinstance(client, AsyncStorageClient)
     assert all(
-        client.executor.session.headers[key] == value
-        for key, value in valid_headers.items()
+        client.default_headers[key] == value for key, value in valid_headers.items()
     )
     assert client.executor.session.timeout == Timeout(DEFAULT_TIMEOUT)
 
@@ -33,8 +32,7 @@ def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> No
 
     assert isinstance(client, SyncStorageClient)
     assert all(
-        client.executor.session.headers[key] == value
-        for key, value in valid_headers.items()
+        client.default_headers[key] == value for key, value in valid_headers.items()
     )
     assert client.executor.session.timeout == Timeout(DEFAULT_TIMEOUT)
 
@@ -47,7 +45,9 @@ def test_async_storage_client(valid_url: str, valid_headers: Dict[str, str]) -> 
     )
 
     assert isinstance(client, AsyncStorageClient)
-    assert all(client._headers[key] == value for key, value in valid_headers.items())
+    assert all(
+        client.default_headers[key] == value for key, value in valid_headers.items()
+    )
     assert client.executor.session.headers.get("x-user-agent") == "my-app/0.0.1"
     assert client.executor.session.timeout == Timeout(5.0)
 
@@ -60,7 +60,9 @@ def test_sync_storage_client(valid_url: str, valid_headers: Dict[str, str]) -> N
     )
 
     assert isinstance(client, SyncStorageClient)
-    assert all(client._headers[key] == value for key, value in valid_headers.items())
+    assert all(
+        client.default_headers[key] == value for key, value in valid_headers.items()
+    )
     assert client.executor.session.headers.get("x-user-agent") == "my-app/0.0.1"
     assert client.executor.session.timeout == Timeout(5.0)
 
@@ -72,8 +74,7 @@ def test_async_storage_client_with_httpx(
 
     assert isinstance(client, AsyncStorageClient)
     assert all(
-        client.executor.session.headers[key] == value
-        for key, value in valid_headers.items()
+        client.default_headers[key] == value for key, value in valid_headers.items()
     )
     assert client.executor.session.timeout == Timeout(DEFAULT_TIMEOUT)
 
@@ -85,8 +86,7 @@ def test_sync_storage_client_with_httpx(
 
     assert isinstance(client, SyncStorageClient)
     assert all(
-        client.executor.session.headers[key] == value
-        for key, value in valid_headers.items()
+        client.default_headers[key] == value for key, value in valid_headers.items()
     )
     assert client.executor.session.timeout == Timeout(DEFAULT_TIMEOUT)
 

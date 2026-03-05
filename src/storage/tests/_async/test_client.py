@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient as HttpxClient
-from httpx import HTTPStatusError, Response
+from httpx import Response
 from supabase_utils.http import AsyncHttpIO
 
 from storage3 import AsyncStorageClient, StorageFileApiClient
@@ -558,19 +558,13 @@ async def test_client_info_with_error(
     """Ensure StorageException is raised when signed URL creation fails"""
     mock_error_response = Mock(spec=Response)
     mock_error_response.status_code = 404
+    mock_error_response.is_success = False
     mock_error_response.content = b'{"error": "Custom error message", "statusCode": 404, "message": "File not found"}'
-
-    mock_response = Mock(spec=Response)
-    mock_response.json.return_value = {"error": "Custom error message"}
-    mock_response.raise_for_status.side_effect = HTTPStatusError(
-        "HTTP Error", request=Mock(), response=mock_error_response
-    )
 
     with patch.object(
         storage_file_client_public.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
-        mock_request.return_value = mock_response
-
+        mock_request.return_value = mock_error_response
         with pytest.raises(StorageApiError):
             await storage_file_client_public.info(file.bucket_path)
 

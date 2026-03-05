@@ -1,6 +1,6 @@
 from typing import TypeVar
 
-from httpx import HTTPStatusError, Response
+from httpx import Response
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.dataclasses import dataclass
 
@@ -43,19 +43,15 @@ Inner = TypeVar("Inner")
 
 
 def validate_adapter(response: Response, type_adapter: TypeAdapter[Inner]) -> Inner:
-    try:
-        response.raise_for_status()
+    if response.is_success:
         return type_adapter.validate_json(response.content)
-    except HTTPStatusError:
-        raise parse_api_error(response)
+    raise parse_api_error(response)
 
 
 Model = TypeVar("Model", bound=BaseModel)
 
 
 def validate_model(response: Response, model: type[Model]) -> Model:
-    try:
-        response.raise_for_status()
+    if response.is_success:
         return model.model_validate_json(response.content)
-    except HTTPStatusError:
-        raise parse_api_error(response)
+    raise parse_api_error(response)

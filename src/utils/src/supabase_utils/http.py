@@ -125,7 +125,7 @@ class MultipartFormDataRequest(EmptyRequest):
         return HttpxRequest(
             method=self.method,
             url=str(base_url.joinpath(*self.path)),
-            headers=self.headers,
+            headers=headers,
             params=self.query_params,
             files=self.files,
             data=self.data,
