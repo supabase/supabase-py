@@ -19,7 +19,6 @@ from supabase_functions.errors import (
 )
 
 # Async Client
-from ._async.auth_client import AsyncSupabaseAuthClient as ASupabaseAuthClient
 from ._async.client import AsyncClient
 from ._async.client import AsyncClient as AClient
 from ._async.client import AsyncStorageClient as ASupabaseStorageClient
@@ -29,7 +28,6 @@ from ._async.client import create_client as acreate_client
 from ._async.client import create_client as create_async_client
 
 # Sync Client
-from ._sync.auth_client import SyncSupabaseAuthClient as SupabaseAuthClient
 from ._sync.client import Client, SupabaseException, create_client
 from ._sync.client import SupabaseException as SyncSupabaseException
 from ._sync.client import SyncStorageClient as SupabaseStorageClient
