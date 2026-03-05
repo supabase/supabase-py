@@ -36,9 +36,9 @@ async def test_init_with_valid_params(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
     assert str(client.base_url) == valid_url
-    assert "X-Client-Info" in client.headers
+    assert "X-Client-Info" in client.default_headers
     assert (
-        client.headers["X-Client-Info"]
+        client.default_headers["X-Client-Info"]
         == f"supabase-py/supabase_functions v{__version__}"
     )
     assert client.executor.session.timeout == Timeout(10)
@@ -55,7 +55,7 @@ def test_init_with_invalid_url(
 async def test_set_auth_valid_token(client: AsyncFunctionsClient) -> None:
     valid_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
     client.set_auth(valid_token)
-    assert client.headers["Authorization"] == f"Bearer {valid_token}"
+    assert client.default_headers["Authorization"] == f"Bearer {valid_token}"
 
 
 async def test_invoke_success_json(client: AsyncFunctionsClient) -> None:

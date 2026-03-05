@@ -30,14 +30,16 @@ class FunctionsClient(Generic[HttpIO]):
     def __init__(self, url: URL, headers: Dict[str, str], executor: HttpIO) -> None:
         if not (url.scheme == "http" or url.scheme == "https"):
             raise ValueError("url must be a valid HTTP URL string")
-        self.default_headers = {
-            "X-Client-Info": f"supabase-py/supabase_functions v{__version__}",
-            "X-Supabase-Client-Platform": platform.system(),
-            "X-Supabase-Client-Platform-Version": platform.release(),
-            "X-Supabase-Client-Runtime": "python",
-            "X-Supabase-Client-Runtime-Version": platform.python_version(),
-            **headers,
-        }
+        self.default_headers = Headers(
+            {
+                "X-Client-Info": f"supabase-py/supabase_functions v{__version__}",
+                "X-Supabase-Client-Platform": platform.system(),
+                "X-Supabase-Client-Platform-Version": platform.release(),
+                "X-Supabase-Client-Runtime": "python",
+                "X-Supabase-Client-Runtime-Version": platform.python_version(),
+                **headers,
+            }
+        )
 
         self.executor: HttpIO = executor
         self.base_url = url
