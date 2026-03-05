@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Callable, Generic, Literal
 from uuid import uuid4
 
-from httpx import AsyncClient, Headers, QueryParams, Response
+from httpx import AsyncClient, Client, Headers, QueryParams, Response
 from jwt import get_algorithm_by_name
 from supabase_utils.http import (
     AsyncHttpIO,
@@ -14,6 +14,7 @@ from supabase_utils.http import (
     HttpIO,
     HttpMethod,
     JSONRequest,
+    SyncHttpIO,
     handle_http_io,
 )
 from supabase_utils.types import JSON
@@ -41,12 +42,15 @@ from .helpers import (
     redirect_to_as_query,
     validate_exp,
 )
-from .mfa import AsyncSupabaseAuthMFAClient
+from .mfa import AsyncSupabaseAuthMFAClient, SyncSupabaseAuthMFAClient
 from .session import (
     AsyncMemoryStorage,
     AsyncSessionManager,
     AsyncSupportedStorage,
     SessionManagerCommon,
+    SyncMemoryStorage,
+    SyncSessionManager,
+    SyncSupportedStorage,
 )
 from .types import (
     JWK,
@@ -664,12 +668,6 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
                 "SIGNED_IN", auth_response.session
             )
 
-    async def get_session_or_raise(self) -> Session:
-        session = await self.get_session()
-        if not session:
-            raise AuthSessionMissingError()
-        return session
-
     # Public methods
 
     async def sign_in_anonymously(
@@ -747,7 +745,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
     ) -> OAuthResponse:
-        session = await self.get_session_or_raise()
+        session = await self.session_manager.get_session_or_raise()
         oauth_response, code_verifier = await self._link_identity(
             session, provider, redirect_to, scopes, query_params
         )
@@ -763,7 +761,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         return IdentitiesResponse(identities=response.user.identities or [])
 
     async def unlink_identity(self, identity: UserIdentity) -> Response:
-        session = await self.get_session_or_raise()
+        session = await self.session_manager.get_session_or_raise()
         return await self._unlink_identity(session, identity)
 
     async def sign_in_with_otp(
@@ -794,7 +792,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         return auth_response
 
     async def reauthenticate(self) -> AuthResponse:
-        session = await self.get_session_or_raise()
+        session = await self.session_manager.get_session_or_raise()
         return await self._reauthenticate(session)
 
     async def get_session(self) -> Session | None:
@@ -826,7 +824,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         """
         Updates user data, if there is a logged in user.
         """
-        session = await self.get_session_or_raise()
+        session = await self.session_manager.get_session_or_raise()
         user_response = await self._update_user(session, attributes, email_redirect_to)
         await self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers("USER_UPDATED", session)
@@ -921,3 +919,340 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
                 return None
             jwt = session.access_token
         return await self._get_claims(jwt, jwks)
+
+
+class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
+    def __init__(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        storage_key: str | None = None,
+        auto_refresh_token: bool = True,
+        persist_session: bool = True,
+        storage: SyncSupportedStorage | None = None,
+        http_client: Client | None = None,
+        flow_type: AuthFlowType = "implicit",
+    ) -> None:
+        self.base_url = URL(url)
+        default_headers = Headers(headers)
+        client = http_client or Client(
+            headers=headers,
+            http2=True,
+            follow_redirects=True,
+            verify=True,
+        )
+        executor = SyncHttpIO(session=client)
+        self.session_manager: SyncSessionManager = SyncSessionManager(
+            base_url=self.base_url,
+            executor=executor,
+            default_headers=default_headers,
+            storage=storage or SyncMemoryStorage(),
+            state_change_emitters={},
+            auto_refresh_token=auto_refresh_token,
+        )
+        SupabaseAuthHttpClient.__init__(
+            self,
+            base_url=self.base_url,
+            executor=executor,
+            default_headers=default_headers,
+            session_manager=self.session_manager,
+            _jwks=JWKSet(keys=[]),
+            flow_type=flow_type,
+        )
+        self.admin: SupabaseAuthAdmin[SyncHttpIO] = SupabaseAuthAdmin(
+            base_url=self.base_url,
+            executor=executor,
+            default_headers=default_headers,
+        )
+        self.mfa = SyncSupabaseAuthMFAClient(
+            base_url=self.base_url,
+            executor=executor,
+            default_headers=default_headers,
+            session_manager=self.session_manager,
+        )
+
+    # Initializations
+
+    def initialize(self, *, url: str | None = None) -> None:
+        if url and is_implicit_grant_flow(URL(url)):
+            self.initialize_from_url(url)
+        else:
+            self.initialize_from_storage()
+
+    def initialize_from_storage(self) -> None:
+        return self.session_manager.recover_and_refresh()
+
+    def initialize_from_url(self, url: str) -> None:
+        try:
+            if is_implicit_grant_flow(URL(url)):
+                session, redirect_type = self._get_session_from_url(url)
+                self.session_manager.save_session(session)
+                self.session_manager.notify_all_subscribers("SIGNED_IN", session)
+                if redirect_type == "recovery":
+                    self.session_manager.notify_all_subscribers(
+                        "PASSWORD_RECOVERY", session
+                    )
+        except Exception as e:
+            self.session_manager.remove_session()
+            raise e
+
+    def save_session_and_sign_in(self, auth_response: AuthResponse) -> None:
+        self.session_manager.remove_session()
+        if auth_response.session:
+            self.session_manager.save_session(auth_response.session)
+            self.session_manager.notify_all_subscribers(
+                "SIGNED_IN", auth_response.session
+            )
+
+    # Public methods
+
+    def sign_in_anonymously(
+        self, data: JSON = None, captcha_token: str | None = None
+    ) -> AuthResponse:
+        """
+        Creates a new anonymous user.
+        """
+        auth_response = self._sign_in_anonymously(data, captcha_token)
+        self.save_session_and_sign_in(auth_response)
+        return auth_response
+
+    def sign_up(
+        self,
+        credentials: SignUpWithPasswordCredentials,
+    ) -> AuthResponse:
+        """
+        Creates a new user.
+        """
+        auth_response = self._sign_up(credentials)
+        self.save_session_and_sign_in(auth_response)
+        return auth_response
+
+    def sign_in_with_password(
+        self,
+        credentials: SignInWithPasswordCredentials,
+    ) -> AuthResponse:
+        """
+        Log in an existing user with an email or phone and password.
+        """
+        auth_response = self._sign_in_with_password(credentials)
+        self.save_session_and_sign_in(auth_response)
+        return auth_response
+
+    def sign_in_with_id_token(
+        self,
+        provider: Literal["google", "apple", "azure", "facebook", "kakao"],
+        token: str,
+        access_token: str | None = None,
+        nonce: str | None = None,
+        captcha_token: str | None = None,
+    ) -> AuthResponse:
+        """
+        Allows signing in with an OIDC ID token. The authentication provider used should be enabled and configured.
+        """
+        auth_response = self._sign_in_with_id_token(
+            provider, token, access_token, nonce, captcha_token
+        )
+        self.save_session_and_sign_in(auth_response)
+        return auth_response
+
+    def sign_in_with_oauth(
+        self,
+        provider: Provider,
+        redirect_to: str | None = None,
+        scopes: str | None = None,
+        query_params: dict[str, str] | None = None,
+    ) -> OAuthResponse:
+        """
+        Log in an existing user via a third-party provider.
+        """
+        self.session_manager.remove_session()
+        oauth_response, code_verifier = self._sign_in_with_oauth(
+            provider, redirect_to, scopes, query_params
+        )
+        if code_verifier:
+            key = f"{self.session_manager.storage_key}-code-verifier"
+            self.session_manager.storage.set_item(key, code_verifier)
+        return oauth_response
+
+    def link_identity(
+        self,
+        provider: Provider,
+        redirect_to: str | None = None,
+        scopes: str | None = None,
+        query_params: dict[str, str] | None = None,
+    ) -> OAuthResponse:
+        session = self.session_manager.get_session_or_raise()
+        oauth_response, code_verifier = self._link_identity(
+            session, provider, redirect_to, scopes, query_params
+        )
+        if code_verifier:
+            key = f"{self.session_manager.storage_key}-code-verifier"
+            self.session_manager.storage.set_item(key, code_verifier)
+        return oauth_response
+
+    def get_user_identities(self) -> IdentitiesResponse:
+        response = self.get_user()
+        if not response:
+            raise AuthSessionMissingError()
+        return IdentitiesResponse(identities=response.user.identities or [])
+
+    def unlink_identity(self, identity: UserIdentity) -> Response:
+        session = self.session_manager.get_session_or_raise()
+        return self._unlink_identity(session, identity)
+
+    def sign_in_with_otp(
+        self,
+        credentials: SignInWithPasswordlessCredentials,
+    ) -> AuthOtpResponse:
+        """
+        Log in a user using magiclink or a one-time password (OTP).
+
+        If the `{{ .ConfirmationURL }}` variable is specified in
+        the email template, a magiclink will be sent.
+
+        If the `{{ .Token }}` variable is specified in the email
+        template, an OTP will be sent.
+
+        If you're using phone sign-ins, only an OTP will be sent.
+        You won't be able to send a magiclink for phone sign-ins.
+        """
+        self.session_manager.remove_session()
+        return self._sign_in_with_otp(credentials)
+
+    def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
+        """
+        Log in a user given a User supplied OTP received via mobile.
+        """
+        auth_response = self._verify_otp(params)
+        self.save_session_and_sign_in(auth_response)
+        return auth_response
+
+    def reauthenticate(self) -> AuthResponse:
+        session = self.session_manager.get_session_or_raise()
+        return self._reauthenticate(session)
+
+    def get_session(self) -> Session | None:
+        """
+        Returns the session, refreshing it if necessary.
+
+        The session returned can be null if the session is not detected which
+        can happen in the event a user is not signed-in or has logged out.
+        """
+        return self.session_manager.get_session()
+
+    def get_user(self, jwt: str | None = None) -> UserResponse | None:
+        """
+        Gets the current user details if there is an existing session.
+
+        Takes in an optional access token `jwt`. If no `jwt` is provided,
+        `get_user()` will attempt to get the `jwt` from the current session.
+        """
+        if not jwt:
+            session = self.get_session()
+            if not session:
+                return None
+            jwt = session.access_token
+        return self.session_manager.get_user(jwt)
+
+    def update_user(
+        self, attributes: UserAttributes, email_redirect_to: str | None = None
+    ) -> UserResponse:
+        """
+        Updates user data, if there is a logged in user.
+        """
+        session = self.session_manager.get_session_or_raise()
+        user_response = self._update_user(session, attributes, email_redirect_to)
+        self.session_manager.save_session(session)
+        self.session_manager.notify_all_subscribers("USER_UPDATED", session)
+        return user_response
+
+    def set_session(self, access_token: str, refresh_token: str) -> AuthResponse:
+        """
+        Sets the session data from the current session. If the current session
+        is expired, `set_session` will take care of refreshing it to obtain a
+        new session.
+
+        If the refresh token in the current session is invalid and the current
+        session has expired, an error will be thrown.
+
+        If the current session does not contain at `expires_at` field,
+        `set_session` will use the exp claim defined in the access token.
+
+        The current session that minimally contains an access token,
+        refresh token and a user.
+        """
+        auth_response = self._set_session(access_token, refresh_token)
+        if auth_response.session:
+            self.session_manager.save_session(auth_response.session)
+            self.session_manager.notify_all_subscribers(
+                "TOKEN_REFRESHED", auth_response.session
+            )
+        return auth_response
+
+    def refresh_session(self, refresh_token: str | None = None) -> AuthResponse:
+        """
+        Returns a new session, regardless of expiry status.
+
+        Takes in an optional current session. If not passed in, then refreshSession()
+        will attempt to retrieve it from getSession(). If the current session's
+        refresh token is invalid, an error will be thrown.
+        """
+        if not refresh_token:
+            session = self.get_session()
+            if session:
+                refresh_token = session.refresh_token
+        if not refresh_token:
+            raise AuthSessionMissingError()
+        session = self.session_manager.call_refresh_token(refresh_token)
+        return AuthResponse(session=session, user=session.user)
+
+    def sign_out(self, scope: SignOutScope = "global") -> None:
+        """
+        `sign_out` will remove the logged in user from the
+        current session and log them out - removing all items from storage and then trigger a `"SIGNED_OUT"` event.
+
+        For advanced use cases, you can revoke all refresh tokens for a user by passing a user's JWT through to `admin.sign_out`.
+
+        There is no way to revoke a user's access token jwt until it expires.
+        It is recommended to set a shorter expiry on the jwt for this reason.
+        """
+        session = self.get_session()
+        access_token = session.access_token if session else None
+        if access_token:
+            with suppress(AuthApiError):
+                self.admin.sign_out(access_token, scope)
+
+        if scope != "others":
+            self.session_manager.remove_session()
+            self.session_manager.notify_all_subscribers("SIGNED_OUT", None)
+
+    def on_auth_state_change(
+        self,
+        callback: Callable[[AuthChangeEvent, Session | None], None],
+    ) -> Subscription:
+        """
+        Receive a notification every time an auth event happens.
+        """
+        unique_id = str(uuid4())
+
+        def _unsubscribe() -> None:
+            self.session_manager.state_change_emitters.pop(unique_id)
+
+        subscription = Subscription(
+            id=unique_id,
+            callback=callback,
+            unsubscribe=_unsubscribe,
+        )
+        self.session_manager.state_change_emitters[unique_id] = subscription
+        return subscription
+
+    def get_claims(
+        self, jwt: str | None = None, jwks: JWKSet | None = None
+    ) -> ClaimsResponse | None:
+        if not jwt:
+            session = self.get_session()
+            if not session:
+                return None
+            jwt = session.access_token
+        return self._get_claims(jwt, jwks)

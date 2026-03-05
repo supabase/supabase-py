@@ -187,9 +187,7 @@ class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
         factor. All other sessions are logged out and the current one gets an
         `aal2` authenticator level.
         """
-        session = await self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = await self.session_manager.get_session_or_raise()
         return await self._enroll(session, params)
 
     async def challenge(
@@ -199,9 +197,7 @@ class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
         Prepares a challenge used to verify that a user has access to a MFA
         factor. Provide the challenge ID and verification code by calling `verify`.
         """
-        session = await self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = await self.session_manager.get_session_or_raise()
         return await self._challenge(session, factor_id, channel)
 
     async def challenge_and_verify(
@@ -214,9 +210,7 @@ class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
         to verify against it thereafter. The verification code is provided by the
         user by entering a code seen in their authenticator app.
         """
-        session = await self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = await self.session_manager.get_session_or_raise()
         response, session = await self._challenge_and_verify(session, factor_id, code)
         await self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers("TOKEN_REFRESHED", session)
@@ -229,9 +223,7 @@ class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
         Verifies a verification code against a challenge. The verification code is
         provided by the user by entering a code seen in their authenticator app.
         """
-        session = await self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = await self.session_manager.get_session_or_raise()
         response, session = await self._verify(session, factor_id, code, challenge_id)
         await self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers("MFA_CHALLENGE_VERIFIED", session)
@@ -243,9 +235,7 @@ class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
         and it's not necessary to unenroll them. Unenrolling a verified MFA factor
         cannot be done from a session with an `aal1` authenticator level.
         """
-        session = await self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = await self.session_manager.get_session_or_raise()
         return await self._unenroll(session, factor_id)
 
     async def list_factors(self) -> AuthMFAListFactorsResponse:
@@ -256,9 +246,7 @@ class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
         This uses a cached version of the factors and avoids incurring a network call.
         If you need to update this list, call `get_user` first.
         """
-        session = await self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = await self.session_manager.get_session_or_raise()
         user = await self.session_manager.get_user(session.access_token)
         return self._list_factors(user)
 
@@ -298,9 +286,7 @@ class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
         factor. All other sessions are logged out and the current one gets an
         `aal2` authenticator level.
         """
-        session = self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = self.session_manager.get_session_or_raise()
         return self._enroll(session, params)
 
     def challenge(
@@ -310,9 +296,7 @@ class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
         Prepares a challenge used to verify that a user has access to a MFA
         factor. Provide the challenge ID and verification code by calling `verify`.
         """
-        session = self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = self.session_manager.get_session_or_raise()
         return self._challenge(session, factor_id, channel)
 
     def challenge_and_verify(
@@ -325,9 +309,7 @@ class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
         to verify against it thereafter. The verification code is provided by the
         user by entering a code seen in their authenticator app.
         """
-        session = self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = self.session_manager.get_session_or_raise()
         response, session = self._challenge_and_verify(session, factor_id, code)
         self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers("TOKEN_REFRESHED", session)
@@ -340,9 +322,7 @@ class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
         Verifies a verification code against a challenge. The verification code is
         provided by the user by entering a code seen in their authenticator app.
         """
-        session = self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = self.session_manager.get_session_or_raise()
         response, session = self._verify(session, factor_id, code, challenge_id)
         self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers("MFA_CHALLENGE_VERIFIED", session)
@@ -367,9 +347,7 @@ class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
         This uses a cached version of the factors and avoids incurring a network call.
         If you need to update this list, call `get_user` first.
         """
-        session = self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
+        session = self.session_manager.get_session_or_raise()
         user = self.session_manager.get_user(session.access_token)
         return self._list_factors(user)
 
@@ -390,6 +368,4 @@ class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
         user needs to be shown a screen to verify their MFA factors.
         """
         session = self.session_manager.get_session()
-        if not session:
-            raise AuthSessionMissingError()
         return self._get_authenticator_assurance_level(session)

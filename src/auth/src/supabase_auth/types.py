@@ -2,24 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from time import time
-from typing import Callable
+from typing import Callable, Mapping
 
 from httpx import Headers
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.dataclasses import dataclass
 from supabase_utils.types import JSON
-
-try:
-    # > 2
-    from pydantic import model_validator
-
-    model_validator_v1_v2_compat = model_validator(mode="before")
-except ImportError:
-    # < 2
-    from pydantic import root_validator
-
-    model_validator_v1_v2_compat = root_validator  # type: ignore
-
 from typing_extensions import Literal, NotRequired, TypedDict
 
 Provider = Literal[
@@ -160,12 +148,11 @@ class Session(BaseModel):
     token_type: str
     user: User
 
-    @model_validator_v1_v2_compat
-    def validator(cls, values: dict) -> dict:
-        expires_in = values.get("expires_in")
-        if expires_in and not values.get("expires_at"):
-            values["expires_at"] = round(time()) + expires_in
-        return values
+    @model_validator(mode="after")
+    def validator(self) -> Session:
+        if self.expires_in and not self.expires_at:
+            self.expires_at = round(time()) + self.expires_in
+        return self
 
     def encode_access_token(self) -> Headers:
         return Headers({"Authorization": f"Bearer {self.access_token}"})
@@ -175,7 +162,7 @@ class UserIdentity(BaseModel):
     id: str
     identity_id: str
     user_id: str
-    identity_data: JSON
+    identity_data: dict[str, JSON]
     provider: str
     created_at: datetime
     last_sign_in_at: datetime | None = None
@@ -210,8 +197,8 @@ class Factor(BaseModel):
 
 class User(BaseModel):
     id: str
-    app_metadata: JSON
-    user_metadata: JSON
+    user_metadata: Mapping[str, JSON]
+    app_metadata: Mapping[str, JSON]
     aud: str
     confirmation_sent_at: datetime | None = None
     recovery_sent_at: datetime | None = None
@@ -246,8 +233,8 @@ class UserAttributes(BaseModel):
 
 
 class AdminUserAttributes(UserAttributes):
-    user_metadata: JSON = None
-    app_metadata: JSON = None
+    user_metadata: Mapping[str, JSON] | None = None
+    app_metadata: Mapping[str, JSON] | None = None
     email_confirm: bool | None = None
     phone_confirm: bool | None = None
     ban_duration: str | None = None
@@ -896,11 +883,11 @@ class AuthMFAEnrollResponse(BaseModel):
     Phone number of the MFA factor in E.164 format. Used to send messages
     """
 
-    @model_validator_v1_v2_compat
-    def validate_phone_required_for_phone_type(cls, values: dict) -> dict:
-        if values.get("type") == "phone" and not values.get("phone"):
+    @model_validator(mode="after")
+    def validate_phone_required_for_phone_type(self) -> AuthMFAEnrollResponse:
+        if self.type == "phone" and not self.phone:
             raise ValueError("phone is required when type is 'phone'")
-        return values
+        return self
 
 
 class AuthMFAUnenrollResponse(BaseModel):

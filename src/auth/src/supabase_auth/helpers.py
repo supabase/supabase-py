@@ -103,7 +103,7 @@ def parse_link_response(response: Response) -> GenerateLinkResponse:
     return GenerateLinkResponse(properties=properties, user=user)
 
 
-UserParser: TypeAdapter = TypeAdapter(UserResponse | User)
+UserParser: TypeAdapter[UserResponse | User] = TypeAdapter(UserResponse | User)
 
 
 def parse_user_response(response: Response) -> UserResponse:
@@ -162,7 +162,7 @@ def handle_error_response(response: Response) -> AuthError:
         and datetime.timestamp(response_api_version)
         >= API_VERSIONS_2024_01_01_TIMESTAMP
     ):
-        error_code = ErrorCodeAdapter.validate_python(raw_error.code)
+        error_code = ErrorCodeAdapter.validate_python(raw_error.error_code)
     else:
         error_code = raw_error.error_code
 
@@ -230,7 +230,7 @@ def decode_jwt(token: str) -> DecodedJWT:
     )
 
 
-def generate_pkce_verifier(length=64) -> str:
+def generate_pkce_verifier(length: int = 64) -> str:
     """Generate a random PKCE verifier of the specified length."""
     if length < 43 or length > 128:
         raise ValueError("PKCE verifier length must be between 43 and 128 characters")
@@ -241,7 +241,7 @@ def generate_pkce_verifier(length=64) -> str:
     return "".join(secrets.choice(charset) for _ in range(length))
 
 
-def generate_pkce_challenge(code_verifier) -> str:
+def generate_pkce_challenge(code_verifier: str) -> str:
     """Generate a code challenge from a PKCE verifier."""
     # Hash the verifier using SHA-256
     verifier_bytes = code_verifier.encode("utf-8")

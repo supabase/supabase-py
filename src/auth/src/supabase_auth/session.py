@@ -175,6 +175,12 @@ class AsyncSessionManager(SessionManagerCommon[AsyncHttpIO]):
             return current_session
         return await self.call_refresh_token(current_session.refresh_token)
 
+    async def get_session_or_raise(self) -> Session:
+        session = await self.get_session()
+        if not session:
+            raise AuthSessionMissingError()
+        return session
+
     async def save_session(self, session: Session) -> None:
         if not self.persist_session:
             self.in_memory_session = session
@@ -329,6 +335,12 @@ class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
             return current_session
         return self.call_refresh_token(current_session.refresh_token)
 
+    def get_session_or_raise(self) -> Session:
+        session = self.get_session()
+        if not session:
+            raise AuthSessionMissingError()
+        return session
+
     def save_session(self, session: Session) -> None:
         if not self.persist_session:
             self.in_memory_session = session
@@ -356,6 +368,41 @@ class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
                 self.start_auto_refresh_token(
                     RETRY_INTERVAL ** (self.network_retries * 100)
                 )
+
+    def recover_and_refresh(self) -> None:
+        raw_session = self.storage.get_item(self.storage_key)
+        current_session = self.parse_valid_session(raw_session)
+        if not current_session:
+            if raw_session:
+                self.remove_session()
+            return
+        time_now = round(time.time())
+        expires_at = current_session.expires_at
+        if expires_at and expires_at < time_now + EXPIRY_MARGIN:
+            refresh_token = current_session.refresh_token
+            if self.auto_refresh_token and refresh_token:
+                self.network_retries += 1
+                try:
+                    self.call_refresh_token(refresh_token)
+                    self.network_retries = 0
+                except Exception as e:
+                    if (
+                        isinstance(e, AuthRetryableError)
+                        and self.network_retries < MAX_RETRIES
+                    ):
+                        if self.refresh_token_timer:
+                            self.refresh_token_timer.cancel()
+                        self.refresh_token_timer = SyncTimer(
+                            (RETRY_INTERVAL ** (self.network_retries * 100)),
+                            self.recover_and_refresh,
+                        )
+                        self.refresh_token_timer.start()
+                        return
+            self.remove_session()
+            return
+        if self.persist_session:
+            self.save_session(current_session)
+        self.notify_all_subscribers("SIGNED_IN", current_session)
 
     def start_auto_refresh_token(self, value: float) -> None:
         if self.refresh_token_timer:

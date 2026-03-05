@@ -11,14 +11,14 @@ class AsyncTimer:
     ) -> None:
         self._milliseconds = seconds
         self._function = function
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
 
     def start(self) -> None:
         async def schedule() -> None:
             await asyncio.sleep(self._milliseconds / 1000)
             await self._function()
 
-        def cleanup(_) -> None:
+        def cleanup(_task: asyncio.Task[None]) -> None:
             self._task = None
 
         self._task = asyncio.create_task(schedule())
