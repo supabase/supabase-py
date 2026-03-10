@@ -220,7 +220,7 @@ class AsyncSessionManager(SessionManagerCommon[AsyncHttpIO]):
                         if self.refresh_token_timer:
                             self.refresh_token_timer.cancel()
                         self.refresh_token_timer = AsyncTimer(
-                            (RETRY_INTERVAL ** (self.network_retries * 100)),
+                            (RETRY_INTERVAL ** (2 * (self.network_retries - 1))),
                             self.recover_and_refresh,
                         )
                         self.refresh_token_timer.start()
@@ -241,7 +241,7 @@ class AsyncSessionManager(SessionManagerCommon[AsyncHttpIO]):
         except Exception as e:
             if isinstance(e, AuthRetryableError) and self.network_retries < MAX_RETRIES:
                 self.start_auto_refresh_token(
-                    RETRY_INTERVAL ** (self.network_retries * 100)
+                    (RETRY_INTERVAL ** (2 * (self.network_retries - 1))),
                 )
 
     def start_auto_refresh_token(self, value: float) -> None:
@@ -366,7 +366,7 @@ class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
         except Exception as e:
             if isinstance(e, AuthRetryableError) and self.network_retries < MAX_RETRIES:
                 self.start_auto_refresh_token(
-                    RETRY_INTERVAL ** (self.network_retries * 100)
+                    RETRY_INTERVAL ** (2 * (self.network_retries - 1))
                 )
 
     def recover_and_refresh(self) -> None:
@@ -393,7 +393,7 @@ class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
                         if self.refresh_token_timer:
                             self.refresh_token_timer.cancel()
                         self.refresh_token_timer = SyncTimer(
-                            (RETRY_INTERVAL ** (self.network_retries * 100)),
+                            (RETRY_INTERVAL ** (2 * (self.network_retries - 1))),
                             self.recover_and_refresh,
                         )
                         self.refresh_token_timer.start()
