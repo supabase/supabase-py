@@ -214,6 +214,8 @@ class StorageFileApiClient(Generic[HttpIO]):
     def _parse_signed_urls(
         self, response: Response, download_query: QueryParams
     ) -> List[CreateSignedUrlResponse]:
+        if not response.is_success:
+            raise parse_api_error(response)
         data = SignedUrlsJsonResponse.validate_json(response.content)
         signed_urls = []
         for item in data:
