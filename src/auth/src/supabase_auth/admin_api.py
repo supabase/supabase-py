@@ -256,7 +256,6 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         """
         Removes a logged-in session.
         """
-        print(jwt)
         response = yield EmptyRequest(
             method="POST",
             path=["logout"],

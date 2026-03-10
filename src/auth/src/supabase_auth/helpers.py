@@ -136,7 +136,6 @@ def validate_model(response: Response, model: type[Model]) -> Model:
     if response.is_success:
         return model.model_validate_json(response.content)
     else:
-        print(response.content)
         raise handle_error_response(response)
 
 
