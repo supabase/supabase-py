@@ -435,6 +435,21 @@ class TestApiResponse:
         with pytest.raises(ValueError):
             APIResponse(data=api_response_with_error)
 
+    def test_single_response_with_message_column(self):
+        data = {"id": 1, "message": "hello world"}
+        response = SingleAPIResponse(data=data, count=1)
+        assert response.data == data
+
+    def test_single_response_raises_when_real_api_error(self):
+        error_data = {
+            "code": "PGRST116",
+            "details": "The result contains 0 rows",
+            "hint": None,
+            "message": "JSON object requested, but no rows were returned",
+        }
+        with pytest.raises(ValueError):
+            SingleAPIResponse(data=error_data, count=0)
+
     def test_parses_valid_response_only_data(self, api_response: List[JSON]):
         result = APIResponse(data=api_response)
         assert result.data == api_response

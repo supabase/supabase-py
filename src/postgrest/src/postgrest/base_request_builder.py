@@ -208,7 +208,13 @@ class APIResponse(BaseModel):
     @field_validator("data")
     @classmethod
     def raise_when_api_error(cls: Type[Self], value: Any) -> Any:
-        if isinstance(value, dict) and value.get("message"):
+        if (
+            isinstance(value, dict)
+            and value.get("message")
+            and value.get("code")
+            and "details" in value
+            and "hint" in value
+        ):
             raise ValueError("You are passing an API error to the data field.")
         return value
 
