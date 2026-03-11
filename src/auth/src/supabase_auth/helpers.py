@@ -28,8 +28,10 @@ from .errors import (
     AuthWeakPasswordError,
 )
 from .types import (
+    AuthMFAAdminListFactorsResponse,
     AuthOtpResponse,
     AuthResponse,
+    Factor,
     GenerateLinkProperties,
     GenerateLinkResponse,
     JWKSet,
@@ -106,6 +108,22 @@ UserParser: TypeAdapter = TypeAdapter(Union[UserResponse, User])
 def parse_user_response(response: Response) -> UserResponse:
     parsed = UserParser.validate_json(response.content)
     return UserResponse(user=parsed) if isinstance(parsed, User) else parsed
+
+
+FactorsParser: TypeAdapter = TypeAdapter(Union[AuthMFAAdminListFactorsResponse, list[Factor]])
+
+
+def parse_factors_response(response: Response) -> AuthMFAAdminListFactorsResponse:
+    """Parse admin list factors response.
+
+    The GoTrue endpoint ``GET /admin/users/{id}/factors`` returns a bare JSON
+    array, but ``AuthMFAAdminListFactorsResponse`` expects
+    ``{"factors": [...]}``.  This parser normalises both formats.
+    """
+    parsed = FactorsParser.validate_json(response.content)
+    if isinstance(parsed, list):
+        return AuthMFAAdminListFactorsResponse(factors=parsed)
+    return parsed
 
 
 def parse_sso_response(response: Response) -> SSOResponse:

@@ -24,6 +24,7 @@ from supabase_auth.helpers import (
     model_dump,
     model_dump_json,
     model_validate,
+    parse_factors_response,
     parse_link_identity_response,
     parse_response_api_version,
     validate_exp,
@@ -383,3 +384,65 @@ def test_handle_exception_weak_password_branch() -> None:
         assert isinstance(result, AuthWeakPasswordError)
         assert result.message == "Password too weak"
         assert result.status == 400
+
+
+# Tests for parse_factors_response
+class TestParseFactorsResponse:
+    """Tests for the admin list factors response parser.
+
+    GoTrue ``GET /admin/users/{id}/factors`` returns a bare JSON array,
+    but ``AuthMFAAdminListFactorsResponse`` expects ``{"factors": [...]}``.
+    ``parse_factors_response`` normalises both formats.
+    """
+
+    SAMPLE_FACTOR = {
+        "id": "factor-1",
+        "friendly_name": "my-totp",
+        "factor_type": "totp",
+        "status": "verified",
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z",
+    }
+
+    def _make_response(self, json_data: str) -> Response:
+        return Response(status_code=200, content=json_data.encode())
+
+    def test_parses_bare_array(self) -> None:
+        """GoTrue returns ``[{...}]`` — should be wrapped into ``{"factors": [...]}``."""
+        import json
+
+        response = self._make_response(json.dumps([self.SAMPLE_FACTOR]))
+        result = parse_factors_response(response)
+        assert len(result.factors) == 1
+        assert result.factors[0].id == "factor-1"
+        assert result.factors[0].factor_type == "totp"
+
+    def test_parses_object_format(self) -> None:
+        """If the response is already ``{"factors": [...]}``, it should still work."""
+        import json
+
+        response = self._make_response(json.dumps({"factors": [self.SAMPLE_FACTOR]}))
+        result = parse_factors_response(response)
+        assert len(result.factors) == 1
+        assert result.factors[0].id == "factor-1"
+
+    def test_parses_empty_array(self) -> None:
+        """An empty array should yield an empty factors list."""
+        response = self._make_response("[]")
+        result = parse_factors_response(response)
+        assert result.factors == []
+
+    def test_parses_multiple_factors(self) -> None:
+        """Multiple factors of different types should all be parsed."""
+        import json
+
+        phone_factor = {
+            **self.SAMPLE_FACTOR,
+            "id": "factor-2",
+            "factor_type": "phone",
+        }
+        response = self._make_response(json.dumps([self.SAMPLE_FACTOR, phone_factor]))
+        result = parse_factors_response(response)
+        assert len(result.factors) == 2
+        assert result.factors[0].factor_type == "totp"
+        assert result.factors[1].factor_type == "phone"

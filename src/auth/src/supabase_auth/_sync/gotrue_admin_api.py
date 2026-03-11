@@ -6,6 +6,7 @@ from httpx import Client, QueryParams
 
 from ..helpers import (
     model_validate,
+    parse_factors_response,
     parse_link_response,
     parse_user_response,
     validate_uuid,
@@ -200,7 +201,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "GET",
             f"admin/users/{params.get('user_id')}/factors",
         )
-        return model_validate(AuthMFAAdminListFactorsResponse, response.content)
+        return parse_factors_response(response)
 
     def _delete_factor(
         self,
