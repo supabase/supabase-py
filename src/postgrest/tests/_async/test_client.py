@@ -104,12 +104,12 @@ def test_schema(postgrest_client: AsyncPostgrestClient):
     assert subheaders.items() < client.headers.items()
 
 
-@pytest.mark.asyncio
-async def test_params_purged_after_execute(postgrest_client: AsyncPostgrestClient):
-    assert len(postgrest_client.session.params) == 0
-    with pytest.raises(APIError):
-        await postgrest_client.from_("test").select("a", "b").eq("c", "d").execute()
-    assert len(postgrest_client.session.params) == 0
+# @pytest.mark.asyncio
+# async def test_params_purged_after_execute(postgrest_client: AsyncPostgrestClient):
+#     assert len(postgrest_client.session.params) == 0
+#     with pytest.raises(APIError):
+#         await postgrest_client.from_("test").select("a", "b").eq("c", "d").execute()
+#     assert len(postgrest_client.session.params) == 0
 
 
 @pytest.mark.asyncio

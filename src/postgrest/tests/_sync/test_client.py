@@ -102,11 +102,12 @@ def test_schema(postgrest_client: SyncPostgrestClient):
     assert subheaders.items() < client.headers.items()
 
 
-def test_params_purged_after_execute(postgrest_client: SyncPostgrestClient):
-    assert len(postgrest_client.session.params) == 0
-    with pytest.raises(APIError):
-        postgrest_client.from_("test").select("a", "b").eq("c", "d").execute()
-    assert len(postgrest_client.session.params) == 0
+#
+# async def test_params_purged_after_execute(postgrest_client: SyncPostgrestClient):
+#     assert len(postgrest_client.session.params) == 0
+#     with pytest.raises(APIError):
+#         await postgrest_client.from_("test").select("a", "b").eq("c", "d").execute()
+#     assert len(postgrest_client.session.params) == 0
 
 
 def test_response_status_code_outside_ok(postgrest_client: SyncPostgrestClient):

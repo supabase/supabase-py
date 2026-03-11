@@ -525,7 +525,9 @@ class AsyncRealtimeChannel:
                 self.on_error(dict(message.payload))
         elif isinstance(message, ReplyMessage):
             reply_payload = message.payload
-            if message.ref and (push := self.messages_waiting_for_ack.pop(message.ref, None)):
+            if message.ref and (
+                push := self.messages_waiting_for_ack.pop(message.ref, None)
+            ):
                 if reply_payload.status == "ok":
                     push.trigger(
                         RealtimeAcknowledgementStatus.Ok, reply_payload.response
