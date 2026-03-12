@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.28.1](https://github.com/supabase/supabase-py/compare/v2.28.0...v2.28.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* **auth:** prevent OverflowError in auto-refresh token retry ([#1397](https://github.com/supabase/supabase-py/issues/1397)) ([#1400](https://github.com/supabase/supabase-py/issues/1400)) ([08bdf38](https://github.com/supabase/supabase-py/commit/08bdf38198680ec25f85ded68dc358c75ddf6fd3))
+* **postgrest:** comment out ssl error test ([#1410](https://github.com/supabase/supabase-py/issues/1410)) ([51b86be](https://github.com/supabase/supabase-py/commit/51b86becfe1a51addd59cc3f8e24e891bfd5eb4a))
+* **postgrest:** remove check against message field in data payload ([#1413](https://github.com/supabase/supabase-py/issues/1413)) ([81041a4](https://github.com/supabase/supabase-py/commit/81041a4289b449e534ab46cc9cb54a08b6b7fa4f))
+
 ## [2.28.0](https://github.com/supabase/supabase-py/compare/v2.27.3...v2.28.0) (2026-02-10)
 
 
