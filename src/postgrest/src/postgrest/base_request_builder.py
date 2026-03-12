@@ -205,13 +205,6 @@ class APIResponse(BaseModel):
     count: Optional[int] = None
     """The number of rows returned."""
 
-    @field_validator("data")
-    @classmethod
-    def raise_when_api_error(cls: Type[Self], value: Any) -> Any:
-        if isinstance(value, dict) and value.get("message"):
-            raise ValueError("You are passing an API error to the data field.")
-        return value
-
     @staticmethod
     def _get_count_from_content_range_header(
         content_range_header: str,
