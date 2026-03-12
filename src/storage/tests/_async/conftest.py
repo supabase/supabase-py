@@ -21,7 +21,7 @@ async def storage() -> AsyncGenerator[AsyncStorageClient]:
     assert key is not None, "Must provide SUPABASE_TEST_KEY environment variable"
     async with AsyncStorageClient(
         url,
-        {
+        headers={
             "apiKey": key,
             "Authorization": f"Bearer {key}",
         },

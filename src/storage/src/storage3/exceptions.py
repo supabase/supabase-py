@@ -1,3 +1,5 @@
+from typing import TypeVar
+
 from httpx import Response
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.dataclasses import dataclass
@@ -35,3 +37,21 @@ def parse_api_error(response: Response) -> StorageApiError:
     except ValidationError:
         message = f"Unable to parse error message: {response.text}"
         return StorageApiError(message=message, code="InternalError", status=400)
+
+
+Inner = TypeVar("Inner")
+
+
+def validate_adapter(response: Response, type_adapter: TypeAdapter[Inner]) -> Inner:
+    if response.is_success:
+        return type_adapter.validate_json(response.content)
+    raise parse_api_error(response)
+
+
+Model = TypeVar("Model", bound=BaseModel)
+
+
+def validate_model(response: Response, model: type[Model]) -> Model:
+    if response.is_success:
+        return model.model_validate_json(response.content)
+    raise parse_api_error(response)

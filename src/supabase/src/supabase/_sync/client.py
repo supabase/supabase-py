@@ -12,7 +12,7 @@ from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
 from realtime import RealtimeChannelOptions, SyncRealtimeChannel, SyncRealtimeClient
 from storage3 import SyncStorageClient
-from supabase_auth import SyncMemoryStorage
+from supabase_auth import SyncMemoryStorage, SyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
 from yarl import URL
@@ -20,7 +20,6 @@ from yarl import URL
 from ..lib.client_options import SyncClientOptions as ClientOptions
 from ..lib.client_options import SyncHttpxClient
 from ..types import RealtimeClientOptions
-from .auth_client import SyncSupabaseAuthClient
 
 
 # Create an exception class when user does not provide a valid url or key.
@@ -260,8 +259,6 @@ class Client:
     def _init_supabase_auth_client(
         auth_url: str,
         client_options: ClientOptions,
-        verify: bool = True,
-        proxy: Optional[str] = None,
     ) -> SyncSupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
         return SyncSupabaseAuthClient(
@@ -271,8 +268,6 @@ class Client:
             storage=client_options.storage,
             headers=client_options.headers,
             flow_type=client_options.flow_type,
-            verify=verify,
-            proxy=proxy,
             http_client=client_options.httpx_client,
         )
 
@@ -329,7 +324,7 @@ class Client:
             access_token = session.access_token if session else self.supabase_key
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
-        self.auth._headers["Authorization"] = auth_header
+        self.auth.default_headers["Authorization"] = auth_header
 
 
 def create_client(

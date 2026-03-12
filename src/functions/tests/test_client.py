@@ -23,7 +23,9 @@ def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> N
 
     assert isinstance(client, AsyncFunctionsClient)
     assert str(client.base_url) == valid_url
-    assert all(client.headers[key] == value for key, value in valid_headers.items())
+    assert all(
+        client.default_headers[key] == value for key, value in valid_headers.items()
+    )
 
 
 def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
@@ -34,7 +36,9 @@ def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> No
 
     assert isinstance(client, SyncFunctionsClient)
     assert str(client.base_url) == valid_url
-    assert all(client.headers[key] == value for key, value in valid_headers.items())
+    assert all(
+        client.default_headers[key] == value for key, value in valid_headers.items()
+    )
 
 
 def test_type_hints() -> None:

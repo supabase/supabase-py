@@ -8,8 +8,8 @@ from uuid import uuid4
 
 import pytest
 from httpx import Client as HttpxClient
-from httpx import HTTPStatusError, Response
-from supabase_utils.http import SyncExecutor
+from httpx import Response
+from supabase_utils.http import SyncHttpIO
 
 from storage3 import StorageFileApiClient, SyncStorageClient
 from storage3.exceptions import StorageApiError, StorageException
@@ -102,7 +102,7 @@ def public_bucket(
 @pytest.fixture
 def storage_file_client(
     storage: SyncStorageClient, bucket: str
-) -> Generator[StorageFileApiClient[SyncExecutor]]:
+) -> Generator[StorageFileApiClient[SyncHttpIO]]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(bucket)
 
@@ -110,7 +110,7 @@ def storage_file_client(
 @pytest.fixture
 def storage_file_client_public(
     storage: SyncStorageClient, public_bucket: str
-) -> Generator[StorageFileApiClient[SyncExecutor]]:
+) -> Generator[StorageFileApiClient[SyncHttpIO]]:
     """Creates the storage file client for the whole storage tests run"""
     yield storage.from_(public_bucket)
 
@@ -268,7 +268,7 @@ def multi_file(tmp_path: Path, uuid_factory: Callable[[], str]) -> list[FileForT
 
 
 def test_client_upload(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket"""
     storage_file_client.upload(
@@ -285,7 +285,7 @@ def test_client_upload(
 
 
 def test_client_upload_with_query(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket, even with query parameters"""
     storage_file_client.upload(
@@ -304,7 +304,7 @@ def test_client_upload_with_query(
 
 
 def test_client_download_with_query_doesnt_lose_params(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure query params aren't lost"""
     from yarl import URL
@@ -326,7 +326,7 @@ def test_client_download_with_query_doesnt_lose_params(
 
 
 def test_client_update(
-    storage_file_client: StorageFileApiClient[SyncExecutor],
+    storage_file_client: StorageFileApiClient[SyncHttpIO],
     two_files: list[FileForTesting],
 ) -> None:
     """Ensure we can upload files to a bucket"""
@@ -355,7 +355,7 @@ def test_client_update(
     "path", ["foobar.txt", "example/nested.jpg", "/leading/slash.png"]
 )
 def test_client_create_signed_upload_url(
-    storage_file_client: StorageFileApiClient[SyncExecutor], path: str
+    storage_file_client: StorageFileApiClient[SyncHttpIO], path: str
 ) -> None:
     """Ensure we can create signed URLs to upload files to a bucket"""
     data = storage_file_client.create_signed_upload_url(path)
@@ -366,7 +366,7 @@ def test_client_create_signed_upload_url(
 
 
 def test_client_upload_to_signed_url(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload to a signed URL with various options"""
     # Test with content-type
@@ -406,7 +406,7 @@ def test_client_upload_to_signed_url(
 
 
 def test_client_create_signed_url(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can create and use signed URLs with various options"""
     storage_file_client.upload(
@@ -450,7 +450,7 @@ def test_client_create_signed_url(
 
 
 def test_client_create_signed_urls(
-    storage_file_client: StorageFileApiClient[SyncExecutor],
+    storage_file_client: StorageFileApiClient[SyncHttpIO],
     multi_file: list[FileForTesting],
 ) -> None:
     """Ensure we can create signed urls for files in a bucket"""
@@ -471,7 +471,7 @@ def test_client_create_signed_urls(
 
 
 def test_client_get_public_url(
-    storage_file_client_public: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can get the public url of a file in a bucket with various options"""
     storage_file_client_public.upload(
@@ -509,7 +509,7 @@ def test_client_get_public_url(
 
 
 def test_client_upload_with_custom_metadata(
-    storage_file_client_public: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
     storage_file_client_public.upload(
@@ -529,7 +529,7 @@ def test_client_upload_with_custom_metadata(
 
 
 def test_client_info(
-    storage_file_client_public: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
     storage_file_client_public.upload(
@@ -542,7 +542,7 @@ def test_client_info(
 
 
 def test_client_info_with_error(
-    storage_file_client_public: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
     storage_file_client_public.upload(
@@ -552,25 +552,20 @@ def test_client_info_with_error(
     """Ensure StorageException is raised when signed URL creation fails"""
     mock_error_response = Mock(spec=Response)
     mock_error_response.status_code = 404
+    mock_error_response.is_success = False
     mock_error_response.content = b'{"error": "Custom error message", "statusCode": 404, "message": "File not found"}'
-
-    mock_response = Mock(spec=Response)
-    mock_response.json.return_value = {"error": "Custom error message"}
-    mock_response.raise_for_status.side_effect = HTTPStatusError(
-        "HTTP Error", request=Mock(), response=mock_error_response
-    )
 
     with patch.object(
         storage_file_client_public.executor.session, "send", new_callable=Mock
     ) as mock_request:
-        mock_request.return_value = mock_response
+        mock_request.return_value = mock_error_response
 
         with pytest.raises(StorageApiError):
             storage_file_client_public.info(file.bucket_path)
 
 
 def test_client_exists(
-    storage_file_client_public: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client_public: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can get the public url of a file in a bucket"""
     storage_file_client_public.upload(
@@ -583,7 +578,7 @@ def test_client_exists(
 
 
 def test_client_copy(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can copy files within a bucket"""
     # Upload original file
@@ -608,7 +603,7 @@ def test_client_copy(
 
 
 def test_client_move(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can move files within a bucket"""
     # Upload original file
@@ -635,7 +630,7 @@ def test_client_move(
 
 
 def test_client_remove(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can remove files from a bucket"""
     # Upload file
@@ -654,7 +649,7 @@ def test_client_remove(
 
 
 def test_client_remove_multiple(
-    storage_file_client: StorageFileApiClient[SyncExecutor],
+    storage_file_client: StorageFileApiClient[SyncHttpIO],
     multi_file: list[FileForTesting],
 ) -> None:
     """Ensure we can remove multiple files from a bucket"""
@@ -679,7 +674,7 @@ def test_client_remove_multiple(
 
 
 def test_client_create_signed_urls_with_download(
-    storage_file_client: StorageFileApiClient[SyncExecutor],
+    storage_file_client: StorageFileApiClient[SyncHttpIO],
     multi_file: list[FileForTesting],
 ) -> None:
     """Ensure we can create signed urls with download options for files in a bucket"""
@@ -700,7 +695,7 @@ def test_client_create_signed_urls_with_download(
 
 
 def test_client_list_v2(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket"""
     storage_file_client.upload(
@@ -718,7 +713,7 @@ def test_client_list_v2(
 
 
 def test_client_list_v2_folder(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket"""
     storage_file_client.upload(
@@ -735,7 +730,7 @@ def test_client_list_v2_folder(
 
 
 def test_client_list_v2_paginated(
-    storage_file_client: StorageFileApiClient[SyncExecutor], file: FileForTesting
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
     """Ensure we can upload files to a bucket"""
     suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]
