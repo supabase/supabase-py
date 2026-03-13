@@ -1029,36 +1029,3 @@ class PageParams(BaseModel):
     """Page number"""
     per_page: Optional[int] = None
     """Number of items per page"""
-
-
-for model in [
-    AMREntry,
-    AuthResponse,
-    OAuthResponse,
-    UserResponse,
-    Session,
-    UserIdentity,
-    Factor,
-    User,
-    Subscription,
-    AuthMFAVerifyResponse,
-    AuthMFAEnrollResponseTotp,
-    AuthMFAEnrollResponse,
-    AuthMFAUnenrollResponse,
-    AuthMFAChallengeResponse,
-    AuthMFAListFactorsResponse,
-    AuthMFAGetAuthenticatorAssuranceLevelResponse,
-    AuthMFAAdminDeleteFactorResponse,
-    AuthMFAAdminListFactorsResponse,
-    GenerateLinkProperties,
-    OAuthClient,
-    OAuthClientResponse,
-    OAuthClientListResponse,
-    Pagination,
-]:
-    try:
-        # pydantic > 2
-        model.model_rebuild()  # type: ignore
-    except AttributeError:
-        # pydantic < 2
-        model.update_forward_refs()  # type: ignore
