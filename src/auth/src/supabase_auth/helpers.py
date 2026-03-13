@@ -139,6 +139,16 @@ def validate_model(response: Response, model: type[Model]) -> Model:
         raise handle_error_response(response)
 
 
+Inner = TypeVar("Inner")
+
+
+def validate_adapter(response: Response, adapter: TypeAdapter[Inner]) -> Inner:
+    if response.is_success:
+        return adapter.validate_json(response.content)
+    else:
+        raise handle_error_response(response)
+
+
 def handle_error_response(response: Response) -> AuthError:
     try:
         raw_error = RawApiError.model_validate_json(response.content)

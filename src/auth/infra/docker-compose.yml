@@ -2,7 +2,7 @@
 name: auth-tests
 services:
   gotrue: # Signup enabled, autoconfirm off
-    image: supabase/auth:v2.180.0
+    image: supabase/auth:v2.187.0
     ports:
       - '9999:9999'
     environment:
@@ -43,7 +43,7 @@ services:
       - db
     restart: on-failure
   autoconfirm: # Signup enabled, autoconfirm on
-    image: supabase/auth:v2.180.0
+    image: supabase/auth:v2.187.0
     ports:
       - '9998:9998'
     environment:
@@ -76,7 +76,7 @@ services:
       - db
     restart: on-failure
   autoconfirm_with_asymmetric_keys: # Signup enabled, autoconfirm on
-    image: supabase/auth:v2.180.0
+    image: supabase/auth:v2.187.0
     ports:
       - '9996:9996'
     environment:
@@ -107,7 +107,7 @@ services:
       - db
     restart: on-failure
   disabled: # Signup disabled
-    image: supabase/auth:v2.180.0
+    image: supabase/auth:v2.187.0
     ports:
       - '9997:9997'
     environment:

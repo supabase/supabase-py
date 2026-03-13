@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.28.2](https://github.com/supabase/supabase-py/compare/v2.28.1...v2.28.2) (2026-03-13)
+
+
+### Bug Fixes
+
+* **auth:** fix admin list factors payload format. ([#1415](https://github.com/supabase/supabase-py/issues/1415)) ([32843cf](https://github.com/supabase/supabase-py/commit/32843cf8346529e2b7fbcec9d0e787424b70e55c))
+
 ## [2.28.1](https://github.com/supabase/supabase-py/compare/v2.28.0...v2.28.1) (2026-03-12)
 
 

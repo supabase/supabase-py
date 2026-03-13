@@ -2,13 +2,31 @@ from __future__ import annotations
 
 from datetime import datetime
 from time import time
-from typing import Callable, Mapping
+from typing import Callable, List, Mapping
 
 from httpx import Headers
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    model_validator,
+)
 from pydantic.dataclasses import dataclass
 from supabase_utils.types import JSON
-from typing_extensions import Literal, NotRequired, TypedDict
+
+try:
+    # > 2
+    from pydantic import model_validator
+
+    model_validator_v1_v2_compat = model_validator(mode="before")
+except ImportError:
+    # < 2
+    from pydantic import root_validator
+
+    model_validator_v1_v2_compat = root_validator  # type: ignore
+
+from typing_extensions import Literal, TypedDict
 
 Provider = Literal[
     "apple",
@@ -77,10 +95,6 @@ class AMREntry(BaseModel):
 class AMREntryDict(TypedDict):
     timestamp: int
     method: Literal["password", "otp", "oauth", "mfa/totp"] | str
-
-
-class UpdateUserOptions(TypedDict):
-    email_redirect_to: NotRequired[str]
 
 
 class AuthResponse(BaseModel):
@@ -509,17 +523,6 @@ class Resend:
         )
 
 
-class SignInWithOAuthCredentialsOptions(TypedDict):
-    redirect_to: NotRequired[str]
-    scopes: NotRequired[str]
-    query_params: NotRequired[dict[str, str]]
-
-
-class SignInWithOAuthCredentials(TypedDict):
-    provider: Provider
-    options: NotRequired[SignInWithOAuthCredentialsOptions]
-
-
 class SignInWithSSOProvider(WithCaptchaToken):
     provider_id: str
     redirect_to: str | None = None
@@ -781,42 +784,6 @@ class MFAEnroll:
 MFAEnrollParams = MFAEnrollPhoneParams | MFAEnrollTOTPParams
 
 
-class CodeExchangeParams(TypedDict):
-    code_verifier: str
-    """
-    Randomly generated string
-    """
-    auth_code: str
-    """
-    Code returned after completing one of the authorization flows
-    """
-    redirect_to: str
-    """
-    The URL to route to after a session is successfully obtained
-    """
-
-
-class MFAVerifyParams(TypedDict):
-    factor_id: str
-    """
-    ID of the factor being verified.
-    """
-    challenge_id: str
-    """
-    ID of the challenge being verified.
-    """
-    code: str
-    """
-    Verification code provided by the user.
-    """
-
-
-class MFAChallengeAndVerifyParams(TypedDict):
-    """
-    Verification code provided by the user.
-    """
-
-
 class AuthMFAVerifyResponse(BaseModel):
     access_token: str
     """
@@ -957,11 +924,11 @@ class AuthMFAAdminDeleteFactorResponse(BaseModel):
     """
 
 
-class AuthMFAAdminListFactorsResponse(BaseModel):
-    factors: list[Factor]
-    """
-    All factors attached to the user.
-    """
+AuthMFAAdminListFactorsResponse = List[Factor]
+
+AuthMFAAdminListFactorsResponseParser: TypeAdapter[AuthMFAAdminListFactorsResponse] = (
+    TypeAdapter(AuthMFAAdminListFactorsResponse)
+)
 
 
 class GenerateLinkProperties(BaseModel):
@@ -998,12 +965,6 @@ class GenerateLinkProperties(BaseModel):
 class GenerateLinkResponse(BaseModel):
     properties: GenerateLinkProperties
     user: User
-
-
-class DecodedJWTDict(TypedDict):
-    exp: NotRequired[int]
-    aal: NotRequired[AuthenticatorAssuranceLevels | None]
-    amr: NotRequired[list[AMREntry] | None]
 
 
 SignOutScope = Literal["global", "local", "others"]
@@ -1184,36 +1145,3 @@ class OAuthClientListResponse(BaseModel):
     next_page: int | None = None
     last_page: int = 0
     total: int = 0
-
-
-for model in [
-    AMREntry,
-    AuthResponse,
-    OAuthResponse,
-    UserResponse,
-    Session,
-    UserIdentity,
-    Factor,
-    User,
-    Subscription,
-    AuthMFAVerifyResponse,
-    AuthMFAEnrollResponseTotp,
-    AuthMFAEnrollResponse,
-    AuthMFAUnenrollResponse,
-    AuthMFAChallengeResponse,
-    AuthMFAListFactorsResponse,
-    AuthMFAGetAuthenticatorAssuranceLevelResponse,
-    AuthMFAAdminDeleteFactorResponse,
-    AuthMFAAdminListFactorsResponse,
-    GenerateLinkProperties,
-    OAuthClient,
-    OAuthClientResponse,
-    OAuthClientListResponse,
-    Pagination,
-]:
-    try:
-        # pydantic > 2
-        model.model_rebuild()  # type: ignore
-    except AttributeError:
-        # pydantic < 2
-        model.update_forward_refs()  # type: ignore

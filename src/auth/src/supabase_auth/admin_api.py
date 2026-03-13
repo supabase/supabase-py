@@ -19,6 +19,7 @@ from .helpers import (
     parse_link_response,
     parse_user_response,
     redirect_to_as_query,
+    validate_adapter,
     validate_model,
     validate_uuid,
 )
@@ -26,6 +27,7 @@ from .types import (
     AdminUserAttributes,
     AuthMFAAdminDeleteFactorResponse,
     AuthMFAAdminListFactorsResponse,
+    AuthMFAAdminListFactorsResponseParser,
     CreateOAuthClientParams,
     GenerateLinkParams,
     GenerateLinkResponse,
@@ -53,7 +55,7 @@ class SupabaseAuthAdminMFA(Generic[HttpIO]):
     @handle_http_io
     def delete_factor(
         self,
-        id: str,
+        factor_id: str,
         user_id: str,
     ) -> HttpMethod[AuthMFAAdminDeleteFactorResponse]:
         """
@@ -62,10 +64,10 @@ class SupabaseAuthAdminMFA(Generic[HttpIO]):
         unverified factors.
         """
         validate_uuid(user_id)
-        validate_uuid(id)
+        validate_uuid(factor_id)
         response = yield EmptyRequest(
             method="DELETE",
-            path=["admin", "users", user_id, "factors", id],
+            path=["admin", "users", user_id, "factors", factor_id],
         )
         return validate_model(response, AuthMFAAdminDeleteFactorResponse)
 
@@ -79,7 +81,7 @@ class SupabaseAuthAdminMFA(Generic[HttpIO]):
             method="GET",
             path=["admin", "users", user_id, "factors"],
         )
-        return validate_model(response, AuthMFAAdminListFactorsResponse)
+        return validate_adapter(response, AuthMFAAdminListFactorsResponseParser)
 
 
 @dataclass

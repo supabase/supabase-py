@@ -2,9 +2,11 @@ from supabase_auth.types import (
     AdminUserAttributes,
     CreateOAuthClientParams,
     GenerateLinkParams,
+    MFAEnroll,
     Resend,
     SignInWithPassword,
     SignUpWithPassword,
+    UpdateOAuthClientParams,
     UserAttributes,
 )
 
@@ -327,6 +329,47 @@ async def test_create_user_with_app_metadata() -> None:
     assert "providers" in response.user.app_metadata
 
 
+async def test_admin_list_factors() -> None:
+    import pyotp
+
+    credentials = mock_user_credentials()
+    client = auth_client()
+    await client.sign_up(
+        SignUpWithPassword.email(
+            email=credentials.email,
+            password=credentials.password,
+        )
+    )
+
+    auth_response = await client.sign_in_with_password(
+        SignInWithPassword.email(
+            email=credentials.email,
+            password=credentials.password,
+        )
+    )
+    assert auth_response.user
+    enroll_response = await client.mfa.enroll(MFAEnroll.totp(friendly_name="test_otp"))
+    assert enroll_response.totp
+    totp = pyotp.TOTP(enroll_response.totp.secret)
+    res = await client.mfa.challenge_and_verify(
+        factor_id=enroll_response.id,
+        code=totp.now(),
+    )
+    admin_client = service_role_api_client()
+    factors = await admin_client.mfa.list_factors(
+        user_id=res.user.id,
+    )
+    assert factors[0].friendly_name == "test_otp"
+    assert factors[0].factor_type == "totp"
+    assert factors[0].status == "verified"
+    await admin_client.mfa.delete_factor(
+        factor_id=factors[0].id,
+        user_id=res.user.id,
+    )
+    factors = await admin_client.mfa.list_factors(user_id=res.user.id)
+    assert len(factors) == 0
+
+
 async def test_create_oauth_client() -> None:
     """Test creating an OAuth client."""
     response = await service_role_api_client().oauth.create_client(
@@ -372,26 +415,26 @@ async def test_get_oauth_client() -> None:
 
 
 # Server is not yet released, so this test is not yet relevant.
-# async def test_update_oauth_client() -> None:
-#     """Test updating an OAuth client."""
-#     # First create a client
-#     client = service_role_api_client()
-#     create_response = await client.oauth.create_client(
-#         CreateOAuthClientParams(
-#             client_name="Test OAuth Client for Update",
-#             redirect_uris=["https://example.com/callback"],
-#         )
-#     )
-#     assert create_response.client is not None
-#     client_id = create_response.client.client_id
-#     response = await client.oauth.update_client(
-#         client_id,
-#         UpdateOAuthClientParams(
-#             client_name="Updated Test OAuth Client",
-#         )
-#     )
-#     assert response.client is not None
-#     assert response.client.client_name == "Updated Test OAuth Client"
+async def test_update_oauth_client() -> None:
+    """Test updating an OAuth client."""
+    # First create a client
+    client = service_role_api_client()
+    create_response = await client.oauth.create_client(
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client for Update",
+            redirect_uris=["https://example.com/callback"],
+        )
+    )
+    assert create_response.client is not None
+    client_id = create_response.client.client_id
+    response = await client.oauth.update_client(
+        client_id,
+        UpdateOAuthClientParams(
+            client_name="Updated Test OAuth Client",
+        ),
+    )
+    assert response.client is not None
+    assert response.client.client_name == "Updated Test OAuth Client"
 
 
 async def test_delete_oauth_client() -> None:
