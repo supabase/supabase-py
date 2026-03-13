@@ -4,7 +4,7 @@ from datetime import datetime
 from time import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, with_config
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, with_config
 
 try:
     # > 2
@@ -760,11 +760,11 @@ class AuthMFAAdminDeleteFactorParams(TypedDict):
     """
 
 
-class AuthMFAAdminListFactorsResponse(BaseModel):
-    factors: List[Factor]
-    """
-    All factors attached to the user.
-    """
+AuthMFAAdminListFactorsResponse = List[Factor]
+
+AuthMFAAdminListFactorsResponseParser: TypeAdapter[AuthMFAAdminListFactorsResponse] = (
+    TypeAdapter(AuthMFAAdminListFactorsResponse)
+)
 
 
 class AuthMFAAdminListFactorsParams(TypedDict):
