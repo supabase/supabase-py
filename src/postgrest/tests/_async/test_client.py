@@ -104,6 +104,8 @@ def test_schema(postgrest_client: AsyncPostgrestClient):
     assert subheaders.items() < client.headers.items()
 
 
+# TODO: commented out because example.com was raising SSL errors.
+#       uncomment after these are fixed.
 # @pytest.mark.asyncio
 # async def test_params_purged_after_execute(postgrest_client: AsyncPostgrestClient):
 #     assert len(postgrest_client.session.params) == 0

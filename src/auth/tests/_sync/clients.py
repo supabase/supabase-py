@@ -1,13 +1,21 @@
 from dataclasses import dataclass
 from random import random
 from time import time
-from typing import Optional
 
 from faker import Faker
+from httpx import Client, Headers
 from jwt import encode
-from supabase_auth import SyncGoTrueAdminAPI, SyncGoTrueClient
-from supabase_auth.types import User
+from supabase_utils.http import SyncHttpIO
 from typing_extensions import NotRequired, TypedDict
+from yarl import URL
+
+from supabase_auth import SupabaseAuthAdmin, SyncSupabaseAuthClient
+from supabase_auth.types import (
+    AdminUserAttributes,
+    SignInWithPassword,
+    SignUpWithPassword,
+    User,
+)
 
 
 def mock_access_token() -> str:
@@ -21,9 +29,9 @@ def mock_access_token() -> str:
 
 
 class OptionalCredentials(TypedDict):
-    email: NotRequired[Optional[str]]
-    phone: NotRequired[Optional[str]]
-    password: NotRequired[Optional[str]]
+    email: NotRequired[str | None]
+    phone: NotRequired[str | None]
+    password: NotRequired[str | None]
 
 
 @dataclass
@@ -34,7 +42,7 @@ class Credentials:
 
 
 def mock_user_credentials(
-    options: Optional[OptionalCredentials] = None,
+    options: OptionalCredentials | None = None,
 ) -> Credentials:
     fake = Faker()
     user_options = options or {}
@@ -50,22 +58,14 @@ def mock_verification_otp() -> str:
     return str(int(100000 + random() * 900000))
 
 
-class UserMetadata(TypedDict):
-    profile_image: str
-
-
-def mock_user_metadata() -> UserMetadata:
+def mock_user_metadata() -> dict[str, str]:
     fake = Faker()
     return {
         "profile_image": fake.url(),
     }
 
 
-class AppMetadata(TypedDict):
-    roles: list[str]
-
-
-def mock_app_metadata() -> AppMetadata:
+def mock_app_metadata() -> dict[str, list[str]]:
     return {
         "roles": ["editor", "publisher"],
     }
@@ -73,8 +73,8 @@ def mock_app_metadata() -> AppMetadata:
 
 def create_new_user_with_email(
     *,
-    email: Optional[str] = None,
-    password: Optional[str] = None,
+    email: str | None = None,
+    password: str | None = None,
 ) -> User:
     credentials = mock_user_credentials(
         {
@@ -83,10 +83,7 @@ def create_new_user_with_email(
         }
     )
     response = service_role_api_client().create_user(
-        {
-            "email": credentials.email,
-            "password": credentials.password,
-        }
+        AdminUserAttributes(email=credentials.email, password=credentials.password)
     )
     return response.user
 
@@ -120,80 +117,91 @@ AUTH_ADMIN_JWT = encode(
 )
 
 
-def auth_client() -> SyncGoTrueClient:
-    return SyncGoTrueClient(
+def auth_client() -> SyncSupabaseAuthClient:
+    return SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=True,
     )
 
 
-def auth_client_with_session() -> SyncGoTrueClient:
-    client = SyncGoTrueClient(
+def auth_client_with_session() -> SyncSupabaseAuthClient:
+    client = SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=False,
     )
     credentials = mock_user_credentials()
-    client.sign_up({"email": credentials.email, "password": credentials.password})
+    client.sign_up(
+        SignUpWithPassword.email(email=credentials.email, password=credentials.password)
+    )
+    client.sign_in_with_password(
+        SignInWithPassword.email(email=credentials.email, password=credentials.password)
+    )
     return client
 
 
-def auth_client_with_asymmetric_session() -> SyncGoTrueClient:
-    return SyncGoTrueClient(
+def auth_client_with_asymmetric_session() -> SyncSupabaseAuthClient:
+    return SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_ASYMMETRIC_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=False,
     )
 
 
-def auth_subscription_client() -> SyncGoTrueClient:
-    return SyncGoTrueClient(
+def auth_subscription_client() -> SyncSupabaseAuthClient:
+    return SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=True,
     )
 
 
-def client_api_auto_confirm_enabled_client() -> SyncGoTrueClient:
-    return SyncGoTrueClient(
+def client_api_auto_confirm_enabled_client() -> SyncSupabaseAuthClient:
+    return SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=True,
     )
 
 
-def client_api_auto_confirm_off_signups_enabled_client() -> SyncGoTrueClient:
-    return SyncGoTrueClient(
+def client_api_auto_confirm_off_signups_enabled_client() -> SyncSupabaseAuthClient:
+    return SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
         persist_session=True,
     )
 
 
-def client_api_auto_confirm_disabled_client() -> SyncGoTrueClient:
-    return SyncGoTrueClient(
+def client_api_auto_confirm_disabled_client() -> SyncSupabaseAuthClient:
+    return SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
         persist_session=True,
     )
 
 
-def auth_admin_api_auto_confirm_enabled_client() -> SyncGoTrueAdminAPI:
-    return SyncGoTrueAdminAPI(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
-        headers={
-            "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
-        },
+def auth_admin_api_auto_confirm_enabled_client() -> SupabaseAuthAdmin[SyncHttpIO]:
+    return SupabaseAuthAdmin(
+        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON),
+        executor=SyncHttpIO(session=Client()),
+        default_headers=Headers(
+            {
+                "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
+            }
+        ),
     )
 
 
-def auth_admin_api_auto_confirm_disabled_client() -> SyncGoTrueAdminAPI:
-    return SyncGoTrueAdminAPI(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
-        headers={
-            "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
-        },
+def auth_admin_api_auto_confirm_disabled_client() -> SupabaseAuthAdmin[SyncHttpIO]:
+    return SupabaseAuthAdmin(
+        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF),
+        executor=SyncHttpIO(session=Client()),
+        default_headers=Headers(
+            {
+                "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
+            }
+        ),
     )
 
 
@@ -205,28 +213,37 @@ SERVICE_ROLE_JWT = encode(
 )
 
 
-def service_role_api_client() -> SyncGoTrueAdminAPI:
-    return SyncGoTrueAdminAPI(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
-        headers={
-            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
-        },
+def service_role_api_client() -> SupabaseAuthAdmin[SyncHttpIO]:
+    return SupabaseAuthAdmin(
+        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON),
+        executor=SyncHttpIO(session=Client()),
+        default_headers=Headers(
+            {
+                "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+            }
+        ),
     )
 
 
-def service_role_api_client_with_sms() -> SyncGoTrueAdminAPI:
-    return SyncGoTrueAdminAPI(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
-        headers={
-            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
-        },
+def service_role_api_client_with_sms() -> SupabaseAuthAdmin[SyncHttpIO]:
+    return SupabaseAuthAdmin(
+        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF),
+        executor=SyncHttpIO(session=Client()),
+        default_headers=Headers(
+            {
+                "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+            }
+        ),
     )
 
 
-def service_role_api_client_no_sms() -> SyncGoTrueAdminAPI:
-    return SyncGoTrueAdminAPI(
-        url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
-        headers={
-            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
-        },
+def service_role_api_client_no_sms() -> SupabaseAuthAdmin[SyncHttpIO]:
+    return SupabaseAuthAdmin(
+        base_url=URL(GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF),
+        executor=SyncHttpIO(session=Client()),
+        default_headers=Headers(
+            {
+                "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+            }
+        ),
     )

@@ -102,6 +102,8 @@ def test_schema(postgrest_client: SyncPostgrestClient):
     assert subheaders.items() < client.headers.items()
 
 
+# TODO: commented out because example.com was raising SSL errors.
+#       uncomment after these are fixed.
 #
 # async def test_params_purged_after_execute(postgrest_client: SyncPostgrestClient):
 #     assert len(postgrest_client.session.params) == 0

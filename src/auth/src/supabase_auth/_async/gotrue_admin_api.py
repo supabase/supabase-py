@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from httpx import AsyncClient, QueryParams
 
@@ -41,10 +41,10 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         self,
         *,
         url: str = "",
-        headers: Optional[Dict[str, str]] = None,
-        http_client: Optional[AsyncClient] = None,
+        headers: Dict[str, str] | None = None,
+        http_client: AsyncClient | None = None,
         verify: bool = True,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
     ) -> None:
         http_headers = headers or {}
         AsyncGoTrueBaseAPI.__init__(
@@ -82,7 +82,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
     async def invite_user_by_email(
         self,
         email: str,
-        options: Optional[InviteUserByEmailOptions] = None,
+        options: InviteUserByEmailOptions | None = None,
     ) -> UserResponse:
         """
         Sends an invite link to an email address.
@@ -132,7 +132,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         return parse_user_response(response)
 
     async def list_users(
-        self, page: Optional[int] = None, per_page: Optional[int] = None
+        self, page: int | None = None, per_page: int | None = None
     ) -> List[User]:
         """
         Get a list of users.
