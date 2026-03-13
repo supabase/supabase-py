@@ -16,6 +16,7 @@ from ..types import (
     AuthMFAAdminDeleteFactorResponse,
     AuthMFAAdminListFactorsParams,
     AuthMFAAdminListFactorsResponse,
+    AuthMFAAdminListFactorsResponseParser,
     CreateOAuthClientParams,
     GenerateLinkParams,
     GenerateLinkResponse,
@@ -200,7 +201,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "GET",
             f"admin/users/{params.get('user_id')}/factors",
         )
-        return model_validate(AuthMFAAdminListFactorsResponse, response.content)
+        return AuthMFAAdminListFactorsResponseParser.validate_json(response.content)
 
     def _delete_factor(
         self,
