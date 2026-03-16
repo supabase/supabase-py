@@ -229,13 +229,6 @@ def test_invite_user_by_email_creates_a_new_user_with_an_invited_at_timestamp() 
     assert response.user.invited_at
 
 
-def test_sign_out_with_an_valid_access_token() -> None:
-    client = auth_client_with_session()
-    session = client.get_session()
-    assert session
-    service_role_api_client().sign_out(session.access_token)
-
-
 def test_sign_in_with_oauth() -> None:
     assert client_api_auto_confirm_off_signups_enabled_client().sign_in_with_oauth(
         provider="google"

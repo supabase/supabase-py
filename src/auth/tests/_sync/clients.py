@@ -3,13 +3,10 @@ from random import random
 from time import time
 
 from faker import Faker
-from httpx import Client, Headers
 from jwt import encode
-from supabase_utils.http import SyncHttpIO
 from typing_extensions import NotRequired, TypedDict
-from yarl import URL
 
-from supabase_auth import SupabaseAuthAdmin, SyncSupabaseAuthClient
+from supabase_auth import SyncSupabaseAuthAdmin, SyncSupabaseAuthClient
 from supabase_auth.types import (
     AdminUserAttributes,
     SignInWithPassword,
@@ -181,27 +178,21 @@ def client_api_auto_confirm_disabled_client() -> SyncSupabaseAuthClient:
     )
 
 
-def auth_admin_api_auto_confirm_enabled_client() -> SupabaseAuthAdmin[SyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON),
-        executor=SyncHttpIO(session=Client()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
-            }
-        ),
+def auth_admin_api_auto_confirm_enabled_client() -> SyncSupabaseAuthAdmin:
+    return SyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
+        default_headers={
+            "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
+        },
     )
 
 
-def auth_admin_api_auto_confirm_disabled_client() -> SupabaseAuthAdmin[SyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF),
-        executor=SyncHttpIO(session=Client()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
-            }
-        ),
+def auth_admin_api_auto_confirm_disabled_client() -> SyncSupabaseAuthAdmin:
+    return SyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
+        default_headers={
+            "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
+        },
     )
 
 
@@ -213,37 +204,28 @@ SERVICE_ROLE_JWT = encode(
 )
 
 
-def service_role_api_client() -> SupabaseAuthAdmin[SyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON),
-        executor=SyncHttpIO(session=Client()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
-            }
-        ),
+def service_role_api_client() -> SyncSupabaseAuthAdmin:
+    return SyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
+        default_headers={
+            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+        },
     )
 
 
-def service_role_api_client_with_sms() -> SupabaseAuthAdmin[SyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF),
-        executor=SyncHttpIO(session=Client()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
-            }
-        ),
+def service_role_api_client_with_sms() -> SyncSupabaseAuthAdmin:
+    return SyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
+        default_headers={
+            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+        },
     )
 
 
-def service_role_api_client_no_sms() -> SupabaseAuthAdmin[SyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF),
-        executor=SyncHttpIO(session=Client()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
-            }
-        ),
+def service_role_api_client_no_sms() -> SyncSupabaseAuthAdmin:
+    return SyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
+        default_headers={
+            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+        },
     )

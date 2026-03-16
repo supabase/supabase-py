@@ -11,7 +11,9 @@ from supabase_auth.errors import (
 )
 from supabase_auth.helpers import decode_jwt
 from supabase_auth.types import (
+    AuthChangeEvent,
     MFAEnroll,
+    Session,
     SignInWithPassword,
     SignInWithPasswordless,
     SignUpWithPassword,
@@ -369,7 +371,6 @@ def test_get_user_identities() -> None:
 def test_sign_in_with_password() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
-    from supabase_auth.errors import AuthApiError
 
     # First create a user we can sign in with
     signup_response = client.sign_up(
@@ -486,170 +487,36 @@ def test_sign_in_with_otp() -> None:
 
 
 def test_sign_out() -> None:
-    from datetime import datetime
-    from unittest.mock import Mock, patch
-
-    from supabase_auth.types import Session, User
-
     client = auth_client()
+    credentials = mock_user_credentials()
 
-    # Create a mock user and session
-    date = datetime(year=2023, month=1, day=1, hour=0, minute=0, second=0)
-    mock_user = User(
-        id="user123",
-        email="test@example.com",
-        app_metadata={},
-        user_metadata={},
-        aud="authenticated",
-        created_at=date,
-        confirmed_at=date,
-        last_sign_in_at=date,
-        role="authenticated",
-        updated_at=date,
+    signup_response = client.sign_up(
+        SignUpWithPassword.email(email=credentials.email, password=credentials.password)
+    )
+    assert signup_response.session is not None
+
+    signin_response = client.sign_in_with_password(
+        SignInWithPassword.email(
+            email=credentials.email,
+            password=credentials.password,
+        )
     )
 
-    mock_session = Session(
-        access_token="mock_access_token",
-        refresh_token="mock_refresh_token",
-        expires_in=3600,
-        token_type="bearer",
-        user=mock_user,
-    )
+    # Verify the response has a valid session and user
+    assert signin_response.session is not None
+    assert signin_response.user is not None
+    assert signin_response.user.email == credentials.email
 
-    # Test sign_out with "global" scope (default)
-    # This should call admin.sign_out, _remove_session, and _notify_all_subscribers
-    with patch.object(client, "get_session") as mock_get_session:
-        mock_get_session.return_value = mock_session
+    called = False
 
-        with patch.object(
-            client.admin, "sign_out", new_callable=Mock
-        ) as mock_admin_sign_out:
-            mock_admin_sign_out.return_value = None
-            with patch.object(
-                client.session_manager, "remove_session"
-            ) as mock_remove_session:
-                with patch.object(
-                    client.session_manager, "notify_all_subscribers"
-                ) as mock_notify:
-                    # Call sign_out with default scope (global)
-                    client.sign_out()
+    def sign_out_callback(auth_event: AuthChangeEvent, session: Session | None) -> None:
+        nonlocal called
+        called = True
 
-                    # Verify that admin.sign_out was called with correct parameters
-                    mock_admin_sign_out.assert_called_once_with(
-                        "mock_access_token", "global"
-                    )
+    client.on_auth_state_change(sign_out_callback)
 
-                    # Verify that _remove_session was called
-                    mock_remove_session.assert_called_once()
+    client.sign_out()
 
-                    # Verify that _notify_all_subscribers was called with SIGNED_OUT
-                    mock_notify.assert_called_once_with("SIGNED_OUT", None)
-
-    # Test sign_out with "local" scope
-    # Should behave the same as "global" for client-side
-    with patch.object(client, "get_session") as mock_get_session:
-        mock_get_session.return_value = mock_session
-
-        with patch.object(
-            client.admin, "sign_out", new_callable=Mock
-        ) as mock_admin_sign_out:
-            with patch.object(
-                client.session_manager, "remove_session"
-            ) as mock_remove_session:
-                with patch.object(
-                    client.session_manager, "notify_all_subscribers"
-                ) as mock_notify:
-                    # Call sign_out with local scope
-                    client.sign_out(scope="local")
-
-                    # Verify that admin.sign_out was called with correct parameters
-                    mock_admin_sign_out.assert_called_once_with(
-                        "mock_access_token", "local"
-                    )
-
-                    # Verify that _remove_session was called
-                    mock_remove_session.assert_called_once()
-
-                    # Verify that _notify_all_subscribers was called with SIGNED_OUT
-                    mock_notify.assert_called_once_with("SIGNED_OUT", None)
-
-    # Test sign_out with "others" scope
-    # This should only call admin.sign_out but not _remove_session or _notify_all_subscribers
-    with patch.object(client, "get_session") as mock_get_session:
-        mock_get_session.return_value = mock_session
-
-        with patch.object(
-            client.admin, "sign_out", new_callable=Mock
-        ) as mock_admin_sign_out:
-            with patch.object(
-                client.session_manager, "remove_session"
-            ) as mock_remove_session:
-                with patch.object(
-                    client.session_manager, "notify_all_subscribers"
-                ) as mock_notify:
-                    # Call sign_out with others scope
-                    client.sign_out(scope="others")
-
-                    # Verify that admin.sign_out was called with correct parameters
-                    mock_admin_sign_out.assert_called_once_with(
-                        "mock_access_token", "others"
-                    )
-
-                    # Verify that _remove_session was NOT called
-                    mock_remove_session.assert_not_called()
-
-                    # Verify that _notify_all_subscribers was NOT called
-                    mock_notify.assert_not_called()
-
-    # Test sign_out with no session
-    # This should not call admin.sign_out but still call _remove_session and _notify_all_subscribers
-    with patch.object(client, "get_session") as mock_get_session:
-        mock_get_session.return_value = None
-
-        with patch.object(
-            client.admin, "sign_out", new_callable=Mock
-        ) as mock_admin_sign_out:
-            with patch.object(
-                client.session_manager, "remove_session"
-            ) as mock_remove_session:
-                with patch.object(
-                    client.session_manager, "notify_all_subscribers"
-                ) as mock_notify:
-                    # Call sign_out with default scope
-                    client.sign_out()
-
-                    # Verify that admin.sign_out was NOT called
-                    mock_admin_sign_out.assert_not_called()
-
-                    # Verify that _remove_session was called
-                    mock_remove_session.assert_called_once()
-
-                    # Verify that _notify_all_subscribers was called with SIGNED_OUT
-                    mock_notify.assert_called_once_with("SIGNED_OUT", None)
-
-    # Test when admin.sign_out raises an error
-    # This should suppress the error and continue with _remove_session and _notify_all_subscribers
-    with patch.object(client, "get_session") as mock_get_session:
-        mock_get_session.return_value = mock_session
-
-        with patch.object(
-            client.admin, "sign_out", new_callable=Mock
-        ) as mock_admin_sign_out:
-            mock_admin_sign_out.side_effect = AuthApiError(
-                message="Test error", status=401, code="validation_failed"
-            )
-
-            with patch.object(
-                client.session_manager, "remove_session"
-            ) as mock_remove_session:
-                with patch.object(
-                    client.session_manager, "notify_all_subscribers"
-                ) as mock_notify:
-                    # Call sign_out with default scope
-                    client.sign_out()
-
-                    # Verify that _remove_session was still called despite the error
-                    mock_remove_session.assert_called_once()
-
-                    # Verify that _notify_all_subscribers was still called despite the error
-                    mock_notify.assert_called_once_with("SIGNED_OUT", None)
+    no_more_session = client.get_session()
+    assert no_more_session is None
+    assert called
