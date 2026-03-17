@@ -3,12 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, List
 
-from httpx import Headers, QueryParams
+from httpx import AsyncClient, Client, Headers, QueryParams
 from supabase_utils.http import (
+    AsyncHttpIO,
     EmptyRequest,
     HttpIO,
     HttpMethod,
     JSONRequest,
+    SyncHttpIO,
     handle_http_io,
 )
 from supabase_utils.types import JSON
@@ -34,7 +36,6 @@ from .types import (
     OAuthClient,
     OAuthClientListResponse,
     OAuthClientResponse,
-    SignOutScope,
     UpdateOAuthClientParams,
     User,
     UserList,
@@ -254,20 +255,6 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         )
 
     @handle_http_io
-    def sign_out(self, jwt: str, scope: SignOutScope = "global") -> HttpMethod[None]:
-        """
-        Removes a logged-in session.
-        """
-        response = yield EmptyRequest(
-            method="POST",
-            path=["logout"],
-            query_params=QueryParams(scope=scope),
-            headers=Headers({"Authorization": f"Bearer {jwt}"}),
-        )
-        if not response.is_success:
-            raise handle_error_response(response)
-
-    @handle_http_io
     def invite_user_by_email(
         self,
         email: str,
@@ -386,3 +373,45 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         )
         if not response.is_success:
             raise handle_error_response(response)
+
+
+class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
+    def __init__(
+        self,
+        url: str,
+        default_headers: dict[str, str] | None = None,
+        http_client: Client | None = None,
+    ) -> None:
+        SupabaseAuthAdmin.__init__(
+            self,
+            executor=SyncHttpIO(
+                session=http_client
+                or Client(
+                    http2=True,
+                    verify=True,
+                )
+            ),
+            base_url=URL(url),
+            default_headers=Headers(default_headers),
+        )
+
+
+class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
+    def __init__(
+        self,
+        url: str,
+        default_headers: dict[str, str] | None = None,
+        http_client: AsyncClient | None = None,
+    ) -> None:
+        SupabaseAuthAdmin.__init__(
+            self,
+            executor=AsyncHttpIO(
+                session=http_client
+                or AsyncClient(
+                    http2=True,
+                    verify=True,
+                )
+            ),
+            base_url=URL(url),
+            default_headers=Headers(default_headers),
+        )

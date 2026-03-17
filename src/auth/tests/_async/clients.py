@@ -3,13 +3,10 @@ from random import random
 from time import time
 
 from faker import Faker
-from httpx import AsyncClient, Headers
 from jwt import encode
-from supabase_utils.http import AsyncHttpIO
 from typing_extensions import NotRequired, TypedDict
-from yarl import URL
 
-from supabase_auth import AsyncSupabaseAuthClient, SupabaseAuthAdmin
+from supabase_auth import AsyncSupabaseAuthAdmin, AsyncSupabaseAuthClient
 from supabase_auth.types import (
     AdminUserAttributes,
     SignInWithPassword,
@@ -181,27 +178,21 @@ def client_api_auto_confirm_disabled_client() -> AsyncSupabaseAuthClient:
     )
 
 
-def auth_admin_api_auto_confirm_enabled_client() -> SupabaseAuthAdmin[AsyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON),
-        executor=AsyncHttpIO(session=AsyncClient()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
-            }
-        ),
+def auth_admin_api_auto_confirm_enabled_client() -> AsyncSupabaseAuthAdmin:
+    return AsyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
+        default_headers={
+            "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
+        },
     )
 
 
-def auth_admin_api_auto_confirm_disabled_client() -> SupabaseAuthAdmin[AsyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF),
-        executor=AsyncHttpIO(session=AsyncClient()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
-            }
-        ),
+def auth_admin_api_auto_confirm_disabled_client() -> AsyncSupabaseAuthAdmin:
+    return AsyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
+        default_headers={
+            "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
+        },
     )
 
 
@@ -213,37 +204,28 @@ SERVICE_ROLE_JWT = encode(
 )
 
 
-def service_role_api_client() -> SupabaseAuthAdmin[AsyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON),
-        executor=AsyncHttpIO(session=AsyncClient()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
-            }
-        ),
+def service_role_api_client() -> AsyncSupabaseAuthAdmin:
+    return AsyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
+        default_headers={
+            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+        },
     )
 
 
-def service_role_api_client_with_sms() -> SupabaseAuthAdmin[AsyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF),
-        executor=AsyncHttpIO(session=AsyncClient()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
-            }
-        ),
+def service_role_api_client_with_sms() -> AsyncSupabaseAuthAdmin:
+    return AsyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
+        default_headers={
+            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+        },
     )
 
 
-def service_role_api_client_no_sms() -> SupabaseAuthAdmin[AsyncHttpIO]:
-    return SupabaseAuthAdmin(
-        base_url=URL(GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF),
-        executor=AsyncHttpIO(session=AsyncClient()),
-        default_headers=Headers(
-            {
-                "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
-            }
-        ),
+def service_role_api_client_no_sms() -> AsyncSupabaseAuthAdmin:
+    return AsyncSupabaseAuthAdmin(
+        url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
+        default_headers={
+            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+        },
     )

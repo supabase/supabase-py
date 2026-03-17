@@ -233,13 +233,6 @@ async def test_invite_user_by_email_creates_a_new_user_with_an_invited_at_timest
     assert response.user.invited_at
 
 
-async def test_sign_out_with_an_valid_access_token() -> None:
-    client = await auth_client_with_session()
-    session = await client.get_session()
-    assert session
-    await service_role_api_client().sign_out(session.access_token)
-
-
 async def test_sign_in_with_oauth() -> None:
     assert (
         await client_api_auto_confirm_off_signups_enabled_client().sign_in_with_oauth(

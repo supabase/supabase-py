@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-from contextlib import suppress
 from dataclasses import dataclass
 from typing import Callable, Generic, Literal
 from uuid import uuid4
@@ -20,9 +19,7 @@ from supabase_utils.http import (
 from supabase_utils.types import JSON
 from yarl import URL
 
-from .admin_api import SupabaseAuthAdmin
 from .errors import (
-    AuthApiError,
     AuthImplicitGrantRedirectError,
     AuthInvalidJwtError,
     AuthSessionMissingError,
@@ -186,25 +183,23 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
     def sign_in_with_sso(
         self, credentials: SignInWithSSOCredentials
     ) -> HttpMethod[SSOResponse]:
-        """
-        Attempts a single-sign on using an enterprise Identity Provider. A
-        successful SSO attempt will redirect the current page to the identity
-        provider authorization page. The redirect URL is implementation and SSO
-        protocol specific.
-
-        You can use it by providing a SSO domain. Typically you can extract this
-        domain by asking users for their email address. If this domain is
-        registered on the Auth instance the redirect will use that organization's
-        currently active SSO Identity Provider for the login.
-        If you have built an organization-specific login page, you can use the
-        organization's SSO Identity Provider UUID directly instead.
-        """
         response = yield JSONRequest(
             method="POST",
             path=["sso"],
             body=credentials,
         )
         return parse_sso_response(response)
+
+    @handle_http_io
+    def _sign_out(self, session: Session, scope: SignOutScope) -> HttpMethod[None]:
+        response = yield EmptyRequest(
+            method="POST",
+            path=["logout"],
+            query_params=QueryParams(scope=scope),
+            headers=session.encode_access_token(),
+        )
+        if not response.is_success:
+            raise handle_error_response(response)
 
     def _sign_in_with_oauth(
         self,
@@ -623,11 +618,6 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             _jwks=JWKSet(keys=[]),
             flow_type=flow_type,
         )
-        self.admin: SupabaseAuthAdmin[AsyncHttpIO] = SupabaseAuthAdmin(
-            base_url=self.base_url,
-            executor=executor,
-            default_headers=default_headers,
-        )
         self.mfa = AsyncSupabaseAuthMFAClient(
             base_url=self.base_url,
             executor=executor,
@@ -881,10 +871,8 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         It is recommended to set a shorter expiry on the jwt for this reason.
         """
         session = await self.get_session()
-        access_token = session.access_token if session else None
-        if access_token:
-            with suppress(AuthApiError):
-                await self.admin.sign_out(access_token, scope)
+        if session:
+            await self._sign_out(session, scope)
 
         if scope != "others":
             await self.session_manager.remove_session()
@@ -959,11 +947,6 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
             session_manager=self.session_manager,
             _jwks=JWKSet(keys=[]),
             flow_type=flow_type,
-        )
-        self.admin: SupabaseAuthAdmin[SyncHttpIO] = SupabaseAuthAdmin(
-            base_url=self.base_url,
-            executor=executor,
-            default_headers=default_headers,
         )
         self.mfa = SyncSupabaseAuthMFAClient(
             base_url=self.base_url,
@@ -1218,10 +1201,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         It is recommended to set a shorter expiry on the jwt for this reason.
         """
         session = self.get_session()
-        access_token = session.access_token if session else None
-        if access_token:
-            with suppress(AuthApiError):
-                self.admin.sign_out(access_token, scope)
+        if session:
+            self._sign_out(session, scope)
 
         if scope != "others":
             self.session_manager.remove_session()

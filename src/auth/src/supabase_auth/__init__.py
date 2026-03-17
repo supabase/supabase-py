@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .admin_api import SupabaseAuthAdmin  # noqa
+from .admin_api import AsyncSupabaseAuthAdmin, SyncSupabaseAuthAdmin  # noqa
 from .client import AsyncSupabaseAuthClient, SyncSupabaseAuthClient  # noqa
 from .session import (
     AsyncMemoryStorage,  # noqa
