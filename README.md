@@ -5,6 +5,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/supabase/supabase-py/badge.svg?branch=main)](https://coveralls.io/github/supabase/supabase-py?branch=main)
 
 Python monorepo for all [Supabase](https://supabase.com) libraries.
+This repository contains multiple packages for interacting with Supabase services.
 
 - [supabase](src/supabase/README.md)
 - [realtime-py](src/realtime/README.md)
@@ -13,7 +14,7 @@ Python monorepo for all [Supabase](https://supabase.com) libraries.
 - [postgrest](src/postgrest/README.md)
 - [supabase_auth](src/auth/README.md)
 
-Relevant links:
+## Relevant links:
 
 - Documentation: [supabase.com/docs](https://supabase.com/docs/reference/python/introduction)
 - Usage:
@@ -25,13 +26,14 @@ Relevant links:
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/supabase/supabase-py.git
+git clone
+https://github.com/supabase/supabase-py.git
 cd supabase-py
 ```
-
+# Navigate in to the project directory
 ### Dependencies
 
-This repository relies on the following dependencies for development: 
+This repository uses the  following dependencies for development: 
 - `uv` for python project management.
 - `make` for running project commands.
 - `docker` for both `postgrest` and `auth` test containers.
