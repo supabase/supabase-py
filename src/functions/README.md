@@ -69,55 +69,8 @@ except Exception as e:
 
 ## Custom HTTP Methods
 
-By default, edge functions are invoked using the `POST` HTTP method. However, you can specify different HTTP methods using the `invoke_options` parameter.
+By default, edge functions are invoked using the `POST` HTTP method.
 
-### Supported Methods
-- `GET`
-- `POST` (default)
-- `PUT`
-- `DELETE`
-- `PATCH`
-- `HEAD`
-- `OPTIONS`
+At present, both `SyncFunctionsClient.invoke` and `AsyncFunctionsClient.invoke` always use `POST` and do **not** support overriding the HTTP method via the `invoke_options` parameter. Any `method` value passed in `invoke_options` will be ignored.
 
-### Example: GET Request
-
-```python
-from supabase_functions import SyncFunctionsClient
-
-headers = {"Authorization": "Bearer your-anon-key"}
-fc = SyncFunctionsClient("https://<project_ref>.functions.supabase.co", headers)
-
-res = fc.invoke("fetch-data", {}, invoke_options={"method": "GET"})
-print(res)
-```
-
-### Example: PUT Request
-
-```python
-from supabase_functions import SyncFunctionsClient
-
-headers = {"Authorization": "Bearer your-anon-key"}
-fc = SyncFunctionsClient("https://<project_ref>.functions.supabase.co", headers)
-
-res = fc.invoke("update-data", {
-    "body": {"id": 123, "name": "Updated"}
-}, invoke_options={"method": "PUT"})
-print(res)
-```
-
-### Example: DELETE Request
-
-```python
-from supabase_functions import SyncFunctionsClient
-
-headers = {"Authorization": "Bearer your-anon-key"}
-fc = SyncFunctionsClient("https://<project_ref>.functions.supabase.co", headers)
-
-res = fc.invoke("delete-data", {
-    "body": {"id": 123}
-}, invoke_options={"method": "DELETE"})
-print(res)
-```
-```bash
-
+Support for invoking functions with other HTTP methods (e.g. `GET`, `PUT`, `DELETE`) may be added in a future version. Until then, all invocations will be sent as `POST` requests.
