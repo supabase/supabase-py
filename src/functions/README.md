@@ -66,3 +66,58 @@ try:
 except Exception as e:
     print(f"Error: {e}")
 ```
+
+## Custom HTTP Methods
+
+By default, edge functions are invoked using the `POST` HTTP method. However, you can specify different HTTP methods using the `invoke_options` parameter.
+
+### Supported Methods
+- `GET`
+- `POST` (default)
+- `PUT`
+- `DELETE`
+- `PATCH`
+- `HEAD`
+- `OPTIONS`
+
+### Example: GET Request
+
+```python
+from supabase_functions import SyncFunctionsClient
+
+headers = {"Authorization": "Bearer your-anon-key"}
+fc = SyncFunctionsClient("https://<project_ref>.functions.supabase.co", headers)
+
+res = fc.invoke("fetch-data", {}, invoke_options={"method": "GET"})
+print(res)
+```
+
+### Example: PUT Request
+
+```python
+from supabase_functions import SyncFunctionsClient
+
+headers = {"Authorization": "Bearer your-anon-key"}
+fc = SyncFunctionsClient("https://<project_ref>.functions.supabase.co", headers)
+
+res = fc.invoke("update-data", {
+    "body": {"id": 123, "name": "Updated"}
+}, invoke_options={"method": "PUT"})
+print(res)
+```
+
+### Example: DELETE Request
+
+```python
+from supabase_functions import SyncFunctionsClient
+
+headers = {"Authorization": "Bearer your-anon-key"}
+fc = SyncFunctionsClient("https://<project_ref>.functions.supabase.co", headers)
+
+res = fc.invoke("delete-data", {
+    "body": {"id": 123}
+}, invoke_options={"method": "DELETE"})
+print(res)
+```
+```bash
+
