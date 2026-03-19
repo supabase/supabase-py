@@ -633,11 +633,6 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return self
 
-    def maybe_single(self) -> Self:
-        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return self
-
     def csv(self) -> Self:
         """Specify that the query must retrieve data as a single CSV string."""
         self.request.headers["Accept"] = "text/csv"
@@ -699,7 +694,7 @@ class SingleRequestBuilder(BaseRequestClient[HttpIO]):
             raise APIError(dict(json_obj))
 
 
-class CsvRequestBuilder(BaseRequestClient[HttpIO]):
+class TextRequestBuilder(BaseRequestClient[HttpIO]):
     @handle_http_io
     def execute(self) -> HttpMethod[str]:
         """Execute the query.
@@ -740,18 +735,16 @@ class MaybeSingleRequestBuilder(BaseRequestClient[HttpIO]):
     def execute(self) -> HttpMethod[SingleAPIResponse | None]:
         response = yield self.request
         if response.is_success:
-            return SingleAPIResponse.from_http_request_response(response)
-        if response.status_code == 406:
-            return None
+            parsed = APIResponse.from_http_request_response(response)
+            if len(parsed.data) == 0:
+                return None
+            if len(parsed.data) == 1:
+                return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
+            else:
+                raise APIError(dict())
         else:
-            raise APIError(
-                {
-                    "message": "Missing response",
-                    "code": "204",
-                    "hint": "Please check traceback of the code",
-                    "details": "Postgrest couldn't retrieve response, please check traceback of the code. Please create an issue in `supabase-community/postgrest-py` if needed.",
-                }
-            )
+            json_obj = model_validate_json(APIErrorFromJSON, response.content)
+            raise APIError(dict(json_obj))
 
 
 class FilterRequestBuilder(QueryRequestBuilder[HttpIO], BaseFilterRequestBuilder):
@@ -760,6 +753,29 @@ class FilterRequestBuilder(QueryRequestBuilder[HttpIO], BaseFilterRequestBuilder
 
 class RPCFilterRequestBuilder(SingleRequestBuilder[HttpIO], BaseRPCRequestBuilder):
     pass
+
+
+class RPCCountRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
+    @handle_http_io
+    def execute(self) -> HttpMethod[int | None]:
+        """Execute the query.
+
+        .. tip::
+            This is the last method called, after the query is built.
+
+        Returns:
+            :class:`APIResponse`
+
+        Raises:
+            :class:`APIError` If the API raised an error.
+        """
+        response = yield self.request
+        if response.is_success:
+            count = APIResponse._get_count_from_http_request_response(response)
+            return count
+        else:
+            json_obj = model_validate_json(APIErrorFromJSON, response.content)
+            raise APIError(dict(json_obj))
 
 
 class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder):
@@ -779,7 +795,6 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
 
     def maybe_single(self) -> MaybeSingleRequestBuilder[HttpIO]:
         """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return MaybeSingleRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
@@ -810,10 +825,10 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
             request=self.request,
         )
 
-    def csv(self) -> CsvRequestBuilder[HttpIO]:
+    def csv(self) -> TextRequestBuilder[HttpIO]:
         """Specify that the query must retrieve data as a single CSV string."""
         self.request.headers["Accept"] = "text/csv"
-        return CsvRequestBuilder(
+        return TextRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,

@@ -3,7 +3,7 @@ from postgrest import CountMethod
 from .client import rest_client, rest_client_httpx
 
 
-def test_multivalued_param_httpx():
+def test_multivalued_param_httpx() -> None:
     res = (
         rest_client_httpx()
         .from_("countries")
@@ -20,7 +20,7 @@ def test_multivalued_param_httpx():
     ]
 
 
-def test_multivalued_param():
+def test_multivalued_param() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -37,7 +37,7 @@ def test_multivalued_param():
     ]
 
 
-def test_match():
+def test_match() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -89,7 +89,7 @@ def test_equals():
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-def test_not_equal():
+def test_not_equal() -> None:
     res = (
         rest_client()
         .from_("users")
@@ -102,19 +102,19 @@ def test_not_equal():
     assert res.data == {"id": 1, "name": "Michael"}
 
 
-def test_greater_than():
+def test_greater_than() -> None:
     res = rest_client().from_("users").select("id, name").gt("id", 1).single().execute()
 
     assert res.data == {"id": 2, "name": "Jane"}
 
 
-def test_greater_than_or_equals_to():
+def test_greater_than_or_equals_to() -> None:
     res = rest_client().from_("users").select("id, name").gte("id", 1).execute()
 
     assert res.data == [{"id": 1, "name": "Michael"}, {"id": 2, "name": "Jane"}]
 
 
-def test_contains_dictionary():
+def test_contains_dictionary() -> None:
     res = (
         rest_client()
         .from_("users")
@@ -127,7 +127,7 @@ def test_contains_dictionary():
     assert res.data == {"name": "Michael"}
 
 
-def test_contains_any_item():
+def test_contains_any_item() -> None:
     res = (
         rest_client()
         .from_("issues")
@@ -139,7 +139,7 @@ def test_contains_any_item():
     assert res.data == [{"title": "Cache invalidation is not working"}]
 
 
-def test_contains_on_range():
+def test_contains_on_range() -> None:
     res = (
         rest_client()
         .from_("reservations")
@@ -151,7 +151,7 @@ def test_contains_on_range():
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_contained_by_mixed_items():
+def test_contained_by_mixed_items() -> None:
     res = (
         rest_client()
         .from_("reservations")
@@ -163,67 +163,67 @@ def test_contained_by_mixed_items():
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_range_greater_than():
+def test_range_greater_than() -> None:
     res = (
         rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_gt("during", ["2000-01-02 08:00", "2000-01-02 09:00"])
+        .range_gt("during", "2000-01-02 08:00", "2000-01-02 09:00")
         .execute()
     )
 
     assert res.data == [{"id": 2, "room_name": "Topaz"}]
 
 
-def test_range_greater_than_or_equal_to():
+def test_range_greater_than_or_equal_to() -> None:
     res = (
         rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_gte("during", ["2000-01-02 08:30", "2000-01-02 09:30"])
+        .range_gte("during", "2000-01-02 08:30", "2000-01-02 09:30")
         .execute()
     )
 
     assert res.data == [{"id": 2, "room_name": "Topaz"}]
 
 
-def test_range_less_than():
+def test_range_less_than() -> None:
     res = (
         rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_lt("during", ["2000-01-01 15:00", "2000-01-02 16:00"])
+        .range_lt("during", "2000-01-01 15:00", "2000-01-02 16:00")
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_range_less_than_or_equal_to():
+def test_range_less_than_or_equal_to() -> None:
     res = (
         rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_lte("during", ["2000-01-01 14:00", "2000-01-01 16:00"])
+        .range_lte("during", "2000-01-01 14:00", "2000-01-01 16:00")
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_range_adjacent():
+def test_range_adjacent() -> None:
     res = (
         rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_adjacent("during", ["2000-01-01 12:00", "2000-01-01 13:00"])
+        .range_adjacent("during", "2000-01-01 12:00", "2000-01-01 13:00")
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_overlaps():
+def test_overlaps() -> None:
     res = (
         rest_client()
         .from_("issues")
@@ -238,7 +238,7 @@ def test_overlaps():
     ]
 
 
-def test_overlaps_with_timestamp_range():
+def test_overlaps_with_timestamp_range() -> None:
     res = (
         rest_client()
         .from_("reservations")
@@ -252,7 +252,7 @@ def test_overlaps_with_timestamp_range():
     ]
 
 
-def test_like():
+def test_like() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -264,7 +264,7 @@ def test_like():
     assert res.data == [{"country_name": "ALBANIA", "iso": "AL"}]
 
 
-def test_ilike():
+def test_ilike() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -276,7 +276,7 @@ def test_ilike():
     assert res.data == [{"country_name": "ALBANIA", "iso": "AL"}]
 
 
-def test_like_all_of():
+def test_like_all_of() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -288,7 +288,7 @@ def test_like_all_of():
     assert res.data == [{"iso": "AF", "nicename": "Afghanistan"}]
 
 
-def test_like_any_of():
+def test_like_any_of() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -303,7 +303,7 @@ def test_like_any_of():
     ]
 
 
-def test_ilike_all_of():
+def test_ilike_all_of() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -315,7 +315,7 @@ def test_ilike_all_of():
     assert res.data == [{"iso": "AF", "nicename": "Afghanistan"}]
 
 
-def test_ilike_any_of():
+def test_ilike_any_of() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -330,7 +330,7 @@ def test_ilike_any_of():
     ]
 
 
-def test_is_():
+def test_is_() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -344,7 +344,7 @@ def test_is_():
     assert res.data == [{"country_name": "ANTARCTICA", "iso": "AQ"}]
 
 
-def test_is_not():
+def test_is_not() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -358,7 +358,7 @@ def test_is_not():
     assert res.data == [{"country_name": "AFGHANISTAN", "iso": "AF"}]
 
 
-def test_in_():
+def test_in_() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -373,7 +373,7 @@ def test_in_():
     ]
 
 
-def test_or_():
+def test_or_() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -388,7 +388,7 @@ def test_or_():
     ]
 
 
-def test_or_with_and():
+def test_or_with_and() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -403,7 +403,7 @@ def test_or_with_and():
     ]
 
 
-def test_or_in():
+def test_or_in() -> None:
     res = (
         rest_client()
         .from_("issues")
@@ -419,7 +419,7 @@ def test_or_in():
     ]
 
 
-def test_or_on_reference_table():
+def test_or_on_reference_table() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -441,7 +441,7 @@ def test_or_on_reference_table():
     ]
 
 
-def test_explain_json():
+def test_explain_json() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -453,7 +453,7 @@ def test_explain_json():
     assert res.data[0]["Plan"]["Node Type"] == "Aggregate"
 
 
-def test_csv():
+def test_csv() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -462,10 +462,10 @@ def test_csv():
         .csv()
         .execute()
     )
-    assert "ALBANIA,AL\nALGERIA,DZ" in res.data
+    assert "ALBANIA,AL\nALGERIA,DZ" in res
 
 
-def test_explain_text():
+def test_explain_text() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -480,7 +480,7 @@ def test_explain_text():
     )
 
 
-def test_rpc_with_single():
+def test_rpc_with_single() -> None:
     res = (
         rest_client()
         .rpc("list_stored_countries", {})
@@ -493,7 +493,7 @@ def test_rpc_with_single():
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
-def test_rpc_with_limit():
+def test_rpc_with_limit() -> None:
     res = (
         rest_client()
         .rpc("list_stored_countries", {})
@@ -506,7 +506,7 @@ def test_rpc_with_limit():
     assert res.data == [{"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}]
 
 
-def test_rpc_with_range():
+def test_rpc_with_range() -> None:
     res = (
         rest_client()
         .rpc("list_stored_countries", {})
@@ -521,7 +521,7 @@ def test_rpc_with_range():
     ]
 
 
-def test_rpc_post_with_args():
+def test_rpc_post_with_args() -> None:
     res = (
         rest_client()
         .rpc("search_countries_by_name", {"search_name": "Alban"})
@@ -531,7 +531,7 @@ def test_rpc_post_with_args():
     assert res.data == [{"nicename": "Albania", "iso": "AL"}]
 
 
-def test_rpc_get_with_args():
+def test_rpc_get_with_args() -> None:
     res = (
         rest_client()
         .rpc("search_countries_by_name", {"search_name": "Alger"}, get=True)
@@ -541,7 +541,7 @@ def test_rpc_get_with_args():
     assert res.data == [{"nicename": "Algeria", "iso": "DZ"}]
 
 
-def test_rpc_get_with_count():
+def test_rpc_get_with_count() -> None:
     res = (
         rest_client()
         .rpc(
@@ -557,7 +557,7 @@ def test_rpc_get_with_count():
     assert res.data == [{"nicename": "Albania"}, {"nicename": "Algeria"}]
 
 
-def test_rpc_head_count():
+def test_rpc_head_count() -> None:
     res = (
         rest_client()
         .rpc(
@@ -569,11 +569,10 @@ def test_rpc_head_count():
         .execute()
     )
 
-    assert res.count == 2
-    assert res.data == []
+    assert res == 2
 
 
-def test_order():
+def test_order() -> None:
     res = (
         rest_client()
         .from_("countries")
@@ -590,7 +589,7 @@ def test_order():
     ]
 
 
-def test_order_on_foreign_table():
+def test_order_on_foreign_table() -> None:
     res = (
         rest_client()
         .from_("orchestral_sections")

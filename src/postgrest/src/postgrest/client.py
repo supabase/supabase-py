@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from base64 import b64encode
 from dataclasses import dataclass
 from types import TracebackType
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
@@ -27,6 +28,7 @@ from .request_builder import (
     BaseRPCRequestBuilder,
     BaseSelectRequestBuilder,
     RequestBuilder,
+    RPCCountRequestBuilder,
     RPCFilterRequestBuilder,
     SingleAPIResponse,
     pre_delete,
@@ -57,6 +59,32 @@ class PostgrestClient(Generic[HttpIO]):
         self.default_headers["Content-Profile"] = schema
         self.basic_auth: BasicAuth | None = None
 
+    def set_auth(
+        self,
+        token: str,
+    ) -> Self:
+        """
+        Authenticate the client with either bearer token or basic authentication.
+
+        Raises:
+            `ValueError`: If neither authentication scheme is provided.
+
+        .. note::
+            Bearer token is preferred if both ones are provided.
+        """
+        self.default_headers["Authorization"] = f"Bearer {token}"
+        return self
+
+    def set_auth_with_password(
+        self,
+        username: str,
+        password: str,
+    ) -> Self:
+        userpass = f"{username}:{password}"
+        token = b64encode(userpass.encode("utf8")).decode()
+        self.default_headers["Authorization"] = f"Basic {token}"
+        return self
+
     def schema(self, schema: str) -> PostgrestClient[HttpIO]:
         """Switch to another schema."""
         return PostgrestClient(
@@ -85,14 +113,34 @@ class PostgrestClient(Generic[HttpIO]):
         """Alias to :meth:`from_`."""
         return self.from_(table)
 
+    @overload
     def rpc(
         self,
         func: str,
         params: dict[str, str],
+        head: Literal[False],
         count: CountMethod | None = None,
-        head: bool = False,
         get: bool = False,
-    ) -> RPCFilterRequestBuilder[HttpIO]:
+    ) -> RPCFilterRequestBuilder[HttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        func: str,
+        params: dict[str, str],
+        head: Literal[True],
+        count: CountMethod | None = None,
+        get: bool = False,
+    ) -> RPCCountRequestBuilder[HttpIO]: ...
+
+    def rpc(
+        self,
+        func: str,
+        params: dict[str, str],
+        head: bool = False,
+        count: CountMethod | None = None,
+        get: bool = False,
+    ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]:
         """Perform a stored procedure call.
 
         Args:
@@ -125,18 +173,26 @@ class PostgrestClient(Generic[HttpIO]):
             else (params, QueryParams())
         )
         request = JSONRequest(
-            path=["rpc"],
+            path=["rpc", func],
             method=method,
             headers=headers,
             query_params=http_params,
             body=json,
         )
-        return RPCFilterRequestBuilder(
-            executor=self.executor,
-            base_url=self.base_url,
-            default_headers=self.default_headers,
-            request=request,
-        )
+        if not head:
+            return RPCFilterRequestBuilder(
+                executor=self.executor,
+                base_url=self.base_url,
+                default_headers=self.default_headers,
+                request=request,
+            )
+        else:
+            return RPCCountRequestBuilder(
+                executor=self.executor,
+                base_url=self.base_url,
+                default_headers=self.default_headers,
+                request=request,
+            )
 
 
 class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
