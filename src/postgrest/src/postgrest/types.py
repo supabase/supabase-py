@@ -14,12 +14,6 @@ if sys.version_info >= (3, 11):
 else:
     from strenum import StrEnum
 
-# https://docs.pydantic.dev/2.11/concepts/types/#named-recursive-types
-JSON = TypeAliasType(
-    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
-)
-JSONAdapter: TypeAdapter = TypeAdapter(JSON)
-
 
 class CountMethod(StrEnum):
     exact = "exact"
