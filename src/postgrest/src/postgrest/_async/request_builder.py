@@ -28,6 +28,12 @@ from ..utils import model_validate_json
 ReqConfig = RequestConfig[AsyncClient]
 
 
+def _is_maybe_single_zero_rows_error(error: APIError) -> bool:
+    message = (error.message or "").lower()
+    details = (error.details or "").lower()
+    return "0 rows" in message or "0 rows" in details
+
+
 class AsyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
@@ -109,7 +115,7 @@ class AsyncMaybeSingleRequestBuilder:
         try:
             r = await AsyncSingleRequestBuilder(self.request).execute()
         except APIError as e:
-            if e.details and "The result contains 0 rows" in e.details:
+            if _is_maybe_single_zero_rows_error(e):
                 return None
         if not r:
             raise APIError(

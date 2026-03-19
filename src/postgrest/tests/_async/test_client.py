@@ -163,6 +163,27 @@ async def test_response_maybe_single(postgrest_client: AsyncPostgrestClient):
         assert "code" in exc_response and int(exc_response["code"]) == 204
 
 
+@pytest.mark.asyncio
+async def test_response_maybe_single_zero_rows_returns_none(
+    postgrest_client: AsyncPostgrestClient,
+):
+    with patch(
+        "postgrest._async.request_builder.AsyncSingleRequestBuilder.execute",
+        side_effect=APIError(
+            {
+                "message": "JSON object requested, multiple (or no) rows returned",
+                "code": "PGRST116",
+                "hint": None,
+                "details": "Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row",
+            }
+        ),
+    ):
+        client = (
+            postgrest_client.from_("test").select("a", "b").eq("c", "d").maybe_single()
+        )
+        assert await client.execute() is None
+
+
 # https://github.com/supabase/postgrest-py/issues/595
 @pytest.mark.asyncio
 async def test_response_client_invalid_response_but_valid_json(

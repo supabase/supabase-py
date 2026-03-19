@@ -159,6 +159,24 @@ def test_response_maybe_single(postgrest_client: SyncPostgrestClient):
         assert "code" in exc_response and int(exc_response["code"]) == 204
 
 
+def test_response_maybe_single_zero_rows_returns_none(postgrest_client: SyncPostgrestClient):
+    with patch(
+        "postgrest._sync.request_builder.SyncSingleRequestBuilder.execute",
+        side_effect=APIError(
+            {
+                "message": "JSON object requested, multiple (or no) rows returned",
+                "code": "PGRST116",
+                "hint": None,
+                "details": "Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row",
+            }
+        ),
+    ):
+        client = (
+            postgrest_client.from_("test").select("a", "b").eq("c", "d").maybe_single()
+        )
+        assert client.execute() is None
+
+
 # https://github.com/supabase/postgrest-py/issues/595
 
 
