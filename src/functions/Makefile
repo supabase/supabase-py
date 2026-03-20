@@ -12,21 +12,9 @@ help::
 	@echo "  pytest         -- run pytest on supabase_functions package"
 
 mypy:
-	uv run --package supabase_functions mypy src/supabase_functions tests
+	uv run --package supabase_functions mypy --strict src/supabase_functions tests
 help::
 	@echo "  mypy           -- run mypy on supabase_functions package"
-
-unasync:
-	uv run --package supabase_functions run-unasync.py
-help::
-	@echo "  unasync        -- invoke run-unasync.py helper"
-
-build-sync: unasync
-	sed -i '0,/SyncMock, /{s/SyncMock, //}' tests/_sync/test_function_client.py
-	sed -i 's/SyncMock/Mock/g' tests/_sync/test_function_client.py
-	sed -i 's/SyncClient/Client/g' src/supabase_functions/_sync/functions_client.py tests/_sync/test_function_client.py
-help::
-	@echo "  build-sync     -- generate _sync from _async implementation"
 
 clean:
 	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
