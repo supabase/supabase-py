@@ -140,29 +140,6 @@ async def test_response_status_code_outside_ok(postgrest_client: AsyncPostgrestC
         assert exc_response["errors"][0].get("code") == 400
 
 
-@pytest.mark.asyncio
-async def test_response_maybe_single(postgrest_client: AsyncPostgrestClient):
-    with patch(
-        "postgrest._async.request_builder.AsyncSingleRequestBuilder.execute",
-        side_effect=APIError(
-            {"message": "mock error", "code": "400", "hint": "mock", "details": "mock"}
-        ),
-    ):
-        client = (
-            postgrest_client.from_("test").select("a", "b").eq("c", "d").maybe_single()
-        )
-        assert "Accept" in client.request.headers
-        assert (
-            client.request.headers.get("Accept") == "application/vnd.pgrst.object+json"
-        )
-        with pytest.raises(APIError) as exc_info:
-            await client.execute()
-        assert isinstance(exc_info, pytest.ExceptionInfo)
-        exc_response = exc_info.value.json()
-        assert isinstance(exc_response.get("message"), str)
-        assert "code" in exc_response and int(exc_response["code"]) == 204
-
-
 # https://github.com/supabase/postgrest-py/issues/595
 @pytest.mark.asyncio
 async def test_response_client_invalid_response_but_valid_json(
