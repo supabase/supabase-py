@@ -50,6 +50,32 @@ def test_match():
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
+def test_match_maybe_single():
+    res = (
+        rest_client()
+        .from_("countries")
+        .select("country_name, iso")
+        .match({"numcode": 8, "nicename": "Albania"})
+        .maybe_single()
+        .execute()
+    )
+
+    assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
+
+
+def test_no_match_maybe_single():
+    res = (
+        rest_client()
+        .from_("countries")
+        .select("country_name, iso")
+        .match({"numcode": 100, "nicename": "Wonderland"})
+        .maybe_single()
+        .execute()
+    )
+
+    assert res is None
+
+
 def test_equals():
     res = (
         rest_client()
