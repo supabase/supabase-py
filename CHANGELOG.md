@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.28.3](https://github.com/supabase/supabase-py/compare/v2.28.2...v2.28.3) (2026-03-20)
+
+
+### Bug Fixes
+
+* **postgrest:** fix maybe_single ([#1424](https://github.com/supabase/supabase-py/issues/1424)) ([c7f8f13](https://github.com/supabase/supabase-py/commit/c7f8f13b40c9f46a46276241f25c17f45b17e069))
+
 ## [2.28.2](https://github.com/supabase/supabase-py/compare/v2.28.1...v2.28.2) (2026-03-13)
 
 
