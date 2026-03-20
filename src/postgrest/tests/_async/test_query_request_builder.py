@@ -2,26 +2,25 @@ from typing import AsyncIterable
 
 import pytest
 from httpx import AsyncClient, Headers, QueryParams
+from supabase_utils.http import AsyncHttpIO, JSONRequest
 from yarl import URL
 
-from postgrest import AsyncQueryRequestBuilder
-from postgrest._async.request_builder import RequestConfig
+from postgrest.request_builder import QueryRequestBuilder
 
 
 @pytest.fixture
-async def query_request_builder() -> AsyncIterable[AsyncQueryRequestBuilder]:
+async def query_request_builder() -> AsyncIterable[QueryRequestBuilder[AsyncHttpIO]]:
     async with AsyncClient() as client:
-        request = RequestConfig(
-            client, URL("/example_table"), "GET", Headers(), QueryParams(), None, {}
+        request = JSONRequest(
+            method="GET",
+            path=["example_table"],
+            headers=Headers(),
+            query_params=QueryParams(),
+            body={},
         )
-        yield AsyncQueryRequestBuilder(request)
-
-
-def test_constructor(query_request_builder: AsyncQueryRequestBuilder):
-    builder = query_request_builder
-
-    assert str(builder.request.path) == "/example_table"
-    assert len(builder.request.headers) == 0
-    assert len(builder.request.params) == 0
-    assert builder.request.http_method == "GET"
-    assert builder.request.json is None
+        yield QueryRequestBuilder(
+            executor=AsyncHttpIO(session=client),
+            base_url=URL("/"),
+            default_headers=Headers(),
+            request=request,
+        )
