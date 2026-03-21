@@ -53,7 +53,7 @@ If you're using nix, the generated `python` executable should have the correct d
 
 ### Running tests and other commands
 
-We use `make` to store and run the relevant commands. The structure is set up such that each sub package can individually set its command in its own `Makefile`, and the job of the main `Makefile` is just coordinate calling each of them.
+We use `make` to store and run the relevant commands. The structure is set up such that each sub package can individually set its command in its own `Makefile`, and the job of the main `Makefile` is just to coordinate calling each of them.
 
 For instance, in order to run all tests of all packages, you should use the following root command
 ```bash
