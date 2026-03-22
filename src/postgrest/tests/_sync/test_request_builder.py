@@ -7,7 +7,7 @@ from yarl import URL
 from postgrest import SyncRequestBuilder, SyncSingleRequestBuilder
 from postgrest._async.request_builder import RequestConfig
 from postgrest.base_request_builder import APIResponse, SingleAPIResponse
-from postgrest.types import JSON, CountMethod
+from postgrest.types import JSON, CountMethod, ReturnMethod
 
 
 @pytest.fixture
@@ -120,6 +120,27 @@ class TestInsert:
         assert builder.request.http_method == "POST"
         assert builder.request.json == {"key1": "val1"}
 
+    def test_insert_with_select(self, request_builder: SyncRequestBuilder):
+        builder = request_builder.insert({"key1": "val1"}).select("id", "key1")
+
+        assert builder.request.params["select"] == "id,key1"
+        assert builder.request.headers.get_list("prefer", True) == [
+            "return=representation"
+        ]
+
+    def test_insert_with_select_forces_representation(
+        self, request_builder: SyncRequestBuilder
+    ):
+        builder = request_builder.insert(
+            {"key1": "val1"}, returning=ReturnMethod.minimal
+        ).select("id")
+
+        assert builder.request.params["select"] == "id"
+        assert builder.request.headers.get_list("prefer", True) == [
+            "return=minimal",
+            "return=representation",
+        ]
+
     def test_bulk_upsert_with_default(self, request_builder: SyncRequestBuilder):
         builder = request_builder.upsert(
             [{"key1": "val1", "key2": "val2"}, {"key3": "val3"}], default_to_null=False
@@ -168,6 +189,12 @@ class TestUpdate:
         assert builder.request.http_method == "PATCH"
         assert builder.request.json == {"key1": "val1"}
 
+    def test_update_with_select(self, request_builder: SyncRequestBuilder):
+        builder = request_builder.update({"key1": "val1"}).eq("id", 1).select("id")
+
+        assert builder.request.params["id"] == "eq.1"
+        assert builder.request.params["select"] == "id"
+
 
 class TestDelete:
     def test_delete(self, request_builder: SyncRequestBuilder):
@@ -197,6 +224,12 @@ class TestDelete:
         assert "return=representation" in builder.request.headers["prefer"]
         assert builder.request.http_method == "DELETE"
         assert builder.request.json == {}
+
+    def test_delete_with_select(self, request_builder: SyncRequestBuilder):
+        builder = request_builder.delete().eq("id", 1).select("id")
+
+        assert builder.request.params["id"] == "eq.1"
+        assert builder.request.params["select"] == "id"
 
 
 class TestTextSearch:
