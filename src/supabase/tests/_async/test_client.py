@@ -69,8 +69,8 @@ async def test_uses_key_as_authorization_header_by_default() -> None:
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == f"Bearer {key}"
 
-    assert client.postgrest.session.headers.get("apiKey") == key
-    assert client.postgrest.session.headers.get("Authorization") == f"Bearer {key}"
+    assert client.postgrest.default_headers.get("apiKey") == key
+    assert client.postgrest.default_headers.get("Authorization") == f"Bearer {key}"
 
     assert client.auth.default_headers.get("apiKey") == key
     assert client.auth.default_headers.get("Authorization") == f"Bearer {key}"
@@ -108,9 +108,9 @@ async def test_updates_the_authorization_header_on_auth_events() -> None:
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == updated_authorization
 
-    assert client.postgrest.session.headers.get("apiKey") == key
+    assert client.postgrest.default_headers.get("apiKey") == key
     assert (
-        client.postgrest.session.headers.get("Authorization") == updated_authorization
+        client.postgrest.default_headers.get("Authorization") == updated_authorization
     )
 
     assert client.auth.default_headers.get("apiKey") == key
@@ -133,8 +133,8 @@ async def test_supports_setting_a_global_authorization_header() -> None:
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == authorization
 
-    assert client.postgrest.session.headers.get("apiKey") == key
-    assert client.postgrest.session.headers.get("Authorization") == authorization
+    assert client.postgrest.default_headers.get("apiKey") == key
+    assert client.postgrest.default_headers.get("Authorization") == authorization
 
     assert client.auth.default_headers.get("apiKey") == key
     assert client.auth.default_headers.get("Authorization") == authorization
@@ -193,7 +193,10 @@ async def test_httpx_client() -> None:
 
         client = await create_async_client(url, key, options)
 
-        assert client.postgrest.session.headers.get("x-user-agent") == "my-app/0.0.1"
+        assert (
+            client.postgrest.executor.session.headers.get("x-user-agent")
+            == "my-app/0.0.1"
+        )
         assert (
             client.auth.executor.session.headers.get("x-user-agent") == "my-app/0.0.1"
         )
@@ -205,7 +208,7 @@ async def test_httpx_client() -> None:
             client.functions.executor.session.headers.get("x-user-agent")
             == "my-app/0.0.1"
         )
-        assert client.postgrest.session.timeout == Timeout(2.0)
+        assert client.postgrest.executor.session.timeout == Timeout(2.0)
         assert client.auth.executor.session.timeout == Timeout(2.0)
         assert client.storage.executor.session.timeout == Timeout(2.0)
         assert client.functions.executor.session.timeout == Timeout(2.0)

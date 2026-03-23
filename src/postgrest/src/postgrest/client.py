@@ -85,15 +85,6 @@ class PostgrestClient(Generic[HttpIO]):
         self.default_headers["Authorization"] = f"Basic {token}"
         return self
 
-    def schema(self, schema: str) -> PostgrestClient[HttpIO]:
-        """Switch to another schema."""
-        return PostgrestClient(
-            executor=self.executor,
-            base_url=self.base_url,
-            default_headers=self.default_headers,
-            schema=schema,
-        )
-
     def from_(self, table: str) -> RequestBuilder[HttpIO]:
         """Perform a table operation.
 
@@ -132,6 +123,16 @@ class PostgrestClient(Generic[HttpIO]):
         count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCCountRequestBuilder[HttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        func: str,
+        params: dict[str, str],
+        head: bool,
+        count: CountMethod | None = None,
+        get: bool = False,
+    ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]: ...
 
     def rpc(
         self,
@@ -215,6 +216,15 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
             schema=schema,
         )
 
+    def schema(self, schema: str) -> AsyncPostgrestClient:
+        """Switch to another schema."""
+        return AsyncPostgrestClient(
+            http_client=self.executor.session,
+            base_url=str(self.base_url),
+            headers=dict(self.default_headers),
+            schema=schema,
+        )
+
     async def __aenter__(self) -> AsyncPostgrestClient:
         return self
 
@@ -258,3 +268,12 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
         tb: TracebackType | None,
     ) -> None:
         self.executor.session.close()
+
+    def schema(self, schema: str) -> SyncPostgrestClient:
+        """Switch to another schema."""
+        return SyncPostgrestClient(
+            http_client=self.executor.session,
+            base_url=str(self.base_url),
+            headers=dict(self.default_headers),
+            schema=schema,
+        )
