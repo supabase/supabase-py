@@ -1,28 +1,26 @@
 import asyncio
 import copy
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union, overload
 
-from httpx import Timeout
-from postgrest import (
-    AsyncPostgrestClient,
-    AsyncRequestBuilder,
-    AsyncRPCFilterRequestBuilder,
+from postgrest import AsyncPostgrestClient
+from postgrest.request_builder import (
+    RequestBuilder,
+    RPCCountRequestBuilder,
+    RPCFilterRequestBuilder,
 )
-from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
 from realtime import AsyncRealtimeChannel, AsyncRealtimeClient, RealtimeChannelOptions
 from storage3 import AsyncStorageClient
-from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
-from supabase_auth import AsyncMemoryStorage
+from supabase_auth import AsyncMemoryStorage, AsyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import AsyncFunctionsClient
+from supabase_utils.http import AsyncHttpIO
 from yarl import URL
 
 from ..lib.client_options import AsyncClientOptions as ClientOptions
 from ..lib.client_options import AsyncHttpxClient
 from ..types import RealtimeClientOptions
-from .auth_client import AsyncSupabaseAuthClient
 
 
 # Create an exception class when user does not provide a valid url or key.
@@ -126,7 +124,7 @@ class AsyncClient:
 
         return client
 
-    def table(self, table_name: str) -> AsyncRequestBuilder:
+    def table(self, table_name: str) -> RequestBuilder[AsyncHttpIO]:
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
@@ -142,21 +140,47 @@ class AsyncClient:
         """
         return self.postgrest.schema(schema)
 
-    def from_(self, table_name: str) -> AsyncRequestBuilder:
+    def from_(self, table_name: str) -> RequestBuilder[AsyncHttpIO]:
         """Perform a table operation.
 
         See the `table` method.
         """
         return self.postgrest.from_(table_name)
 
+    @overload
     def rpc(
         self,
         fn: str,
-        params: Optional[Dict[Any, Any]] = None,
-        count: Optional[CountMethod] = None,
-        head: bool = False,
+        head: Literal[False],
+        params: Optional[Dict[str, str]] = None,
+        count: CountMethod | None = None,
         get: bool = False,
-    ) -> AsyncRPCFilterRequestBuilder:
+    ) -> RPCFilterRequestBuilder[AsyncHttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        fn: str,
+        head: Literal[True],
+        params: Optional[Dict[str, str]] = None,
+        count: CountMethod | None = None,
+        get: bool = False,
+    ) -> RPCCountRequestBuilder[AsyncHttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        fn: str,
+    ) -> RPCCountRequestBuilder[AsyncHttpIO]: ...
+
+    def rpc(
+        self,
+        fn: str,
+        head: bool = False,
+        params: Optional[Dict[str, str]] = None,
+        count: Optional[CountMethod] = None,
+        get: bool = False,
+    ) -> RPCFilterRequestBuilder[AsyncHttpIO] | RPCCountRequestBuilder[AsyncHttpIO]:
         """Performs a stored procedure call.
 
         Parameters
@@ -177,7 +201,7 @@ class AsyncClient:
         """
         if params is None:
             params = {}
-        return self.postgrest.rpc(fn, params, count, head, get)
+        return self.postgrest.rpc(fn, params=params, count=count, head=head, get=get)
 
     @property
     def postgrest(self) -> AsyncPostgrestClient:
@@ -186,7 +210,6 @@ class AsyncClient:
                 rest_url=str(self.rest_url),
                 headers=self.options.headers,
                 schema=self.options.schema,
-                timeout=self.options.postgrest_client_timeout,
                 http_client=self.options.httpx_client,
             )
 
@@ -209,11 +232,7 @@ class AsyncClient:
             self._functions = AsyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
-                timeout=(
-                    self.options.function_client_timeout
-                    if self.options.httpx_client is None
-                    else None
-                ),
+                timeout=self.options.function_client_timeout,
                 http_client=self.options.httpx_client,
             )
         return self._functions
@@ -252,31 +271,20 @@ class AsyncClient:
     def _init_storage_client(
         storage_url: str,
         headers: Dict[str, str],
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
-        verify: bool = True,
-        proxy: Optional[str] = None,
+        storage_client_timeout: Optional[int] = None,
         http_client: Union[AsyncHttpxClient, None] = None,
     ) -> AsyncStorageClient:
-        if http_client is not None:
-            # If an http client is provided, use it
-            return AsyncStorageClient(
-                url=storage_url, headers=headers, http_client=http_client
-            )
         return AsyncStorageClient(
             url=storage_url,
             headers=headers,
             timeout=storage_client_timeout,
-            verify=verify,
-            proxy=proxy,
-            http_client=None,
+            http_client=http_client,
         )
 
     @staticmethod
     def _init_supabase_auth_client(
         auth_url: str,
         client_options: ClientOptions,
-        verify: bool = True,
-        proxy: Optional[str] = None,
     ) -> AsyncSupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
         return AsyncSupabaseAuthClient(
@@ -286,8 +294,6 @@ class AsyncClient:
             storage=client_options.storage,
             headers=client_options.headers,
             flow_type=client_options.flow_type,
-            verify=verify,
-            proxy=proxy,
             http_client=client_options.httpx_client,
         )
 
@@ -296,9 +302,6 @@ class AsyncClient:
         rest_url: str,
         headers: Dict[str, str],
         schema: str,
-        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        verify: bool = True,
-        proxy: Optional[str] = None,
         http_client: Union[AsyncHttpxClient, None] = None,
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
@@ -311,9 +314,6 @@ class AsyncClient:
             rest_url,
             headers=headers,
             schema=schema,
-            timeout=timeout,
-            verify=verify,
-            proxy=proxy,
             http_client=None,
         )
 
@@ -344,7 +344,7 @@ class AsyncClient:
             access_token = session.access_token if session else self.supabase_key
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
-        self.auth._headers["Authorization"] = auth_header
+        self.auth.default_headers["Authorization"] = auth_header
         asyncio.create_task(self.realtime.set_auth(access_token))
 
 

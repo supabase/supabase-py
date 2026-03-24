@@ -69,14 +69,14 @@ def test_uses_key_as_authorization_header_by_default() -> None:
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == f"Bearer {key}"
 
-    assert client.postgrest.session.headers.get("apiKey") == key
-    assert client.postgrest.session.headers.get("Authorization") == f"Bearer {key}"
+    assert client.postgrest.default_headers.get("apiKey") == key
+    assert client.postgrest.default_headers.get("Authorization") == f"Bearer {key}"
 
-    assert client.auth._headers.get("apiKey") == key
-    assert client.auth._headers.get("Authorization") == f"Bearer {key}"
+    assert client.auth.default_headers.get("apiKey") == key
+    assert client.auth.default_headers.get("Authorization") == f"Bearer {key}"
 
-    assert client.storage.session.headers.get("apiKey") == key
-    assert client.storage.session.headers.get("Authorization") == f"Bearer {key}"
+    assert client.storage.default_headers.get("apiKey") == key
+    assert client.storage.default_headers.get("Authorization") == f"Bearer {key}"
 
 
 def test_schema_update() -> None:
@@ -108,16 +108,16 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == updated_authorization
 
-    assert client.postgrest.session.headers.get("apiKey") == key
+    assert client.postgrest.default_headers.get("apiKey") == key
     assert (
-        client.postgrest.session.headers.get("Authorization") == updated_authorization
+        client.postgrest.default_headers.get("Authorization") == updated_authorization
     )
 
-    assert client.auth._headers.get("apiKey") == key
-    assert client.auth._headers.get("Authorization") == updated_authorization
+    assert client.auth.default_headers.get("apiKey") == key
+    assert client.auth.default_headers.get("Authorization") == updated_authorization
 
-    assert client.storage.session.headers.get("apiKey") == key
-    assert client.storage.session.headers.get("Authorization") == updated_authorization
+    assert client.storage.default_headers.get("apiKey") == key
+    assert client.storage.default_headers.get("Authorization") == updated_authorization
 
 
 def test_supports_setting_a_global_authorization_header() -> None:
@@ -133,14 +133,14 @@ def test_supports_setting_a_global_authorization_header() -> None:
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == authorization
 
-    assert client.postgrest.session.headers.get("apiKey") == key
-    assert client.postgrest.session.headers.get("Authorization") == authorization
+    assert client.postgrest.default_headers.get("apiKey") == key
+    assert client.postgrest.default_headers.get("Authorization") == authorization
 
-    assert client.auth._headers.get("apiKey") == key
-    assert client.auth._headers.get("Authorization") == authorization
+    assert client.auth.default_headers.get("apiKey") == key
+    assert client.auth.default_headers.get("Authorization") == authorization
 
-    assert client.storage.session.headers.get("apiKey") == key
-    assert client.storage.session.headers.get("Authorization") == authorization
+    assert client.storage.default_headers.get("apiKey") == key
+    assert client.storage.default_headers.get("Authorization") == authorization
 
 
 def test_mutable_headers_issue() -> None:
@@ -193,14 +193,25 @@ def test_httpx_client() -> None:
 
         client = create_client(url, key, options)
 
-        assert client.postgrest.session.headers.get("x-user-agent") == "my-app/0.0.1"
-        assert client.auth._http_client.headers.get("x-user-agent") == "my-app/0.0.1"
-        assert client.storage.session.headers.get("x-user-agent") == "my-app/0.0.1"
-        assert client.functions._client.headers.get("x-user-agent") == "my-app/0.0.1"
-        assert client.postgrest.session.timeout == Timeout(2.0)
-        assert client.auth._http_client.timeout == Timeout(2.0)
-        assert client.storage.session.timeout == Timeout(2.0)
-        assert client.functions._client.timeout == Timeout(2.0)
+        assert (
+            client.postgrest.executor.session.headers.get("x-user-agent")
+            == "my-app/0.0.1"
+        )
+        assert (
+            client.auth.executor.session.headers.get("x-user-agent") == "my-app/0.0.1"
+        )
+        assert (
+            client.storage.executor.session.headers.get("x-user-agent")
+            == "my-app/0.0.1"
+        )
+        assert (
+            client.functions.executor.session.headers.get("x-user-agent")
+            == "my-app/0.0.1"
+        )
+        assert client.postgrest.executor.session.timeout == Timeout(2.0)
+        assert client.auth.executor.session.timeout == Timeout(2.0)
+        assert client.storage.executor.session.timeout == Timeout(2.0)
+        assert client.functions.executor.session.timeout == Timeout(2.0)
 
 
 def test_custom_headers() -> None:
@@ -258,7 +269,7 @@ def test_httpx_client_base_url_isolation() -> None:
 
     # Access storage and capture its base_url
     storage = client.storage
-    storage_base_url = str(storage._base_url).rstrip("/")
+    storage_base_url = str(storage.base_url).rstrip("/")
     assert storage_base_url.endswith("/storage/v1"), (
         f"Expected storage base_url to end with '/storage/v1', got {storage_base_url}"
     )
@@ -271,12 +282,12 @@ def test_httpx_client_base_url_isolation() -> None:
     )
 
     # Verify storage still has the correct base_url
-    storage_base_url_after = str(storage._base_url).rstrip("/")
+    storage_base_url_after = str(storage.base_url).rstrip("/")
     assert storage_base_url_after.endswith("/storage/v1"), (
         f"Storage base_url was mutated! Expected '/storage/v1', got {storage_base_url_after}"
     )
 
-    assert str(storage._base_url).rstrip("/").endswith("/storage/v1"), (
+    assert str(storage.base_url).rstrip("/").endswith("/storage/v1"), (
         "Storage base_url was mutated after accessing functions"
     )
     assert str(postgrest.base_url).rstrip("/").endswith("/rest/v1"), (

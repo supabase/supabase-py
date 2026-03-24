@@ -1,5 +1,4 @@
 import sys
-from urllib.parse import urlparse
 
 from httpx import AsyncClient as AsyncClient  # noqa: F401
 
@@ -10,7 +9,6 @@ else:
 
 
 DEFAULT_FUNCTION_CLIENT_TIMEOUT = 5
-BASE64URL_REGEX = r"^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$"
 
 
 class FunctionRegion(StrEnum):
@@ -33,7 +31,3 @@ class FunctionRegion(StrEnum):
 
 def is_valid_str_arg(target: str) -> bool:
     return isinstance(target, str) and len(target.strip()) > 0
-
-
-def is_http_url(url: str) -> bool:
-    return urlparse(url).scheme in {"https", "http"}

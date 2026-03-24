@@ -1,27 +1,25 @@
 import copy
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union, overload
 
-from httpx import Timeout
-from postgrest import (
-    SyncPostgrestClient,
-    SyncRequestBuilder,
-    SyncRPCFilterRequestBuilder,
+from postgrest import SyncPostgrestClient
+from postgrest.request_builder import (
+    RequestBuilder,
+    RPCCountRequestBuilder,
+    RPCFilterRequestBuilder,
 )
-from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
 from realtime import RealtimeChannelOptions, SyncRealtimeChannel, SyncRealtimeClient
 from storage3 import SyncStorageClient
-from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
-from supabase_auth import SyncMemoryStorage
+from supabase_auth import SyncMemoryStorage, SyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
+from supabase_utils.http import SyncHttpIO
 from yarl import URL
 
 from ..lib.client_options import SyncClientOptions as ClientOptions
 from ..lib.client_options import SyncHttpxClient
 from ..types import RealtimeClientOptions
-from .auth_client import SyncSupabaseAuthClient
 
 
 # Create an exception class when user does not provide a valid url or key.
@@ -125,7 +123,7 @@ class Client:
 
         return client
 
-    def table(self, table_name: str) -> SyncRequestBuilder:
+    def table(self, table_name: str) -> RequestBuilder[SyncHttpIO]:
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
@@ -141,21 +139,47 @@ class Client:
         """
         return self.postgrest.schema(schema)
 
-    def from_(self, table_name: str) -> SyncRequestBuilder:
+    def from_(self, table_name: str) -> RequestBuilder[SyncHttpIO]:
         """Perform a table operation.
 
         See the `table` method.
         """
         return self.postgrest.from_(table_name)
 
+    @overload
     def rpc(
         self,
         fn: str,
-        params: Optional[Dict[Any, Any]] = None,
-        count: Optional[CountMethod] = None,
-        head: bool = False,
+        head: Literal[False],
+        params: Optional[Dict[str, str]] = None,
+        count: CountMethod | None = None,
         get: bool = False,
-    ) -> SyncRPCFilterRequestBuilder:
+    ) -> RPCFilterRequestBuilder[SyncHttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        fn: str,
+        head: Literal[True],
+        params: Optional[Dict[str, str]] = None,
+        count: CountMethod | None = None,
+        get: bool = False,
+    ) -> RPCCountRequestBuilder[SyncHttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        fn: str,
+    ) -> RPCFilterRequestBuilder[SyncHttpIO]: ...
+
+    def rpc(
+        self,
+        fn: str,
+        head: bool = False,
+        params: Optional[Dict[str, str]] = None,
+        count: Optional[CountMethod] = None,
+        get: bool = False,
+    ) -> RPCFilterRequestBuilder[SyncHttpIO] | RPCCountRequestBuilder[SyncHttpIO]:
         """Performs a stored procedure call.
 
         Parameters
@@ -174,9 +198,9 @@ class Client:
             Returns a filter builder. This lets you apply filters on the response
             of an RPC.
         """
-        if params is None:
-            params = {}
-        return self.postgrest.rpc(fn, params, count, head, get)
+        return self.postgrest.rpc(
+            fn, params=params or {}, head=head, count=count, get=get
+        )
 
     @property
     def postgrest(self) -> SyncPostgrestClient:
@@ -185,7 +209,6 @@ class Client:
                 rest_url=str(self.rest_url),
                 headers=self.options.headers,
                 schema=self.options.schema,
-                timeout=self.options.postgrest_client_timeout,
                 http_client=self.options.httpx_client,
             )
 
@@ -208,11 +231,7 @@ class Client:
             self._functions = SyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
-                timeout=(
-                    self.options.function_client_timeout
-                    if self.options.httpx_client is None
-                    else None
-                ),
+                timeout=self.options.function_client_timeout,
                 http_client=self.options.httpx_client,
             )
         return self._functions
@@ -251,31 +270,20 @@ class Client:
     def _init_storage_client(
         storage_url: str,
         headers: Dict[str, str],
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
-        verify: bool = True,
-        proxy: Optional[str] = None,
+        storage_client_timeout: Optional[int] = None,
         http_client: Union[SyncHttpxClient, None] = None,
     ) -> SyncStorageClient:
-        if http_client is not None:
-            # If an http client is provided, use it
-            return SyncStorageClient(
-                url=storage_url, headers=headers, http_client=http_client
-            )
         return SyncStorageClient(
             url=storage_url,
             headers=headers,
             timeout=storage_client_timeout,
-            verify=verify,
-            proxy=proxy,
-            http_client=None,
+            http_client=http_client,
         )
 
     @staticmethod
     def _init_supabase_auth_client(
         auth_url: str,
         client_options: ClientOptions,
-        verify: bool = True,
-        proxy: Optional[str] = None,
     ) -> SyncSupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
         return SyncSupabaseAuthClient(
@@ -285,8 +293,6 @@ class Client:
             storage=client_options.storage,
             headers=client_options.headers,
             flow_type=client_options.flow_type,
-            verify=verify,
-            proxy=proxy,
             http_client=client_options.httpx_client,
         )
 
@@ -295,9 +301,6 @@ class Client:
         rest_url: str,
         headers: Dict[str, str],
         schema: str,
-        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        verify: bool = True,
-        proxy: Optional[str] = None,
         http_client: Union[SyncHttpxClient, None] = None,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
@@ -310,9 +313,6 @@ class Client:
             rest_url,
             headers=headers,
             schema=schema,
-            timeout=timeout,
-            verify=verify,
-            proxy=proxy,
             http_client=None,
         )
 
@@ -343,7 +343,7 @@ class Client:
             access_token = session.access_token if session else self.supabase_key
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
-        self.auth._headers["Authorization"] = auth_header
+        self.auth.default_headers["Authorization"] = auth_header
 
 
 def create_client(
