@@ -24,7 +24,6 @@ from .constants import DEFAULT_POSTGREST_CLIENT_HEADERS
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .request_builder import (
     APIResponse,
-    BaseFilterRequestBuilder,
     BaseRPCRequestBuilder,
     BaseSelectRequestBuilder,
     RequestBuilder,

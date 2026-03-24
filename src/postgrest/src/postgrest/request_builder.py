@@ -238,7 +238,6 @@ class SingleAPIResponse:
         return SingleAPIResponse(data=data, count=count)
 
 
-@dataclass
 class BaseFilterRequestBuilder:
     request: JSONRequest
     negate_next: bool = False
