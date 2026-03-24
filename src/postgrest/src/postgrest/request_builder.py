@@ -3,58 +3,42 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass
-from json import JSONDecodeError
 from re import search
-from types import TracebackType
 from typing import (
     Any,
-    Awaitable,
     Dict,
     Generic,
     Iterable,
     List,
     Literal,
     NamedTuple,
-    Optional,
     Tuple,
-    Type,
     TypeVar,
-    Union,
     overload,
 )
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams, Response
+from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
 from httpx import Response as RequestResponse
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import TypeAdapter, ValidationError
 from supabase_utils.http import (
-    AsyncHttpIO,
     HttpIO,
     HttpMethod,
     HTTPRequestMethod,
     JSONRequest,
-    SyncHttpIO,
     handle_http_io,
 )
 from supabase_utils.types import JSON, JSONParser
-from typing_extensions import Self, override
+from typing_extensions import Self
 from yarl import URL
 
-from .constants import DEFAULT_POSTGREST_CLIENT_HEADERS
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
-from .types import CountMethod, Filters, RequestMethod, ReturnMethod
+from .types import CountMethod, Filters, ReturnMethod
 from .utils import model_validate_json, sanitize_param
 
 if sys.version_info >= (3, 11):
     from typing import Self
 else:
     from typing_extensions import Self
-
-try:
-    # >= 2.0.0
-    from pydantic import field_validator
-except ImportError:
-    # < 2.0.0
-    from pydantic import validator as field_validator  # type: ignore
 
 
 class QueryArgs(NamedTuple):
@@ -667,7 +651,7 @@ class QueryRequestBuilder(BaseRequestClient[HttpIO]):
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
-        except ValidationError as e:
+        except ValidationError:
             raise APIError(generate_default_error_message(r))
 
 
@@ -725,7 +709,7 @@ class ExplainRequestBuilder(BaseRequestClient[HttpIO]):
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
-        except ValidationError as e:
+        except ValidationError:
             raise APIError(generate_default_error_message(r))
 
 

@@ -1,19 +1,13 @@
-from unittest.mock import patch
-
 import pytest
 from httpx import (
-    BasicAuth,
     Client,
     Headers,
     HTTPTransport,
     Limits,
-    Request,
-    Response,
     Timeout,
 )
 
 from postgrest import SyncPostgrestClient
-from postgrest.exceptions import APIError
 
 
 @pytest.fixture

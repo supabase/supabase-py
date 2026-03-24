@@ -1,7 +1,7 @@
 from typing import Any, Dict, Iterable, List
 
 import pytest
-from httpx import Client, Headers, QueryParams, Request, Response
+from httpx import Client, Headers, Request, Response
 from supabase_utils.http import SyncHttpIO
 from supabase_utils.types import JSON
 from yarl import URL
@@ -10,7 +10,6 @@ from postgrest.client import RequestBuilder
 from postgrest.request_builder import (
     APIResponse,
     SingleAPIResponse,
-    SingleRequestBuilder,
     TextRequestBuilder,
 )
 from postgrest.types import CountMethod

@@ -1,43 +1,27 @@
 from __future__ import annotations
 
 from base64 import b64encode
-from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
+from typing import Generic, Literal, overload
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams, Response
-from pydantic import ValidationError
+from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
 from supabase_utils.http import (
     AsyncHttpIO,
     HttpIO,
-    HttpMethod,
     HTTPRequestMethod,
     JSONRequest,
     SyncHttpIO,
-    handle_http_io,
 )
-from supabase_utils.types import JSON
-from typing_extensions import Self, override
+from typing_extensions import Self
 from yarl import URL
 
 from .constants import DEFAULT_POSTGREST_CLIENT_HEADERS
-from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .request_builder import (
-    APIResponse,
-    BaseRPCRequestBuilder,
-    BaseSelectRequestBuilder,
     RequestBuilder,
     RPCCountRequestBuilder,
     RPCFilterRequestBuilder,
-    SingleAPIResponse,
-    pre_delete,
-    pre_insert,
-    pre_select,
-    pre_update,
-    pre_upsert,
 )
-from .types import CountMethod, ReturnMethod
-from .utils import model_validate_json
+from .types import CountMethod
 
 
 class PostgrestClient(Generic[HttpIO]):
