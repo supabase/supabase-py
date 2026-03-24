@@ -19,13 +19,14 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
   "deprecation >=2.1.0",
   "pydantic >=1.9,<3.0",
   "strenum >=0.4.9; python_version < \"3.11\"",
   "yarl>=1.20.1",
+  "supabase_utils==2.28.0", # x-release-please-version
 ]
 
 [project.urls]
@@ -72,8 +73,7 @@ select = [
   # isort
   "I",
 ]
-ignore = ["F401", "F403", "F841", "E712", "E501", "E402", "UP006", "UP035"]
-# isort.required-imports = ["from __future__ import annotations"]
+ignore = ["E712", "E501", "E402", "UP006", "UP035"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

@@ -1,21 +1,21 @@
 import asyncio
 import copy
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union, overload
 
-from httpx import Timeout
-from postgrest import (
-    AsyncPostgrestClient,
-    AsyncRequestBuilder,
-    AsyncRPCFilterRequestBuilder,
+from postgrest import AsyncPostgrestClient
+from postgrest.request_builder import (
+    RequestBuilder,
+    RPCCountRequestBuilder,
+    RPCFilterRequestBuilder,
 )
-from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
 from realtime import AsyncRealtimeChannel, AsyncRealtimeClient, RealtimeChannelOptions
 from storage3 import AsyncStorageClient
 from supabase_auth import AsyncMemoryStorage, AsyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import AsyncFunctionsClient
+from supabase_utils.http import AsyncHttpIO
 from yarl import URL
 
 from ..lib.client_options import AsyncClientOptions as ClientOptions
@@ -124,7 +124,7 @@ class AsyncClient:
 
         return client
 
-    def table(self, table_name: str) -> AsyncRequestBuilder:
+    def table(self, table_name: str) -> RequestBuilder[AsyncHttpIO]:
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
@@ -140,21 +140,47 @@ class AsyncClient:
         """
         return self.postgrest.schema(schema)
 
-    def from_(self, table_name: str) -> AsyncRequestBuilder:
+    def from_(self, table_name: str) -> RequestBuilder[AsyncHttpIO]:
         """Perform a table operation.
 
         See the `table` method.
         """
         return self.postgrest.from_(table_name)
 
+    @overload
     def rpc(
         self,
         fn: str,
-        params: Optional[Dict[Any, Any]] = None,
-        count: Optional[CountMethod] = None,
-        head: bool = False,
+        head: Literal[False],
+        params: Optional[Dict[str, str]] = None,
+        count: CountMethod | None = None,
         get: bool = False,
-    ) -> AsyncRPCFilterRequestBuilder:
+    ) -> RPCFilterRequestBuilder[AsyncHttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        fn: str,
+        head: Literal[True],
+        params: Optional[Dict[str, str]] = None,
+        count: CountMethod | None = None,
+        get: bool = False,
+    ) -> RPCCountRequestBuilder[AsyncHttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        fn: str,
+    ) -> RPCCountRequestBuilder[AsyncHttpIO]: ...
+
+    def rpc(
+        self,
+        fn: str,
+        head: bool = False,
+        params: Optional[Dict[str, str]] = None,
+        count: Optional[CountMethod] = None,
+        get: bool = False,
+    ) -> RPCFilterRequestBuilder[AsyncHttpIO] | RPCCountRequestBuilder[AsyncHttpIO]:
         """Performs a stored procedure call.
 
         Parameters
@@ -175,7 +201,7 @@ class AsyncClient:
         """
         if params is None:
             params = {}
-        return self.postgrest.rpc(fn, params, count, head, get)
+        return self.postgrest.rpc(fn, params=params, count=count, head=head, get=get)
 
     @property
     def postgrest(self) -> AsyncPostgrestClient:
@@ -184,7 +210,6 @@ class AsyncClient:
                 rest_url=str(self.rest_url),
                 headers=self.options.headers,
                 schema=self.options.schema,
-                timeout=self.options.postgrest_client_timeout,
                 http_client=self.options.httpx_client,
             )
 
@@ -277,9 +302,6 @@ class AsyncClient:
         rest_url: str,
         headers: Dict[str, str],
         schema: str,
-        timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        verify: bool = True,
-        proxy: Optional[str] = None,
         http_client: Union[AsyncHttpxClient, None] = None,
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
@@ -292,9 +314,6 @@ class AsyncClient:
             rest_url,
             headers=headers,
             schema=schema,
-            timeout=timeout,
-            verify=verify,
-            proxy=proxy,
             http_client=None,
         )
 
