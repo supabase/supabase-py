@@ -17,9 +17,7 @@ def valid_headers() -> Dict[str, str]:
 
 def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
     # Test creating async client with explicit verify=True
-    client = create_client(
-        url=valid_url, headers=valid_headers, is_async=True, verify=True
-    )
+    client = create_client(url=valid_url, headers=valid_headers, is_async=True)
 
     assert isinstance(client, AsyncFunctionsClient)
     assert str(client.base_url) == valid_url
@@ -29,10 +27,7 @@ def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> N
 
 
 def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
-    # Test creating sync client with explicit verify=True
-    client = create_client(
-        url=valid_url, headers=valid_headers, is_async=False, verify=True
-    )
+    client = create_client(url=valid_url, headers=valid_headers, is_async=False)
 
     assert isinstance(client, SyncFunctionsClient)
     assert str(client.base_url) == valid_url
@@ -49,5 +44,4 @@ def test_type_hints() -> None:
     assert hints["url"] is str
     assert hints["headers"] == dict[str, str]
     assert hints["is_async"] is bool
-    assert hints["verify"] is bool
     assert hints["return"] == AsyncFunctionsClient | SyncFunctionsClient

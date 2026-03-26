@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Mapping
 
 from pyrsistent import PMap, PVector
+from pyrsistent import m as Map
 from pyrsistent import v as Vec
 from yarl import Query
 
@@ -15,11 +16,11 @@ class URLQuery:
 
     @staticmethod
     def empty() -> URLQuery:
-        return URLQuery(pmap=PMap())
+        return URLQuery(pmap=Map())
 
     @staticmethod
     def from_mapping(mapping: Mapping[str, QueryValue]) -> URLQuery:
-        map: PMap[str, PVector[QueryValue]] = PMap()
+        map: PMap[str, PVector[QueryValue]] = Map()
         for key, val in mapping.items():
             map = map.set(key.lower(), Vec(val))
         return URLQuery(pmap=map)
@@ -43,3 +44,10 @@ class URLQuery:
     def merge(self, other: URLQuery) -> URLQuery:
         new = self._map.update(other._map)
         return URLQuery(new)
+
+    def __str__(self) -> str:
+        fields = ", ".join(f'"{k}"="{self.get(k)}"' for k in self._map)
+        return f"URLQuery({fields})"
+
+    def __repr__(self) -> str:
+        return str(self)

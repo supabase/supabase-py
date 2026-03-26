@@ -19,21 +19,23 @@ HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
 
 
 @dataclass
-class Response:
-    headers: Headers
-    content: bytes
-    status: int
-
-    def is_success(self) -> bool:
-        return 200 <= self.status <= 300
-
-
-@dataclass
 class Request:
     url: URL
     method: HTTPRequestMethod
     headers: Headers
     content: bytes | None
+
+
+@dataclass
+class Response:
+    headers: Headers
+    content: bytes
+    status: int
+    request: Request
+
+    @property
+    def is_success(self) -> bool:
+        return 200 <= self.status <= 300
 
 
 class ToRequest(Protocol):
@@ -99,7 +101,7 @@ class JSONRequest(EmptyRequest):
 class TextRequest(EmptyRequest):
     text: str
 
-    def to_request(self, base_url: URL, default_headers: Headers) -> Request:
+    def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         headers = default_headers.update(self.headers).set(
             "Content-Type", "text/plain; charset=utf-8"
         )
@@ -127,7 +129,7 @@ class FormField:
         for sort_key in sort_keys:
             if val := self.headers.get(sort_key):
                 lines.append(f"{sort_key}: {val}")
-        for header_name, header_value in self.headers.items():
+        for header_name, header_value in self.headers.iter_items():
             if header_name not in sort_keys:
                 if header_value:
                     lines.append(f"{header_name}: {header_value}")
@@ -153,7 +155,7 @@ def encode_multipart_formdata(fields: list[FormField]) -> tuple[bytes, str]:
 class MultipartFormDataRequest(EmptyRequest):
     files: list[FormField]
 
-    def to_request(self, base_url: URL, default_headers: Headers) -> Request:
+    def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         content, content_type = encode_multipart_formdata(fields=self.files)
         headers = default_headers.update(self.headers).set("Content-Type", content_type)
         return Request(

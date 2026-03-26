@@ -15,11 +15,12 @@ def to_httpx_request(req: Request) -> HttpxRequest:
     )
 
 
-def to_supabase_response(resp: HttpxResponse) -> Response:
+def to_supabase_response(req: Request, resp: HttpxResponse) -> Response:
     return Response(
         status=resp.status_code,
         content=resp.content,
         headers=Headers.from_mapping(resp.headers),
+        request=req,
     )
 
 
@@ -29,7 +30,7 @@ class HttpxSession:
 
     def send(self, request: Request) -> Response:
         response = self.client.send(to_httpx_request(request))
-        return to_supabase_response(response)
+        return to_supabase_response(request, response)
 
 
 class AsyncHttpxSession:
