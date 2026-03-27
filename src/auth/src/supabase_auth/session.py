@@ -5,16 +5,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, Generic
 
-from httpx import Headers, QueryParams
-from supabase_utils.http import (
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     AsyncHttpIO,
-    EmptyRequest,
     HttpIO,
     HttpMethod,
-    JSONRequest,
     SyncHttpIO,
     handle_http_io,
 )
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
 from .constants import EXPIRY_MARGIN, MAX_RETRIES, RETRY_INTERVAL, STORAGE_KEY
@@ -73,7 +73,7 @@ class SessionManagerCommon(Generic[HttpIO]):
         response = yield JSONRequest(
             method="POST",
             path=["token"],
-            query_params=QueryParams(grant_type="refresh_token"),
+            query=URLQuery.from_mapping({"grant_type": "refresh_token"}),
             body={"refresh_token": refresh_token},
         )
         return parse_auth_response(response)
@@ -92,7 +92,7 @@ class SessionManagerCommon(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="GET",
             path=["user"],
-            headers=Headers({"authorization": f"Bearer {jwt}"}),
+            headers=Headers.from_mapping({"authorization": f"Bearer {jwt}"}),
         )
         return parse_user_response(response)
 

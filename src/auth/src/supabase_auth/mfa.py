@@ -3,16 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, Literal
 
-from httpx import Headers
-from supabase_utils.http import (
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     AsyncHttpIO,
-    EmptyRequest,
     HttpIO,
     HttpMethod,
-    JSONRequest,
     SyncHttpIO,
     handle_http_io,
 )
+from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
 from .errors import AuthSessionMissingError

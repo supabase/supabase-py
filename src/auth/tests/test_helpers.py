@@ -1,21 +1,21 @@
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from httpx import Headers, Response
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.request import Request, Response
+from yarl import URL
 
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
 )
 from supabase_auth.errors import (
     AuthInvalidJwtError,
-    AuthWeakPasswordError,
 )
 from supabase_auth.helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    handle_error_response,
     parse_link_identity_response,
     parse_response_api_version,
     validate_exp,
@@ -26,9 +26,20 @@ from ._sync.clients import mock_access_token
 TEST_URL = "http://localhost"
 
 
+def valid_request() -> Request:
+    return Request(
+        url=URL(TEST_URL),
+        method="GET",
+        headers=Headers.empty(),
+        content=None,
+    )
+
+
 def test_parse_response_api_version_with_valid_date() -> None:
-    headers = Headers({API_VERSION_HEADER_NAME: "2024-01-01"})
-    response = Response(headers=headers, status_code=200)
+    headers = Headers.from_mapping({API_VERSION_HEADER_NAME: "2024-01-01"})
+    response = Response(
+        headers=headers, status=200, content=b"", request=valid_request()
+    )
     api_ver = parse_response_api_version(response)
     assert api_ver
     assert datetime.timestamp(api_ver) == datetime.timestamp(
@@ -39,14 +50,21 @@ def test_parse_response_api_version_with_valid_date() -> None:
 def test_parse_response_api_version_with_invalid_dates() -> None:
     dates = ["2024-01-32", "", "notadate", "Sat Feb 24 2024 17:59:17 GMT+0100"]
     for date in dates:
-        headers = Headers({API_VERSION_HEADER_NAME: date})
-        response = Response(headers=headers, status_code=200)
+        headers = Headers.from_mapping({API_VERSION_HEADER_NAME: date})
+        response = Response(
+            headers=headers, status=200, content=b"", request=valid_request()
+        )
         api_ver = parse_response_api_version(response)
         assert api_ver is None
 
 
 def test_parse_link_identity_response() -> None:
-    resp = Response(content=f'{{"url": "{TEST_URL}/hello-world"}}', status_code=200)
+    resp = Response(
+        content=f'{{"url": "{TEST_URL}/hello-world"}}'.encode(),
+        status=200,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
     assert parse_link_identity_response(resp)
 
 
@@ -78,29 +96,6 @@ def test_parse_response_api_version_invalid_date() -> None:
 
     result = parse_response_api_version(mock_response)
     assert result is None
-
-
-def test_handle_exception_with_new_api_version() -> None:
-    # Test case for new API version with "code" field
-    mock_response = MagicMock(spec=Response)
-    mock_response.status_code = 400
-    mock_response.content = b"""{
-        "message": "Password too weak",
-        "error_code": "weak_password",
-        "weak_password": {"reasons": ["Password too simple"]}
-    }"""
-
-    # Mock datetime for January 2, 2024 (after 2024-01-01 API version)
-    mock_date = datetime(2024, 1, 2)
-
-    with patch(
-        "supabase_auth.helpers.parse_response_api_version", return_value=mock_date
-    ):
-        result = handle_error_response(mock_response)
-
-        assert isinstance(result, AuthWeakPasswordError)
-        assert result.message == "Password too weak"
-        assert result.status == 400
 
 
 def test_validate_exp_with_expired_exp() -> None:

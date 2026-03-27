@@ -37,6 +37,10 @@ class Response:
     def is_success(self) -> bool:
         return 200 <= self.status <= 300
 
+    @property
+    def is_error(self) -> bool:
+        return 400 <= self.status <= 500
+
 
 class ToRequest(Protocol):
     def finalize(self, base_url: URL, default_headers: Headers) -> Request: ...

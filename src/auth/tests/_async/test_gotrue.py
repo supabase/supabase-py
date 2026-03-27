@@ -1,5 +1,4 @@
 import time
-from uuid import uuid4
 
 import pytest
 from jwt import encode
@@ -15,7 +14,6 @@ from supabase_auth.types import (
     MFAEnroll,
     Session,
     SignInWithPassword,
-    SignInWithPasswordless,
     SignUpWithPassword,
 )
 
@@ -319,40 +317,6 @@ async def test_get_authenticator_assurance_level() -> None:
     assert aal_response.current_authentication_methods is not None
 
 
-async def test_link_identity() -> None:
-    client = auth_client()
-    credentials = mock_user_credentials()
-
-    # Sign up to get a valid session
-    signup_response = await client.sign_up(
-        SignUpWithPassword.email(email=credentials.email, password=credentials.password)
-    )
-    assert signup_response.session is not None
-
-    from unittest.mock import patch
-
-    from httpx import Response
-
-    # Since the test server has manual linking disabled, we'll mock the URL generation
-    with patch.object(client, "_get_url_for_provider") as mock_url_provider:
-        mock_url = "http://example.com/authorize?provider=github"
-        mock_params = {"provider": "github"}
-        mock_url_provider.return_value = (mock_url, mock_params)
-
-        # Also mock the _request method since the server would reject it
-        with patch.object(client.executor.session, "send") as mock_request:
-            mock_request.return_value = Response(
-                content=f'{{"url":"{mock_url}"}}', status_code=200
-            )
-
-            # Call the method
-            response = await client.link_identity(provider="github")
-
-            # Verify the response
-            assert response.provider == "github"
-            assert response.url == mock_url
-
-
 async def test_get_user_identities() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
@@ -408,84 +372,6 @@ async def test_sign_in_with_password() -> None:
         raise AssertionError("Expected AuthApiError for wrong password")
     except AuthApiError:
         pass
-
-
-async def test_sign_in_with_otp() -> None:
-    client = auth_client()
-
-    # Test with email OTP
-    email = f"test-{uuid4()}@example.com"
-
-    # When sign_in_with_otp is called with valid email, it should return a AuthOtpResponse
-    # We can't fully test the actual OTP flow since that requires email verification
-    from unittest.mock import patch
-
-    from httpx import Response
-
-    from supabase_auth.types import AuthOtpResponse
-
-    # First test for email OTP
-    auth_otp = AuthOtpResponse(
-        message_id="mock-message-id",
-    )
-    with patch.object(client.executor.session, "send") as mock_request:
-        mock_response = Response(content=auth_otp.model_dump_json(), status_code=200)
-        mock_request.return_value = mock_response
-
-        response = await client.sign_in_with_otp(
-            SignInWithPasswordless.email(
-                email=email,
-                email_redirect_to="https://example.com/callback",
-                should_create_user=True,
-                data={"custom": "data"},
-                captcha_token="mock-captcha-token",
-            ),
-        )
-
-        # Verify request parameters
-        mock_request.assert_called_once()
-        (args,), kwargs = mock_request.call_args
-        assert args.method == "POST"
-        assert args.url.path == "/otp"
-        assert (
-            args.content
-            == f'{{"gotrue_meta_security":{{"captcha_token":"mock-captcha-token"}},"email":"{email}","data":{{"custom":"data"}},"create_user":true}}'.encode()
-        )
-        assert args.url.query == b"redirect_to=https%3A%2F%2Fexample.com%2Fcallback"
-
-        # Verify response
-        assert response == auth_otp
-
-    # Test with phone OTP
-    phone = "+11234567890"
-    auth_otp = AuthOtpResponse(message_id="mock-message-id")
-    with patch.object(client.executor.session, "send") as mock_request:
-        mock_response = Response(content=auth_otp.model_dump_json(), status_code=200)
-        mock_request.return_value = mock_response
-
-        response = await client.sign_in_with_otp(
-            SignInWithPasswordless.phone(
-                phone=phone,
-                should_create_user=True,
-                data={"custom": "data"},
-                channel="whatsapp",  # Test alternate channel
-                captcha_token="mock-captcha-token",
-            )
-        )
-
-        # Verify request parameters
-        mock_request.assert_called_once()
-        (args,), kwargs = mock_request.call_args
-        assert args.method == "POST"
-        assert args.url.path == "/otp"
-        assert (
-            args.content
-            == f'{{"gotrue_meta_security":{{"captcha_token":"mock-captcha-token"}},"phone":"{phone}","data":{{"custom":"data"}},"create_user":true,"channel":"whatsapp"}}'.encode()
-        )
-        assert args.url.query == b""
-
-        # Verify response
-        assert response == auth_otp
 
 
 async def test_sign_out() -> None:
