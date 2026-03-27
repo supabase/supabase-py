@@ -32,7 +32,7 @@ cd supabase-py
 ### Dependencies
 
 This repository relies on the following dependencies for development: 
-- `uv` for python project management.
+- `uv` for Python project management.
 - `make` for running project commands.
 - `docker` for both `postgrest` and `auth` test containers.
 - `supabase-cli` for both `storage` and `realtime` test containers.
@@ -41,7 +41,7 @@ All of these dependencies are included in the nix shell environment, through `fl
 
 ### Use a Virtual Environment
 
-We recommend using a virtual environment, preferably through `uv`, given it is currently the only tool that understands the workspace setup (you can read more about it in [the uv docs](https://docs.astral.sh/uv/concepts/projects/workspaces/)).
+We recommend using a virtual environment, preferably through `uv`, as it is currently the only tool that supports the workspace setup (you can read more about it in [the uv docs](https://docs.astral.sh/uv/concepts/projects/workspaces/)).
 
 ```
 uv venv supabase-py
