@@ -32,7 +32,7 @@ cd supabase-py
 ### Dependencies
 
 This repository relies on the following dependencies for development: 
-- `uv` for python project management.
+- `uv` for Python project management.
 - `make` for running project commands.
 - `docker` for both `postgrest` and `auth` test containers.
 - `supabase-cli` for both `storage` and `realtime` test containers.
