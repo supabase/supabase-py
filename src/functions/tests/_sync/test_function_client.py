@@ -1,3 +1,5 @@
+from types import TracebackType
+
 import pytest
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import SyncHttpIO
@@ -23,6 +25,17 @@ def client_returning(
                 content=content,
                 request=request,
             )
+
+        def __enter__(self) -> "MockHttpClient":
+            return self
+
+        def __exit__(
+            self,
+            exc_type: type[Exception] | None,
+            exc: Exception | None,
+            tb: TracebackType | None,
+        ) -> None:
+            pass
 
     return FunctionsClient(
         url=URL("https://supabase.com"),

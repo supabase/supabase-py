@@ -1,3 +1,5 @@
+from types import TracebackType
+
 from httpx import AsyncClient, Client
 from httpx import Request as HttpxRequest
 from httpx import Response as HttpxResponse
@@ -32,6 +34,17 @@ class HttpxSession:
         response = self.client.send(to_httpx_request(request))
         return to_supabase_response(request, response)
 
+    def __enter__(self) -> "HttpxSession":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.client.close()
+
 
 class AsyncHttpxSession:
     def __init__(self, client: AsyncClient) -> None:
@@ -39,4 +52,15 @@ class AsyncHttpxSession:
 
     async def send(self, request: Request) -> Response:
         response = await self.client.send(to_httpx_request(request))
-        return to_supabase_response(response)
+        return to_supabase_response(request, response)
+
+    async def __aenter__(self) -> "AsyncHttpxSession":
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        await self.client.aclose()

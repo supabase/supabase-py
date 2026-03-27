@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from types import TracebackType
 from typing import (
     Any,
     Awaitable,
@@ -13,7 +14,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Concatenate, ParamSpec
+from typing_extensions import Concatenate, ParamSpec, Self
 from yarl import URL
 
 from .headers import Headers
@@ -38,10 +39,24 @@ class LoopReturnValue(Generic[Success]):
 
 class HttpSession(Protocol):
     def send(self, request: Request) -> Response: ...
+    def __enter__(self) -> Self: ...
+    def __exit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None: ...
 
 
 class AsyncHttpSession(Protocol):
-    def send(self, request: Request) -> Awaitable[Response]: ...
+    async def send(self, request: Request) -> Response: ...
+    async def __aenter__(self) -> Self: ...
+    async def __aexit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None: ...
 
 
 class SyncHttpIO:
