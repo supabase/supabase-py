@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient as HttpxClient
 from httpx import Response
-from supabase_utils.http import AsyncHttpIO
+from supabase_utils.http.io import AsyncHttpIO
 
 from storage3 import AsyncStorageClient, StorageFileApiClient
 from storage3.exceptions import StorageApiError, StorageException
@@ -311,6 +311,8 @@ async def test_client_download_with_query_doesnt_lose_params(
 
     params = {"my-param": "test"}
     mock_response = Mock()
+    mock_response.headers = {}
+    mock_response.status_code = 200
     with patch.object(HttpxClient, "send") as mock_request:
         mock_request.return_value = mock_response
         await storage_file_client.download(file.bucket_path, query_params=params)
@@ -388,7 +390,7 @@ async def test_client_upload_to_signed_url(
         f"no_options_{file.bucket_path}"
     )
     await storage_file_client.upload_to_signed_url(
-        f"no_options_{file.bucket_path}", data.token, file.file_content
+        f"no_options_{file.bucket_path}", token=data.token, file=file.file_content
     )
     image = await storage_file_client.download(f"no_options_{file.bucket_path}")
     assert image == file.file_content
@@ -399,12 +401,12 @@ async def test_client_upload_to_signed_url(
     )
     await storage_file_client.upload_to_signed_url(
         f"cached_{file.bucket_path}",
-        data.token,
-        file.file_content,
-        cache_control="3600",
+        token=data.token,
+        file=file.file_content,
+        cache_control="7200",
     )
     cached_info = await storage_file_client.info(f"cached_{file.bucket_path}")
-    assert cached_info.cache_control == "max-age=3600"
+    assert cached_info.cache_control == "max-age=7200"
 
 
 async def test_client_create_signed_url(

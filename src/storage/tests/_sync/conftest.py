@@ -26,5 +26,4 @@ def storage() -> Generator[SyncStorageClient]:
             "Authorization": f"Bearer {key}",
         },
     ) as client:
-        client.executor.session.timeout = None
         yield client

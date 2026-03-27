@@ -4,17 +4,18 @@ import platform
 from types import TracebackType
 from typing import Generic
 
-from httpx import AsyncClient, Client, Headers
+from httpx import AsyncClient, Client
 from pydantic import TypeAdapter
-from supabase_utils.http import (
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     AsyncHttpIO,
-    EmptyRequest,
     HttpIO,
     HttpMethod,
-    JSONRequest,
     SyncHttpIO,
     handle_http_io,
 )
+from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
 from .analytics import StorageAnalyticsClient
@@ -56,7 +57,7 @@ class StorageClient(Generic[HttpIO]):
             print("Storage endpoint URL should have a trailing slash.")
             url += "/"
         self.base_url = URL(url)
-        self.default_headers = Headers(headers)
+        self.default_headers = Headers.from_mapping(headers)
 
     def from_(self, id: str) -> StorageFileApiClient[HttpIO]:
         """Run a storage file operation.
@@ -226,10 +227,14 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
             follow_redirects=True,
         )
         StorageClient.__init__(
-            self, url=url, headers=headers, executor=AsyncHttpIO(session=client)
+            self,
+            url=url,
+            headers=headers,
+            executor=AsyncHttpIO(session=AsyncHttpxSession(client=client)),
         )
 
     async def __aenter__(self) -> AsyncStorageClient:
+        await self.executor.session.__aenter__()
         return self
 
     async def __aexit__(
@@ -238,7 +243,7 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
         exc: Exception | None,
         tb: TracebackType | None,
     ) -> None:
-        await self.executor.session.aclose()
+        await self.executor.session.__aexit__(exc_type, exc, tb)
 
 
 class SyncStorageClient(StorageClient[SyncHttpIO]):
@@ -255,10 +260,14 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
             follow_redirects=True,
         )
         StorageClient.__init__(
-            self, url=url, headers=headers, executor=SyncHttpIO(session=client)
+            self,
+            url=url,
+            headers=headers,
+            executor=SyncHttpIO(session=HttpxSession(client=client)),
         )
 
     def __enter__(self) -> SyncStorageClient:
+        self.executor.session.__enter__()
         return self
 
     def __exit__(
@@ -267,4 +276,4 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
         exc: Exception | None,
         tb: TracebackType | None,
     ) -> None:
-        self.executor.session.close()
+        self.executor.session.__exit__(exc_type, exc, tb)

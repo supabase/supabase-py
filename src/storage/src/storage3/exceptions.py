@@ -1,8 +1,8 @@
 from typing import TypeVar
 
-from httpx import Response
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.dataclasses import dataclass
+from supabase_utils.http.request import Response
 
 
 class StorageException(Exception):
@@ -27,6 +27,12 @@ class StorageApiError(StorageException):
     code: str
     status: int | str
 
+    def __repr__(self) -> str:
+        return str(self)
+
+    def __str__(self) -> str:
+        return f"StorageApiError(message='{self.message}', code={self.code}, status='{self.status}')"
+
 
 StorageApiErrorParser = TypeAdapter(StorageApiError)
 
@@ -35,7 +41,7 @@ def parse_api_error(response: Response) -> StorageApiError:
     try:
         return StorageApiErrorParser.validate_json(response.content)
     except ValidationError:
-        message = f"Unable to parse error message: {response.text}"
+        message = f"Unable to parse error message: {response.content.decode('utf-8')}"
         return StorageApiError(message=message, code="InternalError", status=400)
 
 

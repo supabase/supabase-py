@@ -26,5 +26,4 @@ async def storage() -> AsyncGenerator[AsyncStorageClient]:
             "Authorization": f"Bearer {key}",
         },
     ) as client:
-        client.executor.session.timeout = None
         yield client

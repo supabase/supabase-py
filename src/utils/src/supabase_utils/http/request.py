@@ -114,30 +114,62 @@ class TextRequest(EmptyRequest):
 
 
 @dataclass
-class FormField:
+class FileField:
     name: str
     data: bytes
     filename: str
-    headers: Headers
+    content_type: str
+    headers: dict[str, str] = field(default_factory=dict)
+    content_disposition: str | None = None
+    content_location: str | None = None
 
     def render_headers(self) -> bytes:
         """
         Renders the headers for this request field.
         """
         lines = []
-        sort_keys = ["Content-Disposition", "Content-Type", "Content-Location"]
-        for sort_key in sort_keys:
-            if val := self.headers.get(sort_key):
-                lines.append(f"{sort_key}: {val}")
-        for header_name, header_value in self.headers.iter_items():
-            if header_name not in sort_keys:
-                if header_value:
-                    lines.append(f"{header_name}: {header_value}")
+        lines.append(f"Content-Type: {self.content_type}")
+        content_disposition = self.content_disposition or "form-data"
+        lines.append(
+            f'Content-Disposition: {content_disposition}; name="{self.name}"; filename="{self.filename}"'
+        )
+        if self.content_location:
+            lines.append(f"Content-Location: {self.content_location}")
+        for header_name, header_value in self.headers.items():
+            if header_value:
+                lines.append(f"{header_name}: {header_value}")
         lines.append("\r\n")
         return "\r\n".join(lines).encode("utf-8")
 
 
-def encode_multipart_formdata(fields: list[FormField]) -> tuple[bytes, str]:
+@dataclass
+class DataField:
+    name: str
+    data: bytes
+    headers: dict[str, str] = field(default_factory=dict)
+    content_disposition: str | None = None
+
+    def render_headers(self) -> bytes:
+        """
+        Renders the headers for this request field.
+        """
+        lines = []
+        content_disposition = self.content_disposition or "form-data"
+        lines.append(f'Content-Disposition: {content_disposition}; name="{self.name}"')
+        for header_name, header_value in self.headers.items():
+            if header_value:
+                lines.append(f"{header_name}: {header_value}")
+        lines.append("\r\n")
+        return "\r\n".join(lines).encode("utf-8")
+
+
+class PartField(Protocol):
+    data: bytes
+
+    def render_headers(self) -> bytes: ...
+
+
+def encode_multipart_formdata(fields: list[PartField]) -> tuple[bytes, str]:
     body = BytesIO()
     boundary = os.urandom(16).hex()
     bin_boundary = boundary.encode("ascii")
@@ -153,11 +185,12 @@ def encode_multipart_formdata(fields: list[FormField]) -> tuple[bytes, str]:
 
 @dataclass
 class MultipartFormDataRequest(EmptyRequest):
-    files: list[FormField]
+    fields: list[PartField]
 
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
-        content, content_type = encode_multipart_formdata(fields=self.files)
+        content, content_type = encode_multipart_formdata(fields=self.fields)
         headers = default_headers.update(self.headers).set("Content-Type", content_type)
+        print(content)
         return Request(
             method=self.method,
             url=base_url.joinpath(*self.path).with_query(self.query.as_query()),
