@@ -32,11 +32,11 @@ cd supabase-py
 ### Dependencies
 
 This repository relies on the following dependencies for development: 
-- `uv` for python project management.
-- `make` for running project commands.
-- `docker` for both `postgrest` and `auth` test containers.
-- `supabase-cli` for both `storage` and `realtime` test containers.
-
+- `uv` (a Python project and dependency management tool) is used for managing the project workspace.
+- `make` is used for running project commands.
+- `docker` is used for running `postgrest` and `auth` test containers.
+- `supabase-cli` is used for running `storage` and `realtime` test containers.
+- 
 All of these dependencies are included in the nix shell environment, through `flake.nix`. If you've got `nix` installed, you may prefer to use it through `nix develop`.
 
 ### Use a Virtual Environment
@@ -53,7 +53,7 @@ If you're using nix, the generated `python` executable should have the correct d
 
 ### Running tests and other commands
 
-We use `make` to store and run the relevant commands. The structure is set up such that each sub package can individually set its command in its own `Makefile`, and the job of the main `Makefile` is just coordinate calling each of them.
+We use `make` to define and run project commands across all packages.
 
 For instance, in order to run all tests of all packages, you should use the following root command
 ```bash
@@ -63,7 +63,7 @@ Which internally dispatches `make -C src/{package} tests` calls to each package 
 
 You should also consider using
 ```bash
-make ci -jN # where N is the number of max concurrent jobs, or just -j for infinite jobs
+make ci -jN  # where N is the number of parallel jobs (e.g., make ci -j4). Use -j for unlimited parallel jobs.
 ```
 To run each of the packages' tests in parallel. This should be generally faster than running in 1 job, but has the downside of messing up the CLI output, so parsing error messages might not be easy.
 
