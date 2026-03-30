@@ -58,7 +58,7 @@ def relative_path_to_parts(path: str) -> Tuple[str, ...]:
     return url.parts
 
 
-def maybe_read_file(file) -> bytes:
+def maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:
     if isinstance(file, (BufferedReader, FileIO)):
         # bytes or byte-stream-like object received
         return file.read()
