@@ -14,7 +14,7 @@ from storage3 import SyncStorageClient
 from supabase_auth import SyncMemoryStorage, SyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
-from supabase_utils.http import SyncHttpIO
+from supabase_utils.http.io import SyncHttpIO
 from yarl import URL
 
 from ..lib.client_options import SyncClientOptions as ClientOptions
@@ -231,7 +231,6 @@ class Client:
             self._functions = SyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
-                timeout=self.options.function_client_timeout,
                 http_client=self.options.httpx_client,
             )
         return self._functions
@@ -343,7 +342,9 @@ class Client:
             access_token = session.access_token if session else self.supabase_key
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
-        self.auth.default_headers["Authorization"] = auth_header
+        self.auth.default_headers = self.auth.default_headers.override(
+            "Authorization", auth_header
+        )
 
 
 def create_client(

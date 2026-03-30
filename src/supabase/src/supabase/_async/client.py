@@ -15,7 +15,7 @@ from storage3 import AsyncStorageClient
 from supabase_auth import AsyncMemoryStorage, AsyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import AsyncFunctionsClient
-from supabase_utils.http import AsyncHttpIO
+from supabase_utils.http.io import AsyncHttpIO
 from yarl import URL
 
 from ..lib.client_options import AsyncClientOptions as ClientOptions
@@ -232,7 +232,6 @@ class AsyncClient:
             self._functions = AsyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
-                timeout=self.options.function_client_timeout,
                 http_client=self.options.httpx_client,
             )
         return self._functions
@@ -344,7 +343,9 @@ class AsyncClient:
             access_token = session.access_token if session else self.supabase_key
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
-        self.auth.default_headers["Authorization"] = auth_header
+        self.auth.default_headers = self.auth.default_headers.override(
+            "Authorization", auth_header
+        )
         asyncio.create_task(self.realtime.set_auth(access_token))
 
 
