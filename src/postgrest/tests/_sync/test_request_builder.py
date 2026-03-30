@@ -1,4 +1,4 @@
-from typing import Any, AsyncIterable, Dict, List
+from typing import Any, Dict, Iterable, List
 
 import pytest
 from httpx import Client
@@ -19,7 +19,7 @@ from postgrest.types import CountMethod
 
 
 @pytest.fixture
-def request_builder() -> AsyncIterable[RequestBuilder[SyncHttpIO]]:
+def request_builder() -> Iterable[RequestBuilder[SyncHttpIO]]:
     with Client() as client:
         yield RequestBuilder(
             executor=SyncHttpIO(session=HttpxSession(client=client)),
