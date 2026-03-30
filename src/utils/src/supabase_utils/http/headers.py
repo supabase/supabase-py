@@ -36,10 +36,18 @@ class Headers:
             return ", ".join(vals)
         return None
 
+    def get_list(self, key: str) -> list[str] | None:
+        if val := self._map.get(key, None):
+            return list(val)
+        return None
+
     def __getitem__(self, key: str) -> str:
         if val := self.get(key):
             return val
         raise KeyError(f"'{key}' not found.")
+
+    def __len__(self) -> int:
+        return len(self._map)
 
     def __contains__(self, key: str) -> bool:
         return key.lower() in self._map

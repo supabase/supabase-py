@@ -4,14 +4,16 @@ from base64 import b64encode
 from types import TracebackType
 from typing import Generic, Literal, overload
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
-from supabase_utils.http import (
+from httpx import AsyncClient, BasicAuth, Client
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     AsyncHttpIO,
     HttpIO,
-    HTTPRequestMethod,
-    JSONRequest,
     SyncHttpIO,
 )
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import HTTPRequestMethod, JSONRequest
 from typing_extensions import Self
 from yarl import URL
 
@@ -37,9 +39,9 @@ class PostgrestClient(Generic[HttpIO]):
     ) -> None:
         self.executor: HttpIO = executor
         self.base_url = base_url
-        self.default_headers = default_headers
-        self.default_headers["Accept-Profile"] = schema
-        self.default_headers["Content-Profile"] = schema
+        self.default_headers = default_headers.set("Accept-Profile", schema).set(
+            "Content-Profile", schema
+        )
         self.basic_auth: BasicAuth | None = None
 
     def set_auth(
@@ -55,7 +57,9 @@ class PostgrestClient(Generic[HttpIO]):
         .. note::
             Bearer token is preferred if both ones are provided.
         """
-        self.default_headers["Authorization"] = f"Bearer {token}"
+        self.default_headers = self.default_headers.set(
+            "Authorization", f"Bearer {token}"
+        )
         return self
 
     def set_auth_with_password(
@@ -65,7 +69,9 @@ class PostgrestClient(Generic[HttpIO]):
     ) -> Self:
         userpass = f"{username}:{password}"
         token = b64encode(userpass.encode("utf8")).decode()
-        self.default_headers["Authorization"] = f"Basic {token}"
+        self.default_headers = self.default_headers.set(
+            "Authorization", f"Basic {token}"
+        )
         return self
 
     def from_(self, table: str) -> RequestBuilder[HttpIO]:
@@ -148,19 +154,23 @@ class PostgrestClient(Generic[HttpIO]):
         """
         method: HTTPRequestMethod = "HEAD" if head else "GET" if get else "POST"
 
-        headers = Headers({"Prefer": f"count={count}"}) if count else Headers()
+        headers = (
+            Headers.from_mapping({"Prefer": f"count={count}"})
+            if count
+            else Headers.empty()
+        )
 
         # the params here are params to be sent to the RPC and not the queryparams!
         json, http_params = (
-            ({}, QueryParams(params))
+            ({}, URLQuery.from_mapping(params))
             if method in ("HEAD", "GET")
-            else (params, QueryParams())
+            else (params, URLQuery.empty())
         )
         request = JSONRequest(
             path=["rpc", func],
             method=method,
             headers=headers,
-            query_params=http_params,
+            query=http_params,
             body=json,
         )
         if not head:
@@ -187,22 +197,22 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
         http_client: AsyncClient | None = None,
         schema: str = "public",
     ) -> None:
-        client = http_client or AsyncClient(
+        self.client: AsyncClient = http_client or AsyncClient(
             verify=True,
             http2=True,
         )
         PostgrestClient.__init__(
             self,
-            executor=AsyncHttpIO(session=client),
+            executor=AsyncHttpIO(session=AsyncHttpxSession(client=self.client)),
             base_url=URL(base_url),
-            default_headers=Headers(headers),
+            default_headers=Headers.from_mapping(headers),
             schema=schema,
         )
 
     def schema(self, schema: str) -> AsyncPostgrestClient:
         """Switch to another schema."""
         return AsyncPostgrestClient(
-            http_client=self.executor.session,
+            http_client=self.client,
             base_url=str(self.base_url),
             headers=dict(self.default_headers),
             schema=schema,
@@ -217,7 +227,7 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
         exc: Exception | None,
         tb: TracebackType | None,
     ) -> None:
-        await self.executor.session.aclose()
+        await self.client.aclose()
 
 
 class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
@@ -229,15 +239,15 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
         *,
         schema: str = "public",
     ) -> None:
-        client = http_client or Client(
+        self.client = http_client or Client(
             verify=True,
             http2=True,
         )
         PostgrestClient.__init__(
             self,
-            executor=SyncHttpIO(session=client),
+            executor=SyncHttpIO(session=HttpxSession(client=self.client)),
             base_url=URL(base_url),
-            default_headers=Headers(headers),
+            default_headers=Headers.from_mapping(headers),
             schema=schema,
         )
 
@@ -250,12 +260,12 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
         exc: Exception | None,
         tb: TracebackType | None,
     ) -> None:
-        self.executor.session.close()
+        self.client.close()
 
     def schema(self, schema: str) -> SyncPostgrestClient:
         """Switch to another schema."""
         return SyncPostgrestClient(
-            http_client=self.executor.session,
+            http_client=self.client,
             base_url=str(self.base_url),
             headers=dict(self.default_headers),
             schema=schema,

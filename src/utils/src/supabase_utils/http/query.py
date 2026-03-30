@@ -30,13 +30,23 @@ class URLQuery:
         new_val = existing.append(val)
         return URLQuery(pmap=self._map.set(key, new_val))
 
-    def get(self, key: str) -> list[QueryValue] | None:
+    def get(self, key: str) -> str | None:
+        if val := self._map.get(key, None):
+            return "&".join(str(v) for v in val)
+        return None
+
+    def get_list(self, key: str) -> list[QueryValue] | None:
         if val := self._map.get(key, None):
             return list(val)
         return None
 
     def __contains__(self, key: str) -> bool:
         return key in self._map
+
+    def __getitem__(self, key: str) -> str:
+        if val := self.get(key):
+            return val
+        raise KeyError(f"'{key}' not found.")
 
     def as_query(self) -> Query:
         return {key: list(vals) for key, vals in self._map.items()}
@@ -45,9 +55,9 @@ class URLQuery:
         new = self._map.update(other._map)
         return URLQuery(new)
 
-    def __str__(self) -> str:
-        fields = ", ".join(f'"{k}"="{self.get(k)}"' for k in self._map)
-        return f"URLQuery({fields})"
+    def __len__(self) -> int:
+        return len(self._map)
 
     def __repr__(self) -> str:
-        return str(self)
+        fields = ", ".join(f'"{k}"="{self.get_list(k)}"' for k in self._map)
+        return f"URLQuery({fields})"

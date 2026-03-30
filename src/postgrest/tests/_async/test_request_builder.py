@@ -1,9 +1,12 @@
 from typing import Any, AsyncIterable, Dict, List
 
 import pytest
-from httpx import AsyncClient, Headers, Request, Response
-from supabase_utils.http import AsyncHttpIO
-from supabase_utils.types import JSON
+from httpx import AsyncClient
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import AsyncHttpIO
+from supabase_utils.http.request import Request, Response
+from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
 from postgrest.client import RequestBuilder
@@ -19,9 +22,9 @@ from postgrest.types import CountMethod
 async def request_builder() -> AsyncIterable[RequestBuilder[AsyncHttpIO]]:
     async with AsyncClient() as client:
         yield RequestBuilder(
-            executor=AsyncHttpIO(session=client),
+            executor=AsyncHttpIO(session=AsyncHttpxSession(client=client)),
             base_url=URL("/example_table"),
-            default_headers=Headers(),
+            default_headers=Headers.empty(),
             basic_auth=None,
         )
 
@@ -30,7 +33,7 @@ class TestSelect:
     def test_select(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.select("col1", "col2")
 
-        assert builder.request.query_params["select"] == "col1,col2"
+        assert builder.request.query["select"] == "col1,col2"
         assert builder.request.headers.get("prefer") is None
         assert builder.request.method == "GET"
         assert builder.request.body == {}
@@ -38,7 +41,7 @@ class TestSelect:
     def test_select_with_count(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.select(count=CountMethod.exact)
 
-        assert builder.request.query_params["select"] == "*"
+        assert builder.request.query["select"] == "*"
         assert builder.request.headers["prefer"] == "count=exact"
         assert builder.request.method == "GET"
         assert builder.request.body == {}
@@ -46,7 +49,7 @@ class TestSelect:
     def test_select_with_head(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.select("col1", "col2", head=True)
 
-        assert builder.request.query_params.get("select") == "col1,col2"
+        assert builder.request.query.get("select") == "col1,col2"
         assert builder.request.headers.get("prefer") is None
         assert builder.request.method == "HEAD"
         assert builder.request.body == {}
@@ -62,16 +65,14 @@ class TestInsert:
     def test_insert(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.insert({"key1": "val1"})
 
-        assert builder.request.headers.get_list("prefer", True) == [
-            "return=representation"
-        ]
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "POST"
         assert builder.request.body == {"key1": "val1"}
 
     def test_insert_with_count(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.insert({"key1": "val1"}, count=CountMethod.exact)
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "count=exact",
         ]
@@ -81,7 +82,7 @@ class TestInsert:
     def test_insert_with_upsert(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.insert({"key1": "val1"}, upsert=True)
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "resolution=merge-duplicates",
         ]
@@ -92,14 +93,14 @@ class TestInsert:
         self, request_builder: RequestBuilder[AsyncHttpIO]
     ):
         builder = request_builder.upsert([{"key1": "val1"}], default_to_null=False)
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "resolution=merge-duplicates",
             "missing=default",
         ]
         assert builder.request.method == "POST"
         assert builder.request.body == [{"key1": "val1"}]
-        assert builder.request.query_params.get("columns") == '"key1"'
+        assert builder.request.query.get("columns") == '"key1"'
 
     def test_bulk_insert_using_default(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -107,7 +108,7 @@ class TestInsert:
         builder = request_builder.insert(
             [{"key1": "val1", "key2": "val2"}, {"key3": "val3"}], default_to_null=False
         )
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "missing=default",
         ]
@@ -116,14 +117,14 @@ class TestInsert:
             {"key1": "val1", "key2": "val2"},
             {"key3": "val3"},
         ]
-        assert set(builder.request.query_params["columns"].split(",")) == set(
+        assert set(builder.request.query["columns"].split(",")) == set(
             '"key1","key2","key3"'.split(",")
         )
 
     def test_upsert(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.upsert({"key1": "val1"})
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "resolution=merge-duplicates",
         ]
@@ -136,7 +137,7 @@ class TestInsert:
         builder = request_builder.upsert(
             [{"key1": "val1", "key2": "val2"}, {"key3": "val3"}], default_to_null=False
         )
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "resolution=merge-duplicates",
             "missing=default",
@@ -146,7 +147,7 @@ class TestInsert:
             {"key1": "val1", "key2": "val2"},
             {"key3": "val3"},
         ]
-        assert set(builder.request.query_params["columns"].split(",")) == set(
+        assert set(builder.request.query["columns"].split(",")) == set(
             '"key1","key2","key3"'.split(",")
         )
 
@@ -155,16 +156,14 @@ class TestUpdate:
     def test_update(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.update({"key1": "val1"})
 
-        assert builder.request.headers.get_list("prefer", True) == [
-            "return=representation"
-        ]
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "PATCH"
         assert builder.request.body == {"key1": "val1"}
 
     def test_update_with_count(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.update({"key1": "val1"}, count=CountMethod.exact)
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "count=exact",
         ]
@@ -187,16 +186,14 @@ class TestDelete:
     def test_delete(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.delete()
 
-        assert builder.request.headers.get_list("prefer", True) == [
-            "return=representation"
-        ]
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "DELETE"
         assert builder.request.body == {}
 
     def test_delete_with_count(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.delete(count=CountMethod.exact)
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "count=exact",
         ]
@@ -225,15 +222,16 @@ class TestTextSearch:
                 "config": "english",
             },
         )
-        assert "catchphrase=plfts%28english%29.%27fat%27+%26+%27cat%27" in str(
-            builder.request.query_params
+        assert builder.request.query.get("select") == "catchphrase"
+        assert (
+            builder.request.query.get("catchphrase") == "plfts(english).'fat' & 'cat'"
         )
 
 
 class TestExplain:
     def test_explain_plain(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.select("*").explain()
-        assert builder.request.query_params["select"] == "*"
+        assert builder.request.query["select"] == "*"
         assert "application/vnd.pgrst.plan" in str(
             builder.request.headers.get("accept")
         )
@@ -242,7 +240,7 @@ class TestExplain:
         builder = request_builder.select("*").explain(
             format="json", analyze=True, verbose=True, buffers=True, wal=True
         )
-        assert builder.request.query_params["select"] == "*"
+        assert builder.request.query["select"] == "*"
         assert "application/vnd.pgrst.plan+json;" in str(
             builder.request.headers.get("accept")
         )
@@ -254,7 +252,8 @@ class TestExplain:
 class TestOrder:
     def test_order(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.select().order("country_name", desc=True)
-        assert str(builder.request.query_params) == "select=%2A&order=country_name.desc"
+        assert builder.request.query.get("select") == "*"
+        assert builder.request.query.get("order") == "country_name.desc"
 
     def test_multiple_orders(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = (
@@ -262,10 +261,11 @@ class TestOrder:
             .order("country_name", desc=True)
             .order("iso", desc=True)
         )
-        assert (
-            str(builder.request.query_params)
-            == "select=%2A&order=country_name.desc%2Ciso.desc"
-        )
+        assert builder.request.query.get("select") == "*"
+        assert builder.request.query.get_list("order") == [
+            "country_name.desc",
+            "iso.desc",
+        ]
 
     def test_multiple_orders_on_foreign_table(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -276,25 +276,26 @@ class TestOrder:
             .order("city_name", desc=True, foreign_table=foreign_table)
             .order("id", desc=True, foreign_table=foreign_table)
         )
-        assert (
-            str(builder.request.query_params)
-            == "select=%2A&cities.order=city_name.desc%2Cid.desc"
-        )
+        assert builder.request.query.get("select") == "*"
+        assert builder.request.query.get_list("cities.order") == [
+            "city_name.desc",
+            "id.desc",
+        ]
 
 
 class TestRange:
     def test_range_on_own_table(self, request_builder: RequestBuilder[AsyncHttpIO]):
         builder = request_builder.select("*").range(0, 1)
-        assert builder.request.query_params["select"] == "*"
-        assert builder.request.query_params["limit"] == "2"
-        assert builder.request.query_params["offset"] == "0"
+        assert builder.request.query["select"] == "*"
+        assert builder.request.query["limit"] == "2"
+        assert builder.request.query["offset"] == "0"
 
     def test_range_on_foreign_table(self, request_builder: RequestBuilder[AsyncHttpIO]):
         foreign_table = "cities"
         builder = request_builder.select("*").range(1, 2, foreign_table)
-        assert builder.request.query_params["select"] == "*"
-        assert builder.request.query_params[f"{foreign_table}.limit"] == "2"
-        assert builder.request.query_params[f"{foreign_table}.offset"] == "1"
+        assert builder.request.query["select"] == "*"
+        assert builder.request.query[f"{foreign_table}.limit"] == "2"
+        assert builder.request.query[f"{foreign_table}.offset"] == "1"
 
 
 @pytest.fixture
@@ -303,7 +304,7 @@ def csv_api_response() -> str:
 
 
 @pytest.fixture
-def api_response_with_error() -> Dict[str, str | int]:
+def api_response_with_error() -> Dict[str, Any]:
     return {
         "message": "Route GET:/countries?select=%2A not found",
         "error": "Not Found",
@@ -312,7 +313,7 @@ def api_response_with_error() -> Dict[str, str | int]:
 
 
 @pytest.fixture
-def api_response() -> List[Dict[str, str | int | None]]:
+def api_response() -> List[Dict[str, JSON]]:
     return [
         {
             "id": 1,
@@ -334,7 +335,7 @@ def api_response() -> List[Dict[str, str | int | None]]:
 
 
 @pytest.fixture
-def single_api_response() -> Dict[str, str | int | None]:
+def single_api_response() -> Dict[str, JSON]:
     return {
         "id": 1,
         "name": "Bonaire, Sint Eustatius and Saba",
@@ -368,7 +369,15 @@ def prefer_header_without_count() -> str:
 @pytest.fixture
 def request_response_without_prefer_header() -> Response:
     return Response(
-        status_code=200, request=Request(method="GET", url="http://example.com")
+        status=200,
+        request=Request(
+            method="GET",
+            url=URL("http://example.com"),
+            content=None,
+            headers=Headers.empty(),
+        ),
+        content=b"",
+        headers=Headers.empty(),
     )
 
 
@@ -377,11 +386,14 @@ def request_response_with_prefer_header_without_count(
     prefer_header_without_count: str,
 ) -> Response:
     return Response(
-        status_code=200,
+        status=200,
+        headers=Headers.empty(),
+        content=b"",
         request=Request(
             method="GET",
-            url="http://example.com",
-            headers={"prefer": prefer_header_without_count},
+            url=URL("http://example.com"),
+            headers=Headers.from_mapping({"prefer": prefer_header_without_count}),
+            content=None,
         ),
     )
 
@@ -391,12 +403,16 @@ def request_response_with_prefer_header_with_count_and_content_range(
     prefer_header_with_count: str, content_range_header_with_count: str
 ) -> Response:
     return Response(
-        status_code=200,
-        headers={"content-range": content_range_header_with_count},
+        status=200,
+        headers=Headers.from_mapping(
+            {"content-range": content_range_header_with_count}
+        ),
+        content=b"",
         request=Request(
             method="GET",
-            url="http://example.com",
-            headers={"prefer": prefer_header_with_count},
+            url=URL("http://example.com"),
+            headers=Headers.from_mapping({"prefer": prefer_header_with_count}),
+            content=None,
         ),
     )
 
@@ -405,16 +421,19 @@ def request_response_with_prefer_header_with_count_and_content_range(
 def request_response_with_data(
     prefer_header_with_count: str,
     content_range_header_with_count: str,
-    api_response: List[Dict[str, Any]],
+    api_response: List[Dict[str, JSON]],
 ) -> Response:
     return Response(
-        status_code=200,
-        headers={"content-range": content_range_header_with_count},
-        json=api_response,
+        status=200,
+        headers=Headers.from_mapping(
+            {"content-range": content_range_header_with_count}
+        ),
+        content=JSONParser.dump_json(api_response),
         request=Request(
             method="GET",
-            url="http://example.com",
-            headers={"prefer": prefer_header_with_count},
+            url=URL("http://example.com"),
+            headers=Headers.from_mapping({"prefer": prefer_header_with_count}),
+            content=None,
         ),
     )
 
@@ -423,16 +442,19 @@ def request_response_with_data(
 def request_response_with_single_data(
     prefer_header_with_count: str,
     content_range_header_with_count: str,
-    single_api_response: Dict[str, Any],
+    single_api_response: Dict[str, JSON],
 ) -> Response:
     return Response(
-        status_code=200,
-        headers={"content-range": content_range_header_with_count},
-        json=single_api_response,
+        status=200,
+        headers=Headers.from_mapping(
+            {"content-range": content_range_header_with_count}
+        ),
+        content=JSONParser.dump_json(single_api_response),
         request=Request(
             method="GET",
-            url="http://example.com",
-            headers={"prefer": prefer_header_with_count},
+            url=URL("http://example.com"),
+            headers=Headers.from_mapping({"prefer": prefer_header_with_count}),
+            content=None,
         ),
     )
 
@@ -440,9 +462,15 @@ def request_response_with_single_data(
 @pytest.fixture
 def request_response_with_csv_data(csv_api_response: str) -> Response:
     return Response(
-        status_code=200,
-        text=csv_api_response,
-        request=Request(method="GET", url="http://example.com"),
+        status=200,
+        content=csv_api_response.encode("utf-8"),
+        headers=Headers.empty(),
+        request=Request(
+            method="GET",
+            url=URL("http://example.com"),
+            headers=Headers.empty(),
+            content=None,
+        ),
     )
 
 
