@@ -56,8 +56,8 @@ async def main():
     REALTIME_URL = "ws://localhost:4000/websocket"
     API_KEY = "1234567890"
 
-    client = AsyncRealtimeClient(REALTIME_URL, API_KEY)
-    channel = client.channel("test-channel")
+    socket = AsyncRealtimeClient(REALTIME_URL, API_KEY)
+    channel = socket.channel("test-channel")
 
     def _on_subscribe(status: RealtimeSubscribeStates, err: Optional[Exception]):
         if status == RealtimeSubscribeStates.SUBSCRIBED:
