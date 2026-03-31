@@ -44,8 +44,10 @@ All of these dependencies are included in the nix shell environment, through `fl
 We recommend using a virtual environment, preferably through `uv`, given it is currently the only tool that understands the workspace setup (you can read more about it in [the uv docs](https://docs.astral.sh/uv/concepts/projects/workspaces/)).
 
 ```
-uv venv supabase-py
-source supabase-py/bin/activate
+uv venv
+source .venv/bin/activate   # Linux / Mac
+.venv\Scripts\activate      # Windows (PowerShell)
+.venv\Scripts\activate.bat  # Windows (CMD)
 uv sync
 ```
 
