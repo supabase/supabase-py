@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from types import TracebackType
 from typing import Dict, Generic
 
 from supabase_utils.http.headers import Headers
@@ -127,6 +128,18 @@ class SessionManagerCommon(Generic[HttpIO]):
 class AsyncSessionManager(SessionManagerCommon[AsyncHttpIO]):
     storage: AsyncSupportedStorage
     refresh_token_timer: AsyncTimer | None = None
+
+    async def __aexit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        if self.refresh_token_timer:
+            self.refresh_token_timer.cancel()
+
+    async def __aenter__(self) -> AsyncSessionManager:
+        return self
 
     async def remove_session(self) -> None:
         if self.persist_session:
@@ -287,6 +300,18 @@ class SyncMemoryStorage(SyncSupportedStorage):
 class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
     storage: SyncSupportedStorage
     refresh_token_timer: SyncTimer | None = None
+
+    def __exit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        if self.refresh_token_timer:
+            self.refresh_token_timer.cancel()
+
+    def __enter__(self) -> SyncSessionManager:
+        return self
 
     def remove_session(self) -> None:
         if self.persist_session:

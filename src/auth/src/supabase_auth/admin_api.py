@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import TracebackType
 from typing import Generic, List
 
-from httpx import AsyncClient, Client
-from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
+    AsyncHttpSession,
     HttpIO,
     HttpMethod,
+    HttpSession,
     SyncHttpIO,
     handle_http_io,
 )
@@ -392,39 +393,55 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
     def __init__(
         self,
         url: str,
+        http_session: HttpSession,
         default_headers: dict[str, str] | None = None,
-        http_client: Client | None = None,
     ) -> None:
-        client = http_client or Client(
-            http2=True,
-            verify=True,
-        )
         SupabaseAuthAdmin.__init__(
             self,
-            executor=SyncHttpIO(session=HttpxSession(client=client)),
+            executor=SyncHttpIO(session=http_session),
             base_url=URL(url),
             default_headers=Headers.from_mapping(default_headers)
             if default_headers
             else Headers.empty(),
         )
+
+    def __enter__(self) -> SyncSupabaseAuthAdmin:
+        self.executor.session.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.executor.session.__exit__(exc_type, exc, tb)
 
 
 class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
     def __init__(
         self,
         url: str,
+        http_session: AsyncHttpSession,
         default_headers: dict[str, str] | None = None,
-        http_client: AsyncClient | None = None,
     ) -> None:
-        client = http_client or AsyncClient(
-            http2=True,
-            verify=True,
-        )
         SupabaseAuthAdmin.__init__(
             self,
-            executor=AsyncHttpIO(session=AsyncHttpxSession(client=client)),
+            executor=AsyncHttpIO(session=http_session),
             base_url=URL(url),
             default_headers=Headers.from_mapping(default_headers)
             if default_headers
             else Headers.empty(),
         )
+
+    async def __aenter__(self) -> AsyncSupabaseAuthAdmin:
+        await self.executor.session.__aenter__()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        await self.executor.session.__aexit__(exc_type, exc, tb)

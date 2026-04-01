@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from types import TracebackType
 from typing import Callable, Generic, Literal
 from uuid import uuid4
 
-from httpx import AsyncClient, Client
 from jwt import get_algorithm_by_name
-from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
+    AsyncHttpSession,
     HttpIO,
     HttpMethod,
+    HttpSession,
     SyncHttpIO,
     handle_http_io,
 )
@@ -589,24 +590,18 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
     def __init__(
         self,
         url: str,
+        http_session: AsyncHttpSession,
         *,
         headers: dict[str, str] | None = None,
         storage_key: str | None = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
         storage: AsyncSupportedStorage | None = None,
-        http_client: AsyncClient | None = None,
         flow_type: AuthFlowType = "implicit",
     ) -> None:
         self.base_url = URL(url)
         default_headers = Headers.from_mapping(headers) if headers else Headers.empty()
-        client = http_client or AsyncClient(
-            headers=headers,
-            http2=True,
-            follow_redirects=True,
-            verify=True,
-        )
-        executor = AsyncHttpIO(session=AsyncHttpxSession(client=client))
+        executor = AsyncHttpIO(session=http_session)
         self.session_manager: AsyncSessionManager = AsyncSessionManager(
             base_url=self.base_url,
             executor=executor,
@@ -630,6 +625,20 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             default_headers=default_headers,
             session_manager=self.session_manager,
         )
+
+    async def __aenter__(self) -> AsyncSupabaseAuthClient:
+        await self.executor.session.__aenter__()
+        await self.session_manager.__aenter__()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        await self.executor.session.__aexit__(exc_type, exc, tb)
+        await self.session_manager.__aexit__(exc_type, exc, tb)
 
     # Initializations
 
@@ -919,24 +928,18 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
     def __init__(
         self,
         url: str,
+        http_session: HttpSession,
         *,
         headers: dict[str, str] | None = None,
         storage_key: str | None = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
         storage: SyncSupportedStorage | None = None,
-        http_client: Client | None = None,
         flow_type: AuthFlowType = "implicit",
     ) -> None:
         self.base_url = URL(url)
         default_headers = Headers.from_mapping(headers) if headers else Headers.empty()
-        client = http_client or Client(
-            headers=headers,
-            http2=True,
-            follow_redirects=True,
-            verify=True,
-        )
-        executor = SyncHttpIO(session=HttpxSession(client=client))
+        executor = SyncHttpIO(session=http_session)
         self.session_manager: SyncSessionManager = SyncSessionManager(
             base_url=self.base_url,
             executor=executor,
@@ -960,6 +963,20 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
             default_headers=default_headers,
             session_manager=self.session_manager,
         )
+
+    def __enter__(self) -> SyncSupabaseAuthClient:
+        self.executor.session.__enter__()
+        self.session_manager.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.executor.session.__exit__(exc_type, exc, tb)
+        self.session_manager.__exit__(exc_type, exc, tb)
 
     # Initializations
 

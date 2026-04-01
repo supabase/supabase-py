@@ -21,7 +21,7 @@ from supabase_auth.helpers import (
     validate_exp,
 )
 
-from ._sync.clients import mock_access_token
+from ._sync.conftest import mock_access_token
 
 TEST_URL = "http://localhost"
 
