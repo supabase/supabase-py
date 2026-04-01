@@ -2905,7 +2905,6 @@ version = "2.28.3"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
-    { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
     { name = "pyiceberg" },
     { name = "supabase-utils" },
@@ -2927,6 +2926,7 @@ dev = [
     { name = "sphinx", version = "8.2.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "sphinx-press-theme" },
     { name = "sphinx-toolbox" },
+    { name = "supabase-utils", extra = ["all"] },
     { name = "unasync" },
 ]
 docs = [
@@ -2947,12 +2947,12 @@ tests = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "python-dotenv" },
+    { name = "supabase-utils", extra = ["all"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "deprecation", specifier = ">=2.1.0" },
-    { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pyiceberg", specifier = ">=0.10.0" },
     { name = "supabase-utils", editable = "src/utils" },
@@ -2973,6 +2973,7 @@ dev = [
     { name = "sphinx", specifier = ">=7.1.2" },
     { name = "sphinx-press-theme", specifier = ">=0.9.1" },
     { name = "sphinx-toolbox", specifier = ">=3.4.0" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 docs = [
@@ -2992,6 +2993,7 @@ tests = [
     { name = "pytest-asyncio", specifier = ">=0.21.0" },
     { name = "pytest-cov", specifier = ">=6.1.0" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
 ]
 
 [[package]]
@@ -3247,21 +3249,36 @@ name = "supabase-utils"
 version = "2.28.0"
 source = { editable = "src/utils" }
 dependencies = [
-    { name = "httpx" },
     { name = "pydantic" },
     { name = "pyrsistent" },
     { name = "typing-extensions" },
     { name = "yarl" },
 ]
 
+[package.optional-dependencies]
+aiohttp = [
+    { name = "aiohttp" },
+]
+all = [
+    { name = "aiohttp" },
+    { name = "httpx", extra = ["http2"] },
+]
+httpx = [
+    { name = "httpx", extra = ["http2"] },
+]
+
 [package.metadata]
 requires-dist = [
-    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "aiohttp", marker = "extra == 'aiohttp'", specifier = ">=3" },
+    { name = "httpx", extras = ["http2"], marker = "extra == 'httpx'", specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=2.12.2" },
     { name = "pyrsistent", specifier = ">=0.20.0" },
+    { name = "supabase-utils", extras = ["aiohttp"], marker = "extra == 'all'", editable = "src/utils" },
+    { name = "supabase-utils", extras = ["httpx"], marker = "extra == 'all'", editable = "src/utils" },
     { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "yarl", specifier = ">=1.22.0" },
 ]
+provides-extras = ["httpx", "aiohttp", "all"]
 
 [[package]]
 name = "tabulate"

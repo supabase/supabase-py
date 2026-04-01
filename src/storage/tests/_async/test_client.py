@@ -8,8 +8,8 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient as HttpxClient
-from httpx import Response
 from supabase_utils.http.io import AsyncHttpIO
+from supabase_utils.http.request import Response
 
 from storage3 import AsyncStorageClient, StorageFileApiClient
 from storage3.exceptions import StorageApiError, StorageException
@@ -313,7 +313,7 @@ async def test_client_download_with_query_doesnt_lose_params(
     mock_response = Mock()
     mock_response.headers = {}
     mock_response.status_code = 200
-    with patch.object(HttpxClient, "send") as mock_request:
+    with patch.object(storage_file_client.executor.session, "send") as mock_request:
         mock_request.return_value = mock_response
         await storage_file_client.download(file.bucket_path, query_params=params)
         expected_url = storage_file_client.base_url.joinpath(
@@ -559,7 +559,7 @@ async def test_client_info_with_error(
 
     """Ensure StorageException is raised when signed URL creation fails"""
     mock_error_response = Mock(spec=Response)
-    mock_error_response.status_code = 404
+    mock_error_response.status = 404
     mock_error_response.is_success = False
     mock_error_response.content = b'{"error": "Custom error message", "statusCode": 404, "message": "File not found"}'
 

@@ -4,14 +4,14 @@ import platform
 from types import TracebackType
 from typing import Generic
 
-from httpx import AsyncClient, Client
 from pydantic import TypeAdapter
-from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
+    AsyncHttpSession,
     HttpIO,
     HttpMethod,
+    HttpSession,
     SyncHttpIO,
     handle_http_io,
 )
@@ -218,19 +218,14 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
         self,
         url: str,
         headers: dict[str, str],
+        http_session: AsyncHttpSession,
         timeout: int | None = None,
-        http_client: AsyncClient | None = None,
     ) -> None:
-        client = http_client or AsyncClient(
-            timeout=timeout or DEFAULT_TIMEOUT,
-            http2=True,
-            follow_redirects=True,
-        )
         StorageClient.__init__(
             self,
             url=url,
             headers=headers,
-            executor=AsyncHttpIO(session=AsyncHttpxSession(client=client)),
+            executor=AsyncHttpIO(session=http_session),
         )
 
     async def __aenter__(self) -> AsyncStorageClient:
@@ -251,19 +246,14 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
         self,
         url: str,
         headers: dict[str, str],
+        http_session: HttpSession,
         timeout: int | None = None,
-        http_client: Client | None = None,
     ) -> None:
-        client = http_client or Client(
-            timeout=timeout or DEFAULT_TIMEOUT,
-            http2=True,
-            follow_redirects=True,
-        )
         StorageClient.__init__(
             self,
             url=url,
             headers=headers,
-            executor=SyncHttpIO(session=HttpxSession(client=client)),
+            executor=SyncHttpIO(session=http_session),
         )
 
     def __enter__(self) -> SyncStorageClient:
