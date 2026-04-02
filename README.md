@@ -49,6 +49,17 @@ source supabase-py/bin/activate
 uv sync
 ```
 
+### Windows
+
+For PowerShell:
+```powershell
+supabase-py\Scripts\Activate
+```
+For Command Prompt (CMD):
+```cmd
+supabase-py\Scripts\activate.bat
+```
+
 If you're using nix, the generated `python` executable should have the correct dependencies installed for the whole workspace, given it is derived from the root's `pyproject.toml` using [uv2nix](https://github.com/pyproject-nix/uv2nix).
 
 ### Running tests and other commands
