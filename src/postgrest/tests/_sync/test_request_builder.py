@@ -9,9 +9,9 @@ from supabase_utils.http.request import Request, Response
 from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
-from postgrest.client import RequestBuilder
 from postgrest.request_builder import (
     APIResponse,
+    RequestBuilder,
     SingleAPIResponse,
     TextRequestBuilder,
 )
@@ -25,12 +25,11 @@ def request_builder() -> Iterable[RequestBuilder[SyncHttpIO]]:
             executor=SyncHttpIO(session=HttpxSession(client=client)),
             base_url=URL("/example_table"),
             default_headers=Headers.empty(),
-            basic_auth=None,
         )
 
 
 class TestSelect:
-    def test_select(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_select(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("col1", "col2")
 
         assert builder.request.query["select"] == "col1,col2"
@@ -38,7 +37,9 @@ class TestSelect:
         assert builder.request.method == "GET"
         assert builder.request.body == {}
 
-    def test_select_with_count(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_select_with_count(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.select(count=CountMethod.exact)
 
         assert builder.request.query["select"] == "*"
@@ -46,7 +47,9 @@ class TestSelect:
         assert builder.request.method == "GET"
         assert builder.request.body == {}
 
-    def test_select_with_head(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_select_with_head(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.select("col1", "col2", head=True)
 
         assert builder.request.query.get("select") == "col1,col2"
@@ -54,7 +57,7 @@ class TestSelect:
         assert builder.request.method == "HEAD"
         assert builder.request.body == {}
 
-    def test_select_as_csv(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_select_as_csv(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("*").csv()
 
         assert builder.request.headers["Accept"] == "text/csv"
@@ -62,14 +65,16 @@ class TestSelect:
 
 
 class TestInsert:
-    def test_insert(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_insert(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.insert({"key1": "val1"})
 
         assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "POST"
         assert builder.request.body == {"key1": "val1"}
 
-    def test_insert_with_count(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_insert_with_count(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.insert({"key1": "val1"}, count=CountMethod.exact)
 
         assert builder.request.headers.get_list("prefer") == [
@@ -79,7 +84,9 @@ class TestInsert:
         assert builder.request.method == "POST"
         assert builder.request.body == {"key1": "val1"}
 
-    def test_insert_with_upsert(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_insert_with_upsert(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.insert({"key1": "val1"}, upsert=True)
 
         assert builder.request.headers.get_list("prefer") == [
@@ -91,7 +98,7 @@ class TestInsert:
 
     def test_upsert_with_default_single(
         self, request_builder: RequestBuilder[SyncHttpIO]
-    ):
+    ) -> None:
         builder = request_builder.upsert([{"key1": "val1"}], default_to_null=False)
         assert builder.request.headers.get_list("prefer") == [
             "return=representation",
@@ -104,7 +111,7 @@ class TestInsert:
 
     def test_bulk_insert_using_default(
         self, request_builder: RequestBuilder[SyncHttpIO]
-    ):
+    ) -> None:
         builder = request_builder.insert(
             [{"key1": "val1", "key2": "val2"}, {"key3": "val3"}], default_to_null=False
         )
@@ -121,7 +128,7 @@ class TestInsert:
             '"key1","key2","key3"'.split(",")
         )
 
-    def test_upsert(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_upsert(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.upsert({"key1": "val1"})
 
         assert builder.request.headers.get_list("prefer") == [
@@ -133,7 +140,7 @@ class TestInsert:
 
     def test_bulk_upsert_with_default(
         self, request_builder: RequestBuilder[SyncHttpIO]
-    ):
+    ) -> None:
         builder = request_builder.upsert(
             [{"key1": "val1", "key2": "val2"}, {"key3": "val3"}], default_to_null=False
         )
@@ -153,14 +160,16 @@ class TestInsert:
 
 
 class TestUpdate:
-    def test_update(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_update(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.update({"key1": "val1"})
 
         assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "PATCH"
         assert builder.request.body == {"key1": "val1"}
 
-    def test_update_with_count(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_update_with_count(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.update({"key1": "val1"}, count=CountMethod.exact)
 
         assert builder.request.headers.get_list("prefer") == [
@@ -172,7 +181,7 @@ class TestUpdate:
 
     def test_update_with_max_affected(
         self, request_builder: RequestBuilder[SyncHttpIO]
-    ):
+    ) -> None:
         builder = request_builder.update({"key1": "val1"}).max_affected(5)
 
         assert "handling=strict" in builder.request.headers["prefer"]
@@ -183,14 +192,16 @@ class TestUpdate:
 
 
 class TestDelete:
-    def test_delete(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_delete(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.delete()
 
         assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "DELETE"
         assert builder.request.body == {}
 
-    def test_delete_with_count(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_delete_with_count(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.delete(count=CountMethod.exact)
 
         assert builder.request.headers.get_list("prefer") == [
@@ -202,7 +213,7 @@ class TestDelete:
 
     def test_delete_with_max_affected(
         self, request_builder: RequestBuilder[SyncHttpIO]
-    ):
+    ) -> None:
         builder = request_builder.delete().max_affected(10)
 
         assert "handling=strict" in builder.request.headers["prefer"]
@@ -213,7 +224,7 @@ class TestDelete:
 
 
 class TestTextSearch:
-    def test_text_search(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_text_search(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("catchphrase").text_search(
             "catchphrase",
             "'fat' & 'cat'",
@@ -229,16 +240,21 @@ class TestTextSearch:
 
 
 class TestExplain:
-    def test_explain_plain(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_explain_plain(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("*").explain()
         assert builder.request.query["select"] == "*"
         assert "application/vnd.pgrst.plan" in str(
             builder.request.headers.get("accept")
         )
 
-    def test_explain_options(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_explain_options(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("*").explain(
-            format="json", analyze=True, verbose=True, buffers=True, wal=True
+            analyze=True,
+            verbose=True,
+            buffers=True,
+            settings=False,
+            wal=True,
+            format="json",
         )
         assert builder.request.query["select"] == "*"
         assert "application/vnd.pgrst.plan+json;" in str(
@@ -250,12 +266,12 @@ class TestExplain:
 
 
 class TestOrder:
-    def test_order(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_order(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select().order("country_name", desc=True)
         assert builder.request.query.get("select") == "*"
         assert builder.request.query.get("order") == "country_name.desc"
 
-    def test_multiple_orders(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_multiple_orders(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = (
             request_builder.select()
             .order("country_name", desc=True)
@@ -269,7 +285,7 @@ class TestOrder:
 
     def test_multiple_orders_on_foreign_table(
         self, request_builder: RequestBuilder[SyncHttpIO]
-    ):
+    ) -> None:
         foreign_table = "cities"
         builder = (
             request_builder.select()
@@ -284,13 +300,17 @@ class TestOrder:
 
 
 class TestRange:
-    def test_range_on_own_table(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_range_on_own_table(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.select("*").range(0, 1)
         assert builder.request.query["select"] == "*"
         assert builder.request.query["limit"] == "2"
         assert builder.request.query["offset"] == "0"
 
-    def test_range_on_foreign_table(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_range_on_foreign_table(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         foreign_table = "cities"
         builder = request_builder.select("*").range(1, 2, foreign_table)
         assert builder.request.query["select"] == "*"
@@ -475,13 +495,15 @@ def request_response_with_csv_data(csv_api_response: str) -> Response:
 
 
 class TestApiResponse:
-    def test_parses_valid_response_only_data(self, api_response: List[Dict[str, JSON]]):
+    def test_parses_valid_response_only_data(
+        self, api_response: List[Dict[str, JSON]]
+    ) -> None:
         result = APIResponse(data=api_response)
         assert result.data == api_response
 
     def test_parses_valid_response_data_and_count(
         self, api_response: List[Dict[str, JSON]]
-    ):
+    ) -> None:
         count = len(api_response)
         result = APIResponse(data=api_response, count=count)
         assert result.data == api_response
@@ -489,7 +511,7 @@ class TestApiResponse:
 
     def test_get_count_from_content_range_header_with_count(
         self, content_range_header_with_count: str
-    ):
+    ) -> None:
         assert (
             APIResponse._get_count_from_content_range_header(
                 content_range_header_with_count
@@ -499,7 +521,7 @@ class TestApiResponse:
 
     def test_get_count_from_content_range_header_without_count(
         self, content_range_header_without_count: str
-    ):
+    ) -> None:
         assert (
             APIResponse._get_count_from_content_range_header(
                 content_range_header_without_count
@@ -507,15 +529,19 @@ class TestApiResponse:
             is None
         )
 
-    def test_is_count_in_prefer_header_true(self, prefer_header_with_count: str):
+    def test_is_count_in_prefer_header_true(
+        self, prefer_header_with_count: str
+    ) -> None:
         assert APIResponse._is_count_in_prefer_header(prefer_header_with_count)
 
-    def test_is_count_in_prefer_header_false(self, prefer_header_without_count: str):
+    def test_is_count_in_prefer_header_false(
+        self, prefer_header_without_count: str
+    ) -> None:
         assert not APIResponse._is_count_in_prefer_header(prefer_header_without_count)
 
     def test_get_count_from_http_request_response_without_prefer_header(
         self, request_response_without_prefer_header: Response
-    ):
+    ) -> None:
         assert (
             APIResponse._get_count_from_http_request_response(
                 request_response_without_prefer_header
@@ -525,7 +551,7 @@ class TestApiResponse:
 
     def test_get_count_from_http_request_response_with_prefer_header_without_count(
         self, request_response_with_prefer_header_without_count: Response
-    ):
+    ) -> None:
         assert (
             APIResponse._get_count_from_http_request_response(
                 request_response_with_prefer_header_without_count
@@ -535,7 +561,7 @@ class TestApiResponse:
 
     def test_get_count_from_http_request_response_with_count_and_content_range(
         self, request_response_with_prefer_header_with_count_and_content_range: Response
-    ):
+    ) -> None:
         assert (
             APIResponse._get_count_from_http_request_response(
                 request_response_with_prefer_header_with_count_and_content_range
@@ -545,7 +571,7 @@ class TestApiResponse:
 
     def test_from_http_request_response_constructor(
         self, request_response_with_data: Response, api_response: List[Dict[str, Any]]
-    ):
+    ) -> None:
         result = APIResponse.from_http_request_response(request_response_with_data)
         assert result.data == api_response
         assert result.count == 2
@@ -554,7 +580,7 @@ class TestApiResponse:
         self,
         request_response_with_single_data: Response,
         single_api_response: Dict[str, Any],
-    ):
+    ) -> None:
         result = SingleAPIResponse.from_http_request_response(
             request_response_with_single_data
         )
