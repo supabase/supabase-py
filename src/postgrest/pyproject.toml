@@ -21,7 +21,6 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-  "httpx[http2] >=0.26,<0.29",
   "deprecation >=2.1.0",
   "pydantic >=1.9,<3.0",
   "strenum >=0.4.9; python_version < \"3.11\"",
@@ -42,6 +41,7 @@ test = [
   "pytest-depends >=1.0.1",
   "pytest-asyncio >=1.0.0",
   "unasync >= 0.6.0",
+  "supabase_utils[all]",
 ]
 lints = [
   "ruff >=0.12.1",

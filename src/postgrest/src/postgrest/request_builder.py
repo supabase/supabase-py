@@ -17,7 +17,7 @@ from typing import (
     overload,
 )
 
-from httpx import AsyncClient, BasicAuth, Client
+from httpx import AsyncClient, Client
 from pydantic import TypeAdapter, ValidationError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -27,7 +27,7 @@ from supabase_utils.http.io import (
 )
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import HTTPRequestMethod, JSONRequest, Response
-from supabase_utils.types import JSON, JSONParser
+from supabase_utils.types import JSON
 from typing_extensions import Self
 from yarl import URL
 
@@ -160,12 +160,13 @@ def pre_delete(
     return QueryArgs("DELETE", URLQuery.empty(), prefer_headers, {})
 
 
-JSONListParser = TypeAdapter(List[JSON])
+JSONListParser = TypeAdapter(List[Dict[str, JSON]])
+JSONDictParser = TypeAdapter(Dict[str, JSON])
 
 
 @dataclass
 class APIResponse:
-    data: List[JSON]
+    data: List[Dict[str, JSON]]
     """The data returned by the query."""
     count: int | None = None
     """The number of rows returned."""
@@ -208,7 +209,7 @@ class APIResponse:
 
 @dataclass
 class SingleAPIResponse:
-    data: JSON
+    data: Dict[str, JSON]
     count: int | None
 
     @staticmethod
@@ -216,7 +217,7 @@ class SingleAPIResponse:
         response: Response,
     ) -> SingleAPIResponse:
         count = APIResponse._get_count_from_http_request_response(response)
-        data = JSONParser.validate_json(response.content)
+        data = JSONDictParser.validate_json(response.content)
         return SingleAPIResponse(data=data, count=count)
 
 
@@ -234,7 +235,7 @@ class BaseFilterRequestBuilder:
         self.negate_next = True
         return self
 
-    def filter(self: Self, column: str, operator: str, criteria: str) -> Self:
+    def filter(self: Self, column: str, operator: str, criteria: str | int) -> Self:
         """Apply filters on a query.
 
         Args:
@@ -249,7 +250,7 @@ class BaseFilterRequestBuilder:
         self.request.query = self.request.query.set(key, val)
         return self
 
-    def eq(self: Self, column: str, value: str) -> Self:
+    def eq(self: Self, column: str, value: str | int) -> Self:
         """An 'equal to' filter.
 
         Args:
@@ -479,7 +480,7 @@ class BaseFilterRequestBuilder:
     def overlaps(self: Self, column: str, values: str | Iterable[str]) -> Self:
         return self.ov(column, values)
 
-    def match(self: Self, query: Dict[str, str]) -> Self:
+    def match(self: Self, query: Dict[str, str | int]) -> Self:
         updated_query = self
 
         if not query:
@@ -594,17 +595,6 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
             "Prefer", "return=representation"
         )
 
-        return self
-
-    def single(self) -> Self:
-        """Specify that the query will only return a single row in response.
-
-        .. caution::
-            The API will raise an error if the query returned more than one row.
-        """
-        self.request.headers = self.request.headers.set(
-            "Accept", "application/vnd.pgrst.object+json"
-        )
         return self
 
     def csv(self) -> Self:
@@ -725,8 +715,22 @@ class FilterRequestBuilder(QueryRequestBuilder[HttpIO], BaseFilterRequestBuilder
     pass
 
 
-class RPCFilterRequestBuilder(SingleRequestBuilder[HttpIO], BaseRPCRequestBuilder):
-    pass
+class RPCFilterRequestBuilder(QueryRequestBuilder[HttpIO], BaseRPCRequestBuilder):
+    def single(self) -> SingleRequestBuilder[HttpIO]:
+        """Specify that the query will only return a single row in response.
+
+        .. caution::
+            The API will raise an error if the query returned more than one row.
+        """
+        self.request.headers = self.request.headers.set(
+            "Accept", "application/vnd.pgrst.object+json"
+        )
+        return SingleRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=self.request,
+        )
 
 
 class RPCCountRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
@@ -812,37 +816,42 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
         )
 
     @overload
+    def explain(self) -> ExplainRequestBuilder[HttpIO]: ...
+
+    @overload
     def explain(
         self,
-        analyze: bool = False,
-        verbose: bool = False,
-        settings: bool = False,
-        buffers: bool = False,
-        wal: bool = False,
-        format: Literal["text"] = "text",
+        *,
+        analyze: bool,
+        verbose: bool,
+        settings: bool,
+        buffers: bool,
+        wal: bool,
+        format: Literal["text"],
     ) -> ExplainRequestBuilder[HttpIO]: ...
 
     @overload
     def explain(
         self,
-        analyze: bool = False,
-        verbose: bool = False,
-        settings: bool = False,
-        buffers: bool = False,
-        wal: bool = False,
         *,
+        analyze: bool,
+        verbose: bool,
+        settings: bool,
+        buffers: bool,
+        wal: bool,
         format: Literal["json"],
-    ) -> SingleRequestBuilder[HttpIO]: ...
+    ) -> QueryRequestBuilder[HttpIO]: ...
 
     def explain(
         self,
+        *,
         analyze: bool = False,
         verbose: bool = False,
         settings: bool = False,
         buffers: bool = False,
         wal: bool = False,
         format: Literal["text", "json"] = "text",
-    ) -> ExplainRequestBuilder[HttpIO] | SingleRequestBuilder[HttpIO]:
+    ) -> ExplainRequestBuilder[HttpIO] | QueryRequestBuilder[HttpIO]:
         options = [
             key
             for key, value in locals().items()
@@ -860,7 +869,7 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
                 request=self.request,
             )
         else:
-            return SingleRequestBuilder(
+            return QueryRequestBuilder(
                 executor=self.executor,
                 base_url=self.base_url,
                 default_headers=self.default_headers,
@@ -874,12 +883,10 @@ class RequestBuilder(Generic[HttpIO]):  #
         executor: HttpIO,
         base_url: URL,
         default_headers: Headers,
-        basic_auth: BasicAuth | None,
     ) -> None:
         self.executor: HttpIO = executor
         self.base_url = base_url
         self.default_headers = default_headers
-        self.auth = basic_auth
 
     def select(
         self,
