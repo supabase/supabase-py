@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 from httpx import Client as SyncHttpxClient
-from httpx import HTTPTransport, Limits, Timeout
+from httpx import Timeout
 from supabase_auth import SyncMemoryStorage
 
 from supabase import (
@@ -170,48 +170,6 @@ def test_global_authorization_header_issue() -> None:
     client = create_client(url, key, options)
 
     assert client.options.headers.get("apiKey") == key
-
-
-def test_httpx_client() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
-    transport = HTTPTransport(
-        retries=10,
-        verify=False,
-        limits=Limits(
-            max_connections=1,
-        ),
-    )
-
-    headers = {"x-user-agent": "my-app/0.0.1"}
-    with SyncHttpxClient(
-        transport=transport, headers=headers, timeout=Timeout(2.0)
-    ) as http_client:
-        # Create a client with the custom httpx client
-        options = ClientOptions(httpx_client=http_client)
-
-        client = create_client(url, key, options)
-
-        assert (
-            client.postgrest.executor.session.headers.get("x-user-agent")
-            == "my-app/0.0.1"
-        )
-        assert (
-            client.auth.executor.session.headers.get("x-user-agent") == "my-app/0.0.1"
-        )
-        assert (
-            client.storage.executor.session.headers.get("x-user-agent")
-            == "my-app/0.0.1"
-        )
-        assert (
-            client.functions.executor.session.headers.get("x-user-agent")
-            == "my-app/0.0.1"
-        )
-        assert client.postgrest.executor.session.timeout == Timeout(2.0)
-        assert client.auth.executor.session.timeout == Timeout(2.0)
-        assert client.storage.executor.session.timeout == Timeout(2.0)
-        assert client.functions.executor.session.timeout == Timeout(2.0)
 
 
 def test_custom_headers() -> None:

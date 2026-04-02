@@ -1,14 +1,17 @@
 from dataclasses import dataclass
 from typing import Generic, List
 
-from httpx import Headers, QueryParams
 from pyiceberg.catalog.rest import RestCatalog
-from supabase_utils.http import (
-    EmptyRequest,
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     HttpIO,
     HttpMethod,
-    JSONRequest,
     handle_http_io,
+)
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import (
+    EmptyRequest,
+    JSONRequest,
 )
 from yarl import URL
 
@@ -54,13 +57,13 @@ class StorageAnalyticsClient(Generic[HttpIO]):
             sort_order=sort_order,
             search=search,
         )
-        filtered_params = QueryParams(
-            **{k: v for k, v in params.items() if v is not None}
+        filtered_params = URLQuery.from_mapping(
+            {k: v for k, v in params.items() if v is not None}
         )
         response = yield EmptyRequest(
             method="GET",
             path=["bucket"],
-            query_params=filtered_params,
+            query=filtered_params,
         )
         return validate_adapter(response, AnalyticsBucketsParser)
 

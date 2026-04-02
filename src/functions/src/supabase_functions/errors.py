@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from httpx import Response
+from supabase_utils.http.request import Response
 
 
 class FunctionsApiErrorDict(TypedDict):
@@ -38,8 +38,10 @@ class FunctionsHttpError(FunctionsError):
 def on_error_response(response: Response) -> FunctionsHttpError | FunctionsRelayError:
     is_relay_error = response.headers.get("x-relay-header")
     if is_relay_error == "true":
-        return FunctionsRelayError(response.text, code=response.status_code)
-    return FunctionsHttpError(response.text, response.status_code)
+        return FunctionsRelayError(
+            response.content.decode("utf-8"), code=response.status
+        )
+    return FunctionsHttpError(response.content.decode("utf-8"), response.status)
 
 
 class FunctionsRelayError(FunctionsError):

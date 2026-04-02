@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Generic, List
 
-from httpx import Headers
-from supabase_utils.http import (
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     HttpIO,
     HttpMethod,
-    JSONRequest,
     handle_http_io,
 )
+from supabase_utils.http.request import JSONRequest
 from supabase_utils.types import JSON
 from yarl import URL
 
@@ -82,7 +82,7 @@ class VectorBucketScope(Generic[HttpIO]):
         )
         if response.is_success:
             return GetVectorIndexResponse.model_validate_json(response.content)
-        elif 400 <= response.status_code <= 401:
+        elif 400 <= response.status <= 401:
             return None
         else:
             raise parse_api_error(response)
@@ -264,7 +264,7 @@ class StorageVectorsClient(Generic[HttpIO]):
         )
         if response.is_success:
             return GetVectorBucketResponse.model_validate_json(response.content)
-        elif 400 <= response.status_code <= 401:
+        elif 400 <= response.status <= 401:
             return None
         else:
             raise parse_api_error(response)

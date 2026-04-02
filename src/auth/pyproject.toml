@@ -17,7 +17,6 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-  "httpx[http2] >=0.26,<0.29",
   "pydantic >=2,<3",
   "pyjwt[crypto] >=2.10.1",
   "supabase_utils == 2.28.0", # x-release-please-version
@@ -41,6 +40,7 @@ tests = [
   "pytest-cov >= 6.2.1",
   "pytest-depends >= 1.0.1",
   "pytest-asyncio >= 1.0.0",
+  "supabase_utils[all]",
   "pyotp>=2.9.0",
 ]
 lints = [
@@ -54,6 +54,7 @@ dev = [{ include-group = "lints" }, {include-group = "tests" }]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "tests"
 
 [tool.ruff.lint]
 select = [

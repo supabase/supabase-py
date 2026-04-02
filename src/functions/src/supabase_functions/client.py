@@ -1,19 +1,25 @@
 import platform
 from typing import Dict, Generic, Literal, overload
 
-from httpx import AsyncClient, Client, Headers, HTTPStatusError, QueryParams, Response
-from supabase_utils.http import (
+from httpx import AsyncClient, Client
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     AsyncHttpIO,
-    BytesRequest,
-    EmptyRequest,
     HttpIO,
     HttpMethod,
+    SyncHttpIO,
+    handle_http_io,
+)
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import (
+    BytesRequest,
+    EmptyRequest,
     HTTPRequestMethod,
     JSONRequest,
-    SyncHttpIO,
+    Response,
     TextRequest,
-    ToHttpxRequest,
-    handle_http_io,
+    ToRequest,
 )
 from supabase_utils.types import JSON
 from yarl import URL
@@ -30,7 +36,7 @@ class FunctionsClient(Generic[HttpIO]):
     def __init__(self, url: URL, headers: Dict[str, str], executor: HttpIO) -> None:
         if not (url.scheme == "http" or url.scheme == "https"):
             raise ValueError("url must be a valid HTTP URL string")
-        self.default_headers = Headers(
+        self.default_headers = Headers.from_mapping(
             {
                 "X-Client-Info": f"supabase-py/supabase_functions v{__version__}",
                 "X-Supabase-Client-Platform": platform.system(),
@@ -53,7 +59,9 @@ class FunctionsClient(Generic[HttpIO]):
             the new jwt token sent in the authorization header
         """
 
-        self.default_headers["Authorization"] = f"Bearer {token}"
+        self.default_headers = self.default_headers.override(
+            "Authorization", f"Bearer {token}"
+        )
 
     def _invoke_options_to_request(
         self,
@@ -62,26 +70,25 @@ class FunctionsClient(Generic[HttpIO]):
         region: FunctionRegion | None,
         headers: Dict[str, str] | None,
         method: HTTPRequestMethod,
-    ) -> ToHttpxRequest:
+    ) -> ToRequest:
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
 
         path = [function_name]
-        new_headers = Headers(headers)
-        query_params = QueryParams()
+        new_headers = Headers.from_mapping(headers) if headers else Headers.empty()
+        query_params = URLQuery.empty()
 
         if region and region != FunctionRegion.Any:
-            new_headers["x-region"] = region.value
+            new_headers = new_headers.set("x-region", region.value)
             # Add region as query parameter
             query_params = query_params.set("forceFunctionRegion", region.value)
-
         if isinstance(body, str):
             return TextRequest(
                 text=body,
                 method=method,
                 path=path,
                 headers=new_headers,
-                query_params=query_params,
+                query=query_params,
             )
         elif isinstance(body, dict):
             return JSONRequest(
@@ -89,7 +96,7 @@ class FunctionsClient(Generic[HttpIO]):
                 method=method,
                 path=path,
                 headers=new_headers,
-                query_params=query_params,
+                query=query_params,
                 exclude_none=False,
             )
         elif isinstance(body, bytes):
@@ -98,11 +105,11 @@ class FunctionsClient(Generic[HttpIO]):
                 method=method,
                 path=path,
                 headers=new_headers,
-                query_params=query_params,
+                query=query_params,
             )
         else:
             return EmptyRequest(
-                method=method, path=path, headers=new_headers, query_params=query_params
+                method=method, path=path, headers=new_headers, query=query_params
             )
 
     @handle_http_io
@@ -127,11 +134,9 @@ class FunctionsClient(Generic[HttpIO]):
         response = yield self._invoke_options_to_request(
             function_name, body, region, headers, method
         )
-        try:
-            response.raise_for_status()
-            return response
-        except HTTPStatusError:
+        if not response.is_success:
             raise on_error_response(response)
+        return response
 
 
 class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
@@ -139,22 +144,16 @@ class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
         self,
         url: str,
         headers: Dict[str, str],
-        timeout: int = 60,
-        verify: bool = True,
-        proxy: str | None = None,
         http_client: AsyncClient | None = None,
     ) -> None:
         http_client = http_client or AsyncClient(
-            verify=verify,
-            timeout=timeout,
-            proxy=proxy,
             follow_redirects=True,
             http2=True,
         )
         FunctionsClient.__init__(
             self,
             url=URL(url),
-            executor=AsyncHttpIO(session=http_client),
+            executor=AsyncHttpIO(session=AsyncHttpxSession(client=http_client)),
             headers=headers,
         )
 
@@ -164,46 +163,36 @@ class SyncFunctionsClient(FunctionsClient[SyncHttpIO]):
         self,
         url: str,
         headers: Dict[str, str],
-        timeout: int = 60,
-        verify: bool = True,
-        proxy: str | None = None,
         http_client: Client | None = None,
     ) -> None:
-        http_client = http_client or Client(  # kept for backwards compatibility
-            verify=verify,
-            timeout=timeout,
-            proxy=proxy,
+        http_client = http_client or Client(
             follow_redirects=True,
             http2=True,
         )
         FunctionsClient.__init__(
             self,
             url=URL(url),
-            executor=SyncHttpIO(session=http_client),
+            executor=SyncHttpIO(session=HttpxSession(client=http_client)),
             headers=headers,
         )
 
 
 @overload
 def create_client(
-    url: str, headers: dict[str, str], *, is_async: Literal[True], verify: bool
+    url: str, headers: dict[str, str], *, is_async: Literal[True]
 ) -> AsyncFunctionsClient: ...
 
 
 @overload
 def create_client(
-    url: str, headers: dict[str, str], *, is_async: Literal[False], verify: bool
+    url: str, headers: dict[str, str], *, is_async: Literal[False]
 ) -> SyncFunctionsClient: ...
 
 
 def create_client(
-    url: str,
-    headers: dict[str, str],
-    *,
-    is_async: bool,
-    verify: bool = True,
+    url: str, headers: dict[str, str], *, is_async: bool
 ) -> AsyncFunctionsClient | SyncFunctionsClient:
     if is_async:
-        return AsyncFunctionsClient(url, headers, verify=verify)
+        return AsyncFunctionsClient(url, headers)
     else:
-        return SyncFunctionsClient(url, headers, verify=verify)
+        return SyncFunctionsClient(url, headers)

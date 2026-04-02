@@ -2,20 +2,23 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from types import TracebackType
 from typing import Callable, Generic, Literal
 from uuid import uuid4
 
-from httpx import AsyncClient, Client, Headers, QueryParams, Response
 from jwt import get_algorithm_by_name
-from supabase_utils.http import (
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     AsyncHttpIO,
-    EmptyRequest,
+    AsyncHttpSession,
     HttpIO,
     HttpMethod,
-    JSONRequest,
+    HttpSession,
     SyncHttpIO,
     handle_http_io,
 )
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import EmptyRequest, JSONRequest, Response
 from supabase_utils.types import JSON
 from yarl import URL
 
@@ -126,9 +129,9 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         if isinstance(credentials, SignUpWithEmailAndPasswordCredentials):
             query = redirect_to_as_query(credentials.redirect_to)
         else:
-            query = QueryParams()
+            query = URLQuery.empty()
         response = yield JSONRequest(
-            method="POST", path=["signup"], body=credentials.body, query_params=query
+            method="POST", path=["signup"], body=credentials.body, query=query
         )
         auth_response = parse_auth_response(response)
         return auth_response
@@ -145,7 +148,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
             method="POST",
             path=["token"],
             body=credentials,
-            query_params=QueryParams(grant_type="password"),
+            query=URLQuery.from_mapping({"grant_type": "password"}),
         )
         auth_response = parse_auth_response(response)
         return auth_response
@@ -174,7 +177,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
                     "captcha_token": captcha_token,
                 },
             },
-            query_params=QueryParams(grant_type="id_token"),
+            query=URLQuery.from_mapping({"grant_type": "id_token"}),
         )
         auth_response = parse_auth_response(response)
         return auth_response
@@ -195,7 +198,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="POST",
             path=["logout"],
-            query_params=QueryParams(scope=scope),
+            query=URLQuery.from_mapping({"scope": scope}),
             headers=session.encode_access_token(),
         )
         if not response.is_success:
@@ -211,13 +214,15 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         """
         Log in an existing user via a third-party provider.
         """
-        query = QueryParams(query_params)
+        query = (
+            URLQuery.from_mapping(query_params) if query_params else URLQuery.empty()
+        )
         if redirect_to:
             query = query.set("redirect_to", redirect_to)
         if scopes:
             query = query.set("scopes", scopes)
         code_verifier, query = self._get_url_for_provider(provider, query)
-        new_url = self.base_url.joinpath("authorize").with_query(query)
+        new_url = self.base_url.joinpath("authorize").with_query(query.as_query())
         return OAuthResponse(provider=provider, url=str(new_url)), code_verifier
 
     @handle_http_io
@@ -229,7 +234,9 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
     ) -> HttpMethod[tuple[OAuthResponse, str | None]]:
-        query = QueryParams(query_params)
+        query = (
+            URLQuery.from_mapping(query_params) if query_params else URLQuery.empty()
+        )
         if redirect_to:
             query = query.set("redirect_to", redirect_to)
         if scopes:
@@ -241,7 +248,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         response = yield EmptyRequest(
             method="GET",
             path=["user", "identities", "authorize"],
-            query_params=query,
+            query=query,
             headers=session.encode_access_token(),
         )
         link_identity = parse_link_identity_response(response)
@@ -268,12 +275,12 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials):
             query = redirect_to_as_query(credentials.email_redirect_to)
         else:
-            query = QueryParams()
+            query = URLQuery.empty()
         response = yield JSONRequest(
             method="POST",
             path=["otp"],
             body=credentials.body,
-            query_params=query,
+            query=query,
         )
         return parse_auth_otp_response(response)
 
@@ -285,26 +292,26 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         if isinstance(credentials, ResendEmailCredentials):
             query = redirect_to_as_query(credentials.email_redirect_to)
         else:
-            query = QueryParams()
+            query = URLQuery.empty()
         response = yield JSONRequest(
             method="POST",
             path=["resend"],
             body=credentials.body,
-            query_params=query,
+            query=query,
         )
         return parse_auth_otp_response(response)
 
     @handle_http_io
     def _verify_otp(self, params: VerifyOtpParams) -> HttpMethod[AuthResponse]:
         if isinstance(params, VerifyTokenHashParams):
-            query = QueryParams()
+            query = URLQuery.empty()
         else:
             query = redirect_to_as_query(params.redirect_to)
         response = yield JSONRequest(
             method="POST",
             path=["verify"],
             body=params.body,
-            query_params=query,
+            query=query,
         )
         auth_response = parse_auth_response(response)
         return auth_response
@@ -334,7 +341,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
             method="PUT",
             path=["user"],
             body=attributes,
-            query_params=redirect_to_as_query(email_redirect_to),
+            query=redirect_to_as_query(email_redirect_to),
             headers=session.encode_access_token(),
         )
         user_response = parse_user_response(response)
@@ -413,7 +420,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
                     "captcha_token": captcha_token,
                 },
             },
-            query_params=redirect_to_as_query(redirect_to),
+            query=redirect_to_as_query(redirect_to),
         )
         if not response.is_success:
             raise handle_error_response(response)
@@ -475,8 +482,8 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
     def _get_url_for_provider(
         self,
         provider: Provider,
-        query: QueryParams,
-    ) -> tuple[str | None, QueryParams]:
+        query: URLQuery,
+    ) -> tuple[str | None, URLQuery]:
         code_verifier = None
         if self.flow_type == "pkce":
             code_verifier = generate_pkce_verifier()
@@ -502,7 +509,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
                 "auth_code": auth_code,
                 "code_verifier": code_verifier,
             },
-            query_params=query,
+            query=query,
         )
         auth_response = parse_auth_response(response)
         return auth_response
@@ -583,24 +590,18 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
     def __init__(
         self,
         url: str,
+        http_session: AsyncHttpSession,
         *,
         headers: dict[str, str] | None = None,
         storage_key: str | None = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
         storage: AsyncSupportedStorage | None = None,
-        http_client: AsyncClient | None = None,
         flow_type: AuthFlowType = "implicit",
     ) -> None:
         self.base_url = URL(url)
-        default_headers = Headers(headers)
-        client = http_client or AsyncClient(
-            headers=headers,
-            http2=True,
-            follow_redirects=True,
-            verify=True,
-        )
-        executor = AsyncHttpIO(session=client)
+        default_headers = Headers.from_mapping(headers) if headers else Headers.empty()
+        executor = AsyncHttpIO(session=http_session)
         self.session_manager: AsyncSessionManager = AsyncSessionManager(
             base_url=self.base_url,
             executor=executor,
@@ -624,6 +625,20 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             default_headers=default_headers,
             session_manager=self.session_manager,
         )
+
+    async def __aenter__(self) -> AsyncSupabaseAuthClient:
+        await self.executor.session.__aenter__()
+        await self.session_manager.__aenter__()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        await self.executor.session.__aexit__(exc_type, exc, tb)
+        await self.session_manager.__aexit__(exc_type, exc, tb)
 
     # Initializations
 
@@ -913,24 +928,18 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
     def __init__(
         self,
         url: str,
+        http_session: HttpSession,
         *,
         headers: dict[str, str] | None = None,
         storage_key: str | None = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
         storage: SyncSupportedStorage | None = None,
-        http_client: Client | None = None,
         flow_type: AuthFlowType = "implicit",
     ) -> None:
         self.base_url = URL(url)
-        default_headers = Headers(headers)
-        client = http_client or Client(
-            headers=headers,
-            http2=True,
-            follow_redirects=True,
-            verify=True,
-        )
-        executor = SyncHttpIO(session=client)
+        default_headers = Headers.from_mapping(headers) if headers else Headers.empty()
+        executor = SyncHttpIO(session=http_session)
         self.session_manager: SyncSessionManager = SyncSessionManager(
             base_url=self.base_url,
             executor=executor,
@@ -954,6 +963,20 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
             default_headers=default_headers,
             session_manager=self.session_manager,
         )
+
+    def __enter__(self) -> SyncSupabaseAuthClient:
+        self.executor.session.__enter__()
+        self.session_manager.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.executor.session.__exit__(exc_type, exc, tb)
+        self.session_manager.__exit__(exc_type, exc, tb)
 
     # Initializations
 

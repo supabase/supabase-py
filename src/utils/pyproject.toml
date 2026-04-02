@@ -15,10 +15,18 @@ requires-python = ">=3.10"
 description = "Common collection of methods used in the supabase python libraries."
 readme = "README.md"
 dependencies = [
-    "httpx>=0.28.1",
     "pydantic>=2.12.2",
+    "pyrsistent>=0.20.0",
     "typing-extensions>=4.15.0",
     "yarl>=1.22.0",
+]
+
+[project.optional-dependencies]
+httpx = ["httpx[http2] >=0.26,<0.29"]
+aiohttp = ["aiohttp >= 3"]
+all = [
+    "supabase_utils[httpx]",
+    "supabase_utils[aiohttp]"
 ]
 
 [project.urls]

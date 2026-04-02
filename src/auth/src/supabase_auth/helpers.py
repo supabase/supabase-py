@@ -13,8 +13,9 @@ from datetime import datetime
 from typing import Any, Dict, Type, TypeVar
 from urllib.parse import urlparse
 
-from httpx import QueryParams, Response
 from pydantic import BaseModel, TypeAdapter, ValidationError
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import Response
 
 from .constants import (
     API_VERSION_HEADER_NAME,
@@ -156,13 +157,13 @@ def handle_error_response(response: Response) -> AuthError:
         return AuthUnknownError(
             message="Unexpected error: Unable to parse API error",
             code="unexpected_failure",
-            status=response.status_code,
+            status=response.status,
             data=response.content,
         )
     if not response.is_error:
-        return AuthRetryableError(raw_error.get_error_message(), response.status_code)
-    if 502 <= response.status_code <= 504:
-        return AuthRetryableError(raw_error.get_error_message(), response.status_code)
+        return AuthRetryableError(raw_error.get_error_message(), response.status)
+    if 502 <= response.status <= 504:
+        return AuthRetryableError(raw_error.get_error_message(), response.status)
     error_code = None
     response_api_version = parse_response_api_version(response)
 
@@ -178,19 +179,19 @@ def handle_error_response(response: Response) -> AuthError:
     if error_code is None and raw_error.weak_password:
         return AuthWeakPasswordError(
             message=raw_error.get_error_message(),
-            status=response.status_code,
+            status=response.status,
             reasons=raw_error.weak_password.reasons,
         )
     elif error_code == "weak_password":
         return AuthWeakPasswordError(
             raw_error.get_error_message(),
-            status=response.status_code,
+            status=response.status,
             reasons=raw_error.weak_password.reasons if raw_error.weak_password else [],
         )
 
     return AuthApiError(
         raw_error.get_error_message(),
-        status=response.status_code or 500,
+        status=response.status or 500,
         code=error_code,
     )
 
@@ -306,7 +307,7 @@ def validate_uuid(id: str | None) -> None:
         raise ValueError(f"Invalid id, '{id}' is not a valid uuid")
 
 
-def redirect_to_as_query(redirect_to: str | None) -> QueryParams:
+def redirect_to_as_query(redirect_to: str | None) -> URLQuery:
     if redirect_to:
-        return QueryParams({"redirect_to": redirect_to})
-    return QueryParams()
+        return URLQuery.from_mapping({"redirect_to": redirect_to})
+    return URLQuery.empty()

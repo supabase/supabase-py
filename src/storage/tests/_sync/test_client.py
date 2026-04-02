@@ -9,7 +9,7 @@ from uuid import uuid4
 import pytest
 from httpx import Client as HttpxClient
 from httpx import Response
-from supabase_utils.http import SyncHttpIO
+from supabase_utils.http.io import SyncHttpIO
 
 from storage3 import StorageFileApiClient, SyncStorageClient
 from storage3.exceptions import StorageApiError, StorageException
@@ -311,6 +311,8 @@ def test_client_download_with_query_doesnt_lose_params(
 
     params = {"my-param": "test"}
     mock_response = Mock()
+    mock_response.headers = {}
+    mock_response.status_code = 200
     with patch.object(HttpxClient, "send") as mock_request:
         mock_request.return_value = mock_response
         storage_file_client.download(file.bucket_path, query_params=params)

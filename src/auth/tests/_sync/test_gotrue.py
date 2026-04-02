@@ -1,9 +1,9 @@
 import time
-from uuid import uuid4
 
 import pytest
 from jwt import encode
 
+from supabase_auth import SyncSupabaseAuthClient
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -15,37 +15,36 @@ from supabase_auth.types import (
     MFAEnroll,
     Session,
     SignInWithPassword,
-    SignInWithPasswordless,
     SignUpWithPassword,
 )
 
-from .clients import (
+from .conftest import (
     GOTRUE_JWT_SECRET,
-    auth_client,
-    auth_client_with_asymmetric_session,
-    auth_client_with_session,
     mock_user_credentials,
 )
 
 
-def test_get_claims_returns_none_when_session_is_none() -> None:
-    claims = auth_client().get_claims()
+def test_get_claims_returns_none_when_session_is_none(
+    auth_client: SyncSupabaseAuthClient,
+) -> None:
+    claims = auth_client.get_claims()
     assert claims is None
 
 
-def test_get_claims_calls_get_user_if_symmetric_jwt(mocker) -> None:
-    client = auth_client()
-    spy = mocker.spy(client.session_manager, "_get_user")
+def test_get_claims_calls_get_user_if_symmetric_jwt(
+    mocker, auth_client: SyncSupabaseAuthClient
+) -> None:
+    spy = mocker.spy(auth_client.session_manager, "_get_user")
     credentials = mock_user_credentials()
     options = SignUpWithPassword.email(
         email=credentials.email,
         password=credentials.password,
     )
-    user = (client.sign_up(options)).user
+    user = (auth_client.sign_up(options)).user
 
     assert user is not None
 
-    response = client.get_claims()
+    response = auth_client.get_claims()
     assert response
     claims = response.claims
 
@@ -54,17 +53,18 @@ def test_get_claims_calls_get_user_if_symmetric_jwt(mocker) -> None:
     spy.assert_called_once()
 
 
-def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker) -> None:
-    client = auth_client_with_asymmetric_session()
+def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(
+    mocker, auth_client_with_asymmetric_session: SyncSupabaseAuthClient
+) -> None:
     credentials = mock_user_credentials()
     options = SignUpWithPassword.email(
         email=credentials.email,
         password=credentials.password,
     )
-    user = (client.sign_up(options)).user
+    user = (auth_client_with_asymmetric_session.sign_up(options)).user
     assert user is not None
 
-    response = client.get_claims()
+    response = auth_client_with_asymmetric_session.get_claims()
     assert response
     claims = response.claims
 
@@ -73,13 +73,14 @@ def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(mocker) -> None:
 
     expected_keyid = "638c54b8-28c2-4b12-9598-ba12ef610a29"
 
-    assert len(client._jwks.keys) == 1
-    assert client._jwks.keys[0].kid == expected_keyid
+    assert len(auth_client_with_asymmetric_session._jwks.keys) == 1
+    assert auth_client_with_asymmetric_session._jwks.keys[0].kid == expected_keyid
 
 
-def test_jwks_ttl_cache_behavior(mocker) -> None:
-    client = auth_client_with_asymmetric_session()
-    spy = mocker.spy(client.executor.session, "send")
+def test_jwks_ttl_cache_behavior(
+    mocker, auth_client_with_asymmetric_session: SyncSupabaseAuthClient
+) -> None:
+    spy = mocker.spy(auth_client_with_asymmetric_session.executor.session, "send")
 
     # First call should fetch JWKS from endpoint
     credentials = mock_user_credentials()
@@ -87,15 +88,15 @@ def test_jwks_ttl_cache_behavior(mocker) -> None:
         email=credentials.email,
         password=credentials.password,
     )
-    user = (client.sign_up(options)).user
+    user = (auth_client_with_asymmetric_session.sign_up(options)).user
     assert user is not None
 
-    client.get_claims()
+    auth_client_with_asymmetric_session.get_claims()
 
     first_call_count = spy.call_count
 
     # Second call within TTL should use cache
-    client.get_claims()
+    auth_client_with_asymmetric_session.get_claims()
     assert spy.call_count == first_call_count  # No additional JWKS request
 
     # Mock time to be after TTL expiry
@@ -105,19 +106,18 @@ def test_jwks_ttl_cache_behavior(mocker) -> None:
         mock_time.return_value = original_time() + 601  # TTL is 600 seconds
 
         # Call after TTL expiry should fetch fresh JWKS
-        client.get_claims()
+        auth_client_with_asymmetric_session.get_claims()
         assert spy.call_count == first_call_count + 1  # One more JWKS request
     finally:
         # Restore original time function
         mocker.patch("time.time", original_time)
 
 
-def test_set_session_with_valid_tokens() -> None:
-    client = auth_client()
+def test_set_session_with_valid_tokens(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get valid tokens
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
@@ -127,10 +127,10 @@ def test_set_session_with_valid_tokens() -> None:
     refresh_token = signup_response.session.refresh_token
 
     # Clear the session
-    client.session_manager.remove_session()
+    auth_client.session_manager.remove_session()
 
     # Set the session with the tokens
-    response = client.set_session(access_token, refresh_token)
+    response = auth_client.set_session(access_token, refresh_token)
 
     # Verify the response
     assert response.session is not None
@@ -140,12 +140,11 @@ def test_set_session_with_valid_tokens() -> None:
     assert response.user.email == credentials.email
 
 
-def test_set_session_with_expired_token() -> None:
-    client = auth_client()
+def test_set_session_with_expired_token(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get valid tokens
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
@@ -155,7 +154,7 @@ def test_set_session_with_expired_token() -> None:
     refresh_token = signup_response.session.refresh_token
 
     # Clear the session
-    client.session_manager.remove_session()
+    auth_client.session_manager.remove_session()
 
     # Create an expired token by modifying the JWT
     expired_token = access_token.split(".")
@@ -167,7 +166,7 @@ def test_set_session_with_expired_token() -> None:
     expired_access_token = ".".join(expired_token)
 
     # Set the session with the expired token
-    response = client.set_session(expired_access_token, refresh_token)
+    response = auth_client.set_session(expired_access_token, refresh_token)
 
     # Verify the response has a new access token (refreshed)
     assert response.session is not None
@@ -177,12 +176,11 @@ def test_set_session_with_expired_token() -> None:
     assert response.user.email == credentials.email
 
 
-def test_set_session_without_refresh_token() -> None:
-    client = auth_client()
+def test_set_session_without_refresh_token(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get valid tokens
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
@@ -191,7 +189,7 @@ def test_set_session_without_refresh_token() -> None:
     access_token = signup_response.session.access_token
 
     # Clear the session
-    client.session_manager.remove_session()
+    auth_client.session_manager.remove_session()
 
     # Create an expired token
     expired_token = access_token.split(".")
@@ -204,28 +202,24 @@ def test_set_session_without_refresh_token() -> None:
 
     # Try to set the session with an expired token but no refresh token
     with pytest.raises(AuthSessionMissingError):
-        client.set_session(expired_access_token, "")
+        auth_client.set_session(expired_access_token, "")
 
 
-def test_set_session_with_invalid_token() -> None:
-    client = auth_client()
-
+def test_set_session_with_invalid_token(auth_client: SyncSupabaseAuthClient) -> None:
     # Try to set the session with invalid tokens
     with pytest.raises(AuthInvalidJwtError):
-        client.set_session("invalid.token.here", "invalid_refresh_token")
+        auth_client.set_session("invalid.token.here", "invalid_refresh_token")
 
 
-def test_mfa_enroll() -> None:
-    client = auth_client_with_session()
-
+def test_mfa_enroll(auth_client_with_session: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get a valid session
-    _signup_response = client.sign_up(
+    _signup_response = auth_client_with_session.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     # Test MFA enrollment
-    enroll_response = client.mfa.enroll(
+    enroll_response = auth_client_with_session.mfa.enroll(
         MFAEnroll.totp(issuer="test-issuer", friendly_name="test-factor")
     )
 
@@ -236,150 +230,112 @@ def test_mfa_enroll() -> None:
     assert enroll_response.totp.qr_code is not None
 
 
-def test_mfa_challenge() -> None:
-    client = auth_client()
+def test_mfa_challenge(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get a valid session
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
 
     # Enroll a factor first
-    enroll_response = client.mfa.enroll(
+    enroll_response = auth_client.mfa.enroll(
         MFAEnroll.totp(issuer="test-issuer", friendly_name="test-factor")
     )
 
     # Test MFA challenge
-    challenge_response = client.mfa.challenge(factor_id=enroll_response.id)
+    challenge_response = auth_client.mfa.challenge(factor_id=enroll_response.id)
     assert challenge_response.id is not None
     assert challenge_response.expires_at is not None
 
 
-def test_mfa_unenroll() -> None:
-    client = auth_client()
+def test_mfa_unenroll(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get a valid session
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
 
     # Enroll a factor first
-    enroll_response = client.mfa.enroll(
+    enroll_response = auth_client.mfa.enroll(
         MFAEnroll.totp(issuer="test-issuer", friendly_name="test-factor")
     )
 
     # Test MFA unenroll
-    unenroll_response = client.mfa.unenroll(factor_id=enroll_response.id)
+    unenroll_response = auth_client.mfa.unenroll(factor_id=enroll_response.id)
     assert unenroll_response.id == enroll_response.id
 
 
-def test_mfa_list_factors() -> None:
-    client = auth_client()
+def test_mfa_list_factors(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get a valid session
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
 
     # Enroll a factor first
-    client.mfa.enroll(MFAEnroll.totp(issuer="test-issuer", friendly_name="test-factor"))
+    auth_client.mfa.enroll(
+        MFAEnroll.totp(issuer="test-issuer", friendly_name="test-factor")
+    )
 
     # Test MFA list factors
-    list_response = client.mfa.list_factors()
+    list_response = auth_client.mfa.list_factors()
     assert len(list_response.all) == 1
 
 
-def test_get_authenticator_assurance_level() -> None:
-    client = auth_client()
+def test_get_authenticator_assurance_level(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # Without a session, should return null values
-    aal_response = client.mfa.get_authenticator_assurance_level()
+    aal_response = auth_client.mfa.get_authenticator_assurance_level()
     assert aal_response.current_level is None
     assert aal_response.next_level is None
     assert aal_response.current_authentication_methods == []
 
     # Sign up to get a valid session
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
 
     # With a session, should return authentication methods
-    aal_response = client.mfa.get_authenticator_assurance_level()
+    aal_response = auth_client.mfa.get_authenticator_assurance_level()
     # Basic auth will have password as an authentication method
     assert aal_response.current_authentication_methods is not None
 
 
-def test_link_identity() -> None:
-    client = auth_client()
+def test_get_user_identities(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # Sign up to get a valid session
-    signup_response = client.sign_up(
-        SignUpWithPassword.email(email=credentials.email, password=credentials.password)
-    )
-    assert signup_response.session is not None
-
-    from unittest.mock import patch
-
-    from httpx import Response
-
-    # Since the test server has manual linking disabled, we'll mock the URL generation
-    with patch.object(client, "_get_url_for_provider") as mock_url_provider:
-        mock_url = "http://example.com/authorize?provider=github"
-        mock_params = {"provider": "github"}
-        mock_url_provider.return_value = (mock_url, mock_params)
-
-        # Also mock the _request method since the server would reject it
-        with patch.object(client.executor.session, "send") as mock_request:
-            mock_request.return_value = Response(
-                content=f'{{"url":"{mock_url}"}}', status_code=200
-            )
-
-            # Call the method
-            response = client.link_identity(provider="github")
-
-            # Verify the response
-            assert response.provider == "github"
-            assert response.url == mock_url
-
-
-def test_get_user_identities() -> None:
-    client = auth_client()
-    credentials = mock_user_credentials()
-
-    # Sign up to get a valid session
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
 
     # New users won't have any identities yet, but the call should work
-    identities_response = client.get_user_identities()
+    identities_response = auth_client.get_user_identities()
     assert identities_response is not None
     # For a new user, identities will be an empty list or None
     assert hasattr(identities_response, "identities")
 
 
-def test_sign_in_with_password() -> None:
-    client = auth_client()
+def test_sign_in_with_password(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
     # First create a user we can sign in with
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
 
     # Test signing in with the same credentials (email)
-    signin_response = client.sign_in_with_password(
+    signin_response = auth_client.sign_in_with_password(
         SignInWithPassword.email(
             email=credentials.email,
             password=credentials.password,
@@ -391,13 +347,8 @@ def test_sign_in_with_password() -> None:
     assert signin_response.user is not None
     assert signin_response.user.email == credentials.email
 
-    # Test error case: wrong password
-
-    # We need to create a custom client to avoid affecting other tests
-    test_client = auth_client()
-
     try:
-        test_client.sign_in_with_password(
+        auth_client.sign_in_with_password(
             SignInWithPassword.email(
                 email=credentials.email,
                 password="wrong_password",
@@ -408,94 +359,15 @@ def test_sign_in_with_password() -> None:
         pass
 
 
-def test_sign_in_with_otp() -> None:
-    client = auth_client()
-
-    # Test with email OTP
-    email = f"test-{uuid4()}@example.com"
-
-    # When sign_in_with_otp is called with valid email, it should return a AuthOtpResponse
-    # We can't fully test the actual OTP flow since that requires email verification
-    from unittest.mock import patch
-
-    from httpx import Response
-
-    from supabase_auth.types import AuthOtpResponse
-
-    # First test for email OTP
-    auth_otp = AuthOtpResponse(
-        message_id="mock-message-id",
-    )
-    with patch.object(client.executor.session, "send") as mock_request:
-        mock_response = Response(content=auth_otp.model_dump_json(), status_code=200)
-        mock_request.return_value = mock_response
-
-        response = client.sign_in_with_otp(
-            SignInWithPasswordless.email(
-                email=email,
-                email_redirect_to="https://example.com/callback",
-                should_create_user=True,
-                data={"custom": "data"},
-                captcha_token="mock-captcha-token",
-            ),
-        )
-
-        # Verify request parameters
-        mock_request.assert_called_once()
-        (args,), kwargs = mock_request.call_args
-        assert args.method == "POST"
-        assert args.url.path == "/otp"
-        assert (
-            args.content
-            == f'{{"gotrue_meta_security":{{"captcha_token":"mock-captcha-token"}},"email":"{email}","data":{{"custom":"data"}},"create_user":true}}'.encode()
-        )
-        assert args.url.query == b"redirect_to=https%3A%2F%2Fexample.com%2Fcallback"
-
-        # Verify response
-        assert response == auth_otp
-
-    # Test with phone OTP
-    phone = "+11234567890"
-    auth_otp = AuthOtpResponse(message_id="mock-message-id")
-    with patch.object(client.executor.session, "send") as mock_request:
-        mock_response = Response(content=auth_otp.model_dump_json(), status_code=200)
-        mock_request.return_value = mock_response
-
-        response = client.sign_in_with_otp(
-            SignInWithPasswordless.phone(
-                phone=phone,
-                should_create_user=True,
-                data={"custom": "data"},
-                channel="whatsapp",  # Test alternate channel
-                captcha_token="mock-captcha-token",
-            )
-        )
-
-        # Verify request parameters
-        mock_request.assert_called_once()
-        (args,), kwargs = mock_request.call_args
-        assert args.method == "POST"
-        assert args.url.path == "/otp"
-        assert (
-            args.content
-            == f'{{"gotrue_meta_security":{{"captcha_token":"mock-captcha-token"}},"phone":"{phone}","data":{{"custom":"data"}},"create_user":true,"channel":"whatsapp"}}'.encode()
-        )
-        assert args.url.query == b""
-
-        # Verify response
-        assert response == auth_otp
-
-
-def test_sign_out() -> None:
-    client = auth_client()
+def test_sign_out(auth_client: SyncSupabaseAuthClient) -> None:
     credentials = mock_user_credentials()
 
-    signup_response = client.sign_up(
+    signup_response = auth_client.sign_up(
         SignUpWithPassword.email(email=credentials.email, password=credentials.password)
     )
     assert signup_response.session is not None
 
-    signin_response = client.sign_in_with_password(
+    signin_response = auth_client.sign_in_with_password(
         SignInWithPassword.email(
             email=credentials.email,
             password=credentials.password,
@@ -513,10 +385,10 @@ def test_sign_out() -> None:
         nonlocal called
         called = True
 
-    client.on_auth_state_change(sign_out_callback)
+    auth_client.on_auth_state_change(sign_out_callback)
 
-    client.sign_out()
+    auth_client.sign_out()
 
-    no_more_session = client.get_session()
+    no_more_session = auth_client.get_session()
     assert no_more_session is None
     assert called

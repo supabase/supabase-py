@@ -4,7 +4,6 @@ from datetime import datetime
 from time import time
 from typing import Callable, List, Mapping
 
-from httpx import Headers
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -13,6 +12,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic.dataclasses import dataclass
+from supabase_utils.http.headers import Headers
 from supabase_utils.types import JSON
 
 try:
@@ -169,7 +169,7 @@ class Session(BaseModel):
         return self
 
     def encode_access_token(self) -> Headers:
-        return Headers({"Authorization": f"Bearer {self.access_token}"})
+        return Headers.from_mapping({"Authorization": f"Bearer {self.access_token}"})
 
 
 class UserIdentity(BaseModel):

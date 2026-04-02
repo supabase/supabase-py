@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import TracebackType
 from typing import Generic, List
 
-from httpx import AsyncClient, Client, Headers, QueryParams
-from supabase_utils.http import (
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     AsyncHttpIO,
-    EmptyRequest,
+    AsyncHttpSession,
     HttpIO,
     HttpMethod,
-    JSONRequest,
+    HttpSession,
     SyncHttpIO,
     handle_http_io,
 )
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import EmptyRequest, JSONRequest
 from supabase_utils.types import JSON
 from yarl import URL
 
@@ -109,11 +112,16 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        query = QueryParams(page=page, per_page=per_page)
+        query = URLQuery.from_mapping(
+            {
+                "page": page if page is not None else "",
+                "per_page": per_page if per_page is not None else "",
+            }
+        )
         response = yield EmptyRequest(
             method="GET",
             path=["admin", "oauth", "clients"],
-            query_params=query,
+            query=query,
         )
 
         result = validate_model(response, OAuthClientListResponse)
@@ -268,7 +276,7 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
             method="POST",
             path=["invite"],
             body={"email": email, "data": data},
-            query_params=redirect_to_as_query(redirect_to),
+            query=redirect_to_as_query(redirect_to),
         )
         return parse_user_response(response)
 
@@ -283,7 +291,7 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
             method="POST",
             path=["admin", "generate_link"],
             body=params.body,
-            query_params=redirect_to_as_query(params.redirect_to),
+            query=redirect_to_as_query(params.redirect_to),
         )
 
         return parse_link_response(response)
@@ -313,10 +321,16 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
+        query = URLQuery.from_mapping(
+            {
+                "page": page if page is not None else "",
+                "per_page": per_page if per_page is not None else "",
+            }
+        )
         response = yield EmptyRequest(
             method="GET",
             path=["admin", "users"],
-            query_params=QueryParams(page=page, per_page=per_page),
+            query=query,
         )
         return validate_model(response, UserList).users
 
@@ -379,39 +393,55 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
     def __init__(
         self,
         url: str,
+        http_session: HttpSession,
         default_headers: dict[str, str] | None = None,
-        http_client: Client | None = None,
     ) -> None:
         SupabaseAuthAdmin.__init__(
             self,
-            executor=SyncHttpIO(
-                session=http_client
-                or Client(
-                    http2=True,
-                    verify=True,
-                )
-            ),
+            executor=SyncHttpIO(session=http_session),
             base_url=URL(url),
-            default_headers=Headers(default_headers),
+            default_headers=Headers.from_mapping(default_headers)
+            if default_headers
+            else Headers.empty(),
         )
+
+    def __enter__(self) -> SyncSupabaseAuthAdmin:
+        self.executor.session.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.executor.session.__exit__(exc_type, exc, tb)
 
 
 class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
     def __init__(
         self,
         url: str,
+        http_session: AsyncHttpSession,
         default_headers: dict[str, str] | None = None,
-        http_client: AsyncClient | None = None,
     ) -> None:
         SupabaseAuthAdmin.__init__(
             self,
-            executor=AsyncHttpIO(
-                session=http_client
-                or AsyncClient(
-                    http2=True,
-                    verify=True,
-                )
-            ),
+            executor=AsyncHttpIO(session=http_session),
             base_url=URL(url),
-            default_headers=Headers(default_headers),
+            default_headers=Headers.from_mapping(default_headers)
+            if default_headers
+            else Headers.empty(),
         )
+
+    async def __aenter__(self) -> AsyncSupabaseAuthAdmin:
+        await self.executor.session.__aenter__()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        await self.executor.session.__aexit__(exc_type, exc, tb)

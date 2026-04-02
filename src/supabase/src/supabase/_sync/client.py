@@ -1,6 +1,6 @@
 import copy
 import re
-from typing import Dict, List, Literal, Optional, Union, overload
+from typing import Dict, List, Literal, overload
 
 from postgrest import SyncPostgrestClient
 from postgrest.request_builder import (
@@ -14,7 +14,7 @@ from storage3 import SyncStorageClient
 from supabase_auth import SyncMemoryStorage, SyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
-from supabase_utils.http import SyncHttpIO
+from supabase_utils.http.io import SyncHttpIO
 from yarl import URL
 
 from ..lib.client_options import SyncClientOptions as ClientOptions
@@ -36,7 +36,7 @@ class Client:
         self,
         supabase_url: str,
         supabase_key: str,
-        options: Optional[ClientOptions] = None,
+        options: ClientOptions | None = None,
     ) -> None:
         """Instantiate the client.
 
@@ -91,9 +91,9 @@ class Client:
             supabase_key=self.supabase_key,
             options=self.options.realtime if self.options else None,
         )
-        self._postgrest: Optional[SyncPostgrestClient] = None
-        self._storage: Optional[SyncStorageClient] = None
-        self._functions: Optional[SyncFunctionsClient] = None
+        self._postgrest: SyncPostgrestClient | None = None
+        self._storage: SyncStorageClient | None = None
+        self._functions: SyncFunctionsClient | None = None
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
@@ -101,7 +101,7 @@ class Client:
         cls,
         supabase_url: str,
         supabase_key: str,
-        options: Optional[ClientOptions] = None,
+        options: ClientOptions | None = None,
     ) -> "Client":
         auth_header = options.headers.get("Authorization") if options else None
         client = cls(supabase_url, supabase_key, options)
@@ -151,7 +151,7 @@ class Client:
         self,
         fn: str,
         head: Literal[False],
-        params: Optional[Dict[str, str]] = None,
+        params: Dict[str, str] | None = None,
         count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCFilterRequestBuilder[SyncHttpIO]: ...
@@ -161,7 +161,7 @@ class Client:
         self,
         fn: str,
         head: Literal[True],
-        params: Optional[Dict[str, str]] = None,
+        params: Dict[str, str] | None = None,
         count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCCountRequestBuilder[SyncHttpIO]: ...
@@ -176,8 +176,8 @@ class Client:
         self,
         fn: str,
         head: bool = False,
-        params: Optional[Dict[str, str]] = None,
-        count: Optional[CountMethod] = None,
+        params: Dict[str, str] | None = None,
+        count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCFilterRequestBuilder[SyncHttpIO] | RPCCountRequestBuilder[SyncHttpIO]:
         """Performs a stored procedure call.
@@ -231,13 +231,12 @@ class Client:
             self._functions = SyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
-                timeout=self.options.function_client_timeout,
                 http_client=self.options.httpx_client,
             )
         return self._functions
 
     def channel(
-        self, topic: str, params: Optional[RealtimeChannelOptions] = None
+        self, topic: str, params: RealtimeChannelOptions | None = None
     ) -> SyncRealtimeChannel:
         """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
         return self.realtime.channel(topic, params or {})
@@ -258,7 +257,7 @@ class Client:
     def _init_realtime_client(
         realtime_url: URL,
         supabase_key: str,
-        options: Optional[RealtimeClientOptions] = None,
+        options: RealtimeClientOptions | None = None,
     ) -> SyncRealtimeClient:
         realtime_options = options or {}
         """Private method for creating an instance of the realtime-py client."""
@@ -270,8 +269,8 @@ class Client:
     def _init_storage_client(
         storage_url: str,
         headers: Dict[str, str],
-        storage_client_timeout: Optional[int] = None,
-        http_client: Union[SyncHttpxClient, None] = None,
+        storage_client_timeout: int | None = None,
+        http_client: SyncHttpxClient | None = None,
     ) -> SyncStorageClient:
         return SyncStorageClient(
             url=storage_url,
@@ -301,7 +300,7 @@ class Client:
         rest_url: str,
         headers: Dict[str, str],
         schema: str,
-        http_client: Union[SyncHttpxClient, None] = None,
+        http_client: SyncHttpxClient | None = None,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         if http_client is not None:
@@ -319,7 +318,7 @@ class Client:
     def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
-    def _get_auth_headers(self, authorization: Optional[str] = None) -> Dict[str, str]:
+    def _get_auth_headers(self, authorization: str | None = None) -> Dict[str, str]:
         if authorization is None:
             authorization = self.options.headers.get(
                 "Authorization", self._create_auth_header(self.supabase_key)
@@ -332,7 +331,7 @@ class Client:
         }
 
     def _listen_to_auth_events(
-        self, event: AuthChangeEvent, session: Optional[Session]
+        self, event: AuthChangeEvent, session: Session | None
     ) -> None:
         access_token = self.supabase_key
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
@@ -343,13 +342,15 @@ class Client:
             access_token = session.access_token if session else self.supabase_key
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
-        self.auth.default_headers["Authorization"] = auth_header
+        self.auth.default_headers = self.auth.default_headers.override(
+            "Authorization", auth_header
+        )
 
 
 def create_client(
     supabase_url: str,
     supabase_key: str,
-    options: Optional[ClientOptions] = None,
+    options: ClientOptions | None = None,
 ) -> Client:
     """Create client function to instantiate supabase client like JS runtime.
 
