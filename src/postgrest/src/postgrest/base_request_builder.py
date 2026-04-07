@@ -267,11 +267,26 @@ class BaseFilterRequestBuilder(Generic[C]):
         self.request: RequestConfig[C] = request
         self.negate_next = False
 
+    def _clone(self: Self) -> Self:
+        new_request = RequestConfig(
+            session=self.request.session,
+            path=self.request.path,
+            http_method=self.request.http_method,
+            headers=Headers(self.request.headers),
+            params=QueryParams(self.request.params),
+            auth=self.request.auth,
+            json=self.request.json,
+        )
+        new_builder = self.__class__(new_request)
+        new_builder.negate_next = self.negate_next
+        return new_builder
+
     @property
     def not_(self: Self) -> Self:
         """Whether the filter applied next should be negated."""
-        self.negate_next = True
-        return self
+        new_builder = self._clone()
+        new_builder.negate_next = True
+        return new_builder
 
     def filter(self: Self, column: str, operator: str, criteria: str) -> Self:
         """Apply filters on a query.
@@ -281,12 +296,13 @@ class BaseFilterRequestBuilder(Generic[C]):
             operator: The operator to use while filtering
             criteria: The value to filter by
         """
-        if self.negate_next is True:
-            self.negate_next = False
+        new_builder = self._clone()
+        if new_builder.negate_next is True:
+            new_builder.negate_next = False
             operator = f"{Filters.NOT}.{operator}"
         key, val = sanitize_param(column), f"{operator}.{criteria}"
-        self.request.params = self.request.params.add(key, val)
-        return self
+        new_builder.request.params = new_builder.request.params.add(key, val)
+        return new_builder
 
     def eq(self: Self, column: str, value: Any) -> Self:
         """An 'equal to' filter.
@@ -418,9 +434,10 @@ class BaseFilterRequestBuilder(Generic[C]):
             filters: The filters to use, following PostgREST syntax
             reference_table: Set this to filter on referenced tables instead of the parent table
         """
+        new_builder = self._clone()
         key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
-        self.request.params = self.request.params.add(key, f"({filters})")
-        return self
+        new_builder.request.params = new_builder.request.params.add(key, f"({filters})")
+        return new_builder
 
     def fts(self: Self, column: str, query: Any) -> Self:
         return self.filter(column, Filters.FTS, query)
@@ -525,7 +542,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             )
 
         for key, value in query.items():
-            updated_query = self.eq(key, value)
+            updated_query = updated_query.eq(key, value)
 
         return updated_query
 
