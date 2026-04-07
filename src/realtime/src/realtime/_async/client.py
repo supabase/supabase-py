@@ -4,7 +4,7 @@ import logging
 import re
 import sys
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 from urllib.parse import urlencode, urlparse, urlunparse
 from warnings import warn
 
@@ -51,6 +51,7 @@ class AsyncRealtimeClient:
         max_retries: int = 5,
         initial_backoff: float = 1.0,
         timeout: int = DEFAULT_TIMEOUT,
+        access_token: Optional[Callable[[], Union[Awaitable[Optional[str]], Optional[str]]]] = None,
     ) -> None:
         """
         Initialize a RealtimeClient instance for WebSocket communication.
@@ -64,6 +65,11 @@ class AsyncRealtimeClient:
         :param max_retries: Maximum number of reconnection attempts. Defaults to 5.
         :param initial_backoff: Initial backoff time (in seconds) for reconnection attempts. Defaults to 1.0.
         :param timeout: Connection timeout in seconds. Defaults to DEFAULT_TIMEOUT.
+        :param access_token: Optional callable that returns a fresh access token (sync or async).
+                             When provided, the client calls it on every connect and reconnect to
+                             obtain an up-to-date token, ensuring stale tokens are never used after
+                             a disconnect. Takes precedence over the static ``token`` parameter for
+                             channel-level auth.
         """
         if not is_ws_url(url):
             raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
@@ -81,6 +87,7 @@ class AsyncRealtimeClient:
         self.params = params or {}
         self.apikey = token
         self.access_token = token
+        self._access_token_getter = access_token
         self.send_buffer: List[Callable] = []
         self.hb_interval = hb_interval
         self._ws_connection: Optional[ClientConnection] = None
@@ -96,6 +103,21 @@ class AsyncRealtimeClient:
     @property
     def is_connected(self) -> bool:
         return self._ws_connection is not None
+
+    async def _get_token(self) -> Optional[str]:
+        """Resolve the current access token.
+
+        If an ``access_token`` callable was provided at initialisation, calls it
+        (awaiting the result when it is a coroutine) and updates
+        ``self.access_token`` with the fresh value.  Falls back to the static
+        token stored at init time when no getter is configured.
+        """
+        if self._access_token_getter is not None:
+            result = self._access_token_getter()
+            if asyncio.iscoroutine(result):
+                result = await result
+            self.access_token = result
+        return self.access_token
 
     async def _listen(self) -> None:
         """
@@ -123,6 +145,7 @@ class AsyncRealtimeClient:
 
     async def _reconnect(self) -> None:
         self._ws_connection = None
+        await self._get_token()
 
         to_rejoin = [
             chan
@@ -159,6 +182,8 @@ class AsyncRealtimeClient:
         if self.is_connected:
             logger.debug("WebSocket connection already established")
             return
+
+        await self._get_token()
 
         retries = 0
         backoff = self.initial_backoff

@@ -236,17 +236,30 @@ class AsyncClient:
         """Unsubscribes and removes all Realtime channels from Realtime client."""
         await self.realtime.remove_all_channels()
 
-    @staticmethod
     def _init_realtime_client(
+        self,
         realtime_url: URL,
         supabase_key: str,
         options: Optional[RealtimeClientOptions] = None,
     ) -> AsyncRealtimeClient:
-        realtime_options = options or {}
         """Private method for creating an instance of the realtime-py client."""
+        realtime_options = options or {}
         return AsyncRealtimeClient(
-            str(realtime_url), token=supabase_key, **realtime_options
+            str(realtime_url),
+            token=supabase_key,
+            access_token=self._get_realtime_token,
+            **realtime_options,
         )
+
+    async def _get_realtime_token(self) -> Optional[str]:
+        """Pull the current access token from the Auth client for Realtime."""
+        try:
+            session = await self.auth.get_session()
+            if session:
+                return session.access_token
+        except Exception:
+            pass
+        return self.supabase_key
 
     @staticmethod
     def _init_storage_client(
