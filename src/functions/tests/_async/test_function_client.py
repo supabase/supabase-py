@@ -205,6 +205,61 @@ async def test_invoke_with_json_body(client: AsyncFunctionsClient) -> None:
         assert kwargs["headers"]["Content-Type"] == "application/json"
 
 
+async def test_invoke_with_get_method(client: AsyncFunctionsClient) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.content = b"get response"
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        result = await client.invoke("test-function", {"method": "GET"})
+
+        assert result == b"get response"
+        args, _ = mock_request.call_args
+        assert args[0] == "GET"
+
+
+async def test_invoke_with_put_method(client: AsyncFunctionsClient) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"updated": True}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        result = await client.invoke(
+            "test-function", {"method": "PUT", "responseType": "json", "body": {"key": "value"}}
+        )
+
+        assert result == {"updated": True}
+        args, _ = mock_request.call_args
+        assert args[0] == "PUT"
+
+
+async def test_invoke_defaults_to_post(client: AsyncFunctionsClient) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.content = b"response"
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        await client.invoke("test-function")
+
+        args, _ = mock_request.call_args
+        assert args[0] == "POST"
+
+
 async def test_init_with_httpx_client() -> None:
     # Create a custom httpx client with specific options
     headers = {"x-user-agent": "my-app/0.0.1"}

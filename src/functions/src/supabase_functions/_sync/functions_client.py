@@ -131,6 +131,7 @@ class SyncFunctionsClient:
             `headers`: object representing the headers to send with the request
             `body`: the body of the request
             `responseType`: how the response should be parsed. The default is `json`
+            `method`: the HTTP method to use. Defaults to `POST`
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
@@ -138,10 +139,12 @@ class SyncFunctionsClient:
         params = QueryParams()
         body = None
         response_type = "text/plain"
+        method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"] = "POST"
 
         if invoke_options is not None:
             headers.update(invoke_options.get("headers", {}))
             response_type = invoke_options.get("responseType", "text/plain")
+            method = invoke_options.get("method", "POST")
 
             region = invoke_options.get("region")
             if region:
@@ -161,7 +164,7 @@ class SyncFunctionsClient:
                 headers["Content-Type"] = "application/json"
 
         response = self._request(
-            "POST", [function_name], headers=headers, json=body, params=params
+            method, [function_name], headers=headers, json=body, params=params
         )
         is_relay_error = response.headers.get("x-relay-header")
 
