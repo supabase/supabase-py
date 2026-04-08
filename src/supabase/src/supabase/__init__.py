@@ -24,11 +24,7 @@ from ._async.client import AsyncClient as AClient
 from ._async.client import AsyncStorageClient as ASupabaseStorageClient
 from ._async.client import SupabaseException as ASupabaseException
 from ._async.client import SupabaseException as AsyncSupabaseException
-from ._async.client import create_client as acreate_client
-from ._async.client import create_client as create_async_client
-
-# Sync Client
-from ._sync.client import Client, SupabaseException, create_client
+from ._sync.client import Client
 from ._sync.client import SupabaseException as SyncSupabaseException
 from ._sync.client import SyncStorageClient as SupabaseStorageClient
 
@@ -41,15 +37,12 @@ from .lib.client_options import SyncClientOptions as ClientOptions
 from .version import __version__
 
 __all__ = (
-    "acreate_client",
-    "create_async_client",
     "AClient",
     "ASupabaseAuthClient",
     "ASupabaseStorageClient",
     "AClientOptions",
     "AsyncClient",
     "AsyncClientOptions",
-    "create_client",
     "Client",
     "SupabaseAuthClient",
     "SupabaseStorageClient",

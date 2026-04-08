@@ -1,10 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Dict
 
-from httpx import AsyncClient as AsyncHttpxClient
-from httpx import Client as SyncHttpxClient
-from httpx import Timeout
-from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from supabase_auth import (
     AsyncMemoryStorage,
     AsyncSupportedStorage,
@@ -12,7 +8,6 @@ from supabase_auth import (
     SyncMemoryStorage,
     SyncSupportedStorage,
 )
-from supabase_functions.utils import DEFAULT_FUNCTION_CLIENT_TIMEOUT
 
 from supabase.types import RealtimeClientOptions
 
@@ -41,15 +36,6 @@ class ClientOptions:
     realtime: RealtimeClientOptions | None = None
     """Options passed to the realtime-py instance"""
 
-    postgrest_client_timeout: int | float | Timeout = DEFAULT_POSTGREST_CLIENT_TIMEOUT
-    """Timeout passed to the SyncPostgrestClient instance."""
-
-    storage_client_timeout: int | None = None
-    """Timeout passed to the SyncStorageClient instance"""
-
-    function_client_timeout: int = DEFAULT_FUNCTION_CLIENT_TIMEOUT
-    """Timeout passed to the SyncFunctionsClient instance."""
-
     flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""
 
@@ -59,9 +45,6 @@ class AsyncClientOptions(ClientOptions):
     storage: AsyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
 
-    httpx_client: AsyncHttpxClient | None = None
-    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
-
     def replace(
         self,
         schema: str | None = None,
@@ -70,10 +53,6 @@ class AsyncClientOptions(ClientOptions):
         persist_session: bool | None = None,
         storage: AsyncSupportedStorage | None = None,
         realtime: RealtimeClientOptions | None = None,
-        httpx_client: AsyncHttpxClient | None = None,
-        postgrest_client_timeout: int
-        | float
-        | Timeout = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         storage_client_timeout: int | None = None,
         flow_type: AuthFlowType | None = None,
     ) -> "AsyncClientOptions":
@@ -87,13 +66,6 @@ class AsyncClientOptions(ClientOptions):
         client_options.persist_session = persist_session or self.persist_session
         client_options.storage = storage or self.storage
         client_options.realtime = realtime or self.realtime
-        client_options.httpx_client = httpx_client or self.httpx_client
-        client_options.postgrest_client_timeout = (
-            postgrest_client_timeout or self.postgrest_client_timeout
-        )
-        client_options.storage_client_timeout = (
-            storage_client_timeout or self.storage_client_timeout
-        )
         client_options.flow_type = flow_type or self.flow_type
         return client_options
 
@@ -102,8 +74,6 @@ class AsyncClientOptions(ClientOptions):
 class SyncClientOptions(ClientOptions):
     storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
-    httpx_client: SyncHttpxClient | None = None
-    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
 
     def replace(
         self,
@@ -112,11 +82,6 @@ class SyncClientOptions(ClientOptions):
         auto_refresh_token: bool | None = None,
         persist_session: bool | None = None,
         storage: SyncSupportedStorage | None = None,
-        realtime: RealtimeClientOptions | None = None,
-        httpx_client: SyncHttpxClient | None = None,
-        postgrest_client_timeout: int
-        | float
-        | Timeout = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         storage_client_timeout: int | None = None,
         flow_type: AuthFlowType | None = None,
     ) -> "SyncClientOptions":
@@ -129,13 +94,5 @@ class SyncClientOptions(ClientOptions):
         )
         client_options.persist_session = persist_session or self.persist_session
         client_options.storage = storage or self.storage
-        client_options.realtime = realtime or self.realtime
-        client_options.httpx_client = httpx_client or self.httpx_client
-        client_options.postgrest_client_timeout = (
-            postgrest_client_timeout or self.postgrest_client_timeout
-        )
-        client_options.storage_client_timeout = (
-            storage_client_timeout or self.storage_client_timeout
-        )
         client_options.flow_type = flow_type or self.flow_type
         return client_options

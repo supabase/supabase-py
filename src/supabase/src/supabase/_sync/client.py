@@ -1,6 +1,7 @@
 import copy
 import re
-from typing import Dict, List, Literal, overload
+from types import TracebackType
+from typing import Dict, Literal, overload
 
 from postgrest import SyncPostgrestClient
 from postgrest.request_builder import (
@@ -9,17 +10,14 @@ from postgrest.request_builder import (
     RPCFilterRequestBuilder,
 )
 from postgrest.types import CountMethod
-from realtime import RealtimeChannelOptions, SyncRealtimeChannel, SyncRealtimeClient
 from storage3 import SyncStorageClient
 from supabase_auth import SyncMemoryStorage, SyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
-from supabase_utils.http.io import SyncHttpIO
+from supabase_utils.http.io import HttpSession, SyncHttpIO
 from yarl import URL
 
 from ..lib.client_options import SyncClientOptions as ClientOptions
-from ..lib.client_options import SyncHttpxClient
-from ..types import RealtimeClientOptions
 
 
 # Create an exception class when user does not provide a valid url or key.
@@ -36,6 +34,7 @@ class Client:
         self,
         supabase_url: str,
         supabase_key: str,
+        http_session: HttpSession,
         options: ClientOptions | None = None,
     ) -> None:
         """Instantiate the client.
@@ -63,6 +62,8 @@ class Client:
         if options is None:
             options = ClientOptions(storage=SyncMemoryStorage())
 
+        self.http_session: HttpSession = http_session
+
         self.supabase_url = (
             URL(supabase_url) if supabase_url.endswith("/") else URL(supabase_url + "/")
         )
@@ -74,9 +75,6 @@ class Client:
         }
 
         self.rest_url = self.supabase_url.joinpath("rest", "v1")
-        self.realtime_url = self.supabase_url.joinpath("realtime", "v1").with_scheme(
-            "wss" if self.supabase_url.scheme == "https" else "ws"
-        )
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
         self.storage_url = self.supabase_url.joinpath("storage", "v1", "")
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
@@ -85,11 +83,7 @@ class Client:
         self.auth = self._init_supabase_auth_client(
             auth_url=str(self.auth_url),
             client_options=self.options,
-        )
-        self.realtime = self._init_realtime_client(
-            realtime_url=self.realtime_url,
-            supabase_key=self.supabase_key,
-            options=self.options.realtime if self.options else None,
+            http_session=self.http_session,
         )
         self._postgrest: SyncPostgrestClient | None = None
         self._storage: SyncStorageClient | None = None
@@ -101,10 +95,11 @@ class Client:
         cls,
         supabase_url: str,
         supabase_key: str,
+        http_session: HttpSession,
         options: ClientOptions | None = None,
     ) -> "Client":
         auth_header = options.headers.get("Authorization") if options else None
-        client = cls(supabase_url, supabase_key, options)
+        client = cls(supabase_url, supabase_key, http_session, options)
 
         if auth_header is None:
             try:
@@ -122,6 +117,17 @@ class Client:
             )
 
         return client
+
+    def __enter__(self) -> "Client":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[Exception] | None,
+        exc: Exception | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.http_session.__exit__(exc_type, exc, tb)
 
     def table(self, table_name: str) -> RequestBuilder[SyncHttpIO]:
         """Perform a table operation.
@@ -170,37 +176,19 @@ class Client:
     def rpc(
         self,
         fn: str,
-    ) -> RPCFilterRequestBuilder[SyncHttpIO]: ...
+    ) -> RPCCountRequestBuilder[SyncHttpIO]: ...
 
     def rpc(
         self,
         fn: str,
         head: bool = False,
-        params: Dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
         count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCFilterRequestBuilder[SyncHttpIO] | RPCCountRequestBuilder[SyncHttpIO]:
-        """Performs a stored procedure call.
-
-        Parameters
-        ----------
-        fn : callable
-            The stored procedure call to be executed.
-        params : dict of any
-            Parameters passed into the stored procedure call.
-        count: The method to use to get the count of rows returned.
-        head: When set to `true`, `data` will not be returned. Useful if you only need the count.
-        get: When set to `true`, the function will be called with read-only access mode.
-
-        Returns
-        -------
-        SyncFilterRequestBuilder
-            Returns a filter builder. This lets you apply filters on the response
-            of an RPC.
-        """
-        return self.postgrest.rpc(
-            fn, params=params or {}, head=head, count=count, get=get
-        )
+        if params is None:
+            params = {}
+        return self.postgrest.rpc(fn, params, head=head, count=count, get=get)
 
     @property
     def postgrest(self) -> SyncPostgrestClient:
@@ -209,7 +197,7 @@ class Client:
                 rest_url=str(self.rest_url),
                 headers=self.options.headers,
                 schema=self.options.schema,
-                http_client=self.options.httpx_client,
+                http_session=self.http_session,
             )
 
         return self._postgrest
@@ -220,8 +208,7 @@ class Client:
             self._storage = self._init_storage_client(
                 storage_url=str(self.storage_url),
                 headers=self.options.headers,
-                storage_client_timeout=self.options.storage_client_timeout,
-                http_client=self.options.httpx_client,
+                http_session=self.http_session,
             )
         return self._storage
 
@@ -231,58 +218,26 @@ class Client:
             self._functions = SyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
-                http_client=self.options.httpx_client,
             )
         return self._functions
-
-    def channel(
-        self, topic: str, params: RealtimeChannelOptions | None = None
-    ) -> SyncRealtimeChannel:
-        """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
-        return self.realtime.channel(topic, params or {})
-
-    def get_channels(self) -> List[SyncRealtimeChannel]:
-        """Returns all realtime channels."""
-        return self.realtime.get_channels()
-
-    def remove_channel(self, channel: SyncRealtimeChannel) -> None:
-        """Unsubscribes and removes Realtime channel from Realtime client."""
-        self.realtime.remove_channel(channel)
-
-    def remove_all_channels(self) -> None:
-        """Unsubscribes and removes all Realtime channels from Realtime client."""
-        self.realtime.remove_all_channels()
-
-    @staticmethod
-    def _init_realtime_client(
-        realtime_url: URL,
-        supabase_key: str,
-        options: RealtimeClientOptions | None = None,
-    ) -> SyncRealtimeClient:
-        realtime_options = options or {}
-        """Private method for creating an instance of the realtime-py client."""
-        return SyncRealtimeClient(
-            str(realtime_url), token=supabase_key, **realtime_options
-        )
 
     @staticmethod
     def _init_storage_client(
         storage_url: str,
         headers: Dict[str, str],
-        storage_client_timeout: int | None = None,
-        http_client: SyncHttpxClient | None = None,
+        http_session: HttpSession,
     ) -> SyncStorageClient:
         return SyncStorageClient(
             url=storage_url,
             headers=headers,
-            timeout=storage_client_timeout,
-            http_client=http_client,
+            http_session=http_session,
         )
 
     @staticmethod
     def _init_supabase_auth_client(
         auth_url: str,
         client_options: ClientOptions,
+        http_session: HttpSession,
     ) -> SyncSupabaseAuthClient:
         """Creates a wrapped instance of the GoTrue Client."""
         return SyncSupabaseAuthClient(
@@ -292,7 +247,7 @@ class Client:
             storage=client_options.storage,
             headers=client_options.headers,
             flow_type=client_options.flow_type,
-            http_client=client_options.httpx_client,
+            http_session=http_session,
         )
 
     @staticmethod
@@ -300,19 +255,14 @@ class Client:
         rest_url: str,
         headers: Dict[str, str],
         schema: str,
-        http_client: SyncHttpxClient | None = None,
+        http_session: HttpSession,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
-        if http_client is not None:
-            # If an http client is provided, use it
-            return SyncPostgrestClient(
-                rest_url, headers=headers, schema=schema, http_client=http_client
-            )
         return SyncPostgrestClient(
             rest_url,
             headers=headers,
             schema=schema,
-            http_client=None,
+            http_session=http_session,
         )
 
     def _create_auth_header(self, token: str) -> str:
@@ -345,39 +295,3 @@ class Client:
         self.auth.default_headers = self.auth.default_headers.override(
             "Authorization", auth_header
         )
-
-
-def create_client(
-    supabase_url: str,
-    supabase_key: str,
-    options: ClientOptions | None = None,
-) -> Client:
-    """Create client function to instantiate supabase client like JS runtime.
-
-    Parameters
-    ----------
-    supabase_url: str
-        The URL to the Supabase instance that should be connected to.
-    supabase_key: str
-        The API key to the Supabase instance that should be connected to.
-    **options
-        Any extra settings to be optionally specified - also see the
-        `DEFAULT_OPTIONS` dict.
-
-    Examples
-    --------
-    Instantiating the client.
-    >>> import os
-    >>> from supabase import create_client, Client
-    >>>
-    >>> url: str = os.environ.get("SUPABASE_TEST_URL")
-    >>> key: str = os.environ.get("SUPABASE_TEST_KEY")
-    >>> supabase: Client = create_client(url, key)
-
-    Returns
-    -------
-    Client
-    """
-    return Client.create(
-        supabase_url=supabase_url, supabase_key=supabase_key, options=options
-    )

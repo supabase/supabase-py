@@ -97,8 +97,8 @@ class PostgrestClient(Generic[HttpIO]):
         params: dict[str, str],
         *,
         head: Literal[False],
-        count: CountMethod | None = None,
-        get: bool = False,
+        count: CountMethod | None,
+        get: bool = ...,
     ) -> RPCFilterRequestBuilder[HttpIO]: ...
 
     @overload
@@ -108,8 +108,8 @@ class PostgrestClient(Generic[HttpIO]):
         params: dict[str, str],
         *,
         head: Literal[True],
-        count: CountMethod | None = None,
-        get: bool = False,
+        count: CountMethod | None,
+        get: bool,
     ) -> RPCCountRequestBuilder[HttpIO]: ...
 
     @overload
@@ -134,18 +134,40 @@ class PostgrestClient(Generic[HttpIO]):
         func: str,
         params: dict[str, str],
         *,
-        count: CountMethod | None = None,
+        count: CountMethod | None,
         get: Literal[False],
     ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]: ...
+
     @overload
     def rpc(
         self,
         func: str,
         params: dict[str, str],
         *,
-        count: CountMethod | None = None,
+        count: CountMethod | None,
         get: Literal[True],
     ) -> RPCFilterRequestBuilder[HttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        func: str,
+        params: dict[str, str],
+        *,
+        count: CountMethod | None,
+        head: Literal[True],
+    ) -> RPCFilterRequestBuilder[HttpIO]: ...
+
+    @overload
+    def rpc(
+        self,
+        func: str,
+        params: dict[str, str],
+        *,
+        head: bool = ...,
+        count: CountMethod | None = ...,
+        get: bool = ...,
+    ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]: ...
 
     def rpc(
         self,
@@ -170,12 +192,6 @@ class PostgrestClient(Generic[HttpIO]):
             .. code-block:: python
 
                 await client.rpc("foobar", {"arg": "value"}).execute()
-
-        .. versionchanged:: 0.10.9
-            This method now returns a :class:`AsyncRPCFilterRequestBuilder`.
-        .. versionchanged:: 0.10.2
-            This method now returns a :class:`AsyncFilterRequestBuilder` which allows you to
-            filter on the RPC's resultset.
         """
         method: HTTPRequestMethod = "HEAD" if head else "GET" if get else "POST"
 
