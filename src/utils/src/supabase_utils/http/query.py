@@ -22,7 +22,7 @@ class URLQuery:
     def from_mapping(mapping: Mapping[str, QueryValue]) -> URLQuery:
         map: PMap[str, PVector[QueryValue]] = Map()
         for key, val in mapping.items():
-            map = map.set(key.lower(), Vec(val))
+            map = map.set(key, Vec(val))
         return URLQuery(pmap=map)
 
     def set(self, key: str, val: QueryValue) -> URLQuery:
