@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import platform
+import warnings
 from types import TracebackType
 from typing import Generic
 
@@ -54,7 +55,7 @@ class StorageClient(Generic[HttpIO]):
 
         self.executor: HttpIO = executor
         if url and url[-1] != "/":
-            print("Storage endpoint URL should have a trailing slash.")
+            warnings.warn("Storage endpoint URL should have a trailing slash.")
             url += "/"
         self.base_url = URL(url)
         self.default_headers = Headers.from_mapping(headers)
