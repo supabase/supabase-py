@@ -38,6 +38,10 @@ repository = "https://github.com/supabase/supabase-py"
 documentation = "https://github.com/supabase/supabase-py/src/supabase"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
+[project.optional-dependencies]
+httpx = ["supabase_utils[httpx]"]
+aiohttp = ["supabase_utils[aiohttp]"]
+
 [dependency-groups]
 dev = [
   { include-group = "tests" },
