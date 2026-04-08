@@ -1,6 +1,6 @@
 [project]
 name = "supabase_functions"
-version = "2.28.3" # {x-release-please-version}
+version = "3.0.0a1" # {x-release-please-version}
 description = "Library for Supabase Functions"
 authors = [
   { name = "Joel Lee", email = "joel@joellee.org" },
@@ -13,10 +13,9 @@ license = "MIT"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "httpx[http2] >=0.26,<0.29",
   "pydantic>=2.12.2",
   "strenum >=0.4.15",
-  "supabase-utils==2.28.0", # x-release-please-version
+  "supabase-utils==3.0.0a1", # x-release-please-version
   "yarl>=1.20.1",
 ]
 
@@ -32,6 +31,7 @@ tests = [
   "pytest >=7.4.2,<9.0.0",
   "pytest-cov >=4,<7",
   "pytest-asyncio >=0.21.1,<1.2.0",
+  "supabase_utils[all]",
 ]
 lints = [
   "ruff >=0.12.1",

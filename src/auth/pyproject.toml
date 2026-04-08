@@ -1,6 +1,6 @@
 [project]
 name = "supabase_auth"
-version = "2.28.3" # {x-release-please-version}
+version = "3.0.0a1" # {x-release-please-version}
 description = "Python Client Library for Supabase Auth"
 authors = [
   {name = "Joel Lee", email = "joel@joellee.org" }
@@ -19,7 +19,7 @@ requires-python = ">=3.10"
 dependencies = [
   "pydantic >=2,<3",
   "pyjwt[crypto] >=2.10.1",
-  "supabase_utils == 2.28.0", # x-release-please-version
+  "supabase_utils == 3.0.0a1", # x-release-please-version
 ]
 
 [project.urls]

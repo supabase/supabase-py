@@ -1,6 +1,6 @@
 [project]
 name = "supabase_utils"
-version = "2.28.0" # {x-release-please-version}
+version = "3.0.0a1" # {x-release-please-version}
 authors = [
   { name = "Leonardo Santiago", email="leonardo.santiago@supabase.io" }
 ]

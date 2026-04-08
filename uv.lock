@@ -1711,11 +1711,10 @@ wheels = [
 
 [[package]]
 name = "postgrest"
-version = "2.28.3"
+version = "3.0.0a1"
 source = { editable = "src/postgrest" }
 dependencies = [
     { name = "deprecation" },
-    { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
     { name = "strenum", marker = "python_full_version < '3.11'" },
     { name = "supabase-utils" },
@@ -1732,6 +1731,7 @@ dev = [
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
     { name = "ruff" },
+    { name = "supabase-utils", extra = ["all"] },
     { name = "unasync" },
 ]
 docs = [
@@ -1750,13 +1750,13 @@ test = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-depends" },
+    { name = "supabase-utils", extra = ["all"] },
     { name = "unasync" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "deprecation", specifier = ">=2.1.0" },
-    { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=1.9,<3.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.9" },
     { name = "supabase-utils", editable = "src/utils" },
@@ -1773,6 +1773,7 @@ dev = [
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 docs = [
@@ -1790,6 +1791,7 @@ test = [
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "pytest-depends", specifier = ">=1.0.1" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 
@@ -2901,7 +2903,7 @@ wheels = [
 
 [[package]]
 name = "storage3"
-version = "2.28.3"
+version = "3.0.0a1"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
@@ -3019,10 +3021,9 @@ wheels = [
 
 [[package]]
 name = "supabase"
-version = "2.28.3"
+version = "3.0.0a1"
 source = { editable = "src/supabase" }
 dependencies = [
-    { name = "httpx" },
     { name = "postgrest" },
     { name = "realtime" },
     { name = "storage3" },
@@ -3030,6 +3031,14 @@ dependencies = [
     { name = "supabase-functions" },
     { name = "supabase-utils" },
     { name = "yarl" },
+]
+
+[package.optional-dependencies]
+aiohttp = [
+    { name = "supabase-utils", extra = ["aiohttp"] },
+]
+httpx = [
+    { name = "supabase-utils", extra = ["httpx"] },
 ]
 
 [package.dev-dependencies]
@@ -3040,6 +3049,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "python-dotenv" },
     { name = "ruff" },
+    { name = "supabase-utils", extra = ["all"] },
     { name = "unasync" },
 ]
 lints = [
@@ -3052,19 +3062,22 @@ tests = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "python-dotenv" },
+    { name = "supabase-utils", extra = ["all"] },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "httpx", specifier = ">=0.26,<0.29" },
     { name = "postgrest", editable = "src/postgrest" },
     { name = "realtime", editable = "src/realtime" },
     { name = "storage3", editable = "src/storage" },
     { name = "supabase-auth", editable = "src/auth" },
     { name = "supabase-functions", editable = "src/functions" },
     { name = "supabase-utils", editable = "src/utils" },
+    { name = "supabase-utils", extras = ["aiohttp"], marker = "extra == 'aiohttp'", editable = "src/utils" },
+    { name = "supabase-utils", extras = ["httpx"], marker = "extra == 'httpx'", editable = "src/utils" },
     { name = "yarl", specifier = ">=1.22.0" },
 ]
+provides-extras = ["httpx", "aiohttp"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3074,6 +3087,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "ruff", specifier = ">=0.12.1" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 lints = [
@@ -3086,14 +3100,14 @@ tests = [
     { name = "pytest-asyncio", specifier = ">=0.24,<1.1" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
 ]
 
 [[package]]
 name = "supabase-auth"
-version = "2.28.3"
+version = "3.0.0a1"
 source = { editable = "src/auth" }
 dependencies = [
-    { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "supabase-utils" },
@@ -3113,6 +3127,7 @@ dev = [
     { name = "python-lsp-server" },
     { name = "respx" },
     { name = "ruff" },
+    { name = "supabase-utils", extra = ["all"] },
     { name = "unasync" },
 ]
 lints = [
@@ -3131,11 +3146,11 @@ tests = [
     { name = "pytest-depends" },
     { name = "pytest-mock" },
     { name = "respx" },
+    { name = "supabase-utils", extra = ["all"] },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=2,<3" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10.1" },
     { name = "supabase-utils", editable = "src/utils" },
@@ -3155,6 +3170,7 @@ dev = [
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "respx", specifier = ">=0.20.2,<0.23.0" },
     { name = "ruff", specifier = ">=0.12.1" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 lints = [
@@ -3173,14 +3189,14 @@ tests = [
     { name = "pytest-depends", specifier = ">=1.0.1" },
     { name = "pytest-mock", specifier = ">=3.14.0" },
     { name = "respx", specifier = ">=0.20.2,<0.23.0" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
 ]
 
 [[package]]
 name = "supabase-functions"
-version = "2.28.3"
+version = "3.0.0a1"
 source = { editable = "src/functions" }
 dependencies = [
-    { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
     { name = "strenum" },
     { name = "supabase-utils" },
@@ -3197,6 +3213,7 @@ dev = [
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
     { name = "ruff" },
+    { name = "supabase-utils", extra = ["all"] },
 ]
 lints = [
     { name = "pylsp-mypy" },
@@ -3209,11 +3226,11 @@ tests = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "supabase-utils", extra = ["all"] },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=2.12.2" },
     { name = "strenum", specifier = ">=0.4.15" },
     { name = "supabase-utils", editable = "src/utils" },
@@ -3230,6 +3247,7 @@ dev = [
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
 ]
 lints = [
     { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
@@ -3242,11 +3260,12 @@ tests = [
     { name = "pytest", specifier = ">=7.4.2,<9.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.21.1,<1.2.0" },
     { name = "pytest-cov", specifier = ">=4,<7" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
 ]
 
 [[package]]
 name = "supabase-utils"
-version = "2.28.0"
+version = "3.0.0a1"
 source = { editable = "src/utils" }
 dependencies = [
     { name = "pydantic" },
