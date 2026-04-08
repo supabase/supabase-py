@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
 from pydantic import BaseModel
+from supabase_utils.http.request import Response
 
 
 class APIErrorFromJSON(BaseModel):
@@ -59,10 +60,10 @@ class APIError(Exception):
         return self._raw_error
 
 
-def generate_default_error_message(r):
+def generate_default_error_message(r: Response) -> dict[str, str]:
     return {
         "message": "JSON could not be generated",
-        "code": r.status_code,
+        "code": str(r.status),
         "hint": "Refer to full message for details",
         "details": str(r.content),
     }

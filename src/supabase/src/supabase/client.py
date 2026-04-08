@@ -21,11 +21,8 @@ from supabase_functions.errors import (
 # Async Client
 from ._async.client import AsyncClient
 from ._async.client import AsyncStorageClient as AsyncSupabaseStorageClient
-from ._async.client import create_client as acreate_client
-from ._async.client import create_client as create_async_client
 
 # Sync Client
-from ._sync.client import Client, create_client
 from ._sync.client import SyncStorageClient as SupabaseStorageClient
 
 # Lib
@@ -37,14 +34,10 @@ from .lib.client_options import SyncClientOptions as ClientOptions
 from .version import __version__
 
 __all__ = [
-    "acreate_client",
-    "create_async_client",
     "AClientOptions",
     "AsyncClient",
     "AsyncClientOptions",
     "AsyncSupabaseStorageClient",
-    "create_client",
-    "Client",
     "ClientOptions",
     "SupabaseStorageClient",
     "PostgrestAPIError",

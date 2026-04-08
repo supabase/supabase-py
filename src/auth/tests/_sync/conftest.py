@@ -1,12 +1,16 @@
 from dataclasses import dataclass
 from random import random
 from time import time
+from typing import Iterator
 
+import pytest
 from faker import Faker
+from httpx import Client
 from jwt import encode
+from supabase_utils.http.adapters.httpx import HttpxSession
 from typing_extensions import NotRequired, TypedDict
 
-from supabase_auth import AsyncSupabaseAuthAdmin, AsyncSupabaseAuthClient
+from supabase_auth import SyncSupabaseAuthAdmin, SyncSupabaseAuthClient
 from supabase_auth.types import (
     AdminUserAttributes,
     SignInWithPassword,
@@ -68,7 +72,8 @@ def mock_app_metadata() -> dict[str, list[str]]:
     }
 
 
-async def create_new_user_with_email(
+def create_new_user_with_email(
+    service_role_api_client: SyncSupabaseAuthAdmin,
     *,
     email: str | None = None,
     password: str | None = None,
@@ -79,7 +84,7 @@ async def create_new_user_with_email(
             "password": password,
         }
     )
-    response = await service_role_api_client().create_user(
+    response = service_role_api_client.create_user(
         AdminUserAttributes(email=credentials.email, password=credentials.password)
     )
     return response.user
@@ -114,86 +119,139 @@ AUTH_ADMIN_JWT = encode(
 )
 
 
-def auth_client() -> AsyncSupabaseAuthClient:
-    return AsyncSupabaseAuthClient(
+def httpx() -> HttpxSession:
+    return HttpxSession(client=Client(http2=True, verify=True))
+
+
+http_sessions = [httpx]
+
+
+@pytest.fixture(params=http_sessions)
+def auth_client(request: pytest.FixtureRequest) -> Iterator[SyncSupabaseAuthClient]:
+    with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=True,
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
-async def auth_client_with_session() -> AsyncSupabaseAuthClient:
-    client = AsyncSupabaseAuthClient(
+@pytest.fixture(params=http_sessions)
+def auth_client_with_session(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthClient]:
+    with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=False,
-    )
-    credentials = mock_user_credentials()
-    await client.sign_up(
-        SignUpWithPassword.email(email=credentials.email, password=credentials.password)
-    )
-    await client.sign_in_with_password(
-        SignInWithPassword.email(email=credentials.email, password=credentials.password)
-    )
-    return client
+        http_session=request.param(),
+    ) as client:
+        credentials = mock_user_credentials()
+        client.sign_up(
+            SignUpWithPassword.email(
+                email=credentials.email, password=credentials.password
+            )
+        )
+        client.sign_in_with_password(
+            SignInWithPassword.email(
+                email=credentials.email, password=credentials.password
+            )
+        )
+        yield client
 
 
-def auth_client_with_asymmetric_session() -> AsyncSupabaseAuthClient:
-    return AsyncSupabaseAuthClient(
+@pytest.fixture(params=http_sessions)
+def auth_client_with_asymmetric_session(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthClient]:
+    with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_ASYMMETRIC_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=False,
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
-def auth_subscription_client() -> AsyncSupabaseAuthClient:
-    return AsyncSupabaseAuthClient(
+@pytest.fixture(params=http_sessions)
+def auth_subscription_client(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthClient]:
+    with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=True,
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
-def client_api_auto_confirm_enabled_client() -> AsyncSupabaseAuthClient:
-    return AsyncSupabaseAuthClient(
+@pytest.fixture(params=http_sessions)
+def client_api_auto_confirm_enabled_client(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthClient]:
+    with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
         persist_session=True,
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
-def client_api_auto_confirm_off_signups_enabled_client() -> AsyncSupabaseAuthClient:
-    return AsyncSupabaseAuthClient(
+@pytest.fixture(params=http_sessions)
+def client_api_auto_confirm_off_signups_enabled_client(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthClient]:
+    with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
         persist_session=True,
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
-def client_api_auto_confirm_disabled_client() -> AsyncSupabaseAuthClient:
-    return AsyncSupabaseAuthClient(
+@pytest.fixture(params=http_sessions)
+def client_api_auto_confirm_disabled_client(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthClient]:
+    with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
         persist_session=True,
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
-def auth_admin_api_auto_confirm_enabled_client() -> AsyncSupabaseAuthAdmin:
-    return AsyncSupabaseAuthAdmin(
+@pytest.fixture(params=http_sessions)
+def auth_admin_api_auto_confirm_enabled_client(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthAdmin]:
+    with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         default_headers={
             "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
         },
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
-def auth_admin_api_auto_confirm_disabled_client() -> AsyncSupabaseAuthAdmin:
-    return AsyncSupabaseAuthAdmin(
+@pytest.fixture(params=http_sessions)
+def auth_admin_api_auto_confirm_disabled_client(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthAdmin]:
+    with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         default_headers={
             "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
         },
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
 SERVICE_ROLE_JWT = encode(
@@ -204,28 +262,43 @@ SERVICE_ROLE_JWT = encode(
 )
 
 
-def service_role_api_client() -> AsyncSupabaseAuthAdmin:
-    return AsyncSupabaseAuthAdmin(
+@pytest.fixture(params=http_sessions)
+def service_role_api_client(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthAdmin]:
+    with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         default_headers={
             "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
         },
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
-def service_role_api_client_with_sms() -> AsyncSupabaseAuthAdmin:
-    return AsyncSupabaseAuthAdmin(
+@pytest.fixture(params=http_sessions)
+def service_role_api_client_with_sms(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthAdmin]:
+    with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         default_headers={
             "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
         },
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client
 
 
-def service_role_api_client_no_sms() -> AsyncSupabaseAuthAdmin:
-    return AsyncSupabaseAuthAdmin(
+@pytest.fixture(params=http_sessions)
+def service_role_api_client_no_sms(
+    request: pytest.FixtureRequest,
+) -> Iterator[SyncSupabaseAuthAdmin]:
+    with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         default_headers={
             "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
         },
-    )
+        http_session=request.param(),
+    ) as client:
+        yield client

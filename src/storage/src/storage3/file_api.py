@@ -6,15 +6,22 @@ from io import BufferedReader, FileIO
 from pathlib import Path
 from typing import Any, Dict, Generic, List, Literal, Tuple
 
-from httpx import Headers, QueryParams, Response
 from pydantic import TypeAdapter
-from supabase_utils.http import (
-    EmptyRequest,
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     HttpIO,
     HttpMethod,
+    handle_http_io,
+)
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import (
+    DataField,
+    EmptyRequest,
+    FileField,
     JSONRequest,
     MultipartFormDataRequest,
-    handle_http_io,
+    PartField,
+    Response,
 )
 from supabase_utils.types import JSONParser
 from yarl import URL
@@ -49,6 +56,18 @@ def relative_path_to_parts(path: str) -> Tuple[str, ...]:
     if url.absolute or url.parts[0] == "/":
         return url.parts[1:]
     return url.parts
+
+
+def maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:
+    if isinstance(file, (BufferedReader, FileIO)):
+        # bytes or byte-stream-like object received
+        return file.read()
+    elif isinstance(file, bytes):
+        return file
+    else:
+        # str or pathlib.path received
+        with open(file, "rb") as f:
+            return f.read()
 
 
 FileObjectsAdapter = TypeAdapter(list[FileObject])
@@ -94,9 +113,9 @@ class StorageFileApiClient(Generic[HttpIO]):
         options
             Additional options for the upload url creation.
         """
-        headers = Headers()
+        headers = Headers.empty()
         if upsert:
-            headers["x-upsert"] = upsert
+            headers = headers.set("x-upsert", upsert)
 
         path_parts: Tuple[str, ...] = relative_path_to_parts(path)
         response = yield EmptyRequest(
@@ -131,42 +150,53 @@ class StorageFileApiClient(Generic[HttpIO]):
             The file contents or a file-like object to upload
         """
         path_parts: Tuple[str, ...] = relative_path_to_parts(path)
-        query_params = QueryParams({"token": token})
+        query_params = URLQuery.from_mapping({"token": token})
 
-        final_url = ["object", "upload", "sign", self.id, *path_parts]
+        http_headers = Headers.from_mapping(headers) if headers else Headers.empty()
+        http_headers = http_headers.set("x-upsert", "false").set(
+            "cache-control", f"max-age={cache_control}"
+        )
 
-        extra_headers = Headers(headers)
-        extra_headers["x-upsert"] = "false"
-        extra_headers["cache-control"] = f"max-age={cache_control}"
-
-        data = {"cacheControl": cache_control}
-        filename = path_parts[-1]
-
-        if isinstance(file, (BufferedReader, bytes, FileIO)):
-            # bytes or byte-stream-like object received
-            file_contents = file
-        else:
-            # str or pathlib.path received
-            with open(file, "rb") as f:
-                file_contents = f.read()
-        files = {"file": (filename, file_contents, content_type)}
+        cache_control_field = DataField(
+            name="cacheControl",
+            data=cache_control.encode("utf-8"),
+        )
+        fields: list[PartField] = [cache_control_field]
+        if metadata is not None:
+            metadata_bytes = JSONParser.dump_json(metadata)
+            metadata_b64_encoded = base64.b64encode(metadata_bytes)
+            http_headers = http_headers.set(
+                "x-metadata", metadata_b64_encoded.decode("utf-8")
+            )
+            fields.append(
+                DataField(
+                    name="metadata",
+                    data=metadata_bytes,
+                )
+            )
+        file_field = FileField(
+            name="file",
+            filename=path_parts[-1],
+            data=maybe_read_file(file),
+            content_type=content_type,
+        )
+        fields.append(file_field)
         response = yield MultipartFormDataRequest(
             method="PUT",
-            path=final_url,
-            files=files,
-            headers=extra_headers,
-            data=data,
-            query_params=query_params,
+            path=["object", "upload", "sign", self.id, *path_parts],
+            fields=fields,
+            headers=http_headers,
+            query=query_params,
         )
 
         return validate_model(response, UploadResponse)
 
-    def _make_signed_url(self, signed_url: str, download_query: QueryParams) -> str:
+    def _make_signed_url(self, signed_url: str, download_query: URLQuery) -> str:
         url = URL(signed_url[1:])  # ignore starting slash
-        signed = self.base_url.join(url).extend_query(download_query)
+        signed = self.base_url.join(url).extend_query(download_query.as_query())
         return str(signed)
 
-    def _parse_signed_url(self, response: Response, download_query: QueryParams) -> str:
+    def _parse_signed_url(self, response: Response, download_query: URLQuery) -> str:
         if not response.is_success:
             raise parse_api_error(response)
         signed_url_obj = SignedUrlJsonResponse.model_validate_json(response.content)
@@ -190,7 +220,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         options
             options to be passed for downloading or transforming the file.
         """
-        download_query = QueryParams()
+        download_query = URLQuery.empty()
         if download:
             download_query = download_query.set(
                 "download", "" if download is True else download
@@ -212,7 +242,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         return self._parse_signed_url(response, download_query)
 
     def _parse_signed_urls(
-        self, response: Response, download_query: QueryParams
+        self, response: Response, download_query: URLQuery
     ) -> List[CreateSignedUrlResponse]:
         if not response.is_success:
             raise parse_api_error(response)
@@ -246,7 +276,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         options
             options to be passed for downloading the file.
         """
-        download_query = QueryParams()
+        download_query = URLQuery.empty()
         if download:
             download_query = download_query.set(
                 "download", "" if download is True else download
@@ -276,7 +306,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         path
             file path, including the path and file name. For example `folder/image.png`.
         """
-        download_query = QueryParams()
+        download_query = URLQuery.empty()
         if download:
             download_query = download_query.set(
                 "download", "" if download is True else download
@@ -288,7 +318,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         path_parts = relative_path_to_parts(path)
         url = (
             self.base_url.joinpath(*render_path, "public", self.id, *path_parts)
-            .with_query(download_query)
+            .with_query(download_query.as_query())
             .extend_query(transformation)
         )
         return str(url)
@@ -397,7 +427,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         )
         if response.is_success:
             return True
-        elif 400 <= response.status_code <= 401:
+        elif 400 <= response.status <= 401:
             return False
         else:
             raise parse_api_error(response)
@@ -475,15 +505,17 @@ class StorageFileApiClient(Generic[HttpIO]):
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         """
         render_path: List[str] = ["object"]
-        params = QueryParams(query_params)
+        params = (
+            URLQuery.from_mapping(query_params) if query_params else URLQuery.empty()
+        )
         if transform:
-            params = params.merge(transform_to_dict(transform))
+            params = params.merge(URLQuery.from_mapping(transform_to_dict(transform)))
             render_path = ["render", "image", "authenticated"]
         path_parts: Tuple[str, ...] = relative_path_to_parts(path)
         response = yield EmptyRequest(
             method="GET",
             path=[*render_path, self.id, *path_parts],
-            query_params=params,
+            query=params,
         )
         if not response.is_success:
             raise parse_api_error(response)
@@ -514,41 +546,43 @@ class StorageFileApiClient(Generic[HttpIO]):
             HTTP headers.
         """
 
-        extra_headers = Headers(headers)
+        http_headers = Headers.from_mapping(headers) if headers else Headers.empty()
 
-        extra_headers["x-upsert"] = upsert
-        extra_headers["cache-control"] = f"max-age={cache_control}"
-
-        data = {"cacheControl": cache_control}
-
-        if metadata:
-            metadata_bytes = JSONParser.dump_json(metadata)
-            extra_headers["x-metadata"] = base64.b64encode(metadata_bytes).decode(
-                "utf-8"
-            )
-            data["metadata"] = metadata_bytes.decode("utf-8")
+        http_headers = http_headers.set("cache-control", f"max-age={cache_control}")
 
         # Only include x-upsert on a POST method
-        if method != "POST":
-            del extra_headers["x-upsert"]
+        if method == "POST":
+            http_headers = http_headers.set("x-upsert", upsert)
 
-        filename = path[-1]
-
-        if isinstance(file, (BufferedReader, bytes, FileIO)):
-            # bytes or byte-stream-like object received
-            file_contents = file
-        else:
-            # str or pathlib.path received
-            with open(file, "rb") as f:
-                file_contents = f.read()
-
-        files = {"file": (filename, file_contents, content_type)}
+        cache_control_field = DataField(
+            name="cacheControl",
+            data=cache_control.encode("utf-8"),
+        )
+        fields: list[PartField] = [cache_control_field]
+        if metadata is not None:
+            metadata_bytes = JSONParser.dump_json(metadata)
+            metadata_b64_encoded = base64.b64encode(metadata_bytes)
+            http_headers = http_headers.set(
+                "x-metadata", metadata_b64_encoded.decode("utf-8")
+            )
+            fields.append(
+                DataField(
+                    name="metadata",
+                    data=metadata_bytes,
+                )
+            )
+        file_field = FileField(
+            name="file",
+            filename=path[-1],
+            data=maybe_read_file(file),
+            content_type=content_type,
+        )
+        fields.append(file_field)
         response = yield MultipartFormDataRequest(
             method=method,
             path=["object", self.id, *path],
-            files=files,
-            headers=extra_headers,
-            data=data,
+            fields=fields,
+            headers=http_headers,
         )
 
         return validate_model(response, UploadResponse)

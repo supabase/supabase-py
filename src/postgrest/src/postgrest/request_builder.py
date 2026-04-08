@@ -17,17 +17,17 @@ from typing import (
     overload,
 )
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
-from httpx import Response as RequestResponse
+from httpx import AsyncClient, Client
 from pydantic import TypeAdapter, ValidationError
-from supabase_utils.http import (
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import (
     HttpIO,
     HttpMethod,
-    HTTPRequestMethod,
-    JSONRequest,
     handle_http_io,
 )
-from supabase_utils.types import JSON, JSONParser
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import HTTPRequestMethod, JSONRequest, Response
+from supabase_utils.types import JSON
 from typing_extensions import Self
 from yarl import URL
 
@@ -44,7 +44,7 @@ else:
 class QueryArgs(NamedTuple):
     # groups the method, json, headers and params for a query in a single object
     method: HTTPRequestMethod
-    params: QueryParams
+    params: URLQuery
     headers: Headers
     json: JSON
 
@@ -82,9 +82,11 @@ def pre_select(
 ) -> QueryArgs:
     method: HTTPRequestMethod = "HEAD" if head else "GET"
     cleaned_columns = _cleaned_columns(columns or ("*",))
-    params = QueryParams({"select": cleaned_columns})
+    params = URLQuery.from_mapping({"select": cleaned_columns})
 
-    headers = Headers({"Prefer": f"count={count}"}) if count else Headers()
+    headers = (
+        Headers.from_mapping({"Prefer": f"count={count}"}) if count else Headers.empty()
+    )
     return QueryArgs(method, params, headers, {})
 
 
@@ -96,19 +98,18 @@ def pre_insert(
     upsert: bool,
     default_to_null: bool = True,
 ) -> QueryArgs:
-    prefer_headers = [f"return={returning}"]
+    prefer_headers = Headers.from_mapping({"Prefer": f"return={returning}"})
     if count:
-        prefer_headers.append(f"count={count}")
+        prefer_headers = prefer_headers.set("Prefer", f"count={count}")
     if upsert:
-        prefer_headers.append("resolution=merge-duplicates")
+        prefer_headers = prefer_headers.set("Prefer", "resolution=merge-duplicates")
     if not default_to_null:
-        prefer_headers.append("missing=default")
-    headers = Headers({"Prefer": ",".join(prefer_headers)})
+        prefer_headers = prefer_headers.set("Prefer", "missing=default")
     # Adding 'columns' query parameters
     query_params = {}
     if isinstance(json, list):
         query_params = {"columns": _unique_columns(json)}
-    return QueryArgs("POST", QueryParams(query_params), headers, json)
+    return QueryArgs("POST", URLQuery.from_mapping(query_params), prefer_headers, json)
 
 
 def pre_upsert(
@@ -121,20 +122,19 @@ def pre_upsert(
     default_to_null: bool = True,
 ) -> QueryArgs:
     query_params = {}
-    prefer_headers = [f"return={returning}"]
+    prefer_headers = Headers.from_mapping({"Prefer": f"return={returning}"})
     if count:
-        prefer_headers.append(f"count={count}")
+        prefer_headers = prefer_headers.set("Prefer", f"count={count}")
     resolution = "ignore" if ignore_duplicates else "merge"
-    prefer_headers.append(f"resolution={resolution}-duplicates")
+    prefer_headers = prefer_headers.set("Prefer", f"resolution={resolution}-duplicates")
     if not default_to_null:
-        prefer_headers.append("missing=default")
-    headers = Headers({"Prefer": ",".join(prefer_headers)})
+        prefer_headers = prefer_headers.set("Prefer", "missing=default")
     if on_conflict:
         query_params["on_conflict"] = on_conflict
     # Adding 'columns' query parameters
     if isinstance(json, list):
         query_params["columns"] = _unique_columns(json)
-    return QueryArgs("POST", QueryParams(query_params), headers, json)
+    return QueryArgs("POST", URLQuery.from_mapping(query_params), prefer_headers, json)
 
 
 def pre_update(
@@ -143,11 +143,10 @@ def pre_update(
     count: CountMethod | None,
     returning: ReturnMethod,
 ) -> QueryArgs:
-    prefer_headers = [f"return={returning}"]
+    prefer_headers = Headers.from_mapping({"Prefer": f"return={returning}"})
     if count:
-        prefer_headers.append(f"count={count}")
-    headers = Headers({"Prefer": ",".join(prefer_headers)})
-    return QueryArgs("PATCH", QueryParams(), headers, json)
+        prefer_headers = prefer_headers.set("Prefer", f"count={count}")
+    return QueryArgs("PATCH", URLQuery.empty(), prefer_headers, json)
 
 
 def pre_delete(
@@ -155,19 +154,19 @@ def pre_delete(
     count: CountMethod | None,
     returning: ReturnMethod,
 ) -> QueryArgs:
-    prefer_headers = [f"return={returning}"]
+    prefer_headers = Headers.from_mapping({"Prefer": f"return={returning}"})
     if count:
-        prefer_headers.append(f"count={count}")
-    headers = Headers({"Prefer": ",".join(prefer_headers)})
-    return QueryArgs("DELETE", QueryParams(), headers, {})
+        prefer_headers = prefer_headers.set("Prefer", f"count={count}")
+    return QueryArgs("DELETE", URLQuery.empty(), prefer_headers, {})
 
 
-JSONListParser = TypeAdapter(List[JSON])
+JSONListParser = TypeAdapter(List[Dict[str, JSON]])
+JSONDictParser = TypeAdapter(Dict[str, JSON])
 
 
 @dataclass
 class APIResponse:
-    data: List[JSON]
+    data: List[Dict[str, JSON]]
     """The data returned by the query."""
     count: int | None = None
     """The number of rows returned."""
@@ -186,7 +185,7 @@ class APIResponse:
 
     @staticmethod
     def _get_count_from_http_request_response(
-        response: RequestResponse,
+        response: Response,
     ) -> int | None:
         prefer_header: str | None = response.request.headers.get("prefer")
         if not prefer_header:
@@ -202,7 +201,7 @@ class APIResponse:
         return None
 
     @staticmethod
-    def from_http_request_response(response: RequestResponse) -> APIResponse:
+    def from_http_request_response(response: Response) -> APIResponse:
         count = APIResponse._get_count_from_http_request_response(response)
         data = JSONListParser.validate_json(response.content)
         return APIResponse(data=data, count=count)
@@ -210,15 +209,15 @@ class APIResponse:
 
 @dataclass
 class SingleAPIResponse:
-    data: JSON
+    data: Dict[str, JSON]
     count: int | None
 
     @staticmethod
     def from_http_request_response(
-        response: RequestResponse,
+        response: Response,
     ) -> SingleAPIResponse:
         count = APIResponse._get_count_from_http_request_response(response)
-        data = JSONParser.validate_json(response.content)
+        data = JSONDictParser.validate_json(response.content)
         return SingleAPIResponse(data=data, count=count)
 
 
@@ -226,13 +225,17 @@ class BaseFilterRequestBuilder:
     request: JSONRequest
     negate_next: bool = False
 
+    def __init__(self, request: JSONRequest, negate_next: bool = False) -> None:
+        self.request = request
+        self.negate_next = negate_next
+
     @property
     def not_(self: Self) -> Self:
         """Whether the filter applied next should be negated."""
         self.negate_next = True
         return self
 
-    def filter(self: Self, column: str, operator: str, criteria: str) -> Self:
+    def filter(self: Self, column: str, operator: str, criteria: str | int) -> Self:
         """Apply filters on a query.
 
         Args:
@@ -244,10 +247,10 @@ class BaseFilterRequestBuilder:
             self.negate_next = False
             operator = f"{Filters.NOT}.{operator}"
         key, val = sanitize_param(column), f"{operator}.{criteria}"
-        self.request.query_params = self.request.query_params.add(key, val)
+        self.request.query = self.request.query.set(key, val)
         return self
 
-    def eq(self: Self, column: str, value: str) -> Self:
+    def eq(self: Self, column: str, value: str | int) -> Self:
         """An 'equal to' filter.
 
         Args:
@@ -378,7 +381,7 @@ class BaseFilterRequestBuilder:
             reference_table: Set this to filter on referenced tables instead of the parent table
         """
         key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
-        self.request.query_params = self.request.query_params.add(key, f"({filters})")
+        self.request.query = self.request.query.set(key, f"({filters})")
         return self
 
     def fts(self: Self, column: str, query: Any) -> Self:
@@ -477,7 +480,7 @@ class BaseFilterRequestBuilder:
     def overlaps(self: Self, column: str, values: str | Iterable[str]) -> Self:
         return self.ov(column, values)
 
-    def match(self: Self, query: Dict[str, str]) -> Self:
+    def match(self: Self, query: Dict[str, str | int]) -> Self:
         updated_query = self
 
         if not query:
@@ -498,16 +501,10 @@ class BaseFilterRequestBuilder:
         Args:
             value: The maximum number of rows that can be affected
         """
-        prefer_header = self.request.headers.get("Prefer", "")
-        if prefer_header:
-            if "handling=strict" not in prefer_header:
-                prefer_header += ",handling=strict"
-        else:
-            prefer_header = "handling=strict"
+        self.request.headers = self.request.headers.set(
+            "Prefer", "handling=strict"
+        ).set("Prefer", f"max-affected={value}")
 
-        prefer_header += f",max-affected={value}"
-
-        self.request.headers["Prefer"] = prefer_header
         return self
 
 
@@ -531,18 +528,14 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
            Allow ordering results for foreign tables with the foreign_table parameter.
         """
         key = f"{foreign_table}.order" if foreign_table else "order"
-        existing_order = self.request.query_params.get(key)
-
-        self.request.query_params = self.request.query_params.set(
-            key,
-            f"{existing_order + ',' if existing_order else ''}"
-            + f"{column}.{'desc' if desc else 'asc'}"
-            + (
-                f".{'nullsfirst' if nullsfirst else 'nullslast'}"
-                if nullsfirst is not None
-                else ""
-            ),
+        order = f"{column}.{'desc' if desc else 'asc'}"
+        nullsfirst_str = (
+            f".{'nullsfirst' if nullsfirst else 'nullslast'}"
+            if nullsfirst is not None
+            else ""
         )
+        val = f"{order}{nullsfirst_str}"
+        self.request.query = self.request.query.set(key, val)
         return self
 
     def limit(self: Self, size: int, *, foreign_table: str | None = None) -> Self:
@@ -554,7 +547,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         .. versionchanged:: 0.10.3
            Allow limiting results returned for foreign tables with the foreign_table parameter.
         """
-        self.request.query_params = self.request.query_params.add(
+        self.request.query = self.request.query.set(
             f"{foreign_table}.limit" if foreign_table else "limit",
             size,
         )
@@ -565,7 +558,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         Args:
             size: The number of the row to start at
         """
-        self.request.query_params = self.request.query_params.add(
+        self.request.query = self.request.query.set(
             "offset",
             size,
         )
@@ -574,10 +567,10 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
     def range(
         self: Self, start: int, end: int, foreign_table: str | None = None
     ) -> Self:
-        self.request.query_params = self.request.query_params.add(
+        self.request.query = self.request.query.set(
             f"{foreign_table}.offset" if foreign_table else "offset", start
         )
-        self.request.query_params = self.request.query_params.add(
+        self.request.query = self.request.query.set(
             f"{foreign_table}.limit" if foreign_table else "limit",
             end - start + 1,
         )
@@ -597,28 +590,16 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
             :class:`BaseSelectRequestBuilder`
         """
         method, params, headers, json = pre_select(*columns, count=None)
-        self.request.query_params = self.request.query_params.add(
-            "select", params.get("select")
+        self.request.query = self.request.query.merge(params)
+        self.request.headers = self.request.headers.set(
+            "Prefer", "return=representation"
         )
-        if self.request.headers.get("Prefer"):
-            self.request.headers["Prefer"] += ",return=representation"
-        else:
-            self.request.headers["Prefer"] = "return=representation"
 
-        return self
-
-    def single(self) -> Self:
-        """Specify that the query will only return a single row in response.
-
-        .. caution::
-            The API will raise an error if the query returned more than one row.
-        """
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return self
 
     def csv(self) -> Self:
         """Specify that the query must retrieve data as a single CSV string."""
-        self.request.headers["Accept"] = "text/csv"
+        self.request.headers = self.request.headers.set("Accept", "text/csv")
         return self
 
 
@@ -705,7 +686,7 @@ class ExplainRequestBuilder(BaseRequestClient[HttpIO]):
         r = yield self.request
         try:
             if r.is_success:
-                return r.text
+                return r.content.decode("utf-8")
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
@@ -734,8 +715,22 @@ class FilterRequestBuilder(QueryRequestBuilder[HttpIO], BaseFilterRequestBuilder
     pass
 
 
-class RPCFilterRequestBuilder(SingleRequestBuilder[HttpIO], BaseRPCRequestBuilder):
-    pass
+class RPCFilterRequestBuilder(QueryRequestBuilder[HttpIO], BaseRPCRequestBuilder):
+    def single(self) -> SingleRequestBuilder[HttpIO]:
+        """Specify that the query will only return a single row in response.
+
+        .. caution::
+            The API will raise an error if the query returned more than one row.
+        """
+        self.request.headers = self.request.headers.set(
+            "Accept", "application/vnd.pgrst.object+json"
+        )
+        return SingleRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=self.request,
+        )
 
 
 class RPCCountRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
@@ -768,7 +763,9 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
+        self.request.headers = self.request.headers.set(
+            "Accept", "application/vnd.pgrst.object+json"
+        )
         return SingleRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
@@ -797,7 +794,7 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.request.query_params = self.request.query_params.add(
+        self.request.query = self.request.query.set(
             column, f"{type_part}fts{config_part}.{query}"
         )
 
@@ -810,7 +807,7 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
 
     def csv(self) -> TextRequestBuilder[HttpIO]:
         """Specify that the query must retrieve data as a single CSV string."""
-        self.request.headers["Accept"] = "text/csv"
+        self.request.headers = self.request.headers.set("Accept", "text/csv")
         return TextRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
@@ -819,45 +816,50 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
         )
 
     @overload
+    def explain(self) -> ExplainRequestBuilder[HttpIO]: ...
+
+    @overload
     def explain(
         self,
-        analyze: bool = False,
-        verbose: bool = False,
-        settings: bool = False,
-        buffers: bool = False,
-        wal: bool = False,
-        format: Literal["text"] = "text",
+        *,
+        analyze: bool,
+        verbose: bool,
+        settings: bool,
+        buffers: bool,
+        wal: bool,
+        format: Literal["text"],
     ) -> ExplainRequestBuilder[HttpIO]: ...
 
     @overload
     def explain(
         self,
-        analyze: bool = False,
-        verbose: bool = False,
-        settings: bool = False,
-        buffers: bool = False,
-        wal: bool = False,
         *,
+        analyze: bool,
+        verbose: bool,
+        settings: bool,
+        buffers: bool,
+        wal: bool,
         format: Literal["json"],
-    ) -> SingleRequestBuilder[HttpIO]: ...
+    ) -> QueryRequestBuilder[HttpIO]: ...
 
     def explain(
         self,
+        *,
         analyze: bool = False,
         verbose: bool = False,
         settings: bool = False,
         buffers: bool = False,
         wal: bool = False,
         format: Literal["text", "json"] = "text",
-    ) -> ExplainRequestBuilder[HttpIO] | SingleRequestBuilder[HttpIO]:
+    ) -> ExplainRequestBuilder[HttpIO] | QueryRequestBuilder[HttpIO]:
         options = [
             key
             for key, value in locals().items()
             if key not in ["self", "format"] and value
         ]
         options_str = "|".join(options)
-        self.request.headers["Accept"] = (
-            f"application/vnd.pgrst.plan+{format}; options={options_str}"
+        self.request.headers = self.request.headers.set(
+            "Accept", f"application/vnd.pgrst.plan+{format}; options={options_str}"
         )
         if format == "text":
             return ExplainRequestBuilder(
@@ -867,7 +869,7 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
                 request=self.request,
             )
         else:
-            return SingleRequestBuilder(
+            return QueryRequestBuilder(
                 executor=self.executor,
                 base_url=self.base_url,
                 default_headers=self.default_headers,
@@ -881,12 +883,10 @@ class RequestBuilder(Generic[HttpIO]):  #
         executor: HttpIO,
         base_url: URL,
         default_headers: Headers,
-        basic_auth: BasicAuth | None,
     ) -> None:
         self.executor: HttpIO = executor
         self.base_url = base_url
         self.default_headers = default_headers
-        self.auth = basic_auth
 
     def select(
         self,
@@ -905,7 +905,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         method, params, headers, json = pre_select(*columns, count=count, head=head)
         request = JSONRequest(
             path=[],
-            query_params=params,
+            query=params,
             method=method,
             headers=headers,
             body=json,
@@ -949,7 +949,7 @@ class RequestBuilder(Generic[HttpIO]):  #
 
         request = JSONRequest(
             path=[],
-            query_params=params,
+            query=params,
             method=method,
             headers=headers,
             body=json,
@@ -996,7 +996,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         )
         request = JSONRequest(
             path=[],
-            query_params=params,
+            query=params,
             method=method,
             headers=headers,
             body=json,
@@ -1031,7 +1031,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         )
         request = JSONRequest(
             path=[],
-            query_params=params,
+            query=params,
             method=method,
             headers=headers,
             body=json,
@@ -1063,7 +1063,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         )
         request = JSONRequest(
             path=[],
-            query_params=params,
+            query=params,
             method=method,
             headers=headers,
             body=json,
