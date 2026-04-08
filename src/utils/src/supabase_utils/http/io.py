@@ -6,11 +6,9 @@ from typing import (
     Callable,
     Generator,
     Generic,
-    Optional,
     Protocol,
     TypeAlias,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -121,20 +119,20 @@ class handle_http_io(Generic[Params, Success]):
 
     @overload
     def __get__(
-        self, obj: HasExecutor[SyncHttpIO], objtype: Optional[type] = None
+        self, obj: HasExecutor[SyncHttpIO], objtype: type | None = None
     ) -> Callable[Params, Success]: ...
 
     @overload
     def __get__(
-        self, obj: HasExecutor[AsyncHttpIO], objtype: Optional[type] = None
+        self, obj: HasExecutor[AsyncHttpIO], objtype: type | None = None
     ) -> Callable[Params, Awaitable[Success]]: ...
 
     def __get__(
-        self, obj: HasExecutor[HttpIO], objtype: Optional[type] = None
-    ) -> Callable[Params, Union[Success, Awaitable[Success]]]:
+        self, obj: HasExecutor[HttpIO], objtype: type | None = None
+    ) -> Callable[Params, Success | Awaitable[Success]]:
         def bound_method(
             *args: Params.args, **kwargs: Params.kwargs
-        ) -> Union[Success, Awaitable[Success]]:
+        ) -> Success | Awaitable[Success]:
             iterator = self.method(obj, *args, **kwargs)
             return obj.executor.communicate(obj.base_url, obj.default_headers, iterator)
 

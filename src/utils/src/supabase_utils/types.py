@@ -1,10 +1,9 @@
-from typing import Mapping, Sequence, Union
+from typing import Mapping, Sequence
 
 from pydantic import TypeAdapter
 from typing_extensions import TypeAliasType
 
-JSON = TypeAliasType(
-    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
-)
+JSONSimple = None | bool | str | int | float
+JSON = TypeAliasType("JSON", "JSONSimple | Sequence[JSON] | Mapping[str, JSON]")
 
 JSONParser: TypeAdapter[JSON] = TypeAdapter(JSON)

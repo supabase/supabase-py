@@ -5,7 +5,6 @@ from typing import (
     List,
     Literal,
     Protocol,
-    Union,
 )
 
 from pydantic import BaseModel
@@ -80,7 +79,7 @@ class BytesRequest(EmptyRequest):
 
 @dataclass
 class JSONRequest(EmptyRequest):
-    body: Union[JSON, BaseModel]
+    body: JSON | BaseModel
     exclude_none: bool = True
 
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
