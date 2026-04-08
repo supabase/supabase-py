@@ -39,7 +39,7 @@ class Response:
 
     @property
     def is_error(self) -> bool:
-        return 400 <= self.status <= 500
+        return 400 <= self.status <= 599
 
 
 class ToRequest(Protocol):
@@ -194,7 +194,6 @@ class MultipartFormDataRequest(EmptyRequest):
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         content, content_type = encode_multipart_formdata(fields=self.fields)
         headers = default_headers.update(self.headers).set("Content-Type", content_type)
-        print(content)
         return Request(
             method=self.method,
             url=base_url.joinpath(*self.path).with_query(self.query.as_query()),
