@@ -1,6 +1,6 @@
 [project]
 name = "realtime"
-version = "2.28.3" # {x-release-please-version}
+version = "3.0.0a1" # {x-release-please-version}
 description = ""
 authors = [
     { name = "Joel Lee", email="joel@joellee.org"},
