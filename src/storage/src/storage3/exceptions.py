@@ -1,46 +1,63 @@
-from typing import Optional, TypedDict, Union
+from typing import TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic.dataclasses import dataclass
+from supabase_utils.http.request import Response
 
-from .utils import StorageException
+
+class StorageException(Exception):
+    """Error raised when an operation on the storage API fails."""
 
 
-class VectorBucketException(Exception):
+class VectorBucketException(StorageException):
     def __init__(self, msg: str) -> None:
         self.msg = msg
 
 
 class VectorBucketErrorMessage(BaseModel):
-    statusCode: Union[str, int]
+    statusCode: str | int
     error: str
     message: str
-    code: Optional[str] = None
+    code: str | None = None
 
 
-class StorageApiErrorDict(TypedDict):
-    name: str
+@dataclass
+class StorageApiError(StorageException):
     message: str
     code: str
-    status: Union[int, str]
+    status: int | str
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    def __str__(self) -> str:
+        return f"StorageApiError(message='{self.message}', code={self.code}, status='{self.status}')"
 
 
-class StorageApiError(StorageException):
-    """Error raised when an operation on the storage API fails."""
+StorageApiErrorParser = TypeAdapter(StorageApiError)
 
-    def __init__(self, message: str, code: str, status: Union[int, str]) -> None:
-        error_message = (
-            f"{{'statusCode': {status}, 'error': {code}, 'message': {message}}}"
-        )
-        super().__init__(error_message)
-        self.name = "StorageApiError"
-        self.message = message
-        self.code = code
-        self.status = status
 
-    def to_dict(self) -> StorageApiErrorDict:
-        return {
-            "name": self.name,
-            "code": self.code,
-            "message": self.message,
-            "status": self.status,
-        }
+def parse_api_error(response: Response) -> StorageApiError:
+    try:
+        return StorageApiErrorParser.validate_json(response.content)
+    except ValidationError:
+        message = f"Unable to parse error message: {response.content.decode('utf-8')}"
+        return StorageApiError(message=message, code="InternalError", status=400)
+
+
+Inner = TypeVar("Inner")
+
+
+def validate_adapter(response: Response, type_adapter: TypeAdapter[Inner]) -> Inner:
+    if response.is_success:
+        return type_adapter.validate_json(response.content)
+    raise parse_api_error(response)
+
+
+Model = TypeVar("Model", bound=BaseModel)
+
+
+def validate_model(response: Response, model: type[Model]) -> Model:
+    if response.is_success:
+        return model.model_validate_json(response.content)
+    raise parse_api_error(response)

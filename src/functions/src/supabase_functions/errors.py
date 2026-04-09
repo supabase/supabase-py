@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from supabase_utils.http.request import Response
+
 
 class FunctionsApiErrorDict(TypedDict):
     name: str
@@ -31,6 +33,15 @@ class FunctionsHttpError(FunctionsError):
             "FunctionsHttpError",
             400 if code is None else code,
         )
+
+
+def on_error_response(response: Response) -> FunctionsHttpError | FunctionsRelayError:
+    is_relay_error = response.headers.get("x-relay-header")
+    if is_relay_error == "true":
+        return FunctionsRelayError(
+            response.content.decode("utf-8"), code=response.status
+        )
+    return FunctionsHttpError(response.content.decode("utf-8"), response.status)
 
 
 class FunctionsRelayError(FunctionsError):

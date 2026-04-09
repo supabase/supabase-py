@@ -1,6 +1,6 @@
 [project]
 name = "supabase"
-version = "2.28.3" # {x-release-please-version}
+version = "3.0.0a1" # {x-release-please-version}
 description = "Supabase client for Python."
 authors = [
   { name = "Joel Lee", email = "joel@joellee.org" },
@@ -20,14 +20,15 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-  "realtime == 2.28.3", # x-release-please-version
-  "supabase_functions == 2.28.3", # x-release-please-version
-  "storage3 == 2.28.3", # x-release-please-version
-  "supabase_auth == 2.28.3", # x-release-please-version
-  "postgrest == 2.28.3", # x-release-please-version
-  "httpx >=0.26,<0.29",
+  "realtime == 3.0.0a1", # x-release-please-version
+  "supabase_functions == 3.0.0a1", # x-release-please-version
+  "storage3 == 3.0.0a1", # x-release-please-version
+  "supabase_auth == 3.0.0a1", # x-release-please-version
+  "supabase_utils == 3.0.0a1", # x-release-please-version
+  "postgrest == 3.0.0a1", # x-release-please-version
+  "supabase_utils==3.0.0a1", # x-release-please-version
   "yarl>=1.22.0",
 ]
 
@@ -36,6 +37,10 @@ homepage = "https://github.com/supabase/supabase-py"
 repository = "https://github.com/supabase/supabase-py"
 documentation = "https://github.com/supabase/supabase-py/src/supabase"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+httpx = ["supabase_utils[httpx]"]
+aiohttp = ["supabase_utils[aiohttp]"]
 
 [dependency-groups]
 dev = [
@@ -48,6 +53,7 @@ tests = [
   "pytest-asyncio >=0.24,<1.1",
   "python-dotenv >= 1.1.1",
   "mypy>=1.18.2",
+  "supabase_utils[all]",
 ]
 lints = [
   "unasync >=0.6.0",
