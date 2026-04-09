@@ -610,3 +610,21 @@ async def test_order_on_foreign_table():
         {"name": "strings", "instruments": [{"name": "violin"}, {"name": "harp"}]},
         {"name": "woodwinds", "instruments": []},
     ]
+
+
+async def test_immutability():
+    base_query = rest_client().from_("countries").select("country_name, iso")
+    q1 = base_query.eq("iso", "AF")
+    q2 = base_query.eq("iso", "AL")
+
+    res1 = await q1.execute()
+    res2 = await q2.execute()
+
+    assert len(res1.data) == 1
+    assert res1.data[0]["iso"] == "AF"
+
+    assert len(res2.data) == 1
+    assert res2.data[0]["iso"] == "AL"
+
+    res_base = await base_query.limit(2).order("iso").execute()
+    assert len(res_base.data) == 2

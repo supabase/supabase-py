@@ -528,3 +528,13 @@ class TestApiResponse:
         )
         assert isinstance(result.data, str)
         assert result.data == csv_api_response
+
+
+def test_builder_is_immutable(request_builder: AsyncRequestBuilder):
+    base_query = request_builder.select("*")
+    query_a = base_query.eq("role", "admin")
+    query_b = base_query.eq("role", "user")
+
+    assert query_a.request.params != query_b.request.params
+    assert base_query.request.params != query_a.request.params
+    assert base_query.request.params != query_b.request.params
