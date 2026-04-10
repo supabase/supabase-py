@@ -30,8 +30,6 @@ ReqConfig = RequestConfig[AsyncClient]
 
 
 def get_retry_delay(resp: Response, attempt_count: int) -> int:
-    if retry_after := resp.headers.get("Retry-After"):
-        return int(retry_after)
     delay: int = min(2**attempt_count, 30)
     return delay
 
