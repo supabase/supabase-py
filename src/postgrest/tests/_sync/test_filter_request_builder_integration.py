@@ -603,3 +603,69 @@ def test_order_on_foreign_table():
         {"name": "strings", "instruments": [{"name": "violin"}, {"name": "harp"}]},
         {"name": "woodwinds", "instruments": []},
     ]
+
+
+def test_get_retry_503() -> None:
+    from httpx import Request, Response
+
+    retry_count = 0
+    client = rest_client()
+    original_send = client.session.send
+
+    def fake_send(request: Request, **kwargs):
+        nonlocal retry_count
+        if retry_count < 3:
+            retry_count += 1
+            return Response(503)
+        return original_send(request)
+
+    from unittest.mock import Mock, patch
+
+    with patch.object(client.session, "send", wraps=fake_send) as mock_send:
+        query = (
+            client.from_("orchestral_sections")
+            .select("name, instruments(name)")
+            .order("name", desc=True, foreign_table="instruments")
+        )
+        res = query.execute()
+
+        assert res.data == [
+            {"name": "strings", "instruments": [{"name": "violin"}, {"name": "harp"}]},
+            {"name": "woodwinds", "instruments": []},
+        ]
+        assert retry_count > 0
+
+
+def test_order_retry_400_doesnt_retry() -> None:
+    from httpx import Request, Response
+
+    retry_count = 0
+    client = rest_client()
+    original_send = client.session.send
+
+    def fake_send(request: Request, **kwargs):
+        nonlocal retry_count
+        if retry_count < 3:
+            retry_count += 1
+            return Response(
+                400,
+                content=b'{"message": "JSON could not be generated", "code": "400", "hint": "Refer to full message for details", "details": ""}',
+            )
+        return original_send(request)
+
+    from unittest.mock import Mock, patch
+
+    import pytest
+
+    from postgrest.exceptions import APIError
+
+    with patch.object(client.session, "send", wraps=fake_send) as mock_send:
+        query = (
+            client.from_("orchestral_sections")
+            .select("name, instruments(name)")
+            .order("name", desc=True, foreign_table="instruments")
+        )
+        with pytest.raises(APIError):
+            query.execute()
+
+        assert retry_count == 1
