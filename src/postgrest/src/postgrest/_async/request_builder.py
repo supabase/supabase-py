@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
+from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload, Mapping, Sequence
 
 from httpx import AsyncClient, BasicAuth, Headers, QueryParams, Response
 from pydantic import ValidationError
@@ -271,7 +271,7 @@ class AsyncRequestBuilder:  #
 
     def insert(
         self,
-        json: JSON,
+        json: Union[Mapping[str, Any], Sequence[Mapping[str, Any]]],
         *,
         count: Optional[CountMethod] = None,
         returning: ReturnMethod = ReturnMethod.representation,
@@ -312,7 +312,7 @@ class AsyncRequestBuilder:  #
 
     def upsert(
         self,
-        json: JSON,
+        json: Union[Mapping[str, Any], Sequence[Mapping[str, Any]]],
         *,
         count: Optional[CountMethod] = None,
         returning: ReturnMethod = ReturnMethod.representation,
@@ -357,7 +357,7 @@ class AsyncRequestBuilder:  #
 
     def update(
         self,
-        json: JSON,
+        json: Union[Mapping[str, Any], Sequence[Mapping[str, Any]]],
         *,
         count: Optional[CountMethod] = None,
         returning: ReturnMethod = ReturnMethod.representation,

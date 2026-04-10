@@ -19,6 +19,8 @@ from typing import (
     TypeVar,
     Union,
     overload,
+    Mapping,
+    Sequence,
 )
 
 from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
@@ -126,7 +128,7 @@ def pre_select(
 
 
 def pre_insert(
-    json: JSON,
+    json: Union[Mapping[str, Any], Sequence[Mapping[str, Any]]],
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -149,7 +151,7 @@ def pre_insert(
 
 
 def pre_upsert(
-    json: JSON,
+    json: Union[Mapping[str, Any], Sequence[Mapping[str, Any]]],
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -175,7 +177,7 @@ def pre_upsert(
 
 
 def pre_update(
-    json: JSON,
+    json: Union[Mapping[str, Any], Sequence[Mapping[str, Any]]],
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
