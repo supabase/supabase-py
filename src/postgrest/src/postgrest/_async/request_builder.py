@@ -60,7 +60,7 @@ class AsyncQueryRequestBuilder:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
-        self.retry_enabled = enabled
+        self.request.retry_enabled = enabled
         return self
 
     async def execute(self) -> APIResponse:
@@ -91,7 +91,7 @@ class AsyncSingleRequestBuilder:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
-        self.retry_enabled = enabled
+        self.request.retry_enabled = enabled
         return self
 
     async def execute(self) -> SingleAPIResponse:
@@ -124,7 +124,7 @@ class AsyncExplainRequestBuilder:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
-        self.retry_enabled = enabled
+        self.request.retry_enabled = enabled
         return self
 
     async def execute(self) -> str:
@@ -144,7 +144,7 @@ class AsyncMaybeSingleRequestBuilder:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
-        self.retry_enabled = enabled
+        self.request.retry_enabled = enabled
         return self
 
     async def execute(self) -> Optional[SingleAPIResponse]:

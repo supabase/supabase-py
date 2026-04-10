@@ -621,6 +621,7 @@ async def test_get_retry_503() -> None:
 
     async def fake_send(request: Request, **kwargs):
         nonlocal retry_count
+        assert request.headers["X-Retry-Count"] == str(retry_count)
         if retry_count < 3:
             retry_count += 1
             return Response(503)
@@ -641,6 +642,41 @@ async def test_get_retry_503() -> None:
             {"name": "woodwinds", "instruments": []},
         ]
         assert retry_count > 0
+
+
+async def test_get_retry_503_does_not_retry_when_disabled() -> None:
+    from httpx import Request, Response
+
+    retry_count = 0
+    client = rest_client()
+    original_send = client.session.send
+
+    async def fake_send(request: Request, **kwargs):
+        nonlocal retry_count
+        if retry_count > 0:
+            assert request.headers["X-Retry-Count"] == str(retry_count)
+        if retry_count < 3:
+            retry_count += 1
+            return Response(503)
+        return await original_send(request)
+
+    from unittest.mock import Mock, patch
+
+    import pytest
+
+    from postgrest.exceptions import APIError
+
+    with patch.object(client.session, "send", wraps=fake_send) as mock_send:
+        query = (
+            client.from_("orchestral_sections")
+            .select("name, instruments(name)")
+            .order("name", desc=True, foreign_table="instruments")
+            .retry(False)
+        )
+        with pytest.raises(APIError):
+            await query.execute()
+
+        assert retry_count == 1
 
 
 async def test_order_retry_400_doesnt_retry() -> None:

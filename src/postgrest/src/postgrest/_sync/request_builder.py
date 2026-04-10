@@ -30,8 +30,6 @@ ReqConfig = RequestConfig[Client]
 
 
 def get_retry_delay(resp: Response, attempt_count: int) -> int:
-    if retry_after := resp.headers.get("Retry-After"):
-        return int(retry_after)
     delay: int = min(2**attempt_count, 30)
     return delay
 
@@ -62,7 +60,7 @@ class SyncQueryRequestBuilder:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
-        self.retry_enabled = enabled
+        self.request.retry_enabled = enabled
         return self
 
     def execute(self) -> APIResponse:
@@ -93,7 +91,7 @@ class SyncSingleRequestBuilder:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
-        self.retry_enabled = enabled
+        self.request.retry_enabled = enabled
         return self
 
     def execute(self) -> SingleAPIResponse:
@@ -126,7 +124,7 @@ class SyncExplainRequestBuilder:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
-        self.retry_enabled = enabled
+        self.request.retry_enabled = enabled
         return self
 
     def execute(self) -> str:
@@ -146,7 +144,7 @@ class SyncMaybeSingleRequestBuilder:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
-        self.retry_enabled = enabled
+        self.request.retry_enabled = enabled
         return self
 
     def execute(self) -> Optional[SingleAPIResponse]:
