@@ -73,7 +73,7 @@ make install-hooks # install all commit hooks into the local .git folder
 make stop-infra    # stops all running containers from all packages
 make clean         # delete all intermediary files created by testing
 ```
-All the subpackages command are available from the main root by prefixing the command with `{package_name}.`. Examples:
+All the subpackages command are available from the main root by prefixing the command with `{package_name}.`.Examples:
 ```bash
 make realtime.tests # run only realtime tests
 make storage.clean  # delete temporary files only in the storage package
