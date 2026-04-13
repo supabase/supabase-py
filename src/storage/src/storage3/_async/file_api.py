@@ -273,14 +273,23 @@ class AsyncBucketActionsMixin:
         data = SignedUrlsJsonResponse.validate_json(response.content)
         signed_urls = []
         for item in data:
-            # Prepare URL
-            url = self._make_signed_url(item.signedURL, download_query)
-            signed_item: CreateSignedUrlResponse = {
-                "error": item.error,
-                "path": item.path,
-                "signedURL": url["signedURL"],
-                "signedUrl": url["signedURL"],
-            }
+            signed_url: Optional[str] = item.signedURL
+            if signed_url:
+                # Prepare URL
+                url = self._make_signed_url(signed_url, download_query)
+                signed_item: CreateSignedUrlResponse = {
+                    "error": item.error,
+                    "path": item.path,
+                    "signedURL": url["signedURL"],
+                    "signedUrl": url["signedURL"],
+                }
+            else:
+                signed_item: CreateSignedUrlResponse = {
+                    "error": item.error,
+                    "path": item.path,
+                    "signedURL": None,
+                    "signedUrl": None,
+                }
             signed_urls.append(signed_item)
         return signed_urls
 
@@ -307,7 +316,8 @@ class AsyncBucketActionsMixin:
 
         path_parts = relative_path_to_parts(path)
         url = (
-            self._base_url.joinpath(*render_path, "public", self.id, *path_parts)
+            self._base_url
+            .joinpath(*render_path, "public", self.id, *path_parts)
             .with_query(download_query)
             .extend_query(transformation)
         )

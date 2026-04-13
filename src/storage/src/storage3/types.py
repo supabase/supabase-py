@@ -159,8 +159,8 @@ class SignedUrlResponse(TypedDict):
 class CreateSignedUrlResponse(TypedDict):
     error: Optional[str]
     path: str
-    signedURL: str
-    signedUrl: str
+    signedURL: Optional[str]
+    signedUrl: Optional[str]
 
 
 class SignedUrlJsonResponse(BaseModel, extra="ignore"):
@@ -170,7 +170,7 @@ class SignedUrlJsonResponse(BaseModel, extra="ignore"):
 class SignedUrlsJsonItem(BaseModel, extra="ignore"):
     error: Optional[str]
     path: str
-    signedURL: str
+    signedURL: Optional[str]
 
 
 SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
