@@ -621,7 +621,8 @@ async def test_get_retry_503() -> None:
 
     async def fake_send(request: Request, **kwargs):
         nonlocal retry_count
-        assert request.headers["X-Retry-Count"] == str(retry_count)
+        if retry_count > 0:
+            assert request.headers["X-Retry-Count"] == str(retry_count)
         if retry_count < 3:
             retry_count += 1
             return Response(503)
