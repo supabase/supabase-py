@@ -78,3 +78,5 @@ All the subpackages command are available from the main root by prefixing the co
 make realtime.tests # run only realtime tests
 make storage.clean  # delete temporary files only in the storage package
 ```
+---
+✨ Made with curiosity, caffeine, and a lot of debugging.
