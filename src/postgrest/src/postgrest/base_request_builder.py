@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import sys
+import datetime
+import uuid
 from json import JSONDecodeError
 from re import search
 from typing import (
@@ -45,6 +47,15 @@ from .types import JSON, CountMethod, Filters, JSONAdapter, RequestMethod, Retur
 from .utils import sanitize_param
 
 
+class PostgrestEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        if isinstance(obj, (datetime.date, datetime.datetime, datetime.time)):
+            return obj.isoformat()
+        return super().default(obj)
+
+
 class QueryArgs(NamedTuple):
     # groups the method, json, headers and params for a query in a single object
     method: RequestMethod
@@ -81,10 +92,21 @@ class RequestConfig(Generic[C]):
     def send(self: RequestConfig[AsyncClient]) -> Awaitable[RequestResponse]: ...
 
     def send(self: RequestConfig[C]):
+        if self.json is not None:
+            if "content-type" not in self.headers:
+                self.headers["Content-Type"] = "application/json"
+            content = json.dumps(self.json, cls=PostgrestEncoder)
+            return self.session.request(
+                self.http_method,
+                str(self.path),
+                content=content,
+                params=self.params,
+                headers=self.headers,
+                auth=self.auth,
+            )
         return self.session.request(
             self.http_method,
             str(self.path),
-            json=self.json,
             params=self.params,
             headers=self.headers,
             auth=self.auth,
@@ -461,7 +483,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             stringified_values = ",".join(value)
             return self.filter(column, Filters.CS, f"{{{stringified_values}}}")
 
-        return self.filter(column, Filters.CS, json.dumps(value))
+        return self.filter(column, Filters.CS, json.dumps(value, cls=PostgrestEncoder))
 
     def contained_by(
         self: Self, column: str, value: Union[Iterable[Any], str, Dict[Any, Any]]
@@ -472,7 +494,7 @@ class BaseFilterRequestBuilder(Generic[C]):
         if not isinstance(value, dict) and isinstance(value, Iterable):
             stringified_values = ",".join(value)
             return self.filter(column, Filters.CD, f"{{{stringified_values}}}")
-        return self.filter(column, Filters.CD, json.dumps(value))
+        return self.filter(column, Filters.CD, json.dumps(value, cls=PostgrestEncoder))
 
     def ov(self: Self, column: str, value: Iterable[Any]) -> Self:
         if isinstance(value, str):
@@ -483,7 +505,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             # Expected to be some type of iterable
             stringified_values = ",".join(value)
             return self.filter(column, Filters.OV, f"{{{stringified_values}}}")
-        return self.filter(column, Filters.OV, json.dumps(value))
+        return self.filter(column, Filters.OV, json.dumps(value, cls=PostgrestEncoder))
 
     def sl(self: Self, column: str, range: Tuple[int, int]) -> Self:
         return self.filter(column, Filters.SL, f"({range[0]},{range[1]})")
