@@ -170,7 +170,7 @@ class SignedUrlJsonResponse(BaseModel, extra="ignore"):
 class SignedUrlsJsonItem(BaseModel, extra="ignore"):
     error: Optional[str]
     path: str
-    signedURL: str
+    signedURL: Optional[str]
 
 
 SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
