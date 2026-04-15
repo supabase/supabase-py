@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
 from httpx import AsyncClient, BasicAuth, Headers, QueryParams, Response
 from pydantic import ValidationError
-from typing_extensions import override
+from typing_extensions import Self, override
 from yarl import URL
 
 from ..base_request_builder import (
@@ -28,9 +29,39 @@ from ..utils import model_validate_json
 ReqConfig = RequestConfig[AsyncClient]
 
 
+def get_retry_delay(resp: Response, attempt_count: int) -> int:
+    delay: int = min(2**attempt_count, 30)
+    return delay
+
+
+async def send_with_retry(req: ReqConfig) -> Response:
+    """
+    Retries idempotent requests that failed due to Cloudflare errors.
+    Request method must be either "GET" or "HEAD", and the response status code
+    must be either 503 or 520.
+    """
+    attempt_count = 0
+    while True:
+        headers = (
+            Headers({"X-Retry-Count": str(attempt_count)})
+            if attempt_count > 0
+            else Headers()
+        )
+        resp = await req.send(headers)
+        if resp.is_success or not req.should_retry(resp, attempt_count=attempt_count):
+            break
+        await asyncio.sleep(get_retry_delay(resp, attempt_count))
+        attempt_count += 1
+    return resp
+
+
 class AsyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
+
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
 
     async def execute(self) -> APIResponse:
         """Execute the query.
@@ -44,7 +75,7 @@ class AsyncQueryRequestBuilder:
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        r = await self.request.send()
+        r = await send_with_retry(self.request)
         try:
             if r.is_success:
                 return APIResponse.from_http_request_response(r)
@@ -59,6 +90,10 @@ class AsyncSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
     async def execute(self) -> SingleAPIResponse:
         """Execute the query.
 
@@ -71,7 +106,7 @@ class AsyncSingleRequestBuilder:
                 Raises:
                     :class:`APIError` If the API raised an error.
         """
-        r = await self.request.send()
+        r = await send_with_retry(self.request)
         try:
             if (
                 200 <= r.status_code <= 299
@@ -88,8 +123,12 @@ class AsyncExplainRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
     async def execute(self) -> str:
-        r = await self.request.send()
+        r = await send_with_retry(self.request)
         try:
             if r.is_success:
                 return r.text
@@ -104,8 +143,12 @@ class AsyncMaybeSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
     async def execute(self) -> Optional[SingleAPIResponse]:
-        r = await self.request.send()
+        r = await send_with_retry(self.request)
         try:
             if r.is_success:
                 parsed = APIResponse.from_http_request_response(r)
