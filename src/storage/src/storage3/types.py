@@ -152,15 +152,15 @@ class UploadResponse:
 
 
 class SignedUrlResponse(TypedDict):
-    signedURL: str
-    signedUrl: str
+    signedURL: Optional[str]
+    signedUrl: Optional[str]
 
 
 class CreateSignedUrlResponse(TypedDict):
     error: Optional[str]
     path: str
-    signedURL: str
-    signedUrl: str
+    signedURL: Optional[str]
+    signedUrl: Optional[str]
 
 
 class SignedUrlJsonResponse(BaseModel, extra="ignore"):
