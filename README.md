@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/supabase/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase/supabase-py/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/pypi/v/supabase?color=%2334D058)](https://pypi.org/project/supabase)
-[![Coverage Status](https://coveralls.io/repos/github/supabase/supabase-py/badge.svg?branch=main)](https://coveralls.io/github/supabase/supabase-py?branch=main)
+[![Coverage Status](https://coveralls.io/repos/github/supabase/supabase-py/badge.svg?branch=main)](https://coveralls.io/github/supabase-py?branch=main)
 
 Python monorepo for all [Supabase](https://supabase.com) libraries.
 
@@ -67,6 +67,8 @@ make ci -jN # where N is the number of max concurrent jobs, or just -j for infin
 ```
 To run each of the packages' tests in parallel. This should be generally faster than running in 1 job, but has the downside of messing up the CLI output, so parsing error messages might not be easy.
 
+When debugging a specific failure, it can be easier to run a single package target instead of the full parallel suite.
+
 Other relevant commands include
 ```bash
 make install-hooks # install all commit hooks into the local .git folder
@@ -78,3 +80,5 @@ All the subpackages command are available from the main root by prefixing the co
 make realtime.tests # run only realtime tests
 make storage.clean  # delete temporary files only in the storage package
 ```
+
+These package-specific targets are especially useful when you only need to debug one subpackage and want cleaner command output than `make ci -j`.
