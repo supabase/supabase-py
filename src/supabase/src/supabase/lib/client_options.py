@@ -56,6 +56,11 @@ class ClientOptions:
     flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""
 
+    storage: Optional[SyncSupportedStorage] = field(default_factory=SyncMemoryStorage)
+    """A storage provider. Used to store the logged in session."""
+
+    httpx_client: Optional[SyncHttpxClient] = None
+    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
 
 @dataclass
 class AsyncClientOptions(ClientOptions):
