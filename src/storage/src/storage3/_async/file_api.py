@@ -201,8 +201,10 @@ class AsyncBucketActionsMixin:
         return UploadResponse(path=path, Key=data["Key"])
 
     def _make_signed_url(
-        self, signed_url: str, download_query: dict[str, str]
+        self, signed_url: Optional[str], download_query: dict[str, str]
     ) -> SignedUrlResponse:
+        if signed_url is None:
+            return {"signedURL": None, "signedUrl": None}
         url = URL(signed_url[1:])  # ignore starting slash
         signedURL = self._base_url.join(url).extend_query(download_query)
         return {"signedURL": str(signedURL), "signedUrl": str(signedURL)}
