@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.29.0](https://github.com/supabase/supabase-py/compare/v2.28.3...v2.29.0) (2026-04-22)
+
+
+### Features
+
+* **postgrest:** add retry logic on cloudflare errors ([#1449](https://github.com/supabase/supabase-py/issues/1449)) ([a282549](https://github.com/supabase/supabase-py/commit/a2825494a7ed20f35918ef0a02d5024d1a389fa2))
+
+
+### Bug Fixes
+
+* **storage:** make signedURL an optional string ([#1461](https://github.com/supabase/supabase-py/issues/1461)) ([611cdbb](https://github.com/supabase/supabase-py/commit/611cdbb6046601c973a106303146e4faa50b7756))
+
 ## [2.28.3](https://github.com/supabase/supabase-py/compare/v2.28.2...v2.28.3) (2026-03-20)
 
 
