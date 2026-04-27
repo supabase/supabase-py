@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
 )
+from supabase_auth.types import UserAttributes
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -383,3 +384,17 @@ def test_handle_exception_weak_password_branch() -> None:
         assert isinstance(result, AuthWeakPasswordError)
         assert result.message == "Password too weak"
         assert result.status == 400
+
+
+def test_user_attributes_current_password_field() -> None:
+    attrs: UserAttributes = {
+        "email": "user@example.com",
+        "password": "newpassword",
+        "current_password": "oldpassword",
+    }
+    assert attrs["current_password"] == "oldpassword"
+
+
+def test_user_attributes_current_password_is_optional() -> None:
+    attrs: UserAttributes = {"email": "user@example.com"}
+    assert "current_password" not in attrs
