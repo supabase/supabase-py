@@ -29,7 +29,7 @@ from supabase_functions import AsyncFunctionsClient
 async def run_func():
     # Initialize the client with your project URL and optional headers
     headers = {
-        "Authorization": "Bearer your-anon-key",
+        "Authorization": "Bearer your-publishable-key",
         # Add any other headers you might need
     }
     
@@ -53,7 +53,7 @@ if __name__ == "__main__":
 from supabase_functions import SyncFunctionsClient
 
 # Initialize the client
-headers = {"Authorization": "Bearer your-anon-key"}
+headers = {"Authorization": "Bearer your-publishable-key"}
 fc = SyncFunctionsClient("https://<project_ref>.functions.supabase.co", headers)
 
 # Invoke your Edge Function

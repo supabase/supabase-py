@@ -12,8 +12,8 @@ from realtime.types import ChannelStates, Presence, RawPresenceState
 load_dotenv()
 
 URL = os.getenv("SUPABASE_URL") or "http://127.0.0.1:54321"
-ANON_KEY = (
-    os.getenv("SUPABASE_ANON_KEY")
+PUBLISHABLE_KEY = (
+    os.getenv("SUPABASE_PUBLISHABLE_KEY")
     or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 )
 
@@ -21,7 +21,7 @@ ANON_KEY = (
 @pytest.fixture
 def socket() -> AsyncRealtimeClient:
     url = f"{URL}/realtime/v1"
-    return AsyncRealtimeClient(url, ANON_KEY)
+    return AsyncRealtimeClient(url, PUBLISHABLE_KEY)
 
 
 @pytest.mark.asyncio
@@ -218,7 +218,7 @@ async def test_presence_enabled_when_callbacks_attached() -> None:
     """Test that presence.enabled is set correctly based on callback attachment."""
     from unittest.mock import AsyncMock, Mock
 
-    socket = AsyncRealtimeClient(f"{URL}/realtime/v1", ANON_KEY)
+    socket = AsyncRealtimeClient(f"{URL}/realtime/v1", PUBLISHABLE_KEY)
     channel = socket.channel("test")
 
     # Mock the join_push to capture the payload
@@ -255,7 +255,7 @@ async def test_resubscribe_on_presence_callback_addition() -> None:
     import asyncio
     from unittest.mock import AsyncMock
 
-    socket = AsyncRealtimeClient(f"{URL}/realtime/v1", ANON_KEY)
+    socket = AsyncRealtimeClient(f"{URL}/realtime/v1", PUBLISHABLE_KEY)
     channel = socket.channel("test")
 
     # Mock the channel as joined

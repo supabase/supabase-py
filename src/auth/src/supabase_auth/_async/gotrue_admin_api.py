@@ -122,7 +122,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Creates a new user.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         response = await self._request(
             "POST",
@@ -138,7 +138,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Get a list of users.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         response = await self._request(
             "GET",
@@ -152,7 +152,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Get user by id.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(uid)
 
@@ -171,7 +171,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Updates the user data.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(uid)
         response = await self._request(
@@ -183,10 +183,10 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
 
     async def delete_user(self, id: str, should_soft_delete: bool = False) -> None:
         """
-        Delete a user. Requires a `service_role` key.
+        Delete a user. Requires a `secret` key.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(id)
         body = {"should_soft_delete": should_soft_delete}
@@ -224,7 +224,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         if params:
             query = QueryParams(page=params.page, per_page=params.per_page)
@@ -269,7 +269,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         response = await self._request(
             "POST",
@@ -288,7 +288,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(client_id)
         response = await self._request(
@@ -307,7 +307,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(client_id)
         response = await self._request(
@@ -326,7 +326,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(client_id)
         await self._request(
@@ -343,7 +343,7 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(client_id)
         response = await self._request(
