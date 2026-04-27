@@ -247,6 +247,7 @@ class UserAttributes(TypedDict):
     password: NotRequired[str]
     data: NotRequired[Any]
     nonce: NotRequired[str]
+    current_password: NotRequired[str]
 
 
 class AdminUserAttributes(UserAttributes, TypedDict):
