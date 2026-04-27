@@ -298,3 +298,13 @@ def test_max_affected_returns_self(filter_request_builder):
     builder = filter_request_builder.max_affected(1)
 
     assert builder is filter_request_builder
+
+
+def test_filter_builders_are_immutable(filter_request_builder):
+    base_query = filter_request_builder.eq("account_id", "abc")
+    first_query = base_query.in_("id", ["1", "2", "3"])
+    second_query = base_query.in_("id", ["4", "5", "6"])
+
+    assert str(base_query.request.params) == "account_id=eq.abc"
+    assert str(first_query.request.params) == "account_id=eq.abc&id=in.%281%2C2%2C3%29"
+    assert str(second_query.request.params) == "account_id=eq.abc&id=in.%284%2C5%2C6%29"
