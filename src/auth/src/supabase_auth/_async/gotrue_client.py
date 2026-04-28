@@ -17,7 +17,6 @@ from ..constants import (
     EXPIRY_MARGIN,
     GOTRUE_URL,
     MAX_RETRIES,
-    RETRY_INTERVAL,
     STORAGE_KEY,
 )
 from ..errors import (
@@ -1062,7 +1061,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                         if self._refresh_token_timer:
                             self._refresh_token_timer.cancel()
                         self._refresh_token_timer = Timer(
-                            (RETRY_INTERVAL ** (self._network_retries * 100)),
+                            (200 * (2 ** (self._network_retries - 1))),
                             self._recover_and_refresh,
                         )
                         self._refresh_token_timer.start()
@@ -1127,7 +1126,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                     and self._network_retries < MAX_RETRIES
                 ):
                     await self._start_auto_refresh_token(
-                        RETRY_INTERVAL ** (self._network_retries * 100)
+                        200 * (2 ** (self._network_retries - 1))
                     )
 
         self._refresh_token_timer = Timer(value, refresh_token_function)

@@ -22,6 +22,8 @@ from ..types import (
     FileOptions,
     ListBucketFilesOptions,
     RequestMethod,
+    SearchV2Options,
+    SearchV2Result,
     SignedUploadURL,
     SignedUrlJsonResponse,
     SignedUrlResponse,
@@ -199,8 +201,10 @@ class AsyncBucketActionsMixin:
         return UploadResponse(path=path, Key=data["Key"])
 
     def _make_signed_url(
-        self, signed_url: str, download_query: dict[str, str]
+        self, signed_url: Optional[str], download_query: dict[str, str]
     ) -> SignedUrlResponse:
+        if signed_url is None:
+            return {"signedURL": None, "signedUrl": None}
         url = URL(signed_url[1:])  # ignore starting slash
         signedURL = self._base_url.join(url).extend_query(download_query)
         return {"signedURL": str(signedURL), "signedUrl": str(signedURL)}
@@ -441,6 +445,18 @@ class AsyncBucketActionsMixin:
             headers=extra_headers,
         )
         return response.json()
+
+    async def list_v2(
+        self,
+        options: Optional[SearchV2Options] = None,
+    ) -> SearchV2Result:
+        body = {**options} if options else {}
+        response = await self._request(
+            "POST",
+            ["object", "list-v2", self.id],
+            json=body,
+        )
+        return SearchV2Result.model_validate_json(response.content)
 
     async def download(
         self,

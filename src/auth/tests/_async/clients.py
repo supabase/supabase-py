@@ -14,7 +14,7 @@ def mock_access_token() -> str:
     return encode(
         {
             "sub": "1234567890",
-            "role": "anon_key",
+            "role": "anon",
         },
         GOTRUE_JWT_SECRET,
     )
@@ -82,7 +82,7 @@ async def create_new_user_with_email(
             "password": password,
         }
     )
-    response = await service_role_api_client().create_user(
+    response = await secret_key_api_client().create_user(
         {
             "email": credentials.email,
             "password": credentials.password,
@@ -197,7 +197,7 @@ def auth_admin_api_auto_confirm_disabled_client() -> AsyncGoTrueAdminAPI:
     )
 
 
-SERVICE_ROLE_JWT = encode(
+SECRET_KEY_JWT = encode(
     {
         "role": "service_role",
     },
@@ -205,28 +205,28 @@ SERVICE_ROLE_JWT = encode(
 )
 
 
-def service_role_api_client() -> AsyncGoTrueAdminAPI:
+def secret_key_api_client() -> AsyncGoTrueAdminAPI:
     return AsyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         headers={
-            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+            "Authorization": f"Bearer {SECRET_KEY_JWT}",
         },
     )
 
 
-def service_role_api_client_with_sms() -> AsyncGoTrueAdminAPI:
+def secret_key_api_client_with_sms() -> AsyncGoTrueAdminAPI:
     return AsyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         headers={
-            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+            "Authorization": f"Bearer {SECRET_KEY_JWT}",
         },
     )
 
 
-def service_role_api_client_no_sms() -> AsyncGoTrueAdminAPI:
+def secret_key_api_client_no_sms() -> AsyncGoTrueAdminAPI:
     return AsyncGoTrueAdminAPI(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         headers={
-            "Authorization": f"Bearer {SERVICE_ROLE_JWT}",
+            "Authorization": f"Bearer {SECRET_KEY_JWT}",
         },
     )

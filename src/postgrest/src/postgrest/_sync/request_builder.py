@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import time
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
 from httpx import BasicAuth, Client, Headers, QueryParams, Response
 from pydantic import ValidationError
-from typing_extensions import override
+from typing_extensions import Self, override
 from yarl import URL
 
 from ..base_request_builder import (
@@ -29,6 +30,32 @@ ReqConfig = RequestConfig[Client]
 QueryBuilderT = TypeVar("QueryBuilderT", bound="SyncQueryRequestBuilder")
 
 
+def get_retry_delay(resp: Response, attempt_count: int) -> int:
+    delay: int = min(2**attempt_count, 30)
+    return delay
+
+
+def send_with_retry(req: ReqConfig) -> Response:
+    """
+    Retries idempotent requests that failed due to Cloudflare errors.
+    Request method must be either "GET" or "HEAD", and the response status code
+    must be either 503 or 520.
+    """
+    attempt_count = 0
+    while True:
+        headers = (
+            Headers({"X-Retry-Count": str(attempt_count)})
+            if attempt_count > 0
+            else Headers()
+        )
+        resp = req.send(headers)
+        if resp.is_success or not req.should_retry(resp, attempt_count=attempt_count):
+            break
+        time.sleep(get_retry_delay(resp, attempt_count))
+        attempt_count += 1
+    return resp
+
+
 class SyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
@@ -45,6 +72,10 @@ class SyncQueryRequestBuilder:
             self.request.headers["Prefer"] = f"{prefer_header},return=representation"
         return self
 
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
     def execute(self) -> APIResponse:
         """Execute the query.
 
@@ -57,7 +88,7 @@ class SyncQueryRequestBuilder:
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        r = self.request.send()
+        r = send_with_retry(self.request)
         try:
             if r.is_success:
                 return APIResponse.from_http_request_response(r)
@@ -72,6 +103,10 @@ class SyncSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
     def execute(self) -> SingleAPIResponse:
         """Execute the query.
 
@@ -84,7 +119,7 @@ class SyncSingleRequestBuilder:
                 Raises:
                     :class:`APIError` If the API raised an error.
         """
-        r = self.request.send()
+        r = send_with_retry(self.request)
         try:
             if (
                 200 <= r.status_code <= 299
@@ -101,8 +136,12 @@ class SyncExplainRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
     def execute(self) -> str:
-        r = self.request.send()
+        r = send_with_retry(self.request)
         try:
             if r.is_success:
                 return r.text
@@ -117,23 +156,33 @@ class SyncMaybeSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
     def execute(self) -> Optional[SingleAPIResponse]:
-        r = None
+        r = send_with_retry(self.request)
         try:
-            r = SyncSingleRequestBuilder(self.request).execute()
-        except APIError as e:
-            if e.details and "The result contains 0 rows" in e.details:
-                return None
-        if not r:
-            raise APIError(
-                {
-                    "message": "Missing response",
-                    "code": "204",
-                    "hint": "Please check traceback of the code",
-                    "details": "Postgrest couldn't retrieve response, please check traceback of the code. Please create an issue in `supabase-community/postgrest-py` if needed.",
-                }
-            )
-        return r
+            if r.is_success:
+                parsed = APIResponse.from_http_request_response(r)
+                if len(parsed.data) == 0:
+                    return None
+                if len(parsed.data) == 1:
+                    return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
+                else:
+                    raise APIError(
+                        {
+                            "message": "Cannot coerce the result to a single JSON object",
+                            "code": "406",
+                            "hint": "Please check traceback of the code",
+                            "details": "The result contains more than one row.",
+                        }
+                    )
+            else:
+                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                raise APIError(dict(json_obj))
+        except ValidationError as e:
+            raise APIError(generate_default_error_message(r))
 
 
 class SyncFilterRequestBuilder(
@@ -168,7 +217,6 @@ class SyncSelectRequestBuilder(
 
     def maybe_single(self) -> SyncMaybeSingleRequestBuilder:
         """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return SyncMaybeSingleRequestBuilder(self.request)
 
     def text_search(

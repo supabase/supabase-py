@@ -52,6 +52,7 @@ class QueryArgs(NamedTuple):
 
 
 C = TypeVar("C", Client, AsyncClient)
+MAX_RETRIES = 3
 
 
 class RequestConfig(Generic[C]):
@@ -64,6 +65,7 @@ class RequestConfig(Generic[C]):
         params: QueryParams,
         auth: BasicAuth | None,
         json: JSON,
+        retry_enabled: bool = True,
     ) -> None:
         self.session: C = session
         self.path = path
@@ -72,21 +74,34 @@ class RequestConfig(Generic[C]):
         self.params = params
         self.json = None if http_method in {"GET", "HEAD"} else json
         self.auth = auth
+        self.retry_enabled = retry_enabled
 
     @overload
-    def send(self: RequestConfig[Client]) -> RequestResponse: ...
+    def send(
+        self: RequestConfig[Client], additional_headers: Headers
+    ) -> RequestResponse: ...
     @overload
-    def send(self: RequestConfig[AsyncClient]) -> Awaitable[RequestResponse]: ...
+    def send(
+        self: RequestConfig[AsyncClient], additional_headers: Headers
+    ) -> Awaitable[RequestResponse]: ...
 
-    def send(self: RequestConfig[C]):
+    def send(self: RequestConfig[C], additional_headers: Headers):
+        additional_headers.update(self.headers)
         return self.session.request(
             self.http_method,
             str(self.path),
             json=self.json,
             params=self.params,
-            headers=self.headers,
+            headers=additional_headers,
             auth=self.auth,
         )
+
+    def should_retry(self, response: RequestResponse, attempt_count: int) -> bool:
+        if not self.retry_enabled or attempt_count >= MAX_RETRIES:
+            return False
+        if not (self.http_method == "GET" or self.http_method == "HTTP"):
+            return False
+        return response.status_code == 503 or response.status_code == 520
 
 
 def _unique_columns(json: List[Dict[str, JSON]]):
@@ -204,13 +219,6 @@ class APIResponse(BaseModel):
     """The data returned by the query."""
     count: Optional[int] = None
     """The number of rows returned."""
-
-    @field_validator("data")
-    @classmethod
-    def raise_when_api_error(cls: Type[Self], value: Any) -> Any:
-        if isinstance(value, dict) and value.get("message"):
-            raise ValueError("You are passing an API error to the data field.")
-        return value
 
     @staticmethod
     def _get_count_from_content_range_header(

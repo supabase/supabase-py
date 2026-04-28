@@ -1,5 +1,55 @@
 # Changelog
 
+## [2.29.0](https://github.com/supabase/supabase-py/compare/v2.28.3...v2.29.0) (2026-04-22)
+
+
+### Features
+
+* **postgrest:** add retry logic on cloudflare errors ([#1449](https://github.com/supabase/supabase-py/issues/1449)) ([a282549](https://github.com/supabase/supabase-py/commit/a2825494a7ed20f35918ef0a02d5024d1a389fa2))
+
+
+### Bug Fixes
+
+* **storage:** make signedURL an optional string ([#1461](https://github.com/supabase/supabase-py/issues/1461)) ([611cdbb](https://github.com/supabase/supabase-py/commit/611cdbb6046601c973a106303146e4faa50b7756))
+
+## [2.28.3](https://github.com/supabase/supabase-py/compare/v2.28.2...v2.28.3) (2026-03-20)
+
+
+### Bug Fixes
+
+* **postgrest:** fix maybe_single ([#1424](https://github.com/supabase/supabase-py/issues/1424)) ([c7f8f13](https://github.com/supabase/supabase-py/commit/c7f8f13b40c9f46a46276241f25c17f45b17e069))
+
+## [2.28.2](https://github.com/supabase/supabase-py/compare/v2.28.1...v2.28.2) (2026-03-13)
+
+
+### Bug Fixes
+
+* **auth:** fix admin list factors payload format. ([#1415](https://github.com/supabase/supabase-py/issues/1415)) ([32843cf](https://github.com/supabase/supabase-py/commit/32843cf8346529e2b7fbcec9d0e787424b70e55c))
+
+## [2.28.1](https://github.com/supabase/supabase-py/compare/v2.28.0...v2.28.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* **auth:** prevent OverflowError in auto-refresh token retry ([#1397](https://github.com/supabase/supabase-py/issues/1397)) ([#1400](https://github.com/supabase/supabase-py/issues/1400)) ([08bdf38](https://github.com/supabase/supabase-py/commit/08bdf38198680ec25f85ded68dc358c75ddf6fd3))
+* **postgrest:** comment out ssl error test ([#1410](https://github.com/supabase/supabase-py/issues/1410)) ([51b86be](https://github.com/supabase/supabase-py/commit/51b86becfe1a51addd59cc3f8e24e891bfd5eb4a))
+* **postgrest:** remove check against message field in data payload ([#1413](https://github.com/supabase/supabase-py/issues/1413)) ([81041a4](https://github.com/supabase/supabase-py/commit/81041a4289b449e534ab46cc9cb54a08b6b7fa4f))
+
+## [2.28.0](https://github.com/supabase/supabase-py/compare/v2.27.3...v2.28.0) (2026-02-10)
+
+
+### Features
+
+* **storage:** add list_v2 method to file_api client ([#1377](https://github.com/supabase/supabase-py/issues/1377)) ([259f4ad](https://github.com/supabase/supabase-py/commit/259f4ad42d4022eed2c44e0e9a316271cfccbde4))
+
+
+### Bug Fixes
+
+* **auth:** add missing is_sso_user, deleted_at, banned_until to User model ([#1375](https://github.com/supabase/supabase-py/issues/1375)) ([7f84a62](https://github.com/supabase/supabase-py/commit/7f84a629968b9269f233e75e28f973c1cae530d6))
+* **realtime:** ensure remove_channel removes channel from channels dict ([#1373](https://github.com/supabase/supabase-py/issues/1373)) ([0923314](https://github.com/supabase/supabase-py/commit/09233140397e7921ab054dbf4d88d1899d30c244))
+* **realtime:** use pop with default in _handle_message to prevent KeyError ([#1388](https://github.com/supabase/supabase-py/issues/1388)) ([baea26f](https://github.com/supabase/supabase-py/commit/baea26f7ce7f0572b4e96caaf27add29127349fe))
+* **storage3:** replace print() with warnings.warn() for trailing slash notice ([#1380](https://github.com/supabase/supabase-py/issues/1380)) ([50b099f](https://github.com/supabase/supabase-py/commit/50b099fa06efa643d1d43830e4497e21972e46bc))
+
 ## [2.27.3](https://github.com/supabase/supabase-py/compare/v2.27.2...v2.27.3) (2026-02-03)
 
 

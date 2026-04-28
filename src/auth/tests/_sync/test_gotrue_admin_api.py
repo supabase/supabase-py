@@ -1,5 +1,3 @@
-import uuid
-
 import pytest
 from supabase_auth.errors import (
     AuthApiError,
@@ -7,7 +5,7 @@ from supabase_auth.errors import (
     AuthSessionMissingError,
     AuthWeakPasswordError,
 )
-from supabase_auth.types import CreateOAuthClientParams
+from supabase_auth.types import CreateOAuthClientParams, UpdateOAuthClientParams
 
 from .clients import (
     auth_client,
@@ -19,7 +17,7 @@ from .clients import (
     mock_user_credentials,
     mock_user_metadata,
     mock_verification_otp,
-    service_role_api_client,
+    secret_key_api_client,
 )
 
 
@@ -32,7 +30,7 @@ def test_create_user_should_create_a_new_user() -> None:
 def test_create_user_with_user_metadata() -> None:
     user_metadata = mock_user_metadata()
     credentials = mock_user_credentials()
-    response = service_role_api_client().create_user(
+    response = secret_key_api_client().create_user(
         {
             "email": credentials.email,
             "password": credentials.password,
@@ -48,7 +46,7 @@ def test_create_user_with_user_and_app_metadata() -> None:
     user_metadata = mock_user_metadata()
     app_metadata = mock_app_metadata()
     credentials = mock_user_credentials()
-    response = service_role_api_client().create_user(
+    response = secret_key_api_client().create_user(
         {
             "email": credentials.email,
             "password": credentials.password,
@@ -65,7 +63,7 @@ def test_create_user_with_user_and_app_metadata() -> None:
 def test_list_users_should_return_registered_users() -> None:
     credentials = mock_user_credentials()
     create_new_user_with_email(email=credentials.email)
-    users = service_role_api_client().list_users()
+    users = secret_key_api_client().list_users()
     assert users
     emails = [user.email for user in users]
     assert emails
@@ -76,14 +74,14 @@ def test_get_user_by_id_should_a_registered_user_given_its_user_identifier() -> 
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
     assert user.id
-    response = service_role_api_client().get_user_by_id(user.id)
+    response = secret_key_api_client().get_user_by_id(user.id)
     assert response.user.email == credentials.email
 
 
 def test_modify_email_using_update_user_by_id() -> None:
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
-    response = service_role_api_client().update_user_by_id(
+    response = secret_key_api_client().update_user_by_id(
         user.id,
         {
             "email": f"new_{user.email}",
@@ -96,7 +94,7 @@ def test_modify_user_metadata_using_update_user_by_id() -> None:
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
     user_metadata = {"favorite_color": "yellow"}
-    response = service_role_api_client().update_user_by_id(
+    response = secret_key_api_client().update_user_by_id(
         user.id,
         {
             "user_metadata": user_metadata,
@@ -110,7 +108,7 @@ def test_modify_app_metadata_using_update_user_by_id() -> None:
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
     app_metadata = {"roles": ["admin", "publisher"]}
-    response = service_role_api_client().update_user_by_id(
+    response = secret_key_api_client().update_user_by_id(
         user.id,
         {
             "app_metadata": app_metadata,
@@ -130,7 +128,7 @@ def test_modify_confirm_email_using_update_user_by_id() -> None:
     )
     assert response.user
     assert not response.user.email_confirmed_at
-    auth_response = service_role_api_client().update_user_by_id(
+    auth_response = secret_key_api_client().update_user_by_id(
         response.user.id,
         {
             "email_confirm": True,
@@ -226,8 +224,8 @@ def test_sign_in_anonymously() -> None:
 def test_delete_user_should_be_able_delete_an_existing_user() -> None:
     credentials = mock_user_credentials()
     user = create_new_user_with_email(email=credentials.email)
-    service_role_api_client().delete_user(user.id)
-    users = service_role_api_client().list_users()
+    secret_key_api_client().delete_user(user.id)
+    users = secret_key_api_client().list_users()
     emails = [user.email for user in users]
     assert credentials.email not in emails
 
@@ -238,7 +236,7 @@ def test_generate_link_supports_sign_up_with_generate_confirmation_signup_link()
     credentials = mock_user_credentials()
     redirect_to = "http://localhost:9999/welcome"
     user_metadata = {"status": "alpha"}
-    response = service_role_api_client().generate_link(
+    response = secret_key_api_client().generate_link(
         {
             "type": "signup",
             "email": credentials.email,
@@ -261,7 +259,7 @@ def test_generate_link_supports_updating_emails_with_generate_email_change_links
     assert user.email == credentials.email
     credentials = mock_user_credentials()
     redirect_to = "http://localhost:9999/welcome"
-    response = service_role_api_client().generate_link(
+    response = secret_key_api_client().generate_link(
         {
             "type": "email_change_current",
             "email": user.email,
@@ -278,7 +276,7 @@ def test_invite_user_by_email_creates_a_new_user_with_an_invited_at_timestamp() 
     credentials = mock_user_credentials()
     redirect_to = "http://localhost:9999/welcome"
     user_metadata = {"status": "alpha"}
-    response = service_role_api_client().invite_user_by_email(
+    response = secret_key_api_client().invite_user_by_email(
         credentials.email,
         {
             "data": user_metadata,
@@ -298,12 +296,12 @@ def test_sign_out_with_an_valid_access_token() -> None:
         },
     )
     assert response.session
-    service_role_api_client().sign_out(response.session.access_token)
+    secret_key_api_client().sign_out(response.session.access_token)
 
 
 def test_sign_out_with_an_invalid_access_token() -> None:
     try:
-        service_role_api_client().sign_out("this-is-a-bad-token")
+        secret_key_api_client().sign_out("this-is-a-bad-token")
         raise AssertionError()
     except AuthError:
         pass
@@ -525,7 +523,7 @@ def test_update_user() -> None:
 def test_create_user_with_app_metadata() -> None:
     app_metadata = mock_app_metadata()
     credentials = mock_user_credentials()
-    response = service_role_api_client().create_user(
+    response = secret_key_api_client().create_user(
         {
             "email": credentials.email,
             "password": credentials.password,
@@ -563,57 +561,61 @@ def test_weak_phone_password_error() -> None:
         assert e.to_dict()
 
 
-def test_get_user_by_id_invalid_id_raises_error() -> None:
-    with pytest.raises(
-        ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
-    ):
-        service_role_api_client().get_user_by_id("invalid_id")
+def test_admin_list_factors() -> None:
+    import pyotp
 
+    credentials = mock_user_credentials()
+    client = auth_client()
+    client.sign_up(
+        {
+            "email": credentials.email,
+            "password": credentials.password,
+        }
+    )
 
-def test_update_user_by_id_invalid_id_raises_error() -> None:
-    with pytest.raises(
-        ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
-    ):
-        service_role_api_client().update_user_by_id(
-            "invalid_id", {"email": "test@test.com"}
-        )
-
-
-def test_delete_user_invalid_id_raises_error() -> None:
-    with pytest.raises(
-        ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
-    ):
-        service_role_api_client().delete_user("invalid_id")
-
-
-def test_list_factors_invalid_id_raises_error() -> None:
-    with pytest.raises(
-        ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
-    ):
-        service_role_api_client()._list_factors({"user_id": "invalid_id"})
-
-
-def test_delete_factor_invalid_id_raises_error() -> None:
-    # invalid user id
-    with pytest.raises(
-        ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
-    ):
-        service_role_api_client()._delete_factor(
-            {"user_id": "invalid_id", "id": "invalid_id"}
-        )
-
-    # valid user id, invalid factor id
-    with pytest.raises(
-        ValueError, match=r"Invalid id, 'invalid_id' is not a valid uuid"
-    ):
-        service_role_api_client()._delete_factor(
-            {"user_id": str(uuid.uuid4()), "id": "invalid_id"}
-        )
+    auth_response = client.sign_in_with_password(
+        {
+            "email": credentials.email,
+            "password": credentials.password,
+        }
+    )
+    assert auth_response.user
+    enroll_response = client.mfa.enroll(
+        {
+            "factor_type": "totp",
+            "friendly_name": "test_otp",
+        }
+    )
+    assert enroll_response.totp
+    totp = pyotp.TOTP(enroll_response.totp.secret)
+    res = client.mfa.challenge_and_verify(
+        {
+            "factor_id": enroll_response.id,
+            "code": totp.now(),
+        }
+    )
+    admin_client = secret_key_api_client()
+    factors = admin_client.mfa.list_factors(
+        {
+            "user_id": res.user.id,
+        }
+    )
+    assert factors[0].friendly_name == "test_otp"
+    assert factors[0].factor_type == "totp"
+    assert factors[0].status == "verified"
+    admin_client.mfa.delete_factor(
+        {
+            "id": factors[0].id,
+            "user_id": res.user.id,
+        }
+    )
+    factors = admin_client.mfa.list_factors({"user_id": res.user.id})
+    assert len(factors) == 0
 
 
 def test_create_oauth_client() -> None:
     """Test creating an OAuth client."""
-    response = service_role_api_client().oauth.create_client(
+    response = secret_key_api_client().oauth.create_client(
         CreateOAuthClientParams(
             client_name="Test OAuth Client",
             redirect_uris=["https://example.com/callback"],
@@ -626,7 +628,7 @@ def test_create_oauth_client() -> None:
 
 def test_list_oauth_clients() -> None:
     """Test listing OAuth clients."""
-    client = service_role_api_client()
+    client = secret_key_api_client()
     client.oauth.create_client(
         CreateOAuthClientParams(
             client_name="Test OAuth Client",
@@ -642,7 +644,7 @@ def test_list_oauth_clients() -> None:
 def test_get_oauth_client() -> None:
     """Test getting an OAuth client by ID."""
     # First create a client
-    create_response = service_role_api_client().oauth.create_client(
+    create_response = secret_key_api_client().oauth.create_client(
         CreateOAuthClientParams(
             client_name="Test OAuth Client for Get",
             redirect_uris=["https://example.com/callback"],
@@ -650,38 +652,38 @@ def test_get_oauth_client() -> None:
     )
     if create_response.client:
         client_id = create_response.client.client_id
-        response = service_role_api_client().oauth.get_client(client_id)
+        response = secret_key_api_client().oauth.get_client(client_id)
         assert response.client is not None
         assert response.client.client_id == client_id
 
 
 # Server is not yet released, so this test is not yet relevant.
-# async def test_update_oauth_client() -> None:
-#     """Test updating an OAuth client."""
-#     # First create a client
-#     client = service_role_api_client()
-#     create_response = await client.oauth.create_client(
-#         CreateOAuthClientParams(
-#             client_name="Test OAuth Client for Update",
-#             redirect_uris=["https://example.com/callback"],
-#         )
-#     )
-#     assert create_response.client is not None
-#     client_id = create_response.client.client_id
-#     response = await client.oauth.update_client(
-#         client_id,
-#         UpdateOAuthClientParams(
-#             client_name="Updated Test OAuth Client",
-#         )
-#     )
-#     assert response.client is not None
-#     assert response.client.client_name == "Updated Test OAuth Client"
+def test_update_oauth_client() -> None:
+    """Test updating an OAuth client."""
+    # First create a client
+    client = secret_key_api_client()
+    create_response = client.oauth.create_client(
+        CreateOAuthClientParams(
+            client_name="Test OAuth Client for Update",
+            redirect_uris=["https://example.com/callback"],
+        )
+    )
+    assert create_response.client is not None
+    client_id = create_response.client.client_id
+    response = client.oauth.update_client(
+        client_id,
+        UpdateOAuthClientParams(
+            client_name="Updated Test OAuth Client",
+        ),
+    )
+    assert response.client is not None
+    assert response.client.client_name == "Updated Test OAuth Client"
 
 
 def test_delete_oauth_client() -> None:
     """Test deleting an OAuth client."""
     # First create a client
-    client = service_role_api_client()
+    client = secret_key_api_client()
     create_response = client.oauth.create_client(
         CreateOAuthClientParams(
             client_name="Test OAuth Client for Delete",
@@ -696,7 +698,7 @@ def test_delete_oauth_client() -> None:
 def test_regenerate_oauth_client_secret() -> None:
     """Test regenerating an OAuth client secret."""
     # First create a client
-    create_response = service_role_api_client().oauth.create_client(
+    create_response = secret_key_api_client().oauth.create_client(
         CreateOAuthClientParams(
             client_name="Test OAuth Client for Regenerate",
             redirect_uris=["https://example.com/callback"],
@@ -704,6 +706,6 @@ def test_regenerate_oauth_client_secret() -> None:
     )
     if create_response.client:
         client_id = create_response.client.client_id
-        response = service_role_api_client().oauth.regenerate_client_secret(client_id)
+        response = secret_key_api_client().oauth.regenerate_client_secret(client_id)
         assert response.client is not None
         assert response.client.client_secret is not None

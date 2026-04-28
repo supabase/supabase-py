@@ -16,6 +16,7 @@ from ..types import (
     AuthMFAAdminDeleteFactorResponse,
     AuthMFAAdminListFactorsParams,
     AuthMFAAdminListFactorsResponse,
+    AuthMFAAdminListFactorsResponseParser,
     CreateOAuthClientParams,
     GenerateLinkParams,
     GenerateLinkResponse,
@@ -121,7 +122,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Creates a new user.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         response = self._request(
             "POST",
@@ -137,7 +138,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Get a list of users.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         response = self._request(
             "GET",
@@ -151,7 +152,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Get user by id.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(uid)
 
@@ -170,7 +171,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Updates the user data.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(uid)
         response = self._request(
@@ -182,10 +183,10 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
 
     def delete_user(self, id: str, should_soft_delete: bool = False) -> None:
         """
-        Delete a user. Requires a `service_role` key.
+        Delete a user. Requires a `secret` key.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(id)
         body = {"should_soft_delete": should_soft_delete}
@@ -200,7 +201,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "GET",
             f"admin/users/{params.get('user_id')}/factors",
         )
-        return model_validate(AuthMFAAdminListFactorsResponse, response.content)
+        return AuthMFAAdminListFactorsResponseParser.validate_json(response.content)
 
     def _delete_factor(
         self,
@@ -223,7 +224,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         if params:
             query = QueryParams(page=params.page, per_page=params.per_page)
@@ -268,7 +269,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         response = self._request(
             "POST",
@@ -287,7 +288,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(client_id)
         response = self._request(
@@ -306,7 +307,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(client_id)
         response = self._request(
@@ -325,7 +326,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(client_id)
         self._request(
@@ -342,7 +343,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
         Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
 
         This function should only be called on a server.
-        Never expose your `service_role` key in the browser.
+        Never expose your `secret` key in the browser.
         """
         validate_uuid(client_id)
         response = self._request(

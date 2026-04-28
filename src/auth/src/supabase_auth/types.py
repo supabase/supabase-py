@@ -4,7 +4,7 @@ from datetime import datetime
 from time import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, with_config
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, with_config
 
 try:
     # > 2
@@ -247,6 +247,7 @@ class UserAttributes(TypedDict):
     password: NotRequired[str]
     data: NotRequired[Any]
     nonce: NotRequired[str]
+    current_password: NotRequired[str]
 
 
 class AdminUserAttributes(UserAttributes, TypedDict):
@@ -760,11 +761,11 @@ class AuthMFAAdminDeleteFactorParams(TypedDict):
     """
 
 
-class AuthMFAAdminListFactorsResponse(BaseModel):
-    factors: List[Factor]
-    """
-    All factors attached to the user.
-    """
+AuthMFAAdminListFactorsResponse = List[Factor]
+
+AuthMFAAdminListFactorsResponseParser: TypeAdapter[AuthMFAAdminListFactorsResponse] = (
+    TypeAdapter(AuthMFAAdminListFactorsResponse)
+)
 
 
 class AuthMFAAdminListFactorsParams(TypedDict):
@@ -1029,36 +1030,3 @@ class PageParams(BaseModel):
     """Page number"""
     per_page: Optional[int] = None
     """Number of items per page"""
-
-
-for model in [
-    AMREntry,
-    AuthResponse,
-    OAuthResponse,
-    UserResponse,
-    Session,
-    UserIdentity,
-    Factor,
-    User,
-    Subscription,
-    AuthMFAVerifyResponse,
-    AuthMFAEnrollResponseTotp,
-    AuthMFAEnrollResponse,
-    AuthMFAUnenrollResponse,
-    AuthMFAChallengeResponse,
-    AuthMFAListFactorsResponse,
-    AuthMFAGetAuthenticatorAssuranceLevelResponse,
-    AuthMFAAdminDeleteFactorResponse,
-    AuthMFAAdminListFactorsResponse,
-    GenerateLinkProperties,
-    OAuthClient,
-    OAuthClientResponse,
-    OAuthClientListResponse,
-    Pagination,
-]:
-    try:
-        # pydantic > 2
-        model.model_rebuild()  # type: ignore
-    except AttributeError:
-        # pydantic < 2
-        model.update_forward_refs()  # type: ignore
