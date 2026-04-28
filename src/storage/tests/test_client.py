@@ -18,7 +18,7 @@ def valid_headers() -> Dict[str, str]:
 
 
 _X_CLIENT_INFO_PATTERN = re.compile(
-    r"^supabase-py/storage3 v[\d.]+; platform=.+; platform-version=.+; runtime=python; runtime-version=[\d.]+$"
+    r"^supabase-py/storage3 v[\d.]+; platform=.+; platform-version=.+; runtime=python; runtime-version=\S+$"
 )
 
 

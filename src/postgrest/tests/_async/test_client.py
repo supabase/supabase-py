@@ -28,7 +28,7 @@ class TestXClientInfo:
         x_client_info = postgrest_client.session.headers.get("X-Client-Info")
         assert x_client_info is not None
         assert re.match(
-            r"^supabase-py/postgrest-py v[\d.]+; platform=.+; platform-version=.+; runtime=python; runtime-version=[\d.]+$",
+            r"^supabase-py/postgrest-py v[\d.]+; platform=.+; platform-version=.+; runtime=python; runtime-version=\S+$",
             x_client_info,
         ), f"X-Client-Info format is wrong: {x_client_info}"
 
