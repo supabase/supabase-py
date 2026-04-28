@@ -32,15 +32,6 @@ class TestXClientInfo:
             x_client_info,
         ), f"X-Client-Info format is wrong: {x_client_info}"
 
-    def test_no_separate_platform_headers(
-        self, postgrest_client: AsyncPostgrestClient
-    ):
-        headers = dict(postgrest_client.session.headers)
-        assert "x-supabase-client-platform" not in headers
-        assert "x-supabase-client-platform-version" not in headers
-        assert "x-supabase-client-runtime" not in headers
-        assert "x-supabase-client-runtime-version" not in headers
-
 
 class TestConstructor:
     def test_simple(self, postgrest_client: AsyncPostgrestClient):

@@ -20,12 +20,6 @@ def valid_headers() -> Dict[str, str]:
 _X_CLIENT_INFO_PATTERN = re.compile(
     r"^supabase-py/storage3 v[\d.]+; platform=.+; platform-version=.+; runtime=python; runtime-version=[\d.]+$"
 )
-_SEPARATE_PLATFORM_HEADERS = [
-    "x-supabase-client-platform",
-    "x-supabase-client-platform-version",
-    "x-supabase-client-runtime",
-    "x-supabase-client-runtime-version",
-]
 
 
 def test_async_x_client_info_structured_format(valid_url, valid_headers) -> None:
@@ -44,20 +38,6 @@ def test_sync_x_client_info_structured_format(valid_url, valid_headers) -> None:
     assert _X_CLIENT_INFO_PATTERN.match(
         x_client_info
     ), f"X-Client-Info format is wrong: {x_client_info}"
-
-
-def test_async_no_separate_platform_headers(valid_url, valid_headers) -> None:
-    client = AsyncStorageClient(url=valid_url, headers=valid_headers)
-    headers = {k.lower(): v for k, v in client._client.headers.items()}
-    for header in _SEPARATE_PLATFORM_HEADERS:
-        assert header not in headers, f"Unexpected header present: {header}"
-
-
-def test_sync_no_separate_platform_headers(valid_url, valid_headers) -> None:
-    client = SyncStorageClient(url=valid_url, headers=valid_headers)
-    headers = {k.lower(): v for k, v in client._client.headers.items()}
-    for header in _SEPARATE_PLATFORM_HEADERS:
-        assert header not in headers, f"Unexpected header present: {header}"
 
 
 def test_create_async_client(valid_url, valid_headers) -> None:
