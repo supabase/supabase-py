@@ -137,7 +137,6 @@ class TestInsert:
 
         assert builder.request.params["select"] == "id"
         assert builder.request.headers.get_list("prefer", True) == [
-            "return=minimal",
             "return=representation",
         ]
 

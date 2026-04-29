@@ -63,13 +63,12 @@ class AsyncQueryRequestBuilder:
     def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
         _, params, _, _ = pre_select(*columns, count=None)
         self.request.params = self.request.params.add("select", params["select"])
-        prefer_header = self.request.headers.get("Prefer")
-        if not prefer_header:
+        if prefer_headers := self.request.headers.get_list("Prefer", split_commas=True):
+            prefer_headers = [h for h in prefer_headers if not h.startswith("return=")]
+            prefer_headers.append("return=representation")
+            self.request.headers["Prefer"] = ",".join(prefer_headers)
+        else:
             self.request.headers["Prefer"] = "return=representation"
-        elif "return=representation" not in [
-            value.strip() for value in prefer_header.split(",")
-        ]:
-            self.request.headers["Prefer"] = f"{prefer_header},return=representation"
         return self
 
     def retry(self, enabled: bool) -> Self:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import time
+import asyncio
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
 from httpx import BasicAuth, Client, Headers, QueryParams, Response
@@ -51,7 +51,7 @@ def send_with_retry(req: ReqConfig) -> Response:
         resp = req.send(headers)
         if resp.is_success or not req.should_retry(resp, attempt_count=attempt_count):
             break
-        time.sleep(get_retry_delay(resp, attempt_count))
+        asyncio.sleep(get_retry_delay(resp, attempt_count))
         attempt_count += 1
     return resp
 
@@ -63,13 +63,12 @@ class SyncQueryRequestBuilder:
     def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
         _, params, _, _ = pre_select(*columns, count=None)
         self.request.params = self.request.params.add("select", params["select"])
-        prefer_header = self.request.headers.get("Prefer")
-        if not prefer_header:
+        if prefer_headers := self.request.headers.get_list("Prefer", split_commas=True):
+            prefer_headers = [h for h in prefer_headers if not h.startswith("return=")]
+            prefer_headers.append("return=representation")
+            self.request.headers["Prefer"] = ",".join(prefer_headers)
+        else:
             self.request.headers["Prefer"] = "return=representation"
-        elif "return=representation" not in [
-            value.strip() for value in prefer_header.split(",")
-        ]:
-            self.request.headers["Prefer"] = f"{prefer_header},return=representation"
         return self
 
     def retry(self, enabled: bool) -> Self:
