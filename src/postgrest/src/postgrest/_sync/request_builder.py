@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio
+import time
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
 from httpx import BasicAuth, Client, Headers, QueryParams, Response
@@ -51,7 +51,7 @@ def send_with_retry(req: ReqConfig) -> Response:
         resp = req.send(headers)
         if resp.is_success or not req.should_retry(resp, attempt_count=attempt_count):
             break
-        asyncio.sleep(get_retry_delay(resp, attempt_count))
+        time.sleep(get_retry_delay(resp, attempt_count))
         attempt_count += 1
     return resp
 
