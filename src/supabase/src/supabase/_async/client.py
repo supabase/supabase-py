@@ -70,6 +70,7 @@ class AsyncClient:
             URL(supabase_url) if supabase_url.endswith("/") else URL(supabase_url + "/")
         )
         self.supabase_key = supabase_key
+        self.access_token = options.access_token
         self.options = copy.copy(options)
         self.options.headers = {
             **options.headers,
@@ -84,20 +85,15 @@ class AsyncClient:
         self.storage_url = self.supabase_url.joinpath("storage", "v1", "")
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
-        # Instantiate clients.
-        self.auth = self._init_supabase_auth_client(
-            auth_url=str(self.auth_url),
-            client_options=self.options,
-        )
         self.realtime = self._init_realtime_client(
             realtime_url=self.realtime_url,
             supabase_key=self.supabase_key,
             options=self.options.realtime if self.options else None,
         )
+        self._auth: Optional[AsyncSupabaseAuthClient] = None
         self._postgrest: Optional[AsyncPostgrestClient] = None
         self._storage: Optional[AsyncStorageClient] = None
         self._functions: Optional[AsyncFunctionsClient] = None
-        self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
     async def create(
@@ -110,16 +106,18 @@ class AsyncClient:
         client = cls(supabase_url, supabase_key, options)
 
         if auth_header is None:
-            try:
-                session = await client.auth.get_session()
-                session_access_token = (
-                    client._create_auth_header(session.access_token)
-                    if session
-                    else None
-                )
-            except Exception:
-                session_access_token = None
-
+            if client.access_token:
+                session_access_token: Optional[str] = await client.access_token()
+            else:
+                try:
+                    session = await client.auth.get_session()
+                    session_access_token = (
+                        client._create_auth_header(session.access_token)
+                        if session
+                        else None
+                    )
+                except Exception:
+                    session_access_token = None
             client.options.headers.update(
                 client._get_auth_headers(session_access_token)
             )
@@ -178,6 +176,21 @@ class AsyncClient:
         if params is None:
             params = {}
         return self.postgrest.rpc(fn, params, count, head, get)
+
+    @property
+    def auth(self) -> AsyncSupabaseAuthClient:
+        if not self.access_token:
+            if self._auth is None:
+                self._auth = self._init_supabase_auth_client(
+                    auth_url=str(self.auth_url),
+                    client_options=self.options,
+                )
+                self.auth.on_auth_state_change(self._listen_to_auth_events)
+            return self._auth
+        else:
+            raise SupabaseException(
+                "supabase_auth cannot be used when 'access_token' option is set."
+            )
 
     @property
     def postgrest(self) -> AsyncPostgrestClient:
