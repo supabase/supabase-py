@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.30.0](https://github.com/supabase/supabase-py/compare/v2.29.0...v2.30.0) (2026-04-29)
+
+
+### Features
+
+* **auth:** add current_password to UserAttributes ([#1475](https://github.com/supabase/supabase-py/issues/1475)) ([13df40b](https://github.com/supabase/supabase-py/commit/13df40b9cafd332e56ca816a0406ac31e4a3fc4b))
+* **postgrest:** allow select() chaining on write builders ([#1383](https://github.com/supabase/supabase-py/issues/1383)) ([3ed928c](https://github.com/supabase/supabase-py/commit/3ed928c84656872208b42b3462b03efbd491f0e5))
+
 ## [2.29.0](https://github.com/supabase/supabase-py/compare/v2.28.3...v2.29.0) (2026-04-22)
 
 
