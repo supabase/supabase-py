@@ -27,6 +27,7 @@ from ..types import JSON, ReturnMethod
 from ..utils import model_validate_json
 
 ReqConfig = RequestConfig[Client]
+QueryBuilderT = TypeVar("QueryBuilderT", bound="SyncQueryRequestBuilder")
 
 
 def get_retry_delay(resp: Response, attempt_count: int) -> int:
@@ -58,6 +59,17 @@ def send_with_retry(req: ReqConfig) -> Response:
 class SyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
+
+    def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
+        _, params, _, _ = pre_select(*columns, count=None)
+        self.request.params = self.request.params.add("select", params["select"])
+        if prefer_headers := self.request.headers.get_list("Prefer", split_commas=True):
+            prefer_headers = [h for h in prefer_headers if not h.startswith("return=")]
+            prefer_headers.append("return=representation")
+            self.request.headers["Prefer"] = ",".join(prefer_headers)
+        else:
+            self.request.headers["Prefer"] = "return=representation"
+        return self
 
     def retry(self, enabled: bool) -> Self:
         self.request.retry_enabled = enabled
