@@ -1,3 +1,4 @@
+import re
 from typing import Dict
 from unittest.mock import Mock, patch
 
@@ -36,9 +37,9 @@ def test_init_with_valid_params(
     )
     assert str(client.url) == valid_url
     assert "X-Client-Info" in client.headers
-    assert (
-        client.headers["X-Client-Info"]
-        == f"supabase-py/supabase_functions v{__version__}"
+    assert re.match(
+        rf"^supabase-py/supabase_functions v{re.escape(__version__)}; platform=.+; platform-version=.+; runtime=python; runtime-version=\S+$",
+        client.headers["X-Client-Info"],
     )
     assert client._client.timeout == Timeout(10)
 

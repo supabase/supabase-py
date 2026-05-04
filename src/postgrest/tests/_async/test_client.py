@@ -1,3 +1,4 @@
+import re
 from unittest.mock import patch
 
 import pytest
@@ -20,6 +21,16 @@ from postgrest.exceptions import APIError
 async def postgrest_client():
     async with AsyncPostgrestClient("https://example.com") as client:
         yield client
+
+
+class TestXClientInfo:
+    def test_structured_metadata_format(self, postgrest_client: AsyncPostgrestClient):
+        x_client_info = postgrest_client.session.headers.get("X-Client-Info")
+        assert x_client_info is not None
+        assert re.match(
+            r"^supabase-py/postgrest-py v[\d.]+; platform=.+; platform-version=.+; runtime=python; runtime-version=\S+$",
+            x_client_info,
+        ), f"X-Client-Info format is wrong: {x_client_info}"
 
 
 class TestConstructor:
