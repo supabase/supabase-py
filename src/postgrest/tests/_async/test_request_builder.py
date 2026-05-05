@@ -1,13 +1,43 @@
+from datetime import date, datetime, time, timezone
 from typing import Any, AsyncIterable, Dict, List
+from uuid import UUID, uuid4
 
 import pytest
-from httpx import AsyncClient, Headers, QueryParams, Request, Response
+from httpx import AsyncClient, Headers, MockTransport, QueryParams, Request, Response
+from typing_extensions import TypedDict
 from yarl import URL
 
 from postgrest import AsyncRequestBuilder, AsyncSingleRequestBuilder
 from postgrest._async.request_builder import RequestConfig
 from postgrest.base_request_builder import APIResponse, SingleAPIResponse
 from postgrest.types import JSON, CountMethod, ReturnMethod
+
+
+class GeneratedMovieInsert(TypedDict):
+    id: UUID
+    created_at: datetime
+    release_date: date
+    starts_at: time
+    name: str
+
+
+def generated_movie_payload() -> tuple[GeneratedMovieInsert, bytes]:
+    inserted_id = uuid4()
+    payload: GeneratedMovieInsert = {
+        "id": inserted_id,
+        "created_at": datetime(2026, 4, 6, 12, 30, tzinfo=timezone.utc),
+        "release_date": date(2026, 4, 6),
+        "starts_at": time(12, 30),
+        "name": "Inception",
+    }
+    expected_content = (
+        b'{"id":"'
+        + str(inserted_id).encode()
+        + b'","created_at":"2026-04-06T12:30:00+00:00",'
+        + b'"release_date":"2026-04-06","starts_at":"12:30:00",'
+        + b'"name":"Inception"}'
+    )
+    return payload, expected_content
 
 
 @pytest.fixture
@@ -158,6 +188,48 @@ class TestInsert:
             '"key1","key2","key3"'.split(",")
         )
 
+    async def test_insert_serializes_generated_typeddict_values(self):
+        payload, expected_content = generated_movie_payload()
+
+        async def handler(request: Request) -> Response:
+            assert request.headers["content-type"] == "application/json"
+            assert request.headers["content-length"] == str(len(request.content))
+            assert request.content == expected_content
+            return Response(201, json=[{"id": str(payload["id"])}], request=request)
+
+        async with AsyncClient(transport=MockTransport(handler)) as client:
+            builder = AsyncRequestBuilder(
+                client,
+                URL("https://example.supabase.co/rest/v1/movies"),
+                Headers(),
+                None,
+            )
+
+            response = await builder.insert(payload).execute()
+
+        assert response.data == [{"id": str(payload["id"])}]
+
+    async def test_upsert_serializes_generated_typeddict_values(self):
+        payload, expected_content = generated_movie_payload()
+
+        async def handler(request: Request) -> Response:
+            assert request.headers["content-type"] == "application/json"
+            assert request.headers["content-length"] == str(len(request.content))
+            assert request.content == expected_content
+            return Response(201, json=[{"id": str(payload["id"])}], request=request)
+
+        async with AsyncClient(transport=MockTransport(handler)) as client:
+            builder = AsyncRequestBuilder(
+                client,
+                URL("https://example.supabase.co/rest/v1/movies"),
+                Headers(),
+                None,
+            )
+
+            response = await builder.upsert(payload).execute()
+
+        assert response.data == [{"id": str(payload["id"])}]
+
 
 class TestUpdate:
     def test_update(self, request_builder: AsyncRequestBuilder):
@@ -193,6 +265,29 @@ class TestUpdate:
 
         assert builder.request.params["id"] == "eq.1"
         assert builder.request.params["select"] == "id"
+
+    async def test_update_serializes_generated_typeddict_values(self):
+        payload, expected_content = generated_movie_payload()
+
+        async def handler(request: Request) -> Response:
+            assert request.headers["content-type"] == "application/json"
+            assert request.headers["content-length"] == str(len(request.content))
+            assert request.content == expected_content
+            return Response(200, json=[{"id": str(payload["id"])}], request=request)
+
+        async with AsyncClient(transport=MockTransport(handler)) as client:
+            builder = AsyncRequestBuilder(
+                client,
+                URL("https://example.supabase.co/rest/v1/movies"),
+                Headers(),
+                None,
+            )
+
+            response = (
+                await builder.update(payload).eq("id", str(payload["id"])).execute()
+            )
+
+        assert response.data == [{"id": str(payload["id"])}]
 
 
 class TestDelete:

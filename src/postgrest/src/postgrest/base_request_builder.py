@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import date, datetime, time
 from json import JSONDecodeError
 from re import search
 from typing import (
@@ -20,6 +21,7 @@ from typing import (
     Union,
     overload,
 )
+from uuid import UUID
 
 from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
 from httpx import Response as RequestResponse
@@ -39,8 +41,36 @@ except ImportError:
     from pydantic import validator as field_validator  # type: ignore
 
 from .base_client import BasePostgrestClient
-from .types import JSON, CountMethod, Filters, JSONAdapter, RequestMethod, ReturnMethod
+from .types import (
+    JSON,
+    CountMethod,
+    Filters,
+    JSONAdapter,
+    RequestMethod,
+    ReturnMethod,
+    WriteJSON,
+)
 from .utils import sanitize_param
+
+
+def _request_json_default(value: Any) -> str:
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, (datetime, date, time)):
+        return value.isoformat()
+    raise TypeError(
+        f"Object of type {value.__class__.__name__} is not JSON serializable"
+    )
+
+
+def _request_json_content(value: object) -> bytes:
+    return json.dumps(
+        value,
+        default=_request_json_default,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
 
 
 class QueryArgs(NamedTuple):
@@ -48,7 +78,7 @@ class QueryArgs(NamedTuple):
     method: RequestMethod
     params: QueryParams
     headers: Headers
-    json: JSON
+    json: object
 
 
 C = TypeVar("C", Client, AsyncClient)
@@ -64,7 +94,7 @@ class RequestConfig(Generic[C]):
         headers: Headers,
         params: QueryParams,
         auth: BasicAuth | None,
-        json: JSON,
+        json: object,
         retry_enabled: bool = True,
     ) -> None:
         self.session: C = session
@@ -87,6 +117,17 @@ class RequestConfig(Generic[C]):
 
     def send(self: RequestConfig[C], additional_headers: Headers):
         additional_headers.update(self.headers)
+        if self.json is not None:
+            if "content-type" not in additional_headers:
+                additional_headers["Content-Type"] = "application/json"
+            return self.session.request(
+                self.http_method,
+                str(self.path),
+                content=_request_json_content(self.json),
+                params=self.params,
+                headers=additional_headers,
+                auth=self.auth,
+            )
         return self.session.request(
             self.http_method,
             str(self.path),
@@ -141,7 +182,7 @@ def pre_select(
 
 
 def pre_insert(
-    json: JSON,
+    json: WriteJSON,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -164,7 +205,7 @@ def pre_insert(
 
 
 def pre_upsert(
-    json: JSON,
+    json: WriteJSON,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -190,7 +231,7 @@ def pre_upsert(
 
 
 def pre_update(
-    json: JSON,
+    json: WriteJSON,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Mapping, Sequence
+from datetime import date, datetime, time
 from typing import Union
+from uuid import UUID
 
 from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
 from pydantic import TypeAdapter
@@ -19,6 +21,14 @@ JSON = TypeAliasType(
     "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
 )
 JSONAdapter: TypeAdapter = TypeAdapter(JSON)
+RequestJSON = TypeAliasType(
+    "RequestJSON",
+    "Union[None, bool, str, int, float, UUID, datetime, date, time, Sequence[RequestJSON], Mapping[str, RequestJSON]]",
+)
+# TypedDict is exposed by type checkers as Mapping[str, object], so the object
+# fallback keeps generated row types assignable while runtime serialization
+# still rejects unsupported objects.
+WriteJSON = Union[Mapping[str, object], Sequence[Mapping[str, object]]]
 
 
 class CountMethod(StrEnum):

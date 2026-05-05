@@ -1,13 +1,44 @@
+from datetime import date, datetime, time, timezone
+from math import nan
 from typing import Any, Dict, Iterable, List
+from uuid import UUID, uuid4
 
 import pytest
-from httpx import Client, Headers, QueryParams, Request, Response
+from httpx import Client, Headers, MockTransport, QueryParams, Request, Response
+from typing_extensions import TypedDict
 from yarl import URL
 
 from postgrest import SyncRequestBuilder, SyncSingleRequestBuilder
 from postgrest._async.request_builder import RequestConfig
 from postgrest.base_request_builder import APIResponse, SingleAPIResponse
 from postgrest.types import JSON, CountMethod, ReturnMethod
+
+
+class GeneratedMovieInsert(TypedDict):
+    id: UUID
+    created_at: datetime
+    release_date: date
+    starts_at: time
+    name: str
+
+
+def generated_movie_payload() -> tuple[GeneratedMovieInsert, bytes]:
+    inserted_id = uuid4()
+    payload: GeneratedMovieInsert = {
+        "id": inserted_id,
+        "created_at": datetime(2026, 4, 6, 12, 30, tzinfo=timezone.utc),
+        "release_date": date(2026, 4, 6),
+        "starts_at": time(12, 30),
+        "name": "Inception",
+    }
+    expected_content = (
+        b'{"id":"'
+        + str(inserted_id).encode()
+        + b'","created_at":"2026-04-06T12:30:00+00:00",'
+        + b'"release_date":"2026-04-06","starts_at":"12:30:00",'
+        + b'"name":"Inception"}'
+    )
+    return payload, expected_content
 
 
 @pytest.fixture
@@ -158,6 +189,113 @@ class TestInsert:
             '"key1","key2","key3"'.split(",")
         )
 
+    def test_insert_accepts_generated_typeddict_with_datetime_and_uuid(
+        self, request_builder: SyncRequestBuilder
+    ):
+        payload: GeneratedMovieInsert = {
+            "id": uuid4(),
+            "created_at": datetime(2026, 4, 6, 12, 30, tzinfo=timezone.utc),
+            "release_date": date(2026, 4, 6),
+            "starts_at": time(12, 30),
+            "name": "Inception",
+        }
+
+        builder = request_builder.insert(payload)
+
+        assert builder.request.json == payload
+
+    def test_insert_serializes_generated_typeddict_values(self):
+        payload, expected_content = generated_movie_payload()
+
+        def handler(request: Request) -> Response:
+            assert request.headers["content-type"] == "application/json"
+            assert request.headers["content-length"] == str(len(request.content))
+            assert request.content == expected_content
+            return Response(201, json=[{"id": str(payload["id"])}], request=request)
+
+        with Client(transport=MockTransport(handler)) as client:
+            builder = SyncRequestBuilder(
+                client,
+                URL("https://example.supabase.co/rest/v1/movies"),
+                Headers(),
+                None,
+            )
+
+            response = builder.insert(payload).execute()
+
+        assert response.data == [{"id": str(payload["id"])}]
+
+    def test_upsert_serializes_generated_typeddict_values(self):
+        payload, expected_content = generated_movie_payload()
+
+        def handler(request: Request) -> Response:
+            assert request.headers["content-type"] == "application/json"
+            assert request.headers["content-length"] == str(len(request.content))
+            assert request.content == expected_content
+            return Response(201, json=[{"id": str(payload["id"])}], request=request)
+
+        with Client(transport=MockTransport(handler)) as client:
+            builder = SyncRequestBuilder(
+                client,
+                URL("https://example.supabase.co/rest/v1/movies"),
+                Headers(),
+                None,
+            )
+
+            response = builder.upsert(payload).execute()
+
+        assert response.data == [{"id": str(payload["id"])}]
+
+    def test_insert_preserves_existing_content_type(self):
+        payload = {"key1": "val1"}
+
+        def handler(request: Request) -> Response:
+            assert request.headers["content-type"] == "application/custom+json"
+            assert request.content == b'{"key1":"val1"}'
+            return Response(201, json=[payload], request=request)
+
+        with Client(transport=MockTransport(handler)) as client:
+            builder = SyncRequestBuilder(
+                client,
+                URL("https://example.supabase.co/rest/v1/movies"),
+                Headers({"Content-Type": "application/custom+json"}),
+                None,
+            )
+
+            response = builder.insert(payload).execute()
+
+        assert response.data == [payload]
+
+    def test_insert_rejects_non_finite_float(self):
+        def handler(request: Request) -> Response:
+            raise AssertionError("request should fail before reaching transport")
+
+        with Client(transport=MockTransport(handler)) as client:
+            builder = SyncRequestBuilder(
+                client,
+                URL("https://example.supabase.co/rest/v1/movies"),
+                Headers(),
+                None,
+            )
+
+            with pytest.raises(ValueError, match="Out of range float values"):
+                builder.insert({"value": nan}).execute()
+
+    def test_insert_rejects_unsupported_object(self):
+        def handler(request: Request) -> Response:
+            raise AssertionError("request should fail before reaching transport")
+
+        with Client(transport=MockTransport(handler)) as client:
+            builder = SyncRequestBuilder(
+                client,
+                URL("https://example.supabase.co/rest/v1/movies"),
+                Headers(),
+                None,
+            )
+
+            with pytest.raises(TypeError, match="Object of type object"):
+                builder.insert({"value": object()}).execute()
+
 
 class TestUpdate:
     def test_update(self, request_builder: SyncRequestBuilder):
@@ -193,6 +331,27 @@ class TestUpdate:
 
         assert builder.request.params["id"] == "eq.1"
         assert builder.request.params["select"] == "id"
+
+    def test_update_serializes_generated_typeddict_values(self):
+        payload, expected_content = generated_movie_payload()
+
+        def handler(request: Request) -> Response:
+            assert request.headers["content-type"] == "application/json"
+            assert request.headers["content-length"] == str(len(request.content))
+            assert request.content == expected_content
+            return Response(200, json=[{"id": str(payload["id"])}], request=request)
+
+        with Client(transport=MockTransport(handler)) as client:
+            builder = SyncRequestBuilder(
+                client,
+                URL("https://example.supabase.co/rest/v1/movies"),
+                Headers(),
+                None,
+            )
+
+            response = builder.update(payload).eq("id", str(payload["id"])).execute()
+
+        assert response.data == [{"id": str(payload["id"])}]
 
 
 class TestDelete:
