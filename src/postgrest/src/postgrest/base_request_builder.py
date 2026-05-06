@@ -258,7 +258,7 @@ class APIResponse(BaseModel):
             data = JSONAdapter.validate_json(request_response.content)
         except ValidationError:
             data = request_response.text if len(request_response.text) > 0 else []
-        return APIResponse(data=data, count=count)
+        return APIResponse.model_construct(data=data, count=count)
 
 
 class SingleAPIResponse(APIResponse):
@@ -274,7 +274,7 @@ class SingleAPIResponse(APIResponse):
             data = request_response.json()
         except JSONDecodeError:
             data = request_response.text if len(request_response.text) > 0 else []
-        return SingleAPIResponse(data=data, count=count)
+        return SingleAPIResponse.model_construct(data=data, count=count)
 
 
 class BaseFilterRequestBuilder(Generic[C]):
