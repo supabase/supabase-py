@@ -2028,7 +2028,7 @@ wheels = [
 
 [[package]]
 name = "postgrest"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/postgrest" }
 dependencies = [
     { name = "deprecation" },
@@ -2781,7 +2781,7 @@ wheels = [
 
 [[package]]
 name = "realtime"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/realtime" }
 dependencies = [
     { name = "pydantic" },
@@ -3427,7 +3427,7 @@ wheels = [
 
 [[package]]
 name = "storage3"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
@@ -3545,7 +3545,7 @@ wheels = [
 
 [[package]]
 name = "supabase"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/supabase" }
 dependencies = [
     { name = "httpx" },
@@ -3614,7 +3614,7 @@ tests = [
 
 [[package]]
 name = "supabase-auth"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/auth" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -3701,7 +3701,7 @@ tests = [
 
 [[package]]
 name = "supabase-functions"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },

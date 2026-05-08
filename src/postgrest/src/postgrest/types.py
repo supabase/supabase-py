@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import datetime
 import sys
+import uuid
 from collections.abc import Mapping, Sequence
 from typing import Union
 
@@ -16,7 +18,8 @@ else:
 
 # https://docs.pydantic.dev/2.11/concepts/types/#named-recursive-types
 JSON = TypeAliasType(
-    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
+    "JSON",
+    "Union[None, bool, str, int, float, datetime.date, datetime.datetime, datetime.time, datetime.timedelta, uuid.UUID, Sequence[JSON], Mapping[str, JSON]]",
 )
 JSONAdapter: TypeAdapter = TypeAdapter(JSON)
 
