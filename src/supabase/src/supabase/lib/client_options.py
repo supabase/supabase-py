@@ -1,3 +1,4 @@
+import platform
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Union
 
@@ -19,7 +20,15 @@ from supabase.types import RealtimeClientOptions
 
 from ..version import __version__
 
-DEFAULT_HEADERS = {"X-Client-Info": f"supabase-py/{__version__}"}
+DEFAULT_HEADERS = {
+    "X-Client-Info": (
+        f"supabase-py/{__version__}"
+        f"; platform={platform.system()}"
+        f"; platform-version={platform.release()}"
+        f"; runtime=python"
+        f"; runtime-version={platform.python_version()}"
+    )
+}
 
 
 @dataclass

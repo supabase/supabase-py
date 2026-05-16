@@ -1,3 +1,4 @@
+import re
 from typing import Dict
 
 import pytest
@@ -12,6 +13,33 @@ def valid_url() -> str:
 @pytest.fixture
 def valid_headers() -> Dict[str, str]:
     return {"Authorization": "Bearer test_token", "Content-Type": "application/json"}
+
+
+_X_CLIENT_INFO_PATTERN = re.compile(
+    r"^supabase-py/supabase_functions v[\d.]+; platform=.+; platform-version=.+; runtime=python; runtime-version=\S+$"
+)
+
+
+def test_async_x_client_info_structured_format(
+    valid_url: str, valid_headers: Dict[str, str]
+) -> None:
+    client = AsyncFunctionsClient(url=valid_url, headers=valid_headers)
+    x_client_info = client.headers.get("X-Client-Info")
+    assert x_client_info is not None
+    assert _X_CLIENT_INFO_PATTERN.match(
+        x_client_info
+    ), f"X-Client-Info format is wrong: {x_client_info}"
+
+
+def test_sync_x_client_info_structured_format(
+    valid_url: str, valid_headers: Dict[str, str]
+) -> None:
+    client = SyncFunctionsClient(url=valid_url, headers=valid_headers)
+    x_client_info = client.headers.get("X-Client-Info")
+    assert x_client_info is not None
+    assert _X_CLIENT_INFO_PATTERN.match(
+        x_client_info
+    ), f"X-Client-Info format is wrong: {x_client_info}"
 
 
 def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
