@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Union
+from typing import Awaitable, Callable, Dict, Optional, Union
 
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import Client as SyncHttpxClient
@@ -65,6 +65,18 @@ class AsyncClientOptions(ClientOptions):
     httpx_client: Optional[AsyncHttpxClient] = None
     """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
 
+    access_token: Optional[Callable[[], Awaitable[str]]] = None
+    """
+    An async function for using a third party authentication system with Supabase.
+    The function should return an access token or ID token (JWT) by
+    obtaining it from the third-party auth client library. Note that this
+    function may be called concurrently and many times.
+
+    When set, the `auth` namespace of the Supabase client cannot be used.
+    Create another client if you wish to use Supabase Auth and third-party
+    authentications concurrently in the same application.
+    """
+
     def replace(
         self,
         schema: Optional[str] = None,
@@ -79,6 +91,7 @@ class AsyncClientOptions(ClientOptions):
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         flow_type: Optional[AuthFlowType] = None,
+        access_token: Optional[Callable[[], Awaitable[str]]] = None,
     ) -> "AsyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = AsyncClientOptions()
@@ -98,6 +111,7 @@ class AsyncClientOptions(ClientOptions):
             storage_client_timeout or self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.access_token = access_token or self.access_token
         return client_options
 
 
@@ -107,6 +121,18 @@ class SyncClientOptions(ClientOptions):
     """A storage provider. Used to store the logged in session."""
     httpx_client: Optional[SyncHttpxClient] = None
     """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
+
+    access_token: Optional[Callable[[], str]] = None
+    """
+    An async function for using a third party authentication system with Supabase.
+    The function should return an access token or ID token (JWT) by
+    obtaining it from the third-party auth client library. Note that this
+    function may be called concurrently and many times.
+
+    When set, the `auth` namespace of the Supabase client cannot be used.
+    Create another client if you wish to use Supabase Auth and third-party
+    authentications concurrently in the same application.
+    """
 
     def replace(
         self,
@@ -122,6 +148,7 @@ class SyncClientOptions(ClientOptions):
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         flow_type: Optional[AuthFlowType] = None,
+        access_token: Optional[Callable[[], str]] = None,
     ) -> "SyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = SyncClientOptions()
@@ -141,4 +168,5 @@ class SyncClientOptions(ClientOptions):
             storage_client_timeout or self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.access_token = access_token or self.access_token
         return client_options

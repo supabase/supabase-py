@@ -241,6 +241,27 @@ def test_custom_headers_immutable() -> None:
     assert client2.options.headers.get("x-app-name") == "apple"
 
 
+def test_access_token() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    options = ClientOptions(
+        headers={
+            "x-app-name": "apple",
+            "x-version": "1.0",
+        }
+    )
+
+    client1 = create_client(url, key, options)
+    client2 = create_client(url, key, options)
+
+    client1.options.headers["x-app-name"] = "grapes"
+
+    assert client1.options.headers.get("x-app-name") == "grapes"
+    assert client1.options.headers.get("x-version") == "1.0"
+    assert client2.options.headers.get("x-app-name") == "apple"
+
+
 def test_httpx_client_base_url_isolation() -> None:
     """Test that shared httpx_client doesn't cause base_url mutation between services.
     This test reproduces the issue where accessing PostgREST after Storage causes
