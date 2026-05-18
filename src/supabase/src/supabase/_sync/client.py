@@ -14,6 +14,7 @@ from realtime import RealtimeChannelOptions, SyncRealtimeChannel, SyncRealtimeCl
 from storage3 import SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_auth import SyncMemoryStorage
+from supabase_auth.errors import AuthError
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
 from yarl import URL
@@ -116,7 +117,8 @@ class Client:
                     if session
                     else None
                 )
-            except Exception:
+            except AuthError:
+                # Session retrieval is optional during client initialization
                 session_access_token = None
 
             client.options.headers.update(
