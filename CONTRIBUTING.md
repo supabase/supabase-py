@@ -15,7 +15,7 @@ use GitHub pull requests for this purpose. After filing a pull request, please t
 
 Before opening a new issue or request, please take a moment to check the existing issues and discussions to see if your topic has already been addressed. This helps us avoid duplicate issues and keeps the conversation focused.
 
-Report all issues and file all feature requests through [GitHub Issues](./issues).
+Report all issues and file all feature requests through [GitHub Issues](https://github.com/supabase/supabase-py/issues).
 
 ## Create a pull request
 
