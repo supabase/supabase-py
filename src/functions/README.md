@@ -66,3 +66,28 @@ try:
 except Exception as e:
     print(f"Error: {e}")
 ```
+
+### Advanced Usage: Custom Headers & Payload
+
+For production scenarios, you can pass custom headers and structured payloads:
+
+```python
+from supabase_functions import SyncFunctionsClient
+
+# Initialize with custom headers
+headers = {
+    "Authorization": "Bearer your-anon-key",
+    "X-Client-Info": "my-app-v1"
+}
+client = SyncFunctionsClient("https://<project_ref>.functions.supabase.co", headers)
+
+try:
+    # Invoke with structured body
+    response = client.invoke("hello-world", {
+        "body": {"name": "Supabase"},
+        "responseType": "json"
+    })
+    print("Success:", response)
+except Exception as e:
+    print(f"Error: {e}")
+```
