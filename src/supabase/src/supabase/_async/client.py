@@ -15,6 +15,7 @@ from realtime import AsyncRealtimeChannel, AsyncRealtimeClient, RealtimeChannelO
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_auth import AsyncMemoryStorage
+from supabase_auth.errors import AuthError
 from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import AsyncFunctionsClient
 from yarl import URL
@@ -117,7 +118,7 @@ class AsyncClient:
                     if session
                     else None
                 )
-            except Exception:
+            except AuthError:
                 session_access_token = None
 
             client.options.headers.update(

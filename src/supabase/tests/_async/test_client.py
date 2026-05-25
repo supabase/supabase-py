@@ -6,6 +6,7 @@ import pytest
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import AsyncHTTPTransport, Limits, Timeout
 from supabase_auth import AsyncMemoryStorage
+from supabase_auth.errors import AuthSessionMissingError
 
 from supabase import (
     AsyncClient,
@@ -13,6 +14,7 @@ from supabase import (
     AsyncSupabaseException,
     create_async_client,
 )
+from supabase._async.auth_client import AsyncSupabaseAuthClient
 
 
 @pytest.mark.xfail(
@@ -77,6 +79,37 @@ async def test_uses_key_as_authorization_header_by_default() -> None:
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == f"Bearer {key}"
+
+
+async def test_create_ignores_expected_auth_session_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    async def raise_auth_error(self: AsyncSupabaseAuthClient) -> None:
+        raise AuthSessionMissingError()
+
+    monkeypatch.setattr(AsyncSupabaseAuthClient, "get_session", raise_auth_error)
+
+    client = await create_async_client(url, key)
+
+    assert client.options.headers.get("Authorization") == f"Bearer {key}"
+
+
+async def test_create_propagates_unexpected_auth_session_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    async def raise_runtime_error(self: AsyncSupabaseAuthClient) -> None:
+        raise RuntimeError("storage backend unavailable")
+
+    monkeypatch.setattr(AsyncSupabaseAuthClient, "get_session", raise_runtime_error)
+
+    with pytest.raises(RuntimeError, match="storage backend unavailable"):
+        await create_async_client(url, key)
 
 
 async def test_schema_update() -> None:

@@ -6,6 +6,7 @@ import pytest
 from httpx import Client as SyncHttpxClient
 from httpx import HTTPTransport, Limits, Timeout
 from supabase_auth import SyncMemoryStorage
+from supabase_auth.errors import AuthSessionMissingError
 
 from supabase import (
     Client,
@@ -13,6 +14,7 @@ from supabase import (
     SyncSupabaseException,
     create_client,
 )
+from supabase._sync.auth_client import SyncSupabaseAuthClient
 
 
 @pytest.mark.xfail(
@@ -77,6 +79,35 @@ def test_uses_key_as_authorization_header_by_default() -> None:
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == f"Bearer {key}"
+
+
+def test_create_ignores_expected_auth_session_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    def raise_auth_error(self: SyncSupabaseAuthClient) -> None:
+        raise AuthSessionMissingError()
+
+    monkeypatch.setattr(SyncSupabaseAuthClient, "get_session", raise_auth_error)
+
+    client = create_client(url, key)
+
+    assert client.options.headers.get("Authorization") == f"Bearer {key}"
+
+
+def test_create_propagates_unexpected_auth_session_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    def raise_runtime_error(self: SyncSupabaseAuthClient) -> None:
+        raise RuntimeError("storage backend unavailable")
+
+    monkeypatch.setattr(SyncSupabaseAuthClient, "get_session", raise_runtime_error)
+
+    with pytest.raises(RuntimeError, match="storage backend unavailable"):
+        create_client(url, key)
 
 
 def test_schema_update() -> None:
