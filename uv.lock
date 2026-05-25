@@ -1258,11 +1258,11 @@ wheels = [
 
 [[package]]
 name = "idna"
-version = "3.11"
+version = "3.15"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/0703ccc57f3a7233505399edb88de3cbd678da106337b9fcde432b65ed60/idna-3.11.tar.gz", hash = "sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902", size = 194582, upload-time = "2025-10-12T14:55:20.501Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/77/7b3966d0b9d1d31a36ddf1746926a11dface89a83409bf1483f0237aa758/idna-3.15.tar.gz", hash = "sha256:ca962446ea538f7092a95e057da437618e886f4d349216d2b1e294abfdb65fdc", size = 199245, upload-time = "2026-05-12T22:45:57.011Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0e/61/66938bbb5fc52dbdf84594873d5b51fb1f7c7794e9c0f5bd885f30bc507b/idna-3.11-py3-none-any.whl", hash = "sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea", size = 71008, upload-time = "2025-10-12T14:55:18.883Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/23/408243171aa9aaba178d3e2559159c24c1171a641aa83b67bdd3394ead8e/idna-3.15-py3-none-any.whl", hash = "sha256:048adeaf8c2d788c40fee287673ccaa74c24ffd8dcf09ffa555a2fbb59f10ac8", size = 72340, upload-time = "2026-05-12T22:45:55.733Z" },
 ]
 
 [[package]]
@@ -2028,7 +2028,7 @@ wheels = [
 
 [[package]]
 name = "postgrest"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/postgrest" }
 dependencies = [
     { name = "deprecation" },
@@ -2446,11 +2446,14 @@ wheels = [
 
 [[package]]
 name = "pyjwt"
-version = "2.10.1"
+version = "2.13.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e7/46/bd74733ff231675599650d3e47f361794b22ef3e3770998dda30d3b63726/pyjwt-2.10.1.tar.gz", hash = "sha256:3cc5772eb20009233caf06e9d8a0577824723b44e6648ee0a2aedb6cf9381953", size = 87785, upload-time = "2024-11-28T03:43:29.933Z" }
+dependencies = [
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3b/81/58d0ac84e1ef3a3843791d6954d94c0b33d526c75eeb1efbce9d0a4c4077/pyjwt-2.13.0.tar.gz", hash = "sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423", size = 107515, upload-time = "2026-05-21T19:54:36.618Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/ad/689f02752eeec26aed679477e80e632ef1b682313be70793d798c1d5fc8f/PyJWT-2.10.1-py3-none-any.whl", hash = "sha256:dcdd193e30abefd5debf142f9adfcdd2b58004e644f25406ffaebd50bd98dacb", size = 22997, upload-time = "2024-11-28T03:43:27.893Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/5e/ecf12fdb62546d64385c158514e9b2b671f7832108ef2ecd2020ce0af2d1/pyjwt-2.13.0-py3-none-any.whl", hash = "sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728", size = 31274, upload-time = "2026-05-21T19:54:35.362Z" },
 ]
 
 [package.optional-dependencies]
@@ -2781,7 +2784,7 @@ wheels = [
 
 [[package]]
 name = "realtime"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/realtime" }
 dependencies = [
     { name = "pydantic" },
@@ -3427,7 +3430,7 @@ wheels = [
 
 [[package]]
 name = "storage3"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
@@ -3545,7 +3548,7 @@ wheels = [
 
 [[package]]
 name = "supabase"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/supabase" }
 dependencies = [
     { name = "httpx" },
@@ -3614,7 +3617,7 @@ tests = [
 
 [[package]]
 name = "supabase-auth"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/auth" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -3662,7 +3665,7 @@ tests = [
 requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=1.10,<3" },
-    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10.1" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.12.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -3701,7 +3704,7 @@ tests = [
 
 [[package]]
 name = "supabase-functions"
-version = "2.28.3"
+version = "2.30.0"
 source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
