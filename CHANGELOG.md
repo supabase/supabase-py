@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.30.1](https://github.com/supabase/supabase-py/compare/v2.30.0...v2.30.1) (2026-05-27)
+
+
+### Documentation
+
+* fix GitHub Issues link in CONTRIBUTING ([#1493](https://github.com/supabase/supabase-py/issues/1493)) ([01377f7](https://github.com/supabase/supabase-py/commit/01377f7f2fe13d7b990ab934cdc5c07bdab651a4))
+
 ## [2.30.0](https://github.com/supabase/supabase-py/compare/v2.29.0...v2.30.0) (2026-05-06)
 
 
