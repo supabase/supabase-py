@@ -136,7 +136,7 @@ def handle_exception(error: HTTPStatusError | RuntimeError) -> AuthError:
     if not isinstance(error, HTTPStatusError):
         return AuthRetryableError(get_error_message(error), 0)
     try:
-        network_error_codes = [502, 503, 504]
+        network_error_codes = [502, 503, 504, 520, 521, 522, 523, 524, 530]
         if error.response.status_code in network_error_codes:
             return AuthRetryableError(
                 get_error_message(error), error.response.status_code
