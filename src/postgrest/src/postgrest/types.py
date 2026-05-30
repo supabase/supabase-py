@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys
 from collections.abc import Mapping, Sequence
 from typing import Union
+from uuid import UUID
+from datetime import datetime
 
 from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
 from pydantic import TypeAdapter
@@ -16,7 +18,7 @@ else:
 
 # https://docs.pydantic.dev/2.11/concepts/types/#named-recursive-types
 JSON = TypeAliasType(
-    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
+    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON], datetime, UUID]"
 )
 JSONAdapter: TypeAdapter = TypeAdapter(JSON)
 
