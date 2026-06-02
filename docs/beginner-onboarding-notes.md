@@ -1,254 +1,158 @@
-# Beginner Onboarding Notes for supabase-py
-
-This document proposes a small, focused set of beginner-onboarding improvements to the `supabase-py` documentation. It is based on a review of the current `README.md`, `CONTRIBUTING.md`, and the v3.0 tracking discussion, with a focus on the friction points a first-time contributor is most likely to hit in their first 30 minutes with the repository.
-
-The goal is not to rewrite existing documentation, but to add small clarifications around Python virtual environments, the `uv` tool, and the difference between synchronous and asynchronous clients — three areas where newer contributors most commonly get stuck.
-
+# Contributor Onboarding Notes for supabase-py
+ 
+This document proposes a small set of **repository-specific** contributor onboarding notes for the `supabase-py` codebase. It is written from the perspective of a new contributor navigating the repository for the first time, and intentionally avoids restating general Python knowledge (virtual environments, `async`/`await` syntax, etc.) that contributors are expected to bring with them.
+ 
+The goal is to surface things that are non-obvious *because of how this project is structured*, not because of how the language works.
+ 
 ---
-
-# Scope and Rationale
-
-These proposed changes are intentionally small and beginner-accessible. They focus on clarifying existing setup instructions and core concepts rather than introducing new functionality, which makes them a realistic first contribution.
-
-## Why these specific areas?
-
-- The current `README.md` setup steps assume familiarity with `uv` and virtual environments, but `uv` is a relatively newer tool and many Python beginners have only used `pip` or `venv` before.
-
-- The sync vs async distinction is introduced quickly in the usage section, but understanding *when* to use each is often the actual barrier — not the syntax itself.
-
-- New contributors often abandon a repository after their first setup error if there is no quick troubleshooting reference, even when the underlying fix is small.
-
-## What this proposal is not
-
-- Not a rewrite of existing documentation
-- Not a change to the public API or client behavior
-- Not an attempt to restructure the repository
-- Not a replacement for the official `uv` or `asyncio` documentation — it points toward them where appropriate
-
+ 
+## Scope
+ 
+This is a documentation-only proposal aimed at reducing repository-specific friction for new contributors. It assumes the reader is already a working Python developer and focuses on what is unique to `supabase-py` — the dual sync/async architecture, the submodule layout, the relationship to sister repositories, and the v3.0 migration context.
+ 
+**Out of scope:**
+ 
+- General Python language concepts
+- Virtual environment or `uv` tutorials
+- Generic `asyncio` instruction
 ---
-
-# Proposed Improvement Areas
-
-- Virtual environment and `uv` setup clarification
-- Sync vs async client clarification, with minimal examples
-- A short "Common Beginner Errors" reference
-- A recommended beginner onboarding path
-- Suggested placement details for each addition
-
----
-
-# 1. Virtual Environment Setup Clarification
-
-**Location:** `README.md`, Installation section — directly above the existing `uv venv supabase-py` commands.
-
-The current setup instructions assume the reader already understands Python virtual environments and the `uv` tool. For newer contributors, a short framing sentence before the commands could meaningfully reduce confusion.
-
-## Proposed addition
-
-> The commands below create and activate a Python virtual environment for the project. A virtual environment keeps this project's dependencies isolated from other Python projects on your computer, so installing or upgrading packages here will not affect anything else. The `uv sync` command then installs the exact dependencies listed in the project's lock file.
+ 
+## 1. The Dual Sync/Async Client Architecture
+ 
+**Location:** `CONTRIBUTING.md`, new "Repository Architecture" section
+ 
+`supabase-py` ships two parallel client implementations — synchronous and asynchronous — that mirror each other across the codebase. This is the single biggest source of confusion for new contributors, because a change made in one path often needs a corresponding change in the other.
+ 
+### Proposed addition
+ 
+> `supabase-py` maintains two parallel client implementations:
 >
-> If you do not have `uv` installed yet, see the official `uv` installation guide.
-
-```bash
-uv venv supabase-py
-source supabase-py/bin/activate
-uv sync
-```
-
+> - `Client` / `create_client()` — synchronous
+> - `AsyncClient` / `acreate_client()` — asynchronous
+>
+> Both are first-class and supported. When contributing a bug fix or feature, check whether the change applies to both paths. In most cases it does, and a PR that only updates one side will be asked to update the other before merging.
+>
+> The two implementations are kept structurally aligned on purpose — this makes the codebase easier to reason about, but it does mean changes are often duplicated by design rather than abstracted away.
+ 
 ### Why this helps
-
-This small framing answers three implicit questions a beginner often has but rarely asks:
-
-- What is this command actually doing?
-- Will this affect my other Python projects?
-- What if I do not have `uv` yet?
-
-Without these answers, beginners often copy and paste the commands, hit an error, and assume they have done something wrong with the repository itself.
-
+ 
+A new contributor opening their first PR is likely to fix the sync path, miss the async one (or vice versa), and get bounced back during review. Documenting the expectation up front saves both the contributor and the maintainer a review cycle.
+ 
 ---
-
-# 2. Sync vs Async Client Clarification
-
-**Location:** `README.md`, Usage section — directly underneath the first client creation example.
-
-The current documentation introduces asynchronous clients quickly, but newer contributors may not immediately understand the practical difference between synchronous and asynchronous behavior in Python, or which one they should reach for first.
-
-## Proposed addition
-
-`supabase-py` provides both synchronous and asynchronous clients.
-
-The synchronous `create_client()` function is simpler and works well for most projects, scripts, and standard database interactions. It runs one operation at a time and is usually the right starting point.
-
-The asynchronous `acreate_client()` function is most useful when working with realtime features, handling multiple simultaneous tasks, or building applications that already rely on `asyncio` (such as FastAPI or async web frameworks).
-
-If you are new to Python's `async/await` syntax, you can comfortably start with the synchronous client and migrate to the async client later if your project needs it.
-
-## Sync example
-
-```python
-from supabase import create_client
-
-supabase = create_client(url, key)
-
-response = supabase.table("countries").select("*").execute()
-```
-
-## Async example
-
-```python
-import asyncio
-
-from supabase import acreate_client, AsyncClient
-
-async def main():
-
-    supabase: AsyncClient = await acreate_client(url, key)
-
-    response = await supabase.table("countries").select("*").execute()
-
-    return response
-
-asyncio.run(main())
-```
-
+ 
+## 2. The Submodule Layout and Sister Repositories
+ 
+**Location:** `CONTRIBUTING.md`, "Repository Architecture" section
+ 
+`supabase-py` is not a single monolithic SDK. It is a thin top-level client that composes several smaller, independently maintained sub-libraries:
+ 
+- `postgrest-py` — Postgres / PostgREST query interface
+- `gotrue-py` — authentication
+- `storage3` — file storage
+- `realtime-py` — realtime subscriptions
+- `supabase_functions` — edge function invocation
+### Proposed addition
+ 
+> Before opening an issue or PR against `supabase-py`, check whether the behavior actually lives in one of the underlying client libraries. For example, a bug in a database query is usually a `postgrest-py` issue; an auth token refresh bug is usually a `gotrue-py` issue. Filing it in the right repository gets it in front of the right maintainers faster.
+>
+> The top-level `supabase-py` client mostly wires these together — most contributions that change behavior end up in the relevant sub-library rather than here.
+ 
 ### Why this helps
-
-Beginners often see two near-identical functions (`create_client` and `acreate_client`) and pick one arbitrarily, which can lead to confusing errors later — for example, awaiting a synchronous call, or forgetting to wrap an async call in an event loop.
-
-A short “when to use which” paragraph paired with a runnable example for each path is usually enough to prevent that whole class of confusion.
-
+ 
+New contributors routinely file issues in the wrong repository because the top-level package is the only one they know about. A short pointer up front routes work to the right place and reduces triage burden for maintainers.
+ 
 ---
-
-# 3. Common Beginner Errors
-
-**Location:** Could fit near the end of `CONTRIBUTING.md` under a new “Troubleshooting” subsection, or as a new standalone `docs/troubleshooting.md` linked from the onboarding/setup sections of the README.
-
-A short troubleshooting reference can help new contributors recover from common setup issues without needing to open a discussion or GitHub issue for problems that have well-known fixes.
-
-## Examples
-
-### `ModuleNotFoundError: No module named 'supabase'`
-
-Usually means the virtual environment is not activated, or `uv sync` has not been run yet.
-
-Re-activate the environment:
-
-```bash
-source supabase-py/bin/activate
-uv sync
-```
-
-### `command not found: uv`
-
-`uv` needs to be installed before any of the setup commands will work.
-
-Install it using the official `uv` installation guide, then re-open the terminal.
-
-### `RuntimeWarning: coroutine '...' was never awaited`
-
-An async function was called without `await`, or was called outside of an event loop.
-
-Async functions must either:
-- be awaited inside another async function, or
-- be run with `asyncio.run(...)` at the top level.
-
-### `SyntaxError: 'await' outside async function`
-
-`await` can only be used inside a function defined with `async def`.
-
-If you are at the top level of a script, wrap the call in:
-
-```python
-async def main():
-    ...
-```
-
-and run it with:
-
-```python
-asyncio.run(main())
-```
-
-### Environment variables not loading
-
-For example: `url` or `key` is `None`.
-
-If reading credentials from a `.env` file:
-- make sure the file exists at the project root,
-- ensure a loader such as `python-dotenv` is being used,
-- or export the variables directly in your shell session.
-
+ 
+## 3. v3.0 Migration Context
+ 
+**Location:** `CONTRIBUTING.md`, "Before You Contribute" section, or as a short callout in `README.md`
+ 
+There is an active v3.0 tracking discussion that affects what's worth contributing to right now. New contributors who don't know about it can spend time on areas that are already slated for refactor.
+ 
+### Proposed addition
+ 
+> `supabase-py` has an active v3.0 tracking discussion outlining planned architectural changes. Before starting a substantial contribution, it's worth reviewing the tracking issue to check whether the area you're touching is stable, mid-refactor, or already planned for removal.
+>
+> For first-time contributors, the safest starting points are typically:
+>
+> - Bug fixes against currently stable code paths
+> - Documentation improvements
+> - Test coverage additions
+>
+> Larger feature work is best discussed in an issue or in the v3.0 tracking thread first.
+ 
 ### Why this helps
-
-These are the errors a beginner is most likely to hit in their first hour with the repository.
-
-Centralizing them keeps the main README clean while still giving new contributors a fast recovery path.
-
+ 
+This protects both sides: the contributor doesn't sink hours into work that will be discarded, and the maintainer doesn't have to redirect them mid-review.
+ 
 ---
-
-# 4. Recommended Beginner Path
-
-**Location:** Could be added near the top of `CONTRIBUTING.md`, or as a short “Where to start” callout in the README.
-
-A short suggested onboarding order can help reduce decision fatigue for first-time contributors, who often do not know which document to read first or how the existing pieces fit together.
-
-## Suggested onboarding order for first-time contributors
-
-1. Read the main `README.md` setup instructions.
-2. Install `uv` if it is not already installed.
-3. Create and activate the Python virtual environment.
-4. Run `uv sync` to install dependencies.
-5. Try the basic synchronous client example before exploring async functionality.
-6. Read `CONTRIBUTING.md` for repository guidelines and the contribution workflow.
-7. Browse the v3.0 tracking issue for documentation-friendly or beginner-accessible tasks.
-
+ 
+## 4. Where Questions Actually Get Answered
+ 
+**Location:** `CONTRIBUTING.md`, "Getting Help" subsection
+ 
+Different parts of the Supabase community use different channels. Knowing which one to use saves time for both the contributor and the maintainers.
+ 
+### Proposed addition
+ 
+> - **Bug reports and feature proposals:** open an issue on the relevant repository
+> - **Open-ended technical questions:** GitHub Discussions on the main `supabase` repository
+> - **Real-time community questions:** the official Supabase Discord, in the language-specific Python channel
+> - **Security issues:** follow the security policy linked in the repository — do not open a public issue
+>
+> Maintainers generally watch issues and PRs more closely than Discord, so anything that needs to be tracked or referenced later should live on GitHub.
+ 
 ### Why this helps
-
-Right now, a new contributor has to assemble this order on their own by jumping between files.
-
-A short numbered list at a single, obvious entry point removes that early friction and gives newcomers an explicit “you are here” sense of progress.
-
+ 
+A first-time contributor often defaults to opening an issue for anything that isn't a confirmed bug, which clutters the issue tracker. Pointing toward Discussions and Discord for open-ended questions keeps the issue queue focused on actionable work.
+ 
 ---
-
-# Suggested Placement Details
-
-For reviewer clarity, here is a consolidated summary of where each proposed change would live in the repository.
-
-| Proposed change | File | Section |
-|---|---|---|
-| Virtual environment framing paragraph | `README.md` | Installation, directly above the `uv venv` commands |
-| Sync vs async clarification + examples | `README.md` | Usage, directly under the first client example |
-| Common beginner errors | `CONTRIBUTING.md` or `docs/troubleshooting.md` | New “Troubleshooting” subsection |
-| Recommended beginner path | `CONTRIBUTING.md` | Near the top, or linked from the README |
-
+ 
+## 5. Running Tests Against a Real Supabase Instance
+ 
+**Location:** `CONTRIBUTING.md`, "Testing" section
+ 
+Some of the test suite hits a live Supabase instance, which is a friction point new contributors don't expect when they first run `pytest` and see unexpected failures.
+ 
+### Proposed addition
+ 
+> Some tests in this repository require a running Supabase instance to execute fully. Tests that hit live endpoints will fail or be skipped when no instance is configured locally.
+>
+> If you are submitting a bug fix or a small feature, it is generally enough to:
+>
+> - Run the test suite locally and confirm no *new* failures are introduced
+> - Note in your PR description if any failures appear to be pre-existing or environment-related
+>
+> Setting up a local Supabase instance (via the Supabase CLI or Docker) is only necessary if your change directly affects the code paths covered by the live tests.
+ 
+### Why this helps
+ 
+New contributors often interpret pre-existing test failures as something they broke, panic, and either over-investigate or abandon the PR. A short note about which failures matter saves them that loop.
+ 
 ---
-
-# Out of Scope 
-
-To keep this contribution realistic for a first pass, the following are explicitly not included in this proposal:
-
-- Restructuring the existing README or CONTRIBUTING files
-- Changes to the public API or client behavior
-- A full async/realtime tutorial (mentioned as a possible follow-up below)
-- Translating documentation into other languages
-
-Keeping the scope narrow makes it easier to review, easier to merge, and easier to iterate on if maintainers want to take only part of it.
-
+ 
+## Suggested Placement Summary
+ 
+| Section | File | Placement |
+| --- | --- | --- |
+| Dual sync/async architecture | `CONTRIBUTING.md` | New "Repository Architecture" section near the top |
+| Submodule layout and sister repos | `CONTRIBUTING.md` | Same "Repository Architecture" section |
+| v3.0 migration context | `CONTRIBUTING.md` | New "Before You Contribute" callout |
+| Where to ask questions | `CONTRIBUTING.md` | "Getting Help" subsection |
+| Test suite expectations | `CONTRIBUTING.md` | Existing testing section, as a short note |
+ 
 ---
-
-# Next Steps
-
-If this scope is well-received by maintainers, a natural second iteration could include:
-
-- A short async + realtime walkthrough showing a minimal subscription example
-- Linking the troubleshooting notes directly from the main `README.md`
-- Adding a “Where to start” pointer in `CONTRIBUTING.md` for first-time contributors
-- A small visual diagram showing when to use sync vs async clients
-
+ 
+## Next Steps
+ 
+If this revised scope is well-received, follow-up iterations could add:
+ 
+- A short visual map of the sub-library relationships
+- A "first issues to look at" pointer in `CONTRIBUTING.md`
+- A glossary of project-specific terms used in issues and PR reviews
 ---
-
-# Notes on Author Perspective
-
-These notes were written from the perspective of a current beginner contributor reviewing the repository for the first time.
-
-The friction points called out above are ones I personally encountered or anticipated while reading through the existing documentation, which I am including intentionally so maintainers can weigh how representative this perspective is of the broader new-contributor experience.
+ 
+## A Note on the Previous Revision
+ 
+An earlier version of this proposal included general Python onboarding material (virtual environments, sync vs async basics, common Python errors). That content has been removed in response to maintainer feedback that such guidance falls outside the scope of this repository and would create ongoing maintenance burden without commensurate gain. The revised proposal focuses exclusively on `supabase-py`-specific concerns that a working Python developer would still need to learn when entering this codebase for the first time.
+ 
