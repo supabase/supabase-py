@@ -2028,7 +2028,7 @@ wheels = [
 
 [[package]]
 name = "postgrest"
-version = "2.30.0"
+version = "2.30.1"
 source = { editable = "src/postgrest" }
 dependencies = [
     { name = "deprecation" },
@@ -2784,7 +2784,7 @@ wheels = [
 
 [[package]]
 name = "realtime"
-version = "2.30.0"
+version = "2.30.1"
 source = { editable = "src/realtime" }
 dependencies = [
     { name = "pydantic" },
@@ -3430,14 +3430,18 @@ wheels = [
 
 [[package]]
 name = "storage3"
-version = "2.30.0"
+version = "2.30.1"
 source = { editable = "src/storage" }
 dependencies = [
     { name = "deprecation" },
     { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
-    { name = "pyiceberg" },
     { name = "yarl" },
+]
+
+[package.optional-dependencies]
+iceberg = [
+    { name = "pyiceberg" },
 ]
 
 [package.dev-dependencies]
@@ -3487,9 +3491,10 @@ requires-dist = [
     { name = "deprecation", specifier = ">=2.1.0" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=2.11.7" },
-    { name = "pyiceberg", specifier = ">=0.10.0" },
+    { name = "pyiceberg", marker = "extra == 'iceberg'", specifier = ">=0.10.0" },
     { name = "yarl", specifier = ">=1.20.1" },
 ]
+provides-extras = ["iceberg"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3548,7 +3553,7 @@ wheels = [
 
 [[package]]
 name = "supabase"
-version = "2.30.0"
+version = "2.30.1"
 source = { editable = "src/supabase" }
 dependencies = [
     { name = "httpx" },
@@ -3617,7 +3622,7 @@ tests = [
 
 [[package]]
 name = "supabase-auth"
-version = "2.30.0"
+version = "2.30.1"
 source = { editable = "src/auth" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },
@@ -3704,7 +3709,7 @@ tests = [
 
 [[package]]
 name = "supabase-functions"
-version = "2.30.0"
+version = "2.30.1"
 source = { editable = "src/functions" }
 dependencies = [
     { name = "httpx", extra = ["http2"] },

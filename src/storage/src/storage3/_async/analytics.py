@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from httpx import QueryParams
-from pyiceberg.catalog.rest import RestCatalog
 
+from .._iceberg import load_rest_catalog
 from ..types import (
     AnalyticsBucket,
     AnalyticsBucketDeleteResponse,
@@ -11,6 +11,9 @@ from ..types import (
     SortOrder,
 )
 from .request import AsyncRequestBuilder
+
+if TYPE_CHECKING:
+    from pyiceberg.catalog.rest import RestCatalog
 
 
 class AsyncStorageAnalyticsClient:
@@ -53,7 +56,8 @@ class AsyncStorageAnalyticsClient:
 
     def catalog(
         self, catalog_name: str, access_key_id: str, secret_access_key: str
-    ) -> RestCatalog:
+    ) -> "RestCatalog":
+        RestCatalog = load_rest_catalog()
         catalog_uri = self._request._base_url
         s3_endpoint = self._request._base_url.parent.joinpath("s3")
         service_key = self._request.headers.get("apiKey")
