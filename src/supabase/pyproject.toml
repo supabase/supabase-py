@@ -37,6 +37,11 @@ repository = "https://github.com/supabase/supabase-py"
 documentation = "https://github.com/supabase/supabase-py/src/supabase"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
+[project.optional-dependencies]
+iceberg = [
+  "storage3[iceberg] == 2.30.1", # x-release-please-version
+]
+
 [dependency-groups]
 dev = [
   { include-group = "tests" },
