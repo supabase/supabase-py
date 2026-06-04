@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.31.0](https://github.com/supabase/supabase-py/compare/v2.30.1...v2.31.0) (2026-06-04)
+
+
+### Features
+
+* update X-Client-Info to use structured semicolon-delimited metadata ([#1479](https://github.com/supabase/supabase-py/issues/1479)) ([cb3857c](https://github.com/supabase/supabase-py/commit/cb3857cf54ff34de9842c447c349dfef7cd8c3c8))
+
+
+### Bug Fixes
+
+* **storage:** make pyiceberg an optional dependency ([#1513](https://github.com/supabase/supabase-py/issues/1513)) ([d16cfc0](https://github.com/supabase/supabase-py/commit/d16cfc090e6ca55f77b66a123250febc688cd75f))
+
 ## [2.30.1](https://github.com/supabase/supabase-py/compare/v2.30.0...v2.30.1) (2026-05-27)
 
 
