@@ -47,6 +47,9 @@ lints = [
   "pylsp-mypy (>=0.7.0,<0.8.0)",
   "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
+mypy = [
+  "pyiceberg>=0.10.0",
+]
 docs = [
   "Sphinx >=7.1.2",
   "sphinx-press-theme >=0.9.1",

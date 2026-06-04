@@ -17,7 +17,7 @@ help::
 	@echo "  tests          -- run all tests for storage3"
 
 mypy:
-	uv run --package storage3 mypy src/storage3 tests
+	uv run --package storage3 --group mypy mypy src/storage3 tests
 help::
 	@echo "  mypy           -- run mypy on storage3"
 
