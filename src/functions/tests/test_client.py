@@ -26,9 +26,9 @@ def test_async_x_client_info_structured_format(
     client = AsyncFunctionsClient(url=valid_url, headers=valid_headers)
     x_client_info = client.headers.get("X-Client-Info")
     assert x_client_info is not None
-    assert _X_CLIENT_INFO_PATTERN.match(
-        x_client_info
-    ), f"X-Client-Info format is wrong: {x_client_info}"
+    assert _X_CLIENT_INFO_PATTERN.match(x_client_info), (
+        f"X-Client-Info format is wrong: {x_client_info}"
+    )
 
 
 def test_sync_x_client_info_structured_format(
@@ -37,9 +37,9 @@ def test_sync_x_client_info_structured_format(
     client = SyncFunctionsClient(url=valid_url, headers=valid_headers)
     x_client_info = client.headers.get("X-Client-Info")
     assert x_client_info is not None
-    assert _X_CLIENT_INFO_PATTERN.match(
-        x_client_info
-    ), f"X-Client-Info format is wrong: {x_client_info}"
+    assert _X_CLIENT_INFO_PATTERN.match(x_client_info), (
+        f"X-Client-Info format is wrong: {x_client_info}"
+    )
 
 
 def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
