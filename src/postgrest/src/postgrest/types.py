@@ -1,24 +1,11 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Mapping, Sequence
-from typing import Union
-
-from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
-from pydantic import TypeAdapter
-from typing_extensions import TypeAliasType
-from yarl import URL
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
 else:
     from strenum import StrEnum
-
-# https://docs.pydantic.dev/2.11/concepts/types/#named-recursive-types
-JSON = TypeAliasType(
-    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
-)
-JSONAdapter: TypeAdapter = TypeAdapter(JSON)
 
 
 class CountMethod(StrEnum):

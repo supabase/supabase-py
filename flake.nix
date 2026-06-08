@@ -1,5 +1,5 @@
 {
-  description = "realtime-py: a Realtime python client.";
+  description = "Supabase-py development flake";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -45,7 +45,7 @@
       root = "$REPO_ROOT";
     };
 
-    pyproject-overlay = final: prev: {
+    pyproject-overlay = pkgs: final: prev: {
       ruamel-yaml-clib = prev.ruamel-yaml-clib.overrideAttrs (old: {
         nativeBuildInputs = old.nativeBuildInputs ++ [
           (final.resolveBuildSystem {
@@ -53,7 +53,21 @@
           })
         ];
       });
-
+      pyiceberg = prev.pyiceberg.overrideAttrs (old: {
+        buildInputs = (old.buildInputs or []) ++ [ final.poetry-core ];
+      });
+      pyroaring = prev.pyroaring.overrideAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          sed -i '1i from Cython.Build import cythonize' setup.py
+          sed -i 's/ext_modules=[pyroaring_module]/ext_modules=[cythonize(pyroaring_module)]/' setup.py
+        '';
+        nativeBuildInputs = old.nativeBuildInputs ++ [
+          (final.resolveBuildSystem {
+            setuptools = [];
+          })
+          final.cython
+        ];
+      });
     };
 
     python-for = pkgs: let
@@ -61,10 +75,10 @@
         pyproject-build-systems.overlays.default
         workspace-overlay
         editable-overlay
-        pyproject-overlay
+        (pyproject-overlay pkgs)
       ];
       base-python = pkgs.callPackage pyproject-nix.build.packages {
-        python = pkgs.python311;
+        python = pkgs.python314;
       };
     in base-python.overrideScope extensions;
   in {
@@ -79,7 +93,7 @@
 
           # Force uv to use nixpkgs Python interpreter
           UV_PROJECT_ENVIRONMENT = python-env;
-          UV_PYTHON = pkgs.python311.interpreter;
+          UV_PYTHON = pkgs.python314.interpreter;
 
           # Prevent uv from downloading managed Python's
           UV_PYTHON_DOWNLOADS = "never";
@@ -91,6 +105,9 @@
         '';
         packages = [ python-env ] ++ (dev-tools pkgs);
       };
+    });
+    lib = for-all-systems (pkgs: { 
+      python = python-for pkgs;
     });
   };
 }

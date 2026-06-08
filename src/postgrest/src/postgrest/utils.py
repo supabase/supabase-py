@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Type, TypeVar, cast, get_origin
-from urllib.parse import urlparse
+from typing import Any, Type, TypeVar
 
 from deprecation import deprecated
 from httpx import AsyncClient  # noqa: F401

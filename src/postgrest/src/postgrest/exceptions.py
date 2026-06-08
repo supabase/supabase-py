@@ -1,6 +1,7 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from pydantic import BaseModel
+from supabase_utils.http.request import Response
 
 
 class APIErrorFromJSON(BaseModel):
@@ -9,13 +10,13 @@ class APIErrorFromJSON(BaseModel):
     from a json string.
     """
 
-    message: Optional[str]
+    message: str | None
     """The error message."""
-    code: Optional[str]
+    code: str | None
     """The error code."""
-    hint: Optional[str]
+    hint: str | None
     """The error hint."""
-    details: Optional[str]
+    details: str | None
     """The error details."""
 
 
@@ -25,13 +26,13 @@ class APIError(Exception):
     """
 
     _raw_error: Dict[str, str]
-    message: Optional[str]
+    message: str | None
     """The error message."""
-    code: Optional[str]
+    code: str | None
     """The error code."""
-    hint: Optional[str]
+    hint: str | None
     """The error hint."""
-    details: Optional[str]
+    details: str | None
     """The error details."""
 
     def __init__(self, error: Dict[str, Any]) -> None:
@@ -59,10 +60,10 @@ class APIError(Exception):
         return self._raw_error
 
 
-def generate_default_error_message(r):
+def generate_default_error_message(r: Response) -> dict[str, str]:
     return {
         "message": "JSON could not be generated",
-        "code": r.status_code,
+        "code": str(r.status),
         "hint": "Refer to full message for details",
         "details": str(r.content),
     }

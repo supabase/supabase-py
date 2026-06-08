@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from dataclasses import dataclass
+from typing import List, Literal
 
-from typing_extensions import TypedDict
+from pydantic import BaseModel, TypeAdapter
 
 ErrorCode = Literal[
     "unexpected_failure",
@@ -89,75 +90,66 @@ ErrorCode = Literal[
     "invalid_jwt",
 ]
 
+ErrorCodeAdapter: TypeAdapter[ErrorCode] = TypeAdapter(ErrorCode)
+
+
+class WeakPasswordReasons(BaseModel):
+    reasons: list[str]
+
+
+class RawApiError(BaseModel):
+    msg: str | None = None
+    message: str | None = None
+    error: str | None = None
+    code: int | None = None
+    error_description: str | None = None
+    error_code: ErrorCode | None = None
+    weak_password: WeakPasswordReasons | None = None
+
+    def get_error_message(self) -> str:
+        return (
+            self.msg
+            or self.message
+            or self.error_description
+            or self.error
+            or "Unknown"
+        )
+
 
 class UserDoesntExist(Exception):
     def __init__(self, access_token: str) -> None:
         self.access_token = access_token
 
 
+@dataclass
 class AuthError(Exception):
-    def __init__(self, message: str, code: ErrorCode | None) -> None:
-        Exception.__init__(self, message)
-        self.message = message
-        self.name = "AuthError"
-        self.code = code
-
-
-class AuthApiErrorDict(TypedDict):
-    name: str
     message: str
-    status: int
     code: ErrorCode | None
 
 
+@dataclass
 class AuthApiError(AuthError):
-    def __init__(self, message: str, status: int, code: Optional[ErrorCode]) -> None:
-        AuthError.__init__(self, message, code)
-        self.name = "AuthApiError"
-        self.status = status
-        self.code = code
-
-    def to_dict(self) -> AuthApiErrorDict:
-        return {
-            "name": self.name,
-            "message": self.message,
-            "status": self.status,
-            "code": self.code,
-        }
+    status: int
 
 
+@dataclass
 class AuthUnknownError(AuthError):
-    def __init__(self, message: str, original_error: Exception) -> None:
-        AuthError.__init__(self, message, None)
-        self.name = "AuthUnknownError"
-        self.original_error = original_error
+    data: bytes
+    status: int
 
 
+@dataclass
 class CustomAuthError(AuthError):
-    def __init__(
-        self, message: str, name: str, status: int, code: Optional[ErrorCode]
-    ) -> None:
-        AuthError.__init__(self, message, code)
-        self.name = name
-        self.status = status
-
-    def to_dict(self) -> AuthApiErrorDict:
-        return {
-            "name": self.name,
-            "message": self.message,
-            "status": self.status,
-            "code": self.code,
-        }
+    status: int
 
 
 class AuthSessionMissingError(CustomAuthError):
     def __init__(self) -> None:
         CustomAuthError.__init__(
             self,
-            "Auth session missing!",
-            "AuthSessionMissingError",
-            400,
-            None,
+            message="Auth session missing!",
+            status=400,
+            code=None,
         )
 
 
@@ -165,45 +157,27 @@ class AuthInvalidCredentialsError(CustomAuthError):
     def __init__(self, message: str) -> None:
         CustomAuthError.__init__(
             self,
-            message,
-            "AuthInvalidCredentialsError",
-            400,
-            None,
+            message=message,
+            status=400,
+            code=None,
         )
-
-
-class AuthImplicitGrantRedirectErrorDetails(TypedDict):
-    error: str
-    code: str
-
-
-class AuthImplicitGrantRedirectErrorDict(AuthApiErrorDict):
-    details: Optional[AuthImplicitGrantRedirectErrorDetails]
 
 
 class AuthImplicitGrantRedirectError(CustomAuthError):
     def __init__(
         self,
         message: str,
-        details: Optional[AuthImplicitGrantRedirectErrorDetails] = None,
+        error: str | None = None,
+        code: str | None = None,
     ) -> None:
         CustomAuthError.__init__(
             self,
-            message,
-            "AuthImplicitGrantRedirectError",
-            500,
-            None,
+            message=message,
+            status=500,
+            code=None,
         )
-        self.details = details
-
-    def to_dict(self) -> AuthImplicitGrantRedirectErrorDict:
-        return {
-            "name": self.name,
-            "message": self.message,
-            "status": self.status,
-            "details": self.details,
-            "code": self.code,
-        }
+        self.detail_error = error
+        self.detail_code = code
 
 
 class AuthRetryableError(CustomAuthError):
@@ -211,43 +185,27 @@ class AuthRetryableError(CustomAuthError):
         CustomAuthError.__init__(
             self,
             message,
-            "AuthRetryableError",
-            status,
-            None,
+            status=status,
+            code=None,
         )
-
-
-class AuthApiErrorWithReasonsDict(AuthApiErrorDict):
-    reasons: List[str]
 
 
 class AuthWeakPasswordError(CustomAuthError):
     def __init__(self, message: str, status: int, reasons: List[str]) -> None:
         CustomAuthError.__init__(
             self,
-            message,
-            "AuthWeakPasswordError",
-            status,
-            "weak_password",
+            message=message,
+            status=status,
+            code="weak_password",
         )
         self.reasons = reasons
-
-    def to_dict(self) -> AuthApiErrorWithReasonsDict:
-        return {
-            "name": self.name,
-            "message": self.message,
-            "status": self.status,
-            "reasons": self.reasons,
-            "code": self.code,
-        }
 
 
 class AuthInvalidJwtError(CustomAuthError):
     def __init__(self, message: str) -> None:
         CustomAuthError.__init__(
             self,
-            message,
-            "AuthInvalidJwtError",
-            400,
-            "invalid_jwt",
+            message=message,
+            status=400,
+            code="invalid_jwt",
         )

@@ -1,6 +1,7 @@
 from typing import Type
 
 import pytest
+
 from supabase_functions.errors import (
     FunctionsApiErrorDict,
     FunctionsError,
