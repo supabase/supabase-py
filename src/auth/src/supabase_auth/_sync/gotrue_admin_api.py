@@ -56,16 +56,8 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             proxy=proxy,
         )
         # TODO(@o-santi): why is is this done this way?
-        self.mfa = SyncGoTrueAdminMFAAPI()
-        self.mfa.list_factors = self._list_factors  # type: ignore
-        self.mfa.delete_factor = self._delete_factor  # type: ignore
-        self.oauth = SyncGoTrueAdminOAuthAPI()
-        self.oauth.list_clients = self._list_oauth_clients  # type: ignore
-        self.oauth.create_client = self._create_oauth_client  # type: ignore
-        self.oauth.get_client = self._get_oauth_client  # type: ignore
-        self.oauth.update_client = self._update_oauth_client  # type: ignore
-        self.oauth.delete_client = self._delete_oauth_client  # type: ignore
-        self.oauth.regenerate_client_secret = self._regenerate_oauth_client_secret  # type: ignore
+        self.mfa = SyncGoTrueAdminMFAAPI(self)
+        self.oauth = SyncGoTrueAdminOAuthAPI(self)
 
     def sign_out(self, jwt: str, scope: SignOutScope = "global") -> None:
         """

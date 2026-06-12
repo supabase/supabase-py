@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from ..types import (
     CreateOAuthClientParams,
@@ -8,12 +8,18 @@ from ..types import (
     UpdateOAuthClientParams,
 )
 
+if TYPE_CHECKING:
+    from .gotrue_admin_api import AsyncGoTrueAdminAPI
+
 
 class AsyncGoTrueAdminOAuthAPI:
     """
     Contains all OAuth client administration methods.
     Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
     """
+
+    def __init__(self, root: "AsyncGoTrueAdminAPI"):
+        self._root = root
 
     async def list_clients(
         self,
@@ -26,7 +32,7 @@ class AsyncGoTrueAdminOAuthAPI:
         This function should only be called on a server.
         Never expose your `secret` key in the browser.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._list_oauth_clients(params)
 
     async def create_client(
         self,
@@ -39,7 +45,7 @@ class AsyncGoTrueAdminOAuthAPI:
         This function should only be called on a server.
         Never expose your `secret` key in the browser.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._create_oauth_client(params)
 
     async def get_client(
         self,
@@ -52,7 +58,7 @@ class AsyncGoTrueAdminOAuthAPI:
         This function should only be called on a server.
         Never expose your `secret` key in the browser.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._get_oauth_client(client_id)
 
     async def update_client(
         self,
@@ -66,7 +72,7 @@ class AsyncGoTrueAdminOAuthAPI:
         This function should only be called on a server.
         Never expose your `secret` key in the browser.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._update_oauth_client(client_id, params)
 
     async def delete_client(
         self,
@@ -79,7 +85,7 @@ class AsyncGoTrueAdminOAuthAPI:
         This function should only be called on a server.
         Never expose your `secret` key in the browser.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._delete_oauth_client(client_id)
 
     async def regenerate_client_secret(
         self,
@@ -92,4 +98,4 @@ class AsyncGoTrueAdminOAuthAPI:
         This function should only be called on a server.
         Never expose your `secret` key in the browser.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._regenerate_oauth_client_secret(client_id)

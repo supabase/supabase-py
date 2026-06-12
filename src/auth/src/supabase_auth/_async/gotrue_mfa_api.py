@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from ..types import (
     AuthMFAChallengeResponse,
     AuthMFAEnrollResponse,
@@ -12,11 +14,17 @@ from ..types import (
     MFAVerifyParams,
 )
 
+if TYPE_CHECKING:
+    from .gotrue_client import AsyncGoTrueClient
+
 
 class AsyncGoTrueMFAAPI:
     """
     Contains the full multi-factor authentication API.
     """
+
+    def __init__(self, root: "AsyncGoTrueClient"):
+        self._root = root
 
     async def enroll(self, params: MFAEnrollParams) -> AuthMFAEnrollResponse:
         """
@@ -30,14 +38,14 @@ class AsyncGoTrueMFAAPI:
         factor. All other sessions are logged out and the current one gets an
         `aal2` authenticator level.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._enroll(params)
 
     async def challenge(self, params: MFAChallengeParams) -> AuthMFAChallengeResponse:
         """
         Prepares a challenge used to verify that a user has access to a MFA
         factor. Provide the challenge ID and verification code by calling `verify`.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._challenge(params)
 
     async def challenge_and_verify(
         self,
@@ -48,14 +56,14 @@ class AsyncGoTrueMFAAPI:
         to verify against it thereafter. The verification code is provided by the
         user by entering a code seen in their authenticator app.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._challenge_and_verify(params)
 
     async def verify(self, params: MFAVerifyParams) -> AuthMFAVerifyResponse:
         """
         Verifies a verification code against a challenge. The verification code is
         provided by the user by entering a code seen in their authenticator app.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._verify(params)
 
     async def unenroll(self, params: MFAUnenrollParams) -> AuthMFAUnenrollResponse:
         """
@@ -63,7 +71,7 @@ class AsyncGoTrueMFAAPI:
         and it's not necessary to unenroll them. Unenrolling a verified MFA factor
         cannot be done from a session with an `aal1` authenticator level.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._unenroll(params)
 
     async def list_factors(self) -> AuthMFAListFactorsResponse:
         """
@@ -73,7 +81,7 @@ class AsyncGoTrueMFAAPI:
         This uses a cached version of the factors and avoids incurring a network call.
         If you need to update this list, call `get_user` first.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._list_factors()
 
     async def get_authenticator_assurance_level(
         self,
@@ -91,4 +99,4 @@ class AsyncGoTrueMFAAPI:
         and rarely uses the network. You can use this to check whether the current
         user needs to be shown a screen to verify their MFA factors.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._get_authenticator_assurance_level()

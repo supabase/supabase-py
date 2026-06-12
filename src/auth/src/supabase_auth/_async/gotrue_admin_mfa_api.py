@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from ..types import (
     AuthMFAAdminDeleteFactorParams,
     AuthMFAAdminDeleteFactorResponse,
@@ -5,11 +7,17 @@ from ..types import (
     AuthMFAAdminListFactorsResponse,
 )
 
+if TYPE_CHECKING:
+    from .gotrue_admin_api import AsyncGoTrueAdminAPI
+
 
 class AsyncGoTrueAdminMFAAPI:
     """
     Contains the full multi-factor authentication administration API.
     """
+
+    def __init__(self, root: "AsyncGoTrueAdminAPI"):
+        self._root = root
 
     async def list_factors(
         self,
@@ -18,7 +26,7 @@ class AsyncGoTrueAdminMFAAPI:
         """
         Lists all factors attached to a user.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._list_factors(params)
 
     async def delete_factor(
         self,
@@ -29,4 +37,4 @@ class AsyncGoTrueAdminMFAAPI:
         sessions (if the deleted factor was verified). There's no need to delete
         unverified factors.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return await self._root._delete_factor(params)

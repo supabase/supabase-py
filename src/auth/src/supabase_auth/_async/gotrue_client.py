@@ -155,21 +155,9 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         self._flow_type = flow_type
 
         self.admin = AsyncGoTrueAdminAPI(
-            url=self._url,
-            headers=self._headers,
-            http_client=self._http_client,
+            url=self.url, headers=self.headers, http_client=self._http_client
         )
-        # TODO(@o-santi): why is it like this?
-        self.mfa = AsyncGoTrueMFAAPI()
-        self.mfa.challenge = self._challenge  # type: ignore
-        self.mfa.challenge_and_verify = self._challenge_and_verify  # type: ignore
-        self.mfa.enroll = self._enroll  # type: ignore
-        self.mfa.get_authenticator_assurance_level = (  # type: ignore
-            self._get_authenticator_assurance_level
-        )
-        self.mfa.list_factors = self._list_factors  # type: ignore
-        self.mfa.unenroll = self._unenroll  # type: ignore
-        self.mfa.verify = self._verify  # type: ignore
+        self.mfa = AsyncGoTrueMFAAPI(self)
 
     # Initializations
 

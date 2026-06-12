@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from ..types import (
     AuthMFAAdminDeleteFactorParams,
     AuthMFAAdminDeleteFactorResponse,
@@ -5,11 +7,17 @@ from ..types import (
     AuthMFAAdminListFactorsResponse,
 )
 
+if TYPE_CHECKING:
+    from .gotrue_admin_api import SyncGoTrueAdminAPI
+
 
 class SyncGoTrueAdminMFAAPI:
     """
     Contains the full multi-factor authentication administration API.
     """
+
+    def __init__(self, root: "SyncGoTrueAdminAPI"):
+        self._root = root
 
     def list_factors(
         self,
@@ -18,7 +26,7 @@ class SyncGoTrueAdminMFAAPI:
         """
         Lists all factors attached to a user.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return self._root._list_factors(params)
 
     def delete_factor(
         self,
@@ -29,4 +37,4 @@ class SyncGoTrueAdminMFAAPI:
         sessions (if the deleted factor was verified). There's no need to delete
         unverified factors.
         """
-        raise NotImplementedError()  # pragma: no cover
+        return self._root._delete_factor(params)
