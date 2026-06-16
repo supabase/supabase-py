@@ -94,9 +94,13 @@ class AsyncClientOptions(ClientOptions):
         client_options.schema = schema or self.schema
         client_options.headers = headers or self.headers
         client_options.auto_refresh_token = (
-            auto_refresh_token or self.auto_refresh_token
+            auto_refresh_token
+            if auto_refresh_token is not None
+            else self.auto_refresh_token
         )
-        client_options.persist_session = persist_session or self.persist_session
+        client_options.persist_session = (
+            persist_session if persist_session is not None else self.persist_session
+        )
         client_options.storage = storage or self.storage
         client_options.realtime = realtime or self.realtime
         client_options.httpx_client = httpx_client or self.httpx_client
@@ -137,9 +141,13 @@ class SyncClientOptions(ClientOptions):
         client_options.schema = schema or self.schema
         client_options.headers = headers or self.headers
         client_options.auto_refresh_token = (
-            auto_refresh_token or self.auto_refresh_token
+            auto_refresh_token
+            if auto_refresh_token is not None
+            else self.auto_refresh_token
         )
-        client_options.persist_session = persist_session or self.persist_session
+        client_options.persist_session = (
+            persist_session if persist_session is not None else self.persist_session
+        )
         client_options.storage = storage or self.storage
         client_options.realtime = realtime or self.realtime
         client_options.httpx_client = httpx_client or self.httpx_client

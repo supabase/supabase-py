@@ -62,3 +62,31 @@ class TestClientOptions:
         # Assert
         assert options.storage.get_item("key") == "new_value"
         assert new_options.storage.get_item("key") == "new_value"
+
+    def test_replace_honors_false_for_boolean_options(self) -> None:
+        options = ClientOptions(
+            auto_refresh_token=True,
+            persist_session=True,
+        )
+
+        actual = options.replace(
+            auto_refresh_token=False,
+            persist_session=False,
+        )
+
+        assert actual.auto_refresh_token is False
+        assert actual.persist_session is False
+
+    async def test_replace_honors_false_for_boolean_aoptions(self) -> None:
+        options = AClientOptions(
+            auto_refresh_token=True,
+            persist_session=True,
+        )
+
+        actual = options.replace(
+            auto_refresh_token=False,
+            persist_session=False,
+        )
+
+        assert actual.auto_refresh_token is False
+        assert actual.persist_session is False
