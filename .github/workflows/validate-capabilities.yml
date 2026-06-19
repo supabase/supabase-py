@@ -1,0 +1,16 @@
+name: Validate SDK Compliance
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: supabase/sdk/.github/workflows/validate-sdk-compliance.yml@main
+    with:
+      language: python

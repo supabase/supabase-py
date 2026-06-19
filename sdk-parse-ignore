@@ -1,0 +1,3 @@
+# Exclude test directories and files from the public API surface parser
+src/*/tests/
+**/conftest.py
