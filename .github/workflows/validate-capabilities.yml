@@ -14,3 +14,7 @@ jobs:
     uses: supabase/sdk/.github/workflows/validate-sdk-compliance.yml@main
     with:
       language: python
+      griffe-packages: >-
+        supabase supabase_auth postgrest storage3 realtime supabase_functions
+      griffe-search-paths: >-
+        src/supabase/src,src/auth/src,src/postgrest/src,src/storage/src,src/realtime/src,src/functions/src
