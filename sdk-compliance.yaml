@@ -205,8 +205,20 @@ features:
     symbols:
       - AsyncGoTrueAdminAPI.generate_link
       - SyncGoTrueAdminAPI.generate_link
-  auth.admin.list_mfa_factors: not_implemented
-  auth.admin.delete_mfa_factor: not_implemented
+  auth.admin.list_mfa_factors:
+    status: implemented
+    note: "Accessible via admin.mfa.list_factors(params); the mfa attribute is wired to the real HTTP implementation at construction time."
+    symbols:
+      - AsyncGoTrueAdminMFAAPI.list_factors
+      - SyncGoTrueAdminMFAAPI.list_factors
+
+  auth.admin.delete_mfa_factor:
+    status: implemented
+    note: "Accessible via admin.mfa.delete_factor(params); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminMFAAPI.delete_factor
+      - SyncGoTrueAdminMFAAPI.delete_factor
+
   auth.admin.create_provider: not_implemented
   auth.admin.delete_provider: not_implemented
   auth.admin.update_provider: not_implemented
@@ -225,12 +237,47 @@ features:
   auth.oauth_server.list_grants: not_implemented
   auth.oauth_server.revoke_grant: not_implemented
 
-  auth.oauth_admin.create_client: not_implemented
-  auth.oauth_admin.delete_client: not_implemented
-  auth.oauth_admin.get_client: not_implemented
-  auth.oauth_admin.list_clients: not_implemented
-  auth.oauth_admin.regenerate_client_secret: not_implemented
-  auth.oauth_admin.update_client: not_implemented
+  auth.oauth_admin.create_client:
+    status: implemented
+    note: "Accessible via admin.oauth.create_client(params); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.create_client
+      - SyncGoTrueAdminOAuthAPI.create_client
+
+  auth.oauth_admin.delete_client:
+    status: implemented
+    note: "Accessible via admin.oauth.delete_client(client_id); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.delete_client
+      - SyncGoTrueAdminOAuthAPI.delete_client
+
+  auth.oauth_admin.get_client:
+    status: implemented
+    note: "Accessible via admin.oauth.get_client(client_id); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.get_client
+      - SyncGoTrueAdminOAuthAPI.get_client
+
+  auth.oauth_admin.list_clients:
+    status: implemented
+    note: "Accessible via admin.oauth.list_clients(params); supports pagination via x-total-count and Link headers."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.list_clients
+      - SyncGoTrueAdminOAuthAPI.list_clients
+
+  auth.oauth_admin.regenerate_client_secret:
+    status: implemented
+    note: "Accessible via admin.oauth.regenerate_client_secret(client_id); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.regenerate_client_secret
+      - SyncGoTrueAdminOAuthAPI.regenerate_client_secret
+
+  auth.oauth_admin.update_client:
+    status: implemented
+    note: "Accessible via admin.oauth.update_client(client_id, params); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.update_client
+      - SyncGoTrueAdminOAuthAPI.update_client
 
   # ── Client ─────────────────────────────────────────────────────────────────
 
