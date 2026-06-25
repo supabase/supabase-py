@@ -638,25 +638,126 @@ features:
 
   # ── Storage — Vector Buckets ───────────────────────────────────────────────
 
-  storage.vector_buckets.create_vector_bucket: not_implemented
-  storage.vector_buckets.list_vector_buckets: not_implemented
-  storage.vector_buckets.delete_vector_bucket: not_implemented
-  storage.vector_buckets.access_vector_index: not_implemented
-  storage.vector_buckets.create_index: not_implemented
-  storage.vector_buckets.delete_index: not_implemented
-  storage.vector_buckets.get_index: not_implemented
-  storage.vector_buckets.list_indexes: not_implemented
-  storage.vector_buckets.put_vectors: not_implemented
-  storage.vector_buckets.get_vectors: not_implemented
-  storage.vector_buckets.delete_vectors: not_implemented
-  storage.vector_buckets.list_vectors: not_implemented
-  storage.vector_buckets.query_vectors: not_implemented
-  storage.vector_buckets.parallel_scan: not_implemented
+  storage.vector_buckets.create_vector_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageVectorsClient.create_bucket
+      - SyncStorageVectorsClient.create_bucket
+
+  storage.vector_buckets.list_vector_buckets:
+    status: implemented
+    symbols:
+      - AsyncStorageVectorsClient.list_buckets
+      - SyncStorageVectorsClient.list_buckets
+
+  storage.vector_buckets.delete_vector_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageVectorsClient.delete_bucket
+      - SyncStorageVectorsClient.delete_bucket
+
+  storage.vector_buckets.access_vector_index:
+    status: implemented
+    note: "AsyncStorageClient.vectors() returns AsyncStorageVectorsClient; .from_(bucket_name) returns AsyncVectorBucketScope; .index(index_name) returns AsyncVectorIndexScope."
+    symbols:
+      - AsyncStorageClient.vectors
+      - AsyncStorageVectorsClient.from_
+      - AsyncVectorBucketScope.index
+      - SyncStorageClient.vectors
+      - SyncStorageVectorsClient.from_
+      - SyncVectorBucketScope.index
+
+  storage.vector_buckets.create_index:
+    status: implemented
+    symbols:
+      - AsyncVectorBucketScope.create_index
+      - SyncVectorBucketScope.create_index
+
+  storage.vector_buckets.delete_index:
+    status: implemented
+    symbols:
+      - AsyncVectorBucketScope.delete_index
+      - SyncVectorBucketScope.delete_index
+
+  storage.vector_buckets.get_index:
+    status: implemented
+    symbols:
+      - AsyncVectorBucketScope.get_index
+      - SyncVectorBucketScope.get_index
+
+  storage.vector_buckets.list_indexes:
+    status: implemented
+    symbols:
+      - AsyncVectorBucketScope.list_indexes
+      - SyncVectorBucketScope.list_indexes
+
+  storage.vector_buckets.put_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.put
+      - SyncVectorIndexScope.put
+
+  storage.vector_buckets.get_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.get
+      - SyncVectorIndexScope.get
+
+  storage.vector_buckets.delete_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.delete
+      - SyncVectorIndexScope.delete
+
+  storage.vector_buckets.list_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.list
+      - SyncVectorIndexScope.list
+
+  storage.vector_buckets.query_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.query
+      - SyncVectorIndexScope.query
+
+  storage.vector_buckets.parallel_scan:
+    status: implemented
+    note: "list() accepts segment_count and segment_index parameters enabling parallel segment-based scanning."
+    symbols:
+      - AsyncVectorIndexScope.list
+      - SyncVectorIndexScope.list
 
   # ── Storage — Analytics Buckets ────────────────────────────────────────────
 
-  storage.analytics.create_analytics_bucket: not_implemented
-  storage.analytics.list_analytics_buckets: not_implemented
-  storage.analytics.delete_analytics_bucket: not_implemented
-  storage.analytics.iceberg_namespace: not_implemented
-  storage.analytics.iceberg_table: not_implemented
+  storage.analytics.create_analytics_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageAnalyticsClient.create
+      - SyncStorageAnalyticsClient.create
+
+  storage.analytics.list_analytics_buckets:
+    status: implemented
+    symbols:
+      - AsyncStorageAnalyticsClient.list
+      - SyncStorageAnalyticsClient.list
+
+  storage.analytics.delete_analytics_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageAnalyticsClient.delete
+      - SyncStorageAnalyticsClient.delete
+
+  storage.analytics.iceberg_namespace:
+    status: implemented
+    note: "catalog() returns a pyiceberg RestCatalog giving full Iceberg REST catalog access including namespace management."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.iceberg_table:
+    status: implemented
+    note: "catalog() returns a pyiceberg RestCatalog giving full Iceberg REST catalog access including table management."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
