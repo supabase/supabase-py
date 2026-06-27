@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import copy
 import sys
 from json import JSONDecodeError
 from re import search
@@ -285,8 +286,9 @@ class BaseFilterRequestBuilder(Generic[C]):
     @property
     def not_(self: Self) -> Self:
         """Whether the filter applied next should be negated."""
-        self.negate_next = True
-        return self
+        cloned = copy.copy(self)
+        cloned.negate_next = True
+        return cloned
 
     def filter(self: Self, column: str, operator: str, criteria: str) -> Self:
         """Apply filters on a query.
@@ -540,7 +542,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             )
 
         for key, value in query.items():
-            updated_query = self.eq(key, value)
+            updated_query = updated_query.eq(key, value)
 
         return updated_query
 
@@ -677,3 +679,35 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         """Specify that the query must retrieve data as a single CSV string."""
         self.request.headers["Accept"] = "text/csv"
         return self
+
+
+def _make_immutable(cls: Type[Self]) -> Type[Self]:
+    import inspect
+    from functools import wraps
+
+    def wrap_method(method: Any) -> Any:
+        @wraps(method)
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+            cloned = copy.copy(self)
+            cloned.request = copy.copy(self.request)
+            cloned.request.headers = Headers(self.request.headers)
+            cloned.request.params = QueryParams(self.request.params)
+            result = method(cloned, *args, **kwargs)
+            if result is cloned:
+                return cloned
+            return result
+        return wrapper
+
+    for name, attr in list(cls.__dict__.items()):
+        if (
+            not name.startswith("_")
+            and name != "not_"
+            and (inspect.isfunction(attr) or inspect.ismethod(attr))
+        ):
+            setattr(cls, name, wrap_method(attr))
+    return cls
+
+
+_make_immutable(BaseFilterRequestBuilder)
+_make_immutable(BaseSelectRequestBuilder)
+_make_immutable(BaseRPCRequestBuilder)

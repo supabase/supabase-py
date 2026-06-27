@@ -66,6 +66,17 @@ def test_match(filter_request_builder):
     assert str(builder.request.params) == "id=eq.1&done=eq.false"
 
 
+def test_builder_immutability(filter_request_builder):
+    base_query = filter_request_builder.eq("account_id", "abc")
+
+    query1 = base_query.eq("id", "1")
+    query2 = base_query.eq("id", "2")
+
+    assert str(base_query.request.params) == "account_id=eq.abc"
+    assert str(query1.request.params) == "account_id=eq.abc&id=eq.1"
+    assert str(query2.request.params) == "account_id=eq.abc&id=eq.2"
+
+
 def test_equals(filter_request_builder):
     builder = filter_request_builder.eq("x", "a")
 
@@ -294,7 +305,9 @@ def test_max_affected_with_existing_handling_strict(filter_request_builder):
     )
 
 
-def test_max_affected_returns_self(filter_request_builder):
+def test_max_affected_returns_new_instance(filter_request_builder):
     builder = filter_request_builder.max_affected(1)
 
-    assert builder is filter_request_builder
+    assert builder is not filter_request_builder
+    assert "prefer" in builder.request.headers
+    assert "prefer" not in filter_request_builder.request.headers
