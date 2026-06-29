@@ -2,6 +2,7 @@ import copy
 import re
 from typing import Any, Dict, List, Optional, Union
 
+from httpx import Client as SyncHttpxClientBuilder
 from httpx import Timeout
 from postgrest import (
     SyncPostgrestClient,
@@ -205,15 +206,15 @@ class Client:
     @property
     def functions(self) -> SyncFunctionsClient:
         if self._functions is None:
+            http_client = self.options.httpx_client or SyncHttpxClientBuilder(
+                timeout=self.options.function_client_timeout,
+                follow_redirects=True,
+                http2=True,
+            )
             self._functions = SyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
-                timeout=(
-                    self.options.function_client_timeout
-                    if self.options.httpx_client is None
-                    else None
-                ),
-                http_client=self.options.httpx_client,
+                http_client=http_client,
             )
         return self._functions
 
@@ -261,13 +262,15 @@ class Client:
             return SyncStorageClient(
                 url=storage_url, headers=headers, http_client=http_client
             )
+        built_client = SyncHttpxClientBuilder(
+            timeout=storage_client_timeout,
+            follow_redirects=True,
+            http2=True,
+        )
         return SyncStorageClient(
             url=storage_url,
             headers=headers,
-            timeout=storage_client_timeout,
-            verify=verify,
-            proxy=proxy,
-            http_client=None,
+            http_client=built_client,
         )
 
     @staticmethod
@@ -306,14 +309,18 @@ class Client:
             return SyncPostgrestClient(
                 rest_url, headers=headers, schema=schema, http_client=http_client
             )
+        built_client = SyncHttpxClientBuilder(
+            base_url=rest_url,
+            headers=headers,
+            timeout=timeout,
+            follow_redirects=True,
+            http2=True,
+        )
         return SyncPostgrestClient(
             rest_url,
             headers=headers,
             schema=schema,
-            timeout=timeout,
-            verify=verify,
-            proxy=proxy,
-            http_client=None,
+            http_client=built_client,
         )
 
     def _create_auth_header(self, token: str) -> str:
@@ -344,6 +351,7 @@ class Client:
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
         self.auth._headers["Authorization"] = auth_header
+        
 
 
 def create_client(

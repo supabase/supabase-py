@@ -3,6 +3,7 @@ import copy
 import re
 from typing import Any, Dict, List, Optional, Union
 
+from httpx import AsyncClient as AsyncHttpxClientBuilder
 from httpx import Timeout
 from postgrest import (
     AsyncPostgrestClient,
@@ -206,15 +207,15 @@ class AsyncClient:
     @property
     def functions(self) -> AsyncFunctionsClient:
         if self._functions is None:
+            http_client = self.options.httpx_client or AsyncHttpxClientBuilder(
+                timeout=self.options.function_client_timeout,
+                follow_redirects=True,
+                http2=True,
+            )
             self._functions = AsyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
-                timeout=(
-                    self.options.function_client_timeout
-                    if self.options.httpx_client is None
-                    else None
-                ),
-                http_client=self.options.httpx_client,
+                http_client=http_client,
             )
         return self._functions
 
@@ -262,13 +263,15 @@ class AsyncClient:
             return AsyncStorageClient(
                 url=storage_url, headers=headers, http_client=http_client
             )
+        built_client = AsyncHttpxClientBuilder(
+            timeout=storage_client_timeout,
+            follow_redirects=True,
+            http2=True,
+        )
         return AsyncStorageClient(
             url=storage_url,
             headers=headers,
-            timeout=storage_client_timeout,
-            verify=verify,
-            proxy=proxy,
-            http_client=None,
+            http_client=built_client,
         )
 
     @staticmethod
@@ -307,14 +310,18 @@ class AsyncClient:
             return AsyncPostgrestClient(
                 rest_url, headers=headers, schema=schema, http_client=http_client
             )
+        built_client = AsyncHttpxClientBuilder(
+            base_url=rest_url,
+            headers=headers,
+            timeout=timeout,
+            follow_redirects=True,
+            http2=True,
+        )
         return AsyncPostgrestClient(
             rest_url,
             headers=headers,
             schema=schema,
-            timeout=timeout,
-            verify=verify,
-            proxy=proxy,
-            http_client=None,
+            http_client=built_client,
         )
 
     def _create_auth_header(self, token: str) -> str:
