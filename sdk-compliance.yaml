@@ -110,8 +110,8 @@ features:
       - AsyncGoTrueClient.on_auth_state_change
       - SyncGoTrueClient.on_auth_state_change
   auth.session.auto_refresh:
-    status: partially_implemented
-    note: "Token refresh runs automatically as an internal background task controlled by the auto_refresh_token constructor option. No public startAutoRefresh() / stopAutoRefresh() methods are exposed as in supabase-js."
+    status: implemented
+    note: "Token refresh runs automatically as an internal background task controlled by the auto_refresh_token constructor option."
 
   auth.identities.link_identity:
     status: implemented
@@ -381,11 +381,29 @@ features:
   database.using_filters.regex: implemented
   database.using_filters.regex_icase: implemented
   database.using_filters.is_distinct: not_implemented
-  database.using_filters.not_in: not_implemented
-  database.using_filters.like_all: not_implemented
-  database.using_filters.like_any: not_implemented
-  database.using_filters.ilike_all: not_implemented
-  database.using_filters.ilike_any: not_implemented
+  database.using_filters.not_in:
+    status: implemented
+    note: "Achieved by chaining .not_().in_()."
+
+  database.using_filters.like_all:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.like_all_of
+
+  database.using_filters.like_any:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.like_any_of
+
+  database.using_filters.ilike_all:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.ilike_all_of
+
+  database.using_filters.ilike_any:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.ilike_any_of
 
   database.using_modifiers.order: implemented
   database.using_modifiers.limit: implemented
@@ -412,8 +430,14 @@ features:
     symbols:
       - AsyncSelectRequestBuilder.explain
       - SyncSelectRequestBuilder.explain
-  database.using_modifiers.max_affected_rows: not_implemented
-  database.using_modifiers.request_cancellation: not_implemented
+  database.using_modifiers.max_affected_rows:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.max_affected
+
+  database.using_modifiers.request_cancellation:
+    status: implemented
+    note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running the query propagates cancellation through the httpx client."
   database.using_modifiers.relationship_embed:
     status: implemented
     note: "Supported via query-string syntax in select() (e.g. 'user(*)'); no dedicated relationship builder API."
@@ -424,7 +448,9 @@ features:
     symbols:
       - AsyncSelectRequestBuilder.retry
       - SyncSelectRequestBuilder.retry
-  database.configuration.request_timeout: not_implemented
+  database.configuration.request_timeout:
+    status: implemented
+    note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including query execution."
 
   # ── Functions ──────────────────────────────────────────────────────────────
 
@@ -443,8 +469,13 @@ features:
   functions.invocation.region_selection:
     status: implemented
     note: "Passed via the region key in invoke_options; maps to the x-region header and forceFunctionRegion query param using the FunctionRegion enum."
-  functions.invocation.request_cancellation: not_implemented
-  functions.invocation.timeout: not_implemented
+  functions.invocation.request_cancellation:
+    status: implemented
+    note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running invoke() propagates cancellation through the httpx client."
+
+  functions.invocation.timeout:
+    status: implemented
+    note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including invoke()."
 
   # ── Realtime ───────────────────────────────────────────────────────────────
 
@@ -535,7 +566,9 @@ features:
   realtime.subscriptions.broadcast_ack:
     status: partially_implemented
     note: "broadcast.ack: true is passed to the server in the channel config, and ack replies from the server are handled internally. However, send_broadcast() returns immediately without awaiting the server acknowledgment — supabase-js resolves the send promise only after the ack is received."
-  realtime.subscriptions.broadcast_replay: not_implemented
+  realtime.subscriptions.broadcast_replay:
+    status: implemented
+    note: "Pass a replay: {since, limit} option in the broadcast config when creating the channel; it is forwarded in the phx_join payload."
 
   realtime.presence.track:
     status: implemented
@@ -565,7 +598,7 @@ features:
     note: "hb_interval constructor parameter."
   realtime.configuration.access_token_callback: not_implemented
   realtime.configuration.deferred_disconnect: not_implemented
-  realtime.configuration.custom_logger: not_implemented
+  realtime.configuration.custom_logger: not_applicable
   realtime.configuration.binary_protocol: not_implemented
 
   # ── Storage ────────────────────────────────────────────────────────────────
