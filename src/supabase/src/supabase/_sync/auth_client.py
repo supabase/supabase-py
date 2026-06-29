@@ -2,9 +2,9 @@ from typing import Dict, Optional
 
 from httpx import Client
 from supabase_auth import (
+    AuthFlowType,
     SyncGoTrueClient,
     SyncSupportedStorage,
-    AuthFlowType,
 )
 
 

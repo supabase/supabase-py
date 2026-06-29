@@ -351,7 +351,6 @@ class Client:
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
         self.auth._headers["Authorization"] = auth_header
-        
 
 
 def create_client(

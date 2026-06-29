@@ -23,7 +23,6 @@ unasync:
 	uv run run-unasync.py
 build-sync: unasync
 	sed -i 's/asyncio.create_task(self.realtime.set_auth(access_token))//g' src/supabase/_sync/client.py
-	sed -i '/^import asyncio$$/d' src/supabase/_sync/client.py
 	sed -i 's/asynch/synch/g' src/supabase/_sync/auth_client.py
 	sed -i 's/Async/Sync/g' src/supabase/_sync/auth_client.py
 	sed -i 's/Async/Sync/g' src/supabase/_sync/client.py
