@@ -725,7 +725,12 @@ features:
     symbols:
       - AsyncBucketActionsMixin.upload
       - SyncBucketActionsMixin.upload
-  storage.file_buckets.url_cache_nonce: not_implemented
+  storage.file_buckets.url_cache_nonce:
+    status: implemented
+    note: "Pass a nonce (e.g. {\"t\": \"<timestamp>\"}) via the query_params argument of download() to bypass CDN caching."
+    symbols:
+      - AsyncBucketActionsMixin.download
+      - SyncBucketActionsMixin.download
   storage.file_buckets.download_as_stream: not_implemented
 
   # ── Storage — Vector Buckets ───────────────────────────────────────────────
