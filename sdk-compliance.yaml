@@ -709,10 +709,22 @@ features:
     symbols:
       - AsyncBucketActionsMixin.list_v2
       - SyncBucketActionsMixin.list_v2
-  storage.file_buckets.download_with_transform: not_implemented
+  storage.file_buckets.download_with_transform:
+    status: implemented
+    note: "Pass a transform key in the url_options argument of create_signed_url(); the transform dict is forwarded in the signed URL request."
+    symbols:
+      - AsyncBucketActionsMixin.create_signed_url
+      - SyncBucketActionsMixin.create_signed_url
+
   storage.file_buckets.copy_cross_bucket: not_implemented
   storage.file_buckets.move_cross_bucket: not_implemented
-  storage.file_buckets.upload_with_metadata: not_implemented
+
+  storage.file_buckets.upload_with_metadata:
+    status: implemented
+    note: "Pass a metadata dict inside file_options when calling upload(); it is extracted and sent as x-metadata header."
+    symbols:
+      - AsyncBucketActionsMixin.upload
+      - SyncBucketActionsMixin.upload
   storage.file_buckets.url_cache_nonce: not_implemented
   storage.file_buckets.download_as_stream: not_implemented
 
