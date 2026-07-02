@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import time
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
@@ -16,6 +17,7 @@ from ..base_request_builder import (
     CountMethod,
     RequestConfig,
     SingleAPIResponse,
+    _clone_request,
     pre_delete,
     pre_insert,
     pre_select,
@@ -60,20 +62,27 @@ class SyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def _clone(self: Self) -> Self:
+        new = copy.copy(self)
+        new.request = _clone_request(self.request)
+        return new
+
     def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
+        new = self._clone()
         _, params, _, _ = pre_select(*columns, count=None)
-        self.request.params = self.request.params.add("select", params["select"])
-        if prefer_headers := self.request.headers.get_list("Prefer", split_commas=True):
+        new.request.params = new.request.params.add("select", params["select"])
+        if prefer_headers := new.request.headers.get_list("Prefer", split_commas=True):
             prefer_headers = [h for h in prefer_headers if not h.startswith("return=")]
             prefer_headers.append("return=representation")
-            self.request.headers["Prefer"] = ",".join(prefer_headers)
+            new.request.headers["Prefer"] = ",".join(prefer_headers)
         else:
-            self.request.headers["Prefer"] = "return=representation"
-        return self
+            new.request.headers["Prefer"] = "return=representation"
+        return new
 
     def retry(self, enabled: bool) -> Self:
-        self.request.retry_enabled = enabled
-        return self
+        new = self._clone()
+        new.request.retry_enabled = enabled
+        return new
 
     def execute(self) -> APIResponse:
         """Execute the query.
@@ -102,9 +111,15 @@ class SyncSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def _clone(self: Self) -> Self:
+        new = copy.copy(self)
+        new.request = _clone_request(self.request)
+        return new
+
     def retry(self, enabled: bool) -> Self:
-        self.request.retry_enabled = enabled
-        return self
+        new = self._clone()
+        new.request.retry_enabled = enabled
+        return new
 
     def execute(self) -> SingleAPIResponse:
         """Execute the query.
@@ -135,9 +150,15 @@ class SyncExplainRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def _clone(self: Self) -> Self:
+        new = copy.copy(self)
+        new.request = _clone_request(self.request)
+        return new
+
     def retry(self, enabled: bool) -> Self:
-        self.request.retry_enabled = enabled
-        return self
+        new = self._clone()
+        new.request.retry_enabled = enabled
+        return new
 
     def execute(self) -> str:
         r = send_with_retry(self.request)
@@ -155,9 +176,15 @@ class SyncMaybeSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def _clone(self: Self) -> Self:
+        new = copy.copy(self)
+        new.request = _clone_request(self.request)
+        return new
+
     def retry(self, enabled: bool) -> Self:
-        self.request.retry_enabled = enabled
-        return self
+        new = self._clone()
+        new.request.retry_enabled = enabled
+        return new
 
     def execute(self) -> Optional[SingleAPIResponse]:
         r = send_with_retry(self.request)
@@ -211,12 +238,13 @@ class SyncSelectRequestBuilder(
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return SyncSingleRequestBuilder(self.request)
+        new_req = _clone_request(self.request)
+        new_req.headers["Accept"] = "application/vnd.pgrst.object+json"
+        return SyncSingleRequestBuilder(new_req)
 
     def maybe_single(self) -> SyncMaybeSingleRequestBuilder:
         """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        return SyncMaybeSingleRequestBuilder(self.request)
+        return SyncMaybeSingleRequestBuilder(_clone_request(self.request))
 
     def text_search(
         self, column: str, query: str, options: dict[str, Any] = {}
@@ -230,16 +258,18 @@ class SyncSelectRequestBuilder(
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.request.params = self.request.params.add(
+        new_req = _clone_request(self.request)
+        new_req.params = new_req.params.add(
             column, f"{type_part}fts{config_part}.{query}"
         )
 
-        return SyncQueryRequestBuilder(self.request)
+        return SyncQueryRequestBuilder(new_req)
 
     def csv(self) -> SyncSingleRequestBuilder:
         """Specify that the query must retrieve data as a single CSV string."""
-        self.request.headers["Accept"] = "text/csv"
-        return SyncSingleRequestBuilder(self.request)
+        new_req = _clone_request(self.request)
+        new_req.headers["Accept"] = "text/csv"
+        return SyncSingleRequestBuilder(new_req)
 
     @overload
     def explain(
@@ -279,13 +309,14 @@ class SyncSelectRequestBuilder(
             if key not in ["self", "format"] and value
         ]
         options_str = "|".join(options)
-        self.request.headers["Accept"] = (
+        new_req = _clone_request(self.request)
+        new_req.headers["Accept"] = (
             f"application/vnd.pgrst.plan+{format}; options={options_str}"
         )
         if format == "text":
-            return SyncExplainRequestBuilder(self.request)
+            return SyncExplainRequestBuilder(new_req)
         else:
-            return SyncSingleRequestBuilder(self.request)
+            return SyncSingleRequestBuilder(new_req)
 
 
 class SyncRequestBuilder:  #

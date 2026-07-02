@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import sys
 from json import JSONDecodeError
@@ -102,6 +103,20 @@ class RequestConfig(Generic[C]):
         if not (self.http_method == "GET" or self.http_method == "HTTP"):
             return False
         return response.status_code == 503 or response.status_code == 520
+
+
+def _clone_request(request: RequestConfig[C]) -> RequestConfig[C]:
+    """Produce a fresh RequestConfig with copies of the mutable pieces (Headers, QueryParams)."""
+    return RequestConfig(
+        session=request.session,
+        path=request.path,
+        http_method=request.http_method,
+        headers=Headers(request.headers),
+        params=QueryParams(request.params),
+        auth=request.auth,
+        json=request.json,
+        retry_enabled=request.retry_enabled,
+    )
 
 
 def _unique_columns(json: List[Dict[str, JSON]]):
@@ -282,11 +297,22 @@ class BaseFilterRequestBuilder(Generic[C]):
         self.request: RequestConfig[C] = request
         self.negate_next = False
 
+    def _clone(self: Self) -> Self:
+        """Return a new builder with an independent RequestConfig.
+
+        Chained filter/select methods call this so that they return a fresh
+        instance instead of mutating the current builder — see issue #1208.
+        """
+        new = copy.copy(self)
+        new.request = _clone_request(self.request)
+        return new
+
     @property
     def not_(self: Self) -> Self:
         """Whether the filter applied next should be negated."""
-        self.negate_next = True
-        return self
+        new = self._clone()
+        new.negate_next = True
+        return new
 
     def filter(self: Self, column: str, operator: str, criteria: str) -> Self:
         """Apply filters on a query.
@@ -296,12 +322,13 @@ class BaseFilterRequestBuilder(Generic[C]):
             operator: The operator to use while filtering
             criteria: The value to filter by
         """
+        new = self._clone()
         if self.negate_next is True:
-            self.negate_next = False
             operator = f"{Filters.NOT}.{operator}"
+        new.negate_next = False
         key, val = sanitize_param(column), f"{operator}.{criteria}"
-        self.request.params = self.request.params.add(key, val)
-        return self
+        new.request.params = new.request.params.add(key, val)
+        return new
 
     def eq(self: Self, column: str, value: Any) -> Self:
         """An 'equal to' filter.
@@ -433,9 +460,10 @@ class BaseFilterRequestBuilder(Generic[C]):
             filters: The filters to use, following PostgREST syntax
             reference_table: Set this to filter on referenced tables instead of the parent table
         """
+        new = self._clone()
         key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
-        self.request.params = self.request.params.add(key, f"({filters})")
-        return self
+        new.request.params = new.request.params.add(key, f"({filters})")
+        return new
 
     def fts(self: Self, column: str, query: Any) -> Self:
         return self.filter(column, Filters.FTS, query)
@@ -532,15 +560,14 @@ class BaseFilterRequestBuilder(Generic[C]):
         return self.ov(column, values)
 
     def match(self: Self, query: Dict[str, Any]) -> Self:
-        updated_query = self
-
         if not query:
             raise ValueError(
                 "query dictionary should contain at least one key-value pair"
             )
 
+        updated_query = self
         for key, value in query.items():
-            updated_query = self.eq(key, value)
+            updated_query = updated_query.eq(key, value)
 
         return updated_query
 
@@ -552,7 +579,8 @@ class BaseFilterRequestBuilder(Generic[C]):
         Args:
             value: The maximum number of rows that can be affected
         """
-        prefer_header = self.request.headers.get("Prefer", "")
+        new = self._clone()
+        prefer_header = new.request.headers.get("Prefer", "")
         if prefer_header:
             if "handling=strict" not in prefer_header:
                 prefer_header += ",handling=strict"
@@ -561,8 +589,8 @@ class BaseFilterRequestBuilder(Generic[C]):
 
         prefer_header += f",max-affected={value}"
 
-        self.request.headers["Prefer"] = prefer_header
-        return self
+        new.request.headers["Prefer"] = prefer_header
+        return new
 
 
 class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
@@ -584,10 +612,11 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
         .. versionchanged:: 0.10.3
            Allow ordering results for foreign tables with the foreign_table parameter.
         """
+        new = self._clone()
         key = f"{foreign_table}.order" if foreign_table else "order"
-        existing_order = self.request.params.get(key)
+        existing_order = new.request.params.get(key)
 
-        self.request.params = self.request.params.set(
+        new.request.params = new.request.params.set(
             key,
             f"{existing_order + ',' if existing_order else ''}"
             + f"{column}.{'desc' if desc else 'asc'}"
@@ -597,7 +626,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
                 else ""
             ),
         )
-        return self
+        return new
 
     def limit(self: Self, size: int, *, foreign_table: Optional[str] = None) -> Self:
         """Limit the number of rows returned by a query.
@@ -608,34 +637,37 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
         .. versionchanged:: 0.10.3
            Allow limiting results returned for foreign tables with the foreign_table parameter.
         """
-        self.request.params = self.request.params.add(
+        new = self._clone()
+        new.request.params = new.request.params.add(
             f"{foreign_table}.limit" if foreign_table else "limit",
             size,
         )
-        return self
+        return new
 
     def offset(self: Self, size: int) -> Self:
         """Set the starting row index returned by a query.
         Args:
             size: The number of the row to start at
         """
-        self.request.params = self.request.params.add(
+        new = self._clone()
+        new.request.params = new.request.params.add(
             "offset",
             size,
         )
-        return self
+        return new
 
     def range(
         self: Self, start: int, end: int, foreign_table: Optional[str] = None
     ) -> Self:
-        self.request.params = self.request.params.add(
+        new = self._clone()
+        new.request.params = new.request.params.add(
             f"{foreign_table}.offset" if foreign_table else "offset", start
         )
-        self.request.params = self.request.params.add(
+        new.request.params = new.request.params.add(
             f"{foreign_table}.limit" if foreign_table else "limit",
             end - start + 1,
         )
-        return self
+        return new
 
 
 class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
@@ -650,14 +682,15 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         Returns:
             :class:`BaseSelectRequestBuilder`
         """
+        new = self._clone()
         method, params, headers, json = pre_select(*columns, count=None)
-        self.request.params = self.request.params.add("select", params.get("select"))
-        if self.request.headers.get("Prefer"):
-            self.request.headers["Prefer"] += ",return=representation"
+        new.request.params = new.request.params.add("select", params.get("select"))
+        if new.request.headers.get("Prefer"):
+            new.request.headers["Prefer"] += ",return=representation"
         else:
-            self.request.headers["Prefer"] = "return=representation"
+            new.request.headers["Prefer"] = "return=representation"
 
-        return self
+        return new
 
     def single(self) -> Self:
         """Specify that the query will only return a single row in response.
@@ -665,15 +698,18 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return self
+        new = self._clone()
+        new.request.headers["Accept"] = "application/vnd.pgrst.object+json"
+        return new
 
     def maybe_single(self) -> Self:
         """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return self
+        new = self._clone()
+        new.request.headers["Accept"] = "application/vnd.pgrst.object+json"
+        return new
 
     def csv(self) -> Self:
         """Specify that the query must retrieve data as a single CSV string."""
-        self.request.headers["Accept"] = "text/csv"
-        return self
+        new = self._clone()
+        new.request.headers["Accept"] = "text/csv"
+        return new

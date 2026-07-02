@@ -5,7 +5,7 @@ from httpx import Client, Headers, QueryParams
 from yarl import URL
 
 from postgrest import SyncFilterRequestBuilder
-from postgrest._sync.request_builder import RequestConfig
+from postgrest._sync.request_builder import RequestConfig, SyncSelectRequestBuilder
 
 
 @pytest.fixture
@@ -15,6 +15,15 @@ def filter_request_builder() -> Iterable[SyncFilterRequestBuilder]:
             client, URL("/example_table"), "GET", Headers(), QueryParams(), None, {}
         )
         yield SyncFilterRequestBuilder(request)
+
+
+@pytest.fixture
+def select_request_builder() -> Iterable[SyncSelectRequestBuilder]:
+    with Client() as client:
+        request = RequestConfig(
+            client, URL("/example_table"), "GET", Headers(), QueryParams(), None, {}
+        )
+        yield SyncSelectRequestBuilder(request)
 
 
 def test_constructor(filter_request_builder: SyncFilterRequestBuilder):
@@ -64,6 +73,87 @@ def test_multivalued_param(filter_request_builder):
 def test_match(filter_request_builder):
     builder = filter_request_builder.match({"id": "1", "done": "false"})
     assert str(builder.request.params) == "id=eq.1&done=eq.false"
+
+
+def test_builder_immutability(filter_request_builder):
+    # Regression test for https://github.com/supabase/supabase-py/issues/1208
+    # Reusing a shared base builder must not leak filters between executions.
+    base = filter_request_builder.eq("account_id", "abc")
+    q1 = base.in_("id", ["1", "2", "3"])
+    q2 = base.in_("id", ["4", "5", "6"])
+
+    assert base is not q1
+    assert base is not q2
+    assert q1 is not q2
+
+    # base is untouched — only the account_id filter
+    assert str(base.request.params) == "account_id=eq.abc"
+    # each branch has account_id + its own id filter, no cross-contamination
+    assert (
+        str(q1.request.params) == "account_id=eq.abc&id=in.%281%2C2%2C3%29"
+    )
+    assert (
+        str(q2.request.params) == "account_id=eq.abc&id=in.%284%2C5%2C6%29"
+    )
+
+    # not_ must not mutate the base
+    not_builder = base.not_
+    assert not_builder is not base
+    assert base.negate_next is False
+    assert not_builder.negate_next is True
+
+
+@pytest.mark.parametrize(
+    "chain_call",
+    [
+        lambda b: b.limit(5),
+        lambda b: b.offset(10),
+        lambda b: b.order("name"),
+        lambda b: b.range(0, 9),
+        lambda b: b.select("id"),
+        lambda b: b.eq("x", "y"),
+        lambda b: b.in_("x", ["1", "2"]),
+        lambda b: b.filter("x", "eq", "y"),
+        lambda b: b.or_("x.eq.1"),
+        lambda b: b.max_affected(3),
+        lambda b: b.match({"x": "1"}),
+        lambda b: b.not_,
+        lambda b: b.single(),
+        lambda b: b.maybe_single(),
+        lambda b: b.csv(),
+    ],
+)
+def test_select_builder_base_is_untouched(select_request_builder, chain_call):
+    # Every chain method on AsyncSelectRequestBuilder must return a new instance
+    # without mutating the base — issue #1208.
+    base_params = str(select_request_builder.request.params)
+    base_headers = dict(select_request_builder.request.headers)
+
+    returned = chain_call(select_request_builder)
+
+    assert returned is not select_request_builder
+    assert str(select_request_builder.request.params) == base_params
+    assert dict(select_request_builder.request.headers) == base_headers
+
+
+def test_pagination_immutability(select_request_builder):
+    # Regression test for the pagination scenario in issue #1208 (DDoerner comment):
+    # repeated .range() on a shared base previously appended offset=&limit= duplicates.
+    base = select_request_builder.eq("account_id", "abc")
+    urls = [str(base.range(off, off + 249).request.params) for off in (0, 250, 500)]
+
+    # base itself never accumulated offset/limit
+    assert "offset" not in str(base.request.params)
+    assert "limit" not in str(base.request.params)
+
+    # each derived query has exactly one offset and one limit
+    for url in urls:
+        assert url.count("offset=") == 1
+        assert url.count("limit=") == 1
+
+    assert "offset=0" in urls[0]
+    assert "offset=250" in urls[1]
+    assert "offset=500" in urls[2]
 
 
 def test_equals(filter_request_builder):
@@ -294,7 +384,10 @@ def test_max_affected_with_existing_handling_strict(filter_request_builder):
     )
 
 
-def test_max_affected_returns_self(filter_request_builder):
+def test_max_affected_returns_new_instance(filter_request_builder):
+    # Builders are immutable (issue #1208): each chain call must return a new instance.
     builder = filter_request_builder.max_affected(1)
 
-    assert builder is filter_request_builder
+    assert builder is not filter_request_builder
+    assert "prefer" in builder.request.headers
+    assert "prefer" not in filter_request_builder.request.headers
