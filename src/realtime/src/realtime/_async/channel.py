@@ -376,6 +376,7 @@ class AsyncRealtimeChannel:
         table: Optional[str] = None,
         schema: Optional[str] = None,
         filter: Optional[str] = None,
+        select: Optional[List[str]] = None,
     ) -> AsyncRealtimeChannel:
         """
         Set up a listener for Postgres database changes.
@@ -384,11 +385,27 @@ class AsyncRealtimeChannel:
         :param callback: Function called with the payload when a matching change is detected
         :param table: The table name to monitor. Defaults to "*" for all tables
         :param schema: The database schema to monitor. Defaults to "public"
-        :param filter: Optional filter string to apply
+        :param filter: Optional filter string, evaluated server-side, in the form
+            ``column=operator.value`` (e.g. ``"id=eq.1"`` or ``"title=like.%foo%"``).
+            Supported operators: ``eq``, ``neq``, ``lt``, ``lte``, ``gt``, ``gte``,
+            ``in`` (``"status=in.(active,pending)"``), ``like``, ``ilike``, ``is``
+            (``"deleted_at=is.null"``), ``match``, ``imatch`` (POSIX regex),
+            ``isdistinct`` (NULL-safe inequality). Any operator can be negated with
+            the ``not.`` prefix (e.g. ``"status=not.in.(draft,archived)"``). Combine
+            multiple conditions with commas to apply them as an ``AND``
+            (e.g. ``"amount=gt.100,status=in.(open,pending)"``).
+        :param select: Optional list of columns to receive instead of the full row.
+            Reduces payload size (helpful for large ``bytea``/``jsonb`` columns). The
+            listed columns must be selectable by the subscribing role.
         :return: The Channel instance for method chaining
         """
         callback = PostgresChangesCallback(
-            callback=callback, event=event, table=table, schema=schema, filter=filter
+            callback=callback,
+            event=event,
+            table=table,
+            schema=schema,
+            filter=filter,
+            select=select,
         )
         self.postgres_changes_callbacks.append(callback)
         return self

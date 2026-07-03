@@ -135,6 +135,7 @@ class PostgresChangesCallback:
     table: Optional[str]
     schema: Optional[str]
     filter: Optional[str]
+    select: Optional[List[str]] = None
     id: Optional[int] = None
 
     def __call__(self, payload: PostgresChangesPayload) -> None:
@@ -146,14 +147,16 @@ class PostgresChangesCallback:
             return self.callback(payload)
 
     @property
-    def binding_filter(self) -> dict[str, Optional[str]]:
-        binding: dict[str, Optional[str]] = {"event": self.event}
+    def binding_filter(self) -> dict[str, Any]:
+        binding: dict[str, Any] = {"event": self.event}
         if self.schema:
             binding["schema"] = self.schema
         if self.table:
             binding["table"] = self.table
         if self.filter:
             binding["filter"] = self.filter
+        if self.select:
+            binding["select"] = self.select
         return binding
 
 
@@ -189,6 +192,7 @@ class RealtimeChannelBroadcastConfig(TypedDict, total=False):
     ack: bool
     self: bool
     replay: ReplayOption
+    replication_ready: bool
 
 
 class RealtimeChannelPresenceConfig(TypedDict):

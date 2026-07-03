@@ -14,6 +14,8 @@ CREATE POLICY "Allow authenticated access" ON "public"."todos" AS permissive
         USING (TRUE)
         WITH CHECK (TRUE);
 
+GRANT ALL ON public.todos TO anon, authenticated, service_role;
+
 ALTER publication supabase_realtime
     ADD TABLE todos;
 
@@ -23,6 +25,15 @@ create table messages (
   message text check (char_length(message) > 10),
   inserted_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow authenticated access" ON "public"."messages" AS permissive
+    FOR ALL TO authenticated
+        USING (TRUE)
+        WITH CHECK (TRUE);
+
+GRANT ALL ON public.messages TO anon, authenticated, service_role;
 
 -- enable realtime on messages table
 alter publication supabase_realtime add table messages;

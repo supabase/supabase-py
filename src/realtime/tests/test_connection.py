@@ -681,3 +681,113 @@ async def test_subscribe_to_channel_without_replay_config(socket: AsyncRealtimeC
     assert "replay" not in broadcast_config
 
     await socket.close()
+
+
+def test_postgres_changes_callback_binding_filter_includes_select():
+    """binding_filter should include filter and select only when they are set."""
+    from realtime.types import PostgresChangesCallback
+
+    with_select = PostgresChangesCallback(
+        callback=lambda _: None,
+        event=RealtimePostgresChangesListenEvent.Insert,
+        table="todos",
+        schema=None,
+        filter="id=eq.1",
+        select=["id", "name"],
+    )
+    assert with_select.binding_filter == {
+        "event": RealtimePostgresChangesListenEvent.Insert,
+        "table": "todos",
+        "filter": "id=eq.1",
+        "select": ["id", "name"],
+    }
+
+    without_select = PostgresChangesCallback(
+        callback=lambda _: None,
+        event=RealtimePostgresChangesListenEvent.All,
+        table="todos",
+        schema="public",
+        filter=None,
+    )
+    assert without_select.binding_filter == {
+        "event": RealtimePostgresChangesListenEvent.All,
+        "schema": "public",
+        "table": "todos",
+    }
+    assert "select" not in without_select.binding_filter
+    assert "filter" not in without_select.binding_filter
+
+
+@pytest.mark.asyncio
+async def test_subscribe_forwards_select_in_postgres_changes(
+    socket: AsyncRealtimeClient,
+):
+    """on_postgres_changes(select=[...]) should be forwarded in the join payload."""
+    import json
+    from unittest.mock import AsyncMock
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    channel: AsyncRealtimeChannel = socket.channel("test-select")
+    channel.on_postgres_changes(
+        RealtimePostgresChangesListenEvent.Insert,
+        lambda _: None,
+        schema="public",
+        table="todos",
+        filter="id=eq.1",
+        select=["id", "description"],
+    )
+
+    await channel.subscribe(lambda state, error: None)
+
+    assert mock_ws.send.called, "WebSocket send should have been called"
+    message_data = json.loads(mock_ws.send.call_args[0][0])
+    postgres_changes = message_data["payload"]["config"]["postgres_changes"]
+
+    assert postgres_changes == [
+        {
+            "event": RealtimePostgresChangesListenEvent.Insert,
+            "schema": "public",
+            "table": "todos",
+            "filter": "id=eq.1",
+            "select": ["id", "description"],
+        }
+    ]
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_subscribe_forwards_broadcast_replication_ready(
+    socket: AsyncRealtimeClient,
+):
+    """broadcast.replication_ready opt-in should be forwarded in the join payload."""
+    import json
+    from unittest.mock import AsyncMock
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    channel: AsyncRealtimeChannel = socket.channel(
+        "test-replication-ready",
+        params={
+            "config": {
+                "private": False,
+                "broadcast": {"replication_ready": True},
+                "presence": {"enabled": False, "key": ""},
+            }
+        },
+    )
+
+    await channel.subscribe(lambda state, error: None)
+
+    assert mock_ws.send.called, "WebSocket send should have been called"
+    message_data = json.loads(mock_ws.send.call_args[0][0])
+    broadcast_config = message_data["payload"]["config"]["broadcast"]
+
+    assert broadcast_config["replication_ready"] is True
+
+    await socket.close()
