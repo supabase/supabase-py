@@ -455,11 +455,11 @@ class BaseFilterRequestBuilder(Generic[C]):
         return self.filter(column, Filters.IN, f"({values})")
 
     def cs(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(values)
+        values = ",".join(str(v) for v in values)
         return self.filter(column, Filters.CS, f"{{{values}}}")
 
     def cd(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(values)
+        values = ",".join(str(v) for v in values)
         return self.filter(column, Filters.CD, f"{{{values}}}")
 
     def contains(
@@ -471,7 +471,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             return self.filter(column, Filters.CS, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(value)
+            stringified_values = ",".join(str(v) for v in value)
             return self.filter(column, Filters.CS, f"{{{stringified_values}}}")
 
         return self.filter(column, Filters.CS, json.dumps(value))
@@ -483,7 +483,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             # range
             return self.filter(column, Filters.CD, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
-            stringified_values = ",".join(value)
+            stringified_values = ",".join(str(v) for v in value)
             return self.filter(column, Filters.CD, f"{{{stringified_values}}}")
         return self.filter(column, Filters.CD, json.dumps(value))
 
@@ -494,7 +494,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             return self.filter(column, Filters.OV, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(value)
+            stringified_values = ",".join(str(v) for v in value)
             return self.filter(column, Filters.OV, f"{{{stringified_values}}}")
         return self.filter(column, Filters.OV, json.dumps(value))
 
