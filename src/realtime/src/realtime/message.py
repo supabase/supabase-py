@@ -40,6 +40,7 @@ class PostgresRowChange(BaseModel):
     table: str | None = None
     schema_: str | None = Field(alias="schema", default=None)
     filter: str | None = None
+    select: List[str] | None = None
 
 
 class ReplyPostgresChanges(BaseModel):
