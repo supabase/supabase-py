@@ -408,15 +408,15 @@ class BaseFilterRequestBuilder:
         return self.filter(column, Filters.IN, f"({values})")
 
     def cs(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(values)
+        values = ",".join(str(v) for v in values)
         return self.filter(column, Filters.CS, f"{{{values}}}")
 
     def cd(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(values)
+        values = ",".join(str(v) for v in values)
         return self.filter(column, Filters.CD, f"{{{values}}}")
 
     def contains(
-        self: Self, column: str, value: Iterable[str] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[Any] | str | Dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -424,24 +424,24 @@ class BaseFilterRequestBuilder:
             return self.filter(column, Filters.CS, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(value)
+            stringified_values = ",".join(str(v) for v in value)
             return self.filter(column, Filters.CS, f"{{{stringified_values}}}")
 
         return self.filter(column, Filters.CS, json.dumps(value))
 
     def contained_by(
-        self: Self, column: str, value: Iterable[str] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[Any] | str | Dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range
             return self.filter(column, Filters.CD, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
-            stringified_values = ",".join(value)
+            stringified_values = ",".join(str(v) for v in value)
             return self.filter(column, Filters.CD, f"{{{stringified_values}}}")
         return self.filter(column, Filters.CD, json.dumps(value))
 
     def ov(
-        self: Self, column: str, value: Iterable[str] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[Any] | str | Dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -449,7 +449,7 @@ class BaseFilterRequestBuilder:
             return self.filter(column, Filters.OV, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(value)
+            stringified_values = ",".join(str(v) for v in value)
             return self.filter(column, Filters.OV, f"{{{stringified_values}}}")
         return self.filter(column, Filters.OV, json.dumps(value))
 
@@ -483,7 +483,7 @@ class BaseFilterRequestBuilder:
     def range_adjacent(self: Self, column: str, min: str, max: str) -> Self:
         return self.adj(column, min, max)
 
-    def overlaps(self: Self, column: str, values: str | Iterable[str]) -> Self:
+    def overlaps(self: Self, column: str, values: str | Iterable[Any]) -> Self:
         return self.ov(column, values)
 
     def match(self: Self, query: Dict[str, str | int]) -> Self:

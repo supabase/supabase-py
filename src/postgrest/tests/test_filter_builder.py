@@ -106,6 +106,42 @@ def test_contains_any_item(filter_request_builder: BaseFilterRequestBuilder):
     assert builder.request.query.get("x") == "cs.{a,b}"
 
 
+def test_contains_non_string_items(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.contains("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "cs.{1,2,3}"
+
+
+def test_cs_non_string_items(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.cs("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "cs.{1,2,3}"
+
+
+def test_cd_non_string_items(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.cd("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "cd.{1,2,3}"
+
+
+def test_contained_by_non_string_items(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.contained_by("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "cd.{1,2,3}"
+
+
+def test_overlaps_non_string_items(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.overlaps("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "ov.{1,2,3}"
+
+
 def test_contains_in_list(filter_request_builder: BaseFilterRequestBuilder):
     builder = filter_request_builder.contains("x", '[{"a": "b"}]')
 
