@@ -107,6 +107,7 @@ class PostgresChangesBindingDict(TypedDict):
     table: NotRequired[str]
     schema: NotRequired[str]
     filter: NotRequired[str]
+    select: NotRequired[List[str]]
     id: NotRequired[int]
 
 
@@ -116,6 +117,7 @@ class PostgresChangesBinding:
     table: str | None
     schema: str | None
     filter: str | None
+    select: List[str] | None = None
     id: int | None = None
 
     def as_dict(self) -> PostgresChangesBindingDict:
@@ -126,6 +128,8 @@ class PostgresChangesBinding:
             binding["table"] = self.table
         if self.filter is not None:
             binding["filter"] = self.filter
+        if self.select is not None:
+            binding["select"] = self.select
         return binding
 
 
@@ -172,6 +176,7 @@ class RealtimeChannelBroadcastConfig(BaseModel):
     ack: bool
     self: bool
     replay: ReplayOption | None = None
+    replication_ready: bool | None = None
 
 
 class RealtimeChannelPresenceConfig(BaseModel):
