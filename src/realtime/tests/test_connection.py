@@ -343,3 +343,47 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
             assert broadcast.payload["payload"]["i"] == str(i)
             assert broadcast.payload["meta"]
             assert broadcast.payload["meta"]["replayed"]
+
+
+def test_postgres_changes_binding_includes_select_only_when_set() -> None:
+    options = (
+        RealtimeChannelOptions()
+        .postgres_changes(
+            RealtimePostgresChangesListenEvent.Insert,
+            table="todos",
+            schema="public",
+            filter="id=eq.1",
+            select=["id", "description"],
+        )
+        .postgres_changes(
+            RealtimePostgresChangesListenEvent.All, table="todos", schema="public"
+        )
+    )
+
+    payload = options.to_payload().model_dump(exclude_none=True)
+
+    assert payload["config"]["postgres_changes"] == [
+        {
+            "event": RealtimePostgresChangesListenEvent.Insert,
+            "schema": "public",
+            "table": "todos",
+            "filter": "id=eq.1",
+            "select": ["id", "description"],
+        },
+        {
+            "event": RealtimePostgresChangesListenEvent.All,
+            "schema": "public",
+            "table": "todos",
+        },
+    ]
+
+
+def test_broadcast_replication_ready_is_forwarded_only_when_set() -> None:
+    enabled = RealtimeChannelOptions().broadcast(replication_ready=True)
+    disabled = RealtimeChannelOptions().broadcast()
+
+    enabled_payload = enabled.to_payload().model_dump(exclude_none=True)
+    disabled_payload = disabled.to_payload().model_dump(exclude_none=True)
+
+    assert enabled_payload["config"]["broadcast"]["replication_ready"] is True
+    assert "replication_ready" not in disabled_payload["config"]["broadcast"]
