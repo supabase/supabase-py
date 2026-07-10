@@ -282,6 +282,26 @@ def test_is_(filter_request_builder):
     assert str(builder.request.params) == "x=is.a"
 
 
+def test_is_true(filter_request_builder):
+    # PostgREST's `is` operator is case-sensitive and only accepts lowercase
+    # trilean literals, so a Python ``True`` must become ``is.true``.
+    builder = filter_request_builder.is_("x", True)
+
+    assert str(builder.request.params) == "x=is.true"
+
+
+def test_is_false(filter_request_builder):
+    builder = filter_request_builder.is_("x", False)
+
+    assert str(builder.request.params) == "x=is.false"
+
+
+def test_is_none(filter_request_builder):
+    builder = filter_request_builder.is_("x", None)
+
+    assert str(builder.request.params) == "x=is.null"
+
+
 def test_in_(filter_request_builder):
     builder = filter_request_builder.in_("x", ["a", "b"])
 
