@@ -136,7 +136,9 @@ class SyncFunctionsClient:
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
-        headers = self.headers
+        # Copy the client headers so per-call headers and the body Content-Type
+        # don't leak back into self.headers and bleed into later invoke() calls.
+        headers = {**self.headers}
         params = QueryParams()
         body = None
         response_type = "text/plain"
