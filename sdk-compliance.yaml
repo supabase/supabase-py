@@ -1,0 +1,860 @@
+sdk: python
+
+# Full declaration of all features from the supabase/sdk capability registry.
+# See https://github.com/supabase/sdk for the canonical feature registry.
+
+features:
+
+  # ── Auth ───────────────────────────────────────────────────────────────────
+
+  auth.sign_in.sign_up:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.sign_up
+      - SyncGoTrueClient.sign_up
+  auth.sign_in.sign_in_with_password:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.sign_in_with_password
+      - SyncGoTrueClient.sign_in_with_password
+  auth.sign_in.sign_in_with_oauth:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.sign_in_with_oauth
+      - SyncGoTrueClient.sign_in_with_oauth
+  auth.sign_in.sign_in_with_otp:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.sign_in_with_otp
+      - SyncGoTrueClient.sign_in_with_otp
+  auth.sign_in.sign_in_with_sso:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.sign_in_with_sso
+      - SyncGoTrueClient.sign_in_with_sso
+  auth.sign_in.sign_in_with_id_token:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.sign_in_with_id_token
+      - SyncGoTrueClient.sign_in_with_id_token
+  auth.sign_in.sign_in_anonymously:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.sign_in_anonymously
+      - SyncGoTrueClient.sign_in_anonymously
+  auth.sign_in.sign_in_with_web3: not_implemented
+  auth.sign_in.verify_otp:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.verify_otp
+      - SyncGoTrueClient.verify_otp
+  auth.sign_in.resend_confirmation:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.resend
+      - SyncGoTrueClient.resend
+  auth.sign_in.reset_password:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.reset_password_for_email
+      - SyncGoTrueClient.reset_password_for_email
+  auth.sign_in.reauthenticate:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.reauthenticate
+      - SyncGoTrueClient.reauthenticate
+  auth.sign_in.exchange_code_for_session:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.exchange_code_for_session
+      - SyncGoTrueClient.exchange_code_for_session
+
+  auth.session.get_session:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.get_session
+      - SyncGoTrueClient.get_session
+  auth.session.get_user:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.get_user
+      - SyncGoTrueClient.get_user
+  auth.session.get_claims:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.get_claims
+      - SyncGoTrueClient.get_claims
+  auth.session.refresh_session:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.refresh_session
+      - SyncGoTrueClient.refresh_session
+  auth.session.set_session:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.set_session
+      - SyncGoTrueClient.set_session
+  auth.session.sign_out:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.sign_out
+      - SyncGoTrueClient.sign_out
+  auth.session.update_user:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.update_user
+      - SyncGoTrueClient.update_user
+  auth.session.subscribe_auth_events:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.on_auth_state_change
+      - SyncGoTrueClient.on_auth_state_change
+  auth.session.auto_refresh:
+    status: implemented
+    note: "Token refresh runs automatically as an internal background task controlled by the auto_refresh_token constructor option."
+
+  auth.identities.link_identity:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.link_identity
+      - SyncGoTrueClient.link_identity
+  auth.identities.unlink_identity:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.unlink_identity
+      - SyncGoTrueClient.unlink_identity
+  auth.identities.list_identities:
+    status: implemented
+    symbols:
+      - AsyncGoTrueClient.get_user_identities
+      - SyncGoTrueClient.get_user_identities
+
+  auth.mfa.enroll:
+    status: implemented
+    symbols:
+      - AsyncGoTrueMFAAPI.enroll
+      - SyncGoTrueMFAAPI.enroll
+  auth.mfa.challenge:
+    status: implemented
+    symbols:
+      - AsyncGoTrueMFAAPI.challenge
+      - SyncGoTrueMFAAPI.challenge
+  auth.mfa.verify:
+    status: implemented
+    symbols:
+      - AsyncGoTrueMFAAPI.verify
+      - SyncGoTrueMFAAPI.verify
+  auth.mfa.unenroll:
+    status: implemented
+    symbols:
+      - AsyncGoTrueMFAAPI.unenroll
+      - SyncGoTrueMFAAPI.unenroll
+  auth.mfa.challenge_and_verify:
+    status: implemented
+    symbols:
+      - AsyncGoTrueMFAAPI.challenge_and_verify
+      - SyncGoTrueMFAAPI.challenge_and_verify
+  auth.mfa.list_factors:
+    status: implemented
+    symbols:
+      - AsyncGoTrueMFAAPI.list_factors
+      - SyncGoTrueMFAAPI.list_factors
+  auth.mfa.get_authenticator_assurance_level:
+    status: implemented
+    symbols:
+      - AsyncGoTrueMFAAPI.get_authenticator_assurance_level
+      - SyncGoTrueMFAAPI.get_authenticator_assurance_level
+
+  auth.admin.create_user:
+    status: implemented
+    symbols:
+      - AsyncGoTrueAdminAPI.create_user
+      - SyncGoTrueAdminAPI.create_user
+  auth.admin.delete_user:
+    status: implemented
+    symbols:
+      - AsyncGoTrueAdminAPI.delete_user
+      - SyncGoTrueAdminAPI.delete_user
+  auth.admin.update_user:
+    status: implemented
+    symbols:
+      - AsyncGoTrueAdminAPI.update_user_by_id
+      - SyncGoTrueAdminAPI.update_user_by_id
+  auth.admin.get_user:
+    status: implemented
+    symbols:
+      - AsyncGoTrueAdminAPI.get_user_by_id
+      - SyncGoTrueAdminAPI.get_user_by_id
+  auth.admin.list_users:
+    status: implemented
+    symbols:
+      - AsyncGoTrueAdminAPI.list_users
+      - SyncGoTrueAdminAPI.list_users
+  auth.admin.invite_user:
+    status: implemented
+    symbols:
+      - AsyncGoTrueAdminAPI.invite_user_by_email
+      - SyncGoTrueAdminAPI.invite_user_by_email
+  auth.admin.sign_out:
+    status: implemented
+    symbols:
+      - AsyncGoTrueAdminAPI.sign_out
+      - SyncGoTrueAdminAPI.sign_out
+  auth.admin.generate_link:
+    status: implemented
+    symbols:
+      - AsyncGoTrueAdminAPI.generate_link
+      - SyncGoTrueAdminAPI.generate_link
+  auth.admin.list_mfa_factors:
+    status: implemented
+    note: "Accessible via admin.mfa.list_factors(params); the mfa attribute is wired to the real HTTP implementation at construction time."
+    symbols:
+      - AsyncGoTrueAdminMFAAPI.list_factors
+      - SyncGoTrueAdminMFAAPI.list_factors
+
+  auth.admin.delete_mfa_factor:
+    status: implemented
+    note: "Accessible via admin.mfa.delete_factor(params); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminMFAAPI.delete_factor
+      - SyncGoTrueAdminMFAAPI.delete_factor
+
+  auth.admin.create_provider: not_implemented
+  auth.admin.delete_provider: not_implemented
+  auth.admin.update_provider: not_implemented
+  auth.admin.get_provider: not_implemented
+  auth.admin.list_providers: not_implemented
+
+  auth.passkey.register_passkey: not_implemented
+  auth.passkey.sign_in_with_passkey: not_implemented
+
+  auth.passkey_admin.list_passkeys: not_implemented
+  auth.passkey_admin.delete_passkey: not_implemented
+
+  auth.oauth_server.approve_authorization: not_implemented
+  auth.oauth_server.deny_authorization: not_implemented
+  auth.oauth_server.get_authorization_details: not_implemented
+  auth.oauth_server.list_grants: not_implemented
+  auth.oauth_server.revoke_grant: not_implemented
+
+  auth.oauth_admin.create_client:
+    status: implemented
+    note: "Accessible via admin.oauth.create_client(params); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.create_client
+      - SyncGoTrueAdminOAuthAPI.create_client
+
+  auth.oauth_admin.delete_client:
+    status: implemented
+    note: "Accessible via admin.oauth.delete_client(client_id); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.delete_client
+      - SyncGoTrueAdminOAuthAPI.delete_client
+
+  auth.oauth_admin.get_client:
+    status: implemented
+    note: "Accessible via admin.oauth.get_client(client_id); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.get_client
+      - SyncGoTrueAdminOAuthAPI.get_client
+
+  auth.oauth_admin.list_clients:
+    status: implemented
+    note: "Accessible via admin.oauth.list_clients(params); supports pagination via x-total-count and Link headers."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.list_clients
+      - SyncGoTrueAdminOAuthAPI.list_clients
+
+  auth.oauth_admin.regenerate_client_secret:
+    status: implemented
+    note: "Accessible via admin.oauth.regenerate_client_secret(client_id); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.regenerate_client_secret
+      - SyncGoTrueAdminOAuthAPI.regenerate_client_secret
+
+  auth.oauth_admin.update_client:
+    status: implemented
+    note: "Accessible via admin.oauth.update_client(client_id, params); wired at construction time."
+    symbols:
+      - AsyncGoTrueAdminOAuthAPI.update_client
+      - SyncGoTrueAdminOAuthAPI.update_client
+
+  # ── Client ─────────────────────────────────────────────────────────────────
+
+  client.authentication_integration.third_party_auth: not_implemented
+  client.authentication_integration.cross_client_token_sync:
+    status: implemented
+    note: "On SIGNED_IN, TOKEN_REFRESHED, and SIGNED_OUT events the Authorization header is updated and sub-clients (postgrest, storage, functions) are lazily recreated with the new token on their next access; realtime.set_auth() is called directly."
+  client.authentication_integration.oauth_flow_type:
+    status: implemented
+    note: "flow_type constructor parameter on the auth client."
+  client.authentication_integration.session_url_detection: not_implemented
+
+  client.session_management.custom_storage:
+    status: implemented
+    note: "storage parameter on the auth client accepts a custom async/sync storage backend."
+  client.session_management.persist_session:
+    status: implemented
+    note: "persist_session constructor parameter on the auth client."
+
+  client.request_configuration.custom_http_client:
+    status: implemented
+    note: "http_client parameter on client constructors accepts a custom httpx client."
+  client.request_configuration.global_headers:
+    status: implemented
+    note: "headers parameter accepted by all sub-client constructors."
+
+  client.observability.trace_propagation: not_implemented
+
+  # ── Database ───────────────────────────────────────────────────────────────
+
+  database.query.from_table:
+    status: implemented
+    symbols:
+      - AsyncPostgrestClient.from_
+      - AsyncPostgrestClient.table
+      - SyncPostgrestClient.from_
+      - SyncPostgrestClient.table
+  database.query.select:
+    status: implemented
+    symbols:
+      - AsyncRequestBuilder.select
+      - SyncRequestBuilder.select
+  database.query.schema_selection:
+    status: implemented
+    symbols:
+      - AsyncPostgrestClient.schema
+      - SyncPostgrestClient.schema
+  database.query.rpc:
+    status: implemented
+    symbols:
+      - AsyncPostgrestClient.rpc
+      - SyncPostgrestClient.rpc
+
+  database.mutate.insert:
+    status: implemented
+    symbols:
+      - AsyncRequestBuilder.insert
+      - SyncRequestBuilder.insert
+  database.mutate.update:
+    status: implemented
+    symbols:
+      - AsyncRequestBuilder.update
+      - SyncRequestBuilder.update
+  database.mutate.upsert:
+    status: implemented
+    symbols:
+      - AsyncRequestBuilder.upsert
+      - SyncRequestBuilder.upsert
+  database.mutate.delete:
+    status: implemented
+    symbols:
+      - AsyncRequestBuilder.delete
+      - SyncRequestBuilder.delete
+  database.mutate.select_after_mutation:
+    status: implemented
+    note: "Chainable .select(*columns) after insert/update/upsert/delete — sets return=representation and adds a column selection query param. count and returning parameters also supported directly on each mutate method."
+
+  database.using_filters.eq: implemented
+  database.using_filters.neq: implemented
+  database.using_filters.gt: implemented
+  database.using_filters.gte: implemented
+  database.using_filters.lt: implemented
+  database.using_filters.lte: implemented
+  database.using_filters.like: implemented
+  database.using_filters.ilike: implemented
+  database.using_filters.is: implemented
+  database.using_filters.in: implemented
+  database.using_filters.contains: implemented
+  database.using_filters.contained_by: implemented
+  database.using_filters.range_gt: implemented
+  database.using_filters.range_gte: implemented
+  database.using_filters.range_lt: implemented
+  database.using_filters.range_lte: implemented
+  database.using_filters.range_adjacent: implemented
+  database.using_filters.overlaps: implemented
+  database.using_filters.text_search: implemented
+  database.using_filters.match: implemented
+  database.using_filters.not: implemented
+  database.using_filters.or: implemented
+  database.using_filters.raw: implemented
+  database.using_filters.regex: implemented
+  database.using_filters.regex_icase: implemented
+  database.using_filters.is_distinct: not_implemented
+  database.using_filters.not_in:
+    status: implemented
+    note: "Achieved by chaining .not_().in_()."
+
+  database.using_filters.like_all:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.like_all_of
+
+  database.using_filters.like_any:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.like_any_of
+
+  database.using_filters.ilike_all:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.ilike_all_of
+
+  database.using_filters.ilike_any:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.ilike_any_of
+
+  database.using_modifiers.order: implemented
+  database.using_modifiers.limit: implemented
+  database.using_modifiers.range: implemented
+  database.using_modifiers.single_row:
+    status: implemented
+    symbols:
+      - AsyncSelectRequestBuilder.single
+      - SyncSelectRequestBuilder.single
+  database.using_modifiers.maybe_single_row:
+    status: implemented
+    symbols:
+      - AsyncSelectRequestBuilder.maybe_single
+      - SyncSelectRequestBuilder.maybe_single
+  database.using_modifiers.strip_nulls: not_implemented
+  database.using_modifiers.format_csv:
+    status: implemented
+    symbols:
+      - AsyncSelectRequestBuilder.csv
+      - SyncSelectRequestBuilder.csv
+  database.using_modifiers.format_geojson: not_implemented
+  database.using_modifiers.explain:
+    status: implemented
+    symbols:
+      - AsyncSelectRequestBuilder.explain
+      - SyncSelectRequestBuilder.explain
+  database.using_modifiers.max_affected_rows:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.max_affected
+
+  database.using_modifiers.request_cancellation:
+    status: implemented
+    note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running the query propagates cancellation through the httpx client."
+  database.using_modifiers.relationship_embed:
+    status: implemented
+    note: "Supported via query-string syntax in select() (e.g. 'user(*)'); no dedicated relationship builder API."
+  database.using_modifiers.dry_run: not_implemented
+
+  database.configuration.auto_retry:
+    status: implemented
+    symbols:
+      - AsyncSelectRequestBuilder.retry
+      - SyncSelectRequestBuilder.retry
+  database.configuration.request_timeout:
+    status: implemented
+    note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including query execution."
+
+  # ── Functions ──────────────────────────────────────────────────────────────
+
+  functions.invocation.invoke:
+    status: implemented
+    symbols:
+      - AsyncFunctionsClient.invoke
+      - SyncFunctionsClient.invoke
+  functions.invocation.set_auth_token:
+    status: implemented
+    symbols:
+      - AsyncFunctionsClient.set_auth
+      - SyncFunctionsClient.set_auth
+  functions.invocation.method_override: not_implemented
+  functions.invocation.streaming_response: not_implemented
+  functions.invocation.region_selection:
+    status: implemented
+    note: "Passed via the region key in invoke_options; maps to the x-region header and forceFunctionRegion query param using the FunctionRegion enum."
+  functions.invocation.request_cancellation:
+    status: implemented
+    note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running invoke() propagates cancellation through the httpx client."
+
+  functions.invocation.timeout:
+    status: implemented
+    note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including invoke()."
+
+  # ── Realtime ───────────────────────────────────────────────────────────────
+
+  realtime.client.connect:
+    status: implemented
+    symbols:
+      - AsyncRealtimeClient.connect
+      - SyncRealtimeClient.connect
+  realtime.client.disconnect:
+    status: implemented
+    symbols:
+      - AsyncRealtimeClient.disconnect
+      - SyncRealtimeClient.disconnect
+  realtime.client.get_channels:
+    status: implemented
+    symbols:
+      - AsyncRealtimeClient.get_channels
+      - SyncRealtimeClient.get_channels
+  realtime.client.remove_channel:
+    status: implemented
+    symbols:
+      - AsyncRealtimeClient.remove_channel
+      - SyncRealtimeClient.remove_channel
+  realtime.client.remove_all_channels:
+    status: implemented
+    symbols:
+      - AsyncRealtimeClient.remove_all_channels
+      - SyncRealtimeClient.remove_all_channels
+  realtime.client.connection_state:
+    status: partially_implemented
+    note: "is_connected boolean property; no full connection-state enum exposed."
+    symbols:
+      - AsyncRealtimeClient.is_connected
+      - SyncRealtimeClient.is_connected
+  realtime.client.listen_heartbeats: not_implemented
+  realtime.client.set_auth_token:
+    status: implemented
+    symbols:
+      - AsyncRealtimeClient.set_auth
+      - SyncRealtimeClient.set_auth
+  realtime.client.channel:
+    status: implemented
+    symbols:
+      - AsyncRealtimeClient.channel
+      - SyncRealtimeClient.channel
+
+  realtime.channel.subscribe:
+    status: implemented
+    symbols:
+      - AsyncRealtimeChannel.subscribe
+      - SyncRealtimeChannel.subscribe
+  realtime.channel.unsubscribe:
+    status: implemented
+    symbols:
+      - AsyncRealtimeChannel.unsubscribe
+      - SyncRealtimeChannel.unsubscribe
+  realtime.channel.send:
+    status: implemented
+    symbols:
+      - AsyncRealtimeChannel.send_broadcast
+      - SyncRealtimeChannel.send_broadcast
+  realtime.channel.broadcast_http: not_implemented
+
+  realtime.subscriptions.broadcast:
+    status: implemented
+    symbols:
+      - AsyncRealtimeChannel.on_broadcast
+      - SyncRealtimeChannel.on_broadcast
+  realtime.subscriptions.postgres_changes:
+    status: implemented
+    symbols:
+      - AsyncRealtimeChannel.on_postgres_changes
+      - SyncRealtimeChannel.on_postgres_changes
+  realtime.subscriptions.subscribe_presence:
+    status: implemented
+    symbols:
+      - AsyncRealtimeChannel.on_presence_change
+      - SyncRealtimeChannel.on_presence_change
+  realtime.subscriptions.postgres_changes_filter:
+    status: implemented
+    note: "event, schema, table, and filter parameters on on_postgres_changes."
+  realtime.subscriptions.private_channel:
+    status: implemented
+    note: "Set private: true in the channel config; passed to the server on subscribe to enforce Row Level Security on postgres changes and restrict access."
+  realtime.subscriptions.broadcast_self:
+    status: implemented
+    note: "Set broadcast.self: true in the channel config; passed to the server so the sender receives its own broadcast messages."
+  realtime.subscriptions.broadcast_ack:
+    status: partially_implemented
+    note: "broadcast.ack: true is passed to the server in the channel config, and ack replies from the server are handled internally. However, send_broadcast() returns immediately without awaiting the server acknowledgment — supabase-js resolves the send promise only after the ack is received."
+  realtime.subscriptions.broadcast_replay:
+    status: implemented
+    note: "Pass a replay: {since, limit} option in the broadcast config when creating the channel; it is forwarded in the phx_join payload."
+
+  realtime.presence.track:
+    status: implemented
+    symbols:
+      - AsyncRealtimeChannel.track
+      - SyncRealtimeChannel.track
+  realtime.presence.untrack:
+    status: implemented
+    symbols:
+      - AsyncRealtimeChannel.untrack
+      - SyncRealtimeChannel.untrack
+  realtime.presence.presence_state:
+    status: implemented
+    symbols:
+      - AsyncRealtimeChannel.presences
+      - SyncRealtimeChannel.presences
+  realtime.presence.presence_key:
+    status: implemented
+    note: "Set presence.key in the channel config; passed to the server so multiple connections from the same user share one logical presence key."
+
+  realtime.configuration.custom_websocket_transport: not_implemented
+  realtime.configuration.reconnect_backoff:
+    status: partially_implemented
+    note: "initial_backoff (seconds) and max_retries constructor parameters control exponential backoff. supabase-js accepts a custom reconnect function mapping attempt count to delay ms; Python only supports the fixed-parameter variant."
+  realtime.configuration.heartbeat_interval:
+    status: implemented
+    note: "hb_interval constructor parameter."
+  realtime.configuration.access_token_callback: not_implemented
+  realtime.configuration.deferred_disconnect: not_implemented
+  realtime.configuration.custom_logger: not_applicable
+  realtime.configuration.binary_protocol: not_implemented
+
+  # ── Storage ────────────────────────────────────────────────────────────────
+
+  storage.file_buckets.create_file_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageBucketAPI.create_bucket
+      - SyncStorageBucketAPI.create_bucket
+  storage.file_buckets.get_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageBucketAPI.get_bucket
+      - SyncStorageBucketAPI.get_bucket
+  storage.file_buckets.list_file_buckets:
+    status: implemented
+    symbols:
+      - AsyncStorageBucketAPI.list_buckets
+      - SyncStorageBucketAPI.list_buckets
+  storage.file_buckets.update_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageBucketAPI.update_bucket
+      - SyncStorageBucketAPI.update_bucket
+  storage.file_buckets.delete_file_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageBucketAPI.delete_bucket
+      - SyncStorageBucketAPI.delete_bucket
+  storage.file_buckets.empty_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageBucketAPI.empty_bucket
+      - SyncStorageBucketAPI.empty_bucket
+  storage.file_buckets.access_bucket: implemented
+  storage.file_buckets.upload:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.upload
+      - SyncBucketActionsMixin.upload
+  storage.file_buckets.download:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.download
+      - SyncBucketActionsMixin.download
+  storage.file_buckets.list_files:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.list
+      - SyncBucketActionsMixin.list
+  storage.file_buckets.move:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.move
+      - SyncBucketActionsMixin.move
+  storage.file_buckets.copy:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.copy
+      - SyncBucketActionsMixin.copy
+  storage.file_buckets.remove:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.remove
+      - SyncBucketActionsMixin.remove
+  storage.file_buckets.get_public_url:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.get_public_url
+      - SyncBucketActionsMixin.get_public_url
+  storage.file_buckets.create_signed_url:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.create_signed_url
+      - SyncBucketActionsMixin.create_signed_url
+  storage.file_buckets.create_signed_urls:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.create_signed_urls
+      - SyncBucketActionsMixin.create_signed_urls
+  storage.file_buckets.create_signed_upload_url:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.create_signed_upload_url
+      - SyncBucketActionsMixin.create_signed_upload_url
+  storage.file_buckets.upload_with_signed_url:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.upload_to_signed_url
+      - SyncBucketActionsMixin.upload_to_signed_url
+  storage.file_buckets.update_file:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.update
+      - SyncBucketActionsMixin.update
+  storage.file_buckets.file_exists:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.exists
+      - SyncBucketActionsMixin.exists
+  storage.file_buckets.file_info:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.info
+      - SyncBucketActionsMixin.info
+  storage.file_buckets.list_files_paginated:
+    status: implemented
+    symbols:
+      - AsyncBucketActionsMixin.list_v2
+      - SyncBucketActionsMixin.list_v2
+  storage.file_buckets.download_with_transform:
+    status: implemented
+    note: "Pass a transform key in the url_options argument of create_signed_url(); the transform dict is forwarded in the signed URL request."
+    symbols:
+      - AsyncBucketActionsMixin.create_signed_url
+      - SyncBucketActionsMixin.create_signed_url
+
+  storage.file_buckets.copy_cross_bucket: not_implemented
+  storage.file_buckets.move_cross_bucket: not_implemented
+
+  storage.file_buckets.upload_with_metadata:
+    status: implemented
+    note: "Pass a metadata dict inside file_options when calling upload(); it is extracted and sent as x-metadata header."
+    symbols:
+      - AsyncBucketActionsMixin.upload
+      - SyncBucketActionsMixin.upload
+  storage.file_buckets.url_cache_nonce:
+    status: implemented
+    note: "Pass a nonce (e.g. {\"t\": \"<timestamp>\"}) via the query_params argument of download() to bypass CDN caching."
+    symbols:
+      - AsyncBucketActionsMixin.download
+      - SyncBucketActionsMixin.download
+  storage.file_buckets.download_as_stream: not_implemented
+
+  # ── Storage — Vector Buckets ───────────────────────────────────────────────
+
+  storage.vector_buckets.create_vector_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageVectorsClient.create_bucket
+      - SyncStorageVectorsClient.create_bucket
+
+  storage.vector_buckets.list_vector_buckets:
+    status: implemented
+    symbols:
+      - AsyncStorageVectorsClient.list_buckets
+      - SyncStorageVectorsClient.list_buckets
+
+  storage.vector_buckets.delete_vector_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageVectorsClient.delete_bucket
+      - SyncStorageVectorsClient.delete_bucket
+
+  storage.vector_buckets.access_vector_index:
+    status: implemented
+    note: "AsyncStorageClient.vectors() returns AsyncStorageVectorsClient; .from_(bucket_name) returns AsyncVectorBucketScope; .index(index_name) returns AsyncVectorIndexScope."
+    symbols:
+      - AsyncStorageClient.vectors
+      - AsyncStorageVectorsClient.from_
+      - AsyncVectorBucketScope.index
+      - SyncStorageClient.vectors
+      - SyncStorageVectorsClient.from_
+      - SyncVectorBucketScope.index
+
+  storage.vector_buckets.create_index:
+    status: implemented
+    symbols:
+      - AsyncVectorBucketScope.create_index
+      - SyncVectorBucketScope.create_index
+
+  storage.vector_buckets.delete_index:
+    status: implemented
+    symbols:
+      - AsyncVectorBucketScope.delete_index
+      - SyncVectorBucketScope.delete_index
+
+  storage.vector_buckets.get_index:
+    status: implemented
+    symbols:
+      - AsyncVectorBucketScope.get_index
+      - SyncVectorBucketScope.get_index
+
+  storage.vector_buckets.list_indexes:
+    status: implemented
+    symbols:
+      - AsyncVectorBucketScope.list_indexes
+      - SyncVectorBucketScope.list_indexes
+
+  storage.vector_buckets.put_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.put
+      - SyncVectorIndexScope.put
+
+  storage.vector_buckets.get_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.get
+      - SyncVectorIndexScope.get
+
+  storage.vector_buckets.delete_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.delete
+      - SyncVectorIndexScope.delete
+
+  storage.vector_buckets.list_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.list
+      - SyncVectorIndexScope.list
+
+  storage.vector_buckets.query_vectors:
+    status: implemented
+    symbols:
+      - AsyncVectorIndexScope.query
+      - SyncVectorIndexScope.query
+
+  storage.vector_buckets.parallel_scan:
+    status: implemented
+    note: "list() accepts segment_count and segment_index parameters enabling parallel segment-based scanning."
+    symbols:
+      - AsyncVectorIndexScope.list
+      - SyncVectorIndexScope.list
+
+  # ── Storage — Analytics Buckets ────────────────────────────────────────────
+
+  storage.analytics.create_analytics_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageAnalyticsClient.create
+      - SyncStorageAnalyticsClient.create
+
+  storage.analytics.list_analytics_buckets:
+    status: implemented
+    symbols:
+      - AsyncStorageAnalyticsClient.list
+      - SyncStorageAnalyticsClient.list
+
+  storage.analytics.delete_analytics_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageAnalyticsClient.delete
+      - SyncStorageAnalyticsClient.delete
+
+  storage.analytics.iceberg_namespace:
+    status: implemented
+    note: "catalog() returns a pyiceberg RestCatalog giving full Iceberg REST catalog access including namespace management."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.iceberg_table:
+    status: implemented
+    note: "catalog() returns a pyiceberg RestCatalog giving full Iceberg REST catalog access including table management."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
