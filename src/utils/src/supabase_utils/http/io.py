@@ -102,7 +102,6 @@ class AsyncHttpIO:
                 if request.delay:
                     await asyncio.sleep(request.delay)
                 response = await self.session.send(request)
-                print(response)
                 http_request = iterator.send(response)
         except StopIteration:
             return return_value_iterator.return_value
