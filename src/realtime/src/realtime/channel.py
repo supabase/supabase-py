@@ -40,7 +40,6 @@ from .message import (
     SystemMessage,
 )
 from .presence import PresenceEvent, RealtimePresence
-from .timer import AsyncTimer
 from .types import (
     BroadcastPayload,
     Callback,
