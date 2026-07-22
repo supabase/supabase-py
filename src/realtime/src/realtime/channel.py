@@ -166,7 +166,6 @@ class RealtimeChannel:
         socket: RealtimeClient,
         topic: str,
         params: RealtimeChannelOptions | None = None,
-        ack: bool = True,
     ) -> None:
         """
         Initialize the Channel object.
