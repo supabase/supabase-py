@@ -182,6 +182,7 @@ class RealtimeChannel:
         self.presence: RealtimePresence = RealtimePresence()
         self.state = ChannelStates.CLOSED
         self.joined = False
+        self.join_ref: str | None = None
         self.message_stream: asyncio.Queue[Message] = asyncio.Queue()
         self.broadcast_endpoint_url = self._broadcast_endpoint_url()
 
