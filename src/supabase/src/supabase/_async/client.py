@@ -84,7 +84,7 @@ class AsyncClient:
         self.storage_url = self.supabase_url.joinpath("storage", "v1", "")
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
-        self.auth_access_token: str | None = None
+        self.auth_access_token = supabase_key
 
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
