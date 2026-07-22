@@ -51,6 +51,7 @@ dev = [
   { include-group = "lints" },
 ]
 tests = [
+  "storage3[iceberg] == 3.0.0a1", # x-release-please-version
   "pytest >= 8.4.1",
   "pytest-cov >= 6.2.1",
   "pytest-asyncio >=0.24,<1.1",
