@@ -14,6 +14,7 @@ readme = "README.md"
 repository = "https://github.com/supabase/supabase-py"
 requires-python = ">=3.10"
 dependencies = [
+  "supabase_utils==3.0.0a1", # x-release-please-version
   "websockets >=11,<16",
   "typing-extensions >=4.14.0",
   "pydantic (>=2.11.7,<3.0.0)",
