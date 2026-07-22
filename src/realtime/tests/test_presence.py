@@ -21,10 +21,14 @@ PUBLISHABLE_KEY = (
 )
 
 
+async def get_token() -> str:
+    return PUBLISHABLE_KEY
+
+
 @pytest.fixture
 async def socket() -> AsyncIterator[RealtimeClient]:
     url = f"{URL}/realtime/v1"
-    async with connect_once(url, PUBLISHABLE_KEY) as client:
+    async with connect_once(url, get_token) as client:
         yield client
 
 

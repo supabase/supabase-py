@@ -40,6 +40,10 @@ PUBLISHABLE_KEY = "my-publishable-key"
 MessageParser: TypeAdapter[ClientMessage] = TypeAdapter(ClientMessage)
 
 
+async def get_token() -> str:
+    return PUBLISHABLE_KEY
+
+
 def reply_ack(topic: str, ref: str) -> str:
     reply_msg = ReplyMessage(
         event=ChannelEvents.reply,
@@ -97,7 +101,7 @@ async def server() -> AsyncIterator[RealtimeServer]:
 
 async def test_raises_on_send_broadcast(server: RealtimeServer) -> None:
     async with (
-        connect_once(f"http://{URL}:{PORT}", PUBLISHABLE_KEY) as client,
+        connect_once(f"http://{URL}:{PORT}", get_token) as client,
         client.channel("test-channel") as channel,
     ):
         await server.close()
@@ -110,7 +114,7 @@ async def test_raises_on_send_broadcast(server: RealtimeServer) -> None:
 
 async def test_raises_on_send_presence(server: RealtimeServer) -> None:
     async with (
-        connect_once(f"http://{URL}:{PORT}", PUBLISHABLE_KEY) as client,
+        connect_once(f"http://{URL}:{PORT}", get_token) as client,
         client.channel("test-channel") as channel,
     ):
         await server.close()
@@ -123,7 +127,7 @@ async def test_raises_on_send_presence(server: RealtimeServer) -> None:
 
 async def test_raises_on_listen_message(server: RealtimeServer) -> None:
     async with (
-        connect_once(f"http://{URL}:{PORT}", PUBLISHABLE_KEY) as client,
+        connect_once(f"http://{URL}:{PORT}", get_token) as client,
         client.channel("test-channel") as channel,
     ):
         await server.close()
@@ -146,7 +150,7 @@ async def test_automatic_reconnection(server: RealtimeServer) -> None:
     await server.close()
     asyncio.create_task(restart_server_after_2_seconds())
     await automatically_reconnect(
-        f"http://{URL}:{PORT}", PUBLISHABLE_KEY, client_callback, max_retries=3
+        f"http://{URL}:{PORT}", get_token, client_callback, max_retries=3
     )
 
 
@@ -157,7 +161,7 @@ async def test_automatic_reconnection_fails_after_max_retries() -> None:
 
     try:
         await automatically_reconnect(
-            f"http://{URL}:{PORT}", PUBLISHABLE_KEY, client_callback, max_retries=3
+            f"http://{URL}:{PORT}", get_token, client_callback, max_retries=3
         )
     except MaxRetriesExceeded as exc:
         return
@@ -186,6 +190,6 @@ async def test_automatic_reconnection_calls_callback_when_connected(
             pass
 
     await automatically_reconnect(
-        f"http://{URL}:{PORT}", PUBLISHABLE_KEY, client_callback, max_retries=3
+        f"http://{URL}:{PORT}", get_token, client_callback, max_retries=3
     )
     assert called_twice

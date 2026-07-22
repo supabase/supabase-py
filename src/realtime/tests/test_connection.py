@@ -37,11 +37,14 @@ PUBLISHABLE_KEY = (
 )
 
 
+async def get_token() -> str:
+    return PUBLISHABLE_KEY
+
+
 @pytest.fixture
 async def socket() -> AsyncIterator[RealtimeClient]:
     url = f"{SUPABASE_URL}/realtime/v1"
-    key = PUBLISHABLE_KEY
-    async with connect_once(url, key) as client:
+    async with connect_once(url, get_token) as client:
         yield client
 
 
@@ -150,13 +153,14 @@ async def test_postgrest_changes(socket: RealtimeClient):
         system_msg = await message_stream.__anext__()
         assert isinstance(system_msg, SystemMessage)
         assert system_msg.payload.status == "ok"
+        print("received system message")
         created_todo_id = await create_todo(
             token, {"description": "Test todo", "is_completed": False}
         )
-
+        print("created todo")
         insert = await message_stream.__anext__()
         assert isinstance(insert, PostgresChangesMessage)
-
+        print("received insert")
         await update_todo(
             token,
             created_todo_id,
@@ -326,7 +330,6 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
         RealtimeChannelOptions()
         .private(True)
         .broadcast(replay_since=ten_mins_ago_ms, replay_limit=messages)
-        .access_token(token)
     )
 
     for i in range(messages):

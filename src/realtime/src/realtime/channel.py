@@ -101,10 +101,6 @@ class RealtimeChannelOptions:
         self.is_private = private
         return self
 
-    def access_token(self, token: str) -> RealtimeChannelOptions:
-        self.token = token
-        return self
-
     def postgres_changes(
         self,
         event: RealtimePostgresChangesListenEvent,
@@ -201,8 +197,8 @@ class RealtimeChannel:
             pass
 
     async def subscribe(self) -> ReplyMessage:
-        if self.params.token is None:
-            self.params.token = self.socket.access_token
+        if self.socket.last_token is not None:
+            self.params.token = self.socket.last_token
         payload = self.params.to_payload()
         message = Message(
             topic=self.topic,
@@ -213,11 +209,12 @@ class RealtimeChannel:
         )
         msg = await self.socket.send(message)
         logger.info(f"Subscribe reply: {msg!r}")
-        self.join_ref = self.socket._make_ref()
         if msg.payload.status != "ok":
             raise Exception(
                 f"error while subscribing to channel: {msg.payload.response!r}"
             )
+        self.join_ref = self.socket._make_ref()
+        self.joined = True
         return msg
 
     @property
@@ -308,9 +305,6 @@ class RealtimeChannel:
 
     def _broadcast_endpoint_url(self):
         return self.socket.http_endpoint.joinpath("api", "broadcast")
-
-    def _can_push(self):
-        return self.socket.is_connected and self.joined
 
     async def send_presence(self, event: str, data: JSON) -> ReplyMessage:
         return await self.send_event(

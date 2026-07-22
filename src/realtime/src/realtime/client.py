@@ -57,20 +57,37 @@ class connect_once:
     def __init__(
         self,
         url: str,
-        token: str | None = None,
-        params: Dict[str, Any] | None = None,
+        token_callback: Callable[[], Awaitable[str | None]] | None = None,
+        hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
+        hb_timeout: int = 5,
+        ack: bool = True,
     ) -> None:
-        self.url = normalize_url(URL(url), token)
-        self.token = token
+        self.url = URL(url)
+        self.get_access_token = token_callback
         self.listen_task: asyncio.Task | None = None
         self.heartbeat_task: asyncio.Task | None = None
+        self.hb_interval = hb_interval
+        self.hb_timeout = hb_timeout
+        self.ack = ack
 
     def __await__(self) -> Generator[None, None, "RealtimeClient"]:
         return self.__await_impl__().__await__()
 
     async def __await_impl__(self) -> "RealtimeClient":
-        self.ws = await websockets.connect(str(self.url))
-        self.client = RealtimeClient(self.url, self.ws, self.token)
+        if self.get_access_token:
+            token = await self.get_access_token()
+            url = normalize_url(self.url, token)
+        else:
+            url = normalize_url(self.url, None)
+        self.ws = await websockets.connect(str(url))
+        self.client = RealtimeClient(
+            self.url,
+            self.ws,
+            self.get_access_token,
+            ack=self.ack,
+            hb_interval=self.hb_interval,
+            hb_timeout=self.hb_timeout,
+        )
         self.listen_task = asyncio.create_task(self.client.listen())
         self.heartbeat_task = asyncio.create_task(self.client.heartbeat())
         return self.client
@@ -104,14 +121,14 @@ def exponential_delay(max_retries: int, retry_count: int) -> float | None:
 
 async def automatically_reconnect(
     url: str,
-    token: str,
+    token_callback: Callable[[], Awaitable[str]],
     client_handler: Callable[["RealtimeClient"], Awaitable[None]],
     max_retries: int = 3,
 ) -> None:
     retries = 0
     while True:
         try:
-            async with connect_once(url, token) as client:
+            async with connect_once(url, token_callback) as client:
                 retries = 0
                 await client_handler(client)
                 break
@@ -131,26 +148,26 @@ class RealtimeClient:
         self,
         url: URL,
         ws_connection: ClientConnection,
-        token: str | None = None,
+        token_callback: Callable[[], Awaitable[str | None]] | None = None,
         hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
+        hb_timeout: int = 5,
         ack: bool = True,
-        heartbeat_timeout: int = 5,
     ) -> None:
         self.ack = ack
         self.url = url
-        self.access_token = token
+        self.last_token: str | None = None
+        self.get_access_token = token_callback
         self.http_endpoint = url.with_scheme("https").with_path("")
-        self.hb_interval = hb_interval
+
         self._ws_connection: ClientConnection = ws_connection
+
         self.ref = 0
         self.channels: Dict[str, RealtimeChannel] = {}
         self.message_refs: Dict[str, asyncio.Future[Message]] = {}
         self._connection_failure: asyncio.Future[Message] = asyncio.Future()
-        self.heartbeat_timeout = heartbeat_timeout
 
-    @property
-    def is_connected(self) -> bool:
-        return self._ws_connection is not None
+        self.hb_interval = hb_interval
+        self.heartbeat_timeout = hb_timeout
 
     async def listen(self) -> None:
         """
@@ -215,6 +232,7 @@ class RealtimeClient:
                     self.send(data), timeout=self.heartbeat_timeout
                 )
                 logger.info(f"heartbeat response: {res!r}")
+                await self.set_auth()
                 await asyncio.sleep(max(self.hb_interval, 15))
         except asyncio.CancelledError:
             return
@@ -261,7 +279,7 @@ class RealtimeClient:
             tasks.append(asyncio.create_task(channel.unsubscribe()))
         await asyncio.wait(tasks)
 
-    async def set_auth(self, token: str | None) -> None:
+    async def set_auth(self, token: str | None = None) -> None:
         """
         Set the authentication token for the connection and update all joined channels.
 
@@ -274,7 +292,20 @@ class RealtimeClient:
         Returns:
             None
         """
-        self.access_token = token
+        if token is None:
+            if self.get_access_token is not None and (
+                new_token := await self.get_access_token()
+            ):
+                token = new_token
+            else:
+                logger.warning(
+                    "tried setting auth but no token callback was registered"
+                )
+                return
+        if token == self.last_token:
+            logger.info("generated access token is still the same, skipping")
+            return
+
         tasks = []
         for channel in self.channels.values():
             if channel.joined and channel.state == ChannelStates.JOINED:
@@ -286,6 +317,7 @@ class RealtimeClient:
                 tasks.append(task)
         if tasks:
             await asyncio.wait(tasks)
+        self.last_token = token
 
     def _make_ref(self) -> str:
         self.ref += 1

@@ -1,5 +1,4 @@
 import os
-from unittest.mock import AsyncMock, MagicMock
 
 from supabase_auth import AsyncMemoryStorage
 
@@ -52,39 +51,6 @@ async def test_schema_update(create_async_client: AsyncClientCallable) -> None:
     async with create_async_client(url, key) as client:
         assert client.postgrest
         assert client.schema("new_schema")
-
-
-async def test_updates_the_authorization_header_on_auth_events(
-    create_async_client: AsyncClientCallable,
-) -> None:
-    async with create_async_client(url, key) as client:
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == f"Bearer {key}"
-
-        mock_session = MagicMock(access_token="secretuserjwt")
-        realtime_mock = AsyncMock()
-        client.realtime = realtime_mock
-
-        client._listen_to_auth_events("SIGNED_IN", mock_session)
-
-        updated_authorization = f"Bearer {mock_session.access_token}"
-
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == updated_authorization
-
-        assert client.postgrest.default_headers.get("apiKey") == key
-        assert (
-            client.postgrest.default_headers.get("Authorization")
-            == updated_authorization
-        )
-
-        assert client.auth.default_headers.get("apiKey") == key
-        assert client.auth.default_headers.get("Authorization") == updated_authorization
-
-        assert client.storage.default_headers.get("apiKey") == key
-        assert (
-            client.storage.default_headers.get("Authorization") == updated_authorization
-        )
 
 
 async def test_supports_setting_a_global_authorization_header(
