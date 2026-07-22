@@ -82,7 +82,6 @@ class RealtimeChannelOptions:
         self,
         ack: bool = False,
         listen_self: bool = False,
-        replay: float | None = None,
         replay_since: int | None = None,
         replay_limit: int | None = None,
     ) -> RealtimeChannelOptions:

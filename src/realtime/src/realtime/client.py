@@ -60,7 +60,6 @@ class connect_once:
         token_callback: Callable[[], Awaitable[str | None]] | None = None,
         hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
         hb_timeout: int = 5,
-        ack: bool = True,
     ) -> None:
         self.url = URL(url)
         self.get_access_token = token_callback
@@ -68,7 +67,6 @@ class connect_once:
         self.heartbeat_task: asyncio.Task | None = None
         self.hb_interval = hb_interval
         self.hb_timeout = hb_timeout
-        self.ack = ack
 
     def __await__(self) -> Generator[None, None, "RealtimeClient"]:
         return self.__await_impl__().__await__()
@@ -84,7 +82,6 @@ class connect_once:
             self.url,
             self.ws,
             self.get_access_token,
-            ack=self.ack,
             hb_interval=self.hb_interval,
             hb_timeout=self.hb_timeout,
         )
@@ -151,9 +148,7 @@ class RealtimeClient:
         token_callback: Callable[[], Awaitable[str | None]] | None = None,
         hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
         hb_timeout: int = 5,
-        ack: bool = True,
     ) -> None:
-        self.ack = ack
         self.url = url
         self.last_token: str | None = None
         self.get_access_token = token_callback
@@ -182,7 +177,7 @@ class RealtimeClient:
                 except ValidationError as e:
                     logger.error(f"Unrecognized message format {msg!r}\n{e}")
                     continue
-                if (message.ref is not None) and self.ack:
+                if message.ref is not None:
                     self.message_refs[message.ref].set_result(message)
                 elif channel := self.channels.get(message.topic):
                     await channel.message_stream.put(message)
