@@ -153,10 +153,31 @@ new_file_path: str = "important/revenue.png"
 data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 ```
 
-## Important: Proper Client Shutdown
+## Client Lifecycle (Create → Use → Shutdown)
 
-To ensure the Supabase client terminates correctly and to prevent resource leaks, you **must** explicitly call:
+A simple task-oriented flow for working with the Python client:
+
+### 1. Create the client
 
 ```python
-client.auth.sign_out()
+from supabase import create_client, Client
+
+supabase: Client = create_client(
+    os.environ["SUPABASE_URL"],
+    os.environ["SUPABASE_KEY"],
+)
 ```
+
+### 2. Use the client
+
+Perform auth, database, storage, or functions operations as shown in the sections above.
+
+### 3. Shut down properly
+
+To ensure the client terminates correctly and to prevent resource leaks, you **must** explicitly sign out when you are done:
+
+```python
+supabase.auth.sign_out()
+```
+
+This is especially important in long-running processes (scripts, workers, notebooks) so that sessions and underlying connections are cleaned up.
