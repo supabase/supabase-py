@@ -1,5 +1,6 @@
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
+from postgrest import ExecuteResult as PostgrestExecuteResult
 from realtime import AuthorizationError, NotConnectedError
 from storage3.utils import StorageException
 from supabase_auth.errors import (
@@ -58,6 +59,7 @@ __all__ = (
     "ClientOptions",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
+    "PostgrestExecuteResult",
     "StorageException",
     "__version__",
     "AuthApiError",

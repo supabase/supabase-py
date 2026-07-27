@@ -261,6 +261,21 @@ class APIResponse(BaseModel):
         return APIResponse.model_construct(data=data, count=count)
 
 
+class ExecuteResult(BaseModel):
+    """A non-throwing result returned by ``execute_result``."""
+
+    type: Literal["success", "error"]
+    """Whether the request succeeded or failed."""
+    data: Optional[Any] = None
+    """The data returned by a successful request."""
+    error: Optional[Dict[str, Any]] = None
+    """The error details returned by a failed request."""
+    status: int
+    """The HTTP status code returned by the server."""
+    count: Optional[int] = None
+    """The number of rows returned, when requested."""
+
+
 class SingleAPIResponse(APIResponse):
     data: JSON  # type: ignore
     """The data returned by the query."""

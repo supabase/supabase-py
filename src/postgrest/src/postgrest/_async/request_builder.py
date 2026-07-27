@@ -14,6 +14,7 @@ from ..base_request_builder import (
     BaseRPCRequestBuilder,
     BaseSelectRequestBuilder,
     CountMethod,
+    ExecuteResult,
     RequestConfig,
     SingleAPIResponse,
     pre_delete,
@@ -54,6 +55,25 @@ async def send_with_retry(req: ReqConfig) -> Response:
         await asyncio.sleep(get_retry_delay(resp, attempt_count))
         attempt_count += 1
     return resp
+
+
+def _error_result(response: Response) -> ExecuteResult:
+    try:
+        json_obj = model_validate_json(APIErrorFromJSON, response.content)
+        error = dict(json_obj)
+    except ValidationError:
+        try:
+            error = response.json()
+            if not isinstance(error, dict):
+                raise ValueError
+        except ValueError:
+            error = generate_default_error_message(response)
+    return ExecuteResult(
+        type="error",
+        data=None,
+        error=error,
+        status=response.status_code,
+    )
 
 
 class AsyncQueryRequestBuilder:
@@ -97,6 +117,19 @@ class AsyncQueryRequestBuilder:
         except ValidationError as e:
             raise APIError(generate_default_error_message(r))
 
+    async def execute_result(self) -> ExecuteResult:
+        """Execute the query and return a result without raising ``APIError``."""
+        r = await send_with_retry(self.request)
+        if r.is_success:
+            response = APIResponse.from_http_request_response(r)
+            return ExecuteResult(
+                type="success",
+                data=response.data,
+                status=r.status_code,
+                count=response.count,
+            )
+        return _error_result(r)
+
 
 class AsyncSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
@@ -130,6 +163,19 @@ class AsyncSingleRequestBuilder:
         except ValidationError as e:
             raise APIError(generate_default_error_message(r))
 
+    async def execute_result(self) -> ExecuteResult:
+        """Execute the query and return a result without raising ``APIError``."""
+        r = await send_with_retry(self.request)
+        if 200 <= r.status_code <= 299:
+            response = SingleAPIResponse.from_http_request_response(r)
+            return ExecuteResult(
+                type="success",
+                data=response.data,
+                status=r.status_code,
+                count=response.count,
+            )
+        return _error_result(r)
+
 
 class AsyncExplainRequestBuilder:
     def __init__(self, request: ReqConfig):
@@ -149,6 +195,13 @@ class AsyncExplainRequestBuilder:
                 raise APIError(dict(json_obj))
         except ValidationError as e:
             raise APIError(generate_default_error_message(r))
+
+    async def execute_result(self) -> ExecuteResult:
+        """Execute the explain query and return a result without raising ``APIError``."""
+        r = await send_with_retry(self.request)
+        if r.is_success:
+            return ExecuteResult(type="success", data=r.text, status=r.status_code)
+        return _error_result(r)
 
 
 class AsyncMaybeSingleRequestBuilder:
@@ -182,6 +235,39 @@ class AsyncMaybeSingleRequestBuilder:
                 raise APIError(dict(json_obj))
         except ValidationError as e:
             raise APIError(generate_default_error_message(r))
+
+    async def execute_result(self) -> ExecuteResult:
+        """Execute the query and return a result without raising ``APIError``."""
+        r = await send_with_retry(self.request)
+        if not r.is_success:
+            return _error_result(r)
+
+        parsed = APIResponse.from_http_request_response(r)
+        if len(parsed.data) == 0:
+            return ExecuteResult(
+                type="success",
+                data=None,
+                status=r.status_code,
+                count=parsed.count,
+            )
+        if len(parsed.data) == 1:
+            return ExecuteResult(
+                type="success",
+                data=parsed.data[0],
+                status=r.status_code,
+                count=parsed.count,
+            )
+        return ExecuteResult(
+            type="error",
+            data=None,
+            error={
+                "message": "Cannot coerce the result to a single JSON object",
+                "code": "406",
+                "hint": "Please check traceback of the code",
+                "details": "The result contains more than one row.",
+            },
+            status=r.status_code,
+        )
 
 
 class AsyncFilterRequestBuilder(

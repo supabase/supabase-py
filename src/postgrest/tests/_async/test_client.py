@@ -15,6 +15,7 @@ from httpx import (
 
 from postgrest import AsyncPostgrestClient
 from postgrest.exceptions import APIError
+from postgrest.types import ReturnMethod
 
 
 @pytest.fixture
@@ -176,3 +177,108 @@ async def test_response_client_invalid_response_but_valid_json(
         assert isinstance(exc_response.get("message"), str)
         assert exc_response.get("message") == "JSON could not be generated"
         assert "code" in exc_response and int(exc_response["code"]) == 502
+
+
+@pytest.mark.asyncio
+async def test_execute_result_returns_success_response(
+    postgrest_client: AsyncPostgrestClient,
+):
+    with patch(
+        "httpx._client.AsyncClient.request",
+        return_value=Response(
+            status_code=201,
+            text='[{"id": 1}]',
+            request=Request(method="GET", url="http://example.com"),
+        ),
+    ):
+        result = await postgrest_client.from_("test").select("id").execute_result()
+
+    assert result.type == "success"
+    assert result.data == [{"id": 1}]
+    assert result.error is None
+    assert result.status == 201
+
+
+@pytest.mark.asyncio
+async def test_execute_result_returns_error_response(
+    postgrest_client: AsyncPostgrestClient,
+):
+    with patch(
+        "httpx._client.AsyncClient.request",
+        return_value=Response(
+            status_code=400,
+            text='{"message": "Bad request", "code": "PGRST000"}',
+            request=Request(method="GET", url="http://example.com"),
+        ),
+    ):
+        result = await postgrest_client.from_("test").select("id").execute_result()
+
+    assert result.type == "error"
+    assert result.data is None
+    assert result.error is not None
+    assert result.error["message"] == "Bad request"
+    assert result.error["code"] == "PGRST000"
+    assert result.status == 400
+
+
+@pytest.mark.asyncio
+async def test_execute_result_returns_empty_success_response(
+    postgrest_client: AsyncPostgrestClient,
+):
+    with patch(
+        "httpx._client.AsyncClient.request",
+        return_value=Response(
+            status_code=204,
+            request=Request(method="POST", url="http://example.com"),
+        ),
+    ):
+        result = await postgrest_client.from_("test").insert(
+            {"id": 1}, returning=ReturnMethod.minimal
+        ).execute_result()
+
+    assert result.type == "success"
+    assert result.data == []
+    assert result.error is None
+    assert result.status == 204
+
+
+@pytest.mark.asyncio
+async def test_execute_result_returns_single_response(
+    postgrest_client: AsyncPostgrestClient,
+):
+    with patch(
+        "httpx._client.AsyncClient.request",
+        return_value=Response(
+            status_code=200,
+            text='{"id": 1}',
+            request=Request(method="GET", url="http://example.com"),
+        ),
+    ):
+        result = await (
+            postgrest_client.from_("test").select("id").single().execute_result()
+        )
+
+    assert result.type == "success"
+    assert result.data == {"id": 1}
+    assert result.status == 200
+
+
+@pytest.mark.asyncio
+async def test_execute_result_returns_none_for_empty_maybe_single(
+    postgrest_client: AsyncPostgrestClient,
+):
+    with patch(
+        "httpx._client.AsyncClient.request",
+        return_value=Response(
+            status_code=200,
+            text="[]",
+            request=Request(method="GET", url="http://example.com"),
+        ),
+    ):
+        result = await (
+            postgrest_client.from_("test").select("id").maybe_single().execute_result()
+        )
+
+    assert result.type == "success"
+    assert result.data is None
+    assert result.status == 200

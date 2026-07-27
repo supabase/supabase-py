@@ -22,7 +22,7 @@ from ._sync.request_builder import (
     SyncSelectRequestBuilder,
     SyncSingleRequestBuilder,
 )
-from .base_request_builder import APIResponse
+from .base_request_builder import APIResponse, ExecuteResult
 from .constants import DEFAULT_POSTGREST_CLIENT_HEADERS
 from .exceptions import APIError
 from .types import (
@@ -51,6 +51,7 @@ __all__ = [
     "SyncSelectRequestBuilder",
     "SyncSingleRequestBuilder",
     "APIResponse",
+    "ExecuteResult",
     "DEFAULT_POSTGREST_CLIENT_HEADERS",
     "APIError",
     "CountMethod",
