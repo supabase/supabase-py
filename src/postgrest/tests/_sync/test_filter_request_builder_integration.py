@@ -493,6 +493,32 @@ def test_rpc_with_single():
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
+def test_rpc_with_maybe_single():
+    res = (
+        rest_client()
+        .rpc("list_stored_countries", {})
+        .select("nicename, country_name, iso")
+        .eq("nicename", "Albania")
+        .maybe_single()
+        .execute()
+    )
+
+    assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
+
+
+def test_rpc_with_maybe_single_no_match():
+    res = (
+        rest_client()
+        .rpc("list_stored_countries", {})
+        .select("nicename, country_name, iso")
+        .eq("nicename", "Wonderland")
+        .maybe_single()
+        .execute()
+    )
+
+    assert res is None
+
+
 def test_rpc_with_limit():
     res = (
         rest_client()

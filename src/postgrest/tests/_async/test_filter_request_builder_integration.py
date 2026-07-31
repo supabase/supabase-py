@@ -500,6 +500,32 @@ async def test_rpc_with_single():
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
+async def test_rpc_with_maybe_single():
+    res = (
+        await rest_client()
+        .rpc("list_stored_countries", {})
+        .select("nicename, country_name, iso")
+        .eq("nicename", "Albania")
+        .maybe_single()
+        .execute()
+    )
+
+    assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
+
+
+async def test_rpc_with_maybe_single_no_match():
+    res = (
+        await rest_client()
+        .rpc("list_stored_countries", {})
+        .select("nicename, country_name, iso")
+        .eq("nicename", "Wonderland")
+        .maybe_single()
+        .execute()
+    )
+
+    assert res is None
+
+
 async def test_rpc_with_limit():
     res = (
         await rest_client()
