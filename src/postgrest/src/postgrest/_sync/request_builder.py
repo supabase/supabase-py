@@ -75,6 +75,19 @@ class SyncQueryRequestBuilder:
         self.request.retry_enabled = enabled
         return self
 
+    def single(self) -> SyncSingleRequestBuilder:
+        """Specify that the query will only return a single row in response.
+
+        .. caution::
+            The API will raise an error if the query returned more than one row.
+        """
+        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
+        return SyncSingleRequestBuilder(self.request)
+
+    def maybe_single(self) -> SyncMaybeSingleRequestBuilder:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return SyncMaybeSingleRequestBuilder(self.request)
+
     def execute(self) -> APIResponse:
         """Execute the query.
 
@@ -204,19 +217,6 @@ class SyncSelectRequestBuilder(
     def __init__(self, request: ReqConfig) -> None:
         BaseSelectRequestBuilder.__init__(self, request)
         SyncQueryRequestBuilder.__init__(self, request)
-
-    def single(self) -> SyncSingleRequestBuilder:
-        """Specify that the query will only return a single row in response.
-
-        .. caution::
-            The API will raise an error if the query returned more than one row.
-        """
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return SyncSingleRequestBuilder(self.request)
-
-    def maybe_single(self) -> SyncMaybeSingleRequestBuilder:
-        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        return SyncMaybeSingleRequestBuilder(self.request)
 
     def text_search(
         self, column: str, query: str, options: dict[str, Any] = {}
