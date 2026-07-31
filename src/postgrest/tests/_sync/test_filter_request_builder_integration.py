@@ -1,4 +1,7 @@
+import pytest
+
 from postgrest import CountMethod
+from postgrest.exceptions import APIError
 
 from .client import rest_client, rest_client_httpx
 
@@ -74,6 +77,23 @@ def test_no_match_maybe_single():
     )
 
     assert res is None
+
+
+def test_maybe_single_multiple_rows():
+    with pytest.raises(APIError) as exc_info:
+        (
+            rest_client()
+            .from_("countries")
+            .select("country_name, iso")
+            .lte("numcode", 8)
+            .gte("numcode", 4)
+            .maybe_single()
+            .execute()
+        )
+
+    assert exc_info.value.code == "406"
+    assert exc_info.value.message == "Cannot coerce the result to a single JSON object"
+    assert exc_info.value.details == "The result contains more than one row."
 
 
 def test_equals():
@@ -517,6 +537,21 @@ def test_rpc_with_maybe_single_no_match():
     )
 
     assert res is None
+
+
+def test_rpc_with_maybe_single_multiple_rows():
+    with pytest.raises(APIError) as exc_info:
+        (
+            rest_client()
+            .rpc("list_stored_countries", {})
+            .select("nicename, country_name, iso")
+            .maybe_single()
+            .execute()
+        )
+
+    assert exc_info.value.code == "406"
+    assert exc_info.value.message == "Cannot coerce the result to a single JSON object"
+    assert exc_info.value.details == "The result contains more than one row."
 
 
 def test_rpc_with_limit():
