@@ -332,7 +332,7 @@ class AsyncRequestBuilder:  #
         returning: ReturnMethod = ReturnMethod.representation,
         upsert: bool = False,
         default_to_null: bool = True,
-    ) -> AsyncQueryRequestBuilder:
+    ) -> AsyncSelectRequestBuilder:
         """Run an INSERT query.
 
         Args:
@@ -344,7 +344,7 @@ class AsyncRequestBuilder:  #
                 Otherwise, use the default value for the column.
                 Only applies for bulk inserts.
         Returns:
-            :class:`AsyncQueryRequestBuilder`
+            :class:`AsyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_insert(
             json,
@@ -363,7 +363,7 @@ class AsyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
-        return AsyncQueryRequestBuilder(request)
+        return AsyncSelectRequestBuilder(request)
 
     def upsert(
         self,
@@ -374,7 +374,7 @@ class AsyncRequestBuilder:  #
         ignore_duplicates: bool = False,
         on_conflict: str = "",
         default_to_null: bool = True,
-    ) -> AsyncQueryRequestBuilder:
+    ) -> AsyncSelectRequestBuilder:
         """Run an upsert (INSERT ... ON CONFLICT DO UPDATE) query.
 
         Args:
@@ -388,7 +388,7 @@ class AsyncRequestBuilder:  #
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
         Returns:
-            :class:`AsyncQueryRequestBuilder`
+            :class:`AsyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_upsert(
             json,
@@ -408,7 +408,7 @@ class AsyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
-        return AsyncQueryRequestBuilder(request)
+        return AsyncSelectRequestBuilder(request)
 
     def update(
         self,
@@ -416,7 +416,7 @@ class AsyncRequestBuilder:  #
         *,
         count: Optional[CountMethod] = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> AsyncFilterRequestBuilder:
+    ) -> AsyncSelectRequestBuilder:
         """Run an UPDATE query.
 
         Args:
@@ -424,7 +424,7 @@ class AsyncRequestBuilder:  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`AsyncFilterRequestBuilder`
+            :class:`AsyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_update(
             json,
@@ -441,21 +441,21 @@ class AsyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
-        return AsyncFilterRequestBuilder(request)
+        return AsyncSelectRequestBuilder(request)
 
     def delete(
         self,
         *,
         count: Optional[CountMethod] = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> AsyncFilterRequestBuilder:
+    ) -> AsyncSelectRequestBuilder:
         """Run a DELETE query.
 
         Args:
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`AsyncFilterRequestBuilder`
+            :class:`AsyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_delete(
             count=count,
@@ -471,4 +471,4 @@ class AsyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
-        return AsyncFilterRequestBuilder(request)
+        return AsyncSelectRequestBuilder(request)
