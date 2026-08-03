@@ -1,4 +1,7 @@
+import pytest
+
 from postgrest import CountMethod, SyncPostgrestClient
+from postgrest.exceptions import APIError
 
 
 def test_multivalued_param_httpx(postgrest_client: SyncPostgrestClient) -> None:
@@ -67,6 +70,24 @@ def test_no_match_maybe_single(postgrest_client: SyncPostgrestClient) -> None:
     )
 
     assert res is None
+
+
+def test_maybe_single_multiple_rows(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
+    with pytest.raises(APIError) as exc_info:
+        (
+            postgrest_client.from_("countries")
+            .select("country_name, iso")
+            .lte("numcode", 8)
+            .gte("numcode", 4)
+            .maybe_single()
+            .execute()
+        )
+
+    assert exc_info.value.code == "406"
+    assert exc_info.value.message == "Cannot coerce the result to a single JSON object"
+    assert exc_info.value.details == "The result contains more than one row."
 
 
 def test_equals(postgrest_client: SyncPostgrestClient) -> None:
@@ -485,6 +506,49 @@ def test_rpc_with_single(postgrest_client: SyncPostgrestClient) -> None:
     )
 
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
+
+
+def test_rpc_with_maybe_single(postgrest_client: SyncPostgrestClient) -> None:
+    res = (
+        postgrest_client.rpc("list_stored_countries", {})
+        .select("nicename, country_name, iso")
+        .eq("nicename", "Albania")
+        .maybe_single()
+        .execute()
+    )
+
+    assert res
+    assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
+
+
+def test_rpc_with_maybe_single_no_match(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
+    res = (
+        postgrest_client.rpc("list_stored_countries", {})
+        .select("nicename, country_name, iso")
+        .eq("nicename", "Wonderland")
+        .maybe_single()
+        .execute()
+    )
+
+    assert res is None
+
+
+def test_rpc_with_maybe_single_multiple_rows(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
+    with pytest.raises(APIError) as exc_info:
+        (
+            postgrest_client.rpc("list_stored_countries", {})
+            .select("nicename, country_name, iso")
+            .maybe_single()
+            .execute()
+        )
+
+    assert exc_info.value.code == "406"
+    assert exc_info.value.message == "Cannot coerce the result to a single JSON object"
+    assert exc_info.value.details == "The result contains more than one row."
 
 
 def test_rpc_with_limit(postgrest_client: SyncPostgrestClient) -> None:
