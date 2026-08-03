@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 from dataclasses import dataclass
 from io import BufferedReader, FileIO
 from pathlib import Path
@@ -152,10 +151,9 @@ class StorageFileApiClient(Generic[HttpIO]):
         path_parts: Tuple[str, ...] = relative_path_to_parts(path)
         query_params = URLQuery.from_mapping({"token": token})
 
-        http_headers = Headers.from_mapping(headers) if headers else Headers.empty()
-        http_headers = http_headers.set("x-upsert", "false").set(
-            "cache-control", f"max-age={cache_control}"
-        )
+        http_headers = Headers.empty().set("x-upsert", "false")
+        if headers:
+            http_headers = http_headers.update(Headers.from_mapping(headers))
 
         cache_control_field = DataField(
             name="cacheControl",
@@ -163,15 +161,10 @@ class StorageFileApiClient(Generic[HttpIO]):
         )
         fields: list[PartField] = [cache_control_field]
         if metadata is not None:
-            metadata_bytes = JSONParser.dump_json(metadata)
-            metadata_b64_encoded = base64.b64encode(metadata_bytes)
-            http_headers = http_headers.set(
-                "x-metadata", metadata_b64_encoded.decode("utf-8")
-            )
             fields.append(
                 DataField(
                     name="metadata",
-                    data=metadata_bytes,
+                    data=JSONParser.dump_json(metadata),
                 )
             )
         file_field = FileField(
@@ -550,13 +543,14 @@ class StorageFileApiClient(Generic[HttpIO]):
             HTTP headers.
         """
 
-        http_headers = Headers.from_mapping(headers) if headers else Headers.empty()
-
-        http_headers = http_headers.set("cache-control", f"max-age={cache_control}")
+        http_headers = Headers.empty()
 
         # Only include x-upsert on a POST method
         if method == "POST":
             http_headers = http_headers.set("x-upsert", upsert)
+
+        if headers:
+            http_headers = http_headers.update(Headers.from_mapping(headers))
 
         cache_control_field = DataField(
             name="cacheControl",
@@ -564,15 +558,10 @@ class StorageFileApiClient(Generic[HttpIO]):
         )
         fields: list[PartField] = [cache_control_field]
         if metadata is not None:
-            metadata_bytes = JSONParser.dump_json(metadata)
-            metadata_b64_encoded = base64.b64encode(metadata_bytes)
-            http_headers = http_headers.set(
-                "x-metadata", metadata_b64_encoded.decode("utf-8")
-            )
             fields.append(
                 DataField(
                     name="metadata",
-                    data=metadata_bytes,
+                    data=JSONParser.dump_json(metadata),
                 )
             )
         file_field = FileField(
