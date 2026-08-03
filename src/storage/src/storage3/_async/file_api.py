@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import json
 import urllib.parse
 from dataclasses import dataclass, field
@@ -157,19 +156,26 @@ class AsyncBucketActionsMixin:
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
 
-        options: UploadSignedUrlFileOptions = file_options or {}
-        cache_control = options.get("cache-control")
-        # cacheControl is also passed as form data
-        # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89
-        _data = {}
-        if cache_control:
-            options["cache-control"] = f"max-age={cache_control}"
-            _data = {"cacheControl": cache_control}
+        options: dict[str, Any] = {
+            **DEFAULT_FILE_OPTIONS,
+            **(file_options or {}),
+        }
+        cache_control = options.pop("cache-control")
+        content_type = options.pop("content-type")
+        metadata = options.pop("metadata", None)
+        file_opts_headers = options.pop("headers", None)
+
+        _data = {"cacheControl": cache_control}
+        if metadata is not None:
+            _data["metadata"] = json.dumps(metadata)
+
         headers = {
             **self._client.headers,
-            **DEFAULT_FILE_OPTIONS,
             **options,
         }
+        if file_opts_headers:
+            headers.update(file_opts_headers)
+
         filename = path_parts[-1]
 
         if (
@@ -178,14 +184,14 @@ class AsyncBucketActionsMixin:
             or isinstance(file, FileIO)
         ):
             # bytes or byte-stream-like object received
-            _file = {"file": (filename, file, headers.pop("content-type"))}
+            _file = {"file": (filename, file, content_type)}
         else:
             # str or pathlib.path received
             _file = {
                 "file": (
                     filename,
                     open(file, "rb"),
-                    headers.pop("content-type"),
+                    content_type,
                 )
             }
         response = await self._request(
@@ -512,41 +518,38 @@ class AsyncBucketActionsMixin:
         file_options
             HTTP headers.
         """
-        if file_options is None:
-            file_options = {}
-        cache_control = file_options.pop("cache-control", None)
-        _data = {}
+        options: dict[str, Any] = {
+            **DEFAULT_FILE_OPTIONS,
+            **(file_options or {}),
+        }
+        cache_control = options.pop("cache-control")
+        content_type = options.pop("content-type")
+        _data = {"cacheControl": cache_control}
 
-        upsert = file_options.pop("upsert", None)
+        upsert = options.pop("upsert", None)
         if upsert:
-            file_options.update({"x-upsert": upsert})
+            options["x-upsert"] = upsert
 
-        metadata = file_options.pop("metadata", None)
-        file_opts_headers = file_options.pop("headers", None)
+        metadata = options.pop("metadata", None)
+        file_opts_headers = options.pop("headers", None)
 
         headers = {
             **self._client.headers,
-            **DEFAULT_FILE_OPTIONS,
-            **file_options,
+            **options,
         }
 
-        if metadata:
+        if metadata is not None:
             metadata_str = json.dumps(metadata)
-            headers["x-metadata"] = base64.b64encode(metadata_str.encode())
-            _data.update({"metadata": metadata_str})
-
-        if file_opts_headers:
-            headers.update({**file_opts_headers})
+            _data["metadata"] = metadata_str
 
         # Only include x-upsert on a POST method
         if method != "POST":
-            del headers["x-upsert"]
+            headers.pop("x-upsert", None)
+
+        if file_opts_headers:
+            headers.update(file_opts_headers)
 
         filename = path[-1]
-
-        if cache_control:
-            headers["cache-control"] = f"max-age={cache_control}"
-            _data.update({"cacheControl": cache_control})
 
         if (
             isinstance(file, BufferedReader)
@@ -554,14 +557,14 @@ class AsyncBucketActionsMixin:
             or isinstance(file, FileIO)
         ):
             # bytes or byte-stream-like object received
-            files = {"file": (filename, file, headers.pop("content-type"))}
+            files = {"file": (filename, file, content_type)}
         else:
             # str or pathlib.path received
             files = {
                 "file": (
                     filename,
                     open(file, "rb"),
-                    headers.pop("content-type"),
+                    content_type,
                 )
             }
 

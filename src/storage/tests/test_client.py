@@ -1,10 +1,14 @@
 import re
-from typing import Dict
+from typing import Any, Dict, Mapping
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, Client, Timeout
+from httpx import AsyncClient, Client, Headers, Timeout
 from storage3 import AsyncStorageClient, SyncStorageClient
+from storage3._async.file_api import AsyncBucketProxy
+from storage3._sync.file_api import SyncBucketProxy
 from storage3.constants import DEFAULT_TIMEOUT
+from yarl import URL
 
 
 @pytest.fixture
@@ -118,3 +122,184 @@ def test_custom_timeout(valid_url, valid_headers) -> None:
         url=valid_url, headers=valid_headers, timeout=custom_timeout
     )
     assert sync_client._client.timeout == Timeout(custom_timeout)
+
+
+def _mock_upload_response() -> Mock:
+    response = Mock()
+    response.json.return_value = {"Key": "bucket/file.txt", "Id": "id"}
+    return response
+
+
+def _async_bucket_proxy() -> AsyncBucketProxy:
+    client = AsyncMock()
+    client.headers = {}
+    return AsyncBucketProxy(
+        "bucket", URL("https://example.com/storage/v1/"), Headers(), client
+    )
+
+
+def _sync_bucket_proxy() -> SyncBucketProxy:
+    client = Mock()
+    client.headers = {}
+    return SyncBucketProxy(
+        "bucket", URL("https://example.com/storage/v1/"), Headers(), client
+    )
+
+
+def _request_kwargs(request: Mock) -> Mapping[str, Any]:
+    call = request.call_args
+    assert call is not None
+    return call.kwargs
+
+
+def _assert_multipart_cache_control(request: Mock, expected: str) -> None:
+    kwargs = _request_kwargs(request)
+    assert "cache-control" not in kwargs["headers"]
+    assert kwargs["data"]["cacheControl"] == expected
+
+
+@pytest.mark.asyncio
+async def test_async_upload_sends_default_cache_control_as_form_data() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload("file.txt", b"hello")
+
+    _assert_multipart_cache_control(request, "3600")
+
+
+@pytest.mark.asyncio
+async def test_async_upload_sends_custom_cache_control_as_form_data() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload(
+            "file.txt",
+            b"hello",
+            {
+                "cache-control": "86400",
+                "headers": {"x-custom-header": "custom-value"},
+            },
+        )
+
+    _assert_multipart_cache_control(request, "86400")
+    assert _request_kwargs(request)["headers"]["x-custom-header"] == "custom-value"
+
+
+def test_sync_upload_sends_default_cache_control_as_form_data() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload("file.txt", b"hello")
+
+    _assert_multipart_cache_control(request, "3600")
+
+
+def test_sync_upload_sends_custom_cache_control_as_form_data() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload(
+            "file.txt",
+            b"hello",
+            {
+                "cache-control": "86400",
+                "headers": {"x-custom-header": "custom-value"},
+            },
+        )
+
+    _assert_multipart_cache_control(request, "86400")
+    assert _request_kwargs(request)["headers"]["x-custom-header"] == "custom-value"
+
+
+@pytest.mark.asyncio
+async def test_async_update_sends_cache_control_as_form_data() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.update("file.txt", b"hello", {"cache-control": "7200"})
+
+    _assert_multipart_cache_control(request, "7200")
+    assert "x-upsert" not in _request_kwargs(request)["headers"]
+
+
+def test_sync_update_sends_cache_control_as_form_data() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.update("file.txt", b"hello", {"cache-control": "7200"})
+
+    _assert_multipart_cache_control(request, "7200")
+    assert "x-upsert" not in _request_kwargs(request)["headers"]
+
+
+@pytest.mark.asyncio
+async def test_async_signed_upload_sends_default_cache_control() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload_to_signed_url("file.txt", "token", b"hello")
+
+    _assert_multipart_cache_control(request, "3600")
+
+
+def test_sync_signed_upload_sends_default_cache_control() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload_to_signed_url("file.txt", "token", b"hello")
+
+    _assert_multipart_cache_control(request, "3600")
+
+
+@pytest.mark.asyncio
+async def test_async_upload_to_signed_url_forwards_all_file_options() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload_to_signed_url(
+            "file.txt",
+            "token",
+            b"hello",
+            {
+                "cache-control": "86400",
+                "content-type": "text/custom",
+                "metadata": {"owner": "alice"},
+                "headers": {"x-custom-header": "custom-value"},
+            },
+        )
+
+    kwargs = _request_kwargs(request)
+    _assert_multipart_cache_control(request, "86400")
+    assert kwargs["data"]["metadata"] == '{"owner": "alice"}'
+    assert kwargs["headers"]["x-custom-header"] == "custom-value"
+    assert "metadata" not in kwargs["headers"]
+    assert "headers" not in kwargs["headers"]
+    assert "x-metadata" not in kwargs["headers"]
+    assert kwargs["files"]["file"][2] == "text/custom"
+
+
+def test_sync_upload_to_signed_url_forwards_all_file_options() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload_to_signed_url(
+            "file.txt",
+            "token",
+            b"hello",
+            {
+                "cache-control": "86400",
+                "content-type": "text/custom",
+                "metadata": {"owner": "alice"},
+                "headers": {"x-custom-header": "custom-value"},
+            },
+        )
+
+    kwargs = _request_kwargs(request)
+    _assert_multipart_cache_control(request, "86400")
+    assert kwargs["data"]["metadata"] == '{"owner": "alice"}'
+    assert kwargs["headers"]["x-custom-header"] == "custom-value"
+    assert "metadata" not in kwargs["headers"]
+    assert "headers" not in kwargs["headers"]
+    assert "x-metadata" not in kwargs["headers"]
+    assert kwargs["files"]["file"][2] == "text/custom"
