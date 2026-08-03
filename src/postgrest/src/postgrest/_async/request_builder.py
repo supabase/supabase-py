@@ -197,6 +197,10 @@ class AsyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, AsyncSingleRequestBuil
         BaseFilterRequestBuilder.__init__(self, request)
         AsyncSingleRequestBuilder.__init__(self, request)
 
+    def maybe_single(self) -> AsyncMaybeSingleRequestBuilder:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return AsyncMaybeSingleRequestBuilder(self.request)
+
 
 class AsyncSelectRequestBuilder(
     AsyncQueryRequestBuilder, BaseSelectRequestBuilder[AsyncClient]

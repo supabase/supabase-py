@@ -668,11 +668,6 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return self
 
-    def maybe_single(self) -> Self:
-        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return self
-
     def csv(self) -> Self:
         """Specify that the query must retrieve data as a single CSV string."""
         self.request.headers["Accept"] = "text/csv"

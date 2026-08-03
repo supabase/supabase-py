@@ -197,6 +197,10 @@ class SyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, SyncSingleRequestBuilde
         BaseFilterRequestBuilder.__init__(self, request)
         SyncSingleRequestBuilder.__init__(self, request)
 
+    def maybe_single(self) -> SyncMaybeSingleRequestBuilder:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return SyncMaybeSingleRequestBuilder(self.request)
+
 
 class SyncSelectRequestBuilder(
     SyncQueryRequestBuilder, BaseSelectRequestBuilder[Client]
