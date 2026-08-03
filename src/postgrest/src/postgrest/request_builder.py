@@ -751,7 +751,14 @@ class MaybeSingleRequestBuilder(BaseRequestClient[HttpIO]):
             if len(parsed.data) == 1:
                 return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
             else:
-                raise APIError(dict())
+                raise APIError(
+                    {
+                        "message": "Cannot coerce the result to a single JSON object",
+                        "code": "406",
+                        "hint": "Please check traceback of the code",
+                        "details": "The result contains more than one row.",
+                    }
+                )
         else:
             json_obj = model_validate_json(APIErrorFromJSON, response.content)
             raise APIError(dict(json_obj))
@@ -772,6 +779,15 @@ class RPCFilterRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
             "Accept", "application/vnd.pgrst.object+json"
         )
         return SingleRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=self.request,
+        )
+
+    def maybe_single(self) -> MaybeSingleRequestBuilder[HttpIO]:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return MaybeSingleRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
