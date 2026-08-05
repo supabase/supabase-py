@@ -14,6 +14,11 @@ CREATE POLICY "Allow authenticated access" ON "public"."todos" AS permissive
         USING (TRUE)
         WITH CHECK (TRUE);
 
+CREATE POLICY "authenticated can receive broadcast" ON "realtime"."messages"
+FOR ALL
+TO AUTHENTICATED
+USING (TRUE);
+
 ALTER publication supabase_realtime
     ADD TABLE todos;
 
@@ -26,3 +31,27 @@ create table messages (
 
 -- enable realtime on messages table
 alter publication supabase_realtime add table messages;
+
+-- Grant API access to tables for anon and authenticated roles.
+-- Required since Supabase no longer grants public schema access by default
+-- (see https://github.com/orgs/supabase/discussions/45329).
+GRANT ALL ON TABLE public.todos TO anon, authenticated;
+GRANT ALL ON TABLE public.messages TO anon, authenticated;
+
+-- Grant sequence usage for tables with generated identity primary keys
+GRANT USAGE, SELECT ON SEQUENCE public.messages_id_seq TO anon, authenticated;
+
+CREATE OR replace FUNCTION public.send_realtime(
+    topic text,
+    event text,
+    payload jsonb,
+    private boolean default True
+)
+RETURNS void
+LANGUAGE SQL
+SECURITY DEFINER
+AS $$
+    SELECT realtime.send(payload, event, topic, private);
+$$;
+
+GRANT EXECUTE ON FUNCTION public.send_realtime(text,text,jsonb,boolean) TO anon, authenticated, service_role;

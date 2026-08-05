@@ -34,6 +34,7 @@
       pkgs.uv
       pkgs.gnumake
       pkgs.docker
+      pkgs.postgresql_15
     ];
     workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; };
 
@@ -47,11 +48,14 @@
 
     pyproject-overlay = pkgs: final: prev: {
       ruamel-yaml-clib = prev.ruamel-yaml-clib.overrideAttrs (old: {
-        nativeBuildInputs = old.nativeBuildInputs ++ [
-          (final.resolveBuildSystem {
+        nativeBuildInputs = old.nativeBuildInputs ++ (final.resolveBuildSystem {
             setuptools = [];
-          })
-        ];
+        });
+      });
+      urwid-readline = prev.urwid-readline.overrideAttrs (old: {
+        nativeBuildInputs = old.nativeBuildInputs ++ (final.resolveBuildSystem {
+            setuptools = [];
+        });
       });
       pyiceberg = prev.pyiceberg.overrideAttrs (old: {
         buildInputs = (old.buildInputs or []) ++ [ final.poetry-core ];
@@ -61,12 +65,9 @@
           sed -i '1i from Cython.Build import cythonize' setup.py
           sed -i 's/ext_modules=[pyroaring_module]/ext_modules=[cythonize(pyroaring_module)]/' setup.py
         '';
-        nativeBuildInputs = old.nativeBuildInputs ++ [
-          (final.resolveBuildSystem {
+        nativeBuildInputs = old.nativeBuildInputs ++ [final.cython] ++ (final.resolveBuildSystem {
             setuptools = [];
-          })
-          final.cython
-        ];
+          });
       });
     };
 

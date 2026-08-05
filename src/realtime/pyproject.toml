@@ -12,11 +12,13 @@ maintainers = [
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/supabase/supabase-py"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
+  "supabase_utils==3.0.0a1", # x-release-please-version
   "websockets >=11,<16",
   "typing-extensions >=4.14.0",
   "pydantic (>=2.11.7,<3.0.0)",
+  "yarl>=1.22.0",
 ]
 
 [project.urls]
@@ -32,6 +34,7 @@ tests = [
   "pytest-cov >= 6.2.1",
   "python-dotenv >= 1.1.1",
   "pytest-asyncio >= 1.0.0",
+  "pudb>=2025.1.5",
 ]
 lints = [
   "ruff >= 0.12.1",
@@ -68,11 +71,10 @@ ignore = ["F401", "F403", "F841", "E712", "E501", "E402", "UP006", "UP035"]
 keep-runtime-typing = true
 
 [tool.pytest.ini_options]
-asyncio_mode = "strict"
-asyncio_default_fixture_loop_scope = "function"
+asyncio_mode = "auto"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 check_untyped_defs = true
 allow_redefinition = true
 

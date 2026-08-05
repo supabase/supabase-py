@@ -1,16 +1,16 @@
-from typing import Any, List, Literal, Mapping, Optional, Union
+from typing import Annotated, Any, List, Literal, Mapping, Optional, Union
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from supabase_utils.types import JSON
 from typing_extensions import TypeAlias, TypedDict
 
 from .types import (
     BroadcastPayload,
     ChannelEvents,
-    PostgresChangesData,
     PostgresChangesPayload,
     RawPresenceDiff,
     RawPresenceState,
-    RealtimeChannelOptions,
+    RealtimeChannelOptionsPayload,
     RealtimePostgresChangesListenEvent,
 )
 
@@ -21,29 +21,29 @@ class Message(BaseModel):
     """
 
     event: str
-    payload: Mapping[str, Any]
+    payload: Mapping[str, JSON]
     topic: str
-    ref: Optional[str] = None
-    join_ref: Optional[str] = None
+    ref: str | None = None
+    join_ref: str | None = None
 
 
 class JoinMessage(BaseModel):
     event: Literal[ChannelEvents.join]
     topic: str
     ref: str
-    payload: RealtimeChannelOptions
+    payload: RealtimeChannelOptionsPayload
 
 
 class PostgresRowChange(BaseModel):
     id: int
     event: RealtimePostgresChangesListenEvent
-    table: Optional[str] = None
-    schema_: Optional[str] = Field(alias="schema", default=None)
-    filter: Optional[str] = None
+    table: str | None = None
+    schema_: str | None = Field(alias="schema", default=None)
+    filter: str | None = None
 
 
 class ReplyPostgresChanges(BaseModel):
-    postgres_changes: Optional[List[PostgresRowChange]] = None
+    postgres_changes: List[PostgresRowChange] | None = None
 
 
 class SuccessReplyMessage(BaseModel):
@@ -53,14 +53,16 @@ class SuccessReplyMessage(BaseModel):
 
 class ErrorReplyMessage(BaseModel):
     status: Literal["error"]
-    response: dict[str, Any]  # TODO: what goes in here?
+    response: dict[str, JSON]  # TODO: what goes in here?
 
 
 class ReplyMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     event: Literal[ChannelEvents.reply]
     topic: str
-    payload: Union[SuccessReplyMessage, ErrorReplyMessage]
-    ref: Optional[str]
+    payload: SuccessReplyMessage | ErrorReplyMessage
+    ref: str | None
 
 
 class SuccessSystemPayload(BaseModel):
@@ -78,9 +80,11 @@ class ErrorSystemPayload(BaseModel):
 
 
 class SystemMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     event: Literal[ChannelEvents.system]
     topic: str
-    payload: Union[SuccessSystemPayload, ErrorSystemPayload]
+    payload: SuccessSystemPayload | ErrorSystemPayload
     ref: Literal[None]
 
 
@@ -107,6 +111,8 @@ class AccessTokenMessage(BaseModel):
 
 
 class PostgresChangesMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     event: Literal[ChannelEvents.postgres_changes]
     topic: str
     payload: PostgresChangesPayload
@@ -114,6 +120,8 @@ class PostgresChangesMessage(BaseModel):
 
 
 class BroadcastMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     event: Literal[ChannelEvents.broadcast]
     topic: str
     payload: BroadcastPayload
@@ -123,11 +131,13 @@ class BroadcastMessage(BaseModel):
 class PresenceMessage(BaseModel):
     event: Literal[ChannelEvents.presence]
     topic: str
-    payload: dict[str, Any]
+    payload: dict[str, JSON]
     ref: Literal[None]
 
 
 class PresenceStateMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     event: Literal[ChannelEvents.presence_state]
     topic: str
     payload: RawPresenceState
@@ -135,6 +145,8 @@ class PresenceStateMessage(BaseModel):
 
 
 class PresenceDiffMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     event: Literal[ChannelEvents.presence_diff]
     topic: str
     payload: RawPresenceDiff
@@ -142,35 +154,49 @@ class PresenceDiffMessage(BaseModel):
 
 
 class ChannelErrorMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     event: Literal[ChannelEvents.error]
     topic: str
-    payload: dict[str, Any]
-    ref: Optional[str]
+    payload: dict[str, JSON]
+    ref: str | None
 
 
 class ChannelCloseMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     event: Literal[ChannelEvents.close]
     topic: str
-    payload: dict[str, Any]
-    ref: Optional[str]
+    payload: dict[str, JSON]
+    ref: str | None
 
 
-ServerMessage: TypeAlias = Union[
-    SystemMessage,
-    ReplyMessage,
-    HeartbeatMessage,
-    BroadcastMessage,
-    PresenceStateMessage,
-    PresenceDiffMessage,
-    PostgresChangesMessage,
-    ChannelErrorMessage,
-    ChannelCloseMessage,
+class ChannelLeaveMessage(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    event: Literal[ChannelEvents.leave]
+    topic: str
+    payload: dict[str, JSON]
+    ref: str
+
+
+ServerMessage: TypeAlias = Annotated[
+    SystemMessage
+    | BroadcastMessage
+    | PresenceStateMessage
+    | PresenceDiffMessage
+    | PostgresChangesMessage
+    | ChannelErrorMessage
+    | ChannelCloseMessage,
+    Field(discriminator="event"),
 ]
 ServerMessageAdapter: TypeAdapter[ServerMessage] = TypeAdapter(ServerMessage)
-ClientMessage: TypeAlias = Union[
-    JoinMessage,
-    HeartbeatMessage,
-    BroadcastMessage,
-    PresenceMessage,
-    AccessTokenMessage,
-]
+
+ClientMessage: TypeAlias = (
+    JoinMessage
+    | HeartbeatMessage
+    | BroadcastMessage
+    | PresenceMessage
+    | AccessTokenMessage
+    | ChannelLeaveMessage
+)
