@@ -42,10 +42,14 @@ class AsyncStorageBucketAPI:
             )
             response.raise_for_status()
         except HTTPStatusError as exc:
-            resp = exc.response.json()
-            raise StorageApiError(
-                resp["message"], resp["error"], resp["statusCode"]
-            ) from exc
+            try:
+                resp = exc.response.json()
+                raise StorageApiError(
+                    resp["message"], resp["error"], resp["statusCode"]
+                ) from exc
+            except (KeyError, ValueError) as err:
+                message = f"Unable to parse error message: {exc.response.text}"
+                raise StorageApiError(message, "InternalError", 400) from err
 
         return response
 

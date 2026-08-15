@@ -1,3 +1,4 @@
+from json import JSONDecodeError
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -196,6 +197,43 @@ async def test_request_error_handling(storage_api, mock_client) -> None:
         await storage_api._request("GET", ["test"])
 
     assert exc_info.value.message == "Test error message"
+
+
+async def test_request_error_handling_unrecognized_body(
+    storage_api, mock_client
+) -> None:
+    error_response = Mock(spec=Response)
+    error_response.json.return_value = {"code": "TooLarge"}
+    error_response.text = '{"code": "TooLarge"}'
+
+    exc = HTTPStatusError("HTTP Error", request=Mock(), response=error_response)
+    mock_client.request.side_effect = exc
+
+    with pytest.raises(StorageApiError) as exc_info:
+        await storage_api._request("GET", ["test"])
+
+    assert (
+        exc_info.value.message == 'Unable to parse error message: {"code": "TooLarge"}'
+    )
+    assert exc_info.value.code == "InternalError"
+
+
+async def test_request_error_handling_non_json_body(storage_api, mock_client) -> None:
+    error_response = Mock(spec=Response)
+    error_response.json.side_effect = JSONDecodeError("Expecting value", "", 0)
+    error_response.text = "<html>504 Gateway Time-out</html>"
+
+    exc = HTTPStatusError("HTTP Error", request=Mock(), response=error_response)
+    mock_client.request.side_effect = exc
+
+    with pytest.raises(StorageApiError) as exc_info:
+        await storage_api._request("GET", ["test"])
+
+    assert (
+        exc_info.value.message
+        == "Unable to parse error message: <html>504 Gateway Time-out</html>"
+    )
+    assert exc_info.value.code == "InternalError"
 
 
 @pytest.mark.parametrize(
