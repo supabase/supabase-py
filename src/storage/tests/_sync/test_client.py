@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Generator, Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -8,10 +8,12 @@ from uuid import uuid4
 
 import pytest
 from httpx import Client as HttpxClient
+from httpx import Headers
 from httpx import HTTPStatusError, Response
 from storage3 import SyncStorageClient
 from storage3.exceptions import StorageApiError
 from storage3.utils import StorageException
+from yarl import URL
 
 from .. import SyncBucketProxy
 from ..utils import SyncFinalizerFactory
@@ -825,3 +827,33 @@ def test_client_list_v2_paginated(
         assert all(f.name.startswith(file.bucket_path) for f in result.objects)
         pages += 1
     assert pages == 4
+
+
+def test_upload_closes_file_handle_on_error(tmp_path: Path) -> None:
+    """A failed upload must not leak the handle storage3 opened itself."""
+    source = tmp_path / "leak.txt"
+    source.write_bytes(b"payload")
+
+    error_response = Mock(spec=Response)
+    error_response.json.return_value = {
+        "message": "Duplicate",
+        "error": "Duplicate",
+        "statusCode": 409,
+    }
+
+    captured: dict = {}
+
+    def fail(*args: object, **kwargs: object) -> Response:
+        captured["files"] = kwargs.get("files")
+        raise HTTPStatusError("409", request=Mock(), response=error_response)
+
+    client = Mock()
+    client.headers = Headers()
+    client.request = fail
+
+    proxy = SyncBucketProxy("bucket", URL("http://localhost"), Headers(), client)
+
+    with pytest.raises(StorageApiError):
+        proxy.upload("leak.txt", str(source))
+
+    assert captured["files"]["file"][1].closed

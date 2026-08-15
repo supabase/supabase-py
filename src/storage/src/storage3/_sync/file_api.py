@@ -65,33 +65,38 @@ class SyncBucketActionsMixin:
         **kwargs: Any,
     ) -> Response:
         try:
-            url_path = self._base_url.joinpath(*path).with_query(query_params)
-            headers = headers or dict()
-            headers.update(self._headers)
-            response = self._client.request(
-                method,
-                str(url_path),
-                headers=headers,
-                json=json,
-                files=files,
-                **kwargs,
-            )
-            response.raise_for_status()
-        except HTTPStatusError as exc:
             try:
-                resp = exc.response.json()
-                raise StorageApiError(
-                    resp["message"], resp["error"], resp["statusCode"]
-                ) from exc
-            except KeyError as err:
-                message = f"Unable to parse error message: {resp.text}"
-                raise StorageApiError(message, "InternalError", 400) from err
+                url_path = self._base_url.joinpath(*path).with_query(query_params)
+                headers = headers or dict()
+                headers.update(self._headers)
+                response = self._client.request(
+                    method,
+                    str(url_path),
+                    headers=headers,
+                    json=json,
+                    files=files,
+                    **kwargs,
+                )
+                response.raise_for_status()
+            except HTTPStatusError as exc:
+                try:
+                    resp = exc.response.json()
+                    raise StorageApiError(
+                        resp["message"], resp["error"], resp["statusCode"]
+                    ) from exc
+                except KeyError as err:
+                    message = f"Unable to parse error message: {resp.text}"
+                    raise StorageApiError(message, "InternalError", 400) from err
 
-        # close the resource before returning the response
-        if files and "file" in files and isinstance(files["file"][1], BufferedReader):
-            files["file"][1].close()
-
-        return response
+            return response
+        finally:
+            # close the resource on the error path too, not just on success
+            if (
+                files
+                and "file" in files
+                and isinstance(files["file"][1], BufferedReader)
+            ):
+                files["file"][1].close()
 
     def create_signed_upload_url(
         self,
