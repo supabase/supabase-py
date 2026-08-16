@@ -198,6 +198,40 @@ async def test_request_error_handling(storage_api, mock_client) -> None:
     assert exc_info.value.message == "Test error message"
 
 
+async def test_request_error_handling_missing_keys(storage_api, mock_client) -> None:
+    error_response = Mock(spec=Response)
+    error_response.json.return_value = {"code": "CustomError"}
+    error_response.text = '{"code": "CustomError"}'
+    error_response.status_code = 400
+
+    exc = HTTPStatusError("HTTP Error", request=Mock(), response=error_response)
+    mock_client.request.side_effect = exc
+
+    with pytest.raises(StorageApiError) as exc_info:
+        await storage_api._request("GET", ["test"])
+
+    assert "CustomError" in exc_info.value.message
+    assert exc_info.value.code == "InternalError"
+    assert exc_info.value.status == 400
+
+
+async def test_request_error_handling_non_json(storage_api, mock_client) -> None:
+    error_response = Mock(spec=Response)
+    error_response.json.side_effect = ValueError("Invalid JSON")
+    error_response.text = "<html>502 Bad Gateway</html>"
+    error_response.status_code = 502
+
+    exc = HTTPStatusError("HTTP Error", request=Mock(), response=error_response)
+    mock_client.request.side_effect = exc
+
+    with pytest.raises(StorageApiError) as exc_info:
+        await storage_api._request("GET", ["test"])
+
+    assert "502 Bad Gateway" in exc_info.value.message
+    assert exc_info.value.code == "InternalError"
+    assert exc_info.value.status == 502
+
+
 @pytest.mark.parametrize(
     "method,path,json_data",
     [

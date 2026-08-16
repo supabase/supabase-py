@@ -83,9 +83,11 @@ class AsyncBucketActionsMixin:
                 raise StorageApiError(
                     resp["message"], resp["error"], resp["statusCode"]
                 ) from exc
-            except KeyError as err:
-                message = f"Unable to parse error message: {resp.text}"
-                raise StorageApiError(message, "InternalError", 400) from err
+            except (KeyError, ValueError) as err:
+                message = f"Unable to parse error message: {exc.response.text}"
+                raise StorageApiError(
+                    message, "InternalError", exc.response.status_code
+                ) from err
 
         # close the resource before returning the response
         if files and "file" in files and isinstance(files["file"][1], BufferedReader):
