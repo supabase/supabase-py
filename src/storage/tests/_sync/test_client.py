@@ -8,10 +8,11 @@ from uuid import uuid4
 
 import pytest
 from httpx import Client as HttpxClient
-from httpx import HTTPStatusError, Response
+from httpx import Headers, HTTPStatusError, Response
 from storage3 import SyncStorageClient
 from storage3.exceptions import StorageApiError
 from storage3.utils import StorageException
+from yarl import URL
 
 from .. import SyncBucketProxy
 from ..utils import SyncFinalizerFactory
@@ -595,6 +596,33 @@ def test_client_info_with_error(
             match="{'statusCode': 404, 'error': Custom error message, 'message': File not found}",
         ):
             storage_file_client_public.info(file.bucket_path)
+
+
+def test_client_request_with_malformed_error_response() -> None:
+    """Ensure malformed storage error bodies retain the raw response text."""
+    error_response = Mock(spec=Response)
+    error_response.json.return_value = {"code": "TooLarge"}
+    error_response.text = '{"code":"TooLarge"}'
+
+    response = Mock(spec=Response)
+    response.raise_for_status.side_effect = HTTPStatusError(
+        "HTTP Error", request=Mock(), response=error_response
+    )
+
+    bucket = SyncBucketProxy(
+        "bucket", URL("https://example.com/storage/v1/"), Headers(), Mock()
+    )
+    with patch.object(bucket._client, "request", new_callable=Mock) as request:
+        request.return_value = response
+
+        with pytest.raises(StorageApiError) as exc_info:
+            bucket._request("GET", ["object", "bucket", "file"])
+
+    assert exc_info.value.message == (
+        'Unable to parse error message: {"code":"TooLarge"}'
+    )
+    assert exc_info.value.code == "InternalError"
+    assert exc_info.value.status == 400
 
 
 def test_client_exists(
