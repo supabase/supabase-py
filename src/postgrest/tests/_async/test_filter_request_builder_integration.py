@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from postgrest import CountMethod
@@ -639,6 +641,22 @@ async def test_rpc_head_count():
 
     assert res.count == 2
     assert res.data == []
+
+async def test_head_query_error():
+    with patch(
+        "postgrest._async.request_builder.model_validate_json"
+    ) as mock_validate:
+        with pytest.raises(APIError) as exc_info:
+            await (
+                rest_client()
+                .from_("countries")
+                .select("*", count=CountMethod.exact, head=True)
+                .eq("ref.othercol", 123)
+                .execute()
+            )
+
+    mock_validate.assert_not_called()
+    assert exc_info.value.code == 400
 
 
 async def test_order():
