@@ -45,6 +45,20 @@ class TestSelect:
         assert builder.request.http_method == "HEAD"
         assert builder.request.json is None
 
+    def test_select_with_head_and_embedded_filter(
+        self, request_builder: AsyncRequestBuilder
+    ):
+        builder = (
+            request_builder
+            .select("*, ref!inner(*)", count=CountMethod.exact, head=True)
+            .eq("ref.foo", 123)
+        )
+
+        assert builder.request.params["select"] == "*,ref!inner(*)"
+        assert builder.request.params["ref.foo"] == "eq.123"
+        assert builder.request.headers["prefer"] == "count=exact"
+        assert builder.request.http_method == "HEAD"
+
     def test_select_as_csv(self, request_builder: AsyncRequestBuilder):
         builder = request_builder.select("*").csv()
 
