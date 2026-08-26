@@ -4,7 +4,11 @@ import pytest
 from httpx import AsyncClient, Headers, QueryParams, Request, Response
 from yarl import URL
 
-from postgrest import AsyncRequestBuilder, AsyncSingleRequestBuilder
+from postgrest import (
+    AsyncMaybeSingleRequestBuilder,
+    AsyncRequestBuilder,
+    AsyncSingleRequestBuilder,
+)
 from postgrest._async.request_builder import RequestConfig
 from postgrest.base_request_builder import APIResponse, SingleAPIResponse
 from postgrest.types import JSON, CountMethod, ReturnMethod
@@ -139,6 +143,19 @@ class TestInsert:
         assert builder.request.headers.get_list("prefer", True) == [
             "return=representation",
         ]
+
+    def test_insert_with_select_single(self, request_builder: AsyncRequestBuilder):
+        builder = request_builder.insert({"key1": "val1"}).select("id").single()
+
+        assert builder.request.params["select"] == "id"
+        assert builder.request.headers["Accept"] == "application/vnd.pgrst.object+json"
+        assert isinstance(builder, AsyncSingleRequestBuilder)
+
+    def test_insert_with_select_maybe_single(self, request_builder: AsyncRequestBuilder):
+        builder = request_builder.insert({"key1": "val1"}).select("id").maybe_single()
+
+        assert builder.request.params["select"] == "id"
+        assert isinstance(builder, AsyncMaybeSingleRequestBuilder)
 
     def test_bulk_upsert_with_default(self, request_builder: AsyncRequestBuilder):
         builder = request_builder.upsert(
