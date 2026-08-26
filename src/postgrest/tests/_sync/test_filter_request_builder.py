@@ -155,10 +155,48 @@ def test_contains_in_list(filter_request_builder):
 
 
 def test_contained_by_mixed_items(filter_request_builder):
+    # The second element is the literal string '["b", "c"]'. It contains the
+    # array delimiter, so it has to be quoted (with its inner quotes escaped);
+    # emitting it bare as {a,["b", "c"]} produced a corrupted literal that
+    # PostgREST would have split into several elements.
     builder = filter_request_builder.contained_by("x", ["a", '["b", "c"]'])
 
-    # {a,["b",+"c"]}
-    assert str(builder.request.params) == "x=cd.%7Ba%2C%5B%22b%22%2C+%22c%22%5D%7D"
+    assert builder.request.params["x"] == 'cd.{a,"[\\"b\\", \\"c\\"]"}'
+
+
+def test_contains_quotes_element_containing_the_delimiter(filter_request_builder):
+    # A value containing the comma delimiter must be quoted, otherwise
+    # PostgREST reads {a,b,c} as three elements rather than the two passed.
+    builder = filter_request_builder.contains("x", ["a,b", "c"])
+
+    assert builder.request.params["x"] == 'cs.{"a,b",c}'
+
+
+def test_cs_quotes_element_containing_the_delimiter(filter_request_builder):
+    builder = filter_request_builder.cs("x", ["a,b"])
+
+    assert builder.request.params["x"] == 'cs.{"a,b"}'
+
+
+def test_cd_quotes_element_containing_the_delimiter(filter_request_builder):
+    builder = filter_request_builder.cd("x", ["a,b"])
+
+    assert builder.request.params["x"] == 'cd.{"a,b"}'
+
+
+def test_overlaps_quotes_element_containing_the_delimiter(filter_request_builder):
+    builder = filter_request_builder.overlaps("x", ["a,b"])
+
+    assert builder.request.params["x"] == 'ov.{"a,b"}'
+
+
+def test_contains_quotes_braces_quotes_whitespace_empty_and_null(filter_request_builder):
+    # Braces, embedded double quotes, whitespace, the empty string and the word
+    # NULL all force quoting; embedded quotes are backslash-escaped so each
+    # element round-trips as a single value.
+    builder = filter_request_builder.contains("x", ["a}b", 'x"y', "a b", "", "NULL"])
+
+    assert builder.request.params["x"] == 'cs.{"a}b","x\\"y","a b","","NULL"}'
 
 
 def test_range_greater_than(filter_request_builder):
