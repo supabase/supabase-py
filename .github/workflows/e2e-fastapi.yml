@@ -1,0 +1,71 @@
+name: E2E – FastAPI Example
+
+on:
+  push:
+    paths:
+      - 'examples/fastapi/**'
+      - '.github/workflows/e2e-fastapi.yml'
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'examples/fastapi/**'
+      - '.github/workflows/e2e-fastapi.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: FastAPI E2E (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
+        with:
+          version: "latest"
+          github-token: ${{ github.token }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          version: "0.8.2"
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install workspace dependencies
+        run: uv sync --frozen
+
+      # Migrations in supabase/migrations/ are applied automatically by supabase start.
+      - name: Start local Supabase
+        run: supabase start -x studio,mailpit,edge-runtime,logflare,vector,supavisor,imgproxy,storage-api
+        working-directory: examples/fastapi
+
+      - name: Export Supabase credentials
+        id: creds
+        run: |
+          eval "$(supabase status -o env)"
+          echo "url=${API_URL}" >> "$GITHUB_OUTPUT"
+          echo "anon_key=${ANON_KEY}" >> "$GITHUB_OUTPUT"
+          echo "service_key=${SERVICE_ROLE_KEY}" >> "$GITHUB_OUTPUT"
+        working-directory: examples/fastapi
+
+      - name: Run E2E tests
+        run: uv run --package fastapi-realtime-rule-engine pytest tests/e2e/ -v --tb=short
+        working-directory: examples/fastapi
+        env:
+          SUPABASE_URL: ${{ steps.creds.outputs.url }}
+          SUPABASE_SERVICE_KEY: ${{ steps.creds.outputs.service_key }}
+          SUPABASE_ANON_KEY: ${{ steps.creds.outputs.anon_key }}
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop
+        working-directory: examples/fastapi

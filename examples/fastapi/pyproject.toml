@@ -1,0 +1,27 @@
+[project]
+name = "fastapi-realtime-rule-engine"
+version = "0.1.0"
+description = "FastAPI Realtime Rule Engine example using supabase-py"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic-settings>=2.0.0",
+    "jinja2>=3.1.0",
+    "python-multipart>=0.0.9",
+    "supabase",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "anyio>=4.0.0",
+    "httpx>=0.27.0",
+]
+
+[tool.uv.sources]
+supabase = { workspace = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
