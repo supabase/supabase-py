@@ -8,6 +8,7 @@ from storage3 import AsyncStorageClient, SyncStorageClient
 from storage3._async.file_api import AsyncBucketProxy
 from storage3._sync.file_api import SyncBucketProxy
 from storage3.constants import DEFAULT_TIMEOUT
+from storage3.types import CreateSignedUploadUrlOptions
 from yarl import URL
 
 
@@ -303,3 +304,74 @@ def test_sync_upload_to_signed_url_forwards_all_file_options() -> None:
     assert "headers" not in kwargs["headers"]
     assert "x-metadata" not in kwargs["headers"]
     assert kwargs["files"]["file"][2] == "text/custom"
+
+
+def _mock_signed_upload_url_response(path: str) -> Mock:
+    """A Storage API response for a single signed upload URL."""
+    response = Mock()
+    response.json.return_value = {
+        "url": f"/object/upload/sign/bucket/{path}?token=token-{path}"
+    }
+    return response
+
+
+def test_sync_create_signed_upload_urls_signs_each_path() -> None:
+    proxy = _sync_bucket_proxy()
+    paths = ["folder/image.png", "nested/dir/photo.jpg", "solo.txt"]
+
+    def fake_request(*args: Any, **kwargs: Any) -> Mock:
+        return _mock_signed_upload_url_response("/".join(args[1][4:]))
+
+    with patch.object(proxy, "_request", side_effect=fake_request) as request:
+        results = proxy.create_signed_upload_urls(paths)
+
+    assert request.call_count == len(paths)
+    assert len(results) == len(paths)
+    for path, result in zip(paths, results):
+        assert result["path"] == path
+        assert result["token"] == f"token-{path}"
+        assert result["signed_url"] == (
+            f"https://example.com/storage/v1/object/upload/sign/bucket/{path}"
+            f"?token=token-{path}"
+        )
+
+
+def test_sync_create_signed_upload_urls_forwards_options() -> None:
+    proxy = _sync_bucket_proxy()
+    paths = ["folder/image.png", "solo.txt"]
+
+    def fake_request(*args: Any, **kwargs: Any) -> Mock:
+        return _mock_signed_upload_url_response("/".join(args[1][4:]))
+
+    with patch.object(proxy, "_request", side_effect=fake_request) as request:
+        proxy.create_signed_upload_urls(
+            paths, options=CreateSignedUploadUrlOptions(upsert="true")
+        )
+
+    assert request.call_count == len(paths)
+    for call in request.call_args_list:
+        assert call.kwargs["headers"].get("x-upsert") == "true"
+
+
+@pytest.mark.asyncio
+async def test_async_create_signed_upload_urls_signs_each_path() -> None:
+    proxy = _async_bucket_proxy()
+    paths = ["folder/image.png", "nested/dir/photo.jpg", "solo.txt"]
+
+    async def fake_request(*args: Any, **kwargs: Any) -> Mock:
+        return _mock_signed_upload_url_response("/".join(args[1][4:]))
+
+    with patch.object(
+        proxy, "_request", new_callable=AsyncMock, side_effect=fake_request
+    ) as request:
+        results = await proxy.create_signed_upload_urls(paths)
+
+    assert request.call_count == len(paths)
+    assert len(results) == len(paths)
+    for path, result in zip(paths, results):
+        assert result["path"] == path
+        assert result["token"] == f"token-{path}"
+        assert result["signed_url"] == (
+            f"https://example.com/storage/v1/object/upload/sign/bucket/{path}"
+            f"?token=token-{path}"
+        )

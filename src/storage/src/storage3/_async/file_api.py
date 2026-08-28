@@ -130,6 +130,33 @@ class AsyncBucketActionsMixin:
             "path": path,
         }
 
+    async def create_signed_upload_urls(
+        self,
+        paths: List[str],
+        options: Optional[CreateSignedUploadUrlOptions] = None,
+    ) -> List[SignedUploadURL]:
+        """
+        Creates signed upload URLs for several objects at once.
+
+        The Storage API does not expose a batch endpoint for signed upload
+        URLs, so this is a convenience helper that signs each path
+        individually via :meth:`.create_signed_upload_url`.
+
+        Parameters
+        ----------
+        paths
+            A list of file paths, each including the file name. For example
+            `["folder/image.png", "folder/image2.png"]`.
+        options
+            Additional options to apply to every signed upload URL.
+
+        Returns
+        -------
+        A list of signed upload URL responses, one per path, in the same
+        order as ``paths``.
+        """
+        return [await self.create_signed_upload_url(path, options) for path in paths]
+
     async def upload_to_signed_url(
         self,
         path: str,
