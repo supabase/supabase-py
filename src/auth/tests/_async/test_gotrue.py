@@ -16,6 +16,7 @@ from .clients import (
     auth_client,
     auth_client_with_asymmetric_session,
     auth_client_with_session,
+    mock_access_token,
     mock_user_credentials,
 )
 
@@ -23,6 +24,13 @@ from .clients import (
 async def test_get_claims_returns_none_when_session_is_none() -> None:
     claims = await auth_client().get_claims()
     assert claims is None
+
+
+async def test_get_claims_raises_when_exp_claim_is_missing() -> None:
+    # `mock_access_token()` carries no `exp` claim, so `validate_exp` must
+    # reject it with AuthInvalidJwtError instead of leaking a KeyError.
+    with pytest.raises(AuthInvalidJwtError, match="JWT has no expiration time"):
+        await auth_client().get_claims(mock_access_token())
 
 
 async def test_get_claims_calls_get_user_if_symmetric_jwt(mocker) -> None:
