@@ -7,7 +7,7 @@ from supabase_functions.errors import (
     FunctionsError,
     FunctionsHttpError,
     FunctionsRelayError,
-    error_message_from,
+    _error_message_from,
 )
 
 
@@ -120,4 +120,4 @@ def test_error_message_types() -> None:
     ],
 )
 def test_error_message_from(response: Response, expected: Optional[str]) -> None:
-    assert error_message_from(response) == expected
+    assert _error_message_from(response) == expected

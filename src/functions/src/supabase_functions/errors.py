@@ -47,7 +47,7 @@ class FunctionsRelayError(FunctionsError):
         )
 
 
-def error_message_from(response: Response) -> str | None:
+def _error_message_from(response: Response) -> str | None:
     """Best-effort extraction of an error message from an edge function response.
 
     An edge function may reply with a plain-text or empty body, so a failed JSON

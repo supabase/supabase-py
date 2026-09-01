@@ -6,7 +6,7 @@ from warnings import warn
 from httpx import AsyncClient, HTTPError, QueryParams, Response
 from yarl import URL
 
-from ..errors import FunctionsHttpError, FunctionsRelayError, error_message_from
+from ..errors import FunctionsHttpError, FunctionsRelayError, _error_message_from
 from ..utils import (
     FunctionRegion,
     is_http_url,
@@ -104,7 +104,7 @@ class AsyncFunctionsClient:
                 status_code = response.status_code
 
             raise FunctionsHttpError(
-                error_message_from(response)
+                _error_message_from(response)
                 or f"An error occurred while requesting your edge function at {exc.request.url!r}.",
                 status_code,
             ) from exc
@@ -175,7 +175,7 @@ class AsyncFunctionsClient:
 
         if is_relay_error and is_relay_error == "true":
             raise FunctionsRelayError(
-                error_message_from(response)
+                _error_message_from(response)
                 or "An error occurred while relaying your edge function request."
             )
 
