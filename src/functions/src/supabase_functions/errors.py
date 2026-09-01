@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from httpx import Response
 
 
 class FunctionsApiErrorDict(TypedDict):
@@ -42,3 +45,18 @@ class FunctionsRelayError(FunctionsError):
             "FunctionsRelayError",
             400 if code is None else code,
         )
+
+
+def error_message_from(response: Response) -> str | None:
+    """Best-effort extraction of an error message from an edge function response.
+
+    An edge function may reply with a plain-text or empty body, so a failed JSON
+    decode must not mask the underlying HTTP error.
+    """
+    try:
+        body = response.json()
+    except ValueError:
+        return response.text or None
+    if isinstance(body, dict):
+        return body.get("error")
+    return response.text or None

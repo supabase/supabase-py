@@ -1,11 +1,13 @@
-from typing import Type
+from typing import Optional, Type
 
 import pytest
+from httpx import Response
 from supabase_functions.errors import (
     FunctionsApiErrorDict,
     FunctionsError,
     FunctionsHttpError,
     FunctionsRelayError,
+    error_message_from,
 )
 
 
@@ -105,3 +107,17 @@ def test_error_message_types() -> None:
         error = FunctionsError(message, "test", 500)
         assert error.message == message
         assert error.to_dict()["message"] == message
+
+
+@pytest.mark.parametrize(
+    "response,expected",
+    [
+        (Response(500, json={"error": "boom"}), "boom"),
+        (Response(500, json={"detail": "boom"}), None),
+        (Response(500, json=["boom"]), '["boom"]'),
+        (Response(500, text="plain boom"), "plain boom"),
+        (Response(500), None),
+    ],
+)
+def test_error_message_from(response: Response, expected: Optional[str]) -> None:
+    assert error_message_from(response) == expected
