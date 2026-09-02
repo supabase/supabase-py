@@ -746,7 +746,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         else:
             user_response = self.get_user(access_token)
             if user_response is None:
-                raise UserDoesntExist(access_token)
+                raise UserDoesntExist()
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -1019,7 +1019,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         expires_at = time_now + int(expires_in)
         user = self.get_user(access_token)
         if user is None:
-            raise UserDoesntExist(access_token)
+            raise UserDoesntExist()
         session = Session(
             provider_token=provider_token,
             provider_refresh_token=provider_refresh_token,
