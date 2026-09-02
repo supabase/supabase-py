@@ -20,6 +20,7 @@ from supabase_auth.types import (
 
 from .conftest import (
     GOTRUE_JWT_SECRET,
+    mock_access_token,
     mock_user_credentials,
 )
 
@@ -392,3 +393,10 @@ def test_sign_out(auth_client: SyncSupabaseAuthClient) -> None:
     no_more_session = auth_client.get_session()
     assert no_more_session is None
     assert called
+
+
+def test_get_claims_raises_when_exp_claim_is_missing(
+    auth_client: SyncSupabaseAuthClient,
+) -> None:
+    with pytest.raises(AuthInvalidJwtError, match="JWT has no expiration time"):
+        auth_client.get_claims(mock_access_token())
