@@ -19,6 +19,8 @@ jobs:
   test:
     name: py${{ matrix.python-version }} | ${{ matrix.package }} @ ${{ matrix.os }}
     strategy:
+      # Don't let one broken package cancel the other packages' jobs.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
