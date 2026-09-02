@@ -1262,7 +1262,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             decoded_jwt["raw"]["payload"],
         )
 
-        validate_exp(payload["exp"])
+        validate_exp(payload.get("exp"))
 
         # if symmetric algorithm, fallback to get_user
         if "kid" not in header or header["alg"] == "HS256":
