@@ -72,6 +72,24 @@ def test_equals(filter_request_builder):
     assert str(builder.request.params) == "x=eq.a"
 
 
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (None, "eq.null"),
+        (True, "eq.true"),
+        (False, "eq.false"),
+        ({"key": "value"}, 'eq.{"key":"value"}'),
+        (["a", "b"], 'eq.["a","b"]'),
+        ("a", "eq.a"),
+        (42, "eq.42"),
+    ],
+)
+def test_eq_serializes_values(filter_request_builder, value, expected):
+    builder = filter_request_builder.eq("x", value)
+
+    assert builder.request.params["x"] == expected
+
+
 def test_not_equal(filter_request_builder):
     builder = filter_request_builder.neq("x", "a")
 
