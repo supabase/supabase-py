@@ -4,7 +4,11 @@ import pytest
 from httpx import AsyncClient, Headers, QueryParams, Request, Response
 from yarl import URL
 
-from postgrest import AsyncRequestBuilder, AsyncSingleRequestBuilder
+from postgrest import (
+    AsyncMaybeSingleRequestBuilder,
+    AsyncRequestBuilder,
+    AsyncSingleRequestBuilder,
+)
 from postgrest._async.request_builder import RequestConfig
 from postgrest.base_request_builder import APIResponse, SingleAPIResponse
 from postgrest.types import JSON, CountMethod, ReturnMethod
@@ -140,6 +144,34 @@ class TestInsert:
             "return=representation",
         ]
 
+    def test_insert_with_select_single(self, request_builder: AsyncRequestBuilder):
+        builder = request_builder.insert({"key1": "val1"}).select("id").single()
+
+        assert isinstance(builder, AsyncSingleRequestBuilder)
+        assert builder.request.params["select"] == "id"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.headers.get_list("prefer", True) == [
+            "return=representation"
+        ]
+        assert builder.request.http_method == "POST"
+
+    def test_insert_with_select_maybe_single(
+        self, request_builder: AsyncRequestBuilder
+    ):
+        builder = request_builder.insert({"key1": "val1"}).select("id").maybe_single()
+
+        assert isinstance(builder, AsyncMaybeSingleRequestBuilder)
+        assert builder.request.params["select"] == "id"
+        assert builder.request.http_method == "POST"
+
+    def test_upsert_with_select_single(self, request_builder: AsyncRequestBuilder):
+        builder = request_builder.upsert({"key1": "val1"}).select("id").single()
+
+        assert isinstance(builder, AsyncSingleRequestBuilder)
+        assert builder.request.params["select"] == "id"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.http_method == "POST"
+
     def test_bulk_upsert_with_default(self, request_builder: AsyncRequestBuilder):
         builder = request_builder.upsert(
             [{"key1": "val1", "key2": "val2"}, {"key3": "val3"}], default_to_null=False
@@ -194,6 +226,21 @@ class TestUpdate:
         assert builder.request.params["id"] == "eq.1"
         assert builder.request.params["select"] == "id"
 
+    def test_update_with_select_single(self, request_builder: AsyncRequestBuilder):
+        builder = request_builder.update({"key1": "val1"}).eq("id", 1).select().single()
+
+        assert isinstance(builder, AsyncSingleRequestBuilder)
+        assert builder.request.params["id"] == "eq.1"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.http_method == "PATCH"
+
+    def test_update_with_order_and_limit(self, request_builder: AsyncRequestBuilder):
+        builder = request_builder.update({"key1": "val1"}).order("id").limit(1)
+
+        assert builder.request.params["order"] == "id.asc"
+        assert builder.request.params["limit"] == "1"
+        assert builder.request.http_method == "PATCH"
+
 
 class TestDelete:
     def test_delete(self, request_builder: AsyncRequestBuilder):
@@ -229,6 +276,14 @@ class TestDelete:
 
         assert builder.request.params["id"] == "eq.1"
         assert builder.request.params["select"] == "id"
+
+    def test_delete_with_select_single(self, request_builder: AsyncRequestBuilder):
+        builder = request_builder.delete().eq("id", 1).select("id").single()
+
+        assert isinstance(builder, AsyncSingleRequestBuilder)
+        assert builder.request.params["id"] == "eq.1"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.http_method == "DELETE"
 
 
 class TestTextSearch:
