@@ -8,6 +8,7 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 
 from storage3 import AsyncStorageClient, StorageFileApiClient, SyncStorageClient
+from storage3.exceptions import StorageApiError
 
 URL = "https://example.com/storage/v1/"
 
@@ -140,3 +141,24 @@ async def test_upload_headers_override_defaults(use_async: bool) -> None:
         lambda b: b.upload("file.txt", b"hello", headers={"x-upsert": "true"}),
     )
     assert request.headers.get_list("x-upsert") == ["true"]
+
+
+@use_async
+@pytest.mark.parametrize("status", [400, 404])
+async def test_exists_false_on_headless_error(use_async: bool, status: int) -> None:
+    results: list[bool] = []
+
+    async def collect_async(b: StorageFileApiClient[AsyncHttpIO]) -> None:
+        results.append(await b.exists("missing.txt"))
+
+    def collect_sync(b: StorageFileApiClient[SyncHttpIO]) -> None:
+        results.append(b.exists("missing.txt"))
+
+    await run(use_async, collect_async if use_async else collect_sync, status, b"")
+    assert results == [False]
+
+
+@use_async
+async def test_exists_reraises_unexpected_status(use_async: bool) -> None:
+    with pytest.raises(StorageApiError):
+        await run(use_async, lambda b: b.exists("missing.txt"), 401, b"")
