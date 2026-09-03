@@ -424,7 +424,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         )
         if response.is_success:
             return True
-        elif 400 <= response.status <= 401:
+        elif response.status in (400, 404):
             return False
         else:
             raise parse_api_error(response)
