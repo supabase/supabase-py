@@ -3,11 +3,12 @@ from typing import Any, Dict, Mapping
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, Client, Headers, Timeout
+from httpx import AsyncClient, Client, Headers, Request, Response, Timeout
 from storage3 import AsyncStorageClient, SyncStorageClient
 from storage3._async.file_api import AsyncBucketProxy
 from storage3._sync.file_api import SyncBucketProxy
 from storage3.constants import DEFAULT_TIMEOUT
+from storage3.exceptions import StorageApiError
 from yarl import URL
 
 
@@ -303,3 +304,108 @@ def test_sync_upload_to_signed_url_forwards_all_file_options() -> None:
     assert "headers" not in kwargs["headers"]
     assert "x-metadata" not in kwargs["headers"]
     assert kwargs["files"]["file"][2] == "text/custom"
+
+
+def test_sync_bucket_proxy_request_missing_error_keys() -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = Response(
+        status_code=413,
+        json={"code": "PayloadTooLarge"},
+        request=Request("POST", "https://example.com"),
+    )
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        with pytest.raises(StorageApiError) as exc_info:
+            proxy._request("POST", ["object", "file.txt"])
+
+    err = exc_info.value
+    assert "PayloadTooLarge" in err.message
+    assert err.code == "InternalError"
+    assert err.status == 413
+
+
+@pytest.mark.asyncio
+async def test_async_bucket_proxy_request_missing_error_keys() -> None:
+    proxy = _async_bucket_proxy()
+    mock_response = Response(
+        status_code=413,
+        json={"code": "PayloadTooLarge"},
+        request=Request("POST", "https://example.com"),
+    )
+    with patch.object(
+        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
+        with pytest.raises(StorageApiError) as exc_info:
+            await proxy._request("POST", ["object", "file.txt"])
+
+    err = exc_info.value
+    assert "PayloadTooLarge" in err.message
+    assert err.code == "InternalError"
+    assert err.status == 413
+
+
+def test_sync_bucket_proxy_request_non_json_error() -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = Response(
+        status_code=504,
+        text="<html>504 Gateway Timeout</html>",
+        request=Request("POST", "https://example.com"),
+    )
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        with pytest.raises(StorageApiError) as exc_info:
+            proxy._request("POST", ["object", "file.txt"])
+
+    err = exc_info.value
+    assert "504 Gateway Timeout" in err.message
+    assert err.code == "InternalError"
+    assert err.status == 504
+
+
+@pytest.mark.asyncio
+async def test_async_bucket_proxy_request_non_json_error() -> None:
+    proxy = _async_bucket_proxy()
+    mock_response = Response(
+        status_code=504,
+        text="<html>504 Gateway Timeout</html>",
+        request=Request("POST", "https://example.com"),
+    )
+    with patch.object(
+        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
+        with pytest.raises(StorageApiError) as exc_info:
+            await proxy._request("POST", ["object", "file.txt"])
+
+    err = exc_info.value
+    assert "504 Gateway Timeout" in err.message
+    assert err.code == "InternalError"
+    assert err.status == 504
+
+
+def test_sync_bucket_proxy_exists_false_on_headless_error() -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = Response(
+        status_code=400, request=Request("HEAD", "https://example.com")
+    )
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        assert proxy.exists("missing.txt") is False
+
+
+def test_sync_bucket_proxy_exists_reraises_unexpected_status() -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = Response(
+        status_code=401, request=Request("HEAD", "https://example.com")
+    )
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        with pytest.raises(StorageApiError):
+            proxy.exists("missing.txt")
+
+
+@pytest.mark.asyncio
+async def test_async_bucket_proxy_exists_false_on_headless_error() -> None:
+    proxy = _async_bucket_proxy()
+    mock_response = Response(
+        status_code=400, request=Request("HEAD", "https://example.com")
+    )
+    with patch.object(
+        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
+        assert await proxy.exists("missing.txt") is False

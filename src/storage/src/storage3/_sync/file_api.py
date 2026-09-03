@@ -83,9 +83,11 @@ class SyncBucketActionsMixin:
                 raise StorageApiError(
                     resp["message"], resp["error"], resp["statusCode"]
                 ) from exc
-            except KeyError as err:
-                message = f"Unable to parse error message: {resp.text}"
-                raise StorageApiError(message, "InternalError", 400) from err
+            except (KeyError, TypeError, ValueError) as err:
+                message = f"Unable to parse error message: {exc.response.text}"
+                raise StorageApiError(
+                    message, "InternalError", exc.response.status_code
+                ) from err
 
         # close the resource before returning the response
         if files and "file" in files and isinstance(files["file"][1], BufferedReader):
@@ -417,8 +419,12 @@ class SyncBucketActionsMixin:
                 ["object", self.id, *path_parts],
             )
             return response.status_code == 200
-        except json.JSONDecodeError:
-            return False
+        except StorageApiError as exc:
+            # HEAD responses have no body, so a missing object surfaces as an
+            # unparsable 400/404 rather than a structured storage error.
+            if str(exc.status) in ("400", "404"):
+                return False
+            raise
 
     def list(
         self,
