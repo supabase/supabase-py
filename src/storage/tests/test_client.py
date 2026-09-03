@@ -378,3 +378,34 @@ async def test_async_bucket_proxy_request_non_json_error() -> None:
     assert "504 Gateway Timeout" in err.message
     assert err.code == "InternalError"
     assert err.status == 504
+
+
+def test_sync_bucket_proxy_exists_false_on_headless_error() -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = Response(
+        status_code=400, request=Request("HEAD", "https://example.com")
+    )
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        assert proxy.exists("missing.txt") is False
+
+
+def test_sync_bucket_proxy_exists_reraises_unexpected_status() -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = Response(
+        status_code=401, request=Request("HEAD", "https://example.com")
+    )
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        with pytest.raises(StorageApiError):
+            proxy.exists("missing.txt")
+
+
+@pytest.mark.asyncio
+async def test_async_bucket_proxy_exists_false_on_headless_error() -> None:
+    proxy = _async_bucket_proxy()
+    mock_response = Response(
+        status_code=400, request=Request("HEAD", "https://example.com")
+    )
+    with patch.object(
+        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
+        assert await proxy.exists("missing.txt") is False

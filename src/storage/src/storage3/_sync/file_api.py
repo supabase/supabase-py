@@ -419,8 +419,12 @@ class SyncBucketActionsMixin:
                 ["object", self.id, *path_parts],
             )
             return response.status_code == 200
-        except json.JSONDecodeError:
-            return False
+        except StorageApiError as exc:
+            # HEAD responses have no body, so a missing object surfaces as an
+            # unparsable 400/404 rather than a structured storage error.
+            if str(exc.status) in ("400", "404"):
+                return False
+            raise
 
     def list(
         self,
