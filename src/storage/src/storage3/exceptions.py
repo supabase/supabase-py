@@ -14,11 +14,17 @@ class VectorBucketException(StorageException):
         self.msg = msg
 
 
-class VectorBucketErrorMessage(BaseModel):
+class StorageApiErrorMessage(BaseModel):
+    """Wire format of a storage API error body."""
+
     statusCode: str | int
     error: str
     message: str
     code: str | None = None
+
+
+# Kept as an alias: the vector endpoints return the same error body.
+VectorBucketErrorMessage = StorageApiErrorMessage
 
 
 @dataclass
@@ -34,15 +40,24 @@ class StorageApiError(StorageException):
         return f"StorageApiError(message='{self.message}', code={self.code}, status='{self.status}')"
 
 
-StorageApiErrorParser = TypeAdapter(StorageApiError)
+StorageApiErrorParser = TypeAdapter(StorageApiErrorMessage)
 
 
 def parse_api_error(response: Response) -> StorageApiError:
     try:
-        return StorageApiErrorParser.validate_json(response.content)
+        parsed = StorageApiErrorParser.validate_json(response.content)
     except ValidationError:
-        message = f"Unable to parse error message: {response.content.decode('utf-8')}"
-        return StorageApiError(message=message, code="InternalError", status=400)
+        body = response.content.decode("utf-8", errors="replace")
+        return StorageApiError(
+            message=f"Unable to parse error message: {body}",
+            code="InternalError",
+            status=response.status,
+        )
+    return StorageApiError(
+        message=parsed.message,
+        code=parsed.code or parsed.error,
+        status=parsed.statusCode,
+    )
 
 
 Inner = TypeVar("Inner")
