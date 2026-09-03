@@ -232,6 +232,23 @@ def test_request_error_handling_non_json(storage_api, mock_client) -> None:
     assert exc_info.value.status == 502
 
 
+@pytest.mark.parametrize("body", [[], None, "Service Unavailable", 123])
+def test_request_error_handling_non_object_json(storage_api, mock_client, body) -> None:
+    error_response = Mock(spec=Response)
+    error_response.json.return_value = body
+    error_response.text = str(body)
+    error_response.status_code = 502
+
+    exc = HTTPStatusError("HTTP Error", request=Mock(), response=error_response)
+    mock_client.request.side_effect = exc
+
+    with pytest.raises(StorageApiError) as exc_info:
+        storage_api._request("GET", ["test"])
+
+    assert exc_info.value.code == "InternalError"
+    assert exc_info.value.status == 502
+
+
 @pytest.mark.parametrize(
     "method,path,json_data",
     [
