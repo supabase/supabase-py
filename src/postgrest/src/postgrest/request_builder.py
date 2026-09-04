@@ -620,7 +620,7 @@ class BaseRequestClient(Generic[HttpIO]):
 def can_retry(resp: Response, retry_enabled: bool, attempt_count: int) -> bool:
     if not retry_enabled or attempt_count >= MAX_RETRIES:
         return False
-    if not (resp.request.method == "GET" or resp.request.method == "HTTP"):
+    if not (resp.request.method == "GET" or resp.request.method == "HEAD"):
         return False
     return resp.status == 503 or resp.status == 520
 
