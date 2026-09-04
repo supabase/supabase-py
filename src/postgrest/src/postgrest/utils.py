@@ -37,6 +37,25 @@ def sanitize_param(param: Any) -> str:
     return param_str
 
 
+def sanitize_array_element(param: Any) -> str:
+    """Quote a single value for use inside a PostgreSQL array literal `{...}`.
+
+    Follows https://www.postgresql.org/docs/current/arrays.html :
+    quote when empty, NULL (case-insensitive), or containing
+    braces, comma, double quote, backslash, or whitespace.
+    Embedded backslashes and double quotes are backslash-escaped.
+    """
+    param_str = str(param)
+    if (
+        param_str == ""
+        or param_str.upper() == "NULL"
+        or any(char in param_str for char in '{},"\\ \t\n\r')
+    ):
+        param_str = param_str.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{param_str}"'
+    return param_str
+
+
 def sanitize_pattern_param(pattern: str) -> str:
     return sanitize_param(pattern.replace("%", "*"))
 
