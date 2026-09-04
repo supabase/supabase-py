@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Mapping
 from json import JSONDecodeError
 from re import search
 from typing import (
@@ -39,7 +40,16 @@ except ImportError:
     from pydantic import validator as field_validator  # type: ignore
 
 from .base_client import BasePostgrestClient
-from .types import JSON, CountMethod, Filters, JSONAdapter, RequestMethod, ReturnMethod
+from .types import (
+    JSON,
+    CountMethod,
+    Filters,
+    JSONAdapter,
+    JSONSerializable,
+    RequestMethod,
+    ReturnMethod,
+    jsonable_encoder,
+)
 from .utils import sanitize_param
 
 
@@ -48,7 +58,7 @@ class QueryArgs(NamedTuple):
     method: RequestMethod
     params: QueryParams
     headers: Headers
-    json: JSON
+    json: JSONSerializable
 
 
 C = TypeVar("C", Client, AsyncClient)
@@ -64,7 +74,7 @@ class RequestConfig(Generic[C]):
         headers: Headers,
         params: QueryParams,
         auth: BasicAuth | None,
-        json: JSON,
+        json: JSONSerializable,
         retry_enabled: bool = True,
     ) -> None:
         self.session: C = session
@@ -72,7 +82,11 @@ class RequestConfig(Generic[C]):
         self.http_method = http_method
         self.headers = headers
         self.params = params
-        self.json = None if http_method in {"GET", "HEAD"} else json
+        # Normalize datetime/UUID/Decimal values to JSON-safe primitives so the
+        # httpx json= path (stdlib json.dumps) can serialize CLI-generated types.
+        self.json: JSON | None = (
+            None if http_method in {"GET", "HEAD"} else jsonable_encoder(json)
+        )
         self.auth = auth
         self.retry_enabled = retry_enabled
 
@@ -104,7 +118,7 @@ class RequestConfig(Generic[C]):
         return response.status_code == 503 or response.status_code == 520
 
 
-def _unique_columns(json: List[Dict[str, JSON]]):
+def _unique_columns(json: List[Mapping[str, Any]]):
     unique_keys = {key for row in json for key in row.keys()}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
@@ -141,7 +155,7 @@ def pre_select(
 
 
 def pre_insert(
-    json: JSON,
+    json: JSONSerializable,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -164,7 +178,7 @@ def pre_insert(
 
 
 def pre_upsert(
-    json: JSON,
+    json: JSONSerializable,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -190,7 +204,7 @@ def pre_upsert(
 
 
 def pre_update(
-    json: JSON,
+    json: JSONSerializable,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
