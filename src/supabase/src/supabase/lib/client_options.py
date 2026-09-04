@@ -56,6 +56,9 @@ class ClientOptions:
     )
     """Timeout passed to the SyncPostgrestClient instance."""
 
+    postgrest_client_retry: bool = True
+    """Automatically retry transient PostgREST errors. Passed to the SyncPostgrestClient instance."""
+
     storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT
     """Timeout passed to the SyncStorageClient instance"""
 

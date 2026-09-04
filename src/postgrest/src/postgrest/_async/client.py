@@ -36,6 +36,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,
         http_client: Optional[AsyncClient] = None,
+        retry_enabled: bool = True,
     ) -> None:
         headers = {
             "X-Client-Info": (
@@ -93,6 +94,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
             verify=self.verify,
             proxy=proxy,
         )
+        self.retry_enabled = retry_enabled
 
         self.session = http_client or AsyncClient(
             base_url=base_url,
@@ -113,6 +115,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
             timeout=self.timeout,
             verify=self.verify,
             proxy=self.proxy,
+            retry_enabled=self.retry_enabled,
         )
 
     async def __aenter__(self) -> AsyncPostgrestClient:
@@ -134,7 +137,11 @@ class AsyncPostgrestClient(BasePostgrestClient):
             :class:`AsyncRequestBuilder`
         """
         return AsyncRequestBuilder(
-            self.session, self.base_url.joinpath(table), self.headers, self.basic_auth
+            self.session,
+            self.base_url.joinpath(table),
+            self.headers,
+            self.basic_auth,
+            retry_enabled=self.retry_enabled,
         )
 
     def table(self, table: str) -> AsyncRequestBuilder:
@@ -193,5 +200,6 @@ class AsyncPostgrestClient(BasePostgrestClient):
             http_params,
             self.basic_auth,
             json,
+            retry_enabled=self.retry_enabled,
         )
         return AsyncRPCFilterRequestBuilder(request)
