@@ -1,7 +1,10 @@
 from typing import Iterable
 
 import pytest
-from httpx import Client, Headers, QueryParams
+try:
+    from httpx2 import Client, Headers, QueryParams
+except ImportError:
+    from httpx import Client, Headers, QueryParams
 from yarl import URL
 
 from postgrest import SyncFilterRequestBuilder

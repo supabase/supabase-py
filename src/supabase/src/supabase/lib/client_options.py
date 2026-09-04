@@ -2,9 +2,18 @@ import platform
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Union
 
-from httpx import AsyncClient as AsyncHttpxClient
-from httpx import Client as SyncHttpxClient
-from httpx import Timeout
+try:
+    from httpx2 import AsyncClient as AsyncHttpxClient
+except ImportError:
+    from httpx import AsyncClient as AsyncHttpxClient
+try:
+    from httpx2 import Client as SyncHttpxClient
+except ImportError:
+    from httpx import Client as SyncHttpxClient
+try:
+    from httpx2 import Timeout
+except ImportError:
+    from httpx import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_auth import (

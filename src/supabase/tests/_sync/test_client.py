@@ -3,8 +3,14 @@ from typing import Any
 from unittest.mock import MagicMock, Mock
 
 import pytest
-from httpx import Client as SyncHttpxClient
-from httpx import HTTPTransport, Limits, Timeout
+try:
+    from httpx2 import Client as SyncHttpxClient
+except ImportError:
+    from httpx import Client as SyncHttpxClient
+try:
+    from httpx2 import HTTPTransport, Limits, Timeout
+except ImportError:
+    from httpx import HTTPTransport, Limits, Timeout
 from supabase_auth import SyncMemoryStorage
 
 from supabase import (

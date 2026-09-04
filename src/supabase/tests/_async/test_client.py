@@ -3,8 +3,14 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from httpx import AsyncClient as AsyncHttpxClient
-from httpx import AsyncHTTPTransport, Limits, Timeout
+try:
+    from httpx2 import AsyncClient as AsyncHttpxClient
+except ImportError:
+    from httpx import AsyncClient as AsyncHttpxClient
+try:
+    from httpx2 import AsyncHTTPTransport, Limits, Timeout
+except ImportError:
+    from httpx import AsyncHTTPTransport, Limits, Timeout
 from supabase_auth import AsyncMemoryStorage
 
 from supabase import (

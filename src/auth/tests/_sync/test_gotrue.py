@@ -388,7 +388,10 @@ def test_link_identity() -> None:
 
     from unittest.mock import patch
 
-    from httpx import Response
+    try:
+        from httpx2 import Response
+    except ImportError:
+        from httpx import Response
 
     # Since the test server has manual linking disabled, we'll mock the URL generation
     with patch.object(client, "_get_url_for_provider") as mock_url_provider:
@@ -493,7 +496,10 @@ def test_sign_in_with_otp() -> None:
     # We can't fully test the actual OTP flow since that requires email verification
     from unittest.mock import patch
 
-    from httpx import Response
+    try:
+        from httpx2 import Response
+    except ImportError:
+        from httpx import Response
     from supabase_auth.types import AuthOtpResponse
 
     # First test for email OTP

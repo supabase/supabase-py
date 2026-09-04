@@ -3,7 +3,10 @@ from typing import Dict
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, HTTPError, Response, Timeout
+try:
+    from httpx2 import AsyncClient, HTTPError, Response, Timeout
+except ImportError:
+    from httpx import AsyncClient, HTTPError, Response, Timeout
 
 # Import the class to test
 from supabase_functions import AsyncFunctionsClient

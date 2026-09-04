@@ -3,7 +3,10 @@ import sys
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
-from httpx import Client, HTTPError, QueryParams, Response
+try:
+    from httpx2 import Client, HTTPError, QueryParams, Response
+except ImportError:
+    from httpx import Client, HTTPError, QueryParams, Response
 from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError

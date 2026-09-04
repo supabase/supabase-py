@@ -1,6 +1,9 @@
 from typing import Dict, Optional
 
-from httpx import AsyncClient
+try:
+    from httpx2 import AsyncClient
+except ImportError:
+    from httpx import AsyncClient
 from supabase_auth import (
     AsyncGoTrueClient,
     AsyncSupportedStorage,

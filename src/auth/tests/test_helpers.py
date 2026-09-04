@@ -1,10 +1,16 @@
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import httpx
+try:
+    import httpx2 as httpx
+except ImportError:
+    import httpx
 import pytest
 import respx
-from httpx import Headers, HTTPStatusError, Response
+try:
+    from httpx2 import Headers, HTTPStatusError, Response
+except ImportError:
+    from httpx import Headers, HTTPStatusError, Response
 from pydantic import BaseModel
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
@@ -337,7 +343,10 @@ def test_handle_exception_weak_password_branch() -> None:
     This test attempts to test the branch where weak_password needs to be both a dict and a list,
     which is logically impossible, so we'll test it by mocking the implementation details.
     """
-    import httpx
+    try:
+        import httpx2 as httpx
+    except ImportError:
+        import httpx
     from supabase_auth.errors import AuthWeakPasswordError
     from supabase_auth.helpers import handle_exception
 

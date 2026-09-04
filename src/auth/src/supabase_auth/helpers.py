@@ -12,7 +12,10 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union
 from urllib.parse import urlparse
 
-from httpx import HTTPStatusError, Response
+try:
+    from httpx2 import HTTPStatusError, Response
+except ImportError:
+    from httpx import HTTPStatusError, Response
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from .constants import (
