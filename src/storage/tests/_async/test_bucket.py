@@ -1,7 +1,10 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from httpx import AsyncClient, Headers, HTTPStatusError, Response
+try:
+    from httpx2 import AsyncClient, Headers, HTTPStatusError, Response
+except ImportError:
+    from httpx import AsyncClient, Headers, HTTPStatusError, Response
 from storage3 import AsyncBucket, AsyncStorageBucketAPI
 from storage3.exceptions import StorageApiError
 from storage3.types import CreateOrUpdateBucketOptions

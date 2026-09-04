@@ -3,7 +3,10 @@ from __future__ import annotations
 import time
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
-from httpx import BasicAuth, Client, Headers, QueryParams, Response
+try:
+    from httpx2 import BasicAuth, Client, Headers, QueryParams, Response
+except ImportError:
+    from httpx import BasicAuth, Client, Headers, QueryParams, Response
 from pydantic import ValidationError
 from typing_extensions import Self, override
 from yarl import URL

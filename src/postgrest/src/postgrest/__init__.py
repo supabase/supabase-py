@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from httpx import Timeout
+try:
+    from httpx2 import Timeout
+except ImportError:
+    from httpx import Timeout
 
 from ._async.client import AsyncPostgrestClient
 from ._async.request_builder import (

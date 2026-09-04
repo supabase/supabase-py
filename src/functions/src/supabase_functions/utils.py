@@ -1,7 +1,10 @@
 import sys
 from urllib.parse import urlparse
 
-from httpx import AsyncClient as AsyncClient  # noqa: F401
+try:
+    from httpx2 import AsyncClient as AsyncClient  # noqa: F401
+except ImportError:
+    from httpx import AsyncClient as AsyncClient  # noqa: F401
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum

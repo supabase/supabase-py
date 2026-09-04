@@ -1,6 +1,12 @@
 from deprecation import deprecated
-from httpx import AsyncClient as AsyncClient  # noqa: F401
-from httpx import Client
+try:
+    from httpx2 import AsyncClient as AsyncClient  # noqa: F401
+except ImportError:
+    from httpx import AsyncClient as AsyncClient  # noqa: F401
+try:
+    from httpx2 import Client
+except ImportError:
+    from httpx import Client
 
 from .version import __version__
 

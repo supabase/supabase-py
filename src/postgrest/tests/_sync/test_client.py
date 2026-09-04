@@ -2,7 +2,10 @@ import re
 from unittest.mock import patch
 
 import pytest
-from httpx import (
+try:
+    from httpx2 import (
+except ImportError:
+    from httpx import (
     BasicAuth,
     Client,
     Headers,

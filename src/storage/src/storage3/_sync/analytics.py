@@ -1,6 +1,9 @@
 from typing import TYPE_CHECKING, List, Optional
 
-from httpx import QueryParams
+try:
+    from httpx2 import QueryParams
+except ImportError:
+    from httpx import QueryParams
 
 from ..types import (
     AnalyticsBucket,

@@ -4,8 +4,14 @@ from typing import Any, Type, TypeVar, cast, get_origin
 from urllib.parse import urlparse
 
 from deprecation import deprecated
-from httpx import AsyncClient  # noqa: F401
-from httpx import Client as BaseClient  # noqa: F401
+try:
+    from httpx2 import AsyncClient  # noqa: F401
+except ImportError:
+    from httpx import AsyncClient  # noqa: F401
+try:
+    from httpx2 import Client as BaseClient  # noqa: F401
+except ImportError:
+    from httpx import Client as BaseClient  # noqa: F401
 from pydantic import BaseModel
 from yarl import URL
 

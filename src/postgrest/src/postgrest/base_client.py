@@ -3,7 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Union
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, Timeout
+try:
+    from httpx2 import AsyncClient, BasicAuth, Client, Headers, Timeout
+except ImportError:
+    from httpx import AsyncClient, BasicAuth, Client, Headers, Timeout
 from yarl import URL
 
 from .utils import is_http_url

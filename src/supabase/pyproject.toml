@@ -28,6 +28,7 @@ dependencies = [
   "supabase_auth == 2.31.0", # x-release-please-version
   "postgrest == 2.31.0", # x-release-please-version
   "httpx >=0.26,<0.29",
+  "httpx2>=2.12.0; python_version >= \"3.10\"",
   "yarl>=1.22.0",
 ]
 

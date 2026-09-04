@@ -14,6 +14,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
+  "httpx2>=2.12.0; python_version >= \"3.10\"",
   "strenum >=0.4.15",
   "yarl>=1.20.1",
 ]

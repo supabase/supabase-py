@@ -3,7 +3,10 @@ from typing import Dict
 from unittest.mock import Mock, patch
 
 import pytest
-from httpx import Client, HTTPError, Response, Timeout
+try:
+    from httpx2 import Client, HTTPError, Response, Timeout
+except ImportError:
+    from httpx import Client, HTTPError, Response, Timeout
 
 # Import the class to test
 from supabase_functions import SyncFunctionsClient

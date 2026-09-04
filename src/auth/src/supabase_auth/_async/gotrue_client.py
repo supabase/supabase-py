@@ -9,7 +9,10 @@ from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 from warnings import warn
 
-from httpx import AsyncClient, QueryParams, Response
+try:
+    from httpx2 import AsyncClient, QueryParams, Response
+except ImportError:
+    from httpx import AsyncClient, QueryParams, Response
 from jwt import get_algorithm_by_name
 from typing_extensions import cast
 

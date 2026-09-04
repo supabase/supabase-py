@@ -6,7 +6,10 @@ from typing import Any, Dict, Optional, Union, cast
 from warnings import warn
 
 from deprecation import deprecated
-from httpx import Client, Headers, QueryParams, Timeout
+try:
+    from httpx2 import Client, Headers, QueryParams, Timeout
+except ImportError:
+    from httpx import Client, Headers, QueryParams, Timeout
 from yarl import URL
 
 from ..base_client import BasePostgrestClient
