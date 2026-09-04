@@ -20,6 +20,15 @@ def test_constructor(request_builder):
     assert str(request_builder.path) == "/example_table"
 
 
+@pytest.mark.parametrize("head", [False, True])
+def test_select_request_retries_transient_response(
+    request_builder: SyncRequestBuilder, head: bool
+):
+    request = request_builder.select(head=head).request
+
+    assert request.should_retry(Response(503), attempt_count=0)
+
+
 class TestSelect:
     def test_select(self, request_builder: SyncRequestBuilder):
         builder = request_builder.select("col1", "col2")
