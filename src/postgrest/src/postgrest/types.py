@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Mapping, Sequence
-from typing import Union
+from datetime import date, datetime, time
+from decimal import Decimal
+from typing import Any, Union
+from uuid import UUID
 
 from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
 from pydantic import TypeAdapter
@@ -19,6 +22,26 @@ JSON = TypeAliasType(
     "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
 )
 JSONAdapter: TypeAdapter = TypeAdapter(JSON)
+
+# Accepted input for write operations (insert/upsert/update).
+# Supabase CLI-generated types include datetime/date/time/UUID/Decimal fields,
+# which are not strict JSON but serialize to JSON cleanly. Kept separate from
+# JSON so inbound response validation stays strict.
+JSONSerializable = TypeAliasType(
+    "JSONSerializable",
+    "Union[None, bool, str, int, float, datetime, date, time, UUID, Decimal, Sequence[JSONSerializable], Mapping[str, JSONSerializable]]",
+)
+
+_AnyAdapter: TypeAdapter = TypeAdapter(Any)
+
+
+def jsonable_encoder(value: JSONSerializable) -> JSON:
+    """Convert datetime/date/time/UUID/Decimal values to JSON-safe primitives.
+
+    Plain JSON passes through unchanged. Mirrors the outbound handling in v3
+    (pydantic-based serialization) without changing the httpx request path.
+    """
+    return _AnyAdapter.dump_python(value, mode="json")
 
 
 class CountMethod(StrEnum):
