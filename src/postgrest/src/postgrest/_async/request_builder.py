@@ -294,12 +294,18 @@ class AsyncSelectRequestBuilder(
 
 class AsyncRequestBuilder:  #
     def __init__(
-        self, session: AsyncClient, path: URL, headers: Headers, auth: BasicAuth | None
+        self,
+        session: AsyncClient,
+        path: URL,
+        headers: Headers,
+        auth: BasicAuth | None,
+        retry_enabled: bool = True,
     ) -> None:
         self.session = session
         self.path = path
         self.headers = headers
         self.auth = auth
+        self.retry_enabled = retry_enabled
 
     def select(
         self,
@@ -321,6 +327,7 @@ class AsyncRequestBuilder:  #
             session=self.session,
             path=self.path,
             auth=self.auth,
+            retry_enabled=self.retry_enabled,
             params=params,
             http_method=method,
             headers=headers,
@@ -362,6 +369,7 @@ class AsyncRequestBuilder:  #
             session=self.session,
             path=self.path,
             auth=self.auth,
+            retry_enabled=self.retry_enabled,
             params=params,
             http_method=method,
             headers=headers,
@@ -407,6 +415,7 @@ class AsyncRequestBuilder:  #
             session=self.session,
             path=self.path,
             auth=self.auth,
+            retry_enabled=self.retry_enabled,
             params=params,
             http_method=method,
             headers=headers,
@@ -440,6 +449,7 @@ class AsyncRequestBuilder:  #
             session=self.session,
             path=self.path,
             auth=self.auth,
+            retry_enabled=self.retry_enabled,
             params=params,
             http_method=method,
             headers=headers,
@@ -470,6 +480,7 @@ class AsyncRequestBuilder:  #
             session=self.session,
             path=self.path,
             auth=self.auth,
+            retry_enabled=self.retry_enabled,
             params=params,
             http_method=method,
             headers=headers,

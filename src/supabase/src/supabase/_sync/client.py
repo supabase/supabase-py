@@ -187,6 +187,7 @@ class Client:
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
                 http_client=self.options.httpx_client,
+                retry_enabled=self.options.postgrest_client_retry,
             )
 
         return self._postgrest
@@ -255,7 +256,7 @@ class Client:
         verify: bool = True,
         proxy: Optional[str] = None,
         http_client: Union[SyncHttpxClient, None] = None,
-    ) -> SyncStorageClient:
+     ) -> SyncStorageClient:
         if http_client is not None:
             # If an http client is provided, use it
             return SyncStorageClient(
@@ -299,6 +300,7 @@ class Client:
         verify: bool = True,
         proxy: Optional[str] = None,
         http_client: Union[SyncHttpxClient, None] = None,
+        retry_enabled: bool = True,
     ) -> SyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         if http_client is not None:
@@ -314,6 +316,7 @@ class Client:
             verify=verify,
             proxy=proxy,
             http_client=None,
+            retry_enabled=retry_enabled,
         )
 
     def _create_auth_header(self, token: str) -> str:
