@@ -96,6 +96,7 @@ class Client:
         self._postgrest: Optional[SyncPostgrestClient] = None
         self._storage: Optional[SyncStorageClient] = None
         self._functions: Optional[SyncFunctionsClient] = None
+        self.auth.admin._headers = {**self.auth.admin._headers}
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
@@ -344,6 +345,7 @@ class Client:
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
         self.auth._headers["Authorization"] = auth_header
+        self.auth.admin._headers["Authorization"] = self._create_auth_header(self.supabase_key)
 
 
 def create_client(
