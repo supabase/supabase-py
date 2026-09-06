@@ -294,6 +294,16 @@ def test_or_(filter_request_builder):
     assert str(builder.request.params) == "or=%28x.eq.1%29"
 
 
+def test_not_or_(filter_request_builder):
+    builder = filter_request_builder.not_.or_("x.eq.1")
+
+    assert str(builder.request.params) == "not.or=%28x.eq.1%29"
+    assert not builder.negate_next
+
+    foreign = filter_request_builder.not_.or_("x.eq.1", reference_table="cities")
+    assert str(foreign.request.params) == "not.or=%28x.eq.1%29&cities.not.or=%28x.eq.1%29"
+
+
 def test_or_in_contain(filter_request_builder):
     builder = filter_request_builder.or_("id.in.(5,6,7), arraycol.cs.{'a','b'}")
 
