@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import sys
 from json import JSONDecodeError
@@ -75,6 +76,19 @@ class RequestConfig(Generic[C]):
         self.json = None if http_method in {"GET", "HEAD"} else json
         self.auth = auth
         self.retry_enabled = retry_enabled
+
+    def clone(self: Self) -> Self:
+        """Create an independent clone of this request configuration."""
+        return self.__class__(
+            session=self.session,
+            path=self.path,
+            http_method=self.http_method,
+            headers=Headers(self.headers),
+            params=QueryParams(self.params),
+            auth=self.auth,
+            json=copy.deepcopy(self.json) if self.json is not None else None,
+            retry_enabled=self.retry_enabled,
+        )
 
     @overload
     def send(
@@ -281,6 +295,12 @@ class BaseFilterRequestBuilder(Generic[C]):
     def __init__(self, request: RequestConfig[C]) -> None:
         self.request: RequestConfig[C] = request
         self.negate_next = False
+
+    def clone(self: Self) -> Self:
+        """Create a clone of this filter request builder with independent query parameters and headers."""
+        cloned = self.__class__(self.request.clone())
+        cloned.negate_next = self.negate_next
+        return cloned
 
     @property
     def not_(self: Self) -> Self:

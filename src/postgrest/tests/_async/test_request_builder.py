@@ -569,3 +569,41 @@ class TestApiResponse:
         )
         assert isinstance(result.data, str)
         assert result.data == csv_api_response
+
+
+class TestClone:
+    def test_request_builder_clone(self, request_builder: AsyncRequestBuilder):
+        cloned = request_builder.clone()
+        cloned.headers["X-Custom"] = "test-value"
+
+        assert "X-Custom" in cloned.headers
+        assert "X-Custom" not in request_builder.headers
+
+    def test_select_builder_clone_branching(
+        self, request_builder: AsyncRequestBuilder
+    ):
+        base = request_builder.select("*").eq("tenant_id", "t1")
+        branch_a = base.clone().order("created_at", desc=True).limit(10)
+        branch_b = base.clone().order("name").range(20, 30)
+
+        assert str(base.request.params) == "select=%2A&tenant_id=eq.t1"
+        assert (
+            str(branch_a.request.params)
+            == "select=%2A&tenant_id=eq.t1&order=created_at.desc&limit=10"
+        )
+        assert (
+            str(branch_b.request.params)
+            == "select=%2A&tenant_id=eq.t1&order=name.asc&offset=20&limit=11"
+        )
+
+    def test_single_builder_clone(self, request_builder: AsyncRequestBuilder):
+        single = request_builder.select("*").single()
+        cloned = single.clone()
+
+        cloned.request.headers["X-Single-Test"] = "val"
+
+        assert (
+            cloned.request.headers["Accept"] == "application/vnd.pgrst.object+json"
+        )
+        assert "X-Single-Test" in cloned.request.headers
+        assert "X-Single-Test" not in single.request.headers

@@ -3,10 +3,10 @@ from unittest.mock import patch
 
 import pytest
 from httpx import (
-    BasicAuth,
     Client,
-    Headers,
     HTTPTransport,
+    BasicAuth,
+    Headers,
     Limits,
     Request,
     Response,
@@ -48,6 +48,7 @@ class TestConstructor:
         )
         assert session.headers.items() >= headers.items()
 
+    @pytest.mark.asyncio
     def test_custom_headers(self):
         with SyncPostgrestClient(
             "https://example.com", schema="pub", headers={"Custom-Header": "value"}
@@ -66,6 +67,7 @@ class TestConstructor:
 
 
 class TestHttpxClientConstructor:
+    @pytest.mark.asyncio
     def test_custom_httpx_client(self) -> None:
         transport = HTTPTransport(
             retries=10,
@@ -113,14 +115,15 @@ def test_schema(postgrest_client: SyncPostgrestClient):
     assert subheaders.items() < client.headers.items()
 
 
-#
-# async def test_params_purged_after_execute(postgrest_client: SyncPostgrestClient):
+# @pytest.mark.asyncio
+# async def test_params_purged_after_execute(postgrest_client: AsyncPostgrestClient):
 #     assert len(postgrest_client.session.params) == 0
 #     with pytest.raises(APIError):
 #         await postgrest_client.from_("test").select("a", "b").eq("c", "d").execute()
 #     assert len(postgrest_client.session.params) == 0
 
 
+@pytest.mark.asyncio
 def test_response_status_code_outside_ok(postgrest_client: SyncPostgrestClient):
     with patch(
         "postgrest._sync.request_builder.SyncSelectRequestBuilder.execute",
@@ -149,8 +152,7 @@ def test_response_status_code_outside_ok(postgrest_client: SyncPostgrestClient):
 
 
 # https://github.com/supabase/postgrest-py/issues/595
-
-
+@pytest.mark.asyncio
 def test_response_client_invalid_response_but_valid_json(
     postgrest_client: SyncPostgrestClient,
 ):

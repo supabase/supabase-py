@@ -60,6 +60,10 @@ class AsyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def clone(self: Self) -> Self:
+        """Create a clone of this query request builder."""
+        return self.__class__(self.request.clone())
+
     def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
         _, params, _, _ = pre_select(*columns, count=None)
         self.request.params = self.request.params.add("select", params["select"])
@@ -102,6 +106,10 @@ class AsyncSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def clone(self: Self) -> Self:
+        """Create a clone of this single request builder."""
+        return self.__class__(self.request.clone())
+
     def retry(self, enabled: bool) -> Self:
         self.request.retry_enabled = enabled
         return self
@@ -135,6 +143,10 @@ class AsyncExplainRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def clone(self: Self) -> Self:
+        """Create a clone of this explain request builder."""
+        return self.__class__(self.request.clone())
+
     def retry(self, enabled: bool) -> Self:
         self.request.retry_enabled = enabled
         return self
@@ -154,6 +166,10 @@ class AsyncExplainRequestBuilder:
 class AsyncMaybeSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
+
+    def clone(self: Self) -> Self:
+        """Create a clone of this maybe single request builder."""
+        return self.__class__(self.request.clone())
 
     def retry(self, enabled: bool) -> Self:
         self.request.retry_enabled = enabled
@@ -300,6 +316,15 @@ class AsyncRequestBuilder:  #
         self.path = path
         self.headers = headers
         self.auth = auth
+
+    def clone(self: Self) -> Self:
+        """Create a clone of this request builder."""
+        return self.__class__(
+            session=self.session,
+            path=self.path,
+            headers=Headers(self.headers),
+            auth=self.auth,
+        )
 
     def select(
         self,

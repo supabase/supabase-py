@@ -17,9 +17,9 @@ from ..constants import (
 from ..types import CountMethod
 from ..version import __version__
 from .request_builder import (
-    RequestConfig,
     SyncRequestBuilder,
     SyncRPCFilterRequestBuilder,
+    RequestConfig,
 )
 
 
@@ -119,9 +119,9 @@ class SyncPostgrestClient(BasePostgrestClient):
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        self.aclose()
+        self.close()
 
-    def aclose(self) -> None:
+    def close(self) -> None:
         """Close the underlying HTTP connections."""
         self.session.close()
 
