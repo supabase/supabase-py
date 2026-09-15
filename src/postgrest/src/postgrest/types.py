@@ -4,9 +4,10 @@ import sys
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any, ClassVar, Protocol, Union, cast
+from typing import ClassVar, Protocol, Union, cast
 from uuid import UUID
 
+import pydantic_core
 from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
 from pydantic import TypeAdapter
 from typing_extensions import TypeAliasType
@@ -48,16 +49,18 @@ JSONSerializableInput = TypeAliasType(
     "Union[None, bool, str, int, float, datetime, date, time, UUID, Decimal, Sequence[JSONSerializableInput], Mapping[str, JSONSerializableInput], _TypedDictLike]",
 )
 
-_AnyAdapter: TypeAdapter = TypeAdapter(Any)
-
 
 def jsonable_encoder(value: JSONSerializableInput) -> JSON:
     """Convert datetime/date/time/UUID/Decimal values to JSON-safe primitives.
 
-    Plain JSON passes through unchanged. Mirrors the outbound handling in v3
-    (pydantic-based serialization) without changing the httpx request path.
+    Plain JSON passes through unchanged, including non-finite floats, which are
+    kept as-is instead of silently becoming null. Mirrors the outbound handling
+    in v3 (pydantic-based serialization) without changing the httpx request path.
     """
-    return cast(JSON, _AnyAdapter.dump_python(value, mode="json"))
+    return cast(
+        JSON,
+        pydantic_core.to_jsonable_python(value, inf_nan_mode="constants"),
+    )
 
 
 class CountMethod(StrEnum):

@@ -1,4 +1,5 @@
 import json
+import math
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, AsyncIterable, Dict, List
@@ -674,3 +675,13 @@ class TestWriteSerializableTypes:
         }
 
         assert request_builder.insert(body).request.json == body
+
+    def test_non_finite_floats_pass_through(self, request_builder):
+        body = {"nan": float("nan"), "inf": float("inf"), "ninf": float("-inf")}
+
+        encoded = request_builder.insert(body).request.json
+
+        assert math.isnan(encoded["nan"])
+        assert encoded["inf"] == float("inf")
+        assert encoded["ninf"] == float("-inf")
+        assert json.dumps(encoded) == json.dumps(body)
