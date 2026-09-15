@@ -6,7 +6,13 @@ import pytest
 from httpx import AsyncClient, Client, Headers, Request, Response, Timeout
 from storage3 import AsyncStorageClient, SyncStorageClient
 from storage3._async.file_api import AsyncBucketProxy
+from storage3._async.file_api import (
+    relative_path_to_parts as async_relative_path_to_parts,
+)
 from storage3._sync.file_api import SyncBucketProxy
+from storage3._sync.file_api import (
+    relative_path_to_parts as sync_relative_path_to_parts,
+)
 from storage3.constants import DEFAULT_TIMEOUT
 from storage3.exceptions import StorageApiError
 from yarl import URL
@@ -409,3 +415,54 @@ async def test_async_bucket_proxy_exists_false_on_headless_error() -> None:
         proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
     ):
         assert await proxy.exists("missing.txt") is False
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("folder/what?.png", ("folder", "what?.png")),
+        ("a#b.png", ("a#b.png",)),
+        ("/leading/slash.png", ("leading", "slash.png")),
+        ("a%20b.png", ("a b.png",)),
+    ],
+)
+def test_relative_path_to_parts_keeps_query_and_fragment_characters(
+    path: str, expected: tuple[str, ...]
+) -> None:
+    assert async_relative_path_to_parts(path) == expected
+    assert sync_relative_path_to_parts(path) == expected
+
+
+@pytest.mark.asyncio
+async def test_async_upload_does_not_truncate_path_at_question_mark() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(
+        proxy._client,
+        "request",
+        new_callable=AsyncMock,
+        return_value=_mock_upload_response(),
+    ) as request:
+        await proxy.upload("folder/what?.png", b"hello")
+
+    assert request.call_args.args[1] == (
+        "https://example.com/storage/v1/object/bucket/folder/what%3F.png"
+    )
+
+
+def test_sync_upload_does_not_truncate_path_at_question_mark() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(
+        proxy._client, "request", return_value=_mock_upload_response()
+    ) as request:
+        proxy.upload("folder/what?.png", b"hello")
+
+    assert request.call_args.args[1] == (
+        "https://example.com/storage/v1/object/bucket/folder/what%3F.png"
+    )
+
+
+def test_sync_get_public_url_does_not_truncate_path_at_question_mark() -> None:
+    proxy = _sync_bucket_proxy()
+    assert proxy.get_public_url("what?.png") == (
+        "https://example.com/storage/v1/object/public/bucket/what%3F.png"
+    )

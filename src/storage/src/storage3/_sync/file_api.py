@@ -40,7 +40,9 @@ __all__ = ["SyncBucket"]
 
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
-    url = URL(path)
+    # "?" and "#" are valid in object keys, so they must not be parsed as the
+    # start of a query string or fragment, which would truncate the path.
+    url = URL(path.replace("?", "%3F").replace("#", "%23"))
     if url.absolute or url.parts[0] == "/":
         return url.parts[1:]
     return url.parts
