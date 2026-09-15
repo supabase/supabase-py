@@ -4,7 +4,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any, Union
+from typing import Any, ClassVar, Protocol, Union, cast
 from uuid import UUID
 
 from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
@@ -32,16 +32,32 @@ JSONSerializable = TypeAliasType(
     "Union[None, bool, str, int, float, datetime, date, time, UUID, Decimal, Sequence[JSONSerializable], Mapping[str, JSONSerializable]]",
 )
 
+
+class _TypedDictLike(Protocol):
+    # Every TypedDict class defines these attributes and plain mappings don't.
+    # Needed because neither mypy nor pyright accepts a TypedDict where a
+    # Mapping with concrete value types is expected.
+    __required_keys__: ClassVar[frozenset[str]]
+    __optional_keys__: ClassVar[frozenset[str]]
+
+
+# Write inputs additionally accept TypedDict rows, while plain mappings still
+# have to satisfy the strict JSONSerializable value types above.
+JSONSerializableInput = TypeAliasType(
+    "JSONSerializableInput",
+    "Union[None, bool, str, int, float, datetime, date, time, UUID, Decimal, Sequence[JSONSerializableInput], Mapping[str, JSONSerializableInput], _TypedDictLike]",
+)
+
 _AnyAdapter: TypeAdapter = TypeAdapter(Any)
 
 
-def jsonable_encoder(value: JSONSerializable) -> JSON:
+def jsonable_encoder(value: JSONSerializableInput) -> JSON:
     """Convert datetime/date/time/UUID/Decimal values to JSON-safe primitives.
 
     Plain JSON passes through unchanged. Mirrors the outbound handling in v3
     (pydantic-based serialization) without changing the httpx request path.
     """
-    return _AnyAdapter.dump_python(value, mode="json")
+    return cast(JSON, _AnyAdapter.dump_python(value, mode="json"))
 
 
 class CountMethod(StrEnum):

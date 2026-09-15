@@ -45,7 +45,7 @@ from .types import (
     CountMethod,
     Filters,
     JSONAdapter,
-    JSONSerializable,
+    JSONSerializableInput,
     RequestMethod,
     ReturnMethod,
     jsonable_encoder,
@@ -58,7 +58,7 @@ class QueryArgs(NamedTuple):
     method: RequestMethod
     params: QueryParams
     headers: Headers
-    json: JSONSerializable
+    json: JSONSerializableInput
 
 
 C = TypeVar("C", Client, AsyncClient)
@@ -74,7 +74,7 @@ class RequestConfig(Generic[C]):
         headers: Headers,
         params: QueryParams,
         auth: BasicAuth | None,
-        json: JSONSerializable,
+        json: JSONSerializableInput,
         retry_enabled: bool = True,
     ) -> None:
         self.session: C = session
@@ -155,7 +155,7 @@ def pre_select(
 
 
 def pre_insert(
-    json: JSONSerializable,
+    json: JSONSerializableInput,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -178,7 +178,7 @@ def pre_insert(
 
 
 def pre_upsert(
-    json: JSONSerializable,
+    json: JSONSerializableInput,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,
@@ -204,7 +204,7 @@ def pre_upsert(
 
 
 def pre_update(
-    json: JSONSerializable,
+    json: JSONSerializableInput,
     *,
     count: Optional[CountMethod],
     returning: ReturnMethod,

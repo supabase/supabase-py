@@ -576,6 +576,24 @@ class MovieInsert(TypedDict):
     id: UUID
 
 
+def _generated_typeddict_writes_type_check(builder: AsyncRequestBuilder) -> None:
+    row = MovieInsert(
+        name="foo",
+        created_at=datetime(2024, 1, 2, 3, 4, 5),
+        id=UUID("12345678-1234-5678-1234-567812345678"),
+    )
+    builder.insert(row)
+    builder.upsert([row])
+    builder.update(row)
+
+
+def _reject_unserializable_mapping(builder: AsyncRequestBuilder) -> None:
+    # A plain mapping with object values must stay a type error; an unused
+    # ignore here means the strict JSON alias regressed.
+    body: dict[str, object] = {"name": object()}
+    builder.update(body)  # type: ignore[arg-type]
+
+
 class TestWriteSerializableTypes:
     """insert/upsert/update accept CLI-generated types (#1443)."""
 
