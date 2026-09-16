@@ -1139,7 +1139,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         event: AuthChangeEvent,
         session: Optional[Session],
     ) -> None:
-        for subscription in self._state_change_emitters.values():
+        for subscription in list(self._state_change_emitters.values()):
             subscription.callback(event, session)
 
     def _get_valid_session(
