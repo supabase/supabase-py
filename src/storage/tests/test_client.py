@@ -3,7 +3,7 @@ from typing import Any, Dict, Mapping
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, Client, Headers, Request, Response, Timeout
+from httpx2 import AsyncClient, Client, Headers, Request, Response, Timeout
 from storage3 import AsyncStorageClient, SyncStorageClient
 from storage3._async.file_api import AsyncBucketProxy
 from storage3._sync.file_api import SyncBucketProxy

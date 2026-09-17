@@ -3,7 +3,7 @@ from typing import Dict
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, HTTPError, Response, Timeout
+from httpx2 import AsyncClient, HTTPError, Response, Timeout
 
 # Import the class to test
 from supabase_functions import AsyncFunctionsClient
@@ -207,13 +207,13 @@ async def test_invoke_with_json_body(client: AsyncFunctionsClient) -> None:
 
 
 async def test_init_with_httpx_client() -> None:
-    # Create a custom httpx client with specific options
+    # Create a custom httpx2 client with specific options
     headers = {"x-user-agent": "my-app/0.0.1"}
     custom_client = AsyncClient(
         timeout=Timeout(30), follow_redirects=True, max_redirects=5, headers=headers
     )
 
-    # Initialize the functions client with the custom httpx client
+    # Initialize the functions client with the custom httpx2 client
     client = AsyncFunctionsClient(
         url="https://example.com",
         headers={"Authorization": "Bearer token"},

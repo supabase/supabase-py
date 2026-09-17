@@ -3,7 +3,7 @@ import copy
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from httpx import Timeout
+from httpx2 import Timeout
 from postgrest import (
     AsyncPostgrestClient,
     AsyncRequestBuilder,

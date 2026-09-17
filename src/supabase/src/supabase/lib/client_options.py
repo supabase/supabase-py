@@ -2,9 +2,9 @@ import platform
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Union
 
-from httpx import AsyncClient as AsyncHttpxClient
-from httpx import Client as SyncHttpxClient
-from httpx import Timeout
+from httpx2 import AsyncClient as AsyncHttpxClient
+from httpx2 import Client as SyncHttpxClient
+from httpx2 import Timeout
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_auth import (
@@ -72,7 +72,7 @@ class AsyncClientOptions(ClientOptions):
     """A storage provider. Used to store the logged in session."""
 
     httpx_client: Optional[AsyncHttpxClient] = None
-    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
+    """httpx2 client instance to be used by the PostgREST, functions, auth and storage clients."""
 
     def replace(
         self,
@@ -119,7 +119,7 @@ class SyncClientOptions(ClientOptions):
     storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
     httpx_client: Optional[SyncHttpxClient] = None
-    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
+    """httpx2 client instance to be used by the PostgREST, functions, auth and storage clients."""
 
     def replace(
         self,

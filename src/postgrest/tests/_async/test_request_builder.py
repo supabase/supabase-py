@@ -1,7 +1,7 @@
 from typing import Any, AsyncIterable, Dict, List
 
 import pytest
-from httpx import AsyncClient, Headers, QueryParams, Request, Response
+from httpx2 import AsyncClient, Headers, QueryParams, Request, Response
 from yarl import URL
 
 from postgrest import AsyncRequestBuilder, AsyncSingleRequestBuilder

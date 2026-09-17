@@ -1,6 +1,6 @@
 from typing import Optional
 
-from httpx import Client, Headers, HTTPStatusError, QueryParams, Response
+from httpx2 import Client, Headers, HTTPStatusError, QueryParams, Response
 from pydantic import ValidationError
 from yarl import URL
 

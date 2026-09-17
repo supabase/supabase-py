@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from httpx import AsyncClient, QueryParams
+from httpx2 import AsyncClient, QueryParams
 
 from ..helpers import (
     model_validate,

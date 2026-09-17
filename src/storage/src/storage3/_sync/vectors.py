@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from httpx import Client, Headers
+from httpx2 import Client, Headers
 from yarl import URL
 
 from ..exceptions import StorageApiError, VectorBucketException

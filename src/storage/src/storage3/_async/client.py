@@ -5,7 +5,7 @@ import sys
 from typing import Optional
 from warnings import warn
 
-from httpx import AsyncClient, Headers
+from httpx2 import AsyncClient, Headers
 
 from storage3.constants import DEFAULT_TIMEOUT
 

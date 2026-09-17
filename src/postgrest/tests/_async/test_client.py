@@ -2,7 +2,7 @@ import re
 from unittest.mock import patch
 
 import pytest
-from httpx import (
+from httpx2 import (
     AsyncClient,
     AsyncHTTPTransport,
     BasicAuth,
@@ -85,7 +85,7 @@ class TestHttpxClientConstructor:
             assert str(client.base_url) == "https://example.com"
             assert client.session.timeout == Timeout(
                 timeout=5.0
-            )  # Should be the default 5 since we use custom httpx client
+            )  # Should be the default 5 since we use custom httpx2 client
             assert client.session.headers.get("x-user-agent") == "my-app/0.0.1"
             assert isinstance(client.session, AsyncClient)
 
@@ -157,7 +157,7 @@ async def test_response_client_invalid_response_but_valid_json(
     postgrest_client: AsyncPostgrestClient,
 ):
     with patch(
-        "httpx._client.AsyncClient.request",
+        "httpx2._client.AsyncClient.request",
         return_value=Response(
             status_code=502,
             text='"gateway error: Error: Network connection lost."',  # quotes makes this text a valid non-dict JSON object

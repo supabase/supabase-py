@@ -1,4 +1,4 @@
-from httpx import Client, HTTPTransport, Limits
+from httpx2 import Client, HTTPTransport, Limits
 
 from postgrest import SyncPostgrestClient
 

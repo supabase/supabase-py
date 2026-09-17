@@ -3,7 +3,7 @@ from typing import Dict
 from unittest.mock import Mock, patch
 
 import pytest
-from httpx import Client, HTTPError, Response, Timeout
+from httpx2 import Client, HTTPError, Response, Timeout
 
 # Import the class to test
 from supabase_functions import SyncFunctionsClient
@@ -191,13 +191,13 @@ def test_invoke_with_json_body(client: SyncFunctionsClient) -> None:
 
 
 def test_init_with_httpx_client() -> None:
-    # Create a custom httpx client with specific options
+    # Create a custom httpx2 client with specific options
     headers = {"x-user-agent": "my-app/0.0.1"}
     custom_client = Client(
         timeout=Timeout(30), follow_redirects=True, max_redirects=5, headers=headers
     )
 
-    # Initialize the functions client with the custom httpx client
+    # Initialize the functions client with the custom httpx2 client
     client = SyncFunctionsClient(
         url="https://example.com",
         headers={"Authorization": "Bearer token"},

@@ -3,8 +3,8 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from httpx import AsyncClient as AsyncHttpxClient
-from httpx import AsyncHTTPTransport, Limits, Timeout
+from httpx2 import AsyncClient as AsyncHttpxClient
+from httpx2 import AsyncHTTPTransport, Limits, Timeout
 from supabase_auth import AsyncMemoryStorage
 
 from supabase import (
@@ -188,7 +188,7 @@ async def test_httpx_client() -> None:
     async with AsyncHttpxClient(
         transport=transport, headers=headers, timeout=Timeout(2.0)
     ) as http_client:
-        # Create a client with the custom httpx client
+        # Create a client with the custom httpx2 client
         options = AsyncClientOptions(httpx_client=http_client)
 
         client = await create_async_client(url, key, options)
@@ -250,7 +250,7 @@ async def test_httpx_client_base_url_isolation() -> None:
     url = os.environ["SUPABASE_TEST_URL"]
     key = os.environ["SUPABASE_TEST_KEY"]
 
-    # Create client with shared httpx instance
+    # Create client with shared httpx2 instance
     timeout = Timeout(10.0, read=60.0)
     httpx_client = AsyncHttpxClient(timeout=timeout)
     options = AsyncClientOptions(httpx_client=httpx_client)

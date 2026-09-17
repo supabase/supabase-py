@@ -20,14 +20,14 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent"
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
   "realtime == 2.31.0", # x-release-please-version
   "supabase_functions == 2.31.0", # x-release-please-version
   "storage3 == 2.31.0", # x-release-please-version
   "supabase_auth == 2.31.0", # x-release-please-version
   "postgrest == 2.31.0", # x-release-please-version
-  "httpx >=0.26,<0.29",
+  "httpx2>=2.12.0",
   "yarl>=1.22.0",
 ]
 

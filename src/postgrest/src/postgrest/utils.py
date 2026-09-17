@@ -4,8 +4,8 @@ from typing import Any, Type, TypeVar, cast, get_origin
 from urllib.parse import urlparse
 
 from deprecation import deprecated
-from httpx import AsyncClient  # noqa: F401
-from httpx import Client as BaseClient  # noqa: F401
+from httpx2 import AsyncClient  # noqa: F401
+from httpx2 import Client as BaseClient  # noqa: F401
 from pydantic import BaseModel
 from yarl import URL
 
@@ -14,7 +14,7 @@ from .version import __version__
 
 class SyncClient(BaseClient):
     @deprecated(
-        "1.0.2", "3.0.0", __version__, "Use `Client` from the httpx package instead"
+        "1.0.2", "3.0.0", __version__, "Use `Client` from the httpx2 package instead"
     )
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -23,7 +23,7 @@ class SyncClient(BaseClient):
         "1.0.2",
         "3.0.0",
         __version__,
-        "Use `close` method from `Client` in the httpx package instead",
+        "Use `close` method from `Client` in the httpx2 package instead",
     )
     def aclose(self) -> None:
         self.close()

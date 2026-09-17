@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Union
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, Timeout
+from httpx2 import AsyncClient, BasicAuth, Client, Headers, Timeout
 from yarl import URL
 
 from .utils import is_http_url

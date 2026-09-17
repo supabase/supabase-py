@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
-from httpx import Client, Headers, HTTPStatusError, Response
+from httpx2 import Client, Headers, HTTPStatusError, Response
 from storage3 import SyncBucket, SyncStorageBucketAPI
 from storage3.exceptions import StorageApiError
 from storage3.types import CreateOrUpdateBucketOptions

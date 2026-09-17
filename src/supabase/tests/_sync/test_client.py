@@ -3,8 +3,8 @@ from typing import Any
 from unittest.mock import MagicMock, Mock
 
 import pytest
-from httpx import Client as SyncHttpxClient
-from httpx import HTTPTransport, Limits, Timeout
+from httpx2 import Client as SyncHttpxClient
+from httpx2 import HTTPTransport, Limits, Timeout
 from supabase_auth import SyncMemoryStorage
 
 from supabase import (
@@ -188,7 +188,7 @@ def test_httpx_client() -> None:
     with SyncHttpxClient(
         transport=transport, headers=headers, timeout=Timeout(2.0)
     ) as http_client:
-        # Create a client with the custom httpx client
+        # Create a client with the custom httpx2 client
         options = ClientOptions(httpx_client=http_client)
 
         client = create_client(url, key, options)
@@ -250,7 +250,7 @@ def test_httpx_client_base_url_isolation() -> None:
     url = os.environ["SUPABASE_TEST_URL"]
     key = os.environ["SUPABASE_TEST_KEY"]
 
-    # Create client with shared httpx instance
+    # Create client with shared httpx2 instance
     timeout = Timeout(10.0, read=60.0)
     httpx_client = SyncHttpxClient(timeout=timeout)
     options = ClientOptions(httpx_client=httpx_client)

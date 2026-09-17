@@ -1,7 +1,7 @@
 from typing import AsyncIterable
 
 import pytest
-from httpx import AsyncClient, Headers, QueryParams
+from httpx2 import AsyncClient, Headers, QueryParams
 from yarl import URL
 
 from postgrest import AsyncFilterRequestBuilder

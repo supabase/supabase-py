@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 from warnings import warn
 
-from httpx import AsyncClient, QueryParams, Response
+from httpx2 import AsyncClient, QueryParams, Response
 from jwt import get_algorithm_by_name
 from typing_extensions import cast
 
@@ -400,7 +400,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
         captcha_token = options.get("captcha_token")
-        # HTTPX currently does not follow redirects: https://www.python-httpx.org/compatibility/
+        # HTTPX currently does not follow redirects: https://www.python-httpx2.org/compatibility/
         # Additionally, unlike the JS client, Python is a server side language and it's not possible
         # to automatically redirect in browser for the user
         skip_http_redirect = options.get("skip_http_redirect", True)

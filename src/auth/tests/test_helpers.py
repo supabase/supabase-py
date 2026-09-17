@@ -1,10 +1,10 @@
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import httpx
+import httpx2
 import pytest
 import respx
-from httpx import Headers, HTTPStatusError, Response
+from httpx2 import Headers, HTTPStatusError, Response
 from pydantic import BaseModel
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
@@ -47,7 +47,7 @@ def test_handle_exception_with_api_version_and_error_code() -> None:
             side_effect=AuthApiError("Error code message", 400, "unexpected_failure"),
         )
         with pytest.raises(AuthApiError, match=r"Error code message") as exc:
-            httpx.get(f"{TEST_URL}/hello-world")
+            httpx2.get(f"{TEST_URL}/hello-world")
         assert exc.value is not None
         assert exc.value.message == "Error code message"
         assert exc.value.code == err["code"]
@@ -69,7 +69,7 @@ def test_handle_exception_without_api_version_and_weak_password_error_code() -> 
             ),
         )
         with pytest.raises(AuthWeakPasswordError, match=r"Error code message") as exc:
-            httpx.get(f"{TEST_URL}/hello-world")
+            httpx2.get(f"{TEST_URL}/hello-world")
         assert exc.value is not None
         assert exc.value.message == "Error code message"
         assert exc.value.code == err["code"]
@@ -89,7 +89,7 @@ def test_handle_exception_with_api_version_2024_01_01_and_error_code() -> None:
             side_effect=AuthApiError("Error code message", 400, "unexpected_failure"),
         )
         with pytest.raises(AuthApiError, match=r"Error code message") as exc:
-            httpx.get(f"{TEST_URL}/hello-world")
+            httpx2.get(f"{TEST_URL}/hello-world")
         assert exc.value is not None
         assert exc.value.message == "Error code message"
         assert exc.value.code == err["code"]
@@ -337,12 +337,15 @@ def test_handle_exception_weak_password_branch() -> None:
     This test attempts to test the branch where weak_password needs to be both a dict and a list,
     which is logically impossible, so we'll test it by mocking the implementation details.
     """
-    import httpx
+    try:
+        import httpx2 as httpx2
+    except ImportError:
+        import httpx2
     from supabase_auth.errors import AuthWeakPasswordError
     from supabase_auth.helpers import handle_exception
 
     # Create a proper mock Response with headers
-    mock_response = MagicMock(spec=httpx.Response)
+    mock_response = MagicMock(spec=httpx2.Response)
     mock_response.status_code = 400
     mock_response.headers = {}
 
@@ -359,8 +362,8 @@ def test_handle_exception_weak_password_branch() -> None:
     }
 
     # Create a proper HTTPStatusError
-    exception = httpx.HTTPStatusError(
-        "Password error", request=MagicMock(spec=httpx.Request), response=mock_response
+    exception = httpx2.HTTPStatusError(
+        "Password error", request=MagicMock(spec=httpx2.Request), response=mock_response
     )
 
     # We need to directly target the specific branch handling weak passwords
