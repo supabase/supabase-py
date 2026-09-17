@@ -26,8 +26,10 @@ from .base_request_builder import APIResponse
 from .constants import DEFAULT_POSTGREST_CLIENT_HEADERS
 from .exceptions import APIError
 from .types import (
+    JSON,
     CountMethod,
     Filters,
+    Json,
     RequestMethod,
     ReturnMethod,
 )
@@ -55,6 +57,8 @@ __all__ = [
     "APIError",
     "CountMethod",
     "Filters",
+    "JSON",
+    "Json",
     "RequestMethod",
     "ReturnMethod",
     "Timeout",
