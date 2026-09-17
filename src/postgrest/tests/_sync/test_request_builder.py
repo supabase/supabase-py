@@ -1,13 +1,20 @@
+import json
+import math
+from datetime import date, datetime, time
+from decimal import Decimal
 from typing import Any, Dict, Iterable, List
+from uuid import UUID
 
 import pytest
 from httpx import Client, Headers, QueryParams, Request, Response
+from pydantic import TypeAdapter
+from typing_extensions import TypedDict
 from yarl import URL
 
 from postgrest import SyncRequestBuilder, SyncSingleRequestBuilder
 from postgrest._async.request_builder import RequestConfig
 from postgrest.base_request_builder import APIResponse, SingleAPIResponse
-from postgrest.types import JSON, CountMethod, ReturnMethod
+from postgrest.types import JSON, CountMethod, JSONSerializable, ReturnMethod
 
 
 @pytest.fixture
@@ -569,3 +576,121 @@ class TestApiResponse:
         )
         assert isinstance(result.data, str)
         assert result.data == csv_api_response
+
+
+class MovieInsert(TypedDict):
+    """Mimics a Supabase CLI-generated insert type with non-strict-JSON fields."""
+
+    name: str
+    created_at: datetime
+    id: UUID
+
+
+def _generated_typeddict_writes_type_check(builder: SyncRequestBuilder) -> None:
+    row = MovieInsert(
+        name="foo",
+        created_at=datetime(2024, 1, 2, 3, 4, 5),
+        id=UUID("12345678-1234-5678-1234-567812345678"),
+    )
+    builder.insert(row)
+    builder.upsert([row])
+    builder.update(row)
+
+
+def _reject_unserializable_mapping(builder: SyncRequestBuilder) -> None:
+    # A plain mapping with object values must stay a type error; an unused
+    # ignore here means the strict JSON alias regressed.
+    body: dict[str, object] = {"name": object()}
+    builder.update(body)  # type: ignore[arg-type]
+
+
+class TestWriteSerializableTypes:
+    """insert/upsert/update accept CLI-generated types (#1443)."""
+
+    def test_generated_typeddict_validates_as_serializable(self):
+        TypeAdapter(JSONSerializable).validate_python(
+            {
+                "name": "foo",
+                "created_at": datetime(2024, 1, 2, 3, 4, 5),
+                "id": UUID("12345678-1234-5678-1234-567812345678"),
+            }
+        )
+
+    def test_insert_serializes_generated_types(self, request_builder):
+        builder = request_builder.insert(
+            MovieInsert(
+                name="foo",
+                created_at=datetime(2024, 1, 2, 3, 4, 5),
+                id=UUID("12345678-1234-5678-1234-567812345678"),
+            )
+        )
+
+        assert builder.request.json == {
+            "name": "foo",
+            "created_at": "2024-01-02T03:04:05",
+            "id": "12345678-1234-5678-1234-567812345678",
+        }
+        # Previously raised TypeError inside httpx's stdlib json.dumps
+        assert json.loads(json.dumps(builder.request.json)) == builder.request.json
+
+    def test_insert_serializes_date_time_decimal(self, request_builder):
+        builder = request_builder.insert(
+            {
+                "day": date(2024, 1, 2),
+                "at": time(3, 4, 5),
+                "amount": Decimal("1.5"),
+            }
+        )
+
+        assert builder.request.json == {
+            "day": "2024-01-02",
+            "at": "03:04:05",
+            "amount": "1.5",
+        }
+        assert json.loads(json.dumps(builder.request.json)) == builder.request.json
+
+    def test_upsert_bulk_serializes_generated_types(self, request_builder):
+        builder = request_builder.upsert(
+            [
+                {
+                    "name": "foo",
+                    "created_at": datetime(2024, 1, 2, 3, 4, 5),
+                }
+            ]
+        )
+
+        assert builder.request.json == [
+            {"name": "foo", "created_at": "2024-01-02T03:04:05"}
+        ]
+        assert set(builder.request.params["columns"].split(",")) == set(
+            '"name","created_at"'.split(",")
+        )
+        assert json.loads(json.dumps(builder.request.json)) == builder.request.json
+
+    def test_update_serializes_generated_types(self, request_builder):
+        builder = request_builder.update({"created_at": datetime(2024, 1, 2, 3, 4, 5)})
+
+        assert builder.request.json == {"created_at": "2024-01-02T03:04:05"}
+        assert json.loads(json.dumps(builder.request.json)) == builder.request.json
+
+    def test_plain_json_body_unchanged(self, request_builder):
+        body = {
+            "key1": "val1",
+            "n": 1,
+            "f": 1.5,
+            "b": True,
+            "z": None,
+            "l": [1, "a", {"k": "v"}],
+        }
+
+        assert request_builder.insert(body).request.json == body
+
+    def test_non_finite_floats_pass_through(self, request_builder):
+        body = {"nan": float("nan"), "inf": float("inf"), "ninf": float("-inf")}
+
+        encoded = request_builder.insert(body).request.json
+
+        assert math.isnan(encoded["nan"])
+        assert encoded["inf"] == float("inf")
+        assert encoded["ninf"] == float("-inf")
+        assert json.dumps(encoded) == json.dumps(body)
