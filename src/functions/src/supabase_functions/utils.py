@@ -1,7 +1,9 @@
 import sys
+from typing import Optional
 from urllib.parse import urlparse
 
 from httpx import AsyncClient as AsyncClient  # noqa: F401
+from httpx import Response
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -11,6 +13,25 @@ else:
 
 DEFAULT_FUNCTION_CLIENT_TIMEOUT = 5
 BASE64URL_REGEX = r"^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$"
+
+
+def get_error_message(response: Response) -> Optional[str]:
+    """Return the ``error`` field of a JSON error body, or None if it is absent.
+
+    A failing edge function does not always answer with a JSON object: a
+    gateway can return HTML or plain text, and a body can be a valid JSON
+    array or string. Calling ``.json()["error"]`` on those raises instead of
+    reporting the failure, so callers lose the error they were trying to read.
+    """
+    try:
+        data = response.json()
+    except ValueError:
+        return None
+
+    if isinstance(data, dict):
+        return data.get("error")
+
+    return None
 
 
 class FunctionRegion(StrEnum):

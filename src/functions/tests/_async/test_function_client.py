@@ -1,9 +1,10 @@
 import re
+from json import JSONDecodeError
 from typing import Dict
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, HTTPError, Response, Timeout
+from httpx import AsyncClient, HTTPError, HTTPStatusError, Request, Response, Timeout
 
 # Import the class to test
 from supabase_functions import AsyncFunctionsClient
@@ -149,6 +150,52 @@ async def test_invoke_with_http_error(client: AsyncFunctionsClient) -> None:
         mock_request.return_value = mock_response
 
         with pytest.raises(FunctionsHttpError, match="Custom error message"):
+            await client.invoke("test-function")
+
+
+async def test_invoke_with_non_json_error_body(client: AsyncFunctionsClient) -> None:
+    """A gateway failure returns HTML, not JSON — that must still be a FunctionsHttpError."""
+    mock_response = Mock(spec=Response)
+    mock_response.json.side_effect = JSONDecodeError("Expecting value", "", 0)
+    mock_response.raise_for_status.side_effect = HTTPStatusError(
+        "HTTP Error",
+        request=Request(
+            "POST", "https://example.supabase.co/functions/v1/test-function"
+        ),
+        response=mock_response,
+    )
+    mock_response.headers = {}
+    mock_response.status_code = 504
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        with pytest.raises(FunctionsHttpError, match="An error occurred"):
+            await client.invoke("test-function")
+
+
+async def test_invoke_with_non_object_error_body(client: AsyncFunctionsClient) -> None:
+    """A JSON body that is not an object has no `error` key to read."""
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = ["boom"]
+    mock_response.raise_for_status.side_effect = HTTPStatusError(
+        "HTTP Error",
+        request=Request(
+            "POST", "https://example.supabase.co/functions/v1/test-function"
+        ),
+        response=mock_response,
+    )
+    mock_response.headers = {}
+    mock_response.status_code = 500
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        with pytest.raises(FunctionsHttpError, match="An error occurred"):
             await client.invoke("test-function")
 
 

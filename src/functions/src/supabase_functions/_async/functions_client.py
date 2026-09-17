@@ -9,6 +9,7 @@ from yarl import URL
 from ..errors import FunctionsHttpError, FunctionsRelayError
 from ..utils import (
     FunctionRegion,
+    get_error_message,
     is_http_url,
     is_valid_str_arg,
 )
@@ -103,7 +104,7 @@ class AsyncFunctionsClient:
                 status_code = response.status_code
 
             raise FunctionsHttpError(
-                response.json().get("error")
+                get_error_message(response)
                 or f"An error occurred while requesting your edge function at {exc.request.url!r}.",
                 status_code,
             ) from exc
@@ -168,7 +169,7 @@ class AsyncFunctionsClient:
         is_relay_error = response.headers.get("x-relay-header")
 
         if is_relay_error and is_relay_error == "true":
-            raise FunctionsRelayError(response.json().get("error"))
+            raise FunctionsRelayError(get_error_message(response))
 
         if response_type == "json":
             data = response.json()
