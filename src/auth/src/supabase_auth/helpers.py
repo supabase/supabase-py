@@ -18,6 +18,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 from .constants import (
     API_VERSION_HEADER_NAME,
     API_VERSIONS_2024_01_01_TIMESTAMP,
+    PKCE_FLOW_ID_PATTERN,
 )
 from .errors import (
     AuthApiError,
@@ -258,6 +259,42 @@ def generate_pkce_challenge(code_verifier) -> str:
     sha256_hash = hashlib.sha256(verifier_bytes).digest()
 
     return base64.urlsafe_b64encode(sha256_hash).rstrip(b"=").decode("utf-8")
+
+
+def generate_pkce_flow_id() -> str:
+    """Generate an identifier for one PKCE flow (32 lowercase hex characters)."""
+    return secrets.token_hex(16)
+
+
+def validate_pkce_flow_id(flow_id: Any) -> Optional[str]:
+    """Return ``flow_id`` if it is safe to embed in a storage key, else ``None``.
+
+    Flow ids come from callers and from values read back out of storage, so
+    they are treated as untrusted input everywhere.
+    """
+    if isinstance(flow_id, str) and re.match(PKCE_FLOW_ID_PATTERN, flow_id):
+        return flow_id
+    return None
+
+
+def pkce_legacy_verifier_key(storage_key: str) -> str:
+    """Storage key of the single shared code verifier used before per-flow slots."""
+    return f"{storage_key}-code-verifier"
+
+
+def pkce_verifier_slot_key(storage_key: str, flow_id: str) -> str:
+    """Storage key holding the code verifier of one PKCE flow.
+
+    The key deliberately ends in ``-code-verifier`` and contains no dot so that
+    it is handled like the legacy key by storage adapters that special-case
+    verifier keys (for example cookie based adapters).
+    """
+    return f"{storage_key}-flow-{flow_id}-code-verifier"
+
+
+def pkce_flow_index_key(storage_key: str) -> str:
+    """Storage key of the ordered list of pending PKCE flow ids (oldest first)."""
+    return f"{storage_key}-flows-code-verifier"
 
 
 API_VERSION_REGEX = r"^2[0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])$"

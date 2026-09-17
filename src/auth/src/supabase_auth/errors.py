@@ -70,6 +70,7 @@ ErrorCode = Literal[
     "over_email_send_rate_limit",
     "over_sms_send_rate_limit",
     "bad_code_verifier",
+    "pkce_code_verifier_not_found",
     "anonymous_provider_disabled",
     "hook_timeout",
     "hook_timeout_after_retry",
@@ -158,6 +159,20 @@ class AuthSessionMissingError(CustomAuthError):
             "AuthSessionMissingError",
             400,
             None,
+        )
+
+
+class AuthPKCECodeVerifierMissingError(CustomAuthError):
+    def __init__(self) -> None:
+        CustomAuthError.__init__(
+            self,
+            "PKCE code verifier not found in storage. This can happen if the "
+            "auth flow was started with a different client or storage, if the "
+            "storage was cleared, or if the flow id does not match a pending "
+            "flow.",
+            "AuthPKCECodeVerifierMissingError",
+            400,
+            "pkce_code_verifier_not_found",
         )
 
 
