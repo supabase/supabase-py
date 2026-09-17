@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Tasks{% endblock %}
+{% block content %}
+<h1>Tasks</h1>
+<form id="create-task-form">
+  <input id="task-title" placeholder="New task title" required>
+  <button type="submit">+ Add Task</button>
+</form>
+<div id="tasks-list"></div>
+
+<h2>Live Event Feed</h2>
+<small>Events broadcast by the Python engine when rules fire</small>
+<div id="events-feed"></div>
+
+<h2>Online Now</h2>
+<div id="presence-list">—</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const token = localStorage.getItem('access_token');
+  if (!token) window.location.href = '/signin';
+
+  const authHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  async function loadTasks() {
+    const resp = await fetch('/tasks/', { headers: authHeaders });
+    if (resp.status === 401) { window.location.href = '/signin'; return; }
+    const tasks = await resp.json();
+    document.getElementById('tasks-list').innerHTML = tasks.length === 0
+      ? '<p style="color:#9ca3af">No tasks yet.</p>'
+      : tasks.map(t => `
+        <div class="card">
+          <strong>${t.title}</strong>
+          <span class="badge badge-${t.status}">${t.status}</span>
+          <span style="float:right">
+            <button onclick="setStatus('${t.id}','in_progress')">&#9654; Start</button>
+            <button onclick="setStatus('${t.id}','done')">&#10003; Done</button>
+          </span>
+        </div>`).join('');
+  }
+
+  async function setStatus(id, status) {
+    await fetch(`/tasks/${id}`, { method: 'PATCH', headers: authHeaders, body: JSON.stringify({ status }) });
+    loadTasks();
+  }
+
+  document.getElementById('create-task-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const title = document.getElementById('task-title').value.trim();
+    if (!title) return;
+    const user = (await _supabase.auth.getUser()).data.user;
+    await fetch('/tasks/', { method: 'POST', headers: authHeaders, body: JSON.stringify({ title, assigned_to: user.id }) });
+    document.getElementById('task-title').value = '';
+    loadTasks();
+  });
+
+  async function setupRealtime() {
+    // Fetch the user's rules to know which channels to subscribe to
+    const { data: rules } = await _supabase.from('rules').select('broadcast_channel');
+    if (!rules) return;
+    const channels = [...new Set(rules.map(r => r.broadcast_channel))];
+
+    for (const name of channels) {
+      _supabase.channel(name)
+        .on('broadcast', { event: 'rule_fired' }, ({ payload }) => {
+          const feed = document.getElementById('events-feed');
+          const card = document.createElement('div');
+          card.className = 'card';
+          const strong = document.createElement('strong');
+          strong.textContent = payload.rule.label;
+          const em = document.createElement('em');
+          em.textContent = payload.task.title;
+          const small = document.createElement('small');
+          small.style.color = '#9ca3af';
+          small.textContent = new Date().toLocaleTimeString();
+          card.append(strong, document.createTextNode(' — task '), em, document.createTextNode(` → ${payload.task.status} `), small);
+          feed.prepend(card);
+        })
+        .subscribe();
+    }
+
+    // Presence — who else is watching
+    const presenceCh = _supabase.channel('index-presence');
+    presenceCh
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceCh.presenceState();
+        const users = Object.values(state).flat().map(p => p.email || p.user_id);
+        document.getElementById('presence-list').textContent = users.join(', ') || '—';
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          const { data: { user } } = await _supabase.auth.getUser();
+          await presenceCh.track({ user_id: user.id, email: user.email });
+        }
+      });
+  }
+
+  loadTasks();
+  setupRealtime();
+</script>
+{% endblock %}

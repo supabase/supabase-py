@@ -5,7 +5,8 @@ members = [
   "src/supabase",
   "src/storage",
   "src/postgrest",
-  "src/auth"
+  "src/auth",
+  "examples/fastapi"
 ]
 
 [tool.uv.sources]
@@ -39,6 +40,10 @@ select = [
   "ANN2"
 ]
 ignore = ["F403", "E501", "E402", "UP006", "UP035"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI uses Depends() in function default arguments — B008 is intentional there.
+"examples/fastapi/**" = ["B008"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
