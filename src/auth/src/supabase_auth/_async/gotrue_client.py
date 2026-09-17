@@ -750,7 +750,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         else:
             user_response = await self.get_user(access_token)
             if user_response is None:
-                raise UserDoesntExist(access_token)
+                raise UserDoesntExist()
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -1025,7 +1025,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         expires_at = time_now + int(expires_in)
         user = await self.get_user(access_token)
         if user is None:
-            raise UserDoesntExist(access_token)
+            raise UserDoesntExist()
         session = Session(
             provider_token=provider_token,
             provider_refresh_token=provider_refresh_token,
