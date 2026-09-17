@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import time
+import asyncio
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
-from httpx import BasicAuth, Client, Headers, QueryParams, Response
+from httpx import Client, BasicAuth, Headers, QueryParams, Response
 from pydantic import ValidationError
 from typing_extensions import Self, override
 from yarl import URL
@@ -51,7 +51,7 @@ def send_with_retry(req: ReqConfig) -> Response:
         resp = req.send(headers)
         if resp.is_success or not req.should_retry(resp, attempt_count=attempt_count):
             break
-        time.sleep(get_retry_delay(resp, attempt_count))
+        asyncio.sleep(get_retry_delay(resp, attempt_count))
         attempt_count += 1
     return resp
 
@@ -59,6 +59,10 @@ def send_with_retry(req: ReqConfig) -> Response:
 class SyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
+
+    def clone(self: Self) -> Self:
+        """Create a clone of this query request builder."""
+        return self.__class__(self.request.clone())
 
     def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
         _, params, _, _ = pre_select(*columns, count=None)
@@ -102,6 +106,10 @@ class SyncSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def clone(self: Self) -> Self:
+        """Create a clone of this single request builder."""
+        return self.__class__(self.request.clone())
+
     def retry(self, enabled: bool) -> Self:
         self.request.retry_enabled = enabled
         return self
@@ -135,6 +143,10 @@ class SyncExplainRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def clone(self: Self) -> Self:
+        """Create a clone of this explain request builder."""
+        return self.__class__(self.request.clone())
+
     def retry(self, enabled: bool) -> Self:
         self.request.retry_enabled = enabled
         return self
@@ -154,6 +166,10 @@ class SyncExplainRequestBuilder:
 class SyncMaybeSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
+
+    def clone(self: Self) -> Self:
+        """Create a clone of this maybe single request builder."""
+        return self.__class__(self.request.clone())
 
     def retry(self, enabled: bool) -> Self:
         self.request.retry_enabled = enabled
@@ -301,6 +317,15 @@ class SyncRequestBuilder:  #
         self.headers = headers
         self.auth = auth
 
+    def clone(self: Self) -> Self:
+        """Create a clone of this request builder."""
+        return self.__class__(
+            session=self.session,
+            path=self.path,
+            headers=Headers(self.headers),
+            auth=self.auth,
+        )
+
     def select(
         self,
         *columns: str,
@@ -313,7 +338,7 @@ class SyncRequestBuilder:  #
             *columns: The names of the columns to fetch.
             count: The method to use to get the count of rows returned.
         Returns:
-            :class:`SyncSelectRequestBuilder`
+            :class:`AsyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_select(*columns, count=count, head=head)
         headers.update(self.headers)
@@ -348,7 +373,7 @@ class SyncRequestBuilder:  #
                 Otherwise, use the default value for the column.
                 Only applies for bulk inserts.
         Returns:
-            :class:`SyncQueryRequestBuilder`
+            :class:`AsyncQueryRequestBuilder`
         """
         method, params, headers, json = pre_insert(
             json,
@@ -392,7 +417,7 @@ class SyncRequestBuilder:  #
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
         Returns:
-            :class:`SyncQueryRequestBuilder`
+            :class:`AsyncQueryRequestBuilder`
         """
         method, params, headers, json = pre_upsert(
             json,
@@ -428,7 +453,7 @@ class SyncRequestBuilder:  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SyncFilterRequestBuilder`
+            :class:`AsyncFilterRequestBuilder`
         """
         method, params, headers, json = pre_update(
             json,
@@ -459,7 +484,7 @@ class SyncRequestBuilder:  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SyncFilterRequestBuilder`
+            :class:`AsyncFilterRequestBuilder`
         """
         method, params, headers, json = pre_delete(
             count=count,

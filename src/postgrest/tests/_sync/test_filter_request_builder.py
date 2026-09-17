@@ -5,7 +5,7 @@ from httpx import Client, Headers, QueryParams
 from yarl import URL
 
 from postgrest import SyncFilterRequestBuilder
-from postgrest._sync.request_builder import RequestConfig
+from postgrest._async.request_builder import RequestConfig
 
 
 @pytest.fixture
@@ -335,3 +335,36 @@ def test_max_affected_returns_self(filter_request_builder):
     builder = filter_request_builder.max_affected(1)
 
     assert builder is filter_request_builder
+
+
+def test_filter_builder_clone_isolation(filter_request_builder: SyncFilterRequestBuilder):
+    builder = filter_request_builder.eq("org_id", 42)
+    cloned = builder.clone()
+
+    cloned.eq("status", "active")
+    builder.eq("status", "archived")
+
+    assert str(builder.request.params) == "org_id=eq.42&status=eq.archived"
+    assert str(cloned.request.params) == "org_id=eq.42&status=eq.active"
+
+
+def test_filter_builder_clone_negate_next(filter_request_builder: SyncFilterRequestBuilder):
+    builder = filter_request_builder.not_
+    cloned = builder.clone()
+
+    assert cloned.negate_next is True
+
+    cloned.eq("name", "Alice")
+    assert str(cloned.request.params) == "name=not.eq.Alice"
+    assert cloned.negate_next is False
+    assert builder.negate_next is True
+
+
+def test_filter_builder_clone_headers_isolation(filter_request_builder: SyncFilterRequestBuilder):
+    builder = filter_request_builder.eq("id", 1)
+    cloned = builder.clone()
+
+    cloned.max_affected(5)
+
+    assert "prefer" in cloned.request.headers
+    assert "prefer" not in builder.request.headers
