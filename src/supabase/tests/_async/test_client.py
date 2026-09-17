@@ -42,7 +42,16 @@ async def test_postgrest_client() -> None:
     client = await create_async_client(url, key)
     assert client.table("sample")
     assert client.postgrest.schema("new_schema")
+async def test_postgrest_client_retry_option() -> None:
+    client = await create_async_client(
+        "https://example.supabase.co",
+        "test-key",
+        AsyncClientOptions(postgrest_client_retry=False),
+    )
 
+    request = client.table("sample").select("*")
+
+    assert request.request.retry_enabled is False
 
 async def test_rpc_client() -> None:
     url = os.environ["SUPABASE_TEST_URL"]
