@@ -199,12 +199,13 @@ class RealtimeChannel:
         if self.socket.last_token is not None:
             self.params.token = self.socket.last_token
         payload = self.params.to_payload()
+        join_ref = self.socket._make_ref()
         message = Message(
             topic=self.topic,
             event=ChannelEvents.join,
             payload=payload.model_dump(exclude_none=True),
-            ref=self.socket._make_ref(),
-            join_ref=None,
+            ref=join_ref,
+            join_ref=join_ref,
         )
         msg = await self.socket.send(message)
         logger.info(f"Subscribe reply: {msg!r}")
@@ -212,7 +213,7 @@ class RealtimeChannel:
             raise Exception(
                 f"error while subscribing to channel: {msg.payload.response!r}"
             )
-        self.join_ref = self.socket._make_ref()
+        self.join_ref = join_ref
         self.joined = True
         return msg
 
