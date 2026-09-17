@@ -3,7 +3,7 @@ from typing import Dict
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, HTTPError, Response, Timeout
+from httpx import AsyncClient, HTTPError, Request, Response, Timeout
 
 # Import the class to test
 from supabase_functions import AsyncFunctionsClient
@@ -229,3 +229,185 @@ async def test_init_with_httpx_client() -> None:
 
     # Verify the client is properly configured with our custom client
     assert client._client is custom_client
+
+
+async def test_invoke_does_not_leak_per_call_headers(
+    client: AsyncFunctionsClient,
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        await client.invoke(
+            "test-function",
+            {
+                "headers": {"x-one-off": "yes"},
+                "region": FunctionRegion("us-east-1"),
+                "body": {"key": "value"},
+            },
+        )
+        await client.invoke("test-function")
+
+        first, second = mock_request.call_args_list
+        assert first.kwargs["headers"]["x-one-off"] == "yes"
+        assert "x-one-off" not in second.kwargs["headers"]
+        assert "x-region" not in second.kwargs["headers"]
+        assert "Content-Type" not in second.kwargs["headers"]
+        assert "x-one-off" not in client.headers
+
+
+async def test_invoke_per_call_headers_override_client_headers(
+    client: AsyncFunctionsClient,
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        await client.invoke(
+            "test-function", {"headers": {"Authorization": "Bearer override"}}
+        )
+
+        _, kwargs = mock_request.call_args
+        assert kwargs["headers"]["Authorization"] == "Bearer override"
+        assert client.headers["Authorization"] == "Bearer valid.jwt.token"
+
+
+@pytest.mark.parametrize("method", ["GET", "PUT", "PATCH", "DELETE"])
+async def test_invoke_with_method(client: AsyncFunctionsClient, method: str) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        await client.invoke("test-function", {"method": method})
+
+        args, _ = mock_request.call_args
+        assert args[0] == method
+
+
+async def test_invoke_defaults_to_post(client: AsyncFunctionsClient) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        await client.invoke("test-function")
+
+        args, _ = mock_request.call_args
+        assert args[0] == "POST"
+
+
+async def test_invoke_with_bytes_body(client: AsyncFunctionsClient) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        await client.invoke("test-function", {"body": b"\x00binary"})
+
+        _, kwargs = mock_request.call_args
+        assert kwargs["headers"]["Content-Type"] == "application/octet-stream"
+        assert kwargs["content"] == b"\x00binary"
+
+
+async def test_invoke_string_body_sent_as_content(
+    client: AsyncFunctionsClient,
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        await client.invoke("test-function", {"body": "string data"})
+
+        _, kwargs = mock_request.call_args
+        assert kwargs["content"] == "string data"
+
+
+async def test_invoke_http_error_with_non_json_body(
+    client: AsyncFunctionsClient,
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.side_effect = ValueError("not json")
+    mock_response.text = "boom"
+    mock_response.raise_for_status.side_effect = HTTPError("HTTP Error")
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        with pytest.raises(FunctionsHttpError, match="boom"):
+            await client.invoke("test-function")
+
+
+async def test_invoke_http_error_with_empty_body(client: AsyncFunctionsClient) -> None:
+    error = HTTPError("HTTP Error")
+    error.request = Request("POST", "https://example.com/test-function")
+
+    mock_response = Mock(spec=Response)
+    mock_response.json.side_effect = ValueError("not json")
+    mock_response.text = ""
+    mock_response.raise_for_status.side_effect = error
+    mock_response.headers = {}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        with pytest.raises(
+            FunctionsHttpError, match="An error occurred while requesting"
+        ):
+            await client.invoke("test-function")
+
+
+async def test_invoke_relay_error_with_non_json_body(
+    client: AsyncFunctionsClient,
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.side_effect = ValueError("not json")
+    mock_response.text = "relay exploded"
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {"x-relay-header": "true"}
+
+    with patch.object(
+        client._client, "request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.return_value = mock_response
+
+        with pytest.raises(FunctionsRelayError, match="relay exploded"):
+            await client.invoke("test-function")
