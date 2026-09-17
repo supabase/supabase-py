@@ -608,7 +608,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
         .. versionchanged:: 0.10.3
            Allow limiting results returned for foreign tables with the foreign_table parameter.
         """
-        self.request.params = self.request.params.add(
+        self.request.params = self.request.params.set(
             f"{foreign_table}.limit" if foreign_table else "limit",
             size,
         )
@@ -619,7 +619,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
         Args:
             size: The number of the row to start at
         """
-        self.request.params = self.request.params.add(
+        self.request.params = self.request.params.set(
             "offset",
             size,
         )
@@ -628,10 +628,10 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
     def range(
         self: Self, start: int, end: int, foreign_table: Optional[str] = None
     ) -> Self:
-        self.request.params = self.request.params.add(
+        self.request.params = self.request.params.set(
             f"{foreign_table}.offset" if foreign_table else "offset", start
         )
-        self.request.params = self.request.params.add(
+        self.request.params = self.request.params.set(
             f"{foreign_table}.limit" if foreign_table else "limit",
             end - start + 1,
         )

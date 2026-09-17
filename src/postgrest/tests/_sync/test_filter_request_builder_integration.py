@@ -582,6 +582,25 @@ def test_rpc_with_range():
     ]
 
 
+def test_limit_twice():
+    query = rest_client().from_("countries").select("*").limit(1).limit(2)
+
+    assert query.request.params["limit"] == "2"
+
+
+def test_offset_twice():
+    query = rest_client().from_("countries").select("*").offset(1).offset(2)
+
+    assert query.request.params["offset"] == "2"
+
+
+def test_range_twice():
+    query = rest_client().from_("countries").select("*").range(0, 1).range(2, 3)
+
+    assert query.request.params["offset"] == "2"
+    assert query.request.params["limit"] == "2"
+
+
 def test_rpc_post_with_args():
     res = (
         rest_client()
