@@ -571,8 +571,13 @@ async def test_client_info_with_error(
         storage_file_client_public.executor.session, "send", new_callable=AsyncMock
     ) as mock_request:
         mock_request.return_value = mock_error_response
-        with pytest.raises(StorageApiError):
+        with pytest.raises(StorageApiError) as exc_info:
             await storage_file_client_public.info(file.bucket_path)
+
+    err = exc_info.value
+    assert err.message == "File not found"
+    assert err.code == "Custom error message"
+    assert err.status == 404
 
 
 async def test_client_exists(
