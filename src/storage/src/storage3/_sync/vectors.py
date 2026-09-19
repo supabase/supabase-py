@@ -62,8 +62,10 @@ class SyncVectorBucketScope:
         try:
             data = self._request.send(http_method="POST", path=["GetIndex"], body=body)
             return GetVectorIndexResponse.model_validate_json(data.content)
-        except StorageApiError:
-            return None
+        except StorageApiError as exc:
+            if str(exc.status) == "404":
+                return None
+            raise
 
     def list_indexes(
         self,
@@ -178,8 +180,10 @@ class SyncStorageVectorsClient:
                 http_method="POST", path=["GetVectorBucket"], body=body
             )
             return GetVectorBucketResponse.model_validate_json(data.content)
-        except StorageApiError:
-            return None
+        except StorageApiError as exc:
+            if str(exc.status) == "404":
+                return None
+            raise
 
     def list_buckets(
         self,
