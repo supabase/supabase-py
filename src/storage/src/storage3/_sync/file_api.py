@@ -40,10 +40,10 @@ __all__ = ["SyncBucket"]
 
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
-    url = URL(path)
-    if url.absolute or url.parts[0] == "/":
-        return url.parts[1:]
-    return url.parts
+    parts = path.split("/")
+    if parts and parts[0] == "":
+        return tuple(parts[1:])
+    return tuple(parts)
 
 
 class SyncBucketActionsMixin:
