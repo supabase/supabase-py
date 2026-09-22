@@ -174,3 +174,38 @@ def test_response_client_invalid_response_but_valid_json(
         assert isinstance(exc_response.get("message"), str)
         assert exc_response.get("message") == "JSON could not be generated"
         assert "code" in exc_response and int(exc_response["code"]) == 502
+
+
+def test_single_error_includes_request_url(
+    postgrest_client: SyncPostgrestClient,
+):
+    request_url = "https://example.com/test?select=id&id=eq.123"
+
+    with patch(
+        "httpx._client.Client.request",
+        return_value=Response(
+            status_code=406,
+            json={
+                "message": "Cannot coerce the result to a single JSON object",
+                "code": "PGRST116",
+                "hint": None,
+                "details": "The result contains 0 rows",
+            },
+            request=Request(method="GET", url=request_url),
+        ),
+    ):
+        client = (
+            postgrest_client.from_("test")
+            .select("id")
+            .eq("id", 123)
+            .single()
+        )
+
+        with pytest.raises(APIError) as exc_info:
+            client.execute()
+
+        error = exc_info.value
+
+        assert error.request_url == request_url
+        assert f"Request URL: {request_url}" in str(error)
+        assert "request_url" not in error.json()
