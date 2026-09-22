@@ -1,8 +1,21 @@
+from typing import Any, Mapping, Optional
+
 from deprecation import deprecated
 from httpx import AsyncClient as AsyncClient  # noqa: F401
 from httpx import Client
 
+from .constants import DEFAULT_FILE_OPTIONS
 from .version import __version__
+
+
+def merge_file_options(
+    file_options: Optional[Mapping[str, Any]],
+) -> dict[str, Any]:
+    options: dict[str, Any] = {**DEFAULT_FILE_OPTIONS}
+    for key, value in (file_options or {}).items():
+        normalized_key = "content-type" if key.lower() == "content-type" else key
+        options[normalized_key] = value
+    return options
 
 
 class SyncClient(Client):
