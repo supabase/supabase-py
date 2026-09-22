@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, cast
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -159,6 +159,12 @@ def _assert_multipart_cache_control(request: Mock, expected: str) -> None:
     assert kwargs["data"]["cacheControl"] == expected
 
 
+def _assert_content_type_is_file_option(request: Mock, expected: str) -> None:
+    kwargs = _request_kwargs(request)
+    assert all(key.lower() != "content-type" for key in kwargs["headers"])
+    assert kwargs["files"]["file"][2] == expected
+
+
 @pytest.mark.asyncio
 async def test_async_upload_sends_default_cache_control_as_form_data() -> None:
     proxy = _async_bucket_proxy()
@@ -214,6 +220,40 @@ def test_sync_upload_sends_custom_cache_control_as_form_data() -> None:
 
 
 @pytest.mark.asyncio
+async def test_async_upload_normalizes_content_type_option() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload(
+            "file.pdf",
+            b"%PDF-1.4",
+            cast(Any, {"Content-Type": "application/pdf"}),
+        )
+
+    _assert_content_type_is_file_option(request, "application/pdf")
+
+
+def test_sync_upload_normalizes_content_type_option() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload(
+            "file.pdf",
+            b"%PDF-1.4",
+            cast(
+                Any,
+                {
+                    "Content-Type": "application/pdf",
+                    "X-Custom-Header": "custom-value",
+                },
+            ),
+        )
+
+    _assert_content_type_is_file_option(request, "application/pdf")
+    assert _request_kwargs(request)["headers"]["X-Custom-Header"] == "custom-value"
+
+
+@pytest.mark.asyncio
 async def test_async_update_sends_cache_control_as_form_data() -> None:
     proxy = _async_bucket_proxy()
     with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
@@ -251,6 +291,35 @@ def test_sync_signed_upload_sends_default_cache_control() -> None:
         proxy.upload_to_signed_url("file.txt", "token", b"hello")
 
     _assert_multipart_cache_control(request, "3600")
+
+
+@pytest.mark.asyncio
+async def test_async_signed_upload_normalizes_content_type_option() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload_to_signed_url(
+            "file.pdf",
+            "token",
+            b"%PDF-1.4",
+            cast(Any, {"Content-Type": "application/pdf"}),
+        )
+
+    _assert_content_type_is_file_option(request, "application/pdf")
+
+
+def test_sync_signed_upload_normalizes_content_type_option() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload_to_signed_url(
+            "file.pdf",
+            "token",
+            b"%PDF-1.4",
+            cast(Any, {"Content-Type": "application/pdf"}),
+        )
+
+    _assert_content_type_is_file_option(request, "application/pdf")
 
 
 @pytest.mark.asyncio
