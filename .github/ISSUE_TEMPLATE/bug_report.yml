@@ -1,0 +1,68 @@
+name: "\U0001F41E Bug report"
+description: Report an issue with a Supabase Python Library
+labels: [bug]
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the contribution.
+
+        It is helpful to explain how to reproduce the bug and what the problem is.
+        If you have a small reproducible example, you can use the Reproduction field to provide it directly.
+        Otherwise, please provide a link to a repository or a gist (https://gist.github.com).
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: I am doing ... What I expect is ... What actually happening is ...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Code snippet or URL to reproduce the bug.
+      placeholder: Reproduction URL
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      description: Please provide any reproduction steps that may need to be executed.
+      placeholder: Clone `my/example` repo then `uv run my-repro-script.py`
+  - type: dropdown
+    id: supabase-library
+    attributes:
+      label: Library affected
+      description: Select the library(s) that you think is affected by the bug
+      multiple: true
+      options:
+        - supabase-py
+        - supabase-auth
+        - supabase-functions
+        - postgrest
+        - realtime
+        - storage3
+        - other
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Library version
+      description: Version of all the libraries related in the problem.
+      placeholder: 'supabase 2.X.Y; postgrest 2.X.Y; ...'
+    validations:
+      required: true
+  - type: input
+    id: system-info
+    attributes:
+      label: Python version
+      description: Output of `python -V`
+      placeholder: 'python 3.X.Y'
+    validations:
+      required: true
+

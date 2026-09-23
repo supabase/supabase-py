@@ -1,7 +1,9 @@
+import platform
+import sys
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
-from httpx import Client, HTTPError, Response, QueryParams
+from httpx import Client, HTTPError, QueryParams, Response
 from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError
@@ -22,14 +24,27 @@ class SyncFunctionsClient:
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,
         http_client: Optional[Client] = None,
-    ):
+    ) -> None:
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)
         self.headers = {
-            "User-Agent": f"supabase-py/functions-py v{__version__}",
+            "X-Client-Info": (
+                f"supabase-py/supabase_functions v{__version__}"
+                f"; platform={platform.system()}"
+                f"; platform-version={platform.release()}"
+                f"; runtime=python"
+                f"; runtime-version={platform.python_version()}"
+            ),
             **headers,
         }
+
+        if sys.version_info < (3, 10):
+            warn(
+                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         if timeout is not None:
             warn(
@@ -133,7 +148,7 @@ class SyncFunctionsClient:
             region = invoke_options.get("region")
             if region:
                 if not isinstance(region, FunctionRegion):
-                    warn(f"Use FunctionRegion({region})")
+                    warn(f"Use FunctionRegion({region})", stacklevel=2)
                     region = FunctionRegion(region)
 
                 if region.value != "any":

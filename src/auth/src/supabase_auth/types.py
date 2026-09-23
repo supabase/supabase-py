@@ -4,7 +4,7 @@ from datetime import datetime
 from time import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, with_config
 
 try:
     # > 2
@@ -15,7 +15,7 @@ except ImportError:
     # < 2
     from pydantic import root_validator
 
-    model_validator_v1_v2_compat = root_validator
+    model_validator_v1_v2_compat = root_validator  # type: ignore
 
 from typing_extensions import Literal, NotRequired, TypedDict
 
@@ -39,7 +39,8 @@ Provider = Literal[
     "slack_oidc",
     "spotify",
     "twitch",
-    "twitter",
+    "twitter",  # Uses OAuth 1.0a
+    "x",  # Uses OAuth 2.0
     "workos",
     "zoom",
 ]
@@ -82,6 +83,11 @@ class AMREntry(BaseModel):
     """
 
 
+class AMREntryDict(TypedDict):
+    timestamp: int
+    method: Union[Literal["password", "otp", "oauth", "mfa/totp"], str]
+
+
 class Options(TypedDict):
     redirect_to: NotRequired[str]
     captcha_token: NotRequired[str]
@@ -122,6 +128,10 @@ class LinkIdentityResponse(BaseModel):
 
 class IdentitiesResponse(BaseModel):
     identities: List[UserIdentity]
+
+
+class UserList(BaseModel):
+    users: List[User]
 
 
 class UserResponse(BaseModel):
@@ -225,7 +235,10 @@ class User(BaseModel):
     updated_at: Optional[datetime] = None
     identities: Optional[List[UserIdentity]] = None
     is_anonymous: bool = False
+    is_sso_user: bool = False
     factors: Optional[List[Factor]] = None
+    deleted_at: Optional[str] = None
+    banned_until: Optional[str] = None
 
 
 class UserAttributes(TypedDict):
@@ -234,6 +247,7 @@ class UserAttributes(TypedDict):
     password: NotRequired[str]
     data: NotRequired[Any]
     nonce: NotRequired[str]
+    current_password: NotRequired[str]
 
 
 class AdminUserAttributes(UserAttributes, TypedDict):
@@ -747,11 +761,11 @@ class AuthMFAAdminDeleteFactorParams(TypedDict):
     """
 
 
-class AuthMFAAdminListFactorsResponse(BaseModel):
-    factors: List[Factor]
-    """
-    All factors attached to the user.
-    """
+AuthMFAAdminListFactorsResponse = List[Factor]
+
+AuthMFAAdminListFactorsResponseParser: TypeAdapter[AuthMFAAdminListFactorsResponse] = (
+    TypeAdapter(AuthMFAAdminListFactorsResponse)
+)
 
 
 class AuthMFAAdminListFactorsParams(TypedDict):
@@ -810,12 +824,16 @@ class SignOutOptions(TypedDict):
     scope: NotRequired[SignOutScope]
 
 
+@with_config(
+    ConfigDict(extra="allow")
+)  # pydantic <2.7.0 with_config does not accept kwargs
 class JWTHeader(TypedDict):
     alg: Literal["RS256", "ES256", "HS256"]
     typ: str
-    kid: str
+    kid: NotRequired[str]
 
 
+# TODO: useless, only kept for backwards compatibility
 class RequiredClaims(TypedDict):
     iss: str
     sub: str
@@ -827,8 +845,19 @@ class RequiredClaims(TypedDict):
     session_id: str
 
 
-class JWTPayload(RequiredClaims, total=False):
-    pass
+@with_config(
+    ConfigDict(extra="allow")
+)  # pydantic <2.7.0 with_config does not accept kwargs
+class JWTPayload(TypedDict, total=False):
+    iss: str
+    sub: str
+    auth: Union[str, List[str]]
+    exp: int
+    iat: int
+    role: str
+    aal: AuthenticatorAssuranceLevels
+    session_id: str
+    amr: NotRequired[List[AMREntryDict]]
 
 
 class ClaimsResponse(TypedDict):
@@ -837,6 +866,9 @@ class ClaimsResponse(TypedDict):
     signature: bytes
 
 
+@with_config(
+    ConfigDict(extra="allow")
+)  # pydantic <2.7.0 with_config does not accept kwargs
 class JWK(TypedDict, total=False):
     kty: Literal["RSA", "EC", "oct"]
     key_ops: List[str]
@@ -848,30 +880,153 @@ class JWKSet(TypedDict):
     keys: List[JWK]
 
 
-for model in [
-    AMREntry,
-    AuthResponse,
-    OAuthResponse,
-    UserResponse,
-    Session,
-    UserIdentity,
-    Factor,
-    User,
-    Subscription,
-    AuthMFAVerifyResponse,
-    AuthMFAEnrollResponseTotp,
-    AuthMFAEnrollResponse,
-    AuthMFAUnenrollResponse,
-    AuthMFAChallengeResponse,
-    AuthMFAListFactorsResponse,
-    AuthMFAGetAuthenticatorAssuranceLevelResponse,
-    AuthMFAAdminDeleteFactorResponse,
-    AuthMFAAdminListFactorsResponse,
-    GenerateLinkProperties,
-]:
-    try:
-        # pydantic > 2
-        model.model_rebuild()
-    except AttributeError:
-        # pydantic < 2
-        model.update_forward_refs()
+OAuthClientGrantType = Literal["authorization_code", "refresh_token"]
+"""
+OAuth client grant types supported by the OAuth 2.1 server.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientResponseType = Literal["code"]
+"""
+OAuth client response types supported by the OAuth 2.1 server.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientType = Literal["public", "confidential"]
+"""
+OAuth client type indicating whether the client can keep credentials confidential.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientRegistrationType = Literal["dynamic", "manual"]
+"""
+OAuth client registration type.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+OAuthClientTokenEndpointAuthMethod = Literal[
+    "none", "client_secret_basic", "client_secret_post"
+]
+"""
+OAuth client token endpoint authentication method.
+Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+"""
+
+
+class OAuthClient(BaseModel):
+    """
+    OAuth client object returned from the OAuth 2.1 server.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client_id: str
+    """Unique client identifier"""
+    client_name: str
+    """Human-readable name of the client application"""
+    client_secret: Optional[str] = None
+    """Client secret for confidential clients (only returned on registration/regeneration)"""
+    client_type: OAuthClientType
+    """Type of the client"""
+    token_endpoint_auth_method: OAuthClientTokenEndpointAuthMethod
+    """Authentication method for the token endpoint"""
+    registration_type: OAuthClientRegistrationType
+    """Registration type of the client"""
+    client_uri: Optional[str] = None
+    """URL of the client application's homepage"""
+    logo_uri: Optional[str] = None
+    """URL of the client application's logo"""
+    redirect_uris: List[str]
+    """Array of redirect URIs used by the client"""
+    grant_types: List[OAuthClientGrantType]
+    """OAuth grant types the client is authorized to use"""
+    response_types: List[OAuthClientResponseType]
+    """OAuth response types the client can use"""
+    scope: Optional[str] = None
+    """Space-separated list of scope values"""
+    created_at: str
+    """Timestamp when the client was created"""
+    updated_at: str
+    """Timestamp when the client was last updated"""
+
+
+class CreateOAuthClientParams(BaseModel):
+    """
+    Parameters for creating a new OAuth client.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client_name: str
+    """Human-readable name of the OAuth client"""
+    client_uri: Optional[str] = None
+    """URL of the client application's homepage"""
+    logo_uri: Optional[str] = None
+    """URL of the client application's logo"""
+    redirect_uris: List[str]
+    """Array of redirect URIs used by the client"""
+    grant_types: Optional[List[OAuthClientGrantType]] = None
+    """OAuth grant types the client is authorized to use (optional, defaults to authorization_code and refresh_token)"""
+    response_types: Optional[List[OAuthClientResponseType]] = None
+    """OAuth response types the client can use (optional, defaults to code)"""
+    scope: Optional[str] = None
+    """Space-separated list of scope values"""
+
+
+class UpdateOAuthClientParams(BaseModel):
+    """
+    Parameters for updating an existing OAuth client.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client_name: Optional[str] = None
+    """Human-readable name of the OAuth client"""
+    client_uri: Optional[str] = None
+    """URI of the OAuth client"""
+    logo_uri: Optional[str] = None
+    """URI of the OAuth client's logo"""
+    redirect_uris: Optional[List[str]] = None
+    """Array of allowed redirect URIs"""
+    grant_types: Optional[List[OAuthClientGrantType]] = None
+    """Array of allowed grant types"""
+
+
+class OAuthClientResponse(BaseModel):
+    """
+    Response type for OAuth client operations.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    client: Optional[OAuthClient] = None
+
+
+class Pagination(BaseModel):
+    """
+    Pagination information for list responses.
+    """
+
+    next_page: Optional[int] = None
+    last_page: int = 0
+    total: int = 0
+
+
+class OAuthClientListResponse(BaseModel):
+    """
+    Response type for listing OAuth clients.
+    Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
+    """
+
+    clients: List[OAuthClient]
+    aud: Optional[str] = None
+    next_page: Optional[int] = None
+    last_page: int = 0
+    total: int = 0
+
+
+class PageParams(BaseModel):
+    """
+    Pagination parameters.
+    """
+
+    page: Optional[int] = None
+    """Page number"""
+    per_page: Optional[int] = None
+    """Number of items per page"""

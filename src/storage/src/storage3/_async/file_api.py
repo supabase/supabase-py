@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import base64
 import json
 import urllib.parse
 from dataclasses import dataclass, field
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, List, Literal, Optional, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Union, cast
 
 from httpx import AsyncClient, Headers, HTTPStatusError, Response
 from yarl import URL
@@ -15,12 +14,15 @@ from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
 from ..exceptions import StorageApiError
 from ..types import (
     BaseBucket,
+    CreateSignedUploadUrlOptions,
     CreateSignedUrlResponse,
     CreateSignedURLsOptions,
     DownloadOptions,
     FileOptions,
     ListBucketFilesOptions,
     RequestMethod,
+    SearchV2Options,
+    SearchV2Result,
     SignedUploadURL,
     SignedUrlJsonResponse,
     SignedUrlResponse,
@@ -28,6 +30,7 @@ from ..types import (
     TransformOptions,
     UploadData,
     UploadResponse,
+    UploadSignedUrlFileOptions,
     URLOptions,
     transform_to_dict,
 )
@@ -75,8 +78,16 @@ class AsyncBucketActionsMixin:
             )
             response.raise_for_status()
         except HTTPStatusError as exc:
-            resp = exc.response.json()
-            raise StorageApiError(resp["message"], resp["error"], resp["statusCode"])
+            try:
+                resp = exc.response.json()
+                raise StorageApiError(
+                    resp["message"], resp["error"], resp["statusCode"]
+                ) from exc
+            except (KeyError, TypeError, ValueError) as err:
+                message = f"Unable to parse error message: {exc.response.text}"
+                raise StorageApiError(
+                    message, "InternalError", exc.response.status_code
+                ) from err
 
         # close the resource before returning the response
         if files and "file" in files and isinstance(files["file"][1], BufferedReader):
@@ -84,7 +95,11 @@ class AsyncBucketActionsMixin:
 
         return response
 
-    async def create_signed_upload_url(self, path: str) -> SignedUploadURL:
+    async def create_signed_upload_url(
+        self,
+        path: str,
+        options: Optional[CreateSignedUploadUrlOptions] = None,
+    ) -> SignedUploadURL:
         """
         Creates a signed upload URL.
 
@@ -92,14 +107,20 @@ class AsyncBucketActionsMixin:
         ----------
         path
             The file path, including the file name. For example `folder/image.png`.
+        options
+            Additional options for the upload url creation.
         """
+        headers: dict[str, str] = dict()
+        if options is not None and options.upsert:
+            headers.update({"x-upsert": options.upsert})
+
         path_parts = relative_path_to_parts(path)
         response = await self._request(
-            "POST", ["object", "upload", "sign", self.id, *path_parts]
+            "POST", ["object", "upload", "sign", self.id, *path_parts], headers=headers
         )
         data = response.json()
         full_url: urllib.parse.ParseResult = urllib.parse.urlparse(
-            str(self._client.base_url) + cast(str, data["url"]).lstrip("/")
+            str(self._base_url) + cast(str, data["url"]).lstrip("/")
         )
         query_params = urllib.parse.parse_qs(full_url.query)
         if not query_params.get("token"):
@@ -116,7 +137,7 @@ class AsyncBucketActionsMixin:
         path: str,
         token: str,
         file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[FileOptions] = None,
+        file_options: Optional[UploadSignedUrlFileOptions] = None,
     ) -> UploadResponse:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
@@ -137,21 +158,26 @@ class AsyncBucketActionsMixin:
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
 
-        if file_options is None:
-            file_options = {}
+        options: dict[str, Any] = {
+            **DEFAULT_FILE_OPTIONS,
+            **(file_options or {}),
+        }
+        cache_control = options.pop("cache-control")
+        content_type = options.pop("content-type")
+        metadata = options.pop("metadata", None)
+        file_opts_headers = options.pop("headers", None)
 
-        cache_control = file_options.get("cache-control")
-        # cacheControl is also passed as form data
-        # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89
-        _data = {}
-        if cache_control:
-            file_options["cache-control"] = f"max-age={cache_control}"
-            _data = {"cacheControl": cache_control}
+        _data = {"cacheControl": cache_control}
+        if metadata is not None:
+            _data["metadata"] = json.dumps(metadata)
+
         headers = {
             **self._client.headers,
-            **DEFAULT_FILE_OPTIONS,
-            **file_options,
+            **options,
         }
+        if file_opts_headers:
+            headers.update(file_opts_headers)
+
         filename = path_parts[-1]
 
         if (
@@ -160,14 +186,14 @@ class AsyncBucketActionsMixin:
             or isinstance(file, FileIO)
         ):
             # bytes or byte-stream-like object received
-            _file = {"file": (filename, file, headers.pop("content-type"))}
+            _file = {"file": (filename, file, content_type)}
         else:
             # str or pathlib.path received
             _file = {
                 "file": (
                     filename,
                     open(file, "rb"),
-                    headers.pop("content-type"),
+                    content_type,
                 )
             }
         response = await self._request(
@@ -180,17 +206,19 @@ class AsyncBucketActionsMixin:
         )
         data: UploadData = response.json()
 
-        return UploadResponse(path=path, Key=data.get("Key"))
+        return UploadResponse(path=path, Key=data["Key"])
 
     def _make_signed_url(
-        self, signed_url: str, download_query: dict[str, str]
+        self, signed_url: Optional[str], download_query: dict[str, str]
     ) -> SignedUrlResponse:
+        if signed_url is None:
+            return {"signedURL": None, "signedUrl": None}
         url = URL(signed_url[1:])  # ignore starting slash
         signedURL = self._base_url.join(url).extend_query(download_query)
         return {"signedURL": str(signedURL), "signedUrl": str(signedURL)}
 
     async def create_signed_url(
-        self, path: str, expires_in: int, options: URLOptions = {}
+        self, path: str, expires_in: int, options: Optional[URLOptions] = None
     ) -> SignedUrlResponse:
         """
         Parameters
@@ -204,10 +232,11 @@ class AsyncBucketActionsMixin:
         """
         json: dict[str, str | bool | TransformOptions] = {"expiresIn": str(expires_in)}
         download_query = {}
-        if download := options.get("download"):
+        url_options = options or {}
+        if download := url_options.get("download"):
             json.update({"download": download})
             download_query = {"download": "" if download is True else download}
-        if transform := options.get("transform"):
+        if transform := url_options.get("transform"):
             json.update({"transform": transform})
 
         path_parts = relative_path_to_parts(path)
@@ -221,7 +250,10 @@ class AsyncBucketActionsMixin:
         return self._make_signed_url(data.signedURL, download_query)
 
     async def create_signed_urls(
-        self, paths: List[str], expires_in: int, options: CreateSignedURLsOptions = {}
+        self,
+        paths: List[str],
+        expires_in: int,
+        options: Optional[CreateSignedURLsOptions] = None,
     ) -> List[CreateSignedUrlResponse]:
         """
         Parameters
@@ -238,7 +270,8 @@ class AsyncBucketActionsMixin:
             "expiresIn": str(expires_in),
         }
         download_query = {}
-        if download := options.get("download"):
+        url_options = options or {}
+        if download := url_options.get("download"):
             json.update({"download": download})
             download_query = {"download": "" if download is True else download}
 
@@ -261,7 +294,9 @@ class AsyncBucketActionsMixin:
             signed_urls.append(signed_item)
         return signed_urls
 
-    async def get_public_url(self, path: str, options: URLOptions = {}) -> str:
+    async def get_public_url(
+        self, path: str, options: Optional[URLOptions] = None
+    ) -> str:
         """
         Parameters
         ----------
@@ -269,12 +304,15 @@ class AsyncBucketActionsMixin:
             file path, including the path and file name. For example `folder/image.png`.
         """
         download_query = {}
-        if download := options.get("download"):
+        url_options = options or {}
+        if download := url_options.get("download"):
             download_query = {"download": "" if download is True else download}
 
-        render_path = ["render", "image"] if options.get("transform") else ["object"]
+        render_path = (
+            ["render", "image"] if url_options.get("transform") else ["object"]
+        )
         transformation = (
-            transform_to_dict(t) if (t := options.get("transform")) else dict()
+            transform_to_dict(t) if (t := url_options.get("transform")) else dict()
         )
 
         path_parts = relative_path_to_parts(path)
@@ -383,8 +421,12 @@ class AsyncBucketActionsMixin:
                 ["object", self.id, *path_parts],
             )
             return response.status_code == 200
-        except json.JSONDecodeError:
-            return False
+        except StorageApiError as exc:
+            # HEAD responses have no body, so a missing object surfaces as an
+            # unparsable 400/404 rather than a structured storage error.
+            if str(exc.status) in ("400", "404"):
+                return False
+            raise
 
     async def list(
         self,
@@ -416,7 +458,24 @@ class AsyncBucketActionsMixin:
         )
         return response.json()
 
-    async def download(self, path: str, options: DownloadOptions = {}) -> bytes:
+    async def list_v2(
+        self,
+        options: Optional[SearchV2Options] = None,
+    ) -> SearchV2Result:
+        body = {**options} if options else {}
+        response = await self._request(
+            "POST",
+            ["object", "list-v2", self.id],
+            json=body,
+        )
+        return SearchV2Result.model_validate_json(response.content)
+
+    async def download(
+        self,
+        path: str,
+        options: Optional[DownloadOptions] = None,
+        query_params: Optional[Dict[str, str]] = None,
+    ) -> bytes:
         """
         Downloads a file.
 
@@ -425,19 +484,23 @@ class AsyncBucketActionsMixin:
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         """
+        url_options = options or DownloadOptions()
         render_path = (
             ["render", "image", "authenticated"]
-            if options.get("transform")
+            if url_options.get("transform")
             else ["object"]
         )
 
-        transform_options = options.get("transform") or {}
+        transform_options = url_options.get("transform") or TransformOptions()
 
         path_parts = relative_path_to_parts(path)
         response = await self._request(
             "GET",
             [*render_path, self.id, *path_parts],
-            query_params=transform_to_dict(transform_options),
+            query_params={
+                **transform_to_dict(transform_options),
+                **(query_params or {}),
+            },
         )
         return response.content
 
@@ -461,41 +524,38 @@ class AsyncBucketActionsMixin:
         file_options
             HTTP headers.
         """
-        if file_options is None:
-            file_options = {}
-        cache_control = file_options.pop("cache-control", None)
-        _data = {}
+        options: dict[str, Any] = {
+            **DEFAULT_FILE_OPTIONS,
+            **(file_options or {}),
+        }
+        cache_control = options.pop("cache-control")
+        content_type = options.pop("content-type")
+        _data = {"cacheControl": cache_control}
 
-        upsert = file_options.pop("upsert", None)
+        upsert = options.pop("upsert", None)
         if upsert:
-            file_options.update({"x-upsert": upsert})
+            options["x-upsert"] = upsert
 
-        metadata = file_options.pop("metadata", None)
-        file_opts_headers = file_options.pop("headers", None)
+        metadata = options.pop("metadata", None)
+        file_opts_headers = options.pop("headers", None)
 
         headers = {
             **self._client.headers,
-            **DEFAULT_FILE_OPTIONS,
-            **file_options,
+            **options,
         }
 
-        if metadata:
+        if metadata is not None:
             metadata_str = json.dumps(metadata)
-            headers["x-metadata"] = base64.b64encode(metadata_str.encode())
-            _data.update({"metadata": metadata_str})
-
-        if file_opts_headers:
-            headers.update({**file_opts_headers})
+            _data["metadata"] = metadata_str
 
         # Only include x-upsert on a POST method
         if method != "POST":
-            del headers["x-upsert"]
+            headers.pop("x-upsert", None)
+
+        if file_opts_headers:
+            headers.update(file_opts_headers)
 
         filename = path[-1]
-
-        if cache_control:
-            headers["cache-control"] = f"max-age={cache_control}"
-            _data.update({"cacheControl": cache_control})
 
         if (
             isinstance(file, BufferedReader)
@@ -503,14 +563,14 @@ class AsyncBucketActionsMixin:
             or isinstance(file, FileIO)
         ):
             # bytes or byte-stream-like object received
-            files = {"file": (filename, file, headers.pop("content-type"))}
+            files = {"file": (filename, file, content_type)}
         else:
             # str or pathlib.path received
             files = {
                 "file": (
                     filename,
                     open(file, "rb"),
-                    headers.pop("content-type"),
+                    content_type,
                 )
             }
 
@@ -520,7 +580,7 @@ class AsyncBucketActionsMixin:
 
         data: UploadData = response.json()
 
-        return UploadResponse(path=path, Key=data.get("Key"))
+        return UploadResponse(path="/".join(path), Key=data["Key"])
 
     async def upload(
         self,

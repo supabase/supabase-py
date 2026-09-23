@@ -9,7 +9,6 @@ from uuid import uuid4
 import pytest
 from httpx import Client as HttpxClient
 from httpx import HTTPStatusError, Response
-
 from storage3 import SyncStorageClient
 from storage3.exceptions import StorageApiError
 from storage3.utils import StorageException
@@ -39,10 +38,10 @@ def uuid_factory() -> Callable[[], str]:
 def delete_left_buckets(
     request: pytest.FixtureRequest,
     storage: SyncStorageClient,
-):
+) -> None:
     """Ensures no test buckets are left when a test that created a bucket fails"""
 
-    def afinalizer():
+    def afinalizer() -> None:
         for bucket_id in temp_test_buckets_ids:
             try:
                 storage.empty_bucket(bucket_id)
@@ -283,6 +282,49 @@ def test_client_upload(
     assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
 
+    # Default cache-control is "3600" seconds and must be stored as max-age=3600
+    info = storage_file_client.info(file.bucket_path)
+    assert info.get("cache_control") == "max-age=3600"
+
+
+def test_client_upload_with_query(
+    storage_file_client: SyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket, even with query parameters"""
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+    )
+
+    image = storage_file_client.download(
+        file.bucket_path, query_params={"my-param": "test"}
+    )
+    files = storage_file_client.list(file.bucket_folder)
+    image_info = next((f for f in files if f.get("name") == file.name), None)
+
+    assert image == file.file_content
+    assert image_info is not None
+    assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
+
+
+def test_client_download_with_query_doesnt_lose_params(
+    storage_file_client: SyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure query params aren't lost"""
+    from yarl import URL
+
+    params = {"my-param": "test"}
+    mock_response = Mock()
+    with patch.object(HttpxClient, "request") as mock_request:
+        mock_request.return_value = mock_response
+        storage_file_client.download(file.bucket_path, query_params=params)
+        expected_url = storage_file_client._base_url.joinpath(
+            "object", storage_file_client.id, *URL(file.bucket_path).parts
+        ).with_query(params)
+        actual_url = mock_request.call_args[0][1]
+
+        assert URL(actual_url).query == params
+        assert str(expected_url) == actual_url
+
 
 def test_client_update(
     storage_file_client: SyncBucketProxy,
@@ -298,7 +340,10 @@ def test_client_update(
     storage_file_client.update(
         two_files[0].bucket_path,
         two_files[1].local_path,
-        {"content-type": two_files[1].mime_type},
+        {
+            "content-type": two_files[1].mime_type,
+            "cache-control": "7200",
+        },
     )
 
     image = storage_file_client.download(two_files[0].bucket_path)
@@ -310,6 +355,8 @@ def test_client_update(
     assert image == two_files[1].file_content
     assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == two_files[1].mime_type
+    info = storage_file_client.info(two_files[0].bucket_path)
+    assert info.get("cache_control") == "max-age=7200"
 
 
 @pytest.mark.parametrize(
@@ -322,7 +369,7 @@ def test_client_create_signed_upload_url(
     data = storage_file_client.create_signed_upload_url(path)
     assert data["path"] == path
     assert data["token"]
-    expected_url = f"{storage_file_client._client.base_url}object/upload/sign/{storage_file_client.id}/{path.lstrip('/')}"
+    expected_url = f"{storage_file_client._base_url}object/upload/sign/{storage_file_client.id}/{path.lstrip('/')}"
     assert data["signed_url"].startswith(expected_url)
 
 
@@ -333,7 +380,13 @@ def test_client_upload_to_signed_url(
     # Test with content-type
     data = storage_file_client.create_signed_upload_url(file.bucket_path)
     storage_file_client.upload_to_signed_url(
-        data["path"], data["token"], file.file_content, {"content-type": file.mime_type}
+        data["path"],
+        data["token"],
+        file.file_content,
+        {
+            "content-type": file.mime_type,
+            "metadata": {"source": "signed-upload"},
+        },
     )
     image = storage_file_client.download(file.bucket_path)
     files = storage_file_client.list(file.bucket_folder)
@@ -342,8 +395,10 @@ def test_client_upload_to_signed_url(
     assert image == file.file_content
     assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
+    info = storage_file_client.info(file.bucket_path)
+    assert info.get("metadata") == {"source": "signed-upload"}
 
-    # Test with file_options=None
+    # Test with file_options=None — still applies default cache-control max-age=3600
     data = storage_file_client.create_signed_upload_url(
         f"no_options_{file.bucket_path}"
     )
@@ -352,14 +407,16 @@ def test_client_upload_to_signed_url(
     )
     image = storage_file_client.download(f"no_options_{file.bucket_path}")
     assert image == file.file_content
+    no_options_info = storage_file_client.info(f"no_options_{file.bucket_path}")
+    assert no_options_info.get("cache_control") == "max-age=3600"
 
-    # Test with cache-control
+    # Test with explicit cache-control
     data = storage_file_client.create_signed_upload_url(f"cached_{file.bucket_path}")
     storage_file_client.upload_to_signed_url(
-        data["path"], data["token"], file.file_content, {"cache-control": "3600"}
+        data["path"], data["token"], file.file_content, {"cache-control": "86400"}
     )
     cached_info = storage_file_client.info(f"cached_{file.bucket_path}")
-    assert cached_info.get("cache_control") == "max-age=3600"
+    assert cached_info.get("cache_control") == "max-age=86400"
 
 
 def test_client_create_signed_url(
@@ -372,6 +429,7 @@ def test_client_create_signed_url(
 
     # Test basic signed URL
     signed_url = storage_file_client.create_signed_url(file.bucket_path, 60)
+    assert signed_url["signedURL"]
     with HttpxClient(timeout=None) as client:
         response = client.get(signed_url["signedURL"])
     response.raise_for_status()
@@ -381,6 +439,7 @@ def test_client_create_signed_url(
     download_signed_url = storage_file_client.create_signed_url(
         file.bucket_path, 60, options={"download": "custom_download.svg"}
     )
+    assert download_signed_url["signedURL"]
     with HttpxClient(timeout=None) as client:
         response = client.get(download_signed_url["signedURL"])
 
@@ -401,6 +460,7 @@ def test_client_create_signed_url(
     # assert "height=200" in transform_signed_url["signedURL"]
     # assert "resize=cover" in transform_signed_url["signedURL"]
     # assert "format=png" in transform_signed_url["signedURL"]
+    assert transform_signed_url["signedURL"]
     with HttpxClient(timeout=None) as client:
         response = client.get(transform_signed_url["signedURL"])
     response.raise_for_status()
@@ -421,6 +481,7 @@ def test_client_create_signed_urls(
 
     with HttpxClient() as client:
         for url in signed_urls:
+            assert url["signedURL"]
             response = client.get(url["signedURL"])
             response.raise_for_status()
             assert response.content == multi_file[0].file_content
@@ -556,7 +617,7 @@ def test_client_exists_json_decode_error(
     """Test exists method handling of json.JSONDecodeError"""
     from json import JSONDecodeError
 
-    def mock_head(*args, **kwargs):
+    def mock_head(*args, **kwargs) -> None:
         raise JSONDecodeError("Expecting value", "", 0)
 
     monkeypatch.setattr(storage_file_client_public._client, "head", mock_head)
@@ -694,6 +755,73 @@ def test_client_create_signed_urls_with_download(
 
     with HttpxClient() as client:
         for i, url in enumerate(signed_urls):
+            assert url["signedURL"]
             response = client.get(url["signedURL"])
             response.raise_for_status()
             assert response.content == multi_file[i].file_content
+
+
+def test_client_list_v2(
+    storage_file_client: SyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+    )
+
+    result = storage_file_client.list_v2()
+
+    assert not result.hasNext
+    assert len(result.folders) == 0
+    assert len(result.objects) == 1
+    object = result.objects[0]
+    assert object.name == file.bucket_path
+    assert object.metadata.get("mimetype") == file.mime_type
+
+
+def test_client_list_v2_folder(
+    storage_file_client: SyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, {"content-type": file.mime_type}
+    )
+
+    result = storage_file_client.list_v2({"with_delimiter": True})
+
+    assert not result.hasNext
+    assert len(result.objects) == 0
+    assert len(result.folders) == 1
+    folder = result.folders[0]
+    assert folder.key == file.bucket_folder
+
+
+def test_client_list_v2_paginated(
+    storage_file_client: SyncBucketProxy, file: FileForTesting
+) -> None:
+    """Ensure we can upload files to a bucket"""
+    suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]
+    for suffix in suffixes:
+        storage_file_client.upload(
+            file.bucket_path + suffix, file.local_path, {"content-type": file.mime_type}
+        )
+
+    has_next = True
+    cursor = ""
+    pages = 0
+    while has_next:
+        result = storage_file_client.list_v2(
+            {
+                "with_delimiter": True,
+                "prefix": f"{file.bucket_folder}/",
+                "limit": 2,
+                "cursor": cursor,
+            }
+        )
+        has_next = result.hasNext
+        cursor = result.nextCursor or ""
+
+        assert len(result.objects) == 2
+        assert all(f.name.startswith(file.bucket_path) for f in result.objects)
+        pages += 1
+    assert pages == 4

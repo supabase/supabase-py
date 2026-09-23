@@ -2,17 +2,15 @@ import sys
 from typing import Any
 
 import pytest
-
 from supabase_functions.utils import (
     BASE64URL_REGEX,
     FunctionRegion,
-    SyncClient,
     is_http_url,
     is_valid_str_arg,
 )
 
 
-def test_function_region_values():
+def test_function_region_values() -> None:
     assert FunctionRegion.Any.value == "any"
     assert FunctionRegion.ApNortheast1.value == "ap-northeast-1"
     assert FunctionRegion.ApNortheast2.value == "ap-northeast-2"
@@ -30,14 +28,6 @@ def test_function_region_values():
     assert FunctionRegion.UsWest2.value == "us-west-2"
 
 
-def test_sync_client():
-    client = SyncClient()
-    # Verify that aclose method exists and calls close
-    assert hasattr(client, "aclose")
-    assert callable(client.aclose)
-    client.aclose()  # Should not raise any exception
-
-
 @pytest.mark.parametrize(
     "test_input,expected",
     [
@@ -51,7 +41,7 @@ def test_sync_client():
         ({}, False),
     ],
 )
-def test_is_valid_str_arg(test_input: Any, expected: bool):
+def test_is_valid_str_arg(test_input: Any, expected: bool) -> None:
     assert is_valid_str_arg(test_input) == expected
 
 
@@ -68,11 +58,11 @@ def test_is_valid_str_arg(test_input: Any, expected: bool):
         ("", False),
     ],
 )
-def test_is_http_url(test_input: str, expected: bool):
+def test_is_http_url(test_input: str, expected: bool) -> None:
     assert is_http_url(test_input) == expected
 
 
-def test_base64url_regex():
+def test_base64url_regex() -> None:
     import re
 
     pattern = re.compile(BASE64URL_REGEX, re.IGNORECASE)
@@ -99,8 +89,8 @@ def test_base64url_regex():
     sys.version_info < (3, 11),
     reason="StrEnum import test only relevant for Python 3.11+",
 )
-def test_strenum_import_python_311_plus():
-    from enum import StrEnum as BuiltinStrEnum
+def test_strenum_import_python_311_plus() -> None:
+    from enum import StrEnum as BuiltinStrEnum  # type: ignore
 
     assert isinstance(FunctionRegion.Any, BuiltinStrEnum)
 
@@ -109,7 +99,7 @@ def test_strenum_import_python_311_plus():
     sys.version_info >= (3, 11),
     reason="strenum import test only relevant for Python < 3.11",
 )
-def test_strenum_import_python_310_and_below():
+def test_strenum_import_python_310_and_below() -> None:
     from strenum import StrEnum as ExternalStrEnum
 
     assert isinstance(FunctionRegion.Any, ExternalStrEnum)

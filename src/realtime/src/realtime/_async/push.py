@@ -60,6 +60,7 @@ class AsyncPush:
             topic=self.channel.topic,
             event=self.event,
             ref=self.ref,
+            join_ref=self.channel.join_push.ref,
             payload=self.payload,
         )
         await self.channel.socket.send(message)
@@ -135,9 +136,11 @@ class AsyncPush:
     def trigger(self, status: RealtimeAcknowledgementStatus, response) -> None:
         self.received_resp = (status, response)
         if status == RealtimeAcknowledgementStatus.Ok:
+            self._cancel_timeout()
             for ok_callback in self.ok_callbacks:
                 ok_callback(response)
         elif status == RealtimeAcknowledgementStatus.Error:
+            self._cancel_timeout()
             for error_callback in self.error_callbacks:
                 error_callback(response)
         elif status == RealtimeAcknowledgementStatus.Timeout:

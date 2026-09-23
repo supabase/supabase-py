@@ -16,12 +16,13 @@ class AsyncSupportedStorage(ABC):
 
 
 class AsyncMemoryStorage(AsyncSupportedStorage):
-    def __init__(self):
+    def __init__(self) -> None:
         self.storage: Dict[str, str] = {}
 
     async def get_item(self, key: str) -> Optional[str]:
         if key in self.storage:
             return self.storage[key]
+        return None
 
     async def set_item(self, key: str, value: str) -> None:
         self.storage[key] = value

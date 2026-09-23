@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 import os
 from collections.abc import Generator
 
 import pytest
 from dotenv import load_dotenv
-
 from storage3 import SyncStorageClient
 
 

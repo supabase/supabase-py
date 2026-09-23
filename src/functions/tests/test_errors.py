@@ -1,7 +1,6 @@
 from typing import Type
 
 import pytest
-
 from supabase_functions.errors import (
     FunctionsApiErrorDict,
     FunctionsError,
@@ -20,7 +19,7 @@ from supabase_functions.errors import (
 )
 def test_error_initialization(
     error_class: Type[FunctionsError], expected_name: str, expected_status: int
-):
+) -> None:
     test_message = "Test error message"
     if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
         error: FunctionsError = error_class(test_message)
@@ -44,7 +43,7 @@ def test_error_initialization(
 )
 def test_error_to_dict(
     error_class: Type[FunctionsError], expected_name: str, expected_status: int
-):
+) -> None:
     test_message = "Test error message"
 
     if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
@@ -66,13 +65,13 @@ def test_error_to_dict(
     assert isinstance(typed_dict["status"], int)
 
 
-def test_functions_error_inheritance():
+def test_functions_error_inheritance() -> None:
     # Test that all error classes inherit from FunctionsError
     assert issubclass(FunctionsHttpError, FunctionsError)
     assert issubclass(FunctionsRelayError, FunctionsError)
 
 
-def test_error_as_exception():
+def test_error_as_exception() -> None:
     # Test that errors can be raised and caught
     test_message = "Test exception"
 
@@ -92,7 +91,7 @@ def test_error_as_exception():
     assert str(exc_info.value) == test_message
 
 
-def test_error_message_types():
+def test_error_message_types() -> None:
     # Test that errors handle different message types appropriately
     test_cases = [
         "Simple string",

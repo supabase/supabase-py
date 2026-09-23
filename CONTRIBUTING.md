@@ -4,7 +4,7 @@ We highly appreciate feedback and contributions from the community! If you'd lik
 
 ## Code of conduct
 
-In the interest of fostering an open and welcoming environment, please review and follow our [code of conduct](./CODE_OF_CONDUCT.md).
+In the interest of fostering an open and welcoming environment, please review and follow our [code of conduct](https://github.com/supabase/.github/blob/main/CODE_OF_CONDUCT.md).
 
 ## Code and copy reviews
 
@@ -15,7 +15,7 @@ use GitHub pull requests for this purpose. After filing a pull request, please t
 
 Before opening a new issue or request, please take a moment to check the existing issues and discussions to see if your topic has already been addressed. This helps us avoid duplicate issues and keeps the conversation focused.
 
-Report all issues and file all feature requests through [GitHub Issues](./issues).
+Report all issues and file all feature requests through [GitHub Issues](https://github.com/supabase/supabase-py/issues).
 
 ## Create a pull request
 

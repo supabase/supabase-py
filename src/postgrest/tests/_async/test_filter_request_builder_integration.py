@@ -1,4 +1,7 @@
+import pytest
+
 from postgrest import CountMethod
+from postgrest.exceptions import APIError
 
 from .client import rest_client, rest_client_httpx
 
@@ -48,6 +51,49 @@ async def test_match():
     )
 
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
+
+
+async def test_match_maybe_single():
+    res = (
+        await rest_client()
+        .from_("countries")
+        .select("country_name, iso")
+        .match({"numcode": 8, "nicename": "Albania"})
+        .maybe_single()
+        .execute()
+    )
+
+    assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
+
+
+async def test_no_match_maybe_single():
+    res = (
+        await rest_client()
+        .from_("countries")
+        .select("country_name, iso")
+        .match({"numcode": 100, "nicename": "Wonderland"})
+        .maybe_single()
+        .execute()
+    )
+
+    assert res is None
+
+
+async def test_maybe_single_multiple_rows():
+    with pytest.raises(APIError) as exc_info:
+        await (
+            rest_client()
+            .from_("countries")
+            .select("country_name, iso")
+            .lte("numcode", 8)
+            .gte("numcode", 4)
+            .maybe_single()
+            .execute()
+        )
+
+    assert exc_info.value.code == "406"
+    assert exc_info.value.message == "Cannot coerce the result to a single JSON object"
+    assert exc_info.value.details == "The result contains more than one row."
 
 
 async def test_equals():
@@ -474,6 +520,47 @@ async def test_rpc_with_single():
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
+async def test_rpc_with_maybe_single():
+    res = (
+        await rest_client()
+        .rpc("list_stored_countries", {})
+        .select("nicename, country_name, iso")
+        .eq("nicename", "Albania")
+        .maybe_single()
+        .execute()
+    )
+
+    assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
+
+
+async def test_rpc_with_maybe_single_no_match():
+    res = (
+        await rest_client()
+        .rpc("list_stored_countries", {})
+        .select("nicename, country_name, iso")
+        .eq("nicename", "Wonderland")
+        .maybe_single()
+        .execute()
+    )
+
+    assert res is None
+
+
+async def test_rpc_with_maybe_single_multiple_rows():
+    with pytest.raises(APIError) as exc_info:
+        await (
+            rest_client()
+            .rpc("list_stored_countries", {})
+            .select("nicename, country_name, iso")
+            .maybe_single()
+            .execute()
+        )
+
+    assert exc_info.value.code == "406"
+    assert exc_info.value.message == "Cannot coerce the result to a single JSON object"
+    assert exc_info.value.details == "The result contains more than one row."
+
+
 async def test_rpc_with_limit():
     res = (
         await rest_client()
@@ -584,3 +671,106 @@ async def test_order_on_foreign_table():
         {"name": "strings", "instruments": [{"name": "violin"}, {"name": "harp"}]},
         {"name": "woodwinds", "instruments": []},
     ]
+
+
+async def test_get_retry_503() -> None:
+    from httpx import Request, Response
+
+    retry_count = 0
+    client = rest_client()
+    original_send = client.session.send
+
+    async def fake_send(request: Request, **kwargs):
+        nonlocal retry_count
+        if retry_count > 0:
+            assert request.headers["X-Retry-Count"] == str(retry_count)
+        if retry_count < 3:
+            retry_count += 1
+            return Response(503)
+        return await original_send(request)
+
+    from unittest.mock import Mock, patch
+
+    with patch.object(client.session, "send", wraps=fake_send) as mock_send:
+        query = (
+            client.from_("orchestral_sections")
+            .select("name, instruments(name)")
+            .order("name", desc=True, foreign_table="instruments")
+        )
+        res = await query.execute()
+
+        assert res.data == [
+            {"name": "strings", "instruments": [{"name": "violin"}, {"name": "harp"}]},
+            {"name": "woodwinds", "instruments": []},
+        ]
+        assert retry_count > 0
+
+
+async def test_get_retry_503_does_not_retry_when_disabled() -> None:
+    from httpx import Request, Response
+
+    retry_count = 0
+    client = rest_client()
+    original_send = client.session.send
+
+    async def fake_send(request: Request, **kwargs):
+        nonlocal retry_count
+        if retry_count > 0:
+            assert request.headers["X-Retry-Count"] == str(retry_count)
+        if retry_count < 3:
+            retry_count += 1
+            return Response(503)
+        return await original_send(request)
+
+    from unittest.mock import Mock, patch
+
+    import pytest
+
+    from postgrest.exceptions import APIError
+
+    with patch.object(client.session, "send", wraps=fake_send) as mock_send:
+        query = (
+            client.from_("orchestral_sections")
+            .select("name, instruments(name)")
+            .order("name", desc=True, foreign_table="instruments")
+            .retry(False)
+        )
+        with pytest.raises(APIError):
+            await query.execute()
+
+        assert retry_count == 1
+
+
+async def test_order_retry_400_doesnt_retry() -> None:
+    from httpx import Request, Response
+
+    retry_count = 0
+    client = rest_client()
+    original_send = client.session.send
+
+    async def fake_send(request: Request, **kwargs):
+        nonlocal retry_count
+        if retry_count < 3:
+            retry_count += 1
+            return Response(
+                400,
+                content=b'{"message": "JSON could not be generated", "code": "400", "hint": "Refer to full message for details", "details": ""}',
+            )
+        return await original_send(request)
+
+    from unittest.mock import Mock, patch
+
+    import pytest
+
+    from postgrest.exceptions import APIError
+
+    with patch.object(client.session, "send", wraps=fake_send) as mock_send:
+        query = (
+            client.from_("orchestral_sections")
+            .select("name, instruments(name)")
+            .order("name", desc=True, foreign_table="instruments")
+        )
+        with pytest.raises(APIError):
+            await query.execute()
+
+        assert retry_count == 1

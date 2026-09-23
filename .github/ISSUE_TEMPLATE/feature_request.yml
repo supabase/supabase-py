@@ -1,0 +1,34 @@
+name: "\U0001F680 New feature proposal"
+description: Propose a new feature to be added to the Supabase Python Libraries
+labels: ['enhancement']
+type: Feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in the project and taking the time to fill out this feature report!
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Description
+      description: 'Clear and concise description of the problem. Please make the reason and use cases as detailed as possible. If you intend to submit a PR for this issue, link it here.'
+      placeholder: I believe a good addition to the library would be ...
+    validations:
+      required: true
+  - type: textarea
+    id: suggested-solution
+    attributes:
+      label: Suggested solution
+      description: 'In the library [xy] we could provide following implementation...'
+    validations:
+      required: true
+  - type: textarea
+    id: alternative
+    attributes:
+      label: Alternatives
+      description: Clear and concise description of any alternative solutions or features you've considered.
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Any other context or screenshots about the feature request here.

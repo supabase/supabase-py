@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from ._async.gotrue_admin_api import AsyncGoTrueAdminAPI  # type: ignore # noqa: F401
-from ._async.gotrue_client import AsyncGoTrueClient  # type: ignore # noqa: F401
+from ._async.gotrue_admin_api import AsyncGoTrueAdminAPI  # noqa
+from ._async.gotrue_client import AsyncGoTrueClient  # noqa
 from ._async.storage import (
-    AsyncMemoryStorage,  # type: ignore # noqa: F401
-    AsyncSupportedStorage,  # type: ignore # noqa: F401
+    AsyncMemoryStorage,  # noqa
+    AsyncSupportedStorage,  # noqa
 )
-from ._sync.gotrue_admin_api import SyncGoTrueAdminAPI  # type: ignore # noqa: F401
-from ._sync.gotrue_client import SyncGoTrueClient  # type: ignore # noqa: F401
+from ._sync.gotrue_admin_api import SyncGoTrueAdminAPI  # noqa
+from ._sync.gotrue_client import SyncGoTrueClient  # noqa
 from ._sync.storage import (
-    SyncMemoryStorage,  # type: ignore # noqa: F401
-    SyncSupportedStorage,  # type: ignore # noqa: F401
+    SyncMemoryStorage,  # noqa
+    SyncSupportedStorage,  # noqa
 )
-from .types import *  # type: ignore # noqa: F401, F403
-from .version import __version__
+from .types import *
+from .version import __version__  # noqa

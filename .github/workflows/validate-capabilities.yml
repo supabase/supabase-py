@@ -1,0 +1,20 @@
+name: Validate SDK Compliance
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    uses: supabase/sdk/.github/workflows/validate-sdk-compliance-python.yml@a494be6719174adbca0313de1ee187407e2dca95 # capability-matrix-v1.6.0
+    with:
+      griffe-packages: >-
+        supabase supabase_auth postgrest storage3 realtime supabase_functions
+      griffe-search-paths: >-
+        src/supabase/src,src/auth/src,src/postgrest/src,src/storage/src,src/realtime/src,src/functions/src

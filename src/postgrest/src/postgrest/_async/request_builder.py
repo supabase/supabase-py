@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Generic, Optional, TypeVar, Union
+import asyncio
+from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
 from httpx import AsyncClient, BasicAuth, Headers, QueryParams, Response
 from pydantic import ValidationError
-from typing_extensions import override
+from typing_extensions import Self, override
 from yarl import URL
 
 from ..base_request_builder import (
@@ -26,13 +27,55 @@ from ..types import JSON, ReturnMethod
 from ..utils import model_validate_json
 
 ReqConfig = RequestConfig[AsyncClient]
+QueryBuilderT = TypeVar("QueryBuilderT", bound="AsyncQueryRequestBuilder")
+
+
+def get_retry_delay(resp: Response, attempt_count: int) -> int:
+    delay: int = min(2**attempt_count, 30)
+    return delay
+
+
+async def send_with_retry(req: ReqConfig) -> Response:
+    """
+    Retries idempotent requests that failed due to Cloudflare errors.
+    Request method must be either "GET" or "HEAD", and the response status code
+    must be either 503 or 520.
+    """
+    attempt_count = 0
+    while True:
+        headers = (
+            Headers({"X-Retry-Count": str(attempt_count)})
+            if attempt_count > 0
+            else Headers()
+        )
+        resp = await req.send(headers)
+        if resp.is_success or not req.should_retry(resp, attempt_count=attempt_count):
+            break
+        await asyncio.sleep(get_retry_delay(resp, attempt_count))
+        attempt_count += 1
+    return resp
 
 
 class AsyncQueryRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
-    async def execute(self) -> APIResponse | str:
+    def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
+        _, params, _, _ = pre_select(*columns, count=None)
+        self.request.params = self.request.params.add("select", params["select"])
+        if prefer_headers := self.request.headers.get_list("Prefer", split_commas=True):
+            prefer_headers = [h for h in prefer_headers if not h.startswith("return=")]
+            prefer_headers.append("return=representation")
+            self.request.headers["Prefer"] = ",".join(prefer_headers)
+        else:
+            self.request.headers["Prefer"] = "return=representation"
+        return self
+
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
+    async def execute(self) -> APIResponse:
         """Execute the query.
 
         .. tip::
@@ -44,20 +87,9 @@ class AsyncQueryRequestBuilder:
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        r = await self.request.send()
+        r = await send_with_retry(self.request)
         try:
             if r.is_success:
-                if self.request.http_method != "HEAD":
-                    body = r.text
-                    if self.request.headers.get("Accept") == "text/csv":
-                        return body
-                    if self.request.headers.get(
-                        "Accept"
-                    ) and "application/vnd.pgrst.plan" in self.request.headers.get(
-                        "Accept"
-                    ):
-                        if "+json" not in self.request.headers.get("Accept"):
-                            return body
                 return APIResponse.from_http_request_response(r)
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
@@ -69,6 +101,10 @@ class AsyncQueryRequestBuilder:
 class AsyncSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
+
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
 
     async def execute(self) -> SingleAPIResponse:
         """Execute the query.
@@ -82,7 +118,7 @@ class AsyncSingleRequestBuilder:
                 Raises:
                     :class:`APIError` If the API raised an error.
         """
-        r = await self.request.send()
+        r = await send_with_retry(self.request)
         try:
             if (
                 200 <= r.status_code <= 299
@@ -95,27 +131,57 @@ class AsyncSingleRequestBuilder:
             raise APIError(generate_default_error_message(r))
 
 
+class AsyncExplainRequestBuilder:
+    def __init__(self, request: ReqConfig):
+        self.request = request
+
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
+    async def execute(self) -> str:
+        r = await send_with_retry(self.request)
+        try:
+            if r.is_success:
+                return r.text
+            else:
+                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                raise APIError(dict(json_obj))
+        except ValidationError as e:
+            raise APIError(generate_default_error_message(r))
+
+
 class AsyncMaybeSingleRequestBuilder:
     def __init__(self, request: ReqConfig):
         self.request = request
 
+    def retry(self, enabled: bool) -> Self:
+        self.request.retry_enabled = enabled
+        return self
+
     async def execute(self) -> Optional[SingleAPIResponse]:
-        r = None
+        r = await send_with_retry(self.request)
         try:
-            r = await AsyncSingleRequestBuilder(self.request).execute()
-        except APIError as e:
-            if e.details and "The result contains 0 rows" in e.details:
-                return None
-        if not r:
-            raise APIError(
-                {
-                    "message": "Missing response",
-                    "code": "204",
-                    "hint": "Please check traceback of the code",
-                    "details": "Postgrest couldn't retrieve response, please check traceback of the code. Please create an issue in `supabase-community/postgrest-py` if needed.",
-                }
-            )
-        return r
+            if r.is_success:
+                parsed = APIResponse.from_http_request_response(r)
+                if len(parsed.data) == 0:
+                    return None
+                if len(parsed.data) == 1:
+                    return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
+                else:
+                    raise APIError(
+                        {
+                            "message": "Cannot coerce the result to a single JSON object",
+                            "code": "406",
+                            "hint": "Please check traceback of the code",
+                            "details": "The result contains more than one row.",
+                        }
+                    )
+            else:
+                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                raise APIError(dict(json_obj))
+        except ValidationError as e:
+            raise APIError(generate_default_error_message(r))
 
 
 class AsyncFilterRequestBuilder(
@@ -130,6 +196,10 @@ class AsyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, AsyncSingleRequestBuil
     def __init__(self, request: ReqConfig) -> None:
         BaseFilterRequestBuilder.__init__(self, request)
         AsyncSingleRequestBuilder.__init__(self, request)
+
+    def maybe_single(self) -> AsyncMaybeSingleRequestBuilder:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return AsyncMaybeSingleRequestBuilder(self.request)
 
 
 class AsyncSelectRequestBuilder(
@@ -150,7 +220,6 @@ class AsyncSelectRequestBuilder(
 
     def maybe_single(self) -> AsyncMaybeSingleRequestBuilder:
         """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return AsyncMaybeSingleRequestBuilder(self.request)
 
     def text_search(
@@ -175,6 +244,52 @@ class AsyncSelectRequestBuilder(
         """Specify that the query must retrieve data as a single CSV string."""
         self.request.headers["Accept"] = "text/csv"
         return AsyncSingleRequestBuilder(self.request)
+
+    @overload
+    def explain(
+        self,
+        analyze: bool = False,
+        verbose: bool = False,
+        settings: bool = False,
+        buffers: bool = False,
+        wal: bool = False,
+        format: Literal["text"] = "text",
+    ) -> AsyncExplainRequestBuilder: ...
+
+    @overload
+    def explain(
+        self,
+        analyze: bool = False,
+        verbose: bool = False,
+        settings: bool = False,
+        buffers: bool = False,
+        wal: bool = False,
+        *,
+        format: Literal["json"],
+    ) -> AsyncSingleRequestBuilder: ...
+
+    def explain(
+        self,
+        analyze: bool = False,
+        verbose: bool = False,
+        settings: bool = False,
+        buffers: bool = False,
+        wal: bool = False,
+        format: Literal["text", "json"] = "text",
+    ) -> AsyncExplainRequestBuilder | AsyncSingleRequestBuilder:
+        options = [
+            key
+            for key, value in locals().items()
+            if key not in ["self", "format"] and value
+        ]
+        options_str = "|".join(options)
+        self.request.headers["Accept"] = (
+            f"application/vnd.pgrst.plan+{format}; options={options_str}"
+        )
+        if format == "text":
+            return AsyncExplainRequestBuilder(self.request)
+        else:
+            return AsyncSingleRequestBuilder(self.request)
 
 
 class AsyncRequestBuilder:  #

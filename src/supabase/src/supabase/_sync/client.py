@@ -1,33 +1,37 @@
 import copy
 import re
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
-from supabase_auth import SyncMemoryStorage
-from supabase_auth.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import (
     SyncPostgrestClient,
+    SyncRequestBuilder,
+    SyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
-from realtime import SyncRealtimeChannel, SyncRealtimeClient, RealtimeChannelOptions
+from realtime import RealtimeChannelOptions, SyncRealtimeChannel, SyncRealtimeClient
 from storage3 import SyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
+from supabase_auth import SyncMemoryStorage
+from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import SyncFunctionsClient
+from yarl import URL
 
 from ..lib.client_options import SyncClientOptions as ClientOptions
 from ..lib.client_options import SyncHttpxClient
+from ..types import RealtimeClientOptions
 from .auth_client import SyncSupabaseAuthClient
 
 
 # Create an exception class when user does not provide a valid url or key.
 class SupabaseException(Exception):
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         self.message = message
         super().__init__(self.message)
 
 
-class SyncClient:
+class Client:
     """Supabase client class."""
 
     def __init__(
@@ -35,7 +39,7 @@ class SyncClient:
         supabase_url: str,
         supabase_key: str,
         options: Optional[ClientOptions] = None,
-    ):
+    ) -> None:
         """Instantiate the client.
 
         Parameters
@@ -61,7 +65,9 @@ class SyncClient:
         if options is None:
             options = ClientOptions(storage=SyncMemoryStorage())
 
-        self.supabase_url = supabase_url
+        self.supabase_url = (
+            URL(supabase_url) if supabase_url.endswith("/") else URL(supabase_url + "/")
+        )
         self.supabase_key = supabase_key
         self.options = copy.copy(options)
         self.options.headers = {
@@ -69,15 +75,17 @@ class SyncClient:
             **self._get_auth_headers(),
         }
 
-        self.rest_url = f"{supabase_url}/rest/v1"
-        self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
-        self.auth_url = f"{supabase_url}/auth/v1"
-        self.storage_url = f"{supabase_url}/storage/v1/"
-        self.functions_url = f"{supabase_url}/functions/v1"
+        self.rest_url = self.supabase_url.joinpath("rest", "v1")
+        self.realtime_url = self.supabase_url.joinpath("realtime", "v1").with_scheme(
+            "wss" if self.supabase_url.scheme == "https" else "ws"
+        )
+        self.auth_url = self.supabase_url.joinpath("auth", "v1")
+        self.storage_url = self.supabase_url.joinpath("storage", "v1", "")
+        self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
         # Instantiate clients.
         self.auth = self._init_supabase_auth_client(
-            auth_url=self.auth_url,
+            auth_url=str(self.auth_url),
             client_options=self.options,
         )
         self.realtime = self._init_realtime_client(
@@ -85,9 +93,9 @@ class SyncClient:
             supabase_key=self.supabase_key,
             options=self.options.realtime if self.options else None,
         )
-        self._postgrest = None
-        self._storage = None
-        self._functions = None
+        self._postgrest: Optional[SyncPostgrestClient] = None
+        self._storage: Optional[SyncStorageClient] = None
+        self._functions: Optional[SyncFunctionsClient] = None
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
@@ -96,14 +104,18 @@ class SyncClient:
         supabase_url: str,
         supabase_key: str,
         options: Optional[ClientOptions] = None,
-    ):
+    ) -> "Client":
         auth_header = options.headers.get("Authorization") if options else None
         client = cls(supabase_url, supabase_key, options)
 
         if auth_header is None:
             try:
                 session = client.auth.get_session()
-                session_access_token = client._create_auth_header(session.access_token)
+                session_access_token = (
+                    client._create_auth_header(session.access_token)
+                    if session
+                    else None
+                )
             except Exception:
                 session_access_token = None
 
@@ -113,7 +125,7 @@ class SyncClient:
 
         return client
 
-    def table(self, table_name: str):
+    def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
@@ -122,14 +134,14 @@ class SyncClient:
         """
         return self.from_(table_name)
 
-    def schema(self, schema: str):
+    def schema(self, schema: str) -> SyncPostgrestClient:
         """Select a schema to query or perform an function (rpc) call.
 
         The schema needs to be on the list of exposed schemas inside Supabase.
         """
         return self.postgrest.schema(schema)
 
-    def from_(self, table_name: str):
+    def from_(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
 
         See the `table` method.
@@ -143,7 +155,7 @@ class SyncClient:
         count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
-    ):
+    ) -> SyncRPCFilterRequestBuilder:
         """Performs a stored procedure call.
 
         Parameters
@@ -167,10 +179,10 @@ class SyncClient:
         return self.postgrest.rpc(fn, params, count, head, get)
 
     @property
-    def postgrest(self):
+    def postgrest(self) -> SyncPostgrestClient:
         if self._postgrest is None:
             self._postgrest = self._init_postgrest_client(
-                rest_url=self.rest_url,
+                rest_url=str(self.rest_url),
                 headers=self.options.headers,
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
@@ -180,10 +192,10 @@ class SyncClient:
         return self._postgrest
 
     @property
-    def storage(self):
+    def storage(self) -> SyncStorageClient:
         if self._storage is None:
             self._storage = self._init_storage_client(
-                storage_url=self.storage_url,
+                storage_url=str(self.storage_url),
                 headers=self.options.headers,
                 storage_client_timeout=self.options.storage_client_timeout,
                 http_client=self.options.httpx_client,
@@ -191,10 +203,10 @@ class SyncClient:
         return self._storage
 
     @property
-    def functions(self):
+    def functions(self) -> SyncFunctionsClient:
         if self._functions is None:
             self._functions = SyncFunctionsClient(
-                url=self.functions_url,
+                url=str(self.functions_url),
                 headers=self.options.headers,
                 timeout=(
                     self.options.function_client_timeout
@@ -206,31 +218,34 @@ class SyncClient:
         return self._functions
 
     def channel(
-        self, topic: str, params: RealtimeChannelOptions = {}
+        self, topic: str, params: Optional[RealtimeChannelOptions] = None
     ) -> SyncRealtimeChannel:
         """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
-        return self.realtime.channel(topic, params)
+        return self.realtime.channel(topic, params or {})
 
-    def get_channels(self):
+    def get_channels(self) -> List[SyncRealtimeChannel]:
         """Returns all realtime channels."""
         return self.realtime.get_channels()
 
-    def remove_channel(self, channel: SyncRealtimeChannel):
+    def remove_channel(self, channel: SyncRealtimeChannel) -> None:
         """Unsubscribes and removes Realtime channel from Realtime client."""
         self.realtime.remove_channel(channel)
 
-    def remove_all_channels(self):
+    def remove_all_channels(self) -> None:
         """Unsubscribes and removes all Realtime channels from Realtime client."""
         self.realtime.remove_all_channels()
 
     @staticmethod
     def _init_realtime_client(
-        realtime_url: str, supabase_key: str, options: Optional[Dict[str, Any]] = None
+        realtime_url: URL,
+        supabase_key: str,
+        options: Optional[RealtimeClientOptions] = None,
     ) -> SyncRealtimeClient:
-        if options is None:
-            options = {}
+        realtime_options = options or {}
         """Private method for creating an instance of the realtime-py client."""
-        return SyncRealtimeClient(realtime_url, token=supabase_key, **options)
+        return SyncRealtimeClient(
+            str(realtime_url), token=supabase_key, **realtime_options
+        )
 
     @staticmethod
     def _init_storage_client(
@@ -243,19 +258,16 @@ class SyncClient:
     ) -> SyncStorageClient:
         if http_client is not None:
             # If an http client is provided, use it
-            kwargs = {"http_client": http_client}
-        else:
-            kwargs = {
-                "timeout": storage_client_timeout,
-                "verify": verify,
-                "proxy": proxy,
-                "http_client": None,
-            }
-
+            return SyncStorageClient(
+                url=storage_url, headers=headers, http_client=http_client
+            )
         return SyncStorageClient(
             url=storage_url,
             headers=headers,
-            **kwargs,
+            timeout=storage_client_timeout,
+            verify=verify,
+            proxy=proxy,
+            http_client=None,
         )
 
     @staticmethod
@@ -291,23 +303,20 @@ class SyncClient:
         """Private helper for creating an instance of the Postgrest client."""
         if http_client is not None:
             # If an http client is provided, use it
-            kwargs = {"http_client": http_client}
-        else:
-            kwargs = {
-                "timeout": timeout,
-                "verify": verify,
-                "proxy": proxy,
-                "http_client": None,
-            }
-
+            return SyncPostgrestClient(
+                rest_url, headers=headers, schema=schema, http_client=http_client
+            )
         return SyncPostgrestClient(
             rest_url,
             headers=headers,
             schema=schema,
-            **kwargs,
+            timeout=timeout,
+            verify=verify,
+            proxy=proxy,
+            http_client=None,
         )
 
-    def _create_auth_header(self, token: str):
+    def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
     def _get_auth_headers(self, authorization: Optional[str] = None) -> Dict[str, str]:
@@ -324,7 +333,7 @@ class SyncClient:
 
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Optional[Session]
-    ):
+    ) -> None:
         access_token = self.supabase_key
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             # reset postgrest and storage instance on event change
@@ -332,14 +341,16 @@ class SyncClient:
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
-        self.options.headers["Authorization"] = self._create_auth_header(access_token)
+        auth_header = self._create_auth_header(access_token)
+        self.options.headers["Authorization"] = auth_header
+        self.auth._headers["Authorization"] = auth_header
 
 
 def create_client(
     supabase_url: str,
     supabase_key: str,
     options: Optional[ClientOptions] = None,
-) -> SyncClient:
+) -> Client:
     """Create client function to instantiate supabase client like JS runtime.
 
     Parameters
@@ -366,6 +377,6 @@ def create_client(
     -------
     Client
     """
-    return SyncClient.create(
+    return Client.create(
         supabase_url=supabase_url, supabase_key=supabase_key, options=options
     )

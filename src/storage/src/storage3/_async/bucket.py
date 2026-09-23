@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import Any, Optional
 
 from httpx import AsyncClient, Headers, HTTPStatusError, Response
@@ -17,7 +18,12 @@ class AsyncStorageBucketAPI:
 
     def __init__(self, session: AsyncClient, url: str, headers: Headers) -> None:
         if url and url[-1] != "/":
-            print("Storage endpoint URL should have a trailing slash.")
+            warnings.warn(
+                "Storage endpoint URL should have a trailing slash. "
+                "The URL has been automatically corrected.",
+                UserWarning,
+                stacklevel=2,
+            )
             url += "/"
         self._base_url = URL(url)
         self._client = session
@@ -36,8 +42,16 @@ class AsyncStorageBucketAPI:
             )
             response.raise_for_status()
         except HTTPStatusError as exc:
-            resp = exc.response.json()
-            raise StorageApiError(resp["message"], resp["error"], resp["statusCode"])
+            try:
+                resp = exc.response.json()
+                raise StorageApiError(
+                    resp["message"], resp["error"], resp["statusCode"]
+                ) from exc
+            except (KeyError, TypeError, ValueError) as err:
+                message = f"Unable to parse error message: {exc.response.text}"
+                raise StorageApiError(
+                    message, "InternalError", exc.response.status_code
+                ) from err
 
         return response
 

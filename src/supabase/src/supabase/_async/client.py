@@ -1,29 +1,33 @@
 import asyncio
 import copy
 import re
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
-from supabase_auth import AsyncMemoryStorage
-from supabase_auth.types import AuthChangeEvent, Session
 from httpx import Timeout
 from postgrest import (
     AsyncPostgrestClient,
+    AsyncRequestBuilder,
+    AsyncRPCFilterRequestBuilder,
 )
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.types import CountMethod
 from realtime import AsyncRealtimeChannel, AsyncRealtimeClient, RealtimeChannelOptions
 from storage3 import AsyncStorageClient
 from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
+from supabase_auth import AsyncMemoryStorage
+from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import AsyncFunctionsClient
+from yarl import URL
 
 from ..lib.client_options import AsyncClientOptions as ClientOptions
 from ..lib.client_options import AsyncHttpxClient
+from ..types import RealtimeClientOptions
 from .auth_client import AsyncSupabaseAuthClient
 
 
 # Create an exception class when user does not provide a valid url or key.
 class SupabaseException(Exception):
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         self.message = message
         super().__init__(self.message)
 
@@ -36,7 +40,7 @@ class AsyncClient:
         supabase_url: str,
         supabase_key: str,
         options: Optional[ClientOptions] = None,
-    ):
+    ) -> None:
         """Instantiate the client.
 
         Parameters
@@ -62,7 +66,9 @@ class AsyncClient:
         if options is None:
             options = ClientOptions(storage=AsyncMemoryStorage())
 
-        self.supabase_url = supabase_url
+        self.supabase_url = (
+            URL(supabase_url) if supabase_url.endswith("/") else URL(supabase_url + "/")
+        )
         self.supabase_key = supabase_key
         self.options = copy.copy(options)
         self.options.headers = {
@@ -70,15 +76,17 @@ class AsyncClient:
             **self._get_auth_headers(),
         }
 
-        self.rest_url = f"{supabase_url}/rest/v1"
-        self.realtime_url = f"{supabase_url}/realtime/v1".replace("http", "ws")
-        self.auth_url = f"{supabase_url}/auth/v1"
-        self.storage_url = f"{supabase_url}/storage/v1/"
-        self.functions_url = f"{supabase_url}/functions/v1"
+        self.rest_url = self.supabase_url.joinpath("rest", "v1")
+        self.realtime_url = self.supabase_url.joinpath("realtime", "v1").with_scheme(
+            "wss" if self.supabase_url.scheme == "https" else "ws"
+        )
+        self.auth_url = self.supabase_url.joinpath("auth", "v1")
+        self.storage_url = self.supabase_url.joinpath("storage", "v1", "")
+        self.functions_url = self.supabase_url.joinpath("functions", "v1")
 
         # Instantiate clients.
         self.auth = self._init_supabase_auth_client(
-            auth_url=self.auth_url,
+            auth_url=str(self.auth_url),
             client_options=self.options,
         )
         self.realtime = self._init_realtime_client(
@@ -86,9 +94,9 @@ class AsyncClient:
             supabase_key=self.supabase_key,
             options=self.options.realtime if self.options else None,
         )
-        self._postgrest = None
-        self._storage = None
-        self._functions = None
+        self._postgrest: Optional[AsyncPostgrestClient] = None
+        self._storage: Optional[AsyncStorageClient] = None
+        self._functions: Optional[AsyncFunctionsClient] = None
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
@@ -97,14 +105,18 @@ class AsyncClient:
         supabase_url: str,
         supabase_key: str,
         options: Optional[ClientOptions] = None,
-    ):
+    ) -> "AsyncClient":
         auth_header = options.headers.get("Authorization") if options else None
         client = cls(supabase_url, supabase_key, options)
 
         if auth_header is None:
             try:
                 session = await client.auth.get_session()
-                session_access_token = client._create_auth_header(session.access_token)
+                session_access_token = (
+                    client._create_auth_header(session.access_token)
+                    if session
+                    else None
+                )
             except Exception:
                 session_access_token = None
 
@@ -114,7 +126,7 @@ class AsyncClient:
 
         return client
 
-    def table(self, table_name: str):
+    def table(self, table_name: str) -> AsyncRequestBuilder:
         """Perform a table operation.
 
         Note that the supabase client uses the `from` method, but in Python,
@@ -123,14 +135,14 @@ class AsyncClient:
         """
         return self.from_(table_name)
 
-    def schema(self, schema: str):
+    def schema(self, schema: str) -> AsyncPostgrestClient:
         """Select a schema to query or perform an function (rpc) call.
 
         The schema needs to be on the list of exposed schemas inside Supabase.
         """
         return self.postgrest.schema(schema)
 
-    def from_(self, table_name: str):
+    def from_(self, table_name: str) -> AsyncRequestBuilder:
         """Perform a table operation.
 
         See the `table` method.
@@ -144,7 +156,7 @@ class AsyncClient:
         count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
-    ):
+    ) -> AsyncRPCFilterRequestBuilder:
         """Performs a stored procedure call.
 
         Parameters
@@ -168,10 +180,10 @@ class AsyncClient:
         return self.postgrest.rpc(fn, params, count, head, get)
 
     @property
-    def postgrest(self):
+    def postgrest(self) -> AsyncPostgrestClient:
         if self._postgrest is None:
             self._postgrest = self._init_postgrest_client(
-                rest_url=self.rest_url,
+                rest_url=str(self.rest_url),
                 headers=self.options.headers,
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
@@ -181,10 +193,10 @@ class AsyncClient:
         return self._postgrest
 
     @property
-    def storage(self):
+    def storage(self) -> AsyncStorageClient:
         if self._storage is None:
             self._storage = self._init_storage_client(
-                storage_url=self.storage_url,
+                storage_url=str(self.storage_url),
                 headers=self.options.headers,
                 storage_client_timeout=self.options.storage_client_timeout,
                 http_client=self.options.httpx_client,
@@ -192,10 +204,10 @@ class AsyncClient:
         return self._storage
 
     @property
-    def functions(self):
+    def functions(self) -> AsyncFunctionsClient:
         if self._functions is None:
             self._functions = AsyncFunctionsClient(
-                url=self.functions_url,
+                url=str(self.functions_url),
                 headers=self.options.headers,
                 timeout=(
                     self.options.function_client_timeout
@@ -207,31 +219,34 @@ class AsyncClient:
         return self._functions
 
     def channel(
-        self, topic: str, params: RealtimeChannelOptions = {}
+        self, topic: str, params: Optional[RealtimeChannelOptions] = None
     ) -> AsyncRealtimeChannel:
         """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
-        return self.realtime.channel(topic, params)
+        return self.realtime.channel(topic, params or {})
 
-    def get_channels(self):
+    def get_channels(self) -> List[AsyncRealtimeChannel]:
         """Returns all realtime channels."""
         return self.realtime.get_channels()
 
-    async def remove_channel(self, channel: AsyncRealtimeChannel):
+    async def remove_channel(self, channel: AsyncRealtimeChannel) -> None:
         """Unsubscribes and removes Realtime channel from Realtime client."""
         await self.realtime.remove_channel(channel)
 
-    async def remove_all_channels(self):
+    async def remove_all_channels(self) -> None:
         """Unsubscribes and removes all Realtime channels from Realtime client."""
         await self.realtime.remove_all_channels()
 
     @staticmethod
     def _init_realtime_client(
-        realtime_url: str, supabase_key: str, options: Optional[Dict[str, Any]] = None
+        realtime_url: URL,
+        supabase_key: str,
+        options: Optional[RealtimeClientOptions] = None,
     ) -> AsyncRealtimeClient:
-        if options is None:
-            options = {}
+        realtime_options = options or {}
         """Private method for creating an instance of the realtime-py client."""
-        return AsyncRealtimeClient(realtime_url, token=supabase_key, **options)
+        return AsyncRealtimeClient(
+            str(realtime_url), token=supabase_key, **realtime_options
+        )
 
     @staticmethod
     def _init_storage_client(
@@ -244,19 +259,16 @@ class AsyncClient:
     ) -> AsyncStorageClient:
         if http_client is not None:
             # If an http client is provided, use it
-            kwargs = {"http_client": http_client}
-        else:
-            kwargs = {
-                "timeout": storage_client_timeout,
-                "verify": verify,
-                "proxy": proxy,
-                "http_client": None,
-            }
-
+            return AsyncStorageClient(
+                url=storage_url, headers=headers, http_client=http_client
+            )
         return AsyncStorageClient(
             url=storage_url,
             headers=headers,
-            **kwargs,
+            timeout=storage_client_timeout,
+            verify=verify,
+            proxy=proxy,
+            http_client=None,
         )
 
     @staticmethod
@@ -292,23 +304,20 @@ class AsyncClient:
         """Private helper for creating an instance of the Postgrest client."""
         if http_client is not None:
             # If an http client is provided, use it
-            kwargs = {"http_client": http_client}
-        else:
-            kwargs = {
-                "timeout": timeout,
-                "verify": verify,
-                "proxy": proxy,
-                "http_client": None,
-            }
-
+            return AsyncPostgrestClient(
+                rest_url, headers=headers, schema=schema, http_client=http_client
+            )
         return AsyncPostgrestClient(
             rest_url,
             headers=headers,
             schema=schema,
-            **kwargs,
+            timeout=timeout,
+            verify=verify,
+            proxy=proxy,
+            http_client=None,
         )
 
-    def _create_auth_header(self, token: str):
+    def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
     def _get_auth_headers(self, authorization: Optional[str] = None) -> Dict[str, str]:
@@ -325,7 +334,7 @@ class AsyncClient:
 
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Optional[Session]
-    ):
+    ) -> None:
         access_token = self.supabase_key
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
             # reset postgrest and storage instance on event change
@@ -333,7 +342,9 @@ class AsyncClient:
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
-        self.options.headers["Authorization"] = self._create_auth_header(access_token)
+        auth_header = self._create_auth_header(access_token)
+        self.options.headers["Authorization"] = auth_header
+        self.auth._headers["Authorization"] = auth_header
         asyncio.create_task(self.realtime.set_auth(access_token))
 
 

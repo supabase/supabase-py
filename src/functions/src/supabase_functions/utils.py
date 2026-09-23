@@ -1,9 +1,7 @@
 import sys
 from urllib.parse import urlparse
-from warnings import warn
 
 from httpx import AsyncClient as AsyncClient  # noqa: F401
-from httpx import Client as BaseClient
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -31,25 +29,6 @@ class FunctionRegion(StrEnum):
     UsEast1 = "us-east-1"
     UsWest1 = "us-west-1"
     UsWest2 = "us-west-2"
-
-
-class SyncClient(BaseClient):
-    def __init__(self, *args, **kwargs):
-        warn(
-            "The 'SyncClient' class is deprecated. Please use `Client` from the httpx package instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        super().__init__(*args, **kwargs)
-
-    def aclose(self) -> None:
-        warn(
-            "The 'aclose' method is deprecated. Please use `close` method from `Client` in the httpx package instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.close()
 
 
 def is_valid_str_arg(target: str) -> bool:

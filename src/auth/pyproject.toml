@@ -1,6 +1,6 @@
 [project]
 name = "supabase_auth"
-version = "2.22.0" # {x-release-please-version}
+version = "2.31.0" # {x-release-please-version}
 description = "Python Client Library for Supabase Auth"
 authors = [
   {name = "Joel Lee", email = "joel@joellee.org" }
@@ -19,7 +19,7 @@ requires-python = ">=3.9"
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
   "pydantic >=1.10,<3",
-  "pyjwt[crypto] >=2.10.1",
+  "pyjwt[crypto] >=2.12.0",
 ]
 
 [project.urls]
@@ -40,35 +40,16 @@ tests = [
   "pytest-cov >= 6.2.1",
   "pytest-depends >= 1.0.1",
   "pytest-asyncio >= 1.0.0",
+  "pyotp>=2.9.0",
 ]
 lints = [
   "ruff >=0.12.1",
   "unasync >= 0.6.0",
+  "python-lsp-server (>=1.12.2,<2.0.0)",
+  "pylsp-mypy (>=0.7.0,<0.8.0)",
+  "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
 dev = [{ include-group = "lints" }, {include-group = "tests" }]
-
-[tool.ruff.lint]
-select = [
-  # pycodestyle
-  "E",
-  # Pyflakes
-  "F",
-  # pyupgrade
-  "UP",
-  # flake8-bugbear
-  # "B",
-  # flake8-simplify
-  # "SIM",
-  # isort
-  "I",
-]
-ignore = ["F401", "F403", "F841", "E712", "E501", "E402", "E722", "E731", "UP006", "UP035"]
-# isort.required-imports = ["from __future__ import annotations"]
-
-[tool.ruff.lint.pyupgrade]
-# Preserve types, even if a file imports `from __future__ import annotations`.
-keep-runtime-typing = true
-
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -76,3 +57,15 @@ asyncio_mode = "auto"
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.mypy]
+python_version = "3.9"
+check_untyped_defs = true
+allow_redefinition = true
+follow_untyped_imports = true # for deprecation module that does not have stubs
+
+no_warn_no_return = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true

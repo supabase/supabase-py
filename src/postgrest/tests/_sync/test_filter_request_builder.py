@@ -110,6 +110,43 @@ def test_contains_any_item(filter_request_builder):
     assert str(builder.request.params) == "x=cs.%7Ba%2Cb%7D"
 
 
+def test_contains_non_string_items(filter_request_builder):
+    # Non-string iterables (e.g. integer arrays) must be coerced to str
+    # instead of raising TypeError from ",".join(...).
+    builder = filter_request_builder.contains("x", [1, 2, 3])
+
+    # {1,2,3}
+    assert str(builder.request.params) == "x=cs.%7B1%2C2%2C3%7D"
+
+
+def test_cs_non_string_items(filter_request_builder):
+    builder = filter_request_builder.cs("x", [1, 2, 3])
+
+    # {1,2,3}
+    assert str(builder.request.params) == "x=cs.%7B1%2C2%2C3%7D"
+
+
+def test_cd_non_string_items(filter_request_builder):
+    builder = filter_request_builder.cd("x", [1, 2, 3])
+
+    # {1,2,3}
+    assert str(builder.request.params) == "x=cd.%7B1%2C2%2C3%7D"
+
+
+def test_contained_by_non_string_items(filter_request_builder):
+    builder = filter_request_builder.contained_by("x", [1, 2, 3])
+
+    # {1,2,3}
+    assert str(builder.request.params) == "x=cd.%7B1%2C2%2C3%7D"
+
+
+def test_overlaps_non_string_items(filter_request_builder):
+    builder = filter_request_builder.overlaps("x", [1, 2, 3])
+
+    # {1,2,3}
+    assert str(builder.request.params) == "x=ov.%7B1%2C2%2C3%7D"
+
+
 def test_contains_in_list(filter_request_builder):
     builder = filter_request_builder.contains("x", '[{"a": "b"}]')
 

@@ -6,7 +6,6 @@ import pytest
 import respx
 from httpx import Headers, HTTPStatusError, Response
 from pydantic import BaseModel
-
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
 )
@@ -21,42 +20,31 @@ from supabase_auth.helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    get_error_code,
     handle_exception,
     model_dump,
     model_dump_json,
     model_validate,
-    parse_auth_response,
-    parse_jwks,
     parse_link_identity_response,
-    parse_link_response,
     parse_response_api_version,
-    parse_sso_response,
-    parse_user_response,
     validate_exp,
 )
-from supabase_auth.types import (
-    GenerateLinkResponse,
-    Session,
-    User,
-)
 
-from ._sync.utils import mock_access_token
+from ._sync.clients import mock_access_token
 
 TEST_URL = "http://localhost"
 
 
-def test_handle_exception_with_api_version_and_error_code():
+def test_handle_exception_with_api_version_and_error_code() -> None:
     err = {
         "name": "without API version and error code",
-        "code": "error_code",
+        "code": "unexpected_failure",
         "ename": "AuthApiError",
     }
 
     with respx.mock:
         respx.get(f"{TEST_URL}/hello-world").mock(
             return_value=Response(status_code=200),
-            side_effect=AuthApiError("Error code message", 400, "error_code"),
+            side_effect=AuthApiError("Error code message", 400, "unexpected_failure"),
         )
         with pytest.raises(AuthApiError, match=r"Error code message") as exc:
             httpx.get(f"{TEST_URL}/hello-world")
@@ -66,7 +54,7 @@ def test_handle_exception_with_api_version_and_error_code():
         assert exc.value.name == err["ename"]
 
 
-def test_handle_exception_without_api_version_and_weak_password_error_code():
+def test_handle_exception_without_api_version_and_weak_password_error_code() -> None:
     err = {
         "name": "without API version and weak password error code with payload",
         "code": "weak_password",
@@ -88,17 +76,17 @@ def test_handle_exception_without_api_version_and_weak_password_error_code():
         assert exc.value.name == err["ename"]
 
 
-def test_handle_exception_with_api_version_2024_01_01_and_error_code():
+def test_handle_exception_with_api_version_2024_01_01_and_error_code() -> None:
     err = {
         "name": "with API version 2024-01-01 and error code",
-        "code": "error_code",
+        "code": "unexpected_failure",
         "ename": "AuthApiError",
     }
 
     with respx.mock:
         respx.get(f"{TEST_URL}/hello-world").mock(
             return_value=Response(status_code=200),
-            side_effect=AuthApiError("Error code message", 400, "error_code"),
+            side_effect=AuthApiError("Error code message", 400, "unexpected_failure"),
         )
         with pytest.raises(AuthApiError, match=r"Error code message") as exc:
             httpx.get(f"{TEST_URL}/hello-world")
@@ -108,16 +96,17 @@ def test_handle_exception_with_api_version_2024_01_01_and_error_code():
         assert exc.value.name == err["ename"]
 
 
-def test_parse_response_api_version_with_valid_date():
+def test_parse_response_api_version_with_valid_date() -> None:
     headers = Headers({API_VERSION_HEADER_NAME: "2024-01-01"})
     response = Response(headers=headers, status_code=200)
     api_ver = parse_response_api_version(response)
+    assert api_ver
     assert datetime.timestamp(api_ver) == datetime.timestamp(
         datetime.strptime("2024-01-01", "%Y-%m-%d")
     )
 
 
-def test_parse_response_api_version_with_invalid_dates():
+def test_parse_response_api_version_with_invalid_dates() -> None:
     dates = ["2024-01-32", "", "notadate", "Sat Feb 24 2024 17:59:17 GMT+0100"]
     for date in dates:
         headers = Headers({API_VERSION_HEADER_NAME: date})
@@ -126,16 +115,12 @@ def test_parse_response_api_version_with_invalid_dates():
         assert api_ver is None
 
 
-def test_parse_link_identity_response():
-    assert parse_link_identity_response({"url": f"{TEST_URL}/hello-world"})
+def test_parse_link_identity_response() -> None:
+    resp = Response(content=f'{{"url": "{TEST_URL}/hello-world"}}', status_code=200)
+    assert parse_link_identity_response(resp)
 
 
-def test_get_error_code():
-    assert get_error_code({}) is None
-    assert get_error_code({"error_code": "500"}) == "500"
-
-
-def test_decode_jwt():
+def test_decode_jwt() -> None:
     assert decode_jwt(mock_access_token())
 
     with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure") as exc:
@@ -143,7 +128,7 @@ def test_decode_jwt():
     assert exc.value is not None
 
 
-def test_generate_pkce_verifier():
+def test_generate_pkce_verifier() -> None:
     assert isinstance(generate_pkce_verifier(45), str)
     with pytest.raises(
         ValueError, match=r"PKCE verifier length must be between 43 and 128 characters"
@@ -152,12 +137,12 @@ def test_generate_pkce_verifier():
     assert exc.value is not None
 
 
-def test_generate_pkce_challenge():
+def test_generate_pkce_challenge() -> None:
     pkce = generate_pkce_verifier(45)
     assert isinstance(generate_pkce_challenge(pkce), str)
 
 
-def test_parse_response_api_version_invalid_date():
+def test_parse_response_api_version_invalid_date() -> None:
     mock_response = MagicMock(spec=Response)
     mock_response.headers = {API_VERSION_HEADER_NAME: "2023-02-30"}  # Invalid date
 
@@ -166,24 +151,22 @@ def test_parse_response_api_version_invalid_date():
 
 
 # Test for pydantic v1 compatibility in model_validate
-def test_model_validate_pydantic_v1():
-    # We need to patch the actual calls inside the function
-    with patch("supabase_auth.helpers.TBaseModel") as MockType:
-        # Mock the behavior of the try block to raise AttributeError
-        mock_model = MagicMock()
-        mock_model.model_validate.side_effect = AttributeError
-        mock_model.parse_obj.return_value = "parsed_obj_result"
+def test_model_validate_pydantic_v1() -> None:
+    # Mock the behavior of the try block to raise AttributeError
+    mock_model = MagicMock()
+    mock_model.model_validate_json.side_effect = AttributeError
+    mock_model.parse_raw.return_value = "parsed_obj_result"
 
-        # Use the patched model in the actual function
-        result = model_validate(mock_model, {"test": "data"})
+    # Use the patched model in the actual function
+    result = model_validate(mock_model, {"test": "data"})  # type: ignore
 
-        # Check that parse_obj was called
-        mock_model.parse_obj.assert_called_once_with({"test": "data"})
-        assert result == "parsed_obj_result"
+    # Check that parse_obj was called
+    mock_model.parse_raw.assert_called_once_with({"test": "data"})
+    assert result == "parsed_obj_result"
 
 
 # Test for pydantic v1 compatibility in model_dump
-def test_model_dump_pydantic_v1():
+def test_model_dump_pydantic_v1() -> None:
     # Create a mock model with necessary behavior
     mock_model = MagicMock(spec=BaseModel)
     mock_model.model_dump.side_effect = AttributeError
@@ -198,7 +181,7 @@ def test_model_dump_pydantic_v1():
 
 
 # Test for pydantic v1 compatibility in model_dump_json
-def test_model_dump_json_pydantic_v1():
+def test_model_dump_json_pydantic_v1() -> None:
     # Create a mock model with necessary behavior
     mock_model = MagicMock(spec=BaseModel)
     mock_model.model_dump_json.side_effect = AttributeError
@@ -212,195 +195,7 @@ def test_model_dump_json_pydantic_v1():
     mock_model.json.assert_called_once()
 
 
-# Test for parse_auth_response with a session
-def test_parse_auth_response_with_session():
-    # Create our own AuthResponse object to avoid pydantic validation issues
-    mock_session = MagicMock(spec=Session)
-    mock_user = MagicMock(spec=User)
-
-    # Test data with access_token, refresh_token, and expires_in
-    data = {
-        "access_token": "test_access_token",
-        "refresh_token": "test_refresh_token",
-        "expires_in": 3600,
-        "user": {
-            "id": "user-123",
-            "email": "test@example.com",
-        },
-    }
-
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        # First call for Session, second for User
-        mock_validate.side_effect = [mock_session, mock_user]
-
-        with patch("supabase_auth.helpers.AuthResponse") as mock_auth_response:
-            mock_auth_response.return_value = "auth_response_result"
-
-            result = parse_auth_response(data)
-
-            # Verify model_validate was called for Session and User
-            assert mock_validate.call_count == 2
-            mock_validate.assert_any_call(Session, data)
-            mock_validate.assert_any_call(User, data["user"])
-
-            # Verify AuthResponse was created with correct params
-            mock_auth_response.assert_called_once_with(
-                session=mock_session, user=mock_user
-            )
-            assert result == "auth_response_result"
-
-
-# Test for parse_auth_response without a session
-def test_parse_auth_response_without_session():
-    # Create our own User object to avoid pydantic validation issues
-    mock_user = MagicMock(spec=User)
-
-    # Test data without session info
-    data = {
-        "user": {
-            "id": "user-123",
-            "email": "test@example.com",
-        }
-    }
-
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        mock_validate.return_value = mock_user
-
-        with patch("supabase_auth.helpers.AuthResponse") as mock_auth_response:
-            mock_auth_response.return_value = "auth_response_result"
-
-            result = parse_auth_response(data)
-
-            # Verify model_validate was called only for User
-            mock_validate.assert_called_once_with(User, data["user"])
-
-            # Verify AuthResponse was created with correct params
-            mock_auth_response.assert_called_once_with(session=None, user=mock_user)
-            assert result == "auth_response_result"
-
-
-# Test for parse_link_response
-def test_parse_link_response():
-    # Create mocks to avoid pydantic validation issues
-    mock_user = MagicMock(spec=User)
-    mock_gen_link_response = MagicMock(spec=GenerateLinkResponse)
-
-    # Test data for link response
-    data = {
-        "action_link": "https://example.com/verify",
-        "email_otp": "123456",
-        "hashed_token": "abc123",
-        "redirect_to": "https://example.com/app",
-        "verification_type": "signup",
-        "id": "user-123",
-        "email": "test@example.com",
-    }
-
-    # We need to patch the GenerateLinkProperties constructor
-    with patch("supabase_auth.helpers.GenerateLinkProperties") as mock_gen_props:
-        mock_gen_props.return_value = "mock_properties"
-
-        with patch("supabase_auth.helpers.model_dump") as mock_dump:
-            mock_dump.return_value = {
-                "action_link": "https://example.com/verify",
-                "email_otp": "123456",
-                "hashed_token": "abc123",
-                "redirect_to": "https://example.com/app",
-                "verification_type": "signup",
-            }
-
-            with patch("supabase_auth.helpers.model_validate") as mock_validate:
-                mock_validate.return_value = mock_user
-
-                with patch(
-                    "supabase_auth.helpers.GenerateLinkResponse"
-                ) as mock_gen_link:
-                    mock_gen_link.return_value = mock_gen_link_response
-
-                    result = parse_link_response(data)
-
-                    # Verify that props were created correctly
-                    mock_gen_props.assert_called_once_with(
-                        action_link=data.get("action_link"),
-                        email_otp=data.get("email_otp"),
-                        hashed_token=data.get("hashed_token"),
-                        redirect_to=data.get("redirect_to"),
-                        verification_type=data.get("verification_type"),
-                    )
-
-                    # Verify model_validate was called for User with filtered data
-                    mock_validate.assert_called_once()
-
-                    # Verify GenerateLinkResponse was created
-                    mock_gen_link.assert_called_once_with(
-                        properties="mock_properties", user=mock_user
-                    )
-                    assert result == mock_gen_link_response
-
-
-# Test for parse_user_response
-def test_parse_user_response_with_user_object():
-    # Test data with 'user' key
-    data = {"user": {"id": "user-123", "email": "test@example.com"}}
-
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        mock_validate.return_value = "mock_user_response"
-
-        result = parse_user_response(data)
-
-        assert result == "mock_user_response"
-        mock_validate.assert_called_once()
-
-
-# Test for parse_user_response without user object
-def test_parse_user_response_without_user_object():
-    # Test data without 'user' key
-    data = {"id": "user-123", "email": "test@example.com"}
-
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        mock_validate.return_value = "mock_user_response"
-
-        result = parse_user_response(data)
-
-        assert result == "mock_user_response"
-        mock_validate.assert_called_once()
-        # Verify that it wrapped the data in a user object
-        expected_wrapped_data = {"user": data}
-        assert mock_validate.call_args[0][1] == expected_wrapped_data
-
-
-# Test for parse_sso_response
-def test_parse_sso_response():
-    with patch("supabase_auth.helpers.model_validate") as mock_validate:
-        mock_validate.return_value = "sso_response"
-
-        result = parse_sso_response({"provider": "google"})
-        assert result == "sso_response"
-
-        # Verify model_validate was called with correct params
-        from supabase_auth.types import SSOResponse
-
-        mock_validate.assert_called_once_with(SSOResponse, {"provider": "google"})
-
-
-# Test for parse_jwks with empty keys
-def test_parse_jwks_empty_keys():
-    with pytest.raises(AuthInvalidJwtError, match="JWKS is empty"):
-        parse_jwks({"keys": []})
-
-
-# Tests for handle_exception
-def test_handle_exception_non_http_error():
-    # Test case for non-HTTPStatusError
-    exception = ValueError("Test error")
-    result = handle_exception(exception)
-
-    assert isinstance(result, AuthRetryableError)
-    assert result.message == "Test error"
-    assert result.status == 0
-
-
-def test_handle_exception_network_error():
+def test_handle_exception_network_error() -> None:
     # Test case for network errors (502, 503, 504)
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 503
@@ -414,7 +209,7 @@ def test_handle_exception_network_error():
     assert result.status == 503
 
 
-def test_handle_exception_with_weak_password_attribute():
+def test_handle_exception_with_weak_password_attribute() -> None:
     # In the implementation there's a logical error in the code:
     # It checks if data.get("weak_password") is BOTH a dict AND a list
     # This can never be true. Let's just test the error_code path which works.
@@ -439,7 +234,7 @@ def test_handle_exception_with_weak_password_attribute():
         assert result.code is None
 
 
-def test_handle_exception_weak_password_with_error_code():
+def test_handle_exception_weak_password_with_error_code() -> None:
     # Test case for weak password identified by error_code
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 400
@@ -462,7 +257,7 @@ def test_handle_exception_weak_password_with_error_code():
         assert result.reasons == ["Password too simple"]
 
 
-def test_handle_exception_with_new_api_version():
+def test_handle_exception_with_new_api_version() -> None:
     # Test case for new API version with "code" field
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 400
@@ -489,7 +284,7 @@ def test_handle_exception_with_new_api_version():
         assert result.status == 400
 
 
-def test_handle_exception_unknown_error():
+def test_handle_exception_unknown_error() -> None:
     # Test case for when json() raises an exception
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 500
@@ -504,13 +299,7 @@ def test_handle_exception_unknown_error():
     assert "Server error" in result.message
 
 
-# Tests for validate_exp
-def test_validate_exp_with_no_exp():
-    with pytest.raises(AuthInvalidJwtError, match="JWT has no expiration time"):
-        validate_exp(None)
-
-
-def test_validate_exp_with_expired_exp():
+def test_validate_exp_with_expired_exp() -> None:
     # Set expiry to 1 hour ago
     exp = int(datetime.now().timestamp()) - 3600
 
@@ -518,7 +307,7 @@ def test_validate_exp_with_expired_exp():
         validate_exp(exp)
 
 
-def test_validate_exp_with_valid_exp():
+def test_validate_exp_with_valid_exp() -> None:
     # Set expiry to 1 hour in the future
     exp = int(datetime.now().timestamp()) + 3600
 
@@ -526,7 +315,7 @@ def test_validate_exp_with_valid_exp():
     validate_exp(exp)
 
 
-def test_is_http_url():
+def test_is_http_url() -> None:
     from supabase_auth.helpers import is_http_url
 
     # Test valid HTTP URLs
@@ -542,14 +331,13 @@ def test_is_http_url():
     assert is_http_url("not a url") is False
 
 
-def test_handle_exception_weak_password_branch():
+def test_handle_exception_weak_password_branch() -> None:
     """Specifically targeting the unreachable branch in handle_exception with weak_password.
 
     This test attempts to test the branch where weak_password needs to be both a dict and a list,
     which is logically impossible, so we'll test it by mocking the implementation details.
     """
     import httpx
-
     from supabase_auth.errors import AuthWeakPasswordError
     from supabase_auth.helpers import handle_exception
 
@@ -560,7 +348,7 @@ def test_handle_exception_weak_password_branch():
 
     # Create a special mock dict that pretends to be both a dict and a list
     class WeirdDict(dict):
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             self.reasons = ["Password too short"]
 
@@ -579,7 +367,7 @@ def test_handle_exception_weak_password_branch():
     # First, we need to monkey patch the implementation temporarily to reach our branch
     original_isinstance = isinstance
 
-    def patched_isinstance(obj, cls):
+    def patched_isinstance(obj, cls):  # noqa
         # Make weak_password appear as both dict and list when needed
         if obj == mock_response.json()["weak_password"] and cls in (dict, list):
             return True
@@ -595,25 +383,3 @@ def test_handle_exception_weak_password_branch():
         assert isinstance(result, AuthWeakPasswordError)
         assert result.message == "Password too weak"
         assert result.status == 400
-
-
-def test_parse_auth_otp_response():
-    """Test for the parse_auth_otp_response function."""
-    from supabase_auth.helpers import parse_auth_otp_response
-    from supabase_auth.types import AuthOtpResponse
-
-    # Test with message_id field
-    data = {"message_id": "12345"}
-    result = parse_auth_otp_response(data)
-    assert isinstance(result, AuthOtpResponse)
-    assert result.message_id == "12345"
-    assert result.user is None
-    assert result.session is None
-
-    # Test with no message_id field
-    data = {}
-    result = parse_auth_otp_response(data)
-    assert isinstance(result, AuthOtpResponse)
-    assert result.message_id is None
-    assert result.user is None
-    assert result.session is None

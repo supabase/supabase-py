@@ -1,11 +1,11 @@
 import os
 from typing import Any
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
 
 import pytest
-from supabase_auth import SyncMemoryStorage
 from httpx import Client as SyncHttpxClient
 from httpx import HTTPTransport, Limits, Timeout
+from supabase_auth import SyncMemoryStorage
 
 from supabase import (
     Client,
@@ -36,8 +36,8 @@ def test_supabase_exception() -> None:
 
 
 def test_postgrest_client() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = create_client(url, key)
     assert client.table("sample")
@@ -45,24 +45,24 @@ def test_postgrest_client() -> None:
 
 
 def test_rpc_client() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = create_client(url, key)
     assert client.rpc("test_fn")
 
 
 def test_function_initialization() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = create_client(url, key)
     assert client.functions
 
 
 def test_uses_key_as_authorization_header_by_default() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = create_client(url, key)
 
@@ -80,8 +80,8 @@ def test_uses_key_as_authorization_header_by_default() -> None:
 
 
 def test_schema_update() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = create_client(url, key)
     assert client.postgrest
@@ -89,8 +89,8 @@ def test_schema_update() -> None:
 
 
 def test_updates_the_authorization_header_on_auth_events() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     client = create_client(url, key)
 
@@ -121,8 +121,8 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
 
 
 def test_supports_setting_a_global_authorization_header() -> None:
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     authorization = "Bearer secretuserjwt"
 
@@ -143,9 +143,9 @@ def test_supports_setting_a_global_authorization_header() -> None:
     assert client.storage.session.headers.get("Authorization") == authorization
 
 
-def test_mutable_headers_issue():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+def test_mutable_headers_issue() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     shared_options = ClientOptions(
         storage=SyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
@@ -160,9 +160,9 @@ def test_mutable_headers_issue():
     assert client1.options.headers["Authorization"] == "Bearer modified-token"
 
 
-def test_global_authorization_header_issue():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+def test_global_authorization_header_issue() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     authorization = "Bearer secretuserjwt"
     options = ClientOptions(headers={"Authorization": authorization})
@@ -172,9 +172,9 @@ def test_global_authorization_header_issue():
     assert client.options.headers.get("apiKey") == key
 
 
-def test_httpx_client():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+def test_httpx_client() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     transport = HTTPTransport(
         retries=10,
@@ -203,9 +203,9 @@ def test_httpx_client():
         assert client.functions._client.timeout == Timeout(2.0)
 
 
-def test_custom_headers():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+def test_custom_headers() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     options = ClientOptions(
         headers={
@@ -220,9 +220,9 @@ def test_custom_headers():
     assert client.options.headers.get("x-version") == "1.0"
 
 
-def test_custom_headers_immutable():
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+def test_custom_headers_immutable() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     options = ClientOptions(
         headers={
@@ -241,14 +241,14 @@ def test_custom_headers_immutable():
     assert client2.options.headers.get("x-app-name") == "apple"
 
 
-def test_httpx_client_base_url_isolation():
+def test_httpx_client_base_url_isolation() -> None:
     """Test that shared httpx_client doesn't cause base_url mutation between services.
     This test reproduces the issue where accessing PostgREST after Storage causes
     Storage requests to hit the wrong endpoint (404 errors).
     See: https://github.com/supabase/supabase-py/issues/1244
     """
-    url = os.environ.get("SUPABASE_TEST_URL")
-    key = os.environ.get("SUPABASE_TEST_KEY")
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
 
     # Create client with shared httpx instance
     timeout = Timeout(10.0, read=60.0)

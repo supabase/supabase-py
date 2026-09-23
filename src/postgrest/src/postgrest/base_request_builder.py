@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from json import JSONDecodeError
 from re import search
 from typing import (
@@ -25,9 +26,9 @@ from httpx import Response as RequestResponse
 from pydantic import BaseModel, ValidationError
 from yarl import URL
 
-try:
-    from typing import Self  # type: ignore
-except ImportError:
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
     from typing_extensions import Self
 
 try:
@@ -51,6 +52,7 @@ class QueryArgs(NamedTuple):
 
 
 C = TypeVar("C", Client, AsyncClient)
+MAX_RETRIES = 3
 
 
 class RequestConfig(Generic[C]):
@@ -63,6 +65,7 @@ class RequestConfig(Generic[C]):
         params: QueryParams,
         auth: BasicAuth | None,
         json: JSON,
+        retry_enabled: bool = True,
     ) -> None:
         self.session: C = session
         self.path = path
@@ -71,21 +74,34 @@ class RequestConfig(Generic[C]):
         self.params = params
         self.json = None if http_method in {"GET", "HEAD"} else json
         self.auth = auth
+        self.retry_enabled = retry_enabled
 
     @overload
-    def send(self: RequestConfig[Client]) -> RequestResponse: ...
+    def send(
+        self: RequestConfig[Client], additional_headers: Headers
+    ) -> RequestResponse: ...
     @overload
-    def send(self: RequestConfig[AsyncClient]) -> Awaitable[RequestResponse]: ...
+    def send(
+        self: RequestConfig[AsyncClient], additional_headers: Headers
+    ) -> Awaitable[RequestResponse]: ...
 
-    def send(self: RequestConfig[C]):
+    def send(self: RequestConfig[C], additional_headers: Headers):
+        additional_headers.update(self.headers)
         return self.session.request(
             self.http_method,
             str(self.path),
             json=self.json,
             params=self.params,
-            headers=self.headers,
+            headers=additional_headers,
             auth=self.auth,
         )
+
+    def should_retry(self, response: RequestResponse, attempt_count: int) -> bool:
+        if not self.retry_enabled or attempt_count >= MAX_RETRIES:
+            return False
+        if not (self.http_method == "GET" or self.http_method == "HEAD"):
+            return False
+        return response.status_code == 503 or response.status_code == 520
 
 
 def _unique_columns(json: List[Dict[str, JSON]]):
@@ -204,13 +220,6 @@ class APIResponse(BaseModel):
     count: Optional[int] = None
     """The number of rows returned."""
 
-    @field_validator("data")
-    @classmethod
-    def raise_when_api_error(cls: Type[Self], value: Any) -> Any:
-        if isinstance(value, dict) and value.get("message"):
-            raise ValueError("You are passing an API error to the data field.")
-        return value
-
     @staticmethod
     def _get_count_from_content_range_header(
         content_range_header: str,
@@ -249,7 +258,7 @@ class APIResponse(BaseModel):
             data = JSONAdapter.validate_json(request_response.content)
         except ValidationError:
             data = request_response.text if len(request_response.text) > 0 else []
-        return APIResponse(data=data, count=count)
+        return APIResponse.model_construct(data=data, count=count)
 
 
 class SingleAPIResponse(APIResponse):
@@ -265,7 +274,7 @@ class SingleAPIResponse(APIResponse):
             data = request_response.json()
         except JSONDecodeError:
             data = request_response.text if len(request_response.text) > 0 else []
-        return SingleAPIResponse(data=data, count=count)
+        return SingleAPIResponse.model_construct(data=data, count=count)
 
 
 class BaseFilterRequestBuilder(Generic[C]):
@@ -446,11 +455,11 @@ class BaseFilterRequestBuilder(Generic[C]):
         return self.filter(column, Filters.IN, f"({values})")
 
     def cs(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(values)
+        values = ",".join(str(v) for v in values)
         return self.filter(column, Filters.CS, f"{{{values}}}")
 
     def cd(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(values)
+        values = ",".join(str(v) for v in values)
         return self.filter(column, Filters.CD, f"{{{values}}}")
 
     def contains(
@@ -462,7 +471,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             return self.filter(column, Filters.CS, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(value)
+            stringified_values = ",".join(str(v) for v in value)
             return self.filter(column, Filters.CS, f"{{{stringified_values}}}")
 
         return self.filter(column, Filters.CS, json.dumps(value))
@@ -474,7 +483,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             # range
             return self.filter(column, Filters.CD, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
-            stringified_values = ",".join(value)
+            stringified_values = ",".join(str(v) for v in value)
             return self.filter(column, Filters.CD, f"{{{stringified_values}}}")
         return self.filter(column, Filters.CD, json.dumps(value))
 
@@ -485,7 +494,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             return self.filter(column, Filters.OV, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(value)
+            stringified_values = ",".join(str(v) for v in value)
             return self.filter(column, Filters.OV, f"{{{stringified_values}}}")
         return self.filter(column, Filters.OV, json.dumps(value))
 
@@ -557,26 +566,6 @@ class BaseFilterRequestBuilder(Generic[C]):
 
 
 class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
-    def explain(
-        self: Self,
-        analyze: bool = False,
-        verbose: bool = False,
-        settings: bool = False,
-        buffers: bool = False,
-        wal: bool = False,
-        format: Literal["text", "json"] = "text",
-    ) -> Self:
-        options = [
-            key
-            for key, value in locals().items()
-            if key not in ["self", "format"] and value
-        ]
-        options_str = "|".join(options)
-        self.request.headers["Accept"] = (
-            f"application/vnd.pgrst.plan+{format}; options={options_str}"
-        )
-        return self
-
     def order(
         self: Self,
         column: str,
@@ -676,11 +665,6 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return self
-
-    def maybe_single(self) -> Self:
-        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
         self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return self
 

@@ -2,9 +2,11 @@ import asyncio
 import json
 import logging
 import re
+import sys
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Union
 from urllib.parse import urlencode, urlparse, urlunparse
+from warnings import warn
 
 import websockets
 from pydantic import ValidationError
@@ -20,6 +22,7 @@ from ..types import (
     PHOENIX_CHANNEL,
     VSN,
     ChannelEvents,
+    ChannelStates,
 )
 from ..utils import is_ws_url
 from .channel import AsyncRealtimeChannel, RealtimeChannelOptions
@@ -64,6 +67,13 @@ class AsyncRealtimeClient:
         """
         if not is_ws_url(url):
             raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
+        if sys.version_info < (3, 10):
+            warn(
+                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         self.url = f"{re.sub(r'https://', 'wss://', re.sub(r'http://', 'ws://', url, flags=re.IGNORECASE), flags=re.IGNORECASE)}/websocket"
         if token:
             self.url += f"?apikey={token}"
@@ -98,14 +108,14 @@ class AsyncRealtimeClient:
 
         try:
             async for msg in self._ws_connection:
-                logger.info(f"receive: {msg!r}")
+                logger.debug(f"receive: {msg!r}")
 
                 try:
                     message = ServerMessageAdapter.validate_json(msg)
                 except ValidationError as e:
                     logger.error(f"Unrecognized message format {msg!r}\n{e}")
                     continue
-                logger.info(f"parsed message as {message}")
+                logger.debug(f"parsed message as {message!r}")
                 if channel := self.channels.get(message.topic):
                     channel._handle_message(message)
         except websockets.exceptions.ConnectionClosedError as e:
@@ -113,12 +123,20 @@ class AsyncRealtimeClient:
 
     async def _reconnect(self) -> None:
         self._ws_connection = None
+
+        to_rejoin = [
+            chan
+            for chan in self.channels.values()
+            if chan.state == ChannelStates.JOINED or chan.state == ChannelStates.JOINING
+        ]
+        for channel in to_rejoin:
+            channel.state = ChannelStates.ERRORED
+
         await self.connect()
 
         if self.is_connected:
-            for topic, channel in self.channels.items():
-                logger.info(f"Rejoining channel after reconnection: {topic}")
-                await channel._rejoin()
+            rejoins = [asyncio.Task(chan._rejoin()) for chan in to_rejoin]
+            await asyncio.wait(rejoins)
 
     async def connect(self) -> None:
         """
@@ -139,19 +157,19 @@ class AsyncRealtimeClient:
         """
 
         if self.is_connected:
-            logger.info("WebSocket connection already established")
+            logger.debug("WebSocket connection already established")
             return
 
         retries = 0
         backoff = self.initial_backoff
 
-        logger.info(f"Attempting to connect to WebSocket at {self.url}")
+        logger.debug(f"Attempting to connect to WebSocket at {self.url}")
 
         while retries < self.max_retries:
             try:
                 ws = await connect(self.url)
                 self._ws_connection = ws
-                logger.info("WebSocket connection established successfully")
+                logger.debug("WebSocket connection established successfully")
                 return await self._on_connect()
             except Exception as e:
                 retries += 1
@@ -164,11 +182,11 @@ class AsyncRealtimeClient:
                     raise
                 else:
                     wait_time = backoff * (2 ** (retries - 1))
-                    logger.info(
+                    logger.debug(
                         f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (backoff={backoff}s)"
                     )
                     await asyncio.sleep(wait_time)
-                    backoff = min(backoff * 2, 60)
+                    backoff = min(backoff, 60)
 
         raise Exception(
             f"Failed to establish WebSocket connection after {self.max_retries} attempts"
@@ -199,7 +217,7 @@ class AsyncRealtimeClient:
         )
 
         if self.auto_reconnect:
-            logger.info("Initiating auto-reconnect sequence...")
+            logger.debug("Initiating auto-reconnect sequence...")
             await self._reconnect()
         else:
             logger.error("Auto-reconnect disabled, terminating connection")
@@ -284,6 +302,7 @@ class AsyncRealtimeClient:
         """
         if channel.topic in self.channels:
             await self.channels[channel.topic].unsubscribe()
+            self._remove_channel(channel)
 
         if len(self.channels) == 0:
             await self.close()
@@ -344,7 +363,7 @@ class AsyncRealtimeClient:
             )
             msg = Message(**message)
         message_str = msg.model_dump_json()
-        logger.info(f"send: {message_str}")
+        logger.debug(f"send: {message_str}")
 
         async def send_message():
             if not self._ws_connection:
