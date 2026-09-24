@@ -163,18 +163,25 @@ def handle_exception(error: HTTPStatusError | RuntimeError) -> AuthError:
             error_code = data.get("error_code")
 
         if error_code is None:
+            # Legacy support for weak password errors, from before error codes
+            # existed: the reasons are only carried by the `weak_password` object.
+            weak_password = (
+                data.get("weak_password") if isinstance(data, dict) else None
+            )
+            reasons = (
+                weak_password.get("reasons")
+                if isinstance(weak_password, dict)
+                else None
+            )
             if (
-                isinstance(data, dict)
-                and data
-                and isinstance(data.get("weak_password"), dict)
-                and data.get("weak_password")
-                and isinstance(data.get("weak_password"), list)
-                and len(data["weak_password"])
+                isinstance(reasons, list)
+                and reasons
+                and all(isinstance(reason, str) for reason in reasons)
             ):
                 return AuthWeakPasswordError(
                     get_error_message(data),
                     error.response.status_code,
-                    data["weak_password"].get("reasons"),
+                    reasons,
                 )
         elif error_code == "weak_password":
             return AuthWeakPasswordError(
