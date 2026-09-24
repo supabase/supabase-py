@@ -188,6 +188,7 @@ class AsyncClient:
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
                 http_client=self.options.httpx_client,
+                retry_enabled=self.options.postgrest_client_retry,
             )
 
         return self._postgrest
@@ -300,6 +301,7 @@ class AsyncClient:
         verify: bool = True,
         proxy: Optional[str] = None,
         http_client: Union[AsyncHttpxClient, None] = None,
+        retry_enabled: bool = True,
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         if http_client is not None:
@@ -315,6 +317,7 @@ class AsyncClient:
             verify=verify,
             proxy=proxy,
             http_client=None,
+            retry_enabled=retry_enabled,
         )
 
     def _create_auth_header(self, token: str) -> str:
