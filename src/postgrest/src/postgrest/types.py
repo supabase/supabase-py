@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from typing import Union
 
 from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
-from pydantic import TypeAdapter
+from pydantic import JsonValue, TypeAdapter
 from typing_extensions import TypeAliasType
 from yarl import URL
 
@@ -18,7 +18,7 @@ else:
 JSON = TypeAliasType(
     "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
 )
-JSONAdapter: TypeAdapter = TypeAdapter(JSON)
+JSONAdapter: TypeAdapter = TypeAdapter(JsonValue)
 
 
 class CountMethod(StrEnum):
