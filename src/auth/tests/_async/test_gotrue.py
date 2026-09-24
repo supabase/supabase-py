@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from uuid import uuid4
 
 import pytest
@@ -719,3 +720,36 @@ async def test_sign_out() -> None:
 
                     # Verify that _notify_all_subscribers was still called despite the error
                     mock_notify.assert_called_once_with("SIGNED_OUT", None)
+
+
+async def test_initialize_from_url_reads_tokens_from_fragment() -> None:
+    from unittest.mock import patch
+
+    from supabase_auth.types import User, UserResponse
+
+    client = auth_client()
+    access_token = mock_access_token()
+    user = User(
+        id=str(uuid4()),
+        app_metadata={},
+        user_metadata={},
+        aud="authenticated",
+        created_at=datetime(2024, 1, 1),
+    )
+    # GoTrue's implicit grant redirect carries the tokens in the URL fragment.
+    url = (
+        "https://example.com/callback#access_token="
+        f"{access_token}&expires_in=3600&refresh_token=refresh-token"
+        "&token_type=bearer&type=recovery"
+    )
+
+    with patch.object(client, "get_user") as mock_get_user:
+        mock_get_user.return_value = UserResponse(user=user)
+        await client.initialize_from_url(url)
+
+    mock_get_user.assert_called_once_with(access_token)
+    session = await client.get_session()
+    assert session is not None
+    assert session.access_token == access_token
+    assert session.refresh_token == "refresh-token"
+    assert session.user.id == user.id
