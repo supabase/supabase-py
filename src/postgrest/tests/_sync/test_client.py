@@ -1,5 +1,5 @@
 import re
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from httpx import (
@@ -14,6 +14,7 @@ from httpx import (
 )
 
 from postgrest import SyncPostgrestClient
+from postgrest.base_request_builder import MAX_RETRIES
 from postgrest.exceptions import APIError
 
 
@@ -174,3 +175,73 @@ def test_response_client_invalid_response_but_valid_json(
         assert isinstance(exc_response.get("message"), str)
         assert exc_response.get("message") == "JSON could not be generated"
         assert "code" in exc_response and int(exc_response["code"]) == 502
+
+
+class TestRetryEnabled:
+    def test_default_enabled(self, postgrest_client: SyncPostgrestClient):
+        assert postgrest_client.retry_enabled is True
+        assert postgrest_client.from_("test").select("*").request.retry_enabled is True
+
+    def test_client_level_disable_propagates(self):
+        with SyncPostgrestClient("https://example.com", retry_enabled=False) as client:
+            assert client.from_("test").select("*").request.retry_enabled is False
+            assert client.rpc("test_fn", {}).request.retry_enabled is False
+            assert client.schema("other").retry_enabled is False
+
+    def test_request_level_override(self):
+        with SyncPostgrestClient("https://example.com", retry_enabled=False) as client:
+            builder = client.from_("test").select("*").retry(True)
+            assert builder.request.retry_enabled is True
+
+    def test_client_level_disable_does_not_retry_on_503(self):
+        calls = 0
+
+        def fake_send(request: Request, **kwargs):
+            nonlocal calls
+            calls += 1
+            return Response(503)
+
+        with SyncPostgrestClient("https://example.com", retry_enabled=False) as client:
+            with patch.object(client.session, "send", wraps=fake_send):
+                with pytest.raises(APIError):
+                    client.from_("test").select("*").execute()
+
+        assert calls == 1
+
+    def test_client_level_disable_request_override_retries(self):
+        calls = 0
+
+        def fake_send(request: Request, **kwargs):
+            nonlocal calls
+            if calls > 0:
+                assert request.headers["X-Retry-Count"] == str(calls)
+            calls += 1
+            return Response(503)
+
+        with SyncPostgrestClient("https://example.com", retry_enabled=False) as client:
+            with (
+                patch.object(client.session, "send", wraps=fake_send),
+                patch("time.sleep", new=Mock()),
+            ):
+                with pytest.raises(APIError):
+                    client.from_("test").select("*").retry(True).execute()
+
+        assert calls == 1 + MAX_RETRIES
+
+    def test_default_retries_on_503(self):
+        calls = 0
+
+        def fake_send(request: Request, **kwargs):
+            nonlocal calls
+            calls += 1
+            return Response(503)
+
+        with SyncPostgrestClient("https://example.com") as client:
+            with (
+                patch.object(client.session, "send", wraps=fake_send),
+                patch("time.sleep", new=Mock()),
+            ):
+                with pytest.raises(APIError):
+                    client.from_("test").select("*").execute()
+
+        assert calls == 1 + MAX_RETRIES
