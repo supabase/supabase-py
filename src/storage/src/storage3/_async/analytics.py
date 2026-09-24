@@ -35,8 +35,8 @@ class AsyncStorageAnalyticsClient:
         params = dict(
             limit=limit,
             offset=offset,
-            sort_column=sort_column,
-            sort_order=sort_order,
+            sortColumn=sort_column,
+            sortOrder=sort_order,
             search=search,
         )
         filtered_params = QueryParams(
