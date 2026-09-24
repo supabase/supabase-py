@@ -9,7 +9,12 @@ rules = (
     unasync.Rule(
         fromdir="/_async/",
         todir="/_sync/",
-        additional_replacements={"AsyncClient": "Client", "aclose": "close"},
+        additional_replacements={
+            "AsyncClient": "Client",
+            "aclose": "close",
+            # asyncio is only used for the Lock in the PKCE verifier store
+            "asyncio": "threading",
+        },
     ),
     unasync._DEFAULT_RULE,
 )

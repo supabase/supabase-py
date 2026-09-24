@@ -116,6 +116,13 @@ class AuthOtpResponse(BaseModel):
 class OAuthResponse(BaseModel):
     provider: Provider
     url: str
+    flow_id: Optional[str] = None
+    """
+    Identifier of the PKCE flow started by this call. Pass it as ``flow_id`` to
+    ``exchange_code_for_session`` so the exchange uses this flow's code verifier
+    even when other PKCE flows were started in between. ``None`` on the implicit
+    flow.
+    """
 
 
 class SSOResponse(BaseModel):
@@ -562,17 +569,24 @@ class MFAUnenrollParams(TypedDict):
 
 
 class CodeExchangeParams(TypedDict):
-    code_verifier: str
+    code_verifier: NotRequired[str]
     """
-    Randomly generated string
+    Randomly generated string. Read from storage when omitted.
     """
     auth_code: str
     """
     Code returned after completing one of the authorization flows
     """
-    redirect_to: str
+    redirect_to: NotRequired[str]
     """
     The URL to route to after a session is successfully obtained
+    """
+    flow_id: NotRequired[str]
+    """
+    Identifier of the PKCE flow that produced ``auth_code``, as returned in
+    ``OAuthResponse.flow_id``. Selects that flow's stored code verifier so that
+    overlapping PKCE flows do not interfere. When omitted, the verifier of the
+    most recently started flow is used.
     """
 
 
