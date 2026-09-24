@@ -409,3 +409,70 @@ async def test_async_bucket_proxy_exists_false_on_headless_error() -> None:
         proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
     ):
         assert await proxy.exists("missing.txt") is False
+
+
+def _list_indexes_transport(captured: Dict[str, Any]) -> Any:
+    """A transport that records the ListIndexes request body and replies with one page."""
+    import json as _json
+
+    def handler(request: Request) -> Response:
+        captured["url"] = str(request.url)
+        captured["body"] = _json.loads(request.content)
+        return Response(200, json={"indexes": [], "nextToken": None})
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_async_list_indexes_sends_camel_case_pagination(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: Dict[str, Any] = {}
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(
+            transport=MockTransport(_list_indexes_transport(captured))
+        ),
+    )
+
+    await (
+        client.vectors()
+        .from_("my-bucket")
+        .list_indexes(next_token="cursor-1", max_results=10, prefix="idx-")
+    )
+
+    assert captured["url"].endswith("/vector/ListIndexes")
+    assert captured["body"] == {
+        "vectorBucketName": "my-bucket",
+        "nextToken": "cursor-1",
+        "maxResults": 10,
+        "prefix": "idx-",
+    }
+
+
+def test_sync_list_indexes_sends_camel_case_pagination(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: Dict[str, Any] = {}
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(transport=MockTransport(_list_indexes_transport(captured))),
+    )
+
+    client.vectors().from_("my-bucket").list_indexes(
+        next_token="cursor-1", max_results=10, prefix="idx-"
+    )
+
+    assert captured["url"].endswith("/vector/ListIndexes")
+    assert captured["body"] == {
+        "vectorBucketName": "my-bucket",
+        "nextToken": "cursor-1",
+        "maxResults": 10,
+        "prefix": "idx-",
+    }
