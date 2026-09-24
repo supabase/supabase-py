@@ -333,6 +333,8 @@ class AsyncRealtimeClient:
         self.access_token = token
 
         for _, channel in self.channels.items():
+            # Rejoins resend the stored join payload, so keep its token current.
+            channel.join_push.update_payload({"access_token": token})
             if channel._joined_once and channel.is_joined:
                 await channel.push(ChannelEvents.access_token, {"access_token": token})
 

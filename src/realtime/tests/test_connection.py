@@ -791,3 +791,37 @@ async def test_subscribe_forwards_broadcast_replication_ready(
     assert broadcast_config["replication_ready"] is True
 
     await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_set_auth_updates_join_payload_used_on_rejoin(
+    socket: AsyncRealtimeClient,
+):
+    """A token passed to set_auth must be sent when a joined channel rejoins."""
+    import json
+    from unittest.mock import AsyncMock
+
+    from realtime.types import ChannelStates
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    channel: AsyncRealtimeChannel = socket.channel("test-set-auth-rejoin")
+    await channel.subscribe(lambda state, error: None)
+    channel.state = ChannelStates.JOINED  # the server acknowledged the join
+
+    await socket.set_auth("refreshed-token")
+
+    sent = [json.loads(call.args[0]) for call in mock_ws.send.call_args_list]
+    assert sent[-1]["event"] == ChannelEvents.access_token
+    assert sent[-1]["payload"] == {"access_token": "refreshed-token"}
+
+    # After a dropped connection, _reconnect() rejoins with the stored join push.
+    await channel._rejoin()
+
+    rejoin = json.loads(mock_ws.send.call_args[0][0])
+    assert rejoin["event"] == ChannelEvents.join
+    assert rejoin["payload"]["access_token"] == "refreshed-token"
+
+    await socket.close()
