@@ -283,6 +283,27 @@ def test_handle_exception_with_new_api_version() -> None:
         assert result.message == "Password too weak"
         assert result.status == 400
 
+def test_handle_exception_without_error_code() -> None:
+    # Test case for when "code" and "error_code" are missing but "weak_password" exists
+    mock_response = MagicMock(spec=Response)
+    mock_response.status_code = 400
+    mock_response.json.return_value = {
+        "message": "Password too weak",
+        "weak_password": {"reasons": ["Password too simple"]},
+    }
+
+    exception = HTTPStatusError(
+        "Password error", request=MagicMock(), response=mock_response
+    )
+
+    with patch("supabase_auth.helpers.parse_response_api_version", return_value=None):
+        result = handle_exception(exception)
+
+        assert isinstance(result, AuthWeakPasswordError)
+        assert result.message == "Password too weak"
+        assert result.status == 400
+        assert result.reasons == ["Password too simple"]
+
 
 def test_handle_exception_unknown_error() -> None:
     # Test case for when json() raises an exception

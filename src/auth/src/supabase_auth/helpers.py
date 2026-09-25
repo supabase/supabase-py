@@ -168,13 +168,11 @@ def handle_exception(error: HTTPStatusError | RuntimeError) -> AuthError:
                 and data
                 and isinstance(data.get("weak_password"), dict)
                 and data.get("weak_password")
-                and isinstance(data.get("weak_password"), list)
-                and len(data["weak_password"])
             ):
                 return AuthWeakPasswordError(
                     get_error_message(data),
                     error.response.status_code,
-                    data["weak_password"].get("reasons"),
+                    data["weak_password"].get("reasons", []),
                 )
         elif error_code == "weak_password":
             return AuthWeakPasswordError(
