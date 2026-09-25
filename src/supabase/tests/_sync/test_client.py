@@ -6,6 +6,7 @@ import pytest
 from httpx import Client as SyncHttpxClient
 from httpx import HTTPTransport, Limits, Timeout
 from supabase_auth import SyncMemoryStorage
+from supabase_auth.types import AuthChangeEvent
 
 from supabase import (
     Client,
@@ -88,7 +89,19 @@ def test_schema_update() -> None:
     assert client.schema("new_schema")
 
 
-def test_updates_the_authorization_header_on_auth_events() -> None:
+@pytest.mark.parametrize(
+    "event",
+    [
+        "SIGNED_IN",
+        "TOKEN_REFRESHED",
+        "USER_UPDATED",
+        "MFA_CHALLENGE_VERIFIED",
+        "PASSWORD_RECOVERY",
+    ],
+)
+def test_updates_the_authorization_header_on_auth_events(
+    event: AuthChangeEvent,
+) -> None:
     url = os.environ["SUPABASE_TEST_URL"]
     key = os.environ["SUPABASE_TEST_KEY"]
 
@@ -96,12 +109,13 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
 
     assert client.options.headers.get("apiKey") == key
     assert client.options.headers.get("Authorization") == f"Bearer {key}"
+    assert client.postgrest
 
     mock_session = MagicMock(access_token="secretuserjwt")
     realtime_mock = Mock()
     client.realtime = realtime_mock
 
-    client._listen_to_auth_events("SIGNED_IN", mock_session)
+    client._listen_to_auth_events(event, mock_session)
 
     updated_authorization = f"Bearer {mock_session.access_token}"
 
@@ -118,6 +132,8 @@ def test_updates_the_authorization_header_on_auth_events() -> None:
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == updated_authorization
+
+    assert client.functions.headers.get("Authorization") == updated_authorization
 
 
 def test_supports_setting_a_global_authorization_header() -> None:
