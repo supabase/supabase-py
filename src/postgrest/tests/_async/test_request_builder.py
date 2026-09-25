@@ -241,6 +241,36 @@ class TestDelete:
 
 
 class TestTextSearch:
+    @pytest.mark.parametrize(
+        "mode,operator",
+        [
+            (None, "fts"),
+            ("plain", "plfts"),
+            ("phrase", "phfts"),
+            ("web_search", "wfts"),
+        ],
+    )
+    @pytest.mark.parametrize("config", [None, "english"])
+    @pytest.mark.parametrize("negate", [False, True])
+    def test_negation_is_applied_only_to_text_search(
+        self, request_builder: AsyncRequestBuilder, mode, operator, config, negate
+    ):
+        selected = request_builder.select("content")
+        if negate:
+            selected = selected.not_
+
+        builder = selected.text_search(
+            "content", "fat cat", {"type": mode, "config": config}
+        )
+
+        expected_operator = ("not." if negate else "") + operator
+        if config:
+            expected_operator += f"({config})"
+        assert builder.request.params["content"] == f"{expected_operator}.fat cat"
+        assert not selected.negate_next
+        selected.eq("published", "true")
+        assert builder.request.params["published"] == "eq.true"
+
     def test_text_search(self, request_builder: AsyncRequestBuilder):
         builder = request_builder.select("catchphrase").text_search(
             "catchphrase",
