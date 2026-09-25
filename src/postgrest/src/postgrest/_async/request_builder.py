@@ -3,9 +3,9 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
-from httpx import AsyncClient, BasicAuth, Headers, QueryParams, Response
+from httpx import AsyncClient, BasicAuth, Headers, Response
 from pydantic import ValidationError
-from typing_extensions import Self, override
+from typing_extensions import Self
 from yarl import URL
 
 from ..base_request_builder import (
@@ -25,6 +25,7 @@ from ..base_request_builder import (
 from ..exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from ..types import JSON, ReturnMethod
 from ..utils import model_validate_json
+
 
 ReqConfig = RequestConfig[AsyncClient]
 QueryBuilderT = TypeVar("QueryBuilderT", bound="AsyncQueryRequestBuilder")
@@ -49,10 +50,15 @@ async def send_with_retry(req: ReqConfig) -> Response:
             else Headers()
         )
         resp = await req.send(headers)
-        if resp.is_success or not req.should_retry(resp, attempt_count=attempt_count):
+
+        if resp.is_success or not req.should_retry(
+            resp, attempt_count=attempt_count
+        ):
             break
+
         await asyncio.sleep(get_retry_delay(resp, attempt_count))
         attempt_count += 1
+
     return resp
 
 
@@ -63,12 +69,18 @@ class AsyncQueryRequestBuilder:
     def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
         _, params, _, _ = pre_select(*columns, count=None)
         self.request.params = self.request.params.add("select", params["select"])
-        if prefer_headers := self.request.headers.get_list("Prefer", split_commas=True):
-            prefer_headers = [h for h in prefer_headers if not h.startswith("return=")]
+
+        if prefer_headers := self.request.headers.get_list(
+            "Prefer", split_commas=True
+        ):
+            prefer_headers = [
+                h for h in prefer_headers if not h.startswith("return=")
+            ]
             prefer_headers.append("return=representation")
             self.request.headers["Prefer"] = ",".join(prefer_headers)
         else:
             self.request.headers["Prefer"] = "return=representation"
+
         return self
 
     def retry(self, enabled: bool) -> Self:
@@ -88,13 +100,16 @@ class AsyncQueryRequestBuilder:
             :class:`APIError` If the API raised an error.
         """
         r = await send_with_retry(self.request)
+
         try:
             if r.is_success:
                 return APIResponse.from_http_request_response(r)
+            elif not r.content:
+                raise APIError(generate_default_error_message(r))
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
-        except ValidationError as e:
+        except ValidationError:
             raise APIError(generate_default_error_message(r))
 
 
@@ -109,21 +124,22 @@ class AsyncSingleRequestBuilder:
     async def execute(self) -> SingleAPIResponse:
         """Execute the query.
 
-                .. tip::
-                    This is the last method called, after the query is built.
+        .. tip::
+            This is the last method called, after the query is built.
 
-                Returns:
-                    :class:`SingleAPIResponse`
-        na
-                Raises:
-                    :class:`APIError` If the API raised an error.
+        Returns:
+            :class:`SingleAPIResponse`
+
+        Raises:
+            :class:`APIError` If the API raised an error.
         """
         r = await send_with_retry(self.request)
+
         try:
-            if (
-                200 <= r.status_code <= 299
-            ):  # Response.ok from JS (https://developer.mozilla.org/en-US/docs/Web/API/Response/ok)
+            if 200 <= r.status_code <= 299:
                 return SingleAPIResponse.from_http_request_response(r)
+            elif not r.content:
+                raise APIError(generate_default_error_message(r))
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
@@ -141,9 +157,12 @@ class AsyncExplainRequestBuilder:
 
     async def execute(self) -> str:
         r = await send_with_retry(self.request)
+
         try:
             if r.is_success:
                 return r.text
+            elif not r.content:
+                raise APIError(generate_default_error_message(r))
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
@@ -161,49 +180,66 @@ class AsyncMaybeSingleRequestBuilder:
 
     async def execute(self) -> Optional[SingleAPIResponse]:
         r = await send_with_retry(self.request)
+
         try:
             if r.is_success:
                 parsed = APIResponse.from_http_request_response(r)
+
                 if len(parsed.data) == 0:
                     return None
+
                 if len(parsed.data) == 1:
-                    return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
-                else:
-                    raise APIError(
-                        {
-                            "message": "Cannot coerce the result to a single JSON object",
-                            "code": "406",
-                            "hint": "Please check traceback of the code",
-                            "details": "The result contains more than one row.",
-                        }
+                    return SingleAPIResponse(
+                        data=parsed.data[0],
+                        count=parsed.count,
                     )
+
+                raise APIError(
+                    {
+                        "message": (
+                            "Cannot coerce the result to a single JSON object"
+                        ),
+                        "code": "406",
+                        "hint": "Please check traceback of the code",
+                        "details": "The result contains more than one row.",
+                    }
+                )
+
+            elif not r.content:
+                raise APIError(generate_default_error_message(r))
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
+
         except ValidationError as e:
             raise APIError(generate_default_error_message(r))
 
 
 class AsyncFilterRequestBuilder(
-    BaseFilterRequestBuilder[AsyncClient], AsyncQueryRequestBuilder
+    BaseFilterRequestBuilder[AsyncClient],
+    AsyncQueryRequestBuilder,
 ):
     def __init__(self, request: ReqConfig) -> None:
         BaseFilterRequestBuilder.__init__(self, request)
         AsyncQueryRequestBuilder.__init__(self, request)
 
 
-class AsyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, AsyncSingleRequestBuilder):
+class AsyncRPCFilterRequestBuilder(
+    BaseRPCRequestBuilder,
+    AsyncSingleRequestBuilder,
+):
     def __init__(self, request: ReqConfig) -> None:
         BaseFilterRequestBuilder.__init__(self, request)
         AsyncSingleRequestBuilder.__init__(self, request)
 
     def maybe_single(self) -> AsyncMaybeSingleRequestBuilder:
-        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        """Retrieves at most one row from the result."""
         return AsyncMaybeSingleRequestBuilder(self.request)
 
 
 class AsyncSelectRequestBuilder(
-    AsyncQueryRequestBuilder, BaseSelectRequestBuilder[AsyncClient]
+    AsyncQueryRequestBuilder,
+    BaseSelectRequestBuilder[AsyncClient],
 ):
     def __init__(self, request: ReqConfig) -> None:
         BaseSelectRequestBuilder.__init__(self, request)
@@ -219,23 +255,32 @@ class AsyncSelectRequestBuilder(
         return AsyncSingleRequestBuilder(self.request)
 
     def maybe_single(self) -> AsyncMaybeSingleRequestBuilder:
-        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        """Retrieves at most one row from the result."""
         return AsyncMaybeSingleRequestBuilder(self.request)
 
     def text_search(
-        self, column: str, query: str, options: dict[str, Any] = {}
+        self,
+        column: str,
+        query: str,
+        options: dict[str, Any] = {},
     ) -> AsyncQueryRequestBuilder:
         type_ = options.get("type")
         type_part = ""
+
         if type_ == "plain":
             type_part = "pl"
         elif type_ == "phrase":
             type_part = "ph"
         elif type_ == "web_search":
             type_part = "w"
-        config_part = f"({options.get('config')})" if options.get("config") else ""
+
+        config_part = (
+            f"({options.get('config')})" if options.get("config") else ""
+        )
+
         self.request.params = self.request.params.add(
-            column, f"{type_part}fts{config_part}.{query}"
+            column,
+            f"{type_part}fts{config_part}.{query}",
         )
 
         return AsyncQueryRequestBuilder(self.request)
@@ -282,19 +327,26 @@ class AsyncSelectRequestBuilder(
             for key, value in locals().items()
             if key not in ["self", "format"] and value
         ]
+
         options_str = "|".join(options)
+
         self.request.headers["Accept"] = (
             f"application/vnd.pgrst.plan+{format}; options={options_str}"
         )
+
         if format == "text":
             return AsyncExplainRequestBuilder(self.request)
-        else:
-            return AsyncSingleRequestBuilder(self.request)
+
+        return AsyncSingleRequestBuilder(self.request)
 
 
-class AsyncRequestBuilder:  #
+class AsyncRequestBuilder:
     def __init__(
-        self, session: AsyncClient, path: URL, headers: Headers, auth: BasicAuth | None
+        self,
+        session: AsyncClient,
+        path: URL,
+        headers: Headers,
+        auth: BasicAuth | None,
     ) -> None:
         self.session = session
         self.path = path
@@ -312,11 +364,18 @@ class AsyncRequestBuilder:  #
         Args:
             *columns: The names of the columns to fetch.
             count: The method to use to get the count of rows returned.
+
         Returns:
             :class:`AsyncSelectRequestBuilder`
         """
-        method, params, headers, json = pre_select(*columns, count=count, head=head)
+        method, params, headers, json = pre_select(
+            *columns,
+            count=count,
+            head=head,
+        )
+
         headers.update(self.headers)
+
         request = RequestConfig(
             session=self.session,
             path=self.path,
@@ -326,6 +385,7 @@ class AsyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
+
         return AsyncSelectRequestBuilder(request)
 
     def insert(
@@ -342,11 +402,8 @@ class AsyncRequestBuilder:  #
         Args:
             json: The row to be inserted.
             count: The method to use to get the count of rows returned.
-            returning: Either 'minimal' or 'representation'
-            upsert: Whether the query should be an upsert.
-            default_to_null: Make missing fields default to `null`.
-                Otherwise, use the default value for the column.
-                Only applies for bulk inserts.
+            returning: Either 'minimal' or 'representation'.
+
         Returns:
             :class:`AsyncQueryRequestBuilder`
         """
@@ -357,7 +414,9 @@ class AsyncRequestBuilder:  #
             upsert=upsert,
             default_to_null=default_to_null,
         )
+
         headers.update(self.headers)
+
         request = RequestConfig(
             session=self.session,
             path=self.path,
@@ -367,6 +426,7 @@ class AsyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
+
         return AsyncQueryRequestBuilder(request)
 
     def upsert(
@@ -384,13 +444,10 @@ class AsyncRequestBuilder:  #
         Args:
             json: The row to be inserted.
             count: The method to use to get the count of rows returned.
-            returning: Either 'minimal' or 'representation'
+            returning: Either 'minimal' or 'representation'.
             ignore_duplicates: Whether duplicate rows should be ignored.
             on_conflict: Specified columns to be made to work with UNIQUE constraint.
-            default_to_null: Make missing fields default to `null`. Otherwise, use the
-                default value for the column. This only applies when inserting new rows,
-                not when merging with existing rows under `ignoreDuplicates: false`.
-                This also only applies when doing bulk upserts.
+
         Returns:
             :class:`AsyncQueryRequestBuilder`
         """
@@ -402,7 +459,9 @@ class AsyncRequestBuilder:  #
             on_conflict=on_conflict,
             default_to_null=default_to_null,
         )
+
         headers.update(self.headers)
+
         request = RequestConfig(
             session=self.session,
             path=self.path,
@@ -412,6 +471,7 @@ class AsyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
+
         return AsyncQueryRequestBuilder(request)
 
     def update(
@@ -426,7 +486,8 @@ class AsyncRequestBuilder:  #
         Args:
             json: The updated fields.
             count: The method to use to get the count of rows returned.
-            returning: Either 'minimal' or 'representation'
+            returning: Either 'minimal' or 'representation'.
+
         Returns:
             :class:`AsyncFilterRequestBuilder`
         """
@@ -435,7 +496,9 @@ class AsyncRequestBuilder:  #
             count=count,
             returning=returning,
         )
+
         headers.update(self.headers)
+
         request = RequestConfig(
             session=self.session,
             path=self.path,
@@ -445,6 +508,7 @@ class AsyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
+
         return AsyncFilterRequestBuilder(request)
 
     def delete(
@@ -457,15 +521,15 @@ class AsyncRequestBuilder:  #
 
         Args:
             count: The method to use to get the count of rows returned.
-            returning: Either 'minimal' or 'representation'
-        Returns:
-            :class:`AsyncFilterRequestBuilder`
+            returning: Either 'minimal' or 'representation'.
         """
         method, params, headers, json = pre_delete(
             count=count,
             returning=returning,
         )
+
         headers.update(self.headers)
+
         request = RequestConfig(
             session=self.session,
             path=self.path,
@@ -475,4 +539,5 @@ class AsyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
+
         return AsyncFilterRequestBuilder(request)

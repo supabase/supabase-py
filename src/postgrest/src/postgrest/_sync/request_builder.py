@@ -26,6 +26,7 @@ from ..exceptions import APIError, APIErrorFromJSON, generate_default_error_mess
 from ..types import JSON, ReturnMethod
 from ..utils import model_validate_json
 
+
 ReqConfig = RequestConfig[Client]
 QueryBuilderT = TypeVar("QueryBuilderT", bound="SyncQueryRequestBuilder")
 
@@ -91,6 +92,8 @@ class SyncQueryRequestBuilder:
         try:
             if r.is_success:
                 return APIResponse.from_http_request_response(r)
+            elif not r.content:
+                raise APIError(generate_default_error_message(r))
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
@@ -109,21 +112,21 @@ class SyncSingleRequestBuilder:
     def execute(self) -> SingleAPIResponse:
         """Execute the query.
 
-                .. tip::
-                    This is the last method called, after the query is built.
+        .. tip::
+            This is the last method called, after the query is built.
 
-                Returns:
-                    :class:`SingleAPIResponse`
-        na
-                Raises:
-                    :class:`APIError` If the API raised an error.
+        Returns:
+            :class:`SingleAPIResponse`
+
+        Raises:
+            :class:`APIError` If the API raised an error.
         """
         r = send_with_retry(self.request)
         try:
-            if (
-                200 <= r.status_code <= 299
-            ):  # Response.ok from JS (https://developer.mozilla.org/en-US/docs/Web/API/Response/ok)
+            if 200 <= r.status_code <= 299:
                 return SingleAPIResponse.from_http_request_response(r)
+            elif not r.content:
+                raise APIError(generate_default_error_message(r))
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
@@ -144,6 +147,8 @@ class SyncExplainRequestBuilder:
         try:
             if r.is_success:
                 return r.text
+            elif not r.content:
+                raise APIError(generate_default_error_message(r))
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
@@ -167,7 +172,9 @@ class SyncMaybeSingleRequestBuilder:
                 if len(parsed.data) == 0:
                     return None
                 if len(parsed.data) == 1:
-                    return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
+                    return SingleAPIResponse(
+                        data=parsed.data[0], count=parsed.count
+                    )
                 else:
                     raise APIError(
                         {
@@ -177,6 +184,8 @@ class SyncMaybeSingleRequestBuilder:
                             "details": "The result contains more than one row.",
                         }
                     )
+            elif not r.content:
+                raise APIError(generate_default_error_message(r))
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
@@ -192,7 +201,9 @@ class SyncFilterRequestBuilder(
         SyncQueryRequestBuilder.__init__(self, request)
 
 
-class SyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, SyncSingleRequestBuilder):
+class SyncRPCFilterRequestBuilder(
+    BaseRPCRequestBuilder, SyncSingleRequestBuilder
+):
     def __init__(self, request: ReqConfig) -> None:
         BaseFilterRequestBuilder.__init__(self, request)
         SyncSingleRequestBuilder.__init__(self, request)
@@ -292,7 +303,7 @@ class SyncSelectRequestBuilder(
             return SyncSingleRequestBuilder(self.request)
 
 
-class SyncRequestBuilder:  #
+class SyncRequestBuilder:
     def __init__(
         self, session: Client, path: URL, headers: Headers, auth: BasicAuth | None
     ) -> None:
@@ -315,7 +326,9 @@ class SyncRequestBuilder:  #
         Returns:
             :class:`SyncSelectRequestBuilder`
         """
-        method, params, headers, json = pre_select(*columns, count=count, head=head)
+        method, params, headers, json = pre_select(
+            *columns, count=count, head=head
+        )
         headers.update(self.headers)
         request = RequestConfig(
             session=self.session,
@@ -343,9 +356,9 @@ class SyncRequestBuilder:  #
             json: The row to be inserted.
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
-            upsert: Whether the query should be an upsert.
-            default_to_null: Make missing fields default to `null`.
-                Otherwise, use the default value for the column.
+            upsert: Whether to upsert the row.
+            default_to_null: Make missing fields default to null.
+                Otherwise, use the default value.
                 Only applies for bulk inserts.
         Returns:
             :class:`SyncQueryRequestBuilder`
@@ -386,9 +399,9 @@ class SyncRequestBuilder:  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
             ignore_duplicates: Whether duplicate rows should be ignored.
-            on_conflict: Specified columns to be made to work with UNIQUE constraint.
-            default_to_null: Make missing fields default to `null`. Otherwise, use the
-                default value for the column. This only applies when inserting new rows,
+            on_conflict: Specified columns to be made to work with UNIQUE column.
+            default_to_null: Make missing fields default to null. Otherwise, use the
+                default value. This only applies when inserting new rows,
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
         Returns:
