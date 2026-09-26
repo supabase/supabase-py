@@ -88,6 +88,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
         )
         self.retry_enabled = retry_enabled
 
+        self._owns_session = True
         self.session = http_client or AsyncClient(
             base_url=base_url,
             headers=self.headers,
@@ -100,15 +101,16 @@ class AsyncPostgrestClient(BasePostgrestClient):
 
     def schema(self, schema: str) -> AsyncPostgrestClient:
         """Switch to another schema."""
-        return AsyncPostgrestClient(
+        client = AsyncPostgrestClient(
             base_url=str(self.base_url),
             schema=schema,
             headers=dict(self.headers),
-            timeout=self.timeout,
-            verify=self.verify,
-            proxy=self.proxy,
+            http_client=self.session,
             retry_enabled=self.retry_enabled,
         )
+        client.basic_auth = self.basic_auth
+        client._owns_session = False
+        return client
 
     async def __aenter__(self) -> AsyncPostgrestClient:
         return self
@@ -118,7 +120,8 @@ class AsyncPostgrestClient(BasePostgrestClient):
 
     async def aclose(self) -> None:
         """Close the underlying HTTP connections."""
-        await self.session.aclose()
+        if self._owns_session:
+            await self.session.aclose()
 
     def from_(self, table: str) -> AsyncRequestBuilder:
         """Perform a table operation.

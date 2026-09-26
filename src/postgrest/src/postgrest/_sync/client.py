@@ -88,6 +88,7 @@ class SyncPostgrestClient(BasePostgrestClient):
         )
         self.retry_enabled = retry_enabled
 
+        self._owns_session = True
         self.session = http_client or Client(
             base_url=base_url,
             headers=self.headers,
@@ -100,15 +101,16 @@ class SyncPostgrestClient(BasePostgrestClient):
 
     def schema(self, schema: str) -> SyncPostgrestClient:
         """Switch to another schema."""
-        return SyncPostgrestClient(
+        client = SyncPostgrestClient(
             base_url=str(self.base_url),
             schema=schema,
             headers=dict(self.headers),
-            timeout=self.timeout,
-            verify=self.verify,
-            proxy=self.proxy,
+            http_client=self.session,
             retry_enabled=self.retry_enabled,
         )
+        client.basic_auth = self.basic_auth
+        client._owns_session = False
+        return client
 
     def __enter__(self) -> SyncPostgrestClient:
         return self
@@ -118,7 +120,8 @@ class SyncPostgrestClient(BasePostgrestClient):
 
     def aclose(self) -> None:
         """Close the underlying HTTP connections."""
-        self.session.close()
+        if self._owns_session:
+            self.session.close()
 
     def from_(self, table: str) -> SyncRequestBuilder:
         """Perform a table operation.
