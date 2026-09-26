@@ -8,6 +8,7 @@ from httpx import (
     Headers,
     HTTPTransport,
     Limits,
+    MockTransport,
     Request,
     Response,
     Timeout,
@@ -111,6 +112,33 @@ def test_schema(postgrest_client: SyncPostgrestClient):
     }
 
     assert subheaders.items() < client.headers.items()
+
+
+def test_schema_keeps_custom_http_client() -> None:
+    sent: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        sent.append(request)
+        return Response(200, json=[])
+
+    http_client = Client(transport=MockTransport(handler))
+    client = SyncPostgrestClient("https://example.com", http_client=http_client)
+
+    private = client.schema("private")
+    assert private.session is http_client
+
+    private.from_("countries").select("*").execute()
+    assert len(sent) == 1
+    assert sent[0].headers["accept-profile"] == "private"
+    http_client.close()
+
+
+def test_schema_keeps_basic_auth(postgrest_client: SyncPostgrestClient):
+    postgrest_client.auth(None, username="admin", password="s3cr3t")
+
+    private = postgrest_client.schema("private")
+
+    assert private.basic_auth is postgrest_client.basic_auth
 
 
 #
