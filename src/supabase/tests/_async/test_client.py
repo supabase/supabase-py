@@ -136,6 +136,25 @@ async def test_updates_the_authorization_header_on_auth_events(
     assert client.functions.headers.get("Authorization") == updated_authorization
 
 
+async def test_falls_back_to_the_anon_key_on_sign_out() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = await create_async_client(url, key)
+    client.realtime = AsyncMock()
+
+    client._listen_to_auth_events("SIGNED_IN", MagicMock(access_token="secretuserjwt"))
+    client._listen_to_auth_events("SIGNED_OUT", None)
+
+    anon_authorization = f"Bearer {key}"
+
+    assert client.options.headers.get("Authorization") == anon_authorization
+    assert client.auth._headers.get("Authorization") == anon_authorization
+    assert client.postgrest.session.headers.get("Authorization") == anon_authorization
+    assert client.storage.session.headers.get("Authorization") == anon_authorization
+    assert client.functions.headers.get("Authorization") == anon_authorization
+
+
 async def test_supports_setting_a_global_authorization_header() -> None:
     url = os.environ["SUPABASE_TEST_URL"]
     key = os.environ["SUPABASE_TEST_KEY"]
