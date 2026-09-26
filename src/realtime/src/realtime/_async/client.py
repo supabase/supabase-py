@@ -278,11 +278,19 @@ class AsyncRealtimeClient:
         """
         Initialize a channel and create a two-way association with the socket.
 
+        If a channel for this topic already exists and is not being left, that
+        channel is returned instead of a new one. Messages are routed to one
+        channel per topic, so replacing it would silently stop delivering
+        events to callbacks registered on the existing channel.
+
         :param topic: The topic to subscribe to
         :param params: Optional channel parameters
         :return: AsyncRealtimeChannel instance
         """
         topic = f"realtime:{topic}"
+        existing = self.channels.get(topic)
+        if existing and not existing.is_leaving:
+            return existing
         chan = AsyncRealtimeChannel(self, topic, params)
         self.channels[topic] = chan
 
