@@ -157,10 +157,14 @@ class SyncFunctionsClient:
                     params = params.set("forceFunctionRegion", region.value)
 
             body = invoke_options.get("body")
-            if isinstance(body, str):
-                headers["Content-Type"] = "text/plain"
-            elif isinstance(body, dict):
-                headers["Content-Type"] = "application/json"
+            # Only set a default Content-Type when the caller did not supply one
+            # (any casing). Avoid leaving both content-type and Content-Type.
+            has_content_type = any(key.lower() == "content-type" for key in headers)
+            if not has_content_type:
+                if isinstance(body, str):
+                    headers["Content-Type"] = "text/plain"
+                elif isinstance(body, dict):
+                    headers["Content-Type"] = "application/json"
 
         response = self._request(
             "POST", [function_name], headers=headers, json=body, params=params
