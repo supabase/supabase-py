@@ -95,6 +95,13 @@ class AsyncFunctionsClient:
                 method, str(url), json=json, headers=headers, params=params
             )
         )
+        # Relay failures set this header even on non-2xx responses.
+        if response.headers.get("x-relay-error") == "true":
+            raise FunctionsRelayError(
+                response.json().get("error")
+                or "Relay Error invoking the Edge Function",
+                response.status_code,
+            )
         try:
             response.raise_for_status()
         except HTTPError as exc:
@@ -165,10 +172,6 @@ class AsyncFunctionsClient:
         response = await self._request(
             "POST", [function_name], headers=headers, json=body, params=params
         )
-        is_relay_error = response.headers.get("x-relay-header")
-
-        if is_relay_error and is_relay_error == "true":
-            raise FunctionsRelayError(response.json().get("error"))
 
         if response_type == "json":
             data = response.json()
