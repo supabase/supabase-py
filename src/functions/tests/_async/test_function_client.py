@@ -6,7 +6,7 @@ from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpIO
 
 # Import the class to test
-from supabase_utils.http.request import Request, Response
+from supabase_utils.http.request import HTTPRequestMethod, Request, Response
 from yarl import URL
 
 from supabase_functions.client import AsyncFunctionsClient, FunctionsClient
@@ -16,7 +16,10 @@ from supabase_functions.version import __version__
 
 
 def client_returning(
-    content: bytes, status: int, headers: Headers | None = None
+    content: bytes,
+    status: int,
+    headers: Headers | None = None,
+    client_headers: dict[str, str] | None = None,
 ) -> FunctionsClient[AsyncHttpIO]:
     class MockHttpClient:
         async def send(self, request: Request) -> Response:
@@ -40,7 +43,7 @@ def client_returning(
 
     return FunctionsClient(
         url=URL("https://supabase.com"),
-        headers={},
+        headers=client_headers or {},
         executor=AsyncHttpIO(session=MockHttpClient()),
     )
 
@@ -95,8 +98,24 @@ async def test_invoke_with_region() -> None:
 
 async def test_invoke_with_http_error() -> None:
     client = client_returning(content=b'{"error": "Custom error message"}', status=400)
-    with pytest.raises(FunctionsHttpError):
+    with pytest.raises(FunctionsHttpError, match="Custom error message") as exc_info:
         await client.invoke("test-function")
+    assert exc_info.value.status == 400
+
+
+async def test_invoke_http_error_with_non_json_body() -> None:
+    client = client_returning(content=b"not json", status=400)
+    with pytest.raises(FunctionsHttpError, match="not json"):
+        await client.invoke("test-function")
+
+
+async def test_invoke_http_error_with_empty_body() -> None:
+    client = client_returning(content=b"", status=500)
+    with pytest.raises(
+        FunctionsHttpError, match="An error occurred while requesting"
+    ) as exc_info:
+        await client.invoke("test-function")
+    assert exc_info.value.status == 500
 
 
 async def test_invoke_with_relay_error() -> None:
@@ -125,3 +144,59 @@ async def test_invoke_with_json_body() -> None:
     client = client_returning(content=b'{"message": "success"}', status=200)
     response = await client.invoke("test-function", body={"key": "value"})
     assert response.request.headers["Content-Type"] == "application/json"
+
+
+async def test_invoke_does_not_leak_per_call_headers() -> None:
+    client = client_returning(content=b"{}", status=200)
+    first = await client.invoke(
+        "test-function",
+        body={"key": "value"},
+        region=FunctionRegion.UsEast1,
+        headers={"x-one-off": "yes"},
+    )
+    second = await client.invoke("test-function")
+
+    assert first.request.headers["x-one-off"] == "yes"
+    assert "x-one-off" not in second.request.headers
+    assert "x-region" not in second.request.headers
+    assert "Content-Type" not in second.request.headers
+    assert "x-one-off" not in client.default_headers
+
+
+async def test_invoke_per_call_headers_override_client_headers() -> None:
+    client = client_returning(
+        content=b"{}",
+        status=200,
+        client_headers={"Authorization": "Bearer valid.jwt.token"},
+    )
+    response = await client.invoke(
+        "test-function", headers={"Authorization": "Bearer override"}
+    )
+    assert response.request.headers.get_list("Authorization") == ["Bearer override"]
+    assert client.default_headers["Authorization"] == "Bearer valid.jwt.token"
+
+
+@pytest.mark.parametrize("method", ["GET", "PUT", "PATCH", "DELETE"])
+async def test_invoke_with_method(method: HTTPRequestMethod) -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke("test-function", method=method)
+    assert response.request.method == method
+
+
+async def test_invoke_defaults_to_post() -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke("test-function")
+    assert response.request.method == "POST"
+
+
+async def test_invoke_with_bytes_body() -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke("test-function", body=b"\x00binary")
+    assert response.request.headers["Content-Type"] == "application/octet-stream"
+    assert response.request.content == b"\x00binary"
+
+
+async def test_invoke_string_body_sent_as_content() -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke("test-function", body="string data")
+    assert response.request.content == b"string data"
