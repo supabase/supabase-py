@@ -381,6 +381,43 @@ def test_link_identity_missing_session() -> None:
     assert exc.value is not None
 
 
+def test_sign_in_with_oauth_does_not_mutate_caller_query_params() -> None:
+    """The caller's query_params dict must not gain redirect_to or scopes."""
+    query_params = {"custom": "value"}
+    client_api_auto_confirm_off_signups_enabled_client().sign_in_with_oauth(
+        {
+            "provider": "google",
+            "options": {
+                "redirect_to": "http://localhost:3000/welcome",
+                "scopes": "email profile",
+                "query_params": query_params,
+            },
+        }
+    )
+    assert query_params == {"custom": "value"}
+
+
+def test_link_identity_does_not_mutate_caller_query_params() -> None:
+    """link_identity also adds skip_http_redirect, so it must copy too.
+
+    The mutation happens before the session check, so the dict is still
+    reachable through the AuthSessionMissingError path.
+    """
+    query_params = {"custom": "value"}
+    with pytest.raises(AuthSessionMissingError):
+        client_api_auto_confirm_off_signups_enabled_client().link_identity(
+            {
+                "provider": "google",
+                "options": {
+                    "redirect_to": "http://localhost:3000/welcome",
+                    "scopes": "email profile",
+                    "query_params": query_params,
+                },
+            }
+        )
+    assert query_params == {"custom": "value"}
+
+
 def test_get_item_from_memory_storage() -> None:
     credentials = mock_user_credentials()
     client = auth_client()
