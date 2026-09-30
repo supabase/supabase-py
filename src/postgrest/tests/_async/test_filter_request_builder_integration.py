@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 
 from postgrest import CountMethod
 from postgrest.exceptions import APIError
@@ -94,6 +95,23 @@ async def test_maybe_single_multiple_rows():
     assert exc_info.value.code == "406"
     assert exc_info.value.message == "Cannot coerce the result to a single JSON object"
     assert exc_info.value.details == "The result contains more than one row."
+
+
+async def test_head_query_error():
+    with patch(
+        "postgrest._async.request_builder.model_validate_json"
+    ) as mock_validate:
+        with pytest.raises(APIError) as exc_info:
+            await (
+                rest_client()
+                .from_("countries")
+                .select("*", count=CountMethod.exact, head=True)
+                .eq("ref.othercol", 123)
+                .execute()
+            )
+
+        mock_validate.assert_not_called()
+        assert exc_info.value.code == 400
 
 
 async def test_equals():
@@ -325,8 +343,8 @@ async def test_like_any_of():
     )
 
     assert res.data == [
-        {"iso": "AL", "nicename": "Albania"},
-        {"iso": "DZ", "nicename": "Algeria"},
+        {"nicename": "Albania", "iso": "AL"},
+        {"nicename": "Algeria", "iso": "DZ"},
     ]
 
 
@@ -352,8 +370,8 @@ async def test_ilike_any_of():
     )
 
     assert res.data == [
-        {"iso": "AL", "nicename": "Albania"},
-        {"iso": "DZ", "nicename": "Algeria"},
+        {"nicename": "Albania", "iso": "AL"},
+        {"nicename": "Algeria", "iso": "DZ"},
     ]
 
 
@@ -477,6 +495,7 @@ async def test_explain_json():
         .explain(format="json", analyze=True)
         .execute()
     )
+
     assert res.data[0]["Plan"]["Node Type"] == "Aggregate"
 
 
@@ -489,6 +508,7 @@ async def test_csv():
         .csv()
         .execute()
     )
+
     assert "ALBANIA,AL\nALGERIA,DZ" in res.data
 
 
@@ -501,6 +521,7 @@ async def test_explain_text():
         .explain(analyze=True, verbose=True, settings=True, buffers=True, wal=True)
         .execute()
     )
+
     assert (
         "((cities_1.country_id = countries.id) AND ((cities_1.country_id = '10'::bigint) OR (cities_1.name = 'Paris'::text)))"
         in res
@@ -517,7 +538,11 @@ async def test_rpc_with_single():
         .execute()
     )
 
-    assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
+    assert res.data == {
+        "nicename": "Albania",
+        "country_name": "ALBANIA",
+        "iso": "AL",
+    }
 
 
 async def test_rpc_with_maybe_single():
@@ -530,7 +555,11 @@ async def test_rpc_with_maybe_single():
         .execute()
     )
 
-    assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
+    assert res.data == {
+        "nicename": "Albania",
+        "country_name": "ALBANIA",
+        "iso": "AL",
+    }
 
 
 async def test_rpc_with_maybe_single_no_match():
@@ -571,7 +600,9 @@ async def test_rpc_with_limit():
         .execute()
     )
 
-    assert res.data == [{"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}]
+    assert res.data == [
+        {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
+    ]
 
 
 async def test_rpc_with_range():
@@ -596,6 +627,7 @@ async def test_rpc_post_with_args():
         .select("nicename, iso")
         .execute()
     )
+
     assert res.data == [{"nicename": "Albania", "iso": "AL"}]
 
 
@@ -606,6 +638,7 @@ async def test_rpc_get_with_args():
         .select("nicename, iso")
         .execute()
     )
+
     assert res.data == [{"nicename": "Algeria", "iso": "DZ"}]
 
 
@@ -621,6 +654,7 @@ async def test_rpc_get_with_count():
         .select("nicename")
         .execute()
     )
+
     assert res.count == 2
     assert res.data == [{"nicename": "Albania"}, {"nicename": "Algeria"}]
 
@@ -668,7 +702,10 @@ async def test_order_on_foreign_table():
     )
 
     assert res.data == [
-        {"name": "strings", "instruments": [{"name": "violin"}, {"name": "harp"}]},
+        {
+            "name": "strings",
+            "instruments": [{"name": "violin"}, {"name": "harp"}],
+        },
         {"name": "woodwinds", "instruments": []},
     ]
 
@@ -697,12 +734,17 @@ async def test_get_retry_503() -> None:
             .select("name, instruments(name)")
             .order("name", desc=True, foreign_table="instruments")
         )
+
         res = await query.execute()
 
         assert res.data == [
-            {"name": "strings", "instruments": [{"name": "violin"}, {"name": "harp"}]},
+            {
+                "name": "strings",
+                "instruments": [{"name": "violin"}, {"name": "harp"}],
+            },
             {"name": "woodwinds", "instruments": []},
         ]
+
         assert retry_count > 0
 
 
@@ -735,6 +777,7 @@ async def test_get_retry_503_does_not_retry_when_disabled() -> None:
             .order("name", desc=True, foreign_table="instruments")
             .retry(False)
         )
+
         with pytest.raises(APIError):
             await query.execute()
 
@@ -770,6 +813,7 @@ async def test_order_retry_400_doesnt_retry() -> None:
             .select("name, instruments(name)")
             .order("name", desc=True, foreign_table="instruments")
         )
+
         with pytest.raises(APIError):
             await query.execute()
 
