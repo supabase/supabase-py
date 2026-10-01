@@ -120,6 +120,9 @@ class SyncFunctionsClient:
             the new jwt token sent in the authorization header
         """
 
+        for key in list(self.headers.keys()):
+            if key.lower() == "authorization":
+                del self.headers[key]
         self.headers["Authorization"] = f"Bearer {token}"
 
     def invoke(
