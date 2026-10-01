@@ -101,7 +101,7 @@ class SearchV2Object(BaseModel):
 
 
 class SearchV2Folder(BaseModel):
-    key: str
+    key: Optional[str] = None
     name: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

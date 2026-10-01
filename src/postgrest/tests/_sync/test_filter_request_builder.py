@@ -208,7 +208,9 @@ def test_overlaps_quotes_element_containing_the_delimiter(filter_request_builder
     assert builder.request.params["x"] == 'ov.{"a,b"}'
 
 
-def test_contains_quotes_braces_quotes_whitespace_empty_and_null(filter_request_builder):
+def test_contains_quotes_braces_quotes_whitespace_empty_and_null(
+    filter_request_builder,
+):
     # Braces, embedded double quotes, whitespace, the empty string and the word
     # NULL all force quoting; embedded quotes are backslash-escaped so each
     # element round-trips as a single value.
