@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Any, Iterable
 
 import pytest
 from supabase_utils.http.headers import Headers
@@ -64,6 +64,26 @@ def test_equals(filter_request_builder: BaseFilterRequestBuilder):
     builder = filter_request_builder.eq("x", "a")
 
     assert builder.request.query.get("x") == "eq.a"
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (None, "eq.null"),
+        (True, "eq.true"),
+        (False, "eq.false"),
+        ({"key": "value"}, 'eq.{"key":"value"}'),
+        (["a", "b"], 'eq.["a","b"]'),
+        ("a", "eq.a"),
+        (42, "eq.42"),
+    ],
+)
+def test_eq_serializes_values(
+    filter_request_builder: BaseFilterRequestBuilder, value: Any, expected: str
+) -> None:
+    builder = filter_request_builder.eq("x", value)
+
+    assert builder.request.query.get("x") == expected
 
 
 def test_not_equal(filter_request_builder: BaseFilterRequestBuilder):
