@@ -266,6 +266,24 @@ def test_is_(filter_request_builder: BaseFilterRequestBuilder):
     assert builder.request.query.get("x") == "is.a"
 
 
+def test_is_true(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.is_("x", True)
+
+    assert builder.request.query.get("x") == "is.true"
+
+
+def test_is_false(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.is_("x", False)
+
+    assert builder.request.query.get("x") == "is.false"
+
+
+def test_is_none(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.is_("x", None)
+
+    assert builder.request.query.get("x") == "is.null"
+
+
 def test_in_(filter_request_builder: BaseFilterRequestBuilder):
     builder = filter_request_builder.in_("x", ["a", "b"])
 
