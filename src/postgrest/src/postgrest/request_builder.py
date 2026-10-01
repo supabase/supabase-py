@@ -60,6 +60,21 @@ def _unique_columns(json: List[Dict[str, JSON]]):
     return columns
 
 
+def _serialize_filter_value(value: Any) -> str:
+    """Serialize a filter value into the wire format PostgREST expects.
+
+    ``None`` maps to ``null``, booleans to ``true``/``false``, and dicts/lists
+    to compact JSON, instead of the plain ``str()`` result (e.g. ``"None"``).
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"))
+    return str(value)
+
+
 def _cleaned_columns(columns: Tuple[str, ...]) -> str:
     quoted = False
     cleaned = []
@@ -256,14 +271,14 @@ class BaseFilterRequestBuilder:
         self.request.query = self.request.query.set(key, val)
         return self
 
-    def eq(self: Self, column: str, value: str | int) -> Self:
+    def eq(self: Self, column: str, value: Any) -> Self:
         """An 'equal to' filter.
 
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.EQ, value)
+        return self.filter(column, Filters.EQ, _serialize_filter_value(value))
 
     def neq(self: Self, column: str, value: Any) -> Self:
         """A 'not equal to' filter
