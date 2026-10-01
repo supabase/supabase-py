@@ -793,7 +793,7 @@ def test_client_list_v2_folder(
     assert len(result.objects) == 0
     assert len(result.folders) == 1
     folder = result.folders[0]
-    assert folder.key == file.bucket_folder
+    assert folder.name == file.bucket_folder + "/"
 
 
 def test_client_list_v2_paginated(
