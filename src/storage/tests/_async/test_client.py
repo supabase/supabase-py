@@ -287,6 +287,29 @@ async def test_client_upload(
     assert info.get("cache_control") == "max-age=3600"
 
 
+async def test_client_upload_bytesio() -> None:
+    """Ensure we can upload BytesIO to a bucket"""
+    import io
+    from storage3 import AsyncStorageClient
+    
+    file_obj = io.BytesIO(b"test data")
+    client = AsyncStorageClient("http://localhost", {"apiKey": "dummy"})
+    bucket = client.from_("test_bucket")
+    
+    with patch.object(HttpxClient, "request") as mock_request:
+        mock_response = Mock(spec=Response)
+        mock_response.json.return_value = {"Key": "test.txt"}
+        mock_request.return_value = mock_response
+
+        await bucket.upload("test.txt", file_obj)
+
+        args, kwargs = mock_request.call_args
+        files = kwargs.get("files")
+        assert files is not None
+        assert "file" in files
+        assert files["file"][1] is file_obj
+
+
 async def test_client_upload_with_query(
     storage_file_client: AsyncBucketProxy, file: FileForTesting
 ) -> None:
