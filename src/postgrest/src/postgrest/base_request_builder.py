@@ -39,7 +39,15 @@ except ImportError:
     from pydantic import validator as field_validator  # type: ignore
 
 from .base_client import BasePostgrestClient
-from .types import JSON, CountMethod, Filters, JSONAdapter, RequestMethod, ReturnMethod
+from .types import (
+    JSON,
+    CountMethod,
+    Filters,
+    FilterValue,
+    JSONAdapter,
+    RequestMethod,
+    ReturnMethod,
+)
 from .utils import sanitize_param
 
 
@@ -453,21 +461,20 @@ class BaseFilterRequestBuilder(Generic[C]):
     def wfts(self: Self, column: str, query: Any) -> Self:
         return self.filter(column, Filters.WFTS, query)
 
-    def in_(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = map(sanitize_param, values)
-        values = ",".join(values)
-        return self.filter(column, Filters.IN, f"({values})")
+    def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
+        stringified_values = ",".join(map(sanitize_param, values))
+        return self.filter(column, Filters.IN, f"({stringified_values})")
 
-    def cs(self: Self, column: str, values: Iterable[Any]) -> Self:
+    def cs(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
         values = ",".join(str(v) for v in values)
         return self.filter(column, Filters.CS, f"{{{values}}}")
 
-    def cd(self: Self, column: str, values: Iterable[Any]) -> Self:
+    def cd(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
         values = ",".join(str(v) for v in values)
         return self.filter(column, Filters.CD, f"{{{values}}}")
 
     def contains(
-        self: Self, column: str, value: Union[Iterable[Any], str, Dict[Any, Any]]
+        self: Self, column: str, value: Union[Iterable[FilterValue], str, Dict[str, JSON]]
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -481,7 +488,7 @@ class BaseFilterRequestBuilder(Generic[C]):
         return self.filter(column, Filters.CS, json.dumps(value))
 
     def contained_by(
-        self: Self, column: str, value: Union[Iterable[Any], str, Dict[Any, Any]]
+        self: Self, column: str, value: Union[Iterable[FilterValue], str, Dict[str, JSON]]
     ) -> Self:
         if isinstance(value, str):
             # range
@@ -491,7 +498,9 @@ class BaseFilterRequestBuilder(Generic[C]):
             return self.filter(column, Filters.CD, f"{{{stringified_values}}}")
         return self.filter(column, Filters.CD, json.dumps(value))
 
-    def ov(self: Self, column: str, value: Iterable[Any]) -> Self:
+    def ov(
+        self: Self, column: str, value: Union[Iterable[FilterValue], str, Dict[str, JSON]]
+    ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
             # keep it simple and accept a string
@@ -532,7 +541,7 @@ class BaseFilterRequestBuilder(Generic[C]):
     def range_adjacent(self: Self, column: str, range: Tuple[int, int]) -> Self:
         return self.adj(column, range)
 
-    def overlaps(self: Self, column: str, values: Iterable[Any]) -> Self:
+    def overlaps(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
         return self.ov(column, values)
 
     def match(self: Self, query: Dict[str, Any]) -> Self:
