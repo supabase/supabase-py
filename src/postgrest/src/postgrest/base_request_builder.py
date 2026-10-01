@@ -366,6 +366,10 @@ class BaseFilterRequestBuilder(Generic[C]):
         """
         if value is None:
             value = "null"
+        elif value is True:
+            value = "true"
+        elif value is False:
+            value = "false"
         return self.filter(column, Filters.IS, value)
 
     def like(self: Self, column: str, pattern: str) -> Self:
