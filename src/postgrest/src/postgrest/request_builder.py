@@ -33,7 +33,7 @@ from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .types import CountMethod, Filters, ReturnMethod
-from .utils import model_validate_json, sanitize_param
+from .utils import _sanitize_array_param, model_validate_json, sanitize_param
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -427,12 +427,10 @@ class BaseFilterRequestBuilder:
         return self.filter(column, Filters.IN, f"({values})")
 
     def cs(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(str(v) for v in values)
-        return self.filter(column, Filters.CS, f"{{{values}}}")
+        return self.filter(column, Filters.CS, _sanitize_array_param(values))
 
     def cd(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(str(v) for v in values)
-        return self.filter(column, Filters.CD, f"{{{values}}}")
+        return self.filter(column, Filters.CD, _sanitize_array_param(values))
 
     def contains(
         self: Self, column: str, value: Iterable[Any] | str | Dict[str, JSON]
@@ -443,8 +441,7 @@ class BaseFilterRequestBuilder:
             return self.filter(column, Filters.CS, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(str(v) for v in value)
-            return self.filter(column, Filters.CS, f"{{{stringified_values}}}")
+            return self.filter(column, Filters.CS, _sanitize_array_param(value))
 
         return self.filter(column, Filters.CS, json.dumps(value))
 
@@ -455,8 +452,7 @@ class BaseFilterRequestBuilder:
             # range
             return self.filter(column, Filters.CD, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
-            stringified_values = ",".join(str(v) for v in value)
-            return self.filter(column, Filters.CD, f"{{{stringified_values}}}")
+            return self.filter(column, Filters.CD, _sanitize_array_param(value))
         return self.filter(column, Filters.CD, json.dumps(value))
 
     def ov(
@@ -468,8 +464,7 @@ class BaseFilterRequestBuilder:
             return self.filter(column, Filters.OV, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(str(v) for v in value)
-            return self.filter(column, Filters.OV, f"{{{stringified_values}}}")
+            return self.filter(column, Filters.OV, _sanitize_array_param(value))
         return self.filter(column, Filters.OV, json.dumps(value))
 
     def sl(self: Self, column: str, min: str, max: str) -> Self:
