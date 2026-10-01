@@ -174,8 +174,47 @@ def test_contained_by_mixed_items(
 ):
     builder = filter_request_builder.contained_by("x", ["a", '["b", "c"]'])
 
-    # {a,["b",+"c"]}
-    assert builder.request.query.get("x") == 'cd.{a,["b", "c"]}'
+    assert builder.request.query.get("x") == 'cd.{a,"[\\"b\\", \\"c\\"]"}'
+
+
+def test_contains_quotes_element_containing_the_delimiter(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.contains("x", ["a,b", "c"])
+
+    assert builder.request.query.get("x") == 'cs.{"a,b",c}'
+
+
+def test_cs_quotes_element_containing_the_delimiter(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.cs("x", ["a,b"])
+
+    assert builder.request.query.get("x") == 'cs.{"a,b"}'
+
+
+def test_cd_quotes_element_containing_the_delimiter(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.cd("x", ["a,b"])
+
+    assert builder.request.query.get("x") == 'cd.{"a,b"}'
+
+
+def test_overlaps_quotes_element_containing_the_delimiter(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.overlaps("x", ["a,b"])
+
+    assert builder.request.query.get("x") == 'ov.{"a,b"}'
+
+
+def test_contains_quotes_braces_quotes_whitespace_empty_and_null(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.contains("x", ["a}b", 'x"y', "a b", "", "NULL"])
+
+    assert builder.request.query.get("x") == 'cs.{"a}b","x\\"y","a b","","NULL"}'
 
 
 def test_range_greater_than(filter_request_builder: BaseFilterRequestBuilder):

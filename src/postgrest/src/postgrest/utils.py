@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Type, TypeVar
+from typing import Any, Iterable, Type, TypeVar
 
 from deprecation import deprecated
 from httpx import AsyncClient  # noqa: F401
@@ -34,6 +34,35 @@ def sanitize_param(param: Any) -> str:
     if any(char in param_str for char in reserved_chars):
         return f'"{param_str}"'
     return param_str
+
+
+def _sanitize_array_element(element: Any) -> str:
+    """Quote a single value for use inside a PostgreSQL array literal ``{...}``.
+
+    PostgreSQL quotes an array element when it is empty, matches ``NULL``
+    case-insensitively, or contains a brace, the comma delimiter, a double
+    quote, a backslash, or whitespace; embedded double quotes and backslashes
+    are backslash-escaped. Without this, a value such as ``"a,b"`` is emitted
+    bare and parsed by PostgREST as two separate elements.
+    """
+    element_str = str(element)
+    needs_quoting = (
+        element_str == ""
+        or element_str.lower() == "null"
+        or any(char in element_str for char in '{},"\\')
+        or any(char.isspace() for char in element_str)
+    )
+    if not needs_quoting:
+        return element_str
+    escaped = element_str.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def _sanitize_array_param(values: Iterable[Any]) -> str:
+    """Render an iterable as a PostgreSQL array literal ``{elem,elem,...}``,
+    quoting each element as needed so values containing the comma delimiter (or
+    other special characters) survive as single elements."""
+    return f"{{{','.join(_sanitize_array_element(value) for value in values)}}}"
 
 
 def sanitize_pattern_param(pattern: str) -> str:
