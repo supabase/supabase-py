@@ -454,7 +454,11 @@ class BaseFilterRequestBuilder(Generic[C]):
         """
         if self.negate_next:
             self.negate_next = False
-            key = f"{sanitize_param(reference_table)}.not.or" if reference_table else "not.or"
+            key = (
+                f"{sanitize_param(reference_table)}.not.or"
+                if reference_table
+                else "not.or"
+            )
         else:
             key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
         self.request.params = self.request.params.add(key, f"({filters})")

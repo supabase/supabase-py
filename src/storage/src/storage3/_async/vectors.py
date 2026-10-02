@@ -74,7 +74,7 @@ class AsyncVectorBucketScope:
         prefix: Optional[str] = None,
     ) -> ListVectorIndexesResponse:
         body = self.with_metadata(
-            next_token=next_token, max_results=max_results, prefix=prefix
+            nextToken=next_token, maxResults=max_results, prefix=prefix
         )
         data = await self._request.send(
             http_method="POST", path=["ListIndexes"], body=body

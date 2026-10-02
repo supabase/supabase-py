@@ -379,7 +379,9 @@ def test_not_or_(filter_request_builder):
     assert not builder.negate_next
 
     foreign = filter_request_builder.not_.or_("x.eq.1", reference_table="cities")
-    assert str(foreign.request.params) == "not.or=%28x.eq.1%29&cities.not.or=%28x.eq.1%29"
+    assert (
+        str(foreign.request.params) == "not.or=%28x.eq.1%29&cities.not.or=%28x.eq.1%29"
+    )
 
 
 def test_or_in_contain(filter_request_builder):
