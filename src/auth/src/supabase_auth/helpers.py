@@ -176,7 +176,11 @@ def handle_error_response(response: Response) -> AuthError:
     else:
         error_code = raw_error.error_code
 
-    if error_code is None and raw_error.weak_password:
+    if (
+        error_code is None
+        and raw_error.weak_password
+        and raw_error.weak_password.reasons
+    ):
         return AuthWeakPasswordError(
             message=raw_error.get_error_message(),
             status=response.status,
