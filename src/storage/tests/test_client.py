@@ -539,3 +539,118 @@ def test_sync_list_indexes_sends_camel_case_pagination(
         "maxResults": 10,
         "prefix": "idx-",
     }
+
+
+def _put_vectors_transport(captured: Dict[str, Any]) -> Any:
+    import json as _json
+
+    def handler(request: Request) -> Response:
+        captured["url"] = str(request.url)
+        captured["body"] = _json.loads(request.content)
+        return Response(200, json={})
+
+    return handler
+
+
+_ARRAY_METADATA = {
+    "tags": ["laptop", "portable"],
+    "scores": [1, 2, 3],
+    "flags": [True, False],
+    "sku": "product-001",
+    "in_stock": True,
+    "price": 19.99,
+    "qty": 42,
+}
+
+
+def test_vector_object_accepts_array_metadata() -> None:
+    from storage3.types import VectorData, VectorObject
+
+    vector = VectorObject(
+        key="product-001",
+        data=VectorData(float32=[0.1, 0.2]),
+        metadata=_ARRAY_METADATA,
+    )
+
+    assert vector.metadata is not None
+    assert vector.metadata["tags"] == ["laptop", "portable"]
+    assert vector.metadata["scores"] == [1, 2, 3]
+    assert vector.metadata["flags"] == [True, False]
+    assert vector.metadata["qty"] == 42
+    assert isinstance(vector.metadata["qty"], int)
+    assert isinstance(vector.metadata["scores"][0], int)
+
+
+def test_sync_put_vectors_sends_array_metadata(valid_url, valid_headers) -> None:
+    from httpx import MockTransport
+    from storage3.types import VectorData, VectorObject
+
+    captured: Dict[str, Any] = {}
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(transport=MockTransport(_put_vectors_transport(captured))),
+    )
+
+    client.vectors().from_("catalog").index("products").put(
+        [
+            VectorObject(
+                key="product-001",
+                data=VectorData(float32=[0.1, 0.2]),
+                metadata=_ARRAY_METADATA,
+            )
+        ]
+    )
+
+    assert captured["url"].endswith("/vector/PutVectors")
+    metadata = captured["body"]["vectors"][0]["metadata"]
+    assert metadata["tags"] == ["laptop", "portable"]
+    assert metadata["scores"] == [1, 2, 3]
+    assert metadata["flags"] == [True, False]
+    assert metadata["sku"] == "product-001"
+    assert metadata["in_stock"] is True
+    assert metadata["price"] == 19.99
+    assert metadata["qty"] == 42
+    assert isinstance(metadata["qty"], int)
+    assert isinstance(metadata["scores"][0], int)
+
+
+@pytest.mark.asyncio
+async def test_async_put_vectors_sends_array_metadata(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+    from storage3.types import VectorData, VectorObject
+
+    captured: Dict[str, Any] = {}
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(
+            transport=MockTransport(_put_vectors_transport(captured))
+        ),
+    )
+
+    await (
+        client.vectors()
+        .from_("catalog")
+        .index("products")
+        .put(
+            [
+                VectorObject(
+                    key="product-001",
+                    data=VectorData(float32=[0.1, 0.2]),
+                    metadata=_ARRAY_METADATA,
+                )
+            ]
+        )
+    )
+
+    assert captured["url"].endswith("/vector/PutVectors")
+    metadata = captured["body"]["vectors"][0]["metadata"]
+    assert metadata["tags"] == ["laptop", "portable"]
+    assert metadata["scores"] == [1, 2, 3]
+    assert metadata["flags"] == [True, False]
+    assert metadata["qty"] == 42
+    assert isinstance(metadata["qty"], int)
+    assert isinstance(metadata["scores"][0], int)

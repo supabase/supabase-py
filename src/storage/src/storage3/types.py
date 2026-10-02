@@ -238,10 +238,16 @@ class VectorData(BaseModel, extra="ignore"):
     float32: List[float]
 
 
+# Matches PutVectors metadata: scalars or arrays of string/bool/number.
+# int before float so integers stay integers under pydantic validation.
+VectorMetadataPrimitive = Union[str, bool, int, float]
+VectorMetadataValue = Union[VectorMetadataPrimitive, List[VectorMetadataPrimitive]]
+
+
 class VectorObject(BaseModel, extra="ignore"):
     key: str
     data: VectorData
-    metadata: Optional[dict[str, Union[str, bool, float]]] = None
+    metadata: Optional[dict[str, VectorMetadataValue]] = None
 
 
 class VectorMatch(BaseModel, extra="ignore"):
