@@ -5,7 +5,7 @@ import re
 import sys
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Union
-from urllib.parse import urlencode, urlparse, urlunparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from warnings import warn
 
 import websockets
@@ -163,11 +163,12 @@ class AsyncRealtimeClient:
         retries = 0
         backoff = self.initial_backoff
 
-        logger.debug(f"Attempting to connect to WebSocket at {self.url}")
+        endpoint_url = self.endpoint_url()
+        logger.debug(f"Attempting to connect to WebSocket at {endpoint_url}")
 
         while retries < self.max_retries:
             try:
-                ws = await connect(self.url)
+                ws = await connect(endpoint_url)
                 self._ws_connection = ws
                 logger.debug("WebSocket connection established successfully")
                 return await self._on_connect()
@@ -393,7 +394,8 @@ class AsyncRealtimeClient:
 
     def endpoint_url(self) -> str:
         parsed_url = urlparse(self.url)
-        query = urlencode({**self.params, "vsn": VSN}, doseq=True)
+        current_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
+        query = urlencode({**self.params, **current_params, "vsn": VSN}, doseq=True)
         return urlunparse(
             (
                 parsed_url.scheme,
