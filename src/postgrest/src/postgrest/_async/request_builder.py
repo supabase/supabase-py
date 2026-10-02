@@ -91,6 +91,8 @@ class AsyncQueryRequestBuilder:
         try:
             if r.is_success:
                 return APIResponse.from_http_request_response(r)
+            elif not r.content:
+                raise APIError(generate_default_error_message(r))
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
