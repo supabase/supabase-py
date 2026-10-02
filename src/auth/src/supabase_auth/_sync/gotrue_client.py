@@ -448,7 +448,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
         scopes = options.get("scopes")
-        params = options.get("query_params", {})
+        params = options.get("query_params", {}).copy()
         if redirect_to:
             params["redirect_to"] = redirect_to
         if scopes:
@@ -463,7 +463,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
         scopes = options.get("scopes")
-        params = options.get("query_params", {})
+        params = options.get("query_params", {}).copy()
         if redirect_to:
             params["redirect_to"] = redirect_to
         if scopes:

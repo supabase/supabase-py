@@ -376,6 +376,19 @@ async def test_sign_in_with_oauth() -> None:
         )
     )
 
+async def test_sign_in_with_oauth_query_params_mutation() -> None:
+    query_params = {"prompt": "consent"}
+    await client_api_auto_confirm_off_signups_enabled_client().sign_in_with_oauth(
+        {
+            "provider": "google",
+            "options": {
+                "query_params": query_params,
+                "redirect_to": "https://example.com/callback",
+            },
+        }
+    )
+    assert "redirect_to" not in query_params
+
 
 async def test_link_identity_missing_session() -> None:
     with pytest.raises(AuthSessionMissingError) as exc:
