@@ -190,6 +190,78 @@ def test_invoke_with_json_body(client: SyncFunctionsClient) -> None:
         assert kwargs["headers"]["Content-Type"] == "application/json"
 
 
+def test_invoke_preserves_caller_content_type_for_string_body(
+    client: SyncFunctionsClient,
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(client._client, "request", new_callable=Mock) as mock_request:
+        mock_request.return_value = mock_response
+
+        client.invoke(
+            "test-function",
+            {"body": "<a/>", "headers": {"Content-Type": "application/xml"}},
+        )
+
+        _, kwargs = mock_request.call_args
+        content_types = [
+            v for k, v in kwargs["headers"].items() if k.lower() == "content-type"
+        ]
+        assert content_types == ["application/xml"]
+
+
+def test_invoke_preserves_caller_content_type_for_dict_body(
+    client: SyncFunctionsClient,
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(client._client, "request", new_callable=Mock) as mock_request:
+        mock_request.return_value = mock_response
+
+        client.invoke(
+            "test-function",
+            {
+                "body": {"a": 1},
+                "headers": {"Content-Type": "application/vnd.api+json"},
+            },
+        )
+
+        _, kwargs = mock_request.call_args
+        content_types = [
+            v for k, v in kwargs["headers"].items() if k.lower() == "content-type"
+        ]
+        assert content_types == ["application/vnd.api+json"]
+
+
+def test_invoke_preserves_lowercase_content_type_without_duplicate(
+    client: SyncFunctionsClient,
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(client._client, "request", new_callable=Mock) as mock_request:
+        mock_request.return_value = mock_response
+
+        client.invoke(
+            "test-function",
+            {"body": "<a/>", "headers": {"content-type": "application/xml"}},
+        )
+
+        _, kwargs = mock_request.call_args
+        content_types = [
+            v for k, v in kwargs["headers"].items() if k.lower() == "content-type"
+        ]
+        assert content_types == ["application/xml"]
+
+
 def test_init_with_httpx_client() -> None:
     # Create a custom httpx client with specific options
     headers = {"x-user-agent": "my-app/0.0.1"}

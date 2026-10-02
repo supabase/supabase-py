@@ -161,12 +161,16 @@ class AsyncFunctionsClient:
                     params = params.set("forceFunctionRegion", region.value)
 
             body = invoke_options.get("body")
-            if isinstance(body, str):
-                headers["Content-Type"] = "text/plain"
-            elif isinstance(body, dict):
-                headers["Content-Type"] = "application/json"
-            elif isinstance(body, bytes):
-                headers["Content-Type"] = "application/octet-stream"
+            # Only set a default Content-Type when the caller did not supply one
+            # (any casing). Avoid leaving both content-type and Content-Type.
+            has_content_type = any(key.lower() == "content-type" for key in headers)
+            if not has_content_type:
+                if isinstance(body, str):
+                    headers["Content-Type"] = "text/plain"
+                elif isinstance(body, dict):
+                    headers["Content-Type"] = "application/json"
+                elif isinstance(body, bytes):
+                    headers["Content-Type"] = "application/octet-stream"
 
         response = await self._request(
             method, [function_name], headers=headers, json=body, params=params
