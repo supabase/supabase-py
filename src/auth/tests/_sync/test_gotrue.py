@@ -1,8 +1,10 @@
+import re
 import time
 from uuid import uuid4
 
 import pytest
 from jwt import encode
+from supabase_auth import SyncMemoryStorage
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -337,15 +339,195 @@ def test_exchange_code_for_session() -> None:
     client._flow_type = "pkce"
 
     # Test the PKCE URL generation which is needed for exchange_code_for_session
-    url, params = client._get_url_for_provider(f"{client._url}/authorize", "github", {})
+    url, params, flow_id = client._get_url_for_provider(
+        f"{client._url}/authorize", "github", {}
+    )
 
     # Verify PKCE parameters were added
     assert "code_challenge" in params
     assert "code_challenge_method" in params
 
-    # Verify the code verifier was stored
+    # Verify the code verifier was stored under the legacy key and the flow slot
     code_verifier = client._storage.get_item(storage_key)
     assert code_verifier is not None
+    assert flow_id is not None
+    assert re.match(r"^[a-f0-9]{32}$", flow_id)
+    slot_verifier = client._storage.get_item(
+        f"{client._storage_key}-flow-{flow_id}-code-verifier"
+    )
+    assert slot_verifier == code_verifier
+
+
+def test_get_url_for_provider_has_no_flow_id_on_implicit_flow() -> None:
+    client = auth_client()
+    client._flow_type = "implicit"
+
+    url, params, flow_id = client._get_url_for_provider(
+        f"{client._url}/authorize", "github", {}
+    )
+
+    assert flow_id is None
+    assert "code_challenge" not in params
+    assert _memory_storage(client) == {}
+
+
+def test_overlapping_pkce_flows_keep_distinct_verifiers() -> None:
+    client = auth_client()
+    client._flow_type = "pkce"
+
+    first = client.sign_in_with_oauth({"provider": "github"})
+    second = client.sign_in_with_oauth({"provider": "google"})
+
+    assert first.flow_id is not None and second.flow_id is not None
+    assert first.flow_id != second.flow_id
+
+    first_verifier = client._pkce_verifier_store.retrieve(first.flow_id)
+    second_verifier = client._pkce_verifier_store.retrieve(second.flow_id)
+    assert first_verifier is not None and second_verifier is not None
+    assert first_verifier != second_verifier
+    # the legacy key follows the most recent flow
+    assert client._pkce_verifier_store.retrieve(None) == second_verifier
+
+
+def _mock_auth_response_json() -> str:
+    from datetime import datetime
+
+    from supabase_auth.types import Session, User
+
+    date = datetime(year=2023, month=1, day=1)
+    user = User(
+        id="user123",
+        email="test@example.com",
+        app_metadata={},
+        user_metadata={},
+        aud="authenticated",
+        created_at=date,
+        confirmed_at=date,
+        last_sign_in_at=date,
+        role="authenticated",
+        updated_at=date,
+    )
+    session = Session(
+        access_token="mock_access_token",
+        refresh_token="mock_refresh_token",
+        expires_in=3600,
+        token_type="bearer",
+        user=user,
+    )
+    # the token endpoint answers with the session itself, which embeds the user
+    return session.model_dump_json()
+
+
+def _memory_storage(client) -> dict:
+    storage = client._storage
+    assert isinstance(storage, SyncMemoryStorage)
+    return storage.storage
+
+
+def test_exchange_code_for_session_uses_verifier_of_given_flow() -> None:
+    from unittest.mock import patch
+
+    from httpx import Response
+
+    client = auth_client()
+    client._flow_type = "pkce"
+
+    first = client.sign_in_with_oauth({"provider": "github"})
+    second = client.sign_in_with_oauth({"provider": "google"})
+    assert first.flow_id is not None and second.flow_id is not None
+    first_verifier = client._pkce_verifier_store.retrieve(first.flow_id)
+    second_verifier = client._pkce_verifier_store.retrieve(second.flow_id)
+
+    with patch.object(client, "_request") as mock_request:
+        mock_request.return_value = Response(
+            content=_mock_auth_response_json(), status_code=200
+        )
+
+        # the first flow completes after the second one overwrote the legacy key
+        response = client.exchange_code_for_session(
+            {"auth_code": "code-1", "flow_id": first.flow_id}
+        )
+
+        mock_request.assert_called_once()
+        args, kwargs = mock_request.call_args
+        assert args[0] == "POST"
+        assert args[1] == "token"
+        assert kwargs["body"] == {
+            "auth_code": "code-1",
+            "code_verifier": first_verifier,
+        }
+
+    assert response.session is not None
+    assert response.session.access_token == "mock_access_token"
+
+    # only the first flow's slot is consumed
+    assert client._pkce_verifier_store.retrieve(first.flow_id) is None
+    assert client._pkce_verifier_store.retrieve(second.flow_id) == second_verifier
+    assert client._pkce_verifier_store.retrieve(None) == second_verifier
+
+
+def test_exchange_code_for_session_fails_fast_for_unknown_flow_id() -> None:
+    from unittest.mock import patch
+
+    from supabase_auth.errors import AuthPKCECodeVerifierMissingError
+
+    client = auth_client()
+    client._flow_type = "pkce"
+
+    pending = client.sign_in_with_oauth({"provider": "github"})
+    assert pending.flow_id is not None
+    storage_before = dict(_memory_storage(client))
+
+    with patch.object(client, "_request") as mock_request:
+        for flow_id in ["flow-id-gone0000", "slash/../evil"]:
+            with pytest.raises(AuthPKCECodeVerifierMissingError):
+                client.exchange_code_for_session(
+                    {"auth_code": "code-1", "flow_id": flow_id}
+                )
+        # no request goes out and the pending flow is untouched
+        mock_request.assert_not_called()
+
+    assert _memory_storage(client) == storage_before
+
+
+def test_exchange_code_for_session_falls_back_to_legacy_key() -> None:
+    from unittest.mock import patch
+
+    from httpx import Response
+
+    client = auth_client()
+    client._flow_type = "pkce"
+
+    # a verifier stored by an older client version under the legacy key only
+    client._storage.set_item(f"{client._storage_key}-code-verifier", "legacy-verifier")
+
+    with patch.object(client, "_request") as mock_request:
+        mock_request.return_value = Response(
+            content=_mock_auth_response_json(), status_code=200
+        )
+
+        response = client.exchange_code_for_session({"auth_code": "code-1"})
+
+        _, kwargs = mock_request.call_args
+        assert kwargs["body"]["code_verifier"] == "legacy-verifier"
+
+    assert response.session is not None
+    assert client._storage.get_item(f"{client._storage_key}-code-verifier") is None
+
+
+def test_sign_out_clears_every_pending_pkce_flow() -> None:
+    client = auth_client()
+    client._flow_type = "pkce"
+    credentials = mock_user_credentials()
+    client.sign_up({"email": credentials.email, "password": credentials.password})
+
+    client.sign_in_with_oauth({"provider": "github"})
+    client.sign_in_with_oauth({"provider": "google"})
+    assert any("-flow-" in key for key in _memory_storage(client))
+
+    client.sign_out()
+
+    assert not any("code-verifier" in key for key in _memory_storage(client))
 
 
 def test_get_authenticator_assurance_level() -> None:
@@ -394,7 +576,8 @@ def test_link_identity() -> None:
     with patch.object(client, "_get_url_for_provider") as mock_url_provider:
         mock_url = "http://example.com/authorize?provider=github"
         mock_params = {"provider": "github"}
-        mock_url_provider.return_value = (mock_url, mock_params)
+        mock_flow_id = "0123456789abcdef0123456789abcdef"
+        mock_url_provider.return_value = (mock_url, mock_params, mock_flow_id)
 
         # Also mock the _request method since the server would reject it
         with patch.object(client, "_request") as mock_request:
@@ -408,6 +591,7 @@ def test_link_identity() -> None:
             # Verify the response
             assert response.provider == "github"
             assert response.url == mock_url
+            assert response.flow_id == mock_flow_id
 
 
 def test_get_user_identities() -> None:

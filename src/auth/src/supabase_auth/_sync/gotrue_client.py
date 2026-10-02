@@ -24,6 +24,7 @@ from ..errors import (
     AuthImplicitGrantRedirectError,
     AuthInvalidCredentialsError,
     AuthInvalidJwtError,
+    AuthPKCECodeVerifierMissingError,
     AuthRetryableError,
     AuthSessionMissingError,
     UserDoesntExist,
@@ -31,6 +32,7 @@ from ..errors import (
 from ..helpers import (
     decode_jwt,
     generate_pkce_challenge,
+    generate_pkce_flow_id,
     generate_pkce_verifier,
     model_dump_json,
     model_validate,
@@ -41,6 +43,7 @@ from ..helpers import (
     parse_sso_response,
     parse_user_response,
     validate_exp,
+    validate_pkce_flow_id,
 )
 from ..timer import Timer
 from ..types import (
@@ -94,6 +97,7 @@ from ..version import __version__
 from .gotrue_admin_api import SyncGoTrueAdminAPI
 from .gotrue_base_api import SyncGoTrueBaseAPI
 from .gotrue_mfa_api import SyncGoTrueMFAAPI
+from .pkce_verifier_store import SyncPKCEVerifierStore
 from .storage import SyncMemoryStorage, SyncSupportedStorage
 
 
@@ -153,6 +157,9 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         self._network_retries = 0
         self._state_change_emitters: Dict[str, Subscription] = {}
         self._flow_type = flow_type
+        self._pkce_verifier_store = SyncPKCEVerifierStore(
+            self._storage, self._storage_key
+        )
 
         self.admin = SyncGoTrueAdminAPI(
             url=self._url,
@@ -441,6 +448,11 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
     ) -> OAuthResponse:
         """
         Log in an existing user via a third-party provider.
+
+        On the PKCE flow the returned ``flow_id`` identifies the code verifier
+        stored for this call. Pass it to ``exchange_code_for_session`` so that
+        the exchange keeps working even when other PKCE flows are started before
+        this one completes.
         """
         self._remove_session()
 
@@ -453,10 +465,10 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             params["redirect_to"] = redirect_to
         if scopes:
             params["scopes"] = scopes
-        url_with_qs, _ = self._get_url_for_provider(
+        url_with_qs, _, flow_id = self._get_url_for_provider(
             f"{self._url}/authorize", provider, params
         )
-        return OAuthResponse(provider=provider, url=url_with_qs)
+        return OAuthResponse(provider=provider, url=url_with_qs, flow_id=flow_id)
 
     def link_identity(self, credentials: SignInWithOAuthCredentials) -> OAuthResponse:
         provider = credentials["provider"]
@@ -470,7 +482,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             params["scopes"] = scopes
         params["skip_http_redirect"] = "true"
         url = "user/identities/authorize"
-        _, query = self._get_url_for_provider(url, provider, params)
+        _, query, flow_id = self._get_url_for_provider(url, provider, params)
 
         session = self.get_session()
         if not session:
@@ -483,7 +495,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             jwt=session.access_token,
         )
         link_identity = parse_link_identity_response(response)
-        return OAuthResponse(provider=provider, url=link_identity.url)
+        return OAuthResponse(provider=provider, url=link_identity.url, flow_id=flow_id)
 
     def get_user_identities(self) -> IdentitiesResponse:
         response = self.get_user()
@@ -795,6 +807,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
 
         if signout_options["scope"] != "others":
             self._remove_session()
+            self._pkce_verifier_store.remove_all()
             self._notify_all_subscribers("SIGNED_OUT", None)
 
     def on_auth_state_change(
@@ -1167,12 +1180,22 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         url: str,
         provider: Provider,
         params: Dict[str, str],
-    ) -> Tuple[str, QueryParams]:
+    ) -> Tuple[str, QueryParams, Optional[str]]:
+        """
+        Build the authorize URL for ``provider``.
+
+        On the PKCE flow a fresh code verifier is generated and stored in a
+        slot of its own, identified by the returned flow id, so that several
+        flows can be pending at the same time. Returns ``None`` as the flow id
+        on the implicit flow.
+        """
         query = QueryParams(params)
+        flow_id: Optional[str] = None
         if self._flow_type == "pkce":
             code_verifier = generate_pkce_verifier()
             code_challenge = generate_pkce_challenge(code_verifier)
-            self._storage.set_item(f"{self._storage_key}-code-verifier", code_verifier)
+            flow_id = generate_pkce_flow_id()
+            self._pkce_verifier_store.store(flow_id, code_verifier)
             code_challenge_method = (
                 "plain" if code_verifier == code_challenge else "s256"
             )
@@ -1180,24 +1203,46 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
                 "code_challenge_method", code_challenge_method
             )
         query = query.set("provider", provider)
-        return f"{url}?{query}", query
+        return f"{url}?{query}", query, flow_id
 
     def exchange_code_for_session(self, params: CodeExchangeParams) -> AuthResponse:
-        code_verifier = params.get("code_verifier") or self._storage.get_item(
-            f"{self._storage_key}-code-verifier"
-        )
-        response = self._request(
-            "POST",
-            "token",
-            query=QueryParams(grant_type="pkce"),
-            body={
-                "auth_code": params.get("auth_code"),
-                "code_verifier": code_verifier,
-            },
-            redirect_to=params.get("redirect_to"),
-        )
+        """
+        Exchange an authorization code obtained through the PKCE flow for a session.
+
+        Pass the ``flow_id`` returned by ``sign_in_with_oauth`` or
+        ``link_identity`` to use the code verifier of that specific flow. With a
+        flow id, only that flow's verifier is used; if it is missing the
+        exchange fails with ``AuthPKCECodeVerifierMissingError`` rather than
+        spending the single-use code on another flow's verifier. Without a
+        flow id the verifier of the most recently started flow is used.
+        """
+        flow_id: Optional[str] = None
+        requested_flow_id = params.get("flow_id")
+        if requested_flow_id is not None:
+            flow_id = validate_pkce_flow_id(requested_flow_id)
+            if flow_id is None:
+                raise AuthPKCECodeVerifierMissingError()
+
+        code_verifier = params.get("code_verifier")
+        if not code_verifier:
+            code_verifier = self._pkce_verifier_store.retrieve(flow_id)
+            if flow_id is not None and code_verifier is None:
+                raise AuthPKCECodeVerifierMissingError()
+
+        try:
+            response = self._request(
+                "POST",
+                "token",
+                query=QueryParams(grant_type="pkce"),
+                body={
+                    "auth_code": params.get("auth_code"),
+                    "code_verifier": code_verifier,
+                },
+                redirect_to=params.get("redirect_to"),
+            )
+        finally:
+            self._pkce_verifier_store.remove(flow_id)
         auth_response = parse_auth_response(response)
-        self._storage.remove_item(f"{self._storage_key}-code-verifier")
         if auth_response.session:
             self._save_session(auth_response.session)
             self._notify_all_subscribers("SIGNED_IN", auth_response.session)
