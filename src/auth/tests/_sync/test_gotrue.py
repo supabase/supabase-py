@@ -9,7 +9,10 @@ from supabase_auth.errors import (
     AuthSessionMissingError,
 )
 from supabase_auth.helpers import decode_jwt
-from supabase_auth.types import SignUpWithEmailAndPasswordCredentials
+from supabase_auth.types import (
+    SignInWithOAuthCredentials,
+    SignUpWithEmailAndPasswordCredentials,
+)
 
 from .clients import (
     GOTRUE_JWT_SECRET,
@@ -346,6 +349,23 @@ def test_exchange_code_for_session() -> None:
     # Verify the code verifier was stored
     code_verifier = client._storage.get_item(storage_key)
     assert code_verifier is not None
+
+
+def test_sign_in_with_oauth_does_not_mutate_query_params() -> None:
+    client = auth_client()
+    query_params = {"prompt": "consent"}
+    credentials: SignInWithOAuthCredentials = {
+        "provider": "github",
+        "options": {
+            "query_params": query_params,
+            "redirect_to": "https://example.com/callback",
+        },
+    }
+
+    response = client.sign_in_with_oauth(credentials)
+
+    assert "redirect_to=https%3A%2F%2Fexample.com%2Fcallback" in response.url
+    assert query_params == {"prompt": "consent"}
 
 
 def test_get_authenticator_assurance_level() -> None:
