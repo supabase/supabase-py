@@ -58,6 +58,31 @@ def test_set_auth_valid_token(client: SyncFunctionsClient) -> None:
     assert client.headers["Authorization"] == f"Bearer {valid_token}"
 
 
+def test_set_auth_removes_other_cased_headers(valid_url: str) -> None:
+    client = SyncFunctionsClient(
+        url=valid_url, headers={"authorization": "Bearer old-token"}, timeout=10, verify=True
+    )
+    client.set_auth("new-token")
+
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(client._client, "request", new_callable=Mock) as mock_request:
+        mock_request.return_value = mock_response
+        client.invoke("test-function", {"responseType": "json"})
+
+        _, kwargs = mock_request.call_args
+        headers = kwargs["headers"]
+
+        auth_headers = [v for k, v in headers.items() if k.lower() == "authorization"]
+        assert len(auth_headers) == 1
+        assert auth_headers[0] == "Bearer new-token"
+        assert "authorization" not in headers
+        assert headers.get("Authorization") == "Bearer new-token"
+
+
 def test_invoke_success_json(client: SyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"message": "success"}

@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import urllib.parse
 from dataclasses import dataclass, field
-from io import BufferedReader, FileIO
+from io import BufferedReader
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union, cast
+from typing import Any, BinaryIO, Dict, List, Literal, Optional, Union, cast
 
 from httpx import AsyncClient, Headers, HTTPStatusError, Response
 from yarl import URL
@@ -89,10 +89,6 @@ class AsyncBucketActionsMixin:
                     message, "InternalError", exc.response.status_code
                 ) from err
 
-        # close the resource before returning the response
-        if files and "file" in files and isinstance(files["file"][1], BufferedReader):
-            files["file"][1].close()
-
         return response
 
     async def create_signed_upload_url(
@@ -136,7 +132,7 @@ class AsyncBucketActionsMixin:
         self,
         path: str,
         token: str,
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
+        file: Union[BinaryIO, bytes, str, Path],
         file_options: Optional[UploadSignedUrlFileOptions] = None,
     ) -> UploadResponse:
         """
@@ -180,30 +176,29 @@ class AsyncBucketActionsMixin:
 
         filename = path_parts[-1]
 
-        if (
-            isinstance(file, BufferedReader)
-            or isinstance(file, bytes)
-            or isinstance(file, FileIO)
-        ):
+        if hasattr(file, "read") or isinstance(file, bytes):
             # bytes or byte-stream-like object received
             _file = {"file": (filename, file, content_type)}
+            response = await self._request(
+                "PUT",
+                final_url,
+                files=_file,
+                headers=headers,
+                data=_data,
+                query_params=query_params,
+            )
         else:
-            # str or pathlib.path received
-            _file = {
-                "file": (
-                    filename,
-                    open(file, "rb"),
-                    content_type,
+            # str or pathlib.Path received
+            with open(file, "rb") as f:
+                _file = {"file": (filename, f, content_type)}
+                response = await self._request(
+                    "PUT",
+                    final_url,
+                    files=_file,
+                    headers=headers,
+                    data=_data,
+                    query_params=query_params,
                 )
-            }
-        response = await self._request(
-            "PUT",
-            final_url,
-            files=_file,
-            headers=headers,
-            data=_data,
-            query_params=query_params,
-        )
         data: UploadData = response.json()
 
         return UploadResponse(path=path, Key=data["Key"])
@@ -508,7 +503,7 @@ class AsyncBucketActionsMixin:
         self,
         method: Literal["POST", "PUT"],
         path: tuple[str, ...],
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
+        file: Union[BinaryIO, bytes, str, Path],
         file_options: Optional[FileOptions] = None,
     ) -> UploadResponse:
         """
@@ -557,26 +552,19 @@ class AsyncBucketActionsMixin:
 
         filename = path[-1]
 
-        if (
-            isinstance(file, BufferedReader)
-            or isinstance(file, bytes)
-            or isinstance(file, FileIO)
-        ):
+        if hasattr(file, "read") or isinstance(file, bytes):
             # bytes or byte-stream-like object received
             files = {"file": (filename, file, content_type)}
+            response = await self._request(
+                method, ["object", self.id, *path], files=files, headers=headers, data=_data
+            )
         else:
             # str or pathlib.path received
-            files = {
-                "file": (
-                    filename,
-                    open(file, "rb"),
-                    content_type,
+            with open(file, "rb") as f:
+                files = {"file": (filename, f, content_type)}
+                response = await self._request(
+                    method, ["object", self.id, *path], files=files, headers=headers, data=_data
                 )
-            }
-
-        response = await self._request(
-            method, ["object", self.id, *path], files=files, headers=headers, data=_data
-        )
 
         data: UploadData = response.json()
 
@@ -585,7 +573,7 @@ class AsyncBucketActionsMixin:
     async def upload(
         self,
         path: str,
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
+        file: Union[BinaryIO, bytes, str, Path],
         file_options: Optional[FileOptions] = None,
     ) -> UploadResponse:
         """
@@ -607,7 +595,7 @@ class AsyncBucketActionsMixin:
     async def update(
         self,
         path: str,
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
+        file: Union[BinaryIO, bytes, str, Path],
         file_options: Optional[FileOptions] = None,
     ) -> UploadResponse:
         path_parts = relative_path_to_parts(path)
