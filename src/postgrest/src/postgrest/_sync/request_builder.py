@@ -126,9 +126,15 @@ class SyncSingleRequestBuilder:
                 return SingleAPIResponse.from_http_request_response(r)
             else:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
-                raise APIError(dict(json_obj))
+                raise APIError(
+                    dict(json_obj),
+                    request_url=str(r.request.url),
+                )
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r))
+            raise APIError(
+                generate_default_error_message(r),
+                request_url=str(r.request.url),
+            )
 
 
 class SyncExplainRequestBuilder:
