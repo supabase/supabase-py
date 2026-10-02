@@ -791,3 +791,26 @@ async def test_subscribe_forwards_broadcast_replication_ready(
     assert broadcast_config["replication_ready"] is True
 
     await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_remove_all_channels_clears_channels(socket: AsyncRealtimeClient):
+    import json
+    from unittest.mock import AsyncMock
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    for topic in ("test-remove-all-1", "test-remove-all-2"):
+        await socket.channel(topic).subscribe(lambda state, error: None)
+
+    await socket.remove_all_channels()
+
+    leaves = [
+        json.loads(call.args[0])["topic"]
+        for call in mock_ws.send.call_args_list
+        if json.loads(call.args[0])["event"] == ChannelEvents.leave
+    ]
+    assert leaves == ["realtime:test-remove-all-1", "realtime:test-remove-all-2"]
+    assert socket.get_channels() == []
