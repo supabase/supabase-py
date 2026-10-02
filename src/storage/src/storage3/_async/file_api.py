@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Literal, Optional, Union, cast
 from httpx import AsyncClient, Headers, HTTPStatusError, Response
 from yarl import URL
 
-from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
+from ..constants import DEFAULT_SEARCH_OPTIONS
 from ..exceptions import StorageApiError
 from ..types import (
     BaseBucket,
@@ -34,7 +34,7 @@ from ..types import (
     URLOptions,
     transform_to_dict,
 )
-from ..utils import StorageException
+from ..utils import StorageException, merge_file_options
 
 __all__ = ["AsyncBucket"]
 
@@ -158,10 +158,7 @@ class AsyncBucketActionsMixin:
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
 
-        options: dict[str, Any] = {
-            **DEFAULT_FILE_OPTIONS,
-            **(file_options or {}),
-        }
+        options = merge_file_options(file_options)
         cache_control = options.pop("cache-control")
         content_type = options.pop("content-type")
         metadata = options.pop("metadata", None)
@@ -524,10 +521,7 @@ class AsyncBucketActionsMixin:
         file_options
             HTTP headers.
         """
-        options: dict[str, Any] = {
-            **DEFAULT_FILE_OPTIONS,
-            **(file_options or {}),
-        }
+        options = merge_file_options(file_options)
         cache_control = options.pop("cache-control")
         content_type = options.pop("content-type")
         _data = {"cacheControl": cache_control}
