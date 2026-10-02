@@ -355,6 +355,18 @@ def test_or_(filter_request_builder: BaseFilterRequestBuilder):
     assert builder.request.query.get("or") == "(x.eq.1)"
 
 
+def test_not_or_(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.not_.or_("x.eq.1")
+
+    assert builder.request.query.get("not.or") == "(x.eq.1)"
+    assert "or" not in builder.request.query
+    assert not builder.negate_next
+
+    foreign = filter_request_builder.not_.or_("x.eq.1", reference_table="cities")
+    assert foreign.request.query.get("cities.not.or") == "(x.eq.1)"
+    assert not foreign.negate_next
+
+
 def test_or_in_contain(filter_request_builder: BaseFilterRequestBuilder):
     builder = filter_request_builder.or_("id.in.(5,6,7), arraycol.cs.{'a','b'}")
 
