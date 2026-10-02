@@ -9,8 +9,8 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union
-from urllib.parse import urlparse
+from typing import Any, Dict, List, Optional, Type, TypedDict, TypeVar, Union
+from urllib.parse import parse_qs, urlparse
 
 from httpx import HTTPStatusError, Response
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -281,6 +281,16 @@ def parse_response_api_version(response: Response) -> Optional[datetime]:
 
 def is_http_url(url: str) -> bool:
     return urlparse(url).scheme in {"https", "http"}
+
+
+def parse_url_params(url: str) -> Dict[str, List[str]]:
+    """Parse the parameters of a redirect URL from both its fragment and query.
+
+    Implicit grant redirects carry their tokens in the fragment. Query
+    parameters take precedence over fragment parameters.
+    """
+    result = urlparse(url)
+    return {**parse_qs(result.fragment), **parse_qs(result.query)}
 
 
 def validate_exp(exp: Optional[int]) -> None:
