@@ -5,7 +5,11 @@ from httpx import AsyncClient, Headers, QueryParams
 from yarl import URL
 
 from postgrest import AsyncQueryRequestBuilder
-from postgrest._async.request_builder import RequestConfig
+from postgrest._async.request_builder import (
+    AsyncMaybeSingleRequestBuilder,
+    AsyncSingleRequestBuilder,
+    RequestConfig,
+)
 
 
 @pytest.fixture
@@ -25,3 +29,19 @@ def test_constructor(query_request_builder: AsyncQueryRequestBuilder):
     assert len(builder.request.params) == 0
     assert builder.request.http_method == "GET"
     assert builder.request.json is None
+
+
+def test_select_single(query_request_builder: AsyncQueryRequestBuilder):
+    # insert()/upsert() return an AsyncQueryRequestBuilder, so single() must be
+    # reachable after select() to match the JS client's
+    # insert(...).select().single() chain. See GH-1553.
+    builder = query_request_builder.select("*").single()
+
+    assert isinstance(builder, AsyncSingleRequestBuilder)
+    assert builder.request.headers["Accept"] == "application/vnd.pgrst.object+json"
+
+
+def test_select_maybe_single(query_request_builder: AsyncQueryRequestBuilder):
+    builder = query_request_builder.select("*").maybe_single()
+
+    assert isinstance(builder, AsyncMaybeSingleRequestBuilder)
