@@ -1,5 +1,6 @@
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
+from postgrest.types import JSON, Json
 from realtime import AuthorizationError, NotConnectedError
 from storage3.utils import StorageException
 from supabase_auth.errors import (
@@ -77,4 +78,6 @@ __all__ = (
     "ASupabaseException",
     "AsyncSupabaseException",
     "SyncSupabaseException",
+    "JSON",
+    "Json",
 )
