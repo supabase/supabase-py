@@ -292,7 +292,7 @@ class AsyncRealtimeClient:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: AsyncRealtimeChannel) -> None:
-        del self.channels[channel.topic]
+        self.channels.pop(channel.topic, None)
 
     async def remove_channel(self, channel: AsyncRealtimeChannel) -> None:
         """
@@ -301,8 +301,10 @@ class AsyncRealtimeClient:
         :return: None
         """
         if channel.topic in self.channels:
-            await self.channels[channel.topic].unsubscribe()
-            self._remove_channel(channel)
+            try:
+                await self.channels[channel.topic].unsubscribe()
+            finally:
+                self._remove_channel(channel)
 
         if len(self.channels) == 0:
             await self.close()
@@ -312,10 +314,24 @@ class AsyncRealtimeClient:
         Unsubscribes and removes all channels from the socket
         :return: None
         """
-        for _, channel in self.channels.items():
-            await channel.unsubscribe()
+        error = None
+        for channel in list(self.channels.values()):
+            try:
+                await channel.unsubscribe()
+            except Exception as e:
+                if error is None:
+                    error = e
+            finally:
+                self._remove_channel(channel)
 
-        await self.close()
+        try:
+            await self.close()
+        except Exception as e:
+            if error is None:
+                error = e
+
+        if error:
+            raise error
 
     async def set_auth(self, token: Optional[str]) -> None:
         """

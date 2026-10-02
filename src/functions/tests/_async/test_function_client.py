@@ -58,6 +58,31 @@ async def test_set_auth_valid_token(client: AsyncFunctionsClient) -> None:
     assert client.headers["Authorization"] == f"Bearer {valid_token}"
 
 
+async def test_set_auth_removes_other_cased_headers(valid_url: str) -> None:
+    client = AsyncFunctionsClient(
+        url=valid_url, headers={"authorization": "Bearer old-token"}, timeout=10, verify=True
+    )
+    client.set_auth("new-token")
+
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"message": "success"}
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(client._client, "request", new_callable=AsyncMock) as mock_request:
+        mock_request.return_value = mock_response
+        await client.invoke("test-function", {"responseType": "json"})
+
+        _, kwargs = mock_request.call_args
+        headers = kwargs["headers"]
+
+        auth_headers = [v for k, v in headers.items() if k.lower() == "authorization"]
+        assert len(auth_headers) == 1
+        assert auth_headers[0] == "Bearer new-token"
+        assert "authorization" not in headers
+        assert headers.get("Authorization") == "Bearer new-token"
+
+
 async def test_invoke_success_json(client: AsyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"message": "success"}
