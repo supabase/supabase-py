@@ -106,14 +106,17 @@ class AsyncPostgrestClient(BasePostgrestClient):
 
     def schema(self, schema: str) -> AsyncPostgrestClient:
         """Switch to another schema."""
-        return AsyncPostgrestClient(
+        # Reuse this client's HTTP session so a custom `http_client` (proxy,
+        # transport, TLS settings, event hooks...) and its connection pool are
+        # kept, and carry over basic auth set through `auth()`.
+        client = AsyncPostgrestClient(
             base_url=str(self.base_url),
             schema=schema,
             headers=dict(self.headers),
-            timeout=self.timeout,
-            verify=self.verify,
-            proxy=self.proxy,
+            http_client=self.session,
         )
+        client.basic_auth = self.basic_auth
+        return client
 
     async def __aenter__(self) -> AsyncPostgrestClient:
         return self
