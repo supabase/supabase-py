@@ -893,9 +893,7 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.request.query = self.request.query.set(
-            column, f"{type_part}fts{config_part}.{query}"
-        )
+        self.filter(column, f"{type_part}fts{config_part}", query)
 
         return QueryRequestBuilder(
             executor=self.executor,
