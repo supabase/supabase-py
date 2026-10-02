@@ -315,6 +315,7 @@ class AsyncRealtimeClient:
         for _, channel in self.channels.items():
             await channel.unsubscribe()
 
+        self.channels = {}
         await self.close()
 
     async def set_auth(self, token: Optional[str]) -> None:

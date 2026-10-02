@@ -791,3 +791,30 @@ async def test_subscribe_forwards_broadcast_replication_ready(
     assert broadcast_config["replication_ready"] is True
 
     await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_remove_all_channels_clears_channel_registry(
+    socket: AsyncRealtimeClient,
+):
+    """remove_all_channels() should leave get_channels() empty, matching supabase-js
+    (`this.channels = []`). Regression test for #1678: the channels dict was never
+    cleared, so every "removed" channel stayed registered for the life of the client.
+    """
+    from unittest.mock import AsyncMock
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    for topic in ("room-1", "room-2"):
+        channel = socket.channel(topic)
+        channel.unsubscribe = AsyncMock()
+
+    assert len(socket.get_channels()) == 2
+
+    await socket.remove_all_channels()
+
+    assert socket.get_channels() == []
+    assert socket.channels == {}
+    assert not socket.is_connected
