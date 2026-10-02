@@ -409,3 +409,66 @@ async def test_async_bucket_proxy_exists_false_on_headless_error() -> None:
         proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
     ):
         assert await proxy.exists("missing.txt") is False
+
+
+def _analytics_list_handler(captured: Dict[str, Any]) -> Any:
+    def handler(request: Request) -> Response:
+        captured["url"] = request.url
+        return Response(200, json=[])
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_async_analytics_list_sends_camel_case_sort_params(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: Dict[str, Any] = {}
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(
+            transport=MockTransport(_analytics_list_handler(captured))
+        ),
+    )
+
+    await client.analytics().list(
+        limit=5, offset=10, sort_column="created_at", sort_order="desc", search="logs"
+    )
+
+    assert captured["url"].path.endswith("/iceberg/bucket")
+    assert dict(captured["url"].params) == {
+        "limit": "5",
+        "offset": "10",
+        "sortColumn": "created_at",
+        "sortOrder": "desc",
+        "search": "logs",
+    }
+
+
+def test_sync_analytics_list_sends_camel_case_sort_params(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: Dict[str, Any] = {}
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(transport=MockTransport(_analytics_list_handler(captured))),
+    )
+
+    client.analytics().list(
+        limit=5, offset=10, sort_column="created_at", sort_order="desc", search="logs"
+    )
+
+    assert captured["url"].path.endswith("/iceberg/bucket")
+    assert dict(captured["url"].params) == {
+        "limit": "5",
+        "offset": "10",
+        "sortColumn": "created_at",
+        "sortOrder": "desc",
+        "search": "logs",
+    }
