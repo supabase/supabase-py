@@ -5,7 +5,7 @@ from httpx import Client, Headers, QueryParams
 from yarl import URL
 
 from postgrest import SyncQueryRequestBuilder
-from postgrest._sync.request_builder import RequestConfig
+from postgrest._async.request_builder import RequestConfig
 
 
 @pytest.fixture
