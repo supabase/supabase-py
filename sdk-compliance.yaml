@@ -445,6 +445,7 @@ features:
 
   database.configuration.auto_retry:
     status: implemented
+    note: "Per request via .retry(); client-wide via the retry_enabled constructor option on AsyncPostgrestClient/SyncPostgrestClient, exposed as ClientOptions.postgrest_client_retry."
     symbols:
       - AsyncSelectRequestBuilder.retry
       - SyncSelectRequestBuilder.retry
