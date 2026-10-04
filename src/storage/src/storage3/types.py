@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import AliasChoices, BaseModel, Field, TypeAdapter
 from typing_extensions import ReadOnly, TypeAlias, TypeAliasType
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
@@ -224,7 +224,9 @@ class VectorIndex(BaseModel, extra="ignore"):
     metadata: Optional[MetadataConfiguration] = Field(
         alias="metadataConfiguration", default=None
     )
-    creation_time: Optional[datetime] = None
+    creation_time: Optional[datetime] = Field(
+        default=None, validation_alias=AliasChoices("creationTime", "creation_time")
+    )
 
 
 class GetVectorIndexResponse(BaseModel, extra="ignore"):
