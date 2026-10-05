@@ -406,6 +406,7 @@ async def test_invoke_http_error_with_empty_body(client: AsyncFunctionsClient) -
     mock_response.json.side_effect = ValueError("not json")
     mock_response.text = ""
     mock_response.raise_for_status.side_effect = error
+    mock_response.status_code = 400
     mock_response.headers = {}
 
     with patch.object(
@@ -422,11 +423,14 @@ async def test_invoke_http_error_with_empty_body(client: AsyncFunctionsClient) -
 async def test_invoke_relay_error_with_non_json_body(
     client: AsyncFunctionsClient,
 ) -> None:
+    from json import JSONDecodeError
+
     mock_response = Mock(spec=Response)
-    mock_response.json.side_effect = ValueError("not json")
-    mock_response.text = "relay exploded"
+    mock_response.json.side_effect = JSONDecodeError(doc="", pos=0, msg="not json")
+    mock_response.content = b"relay exploded"
+    mock_response.status_code = 400
     mock_response.raise_for_status = Mock()
-    mock_response.headers = {"x-relay-header": "true"}
+    mock_response.headers = {"x-relay-error": "true"}
 
     with patch.object(
         client._client, "request", new_callable=AsyncMock
