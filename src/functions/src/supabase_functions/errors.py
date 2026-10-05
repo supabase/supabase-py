@@ -36,6 +36,10 @@ class FunctionsHttpError(FunctionsError):
         )
 
 
+def _is_relay_error(response: Response) -> bool:
+    return response.headers.get("x-relay-error") == "true"
+
+
 def _error_message_from(response: Response) -> str | None:
     text = response.content.decode("utf-8", errors="replace")
     try:
@@ -49,8 +53,7 @@ def _error_message_from(response: Response) -> str | None:
 
 
 def on_error_response(response: Response) -> FunctionsHttpError | FunctionsRelayError:
-    is_relay_error = response.headers.get("x-relay-header")
-    if is_relay_error == "true":
+    if _is_relay_error(response):
         return FunctionsRelayError(
             response.content.decode("utf-8"), code=response.status
         )
