@@ -31,9 +31,10 @@ class SyncClient(BaseClient):
 
 def sanitize_param(param: Any) -> str:
     param_str = str(param)
-    reserved_chars = ",:()"
+    reserved_chars = ',:()"\\'
     if any(char in param_str for char in reserved_chars):
-        return f'"{param_str}"'
+        escaped = param_str.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
     return param_str
 
 
