@@ -20,6 +20,11 @@ JSON = TypeAliasType(
 )
 JSONAdapter: TypeAdapter = TypeAdapter(JSON)
 
+# A scalar value accepted by PostgREST filter operators. Used instead of ``Any``
+# so the accepted types are explicit; values are still coerced to ``str`` when
+# serialized into the query string.
+FilterValue = Union[str, int, float, bool]
+
 
 class CountMethod(StrEnum):
     exact = "exact"

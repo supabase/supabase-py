@@ -60,6 +60,7 @@ class AsyncPush:
             topic=self.channel.topic,
             event=self.event,
             ref=self.ref,
+            join_ref=self.channel.join_push.ref,
             payload=self.payload,
         )
         await self.channel.socket.send(message)

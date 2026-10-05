@@ -1,5 +1,42 @@
 # Changelog
 
+## [2.32.0](https://github.com/supabase/supabase-py/compare/v2.31.0...v2.32.0) (2026-10-02)
+
+
+### Features
+
+* **functions:** fix invoke option leakage, add method and bytes body support ([#1600](https://github.com/supabase/supabase-py/issues/1600)) ([9dcbc5f](https://github.com/supabase/supabase-py/commit/9dcbc5fdef03477b4c65c1526b861dec55b7b6c2))
+* support new realtime features ([#1524](https://github.com/supabase/supabase-py/issues/1524)) ([80688d1](https://github.com/supabase/supabase-py/commit/80688d1278634b7190fc9e7f57b3e885ff3f027c))
+
+
+### Bug Fixes
+
+* **auth:** raise AuthInvalidJwtError when get_claims JWT has no exp ([#1603](https://github.com/supabase/supabase-py/issues/1603)) ([899302e](https://github.com/supabase/supabase-py/commit/899302ec39fca876c9b70e01f1344b801ce8b842))
+* **auth:** raise AuthWeakPasswordError for responses without an error code ([#1629](https://github.com/supabase/supabase-py/issues/1629)) ([1f74409](https://github.com/supabase/supabase-py/commit/1f74409d2f08898988efd534e654c5612d0e214a))
+* **ci:** point SDK compliance workflow at the python reusable workflow ([#1540](https://github.com/supabase/supabase-py/issues/1540)) ([b16b16a](https://github.com/supabase/supabase-py/commit/b16b16a175be0bfc57cf7af6acac01ef4078590a))
+* **ci:** unbreak storage tests (service_role for bucket empty) and stop fail-fast cancelling sibling jobs ([#1601](https://github.com/supabase/supabase-py/issues/1601)) ([2f9ca44](https://github.com/supabase/supabase-py/commit/2f9ca4446eb691f6a2ef48c68bb24f4d88448774))
+* **client_options:** honor False for boolean options in replace() ([#1516](https://github.com/supabase/supabase-py/issues/1516)) ([10fb8f9](https://github.com/supabase/supabase-py/commit/10fb8f9029d4659f1ea874e7154b3ae19a4a1fa1))
+* correct invalid feature IDs in sdk-compliance.yaml ([#1578](https://github.com/supabase/supabase-py/issues/1578)) ([2a795a7](https://github.com/supabase/supabase-py/commit/2a795a79c20936771c67d65302495bb8dfa9b2f3))
+* handle non-standard and non-JSON error responses without AttributeError ([#1577](https://github.com/supabase/supabase-py/issues/1577)) ([5b8080a](https://github.com/supabase/supabase-py/commit/5b8080af4d4a3d6b3a9491d331a67e8bc115cd9c))
+* **postgrest:** align rpc maybe_single with select ([#1555](https://github.com/supabase/supabase-py/issues/1555)) ([0490201](https://github.com/supabase/supabase-py/commit/0490201fb7f201808d0dfdf521ec17015f67b308))
+* **postgrest:** coerce non-string values in array filters ([#1530](https://github.com/supabase/supabase-py/issues/1530)) ([3433b0d](https://github.com/supabase/supabase-py/commit/3433b0db4993445a459c6ed7e497e3bdcc194258))
+* **postgrest:** escape array-literal elements in cs/cd/contains/contained_by/overlaps ([#1593](https://github.com/supabase/supabase-py/issues/1593)) ([f140cd6](https://github.com/supabase/supabase-py/commit/f140cd6aa900bcf1bb633bcd748598bc82c035a5))
+* **postgrest:** normalize boolean values in is_() to lowercase literals ([#1535](https://github.com/supabase/supabase-py/issues/1535)) ([21ccd63](https://github.com/supabase/supabase-py/commit/21ccd6325f9e09e068696c62721f29c76a348a92))
+* **postgrest:** preserve negation for or filters ([#1619](https://github.com/supabase/supabase-py/issues/1619)) ([c1dc291](https://github.com/supabase/supabase-py/commit/c1dc29158569cbcbacbf10f850e198a514d81d6f))
+* **postgrest:** preserve text search negation ([#1624](https://github.com/supabase/supabase-py/issues/1624)) ([62a0902](https://github.com/supabase/supabase-py/commit/62a090215b7f389a574767c38d4ab92fb1a82990))
+* **postgrest:** retry transient failures for HEAD requests ([#1610](https://github.com/supabase/supabase-py/issues/1610)) ([bb7ecc5](https://github.com/supabase/supabase-py/commit/bb7ecc5fb86f5f8729c40a3885c6154d9b9f6262))
+* **postgrest:** serialize filter values in eq() ([#1591](https://github.com/supabase/supabase-py/issues/1591)) ([8d90cfa](https://github.com/supabase/supabase-py/commit/8d90cfaf118933a4823f90f4cc3b36e39b73d0bd))
+* **realtime:** include join_ref on every client-sent channel event ([#1626](https://github.com/supabase/supabase-py/issues/1626)) ([8c1a914](https://github.com/supabase/supabase-py/commit/8c1a91408b0ca04e9c780fc21b61cb596083ab72))
+* **realtime:** process every key in a presence diff's leaves ([#1631](https://github.com/supabase/supabase-py/issues/1631)) ([8913406](https://github.com/supabase/supabase-py/commit/8913406b5b8dac9b7e6f8a359f36fe078eeb299a))
+* **storage:** cache control header and retry safety ([#1556](https://github.com/supabase/supabase-py/issues/1556)) ([e9f1141](https://github.com/supabase/supabase-py/commit/e9f11419fca9f97cfcd175cf4bb5bdbfc7e17b5a))
+* **storage:** make list_v2 method's `key` optional ([#1695](https://github.com/supabase/supabase-py/issues/1695)) ([e6fba08](https://github.com/supabase/supabase-py/commit/e6fba08f6c20fca4048c0f477af1533d196e1038))
+* **storage:** send camelCase sort params in analytics list ([#1636](https://github.com/supabase/supabase-py/issues/1636)) ([11f6cdf](https://github.com/supabase/supabase-py/commit/11f6cdf324d53d76fab5607698e05abcd9514711))
+
+
+### Documentation
+
+* fix code of conduct link in CONTRIBUTING ([#1538](https://github.com/supabase/supabase-py/issues/1538)) ([3c98900](https://github.com/supabase/supabase-py/commit/3c9890089c7dab5891feb9fdc7872dca9c5a749b))
+
 ## [2.31.0](https://github.com/supabase/supabase-py/compare/v2.30.1...v2.31.0) (2026-06-04)
 
 

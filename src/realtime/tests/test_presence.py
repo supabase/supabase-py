@@ -273,3 +273,32 @@ async def test_resubscribe_on_presence_callback_addition() -> None:
 
     # Verify resubscribe was called
     assert channel._resubscribe.call_count == 1
+
+
+def test_sync_diff_processes_every_leave_key() -> None:
+    """Leaves for a key the client never tracked must not skip the remaining keys."""
+    presence = AsyncRealtimePresence()
+    leave_events: List[Tuple[str, List[Dict], List[Presence]]] = []
+    presence.on_leave(
+        lambda key, current, left: leave_events.append((key, current, left))
+    )
+
+    state: RawPresenceState = {
+        "bob": {"metas": [{"phx_ref": "ref-bob"}]},
+    }
+    presence._on_state_event(state)
+    assert list(presence.state) == ["bob"]
+
+    # The server reports both an untracked key and a tracked one leaving.
+    presence._on_diff_event(
+        {
+            "joins": {},
+            "leaves": {
+                "alice": {"metas": [{"phx_ref": "ref-alice"}]},
+                "bob": {"metas": [{"phx_ref": "ref-bob"}]},
+            },
+        }
+    )
+
+    assert presence.state == {}
+    assert [key for key, _, _ in leave_events] == ["bob"]
