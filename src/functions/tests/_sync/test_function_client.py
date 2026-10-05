@@ -121,11 +121,23 @@ def test_invoke_http_error_with_empty_body() -> None:
 def test_invoke_with_relay_error() -> None:
     client = client_returning(
         content=b'{"error": "Relay error message"}',
-        status=400,
-        headers=Headers.from_mapping({"x-relay-header": "true"}),
+        status=200,
+        headers=Headers.from_mapping({"x-relay-error": "true"}),
     )
-    with pytest.raises(FunctionsRelayError):
+    with pytest.raises(FunctionsRelayError, match="Relay error message"):
         client.invoke("test-function")
+
+
+def test_invoke_relay_error_on_non_2xx_status() -> None:
+    client = client_returning(
+        content=b"relay exploded",
+        status=546,
+        headers=Headers.from_mapping({"X-Relay-Error": "true"}),
+    )
+    with pytest.raises(FunctionsRelayError, match="relay exploded") as exc_info:
+        client.invoke("test-function")
+    assert not isinstance(exc_info.value, FunctionsHttpError)
+    assert exc_info.value.status == 546
 
 
 def test_invoke_invalid_function_name() -> None:
