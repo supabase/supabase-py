@@ -72,6 +72,24 @@ def test_equals(filter_request_builder):
     assert str(builder.request.params) == "x=eq.a"
 
 
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (None, "eq.null"),
+        (True, "eq.true"),
+        (False, "eq.false"),
+        ({"key": "value"}, 'eq.{"key":"value"}'),
+        (["a", "b"], 'eq.["a","b"]'),
+        ("a", "eq.a"),
+        (42, "eq.42"),
+    ],
+)
+def test_eq_serializes_values(filter_request_builder, value, expected):
+    builder = filter_request_builder.eq("x", value)
+
+    assert builder.request.params["x"] == expected
+
+
 def test_not_equal(filter_request_builder):
     builder = filter_request_builder.neq("x", "a")
 
@@ -155,10 +173,50 @@ def test_contains_in_list(filter_request_builder):
 
 
 def test_contained_by_mixed_items(filter_request_builder):
+    # The second element is the literal string '["b", "c"]'. It contains the
+    # array delimiter, so it has to be quoted (with its inner quotes escaped);
+    # emitting it bare as {a,["b", "c"]} produced a corrupted literal that
+    # PostgREST would have split into several elements.
     builder = filter_request_builder.contained_by("x", ["a", '["b", "c"]'])
 
-    # {a,["b",+"c"]}
-    assert str(builder.request.params) == "x=cd.%7Ba%2C%5B%22b%22%2C+%22c%22%5D%7D"
+    assert builder.request.params["x"] == 'cd.{a,"[\\"b\\", \\"c\\"]"}'
+
+
+def test_contains_quotes_element_containing_the_delimiter(filter_request_builder):
+    # A value containing the comma delimiter must be quoted, otherwise
+    # PostgREST reads {a,b,c} as three elements rather than the two passed.
+    builder = filter_request_builder.contains("x", ["a,b", "c"])
+
+    assert builder.request.params["x"] == 'cs.{"a,b",c}'
+
+
+def test_cs_quotes_element_containing_the_delimiter(filter_request_builder):
+    builder = filter_request_builder.cs("x", ["a,b"])
+
+    assert builder.request.params["x"] == 'cs.{"a,b"}'
+
+
+def test_cd_quotes_element_containing_the_delimiter(filter_request_builder):
+    builder = filter_request_builder.cd("x", ["a,b"])
+
+    assert builder.request.params["x"] == 'cd.{"a,b"}'
+
+
+def test_overlaps_quotes_element_containing_the_delimiter(filter_request_builder):
+    builder = filter_request_builder.overlaps("x", ["a,b"])
+
+    assert builder.request.params["x"] == 'ov.{"a,b"}'
+
+
+def test_contains_quotes_braces_quotes_whitespace_empty_and_null(
+    filter_request_builder,
+):
+    # Braces, embedded double quotes, whitespace, the empty string and the word
+    # NULL all force quoting; embedded quotes are backslash-escaped so each
+    # element round-trips as a single value.
+    builder = filter_request_builder.contains("x", ["a}b", 'x"y', "a b", "", "NULL"])
+
+    assert builder.request.params["x"] == 'cs.{"a}b","x\\"y","a b","","NULL"}'
 
 
 def test_range_greater_than(filter_request_builder):
@@ -282,6 +340,26 @@ def test_is_(filter_request_builder):
     assert str(builder.request.params) == "x=is.a"
 
 
+def test_is_true(filter_request_builder):
+    # PostgREST's `is` operator is case-sensitive and only accepts lowercase
+    # trilean literals, so a Python ``True`` must become ``is.true``.
+    builder = filter_request_builder.is_("x", True)
+
+    assert str(builder.request.params) == "x=is.true"
+
+
+def test_is_false(filter_request_builder):
+    builder = filter_request_builder.is_("x", False)
+
+    assert str(builder.request.params) == "x=is.false"
+
+
+def test_is_none(filter_request_builder):
+    builder = filter_request_builder.is_("x", None)
+
+    assert str(builder.request.params) == "x=is.null"
+
+
 def test_in_(filter_request_builder):
     builder = filter_request_builder.in_("x", ["a", "b"])
 
@@ -292,6 +370,18 @@ def test_or_(filter_request_builder):
     builder = filter_request_builder.or_("x.eq.1")
 
     assert str(builder.request.params) == "or=%28x.eq.1%29"
+
+
+def test_not_or_(filter_request_builder):
+    builder = filter_request_builder.not_.or_("x.eq.1")
+
+    assert str(builder.request.params) == "not.or=%28x.eq.1%29"
+    assert not builder.negate_next
+
+    foreign = filter_request_builder.not_.or_("x.eq.1", reference_table="cities")
+    assert (
+        str(foreign.request.params) == "not.or=%28x.eq.1%29&cities.not.or=%28x.eq.1%29"
+    )
 
 
 def test_or_in_contain(filter_request_builder):
