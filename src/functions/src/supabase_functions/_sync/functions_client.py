@@ -1,5 +1,6 @@
 import platform
 import sys
+from json import JSONDecodeError
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
@@ -96,6 +97,15 @@ class SyncFunctionsClient:
                 method, str(url), json=json, headers=headers, params=params
             )
         )
+        # Relay failures set this header even on non-2xx responses.
+        if response.headers.get("x-relay-error") == "true":
+            try:
+                error = response.json().get("error")
+            except JSONDecodeError:
+                error = response.content or "Relay Error invoking the Edge Function"
+
+            raise FunctionsRelayError(error, response.status_code)
+
         try:
             response.raise_for_status()
         except HTTPError as exc:
@@ -171,13 +181,6 @@ class SyncFunctionsClient:
         response = self._request(
             method, [function_name], headers=headers, json=body, params=params
         )
-        is_relay_error = response.headers.get("x-relay-header")
-
-        if is_relay_error and is_relay_error == "true":
-            raise FunctionsRelayError(
-                _error_message_from(response)
-                or "An error occurred while relaying your edge function request."
-            )
 
         if response_type == "json":
             data = response.json()

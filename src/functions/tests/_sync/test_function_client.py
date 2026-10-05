@@ -145,14 +145,34 @@ def test_invoke_with_http_error(client: SyncFunctionsClient) -> None:
 def test_invoke_with_relay_error(client: SyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"error": "Relay error message"}
+    mock_response.status_code = 200
     mock_response.raise_for_status = Mock()
-    mock_response.headers = {"x-relay-header": "true"}
+    mock_response.headers = {"x-relay-error": "true"}
 
     with patch.object(client._client, "request", new_callable=Mock) as mock_request:
         mock_request.return_value = mock_response
 
         with pytest.raises(FunctionsRelayError, match="Relay error message"):
             client.invoke("test-function")
+
+
+def test_invoke_relay_error_on_non_2xx_status(client: SyncFunctionsClient) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {"error": "Relay error message"}
+    mock_response.status_code = 546
+    mock_response.raise_for_status.side_effect = HTTPError("HTTP Error")
+    mock_response.headers = {"x-relay-error": "true"}
+
+    with patch.object(client._client, "request", new_callable=Mock) as mock_request:
+        mock_request.return_value = mock_response
+
+        with pytest.raises(
+            FunctionsRelayError, match="Relay error message"
+        ) as exc_info:
+            client.invoke("test-function")
+
+    assert not isinstance(exc_info.value, FunctionsHttpError)
+    assert exc_info.value.status == 546
 
 
 def test_invoke_invalid_function_name(client: SyncFunctionsClient) -> None:
@@ -366,11 +386,14 @@ def test_invoke_http_error_with_empty_body(client: SyncFunctionsClient) -> None:
 def test_invoke_relay_error_with_non_json_body(
     client: SyncFunctionsClient,
 ) -> None:
+    from json import JSONDecodeError
+
     mock_response = Mock(spec=Response)
-    mock_response.json.side_effect = ValueError("not json")
-    mock_response.text = "relay exploded"
+    mock_response.json.side_effect = JSONDecodeError(doc="", pos=0, msg="not json")
+    mock_response.content = b"relay exploded"
     mock_response.raise_for_status = Mock()
-    mock_response.headers = {"x-relay-header": "true"}
+    mock_response.status_code = 400
+    mock_response.headers = {"x-relay-error": "true"}
 
     with patch.object(client._client, "request", new_callable=Mock) as mock_request:
         mock_request.return_value = mock_response
