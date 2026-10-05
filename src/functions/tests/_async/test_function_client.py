@@ -160,6 +160,7 @@ async def test_invoke_with_json_body() -> None:
 
 async def test_invoke_does_not_leak_per_call_headers() -> None:
     client = client_returning(content=b"{}", status=200)
+    before = client.default_headers
     first = await client.invoke(
         "test-function",
         body={"key": "value"},
@@ -172,7 +173,9 @@ async def test_invoke_does_not_leak_per_call_headers() -> None:
     assert "x-one-off" not in second.request.headers
     assert "x-region" not in second.request.headers
     assert "Content-Type" not in second.request.headers
+    assert client.default_headers is before
     assert "x-one-off" not in client.default_headers
+    assert "Content-Type" not in client.default_headers
 
 
 async def test_invoke_per_call_headers_override_client_headers() -> None:
