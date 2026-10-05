@@ -148,7 +148,7 @@ class SyncFunctionsClient:
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
-        headers: Dict[str, str] = {}
+        headers = {**self.headers}
         params = QueryParams()
         body = None
         method: HTTPMethod = "POST"

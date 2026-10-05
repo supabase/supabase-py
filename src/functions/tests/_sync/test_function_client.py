@@ -92,6 +92,29 @@ def test_invoke_success_binary(client: SyncFunctionsClient) -> None:
         mock_request.assert_called_once()
 
 
+def test_invoke_does_not_leak_headers_between_calls(
+    client: SyncFunctionsClient,
+) -> None:
+    # invoke() must not mutate the client's persistent headers: a per-call
+    # header and the body Content-Type must not bleed into later calls.
+    before = dict(client.headers)
+
+    mock_response = Mock(spec=Response)
+    mock_response.json.return_value = {}
+    mock_response.content = b""
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(client._client, "request", new_callable=Mock) as mock_request:
+        mock_request.return_value = mock_response
+
+        client.invoke("fn1", {"body": {"a": 1}, "headers": {"X-Once": "1"}})
+
+    assert dict(client.headers) == before
+    assert "X-Once" not in client.headers
+    assert "Content-Type" not in client.headers
+
+
 def test_invoke_with_region(client: SyncFunctionsClient) -> None:
     mock_response = Mock(spec=Response)
     mock_response.json.return_value = {"message": "success"}
