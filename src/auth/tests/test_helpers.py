@@ -210,11 +210,8 @@ def test_handle_exception_network_error() -> None:
 
 
 def test_handle_exception_with_weak_password_attribute() -> None:
-    # In the implementation there's a logical error in the code:
-    # It checks if data.get("weak_password") is BOTH a dict AND a list
-    # This can never be true. Let's just test the error_code path which works.
-
-    # Test case with error_code=None, so we take the alternate default path
+    # Test case with error_code=None and no weak_password object, so the
+    # generic AuthApiError path is taken.
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 400
     mock_response.json.return_value = {
@@ -232,6 +229,60 @@ def test_handle_exception_with_weak_password_attribute() -> None:
         assert result.message == "Invalid request"
         assert result.status == 400
         assert result.code is None
+
+
+def test_handle_exception_legacy_weak_password_without_error_code() -> None:
+    # GoTrue responses that predate error codes report weak passwords only through
+    # the `weak_password` object, so they must still surface as AuthWeakPasswordError.
+    mock_response = MagicMock(spec=Response)
+    mock_response.status_code = 422
+    mock_response.json.return_value = {
+        "message": "Password too weak",
+        "weak_password": {"reasons": ["length", "characters"]},
+    }
+
+    exception = HTTPStatusError(
+        "Password error", request=MagicMock(), response=mock_response
+    )
+
+    with patch("supabase_auth.helpers.parse_response_api_version", return_value=None):
+        result = handle_exception(exception)
+
+    assert isinstance(result, AuthWeakPasswordError)
+    assert result.message == "Password too weak"
+    assert result.status == 422
+    assert result.reasons == ["length", "characters"]
+
+
+@pytest.mark.parametrize(
+    "weak_password",
+    [
+        {"reasons": []},
+        {"reasons": "length"},
+        {"reasons": ["length", 1]},
+        {},
+        "length",
+    ],
+)
+def test_handle_exception_legacy_weak_password_ignores_malformed_reasons(
+    weak_password,
+) -> None:
+    mock_response = MagicMock(spec=Response)
+    mock_response.status_code = 422
+    mock_response.json.return_value = {
+        "message": "Password too weak",
+        "weak_password": weak_password,
+    }
+
+    exception = HTTPStatusError(
+        "Password error", request=MagicMock(), response=mock_response
+    )
+
+    with patch("supabase_auth.helpers.parse_response_api_version", return_value=None):
+        result = handle_exception(exception)
+
+    assert isinstance(result, AuthApiError)
+    assert not isinstance(result, AuthWeakPasswordError)
 
 
 def test_handle_exception_weak_password_with_error_code() -> None:
@@ -332,11 +383,7 @@ def test_is_http_url() -> None:
 
 
 def test_handle_exception_weak_password_branch() -> None:
-    """Specifically targeting the unreachable branch in handle_exception with weak_password.
-
-    This test attempts to test the branch where weak_password needs to be both a dict and a list,
-    which is logically impossible, so we'll test it by mocking the implementation details.
-    """
+    """Cover the legacy weak_password branch of handle_exception."""
     import httpx
     from supabase_auth.errors import AuthWeakPasswordError
     from supabase_auth.helpers import handle_exception
@@ -346,13 +393,6 @@ def test_handle_exception_weak_password_branch() -> None:
     mock_response.status_code = 400
     mock_response.headers = {}
 
-    # Create a special mock dict that pretends to be both a dict and a list
-    class WeirdDict(dict):
-        def __init__(self, *args, **kwargs) -> None:
-            super().__init__(*args, **kwargs)
-            self.reasons = ["Password too short"]
-
-    # Mock json response with our special dict
     mock_response.json.return_value = {
         "message": "Password too weak",
         "weak_password": {"reasons": ["Password too short"]},
@@ -363,23 +403,9 @@ def test_handle_exception_weak_password_branch() -> None:
         "Password error", request=MagicMock(spec=httpx.Request), response=mock_response
     )
 
-    # We need to directly target the specific branch handling weak passwords
-    # First, we need to monkey patch the implementation temporarily to reach our branch
-    original_isinstance = isinstance
+    result = handle_exception(exception)
 
-    def patched_isinstance(obj, cls):  # noqa
-        # Make weak_password appear as both dict and list when needed
-        if obj == mock_response.json()["weak_password"] and cls in (dict, list):
-            return True
-        return original_isinstance(obj, cls)
-
-    with (
-        patch("supabase_auth.helpers.isinstance", side_effect=patched_isinstance),
-        patch("supabase_auth.helpers.len", return_value=1),
-    ):
-        result = handle_exception(exception)
-
-        # Check if our test coverage reached the AuthWeakPasswordError branch
-        assert isinstance(result, AuthWeakPasswordError)
-        assert result.message == "Password too weak"
-        assert result.status == 400
+    assert isinstance(result, AuthWeakPasswordError)
+    assert result.message == "Password too weak"
+    assert result.status == 400
+    assert result.reasons == ["Password too short"]

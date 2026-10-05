@@ -1,18 +1,21 @@
 import platform
 import sys
+from json import JSONDecodeError
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
 from httpx import Client, HTTPError, QueryParams, Response
 from yarl import URL
 
-from ..errors import FunctionsHttpError, FunctionsRelayError
+from ..errors import FunctionsHttpError, FunctionsRelayError, _error_message_from
 from ..utils import (
     FunctionRegion,
     is_http_url,
     is_valid_str_arg,
 )
 from ..version import __version__
+
+HTTPMethod = Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
 
 
 class SyncFunctionsClient:
@@ -77,24 +80,32 @@ class SyncFunctionsClient:
 
     def _request(
         self,
-        method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+        method: HTTPMethod,
         path: list[str],
         headers: Optional[Dict[str, str]] = None,
-        json: Optional[Dict[Any, Any]] = None,
+        json: Optional[Union[Dict[Any, Any], str, bytes]] = None,
         params: Optional[QueryParams] = None,
     ) -> Response:
         url = self.url.joinpath(*path)
-        headers = headers or dict()
-        headers.update(self.headers)
+        headers = {**self.headers, **(headers or {})}
         response = (
             self._client.request(
-                method, str(url), data=json, headers=headers, params=params
+                method, str(url), content=json, headers=headers, params=params
             )
-            if isinstance(json, str)
+            if isinstance(json, (str, bytes))
             else self._client.request(
                 method, str(url), json=json, headers=headers, params=params
             )
         )
+        # Relay failures set this header even on non-2xx responses.
+        if response.headers.get("x-relay-error") == "true":
+            try:
+                error = response.json().get("error")
+            except JSONDecodeError:
+                error = response.content or "Relay Error invoking the Edge Function"
+
+            raise FunctionsRelayError(error, response.status_code)
+
         try:
             response.raise_for_status()
         except HTTPError as exc:
@@ -103,7 +114,7 @@ class SyncFunctionsClient:
                 status_code = response.status_code
 
             raise FunctionsHttpError(
-                response.json().get("error")
+                _error_message_from(response)
                 or f"An error occurred while requesting your edge function at {exc.request.url!r}.",
                 status_code,
             ) from exc
@@ -132,17 +143,20 @@ class SyncFunctionsClient:
         invoke_options : object with the following properties
             `headers`: object representing the headers to send with the request
             `body`: the body of the request
+            `method`: the HTTP method to invoke the function with. The default is `POST`
             `responseType`: how the response should be parsed. The default is `json`
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
-        headers = self.headers
+        headers: Dict[str, str] = {}
         params = QueryParams()
         body = None
+        method: HTTPMethod = "POST"
         response_type = "text/plain"
 
         if invoke_options is not None:
             headers.update(invoke_options.get("headers", {}))
+            method = invoke_options.get("method", "POST")
             response_type = invoke_options.get("responseType", "text/plain")
 
             region = invoke_options.get("region")
@@ -161,14 +175,12 @@ class SyncFunctionsClient:
                 headers["Content-Type"] = "text/plain"
             elif isinstance(body, dict):
                 headers["Content-Type"] = "application/json"
+            elif isinstance(body, bytes):
+                headers["Content-Type"] = "application/octet-stream"
 
         response = self._request(
-            "POST", [function_name], headers=headers, json=body, params=params
+            method, [function_name], headers=headers, json=body, params=params
         )
-        is_relay_error = response.headers.get("x-relay-header")
-
-        if is_relay_error and is_relay_error == "true":
-            raise FunctionsRelayError(response.json().get("error"))
 
         if response_type == "json":
             data = response.json()
