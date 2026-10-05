@@ -72,7 +72,7 @@ class SyncVectorBucketScope:
         prefix: Optional[str] = None,
     ) -> ListVectorIndexesResponse:
         body = self.with_metadata(
-            next_token=next_token, max_results=max_results, prefix=prefix
+            nextToken=next_token, maxResults=max_results, prefix=prefix
         )
         data = self._request.send(http_method="POST", path=["ListIndexes"], body=body)
         return ListVectorIndexesResponse.model_validate_json(data.content)

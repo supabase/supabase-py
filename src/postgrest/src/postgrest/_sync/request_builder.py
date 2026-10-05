@@ -234,9 +234,7 @@ class SyncSelectRequestBuilder(
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.request.params = self.request.params.add(
-            column, f"{type_part}fts{config_part}.{query}"
-        )
+        self.filter(column, f"{type_part}fts{config_part}", query)
 
         return SyncQueryRequestBuilder(self.request)
 
