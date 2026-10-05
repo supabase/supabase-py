@@ -4,7 +4,7 @@ from json import JSONDecodeError
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
-from httpx import AsyncClient, HTTPError, QueryParams, Response
+from httpx import AsyncClient, Headers, HTTPError, QueryParams, Response
 from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError, _error_message_from
@@ -87,14 +87,15 @@ class AsyncFunctionsClient:
         params: Optional[QueryParams] = None,
     ) -> Response:
         url = self.url.joinpath(*path)
-        headers = {**self.headers, **(headers or {})}
+        request_headers = Headers(self.headers)
+        request_headers.update(headers or {})
         response = (
             await self._client.request(
-                method, str(url), content=json, headers=headers, params=params
+                method, str(url), content=json, headers=request_headers, params=params
             )
             if isinstance(json, (str, bytes))
             else await self._client.request(
-                method, str(url), json=json, headers=headers, params=params
+                method, str(url), json=json, headers=request_headers, params=params
             )
         )
         # Relay failures set this header even on non-2xx responses.
@@ -170,12 +171,15 @@ class AsyncFunctionsClient:
                     params = params.set("forceFunctionRegion", region.value)
 
             body = invoke_options.get("body")
-            if isinstance(body, str):
-                headers["Content-Type"] = "text/plain"
-            elif isinstance(body, dict):
-                headers["Content-Type"] = "application/json"
-            elif isinstance(body, bytes):
-                headers["Content-Type"] = "application/octet-stream"
+            if not any(
+                key.lower() == "content-type" for key in (*self.headers, *headers)
+            ):
+                if isinstance(body, str):
+                    headers["Content-Type"] = "text/plain"
+                elif isinstance(body, dict):
+                    headers["Content-Type"] = "application/json"
+                elif isinstance(body, bytes):
+                    headers["Content-Type"] = "application/octet-stream"
 
         response = await self._request(
             method, [function_name], headers=headers, json=body, params=params

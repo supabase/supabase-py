@@ -1,9 +1,9 @@
 import re
-from typing import Dict
+from typing import Dict, Union
 from unittest.mock import Mock, patch
 
 import pytest
-from httpx import Client, HTTPError, Request, Response, Timeout
+from httpx import Client, HTTPError, MockTransport, Request, Response, Timeout
 
 # Import the class to test
 from supabase_functions import SyncFunctionsClient
@@ -231,6 +231,73 @@ def test_invoke_with_json_body(client: SyncFunctionsClient) -> None:
 
         _, kwargs = mock_request.call_args
         assert kwargs["headers"]["Content-Type"] == "application/json"
+
+
+@pytest.mark.parametrize(
+    "body,content_type",
+    [
+        ("<a/>", "application/xml"),
+        ({"a": 1}, "application/vnd.api+json"),
+        (b"binary", "application/custom-binary"),
+    ],
+)
+@pytest.mark.parametrize("header_name", ["Content-Type", "content-type"])
+def test_invoke_preserves_custom_content_type(
+    body: Union[str, Dict[str, int], bytes], content_type: str, header_name: str
+) -> None:
+    received_content_types: list[str] = []
+
+    def handle_request(request: Request) -> Response:
+        received_content_types.extend(request.headers.get_list("content-type"))
+        return Response(200, json={})
+
+    with Client(transport=MockTransport(handle_request)) as http_client:
+        client = SyncFunctionsClient("https://example.com", {}, http_client=http_client)
+        headers = {header_name: content_type}
+        client.invoke("test-function", {"body": body, "headers": headers})
+
+    assert received_content_types == [content_type]
+    assert headers == {header_name: content_type}
+
+
+@pytest.mark.parametrize("header_name", ["Content-Type", "content-type"])
+def test_invoke_preserves_client_content_type(header_name: str) -> None:
+    received_content_types: list[str] = []
+
+    def handle_request(request: Request) -> Response:
+        received_content_types.extend(request.headers.get_list("content-type"))
+        return Response(200, json={})
+
+    with Client(transport=MockTransport(handle_request)) as http_client:
+        client = SyncFunctionsClient(
+            "https://example.com",
+            {header_name: "application/xml"},
+            http_client=http_client,
+        )
+        client.invoke("test-function", {"body": "<a/>"})
+
+    assert received_content_types == ["application/xml"]
+
+
+def test_invoke_per_call_content_type_overrides_client_content_type() -> None:
+    received_content_types: list[str] = []
+
+    def handle_request(request: Request) -> Response:
+        received_content_types.extend(request.headers.get_list("content-type"))
+        return Response(200, json={})
+
+    with Client(transport=MockTransport(handle_request)) as http_client:
+        client = SyncFunctionsClient(
+            "https://example.com",
+            {"Content-Type": "text/plain"},
+            http_client=http_client,
+        )
+        client.invoke(
+            "test-function",
+            {"body": "<a/>", "headers": {"content-type": "application/xml"}},
+        )
+
+    assert received_content_types == ["application/xml"]
 
 
 def test_init_with_httpx_client() -> None:
