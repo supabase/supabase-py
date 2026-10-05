@@ -32,7 +32,7 @@ from typing_extensions import Self
 from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
-from .types import CountMethod, Filters, ReturnMethod
+from .types import CountMethod, Filters, FilterValue, ReturnMethod
 from .utils import _sanitize_array_param, model_validate_json, sanitize_param
 
 if sys.version_info >= (3, 11):
@@ -429,19 +429,18 @@ class BaseFilterRequestBuilder:
     def wfts(self: Self, column: str, query: Any) -> Self:
         return self.filter(column, Filters.WFTS, query)
 
-    def in_(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = map(sanitize_param, values)
-        values = ",".join(values)
-        return self.filter(column, Filters.IN, f"({values})")
+    def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
+        stringified_values = ",".join(map(sanitize_param, values))
+        return self.filter(column, Filters.IN, f"({stringified_values})")
 
-    def cs(self: Self, column: str, values: Iterable[Any]) -> Self:
+    def cs(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
         return self.filter(column, Filters.CS, _sanitize_array_param(values))
 
-    def cd(self: Self, column: str, values: Iterable[Any]) -> Self:
+    def cd(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
         return self.filter(column, Filters.CD, _sanitize_array_param(values))
 
     def contains(
-        self: Self, column: str, value: Iterable[Any] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[FilterValue] | str | Dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -454,7 +453,7 @@ class BaseFilterRequestBuilder:
         return self.filter(column, Filters.CS, json.dumps(value))
 
     def contained_by(
-        self: Self, column: str, value: Iterable[Any] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[FilterValue] | str | Dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range
@@ -464,7 +463,7 @@ class BaseFilterRequestBuilder:
         return self.filter(column, Filters.CD, json.dumps(value))
 
     def ov(
-        self: Self, column: str, value: Iterable[Any] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[FilterValue] | str | Dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -505,7 +504,7 @@ class BaseFilterRequestBuilder:
     def range_adjacent(self: Self, column: str, min: str, max: str) -> Self:
         return self.adj(column, min, max)
 
-    def overlaps(self: Self, column: str, values: str | Iterable[Any]) -> Self:
+    def overlaps(self: Self, column: str, values: str | Iterable[FilterValue]) -> Self:
         return self.ov(column, values)
 
     def match(self: Self, query: Dict[str, str | int]) -> Self:
