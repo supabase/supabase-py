@@ -1,7 +1,10 @@
 import time
+from uuid import uuid4
 
 import pytest
+from httpx import Client, MockTransport, Request, Response
 from jwt import encode
+from supabase_utils.http.adapters.httpx import HttpxSession
 
 from supabase_auth import SyncSupabaseAuthClient
 from supabase_auth.errors import (
@@ -16,6 +19,7 @@ from supabase_auth.types import (
     Session,
     SignInWithPassword,
     SignUpWithPassword,
+    User,
 )
 
 from .conftest import (
@@ -400,3 +404,54 @@ def test_get_claims_raises_when_exp_claim_is_missing(
 ) -> None:
     with pytest.raises(AuthInvalidJwtError, match="JWT has no expiration time"):
         auth_client.get_claims(mock_access_token())
+
+
+def test_initialize_from_storage_keeps_refreshed_session() -> None:
+    user = {
+        "id": str(uuid4()),
+        "aud": "authenticated",
+        "app_metadata": {},
+        "user_metadata": {},
+        "created_at": "2024-01-01T00:00:00Z",
+    }
+
+    def handler(request: Request) -> Response:
+        assert request.url.path == "/token"
+        assert request.url.params["grant_type"] == "refresh_token"
+        return Response(
+            200,
+            json={
+                "access_token": "new-access-token",
+                "refresh_token": "new-refresh-token",
+                "token_type": "bearer",
+                "expires_in": 3600,
+                "expires_at": round(time.time()) + 3600,
+                "user": user,
+            },
+        )
+
+    client = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client(transport=MockTransport(handler))),
+    )
+    manager = client.session_manager
+    expired_session = Session(
+        access_token="expired-access-token",
+        refresh_token="old-refresh-token",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) - 60,
+        user=User.model_validate(user),
+    )
+    manager.storage.set_item(manager.storage_key, expired_session.model_dump_json())
+    events: list[AuthChangeEvent] = []
+    client.on_auth_state_change(lambda event, _session: events.append(event))
+
+    client.initialize_from_storage()
+
+    assert events == ["TOKEN_REFRESHED"]
+    stored = manager.storage.get_item(manager.storage_key)
+    assert stored is not None
+    assert Session.model_validate_json(stored).access_token == "new-access-token"
+    assert manager.refresh_token_timer is not None
+    manager.refresh_token_timer.cancel()
