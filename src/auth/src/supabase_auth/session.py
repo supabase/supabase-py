@@ -120,7 +120,7 @@ class SessionManagerCommon(Generic[HttpIO]):
         event: AuthChangeEvent,
         session: Session | None,
     ) -> None:
-        for subscription in self.state_change_emitters.values():
+        for subscription in list(self.state_change_emitters.values()):
             subscription.callback(event, session)
 
 
