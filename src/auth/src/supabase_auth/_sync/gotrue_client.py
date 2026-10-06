@@ -1049,6 +1049,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
                 try:
                     self._call_refresh_token(refresh_token)
                     self._network_retries = 0
+                    return
                 except Exception as e:
                     if (
                         isinstance(e, AuthRetryableError)

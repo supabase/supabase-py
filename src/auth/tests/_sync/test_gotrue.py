@@ -717,3 +717,59 @@ def test_sign_out() -> None:
 
                     # Verify that _notify_all_subscribers was still called despite the error
                     mock_notify.assert_called_once_with("SIGNED_OUT", None)
+
+
+def test_initialize_from_storage_keeps_refreshed_session() -> None:
+    # A stored session whose access token has expired must be refreshed on
+    # startup, and the refreshed session must then stay persisted.
+    from httpx import Client, MockTransport, Request, Response
+    from supabase_auth import SyncGoTrueClient
+    from supabase_auth.types import Session, User
+
+    user = {
+        "id": str(uuid4()),
+        "aud": "authenticated",
+        "app_metadata": {},
+        "user_metadata": {},
+        "created_at": "2024-01-01T00:00:00Z",
+    }
+
+    def handler(request: Request) -> Response:
+        assert request.url.path == "/token"
+        assert request.url.params["grant_type"] == "refresh_token"
+        return Response(
+            200,
+            json={
+                "access_token": "new-access-token",
+                "refresh_token": "new-refresh-token",
+                "token_type": "bearer",
+                "expires_in": 3600,
+                "expires_at": round(time.time()) + 3600,
+                "user": user,
+            },
+        )
+
+    client = SyncGoTrueClient(
+        url="http://auth.test",
+        http_client=Client(transport=MockTransport(handler)),
+    )
+    expired_session = Session(
+        access_token="expired-access-token",
+        refresh_token="old-refresh-token",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) - 60,
+        user=User.model_validate(user),
+    )
+    client._storage.set_item(client._storage_key, expired_session.model_dump_json())
+    events = []
+    client.on_auth_state_change(lambda event, _session: events.append(event))
+
+    client.initialize_from_storage()
+
+    assert events == ["TOKEN_REFRESHED"]
+    stored = client._storage.get_item(client._storage_key)
+    assert stored is not None
+    assert Session.model_validate_json(stored).access_token == "new-access-token"
+    assert client._refresh_token_timer is not None
+    client._refresh_token_timer.cancel()
