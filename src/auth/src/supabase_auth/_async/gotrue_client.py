@@ -249,14 +249,16 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             response = await self._request(
                 "POST",
                 "signup",
-                body={
-                    "email": email,
-                    "password": password,
-                    "data": data,
-                    "gotrue_meta_security": {
-                        "captcha_token": captcha_token,
-                    },
-                },
+                body=await self._with_pkce_challenge(
+                    {
+                        "email": email,
+                        "password": password,
+                        "data": data,
+                        "gotrue_meta_security": {
+                            "captcha_token": captcha_token,
+                        },
+                    }
+                ),
                 redirect_to=redirect_to,
             )
         elif phone and password:
@@ -409,28 +411,32 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             response = await self._request(
                 "POST",
                 "sso",
-                body={
-                    "domain": domain,
-                    "skip_http_redirect": skip_http_redirect,
-                    "gotrue_meta_security": {
-                        "captcha_token": captcha_token,
-                    },
-                    "redirect_to": redirect_to,
-                },
+                body=await self._with_pkce_challenge(
+                    {
+                        "domain": domain,
+                        "skip_http_redirect": skip_http_redirect,
+                        "gotrue_meta_security": {
+                            "captcha_token": captcha_token,
+                        },
+                        "redirect_to": redirect_to,
+                    }
+                ),
             )
             return parse_sso_response(response)
         if provider_id:
             response = await self._request(
                 "POST",
                 "sso",
-                body={
-                    "provider_id": provider_id,
-                    "skip_http_redirect": skip_http_redirect,
-                    "gotrue_meta_security": {
-                        "captcha_token": captcha_token,
-                    },
-                    "redirect_to": redirect_to,
-                },
+                body=await self._with_pkce_challenge(
+                    {
+                        "provider_id": provider_id,
+                        "skip_http_redirect": skip_http_redirect,
+                        "gotrue_meta_security": {
+                            "captcha_token": captcha_token,
+                        },
+                        "redirect_to": redirect_to,
+                    }
+                ),
             )
             return parse_sso_response(response)
         raise AuthInvalidCredentialsError(
@@ -540,14 +546,16 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             response = await self._request(
                 "POST",
                 "otp",
-                body={
-                    "email": email,
-                    "data": data,
-                    "create_user": should_create_user,
-                    "gotrue_meta_security": {
-                        "captcha_token": captcha_token,
-                    },
-                },
+                body=await self._with_pkce_challenge(
+                    {
+                        "email": email,
+                        "data": data,
+                        "create_user": should_create_user,
+                        "gotrue_meta_security": {
+                            "captcha_token": captcha_token,
+                        },
+                    }
+                ),
                 redirect_to=email_redirect_to,
             )
             return parse_auth_otp_response(response)
@@ -702,10 +710,13 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         if not session:
             raise AuthSessionMissingError()
         update_options = options or {}
+        body = dict(attributes)
+        if attributes.get("email") is not None:
+            await self._with_pkce_challenge(body)
         response = await self._request(
             "PUT",
             "user",
-            body=attributes,
+            body=body,
             redirect_to=update_options.get("email_redirect_to"),
             jwt=session.access_token,
         )
@@ -833,12 +844,15 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         await self._request(
             "POST",
             "recover",
-            body={
-                "email": email,
-                "gotrue_meta_security": {
-                    "captcha_token": reset_options.get("captcha_token"),
+            body=await self._with_pkce_challenge(
+                {
+                    "email": email,
+                    "gotrue_meta_security": {
+                        "captcha_token": reset_options.get("captcha_token"),
+                    },
                 },
-            },
+                password_recovery=True,
+            ),
             redirect_to=reset_options.get("redirect_to"),
         )
 
@@ -1176,26 +1190,58 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         params: Dict[str, str],
     ) -> Tuple[str, QueryParams]:
         query = QueryParams(params)
-        if self._flow_type == "pkce":
-            code_verifier = generate_pkce_verifier()
-            code_challenge = generate_pkce_challenge(code_verifier)
-            await self._storage.set_item(
-                f"{self._storage_key}-code-verifier", code_verifier
-            )
-            code_challenge_method = (
-                "plain" if code_verifier == code_challenge else "s256"
-            )
+        prepared = await self._prepare_pkce_challenge()
+        if prepared:
+            code_challenge, code_challenge_method = prepared
             query = query.set("code_challenge", code_challenge).set(
                 "code_challenge_method", code_challenge_method
             )
         query = query.set("provider", provider)
         return f"{url}?{query}", query
 
+    async def _prepare_pkce_challenge(
+        self, *, password_recovery: bool = False
+    ) -> Optional[Tuple[str, str]]:
+        if self._flow_type != "pkce":
+            return None
+        code_verifier = generate_pkce_verifier()
+        stored_verifier = (
+            f"{code_verifier}/PASSWORD_RECOVERY" if password_recovery else code_verifier
+        )
+        await self._storage.set_item(
+            f"{self._storage_key}-code-verifier", stored_verifier
+        )
+        code_challenge = generate_pkce_challenge(code_verifier)
+        code_challenge_method = "plain" if code_verifier == code_challenge else "s256"
+        return code_challenge, code_challenge_method
+
+    async def _with_pkce_challenge(
+        self, body: Dict, *, password_recovery: bool = False
+    ) -> Dict:
+        prepared = await self._prepare_pkce_challenge(
+            password_recovery=password_recovery
+        )
+        if prepared:
+            code_challenge, code_challenge_method = prepared
+            body["code_challenge"] = code_challenge
+            body["code_challenge_method"] = code_challenge_method
+        return body
+
+    async def _code_verifier_for_exchange(
+        self, explicit: Optional[str]
+    ) -> Optional[str]:
+        if explicit:
+            return explicit
+        stored = await self._storage.get_item(f"{self._storage_key}-code-verifier")
+        if not stored:
+            return None
+        return stored.split("/", 1)[0]
+
     async def exchange_code_for_session(
         self, params: CodeExchangeParams
     ) -> AuthResponse:
-        code_verifier = params.get("code_verifier") or await self._storage.get_item(
-            f"{self._storage_key}-code-verifier"
+        code_verifier = await self._code_verifier_for_exchange(
+            params.get("code_verifier")
         )
         response = await self._request(
             "POST",
