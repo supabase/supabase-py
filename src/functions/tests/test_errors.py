@@ -155,3 +155,16 @@ def test_on_error_response_http_error_fallback_message() -> None:
     error = on_error_response(make_response(b"", status=500))
     assert isinstance(error, FunctionsHttpError)
     assert "https://example.com/test-function" in error.message
+
+
+def test_on_error_response_relay_error_keeps_raw_text() -> None:
+    error = on_error_response(
+        make_response(
+            b'{"error": "relay"}',
+            status=546,
+            headers=Headers.from_mapping({"x-relay-error": "true"}),
+        )
+    )
+    assert isinstance(error, FunctionsRelayError)
+    assert error.message == '{"error": "relay"}'
+    assert error.status == 546
