@@ -221,7 +221,7 @@ class VectorIndex(BaseModel, extra="ignore"):
     metadata: MetadataConfiguration | None = Field(
         alias="metadataConfiguration", default=None
     )
-    creation_time: datetime | None = None
+    creation_time: datetime | None = Field(alias="creationTime", default=None)
 
 
 class GetVectorIndexResponse(BaseModel, extra="ignore"):
