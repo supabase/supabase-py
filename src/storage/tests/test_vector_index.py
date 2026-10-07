@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
@@ -8,6 +9,40 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from storage3 import AsyncStorageClient, SyncStorageClient
 
 URL = "https://example.supabase.co/storage/v1/"
+
+
+@pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
+async def test_get_index_preserves_creation_time(use_async: bool) -> None:
+    def handler(request: Request) -> Response:
+        return Response(
+            200,
+            json={
+                "index": {
+                    "indexName": "products",
+                    "vectorBucketName": "catalog",
+                    "dataType": "float32",
+                    "dimension": 2,
+                    "distanceMetric": "cosine",
+                    "creationTime": 1735689600,
+                }
+            },
+            request=request,
+        )
+
+    transport = MockTransport(handler)
+    if use_async:
+        async with AsyncStorageClient(
+            URL, {}, http_session=AsyncHttpxSession(AsyncClient(transport=transport))
+        ) as client:
+            result = await client.vectors().from_("catalog").get_index("products")
+    else:
+        with SyncStorageClient(
+            URL, {}, http_session=HttpxSession(Client(transport=transport))
+        ) as sync_client:
+            result = sync_client.vectors().from_("catalog").get_index("products")
+
+    assert result is not None
+    assert result.index.creation_time == datetime(2025, 1, 1, tzinfo=timezone.utc)
 
 
 @pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
