@@ -124,11 +124,6 @@ class RawApiError(BaseModel):
         )
 
 
-class UserDoesntExist(Exception):
-    def __init__(self, access_token: str) -> None:
-        self.access_token = access_token
-
-
 @dataclass
 class AuthError(Exception):
     message: str
@@ -149,6 +144,16 @@ class AuthUnknownError(AuthError):
 @dataclass
 class CustomAuthError(AuthError):
     status: int
+
+
+class UserDoesntExist(CustomAuthError):
+    def __init__(self) -> None:
+        CustomAuthError.__init__(
+            self,
+            message="User does not exist for the provided access token",
+            status=404,
+            code="user_not_found",
+        )
 
 
 class AuthSessionMissingError(CustomAuthError):
