@@ -51,6 +51,7 @@ class BasePostgrestClient(ABC):
             Bearer token is preferred if both ones are provided.
         """
         if token:
+            self.basic_auth = None
             self.headers["Authorization"] = f"Bearer {token}"
         elif username:
             self.basic_auth = BasicAuth(username, password)
