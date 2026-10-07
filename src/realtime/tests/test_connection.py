@@ -791,3 +791,71 @@ async def test_subscribe_forwards_broadcast_replication_ready(
     assert broadcast_config["replication_ready"] is True
 
     await socket.close()
+
+
+def test_channel_returns_existing_channel_for_same_topic(
+    socket: AsyncRealtimeClient,
+):
+    first = socket.channel("room")
+
+    assert socket.channel("room") is first
+    assert socket.get_channels() == [first]
+
+
+@pytest.mark.asyncio
+async def test_second_channel_call_keeps_first_subscription_receiving(
+    socket: AsyncRealtimeClient,
+):
+    """Calling channel() again for a subscribed topic must not orphan the
+    subscribed channel: incoming messages are routed by topic."""
+    import json
+    from unittest.mock import AsyncMock
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    received = []
+    channel = socket.channel("room").on_broadcast(
+        "ping", lambda payload: received.append(payload["payload"])
+    )
+    await channel.subscribe(lambda state, error: None)
+
+    socket.channel("room")
+
+    mock_ws.__aiter__.return_value = [
+        json.dumps(
+            {
+                "topic": "realtime:room",
+                "event": "broadcast",
+                "ref": None,
+                "payload": {"type": "broadcast", "event": "ping", "payload": {"n": 1}},
+            }
+        )
+    ]
+    await socket._listen()
+
+    assert received == [{"n": 1}]
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_channel_after_unsubscribe_creates_new_channel(
+    socket: AsyncRealtimeClient,
+):
+    from unittest.mock import AsyncMock
+
+    socket._ws_connection = AsyncMock()
+    await socket.connect()
+
+    first = socket.channel("room")
+    await first.subscribe(lambda state, error: None)
+    await first.unsubscribe()
+
+    second = socket.channel("room")
+
+    assert second is not first
+    assert socket.get_channels() == [second]
+
+    await socket.close()
