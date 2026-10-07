@@ -374,7 +374,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         else:
             user_response = yield from self.session_manager._get_user(access_token)
             if user_response is None:
-                raise UserDoesntExist(access_token)
+                raise UserDoesntExist()
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -466,7 +466,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         expires_at = time_now + int(expires_in)
         user = yield from self.session_manager._get_user(access_token)
         if user is None:
-            raise UserDoesntExist(access_token)
+            raise UserDoesntExist()
         session = Session(
             provider_token=provider_token,
             provider_refresh_token=provider_refresh_token,
