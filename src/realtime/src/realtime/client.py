@@ -43,9 +43,9 @@ logger = logging.getLogger(__name__)
 def normalize_url(url: URL, token: str | None) -> URL:
     if url.scheme not in {"ws", "wss", "http", "https"}:
         raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
-    url = url.joinpath("websocket")
+    url = url.joinpath("websocket").with_query(url.query).update_query(vsn=VSN)
     if token:
-        url = url.with_query(**url.query, apikey=token)
+        url = url.update_query(apikey=token)
     if url.scheme in {"ws", "wss"}:
         return url
     if url.scheme == "https":

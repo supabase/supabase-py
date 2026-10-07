@@ -18,7 +18,7 @@ from realtime import (
     RealtimeSubscribeStates,
 )
 from realtime.channel import RealtimeChannelOptions
-from realtime.client import connect_once
+from realtime.client import connect_once, normalize_url
 from realtime.message import (
     BroadcastMessage,
     Message,
@@ -343,6 +343,21 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
             assert broadcast.payload["payload"]["i"] == str(i)
             assert broadcast.payload["meta"]
             assert broadcast.payload["meta"]["replayed"]
+
+
+def test_normalize_url_includes_connection_params() -> None:
+    url = normalize_url(
+        URL("https://project.supabase.co/realtime/v1?log_level=info"),
+        "publishable-key",
+    )
+
+    assert url.scheme == "wss"
+    assert url.path == "/realtime/v1/websocket"
+    assert dict(url.query) == {
+        "apikey": "publishable-key",
+        "log_level": "info",
+        "vsn": "1.0.0",
+    }
 
 
 def test_postgres_changes_binding_includes_select_only_when_set() -> None:
