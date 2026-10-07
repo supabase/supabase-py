@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import os
+from unittest.mock import AsyncMock, patch
+from urllib.parse import parse_qs, urlparse
 
 import aiohttp
 import pytest
@@ -78,6 +80,29 @@ def test_init_client():
     assert client.max_retries == 5
     assert client.initial_backoff == 1.0
     assert client.timeout == DEFAULT_TIMEOUT
+
+
+@pytest.mark.asyncio
+async def test_connect_includes_connection_params() -> None:
+    client = AsyncRealtimeClient(
+        "https://project.supabase.co/realtime/v1",
+        "publishable-key",
+        params={"log_level": "info"},
+    )
+
+    with (
+        patch("realtime._async.client.connect", new_callable=AsyncMock) as connect,
+        patch.object(client, "_on_connect", new_callable=AsyncMock),
+    ):
+        await client.connect()
+
+    assert connect.await_args is not None
+    websocket_url = urlparse(connect.await_args.args[0])
+    assert parse_qs(websocket_url.query) == {
+        "apikey": ["publishable-key"],
+        "log_level": ["info"],
+        "vsn": ["1.0.0"],
+    }
 
 
 @pytest.mark.asyncio
