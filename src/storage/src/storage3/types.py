@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
+from supabase_utils.types import JSON
 from typing_extensions import TypeAlias, TypedDict
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
@@ -238,7 +239,7 @@ class VectorData(BaseModel, extra="ignore"):
 class VectorObject(BaseModel, extra="ignore"):
     key: str
     data: VectorData
-    metadata: dict[str, str | bool | float] | None = None
+    metadata: dict[str, JSON] | None = None
 
 
 class VectorMatch(BaseModel, extra="ignore"):
