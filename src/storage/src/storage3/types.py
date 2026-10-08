@@ -241,7 +241,7 @@ class VectorData(BaseModel, extra="ignore"):
 class VectorObject(BaseModel, extra="ignore"):
     key: str
     data: VectorData
-    metadata: Optional[dict[str, Union[str, bool, float]]] = None
+    metadata: Optional[dict[str, JSON]] = None
 
 
 class VectorMatch(BaseModel, extra="ignore"):
