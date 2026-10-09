@@ -8,6 +8,7 @@ from httpx import (
     BasicAuth,
     Headers,
     Limits,
+    MockTransport,
     Request,
     Response,
     Timeout,
@@ -113,6 +114,34 @@ def test_schema(postgrest_client: AsyncPostgrestClient):
     }
 
     assert subheaders.items() < client.headers.items()
+
+
+@pytest.mark.asyncio
+async def test_schema_keeps_custom_http_client() -> None:
+    sent: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        sent.append(request)
+        return Response(200, json=[])
+
+    http_client = AsyncClient(transport=MockTransport(handler))
+    client = AsyncPostgrestClient("https://example.com", http_client=http_client)
+
+    private = client.schema("private")
+    assert private.session is http_client
+
+    await private.from_("countries").select("*").execute()
+    assert len(sent) == 1
+    assert sent[0].headers["accept-profile"] == "private"
+    await http_client.aclose()
+
+
+def test_schema_keeps_basic_auth(postgrest_client: AsyncPostgrestClient):
+    postgrest_client.auth(None, username="admin", password="s3cr3t")
+
+    private = postgrest_client.schema("private")
+
+    assert private.basic_auth is postgrest_client.basic_auth
 
 
 # @pytest.mark.asyncio
