@@ -24,14 +24,14 @@ class APIError(Exception):
     Base exception for all API errors.
     """
 
-    _raw_error: Dict[str, str]
+    _raw_error: Dict[str, Any]
     message: Optional[str]
     """The error message."""
     code: Optional[str]
     """The error code."""
     hint: Optional[str]
     """The error hint."""
-    details: Optional[str]
+    details: Optional[Any]
     """The error details."""
 
     def __init__(self, error: Dict[str, Any]) -> None:
@@ -50,7 +50,7 @@ class APIError(Exception):
         complete_error_text = f"{error_text}{message_text}{hint_text}{details_text}"
         return complete_error_text or "Empty error"
 
-    def json(self) -> Dict[str, str]:
+    def json(self) -> Dict[str, Any]:
         """Convert the error into a dictionary.
 
         Returns:
