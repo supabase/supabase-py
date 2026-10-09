@@ -86,6 +86,30 @@ def test_eq_serializes_values(
     assert builder.request.query.get("x") == expected
 
 
+@pytest.mark.parametrize("method", ["neq", "gt", "gte", "lt", "lte"])
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (None, "null"),
+        (True, "true"),
+        (False, "false"),
+        ({"key": "value"}, '{"key":"value"}'),
+        (["a", "b"], '["a","b"]'),
+        ("a", "a"),
+        (42, "42"),
+    ],
+)
+def test_comparison_filters_serialize_values(
+    filter_request_builder: BaseFilterRequestBuilder,
+    method: str,
+    value: Any,
+    expected: str,
+) -> None:
+    builder = getattr(filter_request_builder, method)("x", value)
+
+    assert builder.request.query.get("x") == f"{method}.{expected}"
+
+
 def test_not_equal(filter_request_builder: BaseFilterRequestBuilder):
     builder = filter_request_builder.neq("x", "a")
 
