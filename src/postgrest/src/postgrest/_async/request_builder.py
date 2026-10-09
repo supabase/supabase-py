@@ -197,6 +197,10 @@ class AsyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, AsyncSingleRequestBuil
         BaseFilterRequestBuilder.__init__(self, request)
         AsyncSingleRequestBuilder.__init__(self, request)
 
+    def maybe_single(self) -> AsyncMaybeSingleRequestBuilder:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return AsyncMaybeSingleRequestBuilder(self.request)
+
 
 class AsyncSelectRequestBuilder(
     AsyncQueryRequestBuilder, BaseSelectRequestBuilder[AsyncClient]
@@ -230,9 +234,7 @@ class AsyncSelectRequestBuilder(
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.request.params = self.request.params.add(
-            column, f"{type_part}fts{config_part}.{query}"
-        )
+        self.filter(column, f"{type_part}fts{config_part}", query)
 
         return AsyncQueryRequestBuilder(self.request)
 

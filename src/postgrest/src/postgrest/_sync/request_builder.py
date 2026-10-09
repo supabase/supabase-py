@@ -197,6 +197,10 @@ class SyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, SyncSingleRequestBuilde
         BaseFilterRequestBuilder.__init__(self, request)
         SyncSingleRequestBuilder.__init__(self, request)
 
+    def maybe_single(self) -> SyncMaybeSingleRequestBuilder:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return SyncMaybeSingleRequestBuilder(self.request)
+
 
 class SyncSelectRequestBuilder(
     SyncQueryRequestBuilder, BaseSelectRequestBuilder[Client]
@@ -230,9 +234,7 @@ class SyncSelectRequestBuilder(
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.request.params = self.request.params.add(
-            column, f"{type_part}fts{config_part}.{query}"
-        )
+        self.filter(column, f"{type_part}fts{config_part}", query)
 
         return SyncQueryRequestBuilder(self.request)
 

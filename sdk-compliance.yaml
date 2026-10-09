@@ -53,7 +53,7 @@ features:
     symbols:
       - AsyncGoTrueClient.resend
       - SyncGoTrueClient.resend
-  auth.sign_in.reset_password:
+  auth.sign_in.send_password_reset_email:
     status: implemented
     symbols:
       - AsyncGoTrueClient.reset_password_for_email
@@ -532,7 +532,7 @@ features:
     symbols:
       - AsyncRealtimeChannel.unsubscribe
       - SyncRealtimeChannel.unsubscribe
-  realtime.channel.send:
+  realtime.channel.broadcast:
     status: implemented
     symbols:
       - AsyncRealtimeChannel.send_broadcast
@@ -649,6 +649,8 @@ features:
     symbols:
       - AsyncBucketActionsMixin.list
       - SyncBucketActionsMixin.list
+      - AsyncBucketActionsMixin.list_v2
+      - SyncBucketActionsMixin.list_v2
   storage.file_buckets.move:
     status: implemented
     symbols:
@@ -704,11 +706,6 @@ features:
     symbols:
       - AsyncBucketActionsMixin.info
       - SyncBucketActionsMixin.info
-  storage.file_buckets.list_files_paginated:
-    status: implemented
-    symbols:
-      - AsyncBucketActionsMixin.list_v2
-      - SyncBucketActionsMixin.list_v2
   storage.file_buckets.download_with_transform:
     status: implemented
     note: "Pass a transform key in the url_options argument of create_signed_url(); the transform dict is forwarded in the signed URL request."
@@ -845,16 +842,107 @@ features:
       - AsyncStorageAnalyticsClient.delete
       - SyncStorageAnalyticsClient.delete
 
-  storage.analytics.iceberg_namespace:
+  storage.analytics.access_catalog:
     status: implemented
-    note: "catalog() returns a pyiceberg RestCatalog giving full Iceberg REST catalog access including namespace management."
+    note: "catalog() returns a pyiceberg RestCatalog scoped to the analytics bucket's REST Catalog."
     symbols:
       - AsyncStorageAnalyticsClient.catalog
       - SyncStorageAnalyticsClient.catalog
 
-  storage.analytics.iceberg_table:
+  storage.analytics.create_namespace:
     status: implemented
-    note: "catalog() returns a pyiceberg RestCatalog giving full Iceberg REST catalog access including table management."
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.list_namespaces:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.delete_namespace:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.load_namespace_metadata:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.namespace_exists:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.update_namespace_properties:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.create_table:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.list_tables:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.load_table:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.update_table:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.rename_table:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.delete_table:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.register_table:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
+    symbols:
+      - AsyncStorageAnalyticsClient.catalog
+      - SyncStorageAnalyticsClient.catalog
+
+  storage.analytics.table_exists:
+    status: implemented
+    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
     symbols:
       - AsyncStorageAnalyticsClient.catalog
       - SyncStorageAnalyticsClient.catalog

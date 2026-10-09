@@ -448,7 +448,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
         scopes = options.get("scopes")
-        params = options.get("query_params", {})
+        params = {**options.get("query_params", {})}
         if redirect_to:
             params["redirect_to"] = redirect_to
         if scopes:
@@ -746,7 +746,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         else:
             user_response = self.get_user(access_token)
             if user_response is None:
-                raise UserDoesntExist(access_token)
+                raise UserDoesntExist()
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -1019,7 +1019,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         expires_at = time_now + int(expires_in)
         user = self.get_user(access_token)
         if user is None:
-            raise UserDoesntExist(access_token)
+            raise UserDoesntExist()
         session = Session(
             provider_token=provider_token,
             provider_refresh_token=provider_refresh_token,
@@ -1049,6 +1049,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
                 try:
                     self._call_refresh_token(refresh_token)
                     self._network_retries = 0
+                    return
                 except Exception as e:
                     if (
                         isinstance(e, AuthRetryableError)
@@ -1133,7 +1134,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         event: AuthChangeEvent,
         session: Optional[Session],
     ) -> None:
-        for subscription in self._state_change_emitters.values():
+        for subscription in list(self._state_change_emitters.values()):
             subscription.callback(event, session)
 
     def _get_valid_session(
@@ -1262,7 +1263,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             decoded_jwt["raw"]["payload"],
         )
 
-        validate_exp(payload["exp"])
+        validate_exp(payload.get("exp"))
 
         # if symmetric algorithm, fallback to get_user
         if "kid" not in header or header["alg"] == "HS256":

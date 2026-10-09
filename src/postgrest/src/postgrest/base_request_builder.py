@@ -39,8 +39,16 @@ except ImportError:
     from pydantic import validator as field_validator  # type: ignore
 
 from .base_client import BasePostgrestClient
-from .types import JSON, CountMethod, Filters, JSONAdapter, RequestMethod, ReturnMethod
-from .utils import sanitize_param
+from .types import (
+    JSON,
+    CountMethod,
+    Filters,
+    FilterValue,
+    JSONAdapter,
+    RequestMethod,
+    ReturnMethod,
+)
+from .utils import sanitize_array_param, sanitize_param
 
 
 class QueryArgs(NamedTuple):
@@ -99,7 +107,7 @@ class RequestConfig(Generic[C]):
     def should_retry(self, response: RequestResponse, attempt_count: int) -> bool:
         if not self.retry_enabled or attempt_count >= MAX_RETRIES:
             return False
-        if not (self.http_method == "GET" or self.http_method == "HTTP"):
+        if not (self.http_method == "GET" or self.http_method == "HEAD"):
             return False
         return response.status_code == 503 or response.status_code == 520
 
@@ -108,6 +116,21 @@ def _unique_columns(json: List[Dict[str, JSON]]):
     unique_keys = {key for row in json for key in row.keys()}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
+
+
+def _serialize_filter_value(value: Any) -> str:
+    """Serialize a filter value into the wire format PostgREST expects.
+
+    ``None`` maps to ``null``, booleans to ``true``/``false``, and dicts/lists
+    to compact JSON, instead of the plain ``str()`` result (e.g. ``"None"``).
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"))
+    return str(value)
 
 
 def _cleaned_columns(columns: Tuple[str, ...]) -> str:
@@ -310,7 +333,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.EQ, value)
+        return self.filter(column, Filters.EQ, _serialize_filter_value(value))
 
     def neq(self: Self, column: str, value: Any) -> Self:
         """A 'not equal to' filter
@@ -366,6 +389,10 @@ class BaseFilterRequestBuilder(Generic[C]):
         """
         if value is None:
             value = "null"
+        elif value is True:
+            value = "true"
+        elif value is False:
+            value = "false"
         return self.filter(column, Filters.IS, value)
 
     def like(self: Self, column: str, pattern: str) -> Self:
@@ -433,7 +460,15 @@ class BaseFilterRequestBuilder(Generic[C]):
             filters: The filters to use, following PostgREST syntax
             reference_table: Set this to filter on referenced tables instead of the parent table
         """
-        key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
+        if self.negate_next:
+            self.negate_next = False
+            key = (
+                f"{sanitize_param(reference_table)}.not.or"
+                if reference_table
+                else "not.or"
+            )
+        else:
+            key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
         self.request.params = self.request.params.add(key, f"({filters})")
         return self
 
@@ -449,21 +484,20 @@ class BaseFilterRequestBuilder(Generic[C]):
     def wfts(self: Self, column: str, query: Any) -> Self:
         return self.filter(column, Filters.WFTS, query)
 
-    def in_(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = map(sanitize_param, values)
-        values = ",".join(values)
-        return self.filter(column, Filters.IN, f"({values})")
+    def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
+        stringified_values = ",".join(map(sanitize_param, values))
+        return self.filter(column, Filters.IN, f"({stringified_values})")
 
-    def cs(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(str(v) for v in values)
-        return self.filter(column, Filters.CS, f"{{{values}}}")
+    def cs(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
+        return self.filter(column, Filters.CS, sanitize_array_param(values))
 
-    def cd(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(str(v) for v in values)
-        return self.filter(column, Filters.CD, f"{{{values}}}")
+    def cd(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
+        return self.filter(column, Filters.CD, sanitize_array_param(values))
 
     def contains(
-        self: Self, column: str, value: Union[Iterable[Any], str, Dict[Any, Any]]
+        self: Self,
+        column: str,
+        value: Union[Iterable[FilterValue], str, Dict[str, JSON]],
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -471,31 +505,34 @@ class BaseFilterRequestBuilder(Generic[C]):
             return self.filter(column, Filters.CS, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(str(v) for v in value)
-            return self.filter(column, Filters.CS, f"{{{stringified_values}}}")
+            return self.filter(column, Filters.CS, sanitize_array_param(value))
 
         return self.filter(column, Filters.CS, json.dumps(value))
 
     def contained_by(
-        self: Self, column: str, value: Union[Iterable[Any], str, Dict[Any, Any]]
+        self: Self,
+        column: str,
+        value: Union[Iterable[FilterValue], str, Dict[str, JSON]],
     ) -> Self:
         if isinstance(value, str):
             # range
             return self.filter(column, Filters.CD, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
-            stringified_values = ",".join(str(v) for v in value)
-            return self.filter(column, Filters.CD, f"{{{stringified_values}}}")
+            return self.filter(column, Filters.CD, sanitize_array_param(value))
         return self.filter(column, Filters.CD, json.dumps(value))
 
-    def ov(self: Self, column: str, value: Iterable[Any]) -> Self:
+    def ov(
+        self: Self,
+        column: str,
+        value: Union[Iterable[FilterValue], str, Dict[str, JSON]],
+    ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
             # keep it simple and accept a string
             return self.filter(column, Filters.OV, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(str(v) for v in value)
-            return self.filter(column, Filters.OV, f"{{{stringified_values}}}")
+            return self.filter(column, Filters.OV, sanitize_array_param(value))
         return self.filter(column, Filters.OV, json.dumps(value))
 
     def sl(self: Self, column: str, range: Tuple[int, int]) -> Self:
@@ -528,7 +565,7 @@ class BaseFilterRequestBuilder(Generic[C]):
     def range_adjacent(self: Self, column: str, range: Tuple[int, int]) -> Self:
         return self.adj(column, range)
 
-    def overlaps(self: Self, column: str, values: Iterable[Any]) -> Self:
+    def overlaps(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
         return self.ov(column, values)
 
     def match(self: Self, query: Dict[str, Any]) -> Self:
@@ -665,11 +702,6 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
-        return self
-
-    def maybe_single(self) -> Self:
-        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
         self.request.headers["Accept"] = "application/vnd.pgrst.object+json"
         return self
 
