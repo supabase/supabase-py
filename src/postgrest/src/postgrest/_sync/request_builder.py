@@ -334,7 +334,7 @@ class SyncRequestBuilder:  #
         returning: ReturnMethod = ReturnMethod.representation,
         upsert: bool = False,
         default_to_null: bool = True,
-    ) -> SyncQueryRequestBuilder:
+    ) -> SyncSelectRequestBuilder:
         """Run an INSERT query.
 
         Args:
@@ -346,7 +346,7 @@ class SyncRequestBuilder:  #
                 Otherwise, use the default value for the column.
                 Only applies for bulk inserts.
         Returns:
-            :class:`SyncQueryRequestBuilder`
+            :class:`SyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_insert(
             json,
@@ -365,7 +365,7 @@ class SyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
-        return SyncQueryRequestBuilder(request)
+        return SyncSelectRequestBuilder(request)
 
     def upsert(
         self,
@@ -376,7 +376,7 @@ class SyncRequestBuilder:  #
         ignore_duplicates: bool = False,
         on_conflict: str = "",
         default_to_null: bool = True,
-    ) -> SyncQueryRequestBuilder:
+    ) -> SyncSelectRequestBuilder:
         """Run an upsert (INSERT ... ON CONFLICT DO UPDATE) query.
 
         Args:
@@ -390,7 +390,7 @@ class SyncRequestBuilder:  #
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
         Returns:
-            :class:`SyncQueryRequestBuilder`
+            :class:`SyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_upsert(
             json,
@@ -410,7 +410,7 @@ class SyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
-        return SyncQueryRequestBuilder(request)
+        return SyncSelectRequestBuilder(request)
 
     def update(
         self,
@@ -418,7 +418,7 @@ class SyncRequestBuilder:  #
         *,
         count: Optional[CountMethod] = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> SyncFilterRequestBuilder:
+    ) -> SyncSelectRequestBuilder:
         """Run an UPDATE query.
 
         Args:
@@ -426,7 +426,7 @@ class SyncRequestBuilder:  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SyncFilterRequestBuilder`
+            :class:`SyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_update(
             json,
@@ -443,21 +443,21 @@ class SyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
-        return SyncFilterRequestBuilder(request)
+        return SyncSelectRequestBuilder(request)
 
     def delete(
         self,
         *,
         count: Optional[CountMethod] = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> SyncFilterRequestBuilder:
+    ) -> SyncSelectRequestBuilder:
         """Run a DELETE query.
 
         Args:
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SyncFilterRequestBuilder`
+            :class:`SyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_delete(
             count=count,
@@ -473,4 +473,4 @@ class SyncRequestBuilder:  #
             headers=headers,
             json=json,
         )
-        return SyncFilterRequestBuilder(request)
+        return SyncSelectRequestBuilder(request)
