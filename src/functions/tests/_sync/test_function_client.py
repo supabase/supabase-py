@@ -235,6 +235,58 @@ def test_invoke_with_json_body(client: SyncFunctionsClient) -> None:
         assert kwargs["headers"]["Content-Type"] == "application/json"
 
 
+@pytest.mark.parametrize(
+    ("body", "content_type"),
+    [
+        ("<a/>", "application/xml"),
+        ({"a": 1}, "application/vnd.api+json"),
+        (b"abc", "application/octet-stream+custom"),
+    ],
+)
+def test_invoke_preserves_explicit_content_type(
+    client: SyncFunctionsClient, body: object, content_type: str
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.content = b""
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(client._client, "request", new_callable=Mock) as mock_request:
+        mock_request.return_value = mock_response
+
+        client.invoke(
+            "test-function",
+            {"body": body, "headers": {"Content-Type": content_type}},
+        )
+
+        _, kwargs = mock_request.call_args
+        assert kwargs["headers"]["Content-Type"] == content_type
+
+
+def test_invoke_does_not_add_second_content_type_when_explicit_lowercase(
+    client: SyncFunctionsClient,
+) -> None:
+    mock_response = Mock(spec=Response)
+    mock_response.content = b""
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {}
+
+    with patch.object(client._client, "request", new_callable=Mock) as mock_request:
+        mock_request.return_value = mock_response
+
+        client.invoke(
+            "test-function",
+            {"body": "<a/>", "headers": {"content-type": "application/xml"}},
+        )
+
+        _, kwargs = mock_request.call_args
+        content_type_keys = [
+            key for key in kwargs["headers"] if key.lower() == "content-type"
+        ]
+        assert content_type_keys == ["content-type"]
+        assert kwargs["headers"]["content-type"] == "application/xml"
+
+
 def test_init_with_httpx_client() -> None:
     # Create a custom httpx client with specific options
     headers = {"x-user-agent": "my-app/0.0.1"}
