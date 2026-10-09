@@ -97,7 +97,9 @@ class AsyncRealtimeChannel:
         self._push_buffer: list[AsyncPush] = []
         self.timeout = self.socket.timeout
 
-        self.join_push: AsyncPush = AsyncPush(self, ChannelEvents.join, self.params)
+        self.join_push: AsyncPush = AsyncPush(
+            self, ChannelEvents.join, self.params, self.timeout
+        )
         self.messages_waiting_for_ack: dict[str, AsyncPush] = {}
         self.broadcast_callbacks: list[BroadcastCallback] = []
         self.system_callbacks: list[Callable[[SuccessSystemPayload], None]] = []
@@ -289,10 +291,10 @@ class AsyncRealtimeChannel:
             logger.info(f"channel {self.topic} leave")
             self.on_close()
 
-        leave_push = AsyncPush(self, ChannelEvents.leave, {})
+        leave_push = AsyncPush(self, ChannelEvents.leave, {}, self.timeout)
         leave_push.receive(RealtimeAcknowledgementStatus.Ok, _close).receive(
             RealtimeAcknowledgementStatus.Error, _close
-        )
+        ).receive(RealtimeAcknowledgementStatus.Timeout, _close)
         await leave_push.send()
 
     async def push(
