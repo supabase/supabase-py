@@ -660,7 +660,7 @@ def send_with_retry(req: PostgrestRequest) -> HttpMethod[Response]:
 
 
 class QueryRequestBuilder(BaseRequestClient[HttpIO]):
-    def select(self, *columns: str) -> QueryRequestBuilder[HttpIO]:
+    def select(self, *columns: str) -> Self:
         _, params, _, _ = pre_select(*columns, count=None)
         self.request.query = self.request.query.set("select", params["select"])
         if prefer_headers := self.request.headers.get_list("Prefer"):
@@ -1029,7 +1029,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         returning: ReturnMethod = ReturnMethod.representation,
         upsert: bool = False,
         default_to_null: bool = True,
-    ) -> QueryRequestBuilder[HttpIO]:
+    ) -> SelectRequestBuilder[HttpIO]:
         """Run an INSERT query.
 
         Args:
@@ -1041,7 +1041,7 @@ class RequestBuilder(Generic[HttpIO]):  #
                 Otherwise, use the default value for the column.
                 Only applies for bulk inserts.
         Returns:
-            :class:`AsyncQueryRequestBuilder`
+            :class:`SelectRequestBuilder`
         """
         method, params, headers, json = pre_insert(
             json,
@@ -1058,7 +1058,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             headers=headers,
             body=json,
         )
-        return QueryRequestBuilder(
+        return SelectRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
@@ -1074,7 +1074,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         ignore_duplicates: bool = False,
         on_conflict: str = "",
         default_to_null: bool = True,
-    ) -> QueryRequestBuilder[HttpIO]:
+    ) -> SelectRequestBuilder[HttpIO]:
         """Run an upsert (INSERT ... ON CONFLICT DO UPDATE) query.
 
         Args:
@@ -1088,7 +1088,7 @@ class RequestBuilder(Generic[HttpIO]):  #
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
         Returns:
-            :class:`AsyncQueryRequestBuilder`
+            :class:`SelectRequestBuilder`
         """
         method, params, headers, json = pre_upsert(
             json,
@@ -1105,7 +1105,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             headers=headers,
             body=json,
         )
-        return QueryRequestBuilder(
+        return SelectRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
@@ -1118,7 +1118,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> FilterRequestBuilder[HttpIO]:
+    ) -> SelectRequestBuilder[HttpIO]:
         """Run an UPDATE query.
 
         Args:
@@ -1126,7 +1126,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`AsyncFilterRequestBuilder`
+            :class:`SelectRequestBuilder`
         """
         method, params, headers, json = pre_update(
             json,
@@ -1140,7 +1140,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             headers=headers,
             body=json,
         )
-        return FilterRequestBuilder(
+        return SelectRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
@@ -1152,14 +1152,14 @@ class RequestBuilder(Generic[HttpIO]):  #
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> FilterRequestBuilder[HttpIO]:
+    ) -> SelectRequestBuilder[HttpIO]:
         """Run a DELETE query.
 
         Args:
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`AsyncFilterRequestBuilder`
+            :class:`SelectRequestBuilder`
         """
         method, params, headers, json = pre_delete(
             count=count,
@@ -1172,7 +1172,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             headers=headers,
             body=json,
         )
-        return FilterRequestBuilder(
+        return SelectRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,

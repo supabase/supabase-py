@@ -11,8 +11,10 @@ from yarl import URL
 
 from postgrest.request_builder import (
     APIResponse,
+    MaybeSingleRequestBuilder,
     RequestBuilder,
     SingleAPIResponse,
+    SingleRequestBuilder,
     TextRequestBuilder,
     can_retry,
 )
@@ -171,6 +173,36 @@ class TestInsert:
             "return=representation",
         ]
 
+    def test_insert_with_select_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.insert({"key1": "val1"}).select("id").single()
+
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["select"] == "id"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
+        assert builder.request.method == "POST"
+
+    def test_insert_with_select_maybe_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.insert({"key1": "val1"}).select("id").maybe_single()
+
+        assert isinstance(builder, MaybeSingleRequestBuilder)
+        assert builder.request.query["select"] == "id"
+        assert builder.request.method == "POST"
+
+    def test_upsert_with_select_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.upsert({"key1": "val1"}).select("id").single()
+
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["select"] == "id"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.method == "POST"
+
     def test_bulk_upsert_with_default(
         self, request_builder: RequestBuilder[AsyncHttpIO]
     ) -> None:
@@ -229,6 +261,25 @@ class TestUpdate:
         assert builder.request.query["id"] == "eq.1"
         assert builder.request.query["select"] == "id"
 
+    def test_update_with_select_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.update({"key1": "val1"}).eq("id", 1).select().single()
+
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["id"] == "eq.1"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.method == "PATCH"
+
+    def test_update_with_order_and_limit(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.update({"key1": "val1"}).order("id").limit(1)
+
+        assert builder.request.query["order"] == "id.asc"
+        assert builder.request.query["limit"] == "1"
+        assert builder.request.method == "PATCH"
+
 
 class TestDelete:
     def test_delete(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
@@ -266,6 +317,16 @@ class TestDelete:
 
         assert builder.request.query["id"] == "eq.1"
         assert builder.request.query["select"] == "id"
+
+    def test_delete_with_select_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.delete().eq("id", 1).select("id").single()
+
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["id"] == "eq.1"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.method == "DELETE"
 
 
 class TestTextSearch:
