@@ -48,6 +48,9 @@ class TestConstructor:
         )
         assert session.headers.items() >= headers.items()
 
+    def test_default_timeout(self, postgrest_client: SyncPostgrestClient):
+        assert postgrest_client.session.timeout == Timeout(timeout=120)
+
     def test_custom_headers(self):
         with SyncPostgrestClient(
             "https://example.com", schema="pub", headers={"Custom-Header": "value"}

@@ -48,6 +48,9 @@ class TestConstructor:
         )
         assert session.headers.items() >= headers.items()
 
+    def test_default_timeout(self, postgrest_client: AsyncPostgrestClient):
+        assert postgrest_client.session.timeout == Timeout(timeout=120)
+
     @pytest.mark.asyncio
     async def test_custom_headers(self):
         async with AsyncPostgrestClient(
