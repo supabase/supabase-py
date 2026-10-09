@@ -108,6 +108,7 @@ class AsyncPush:
 
         async def timeout(self):
             await asyncio.sleep(self.timeout)
+            self.timeout_task = None
             self.trigger(RealtimeAcknowledgementStatus.Timeout, {})
             if self.ref and self.ref in self.channel.messages_waiting_for_ack:
                 del self.channel.messages_waiting_for_ack[self.ref]
