@@ -11,6 +11,7 @@ from postgrest import (
 )
 from postgrest._async.request_builder import RequestConfig
 from postgrest.base_request_builder import APIResponse, SingleAPIResponse
+from postgrest.exceptions import APIError
 from postgrest.types import JSON, CountMethod, ReturnMethod
 
 
@@ -628,3 +629,56 @@ class TestRPCMaybeSingleNonListBody:
 
         assert isinstance(result, SingleAPIResponse)
         assert result.data == expected
+
+    @pytest.mark.parametrize(
+        "body, expected",
+        [(b"", None), (b"[]", None), (b'[{"a": 1}]', {"a": 1})],
+    )
+    def test_list_body_is_unchanged(self, body: bytes, expected: Any):
+        transport = MockTransport(
+            lambda request: Response(
+                200, content=body, headers={"content-type": "application/json"}
+            )
+        )
+        with Client(transport=transport, base_url="http://h/rest/v1") as http_client:
+            client = SyncPostgrestClient("http://h/rest/v1", http_client=http_client)
+            result = client.rpc("f", {}).maybe_single().execute()
+
+        if expected is None:
+            assert result is None
+        else:
+            assert result is not None
+            assert result.data == expected
+
+    def test_multiple_rows_raise(self):
+        transport = MockTransport(
+            lambda request: Response(
+                200,
+                content=b'[{"a": 1}, {"a": 2}]',
+                headers={"content-type": "application/json"},
+            )
+        )
+        with Client(transport=transport, base_url="http://h/rest/v1") as http_client:
+            client = SyncPostgrestClient("http://h/rest/v1", http_client=http_client)
+            with pytest.raises(APIError):
+                client.rpc("f", {}).maybe_single().execute()
+
+    def test_non_list_body_keeps_count(self):
+        transport = MockTransport(
+            lambda request: Response(
+                200,
+                content=b"5",
+                headers={
+                    "content-type": "application/json",
+                    "content-range": "0-0/7",
+                },
+            )
+        )
+        with Client(transport=transport, base_url="http://h/rest/v1") as http_client:
+            client = SyncPostgrestClient("http://h/rest/v1", http_client=http_client)
+            result = (
+                client.rpc("f", {}, count=CountMethod.exact).maybe_single().execute()
+            )
+
+        assert result is not None
+        assert result.count == 7
