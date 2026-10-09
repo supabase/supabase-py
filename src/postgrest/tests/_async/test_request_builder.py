@@ -1,10 +1,14 @@
 from typing import Any, AsyncIterable, Dict, List
 
 import pytest
-from httpx import AsyncClient, Headers, QueryParams, Request, Response
+from httpx import AsyncClient, Headers, MockTransport, QueryParams, Request, Response
 from yarl import URL
 
-from postgrest import AsyncRequestBuilder, AsyncSingleRequestBuilder
+from postgrest import (
+    AsyncPostgrestClient,
+    AsyncRequestBuilder,
+    AsyncSingleRequestBuilder,
+)
 from postgrest._async.request_builder import RequestConfig
 from postgrest.base_request_builder import APIResponse, SingleAPIResponse
 from postgrest.types import JSON, CountMethod, ReturnMethod
@@ -599,3 +603,30 @@ class TestApiResponse:
         )
         assert isinstance(result.data, str)
         assert result.data == csv_api_response
+
+
+class TestRPCMaybeSingleNonListBody:
+    @pytest.mark.parametrize(
+        "body, expected",
+        [
+            (b"null", None),
+            (b"5", 5),
+            (b'{"a": 1}', {"a": 1}),
+            (b'{"a": 1, "b": 2}', {"a": 1, "b": 2}),
+            (b'"abc"', "abc"),
+        ],
+    )
+    async def test_non_list_body_is_returned_as_data(self, body: bytes, expected: Any):
+        transport = MockTransport(
+            lambda request: Response(
+                200, content=body, headers={"content-type": "application/json"}
+            )
+        )
+        async with AsyncClient(
+            transport=transport, base_url="http://h/rest/v1"
+        ) as http_client:
+            client = AsyncPostgrestClient("http://h/rest/v1", http_client=http_client)
+            result = await client.rpc("f", {}).maybe_single().execute()
+
+        assert isinstance(result, SingleAPIResponse)
+        assert result.data == expected

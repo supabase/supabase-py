@@ -164,6 +164,8 @@ class AsyncMaybeSingleRequestBuilder:
         try:
             if r.is_success:
                 parsed = APIResponse.from_http_request_response(r)
+                if not isinstance(parsed.data, list):
+                    return SingleAPIResponse(data=parsed.data, count=parsed.count)
                 if len(parsed.data) == 0:
                     return None
                 if len(parsed.data) == 1:
