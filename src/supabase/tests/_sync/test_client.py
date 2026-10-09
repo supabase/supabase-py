@@ -44,6 +44,18 @@ def test_postgrest_client() -> None:
     assert client.postgrest.schema("new_schema")
 
 
+def test_postgrest_client_retry_option() -> None:
+    client = create_client(
+        "https://example.supabase.co",
+        "test-key",
+        ClientOptions(postgrest_client_retry=False),
+    )
+
+    request = client.table("sample").select("*")
+
+    assert request.request.retry_enabled is False
+
+
 def test_rpc_client() -> None:
     url = os.environ["SUPABASE_TEST_URL"]
     key = os.environ["SUPABASE_TEST_KEY"]
