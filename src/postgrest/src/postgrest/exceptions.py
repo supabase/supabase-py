@@ -9,13 +9,13 @@ class APIErrorFromJSON(BaseModel):
     from a json string.
     """
 
-    message: Optional[str]
+    message: Optional[str] = None
     """The error message."""
-    code: Optional[str]
+    code: Optional[str] = None
     """The error code."""
-    hint: Optional[str]
+    hint: Optional[str] = None
     """The error hint."""
-    details: Optional[str]
+    details: Optional[Any] = None
     """The error details."""
 
 
