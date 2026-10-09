@@ -79,7 +79,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
             timeout
             if isinstance(timeout, Timeout)
             else (
-                int(abs(timeout))
+                abs(timeout)
                 if timeout is not None
                 else DEFAULT_POSTGREST_CLIENT_TIMEOUT
             )

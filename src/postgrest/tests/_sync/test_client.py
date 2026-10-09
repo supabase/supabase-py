@@ -51,6 +51,18 @@ class TestConstructor:
     def test_default_timeout(self, postgrest_client: SyncPostgrestClient):
         assert postgrest_client.session.timeout == Timeout(timeout=120)
 
+    @pytest.mark.parametrize(
+        "timeout, expected",
+        [
+            (0.5, Timeout(0.5)),
+            (30, Timeout(30)),
+            (Timeout(5, connect=1), Timeout(5, connect=1)),
+        ],
+    )
+    def test_explicit_timeout(self, timeout, expected):
+        client = SyncPostgrestClient("https://example.com", timeout=timeout)
+        assert client.session.timeout == expected
+
     def test_custom_headers(self):
         with SyncPostgrestClient(
             "https://example.com", schema="pub", headers={"Custom-Header": "value"}
