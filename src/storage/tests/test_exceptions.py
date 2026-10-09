@@ -1,6 +1,8 @@
 import copy
 import pickle
+from typing import Union
 
+import pytest
 from storage3.exceptions import StorageApiError
 
 
@@ -50,15 +52,22 @@ def test_storage_api_error_inheritance() -> None:
     assert isinstance(error, StorageException)
 
 
-def test_storage_api_error_pickle_and_copy() -> None:
+@pytest.mark.parametrize("status", [400, "404"])
+def test_storage_api_error_pickle_and_copy(status: Union[int, str]) -> None:
     # Arrange
-    error = StorageApiError("Test message", "TEST_CODE", 400)
+    error = StorageApiError("Test message", "TEST_CODE", status)
+    error.extra = 1
 
     # Act
-    clones = [pickle.loads(pickle.dumps(error)), copy.copy(error)]
+    clones = [
+        pickle.loads(pickle.dumps(error)),
+        copy.copy(error),
+        copy.deepcopy(error),
+    ]
 
     # Assert
     for clone in clones:
         assert isinstance(clone, StorageApiError)
         assert clone.to_dict() == error.to_dict()
         assert str(clone) == str(error)
+        assert clone.extra == 1

@@ -37,8 +37,8 @@ class StorageApiError(StorageException):
         self.code = code
         self.status = status
 
-    def __reduce__(self) -> tuple[type, tuple[str, str, Union[int, str]]]:
-        return (type(self), (self.message, self.code, self.status))
+    def __reduce__(self) -> tuple[type, tuple[str, str, Union[int, str]], dict]:
+        return (type(self), (self.message, self.code, self.status), self.__dict__)
 
     def to_dict(self) -> StorageApiErrorDict:
         return {
