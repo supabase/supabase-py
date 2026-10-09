@@ -342,7 +342,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.NEQ, value)
+        return self.filter(column, Filters.NEQ, _serialize_filter_value(value))
 
     def gt(self: Self, column: str, value: Any) -> Self:
         """A 'greater than' filter
@@ -351,7 +351,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.GT, value)
+        return self.filter(column, Filters.GT, _serialize_filter_value(value))
 
     def gte(self: Self, column: str, value: Any) -> Self:
         """A 'greater than or equal to' filter
@@ -360,7 +360,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.GTE, value)
+        return self.filter(column, Filters.GTE, _serialize_filter_value(value))
 
     def lt(self: Self, column: str, value: Any) -> Self:
         """A 'less than' filter
@@ -369,7 +369,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.LT, value)
+        return self.filter(column, Filters.LT, _serialize_filter_value(value))
 
     def lte(self: Self, column: str, value: Any) -> Self:
         """A 'less than or equal to' filter
@@ -378,7 +378,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.LTE, value)
+        return self.filter(column, Filters.LTE, _serialize_filter_value(value))
 
     def is_(self: Self, column: str, value: Any) -> Self:
         """An 'is' filter
