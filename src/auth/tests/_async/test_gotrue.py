@@ -417,6 +417,22 @@ async def test_get_claims_raises_when_exp_claim_is_missing(
         await auth_client.get_claims(mock_access_token())
 
 
+async def test_sign_in_with_oauth_does_not_mutate_query_params(
+    auth_client: AsyncSupabaseAuthClient,
+) -> None:
+    query_params = {"prompt": "consent"}
+
+    response = await auth_client.sign_in_with_oauth(
+        "github",
+        redirect_to="https://example.com/callback",
+        query_params=query_params,
+    )
+
+    assert "redirect_to=https://example.com/callback" in response.url
+    assert "prompt=consent" in response.url
+    assert query_params == {"prompt": "consent"}
+
+
 async def test_initialize_from_storage_keeps_refreshed_session() -> None:
     user = {
         "id": str(uuid4()),
