@@ -73,8 +73,12 @@ postgrest.%:
 supabase.%:
 	@$(MAKE) -C src/supabase $*
 
+fastapi.%:
+	@$(MAKE) -C examples/fastapi $*
+
 help::
 	@echo
 	@echo "Package specific commands can be ran by prefixing the command with the package name. Examples:"
-	@echo "  realtime.mypy  -- runs relatime's mypy target"
-	@echo "  supabase.build -- runs supabase's build target"
+	@echo "  realtime.mypy   -- runs realtime's mypy target"
+	@echo "  supabase.build  -- runs supabase's build target"
+	@echo "  fastapi.e2e     -- run FastAPI example E2E tests (requires Supabase running)"

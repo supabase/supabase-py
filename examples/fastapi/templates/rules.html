@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Rules{% endblock %}
+{% block content %}
+<h1>Watch Rules</h1>
+<p>Rules run in the Python backend. When a task field matches, an event is broadcast to the configured channel.</p>
+<form id="create-rule-form">
+  <input id="rule-label" placeholder="Label (e.g. Alert on done)" required>
+  <input id="watch-column" value="status" placeholder="Column" required>
+  <input id="watch-value" placeholder="Value (e.g. done)" required>
+  <input id="broadcast-channel" placeholder="Channel (e.g. team-alerts)" required>
+  <button type="submit">+ Add Rule</button>
+</form>
+<div id="rules-list"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const token = localStorage.getItem('access_token');
+  if (!token) window.location.href = '/signin';
+
+  const authHeaders = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  function renderRules(rules) {
+    const container = document.getElementById('rules-list');
+    container.innerHTML = '';
+    if (rules.length === 0) {
+        container.innerHTML = '<p style="color:#9ca3af">No rules yet.</p>';
+        return;
+    }
+    for (const r of rules) {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const strong = document.createElement('strong');
+        strong.textContent = r.label;
+
+        const br = document.createElement('br');
+
+        const small = document.createElement('small');
+        const watchCol = document.createElement('code');
+        watchCol.textContent = r.watch_column;
+        const watchVal = document.createElement('code');
+        watchVal.textContent = r.watch_value;
+        const channel = document.createElement('code');
+        channel.textContent = '#' + r.broadcast_channel;
+        small.append('when ', watchCol, ' = ', watchVal, ' → broadcast on ', channel);
+
+        const btn = document.createElement('button');
+        btn.className = 'danger';
+        btn.style.float = 'right';
+        btn.textContent = 'Delete';
+        btn.addEventListener('click', () => deleteRule(r.id));
+
+        card.append(strong, br, small, btn);
+        container.appendChild(card);
+    }
+  }
+
+  async function loadRules() {
+    const resp = await fetch('/rules/', { headers: authHeaders });
+    if (resp.status === 401) { window.location.href = '/signin'; return; }
+    const rules = await resp.json();
+    renderRules(rules);
+  }
+
+  async function deleteRule(id) {
+    await fetch(`/rules/${id}`, { method: 'DELETE', headers: authHeaders });
+    loadRules();
+  }
+
+  document.getElementById('create-rule-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await fetch('/rules/', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        label: document.getElementById('rule-label').value,
+        watch_column: document.getElementById('watch-column').value,
+        watch_value: document.getElementById('watch-value').value,
+        broadcast_channel: document.getElementById('broadcast-channel').value,
+      })
+    });
+    document.getElementById('create-rule-form').reset();
+    document.getElementById('watch-column').value = 'status';
+    loadRules();
+  });
+
+  loadRules();
+</script>
+{% endblock %}
