@@ -97,6 +97,7 @@ class AsyncClient:
         self._postgrest: Optional[AsyncPostgrestClient] = None
         self._storage: Optional[AsyncStorageClient] = None
         self._functions: Optional[AsyncFunctionsClient] = None
+        self.auth.admin._headers = {**self.auth.admin._headers}
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
@@ -342,11 +343,12 @@ class AsyncClient:
             self._storage = None
             self._functions = None
             access_token = session.access_token if session else self.supabase_key
+
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
         self.auth._headers["Authorization"] = auth_header
+        self.auth.admin._headers["Authorization"] = self._create_auth_header(self.supabase_key)
         asyncio.create_task(self.realtime.set_auth(access_token))
-
 
 async def create_client(
     supabase_url: str,

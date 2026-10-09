@@ -282,3 +282,24 @@ def test_httpx_client_base_url_isolation() -> None:
     assert str(postgrest.base_url).rstrip("/").endswith("/rest/v1"), (
         "PostgREST base_url was mutated after accessing functions"
     )
+
+def test_admin_authorization_header_not_overwritten_on_auth_events() -> None:
+    """Admin API should always use the supabase_key, never the user session token.
+    Regression test for https://github.com/supabase/supabase-py/issues/1404
+    """
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = create_client(url, key)
+
+    mock_session = MagicMock(access_token="secretuserjwt")
+    realtime_mock = Mock()
+    client.realtime = realtime_mock
+
+    client._listen_to_auth_events("SIGNED_IN", mock_session)
+
+    # auth._headers should have the user token (existing behaviour)
+    assert client.auth._headers.get("Authorization") == "Bearer secretuserjwt"
+
+    # admin._headers must always keep the original supabase_key
+    assert client.auth.admin._headers.get("Authorization") == f"Bearer {key}"
