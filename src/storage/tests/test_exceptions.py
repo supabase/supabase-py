@@ -1,3 +1,6 @@
+import copy
+import pickle
+
 from storage3.exceptions import StorageApiError
 
 
@@ -45,3 +48,17 @@ def test_storage_api_error_inheritance() -> None:
     from storage3.utils import StorageException
 
     assert isinstance(error, StorageException)
+
+
+def test_storage_api_error_pickle_and_copy() -> None:
+    # Arrange
+    error = StorageApiError("Test message", "TEST_CODE", 400)
+
+    # Act
+    clones = [pickle.loads(pickle.dumps(error)), copy.copy(error)]
+
+    # Assert
+    for clone in clones:
+        assert isinstance(clone, StorageApiError)
+        assert clone.to_dict() == error.to_dict()
+        assert str(clone) == str(error)
