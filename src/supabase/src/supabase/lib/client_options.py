@@ -88,6 +88,7 @@ class AsyncClientOptions(ClientOptions):
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         flow_type: Optional[AuthFlowType] = None,
+        function_client_timeout: Optional[int] = None,
     ) -> "AsyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = AsyncClientOptions()
@@ -111,6 +112,11 @@ class AsyncClientOptions(ClientOptions):
             storage_client_timeout or self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.function_client_timeout = (
+            function_client_timeout
+            if function_client_timeout is not None
+            else self.function_client_timeout
+        )
         return client_options
 
 
@@ -135,6 +141,7 @@ class SyncClientOptions(ClientOptions):
         ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         flow_type: Optional[AuthFlowType] = None,
+        function_client_timeout: Optional[int] = None,
     ) -> "SyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = SyncClientOptions()
@@ -158,4 +165,9 @@ class SyncClientOptions(ClientOptions):
             storage_client_timeout or self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.function_client_timeout = (
+            function_client_timeout
+            if function_client_timeout is not None
+            else self.function_client_timeout
+        )
         return client_options

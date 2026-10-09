@@ -220,6 +220,22 @@ def test_custom_headers() -> None:
     assert client.options.headers.get("x-version") == "1.0"
 
 
+def test_replace_preserves_and_overrides_function_timeout() -> None:
+    options = ClientOptions(function_client_timeout=30, persist_session=False)
+
+    updated = options.replace(schema="private")
+    assert updated.function_client_timeout == 30
+    assert updated.schema == "private"
+    assert updated.persist_session is False
+
+    overridden = updated.replace(function_client_timeout=45)
+    assert overridden.function_client_timeout == 45
+    assert ClientOptions().replace(schema="private").function_client_timeout == 5
+
+    client = create_client("https://example.supabase.co", "test-key", updated)
+    assert client.functions._client.timeout == Timeout(30)
+
+
 def test_custom_headers_immutable() -> None:
     url = os.environ["SUPABASE_TEST_URL"]
     key = os.environ["SUPABASE_TEST_KEY"]
