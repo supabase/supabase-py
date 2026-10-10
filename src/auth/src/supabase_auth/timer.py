@@ -33,7 +33,13 @@ class Timer:
 
     def cancel(self) -> None:
         if self._task is not None:
-            self._task.cancel()
+            try:
+                current_task = asyncio.current_task()
+            except RuntimeError:
+                current_task = None
+            # Refresh callbacks replace their timer before persisting the session.
+            if self._task is not current_task:
+                self._task.cancel()
             self._task = None
         if self._timer is not None:
             self._timer.cancel()
