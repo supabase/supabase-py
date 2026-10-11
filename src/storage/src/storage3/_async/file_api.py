@@ -160,7 +160,7 @@ class AsyncBucketActionsMixin:
 
         options: dict[str, Any] = {
             **DEFAULT_FILE_OPTIONS,
-            **(file_options or {}),
+            **{key.lower(): value for key, value in (file_options or {}).items()},
         }
         cache_control = options.pop("cache-control")
         content_type = options.pop("content-type")
@@ -526,7 +526,7 @@ class AsyncBucketActionsMixin:
         """
         options: dict[str, Any] = {
             **DEFAULT_FILE_OPTIONS,
-            **(file_options or {}),
+            **{key.lower(): value for key, value in (file_options or {}).items()},
         }
         cache_control = options.pop("cache-control")
         content_type = options.pop("content-type")
