@@ -68,6 +68,12 @@ features:
     symbols:
       - AsyncGoTrueClient.exchange_code_for_session
       - SyncGoTrueClient.exchange_code_for_session
+  auth.sign_in.concurrent_pkce_flows:
+    status: implemented
+    symbols:
+      - OAuthResponse.flow_id
+      - AsyncGoTrueClient.exchange_code_for_session
+      - SyncGoTrueClient.exchange_code_for_session
 
   auth.session.get_session:
     status: implemented
