@@ -106,14 +106,17 @@ class SyncPostgrestClient(BasePostgrestClient):
 
     def schema(self, schema: str) -> SyncPostgrestClient:
         """Switch to another schema."""
-        return SyncPostgrestClient(
+        # Reuse this client's HTTP session so a custom `http_client` (proxy,
+        # transport, TLS settings, event hooks...) and its connection pool are
+        # kept, and carry over basic auth set through `auth()`.
+        client = SyncPostgrestClient(
             base_url=str(self.base_url),
             schema=schema,
             headers=dict(self.headers),
-            timeout=self.timeout,
-            verify=self.verify,
-            proxy=self.proxy,
+            http_client=self.session,
         )
+        client.basic_auth = self.basic_auth
+        return client
 
     def __enter__(self) -> SyncPostgrestClient:
         return self
