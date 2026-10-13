@@ -44,12 +44,27 @@ def assert_multipart_upload(request: Request) -> Response:
 def test_sync_upload_preserves_multipart_content_type(
     method: UploadMethod, header_name: str
 ) -> None:
-    file_options = {
-        header_name: "application/pdf",
+    # Lowercase options are the public TypedDict contract and need no cast.
+    regular_options: FileOptions = {
+        "content-type": "application/pdf",
         "cache-control": "7200",
         "metadata": {"DocumentType": "PDF"},
         "headers": {"x-custom-header": "custom-value"},
     }
+    signed_options: UploadSignedUrlFileOptions = {
+        "content-type": "application/pdf",
+        "cache-control": "7200",
+        "metadata": {"DocumentType": "PDF"},
+        "headers": {"x-custom-header": "custom-value"},
+    }
+    file_options = {header_name: "application/pdf", **regular_options}
+    if header_name != "content-type":
+        # Deliberately exercise untyped runtime input outside that contract.
+        del file_options["content-type"]
+        regular_options = cast(FileOptions, file_options)
+        signed_options = cast(UploadSignedUrlFileOptions, file_options)
+    original_regular_options = dict(regular_options)
+    original_signed_options = dict(signed_options)
     with Client(transport=MockTransport(assert_multipart_upload)) as http:
         storage = SyncStorageClient(
             "https://example.com/storage/v1/", {}, http_client=http
@@ -60,20 +75,17 @@ def test_sync_upload_preserves_multipart_content_type(
                 "report.pdf",
                 "test-upload-token",
                 FILE_CONTENTS,
-                cast(UploadSignedUrlFileOptions, file_options),
+                signed_options,
             )
         elif method == "update":
-            response = bucket.update(
-                "report.pdf", FILE_CONTENTS, cast(FileOptions, file_options)
-            )
+            response = bucket.update("report.pdf", FILE_CONTENTS, regular_options)
         else:
-            response = bucket.upload(
-                "report.pdf", FILE_CONTENTS, cast(FileOptions, file_options)
-            )
+            response = bucket.upload("report.pdf", FILE_CONTENTS, regular_options)
 
     assert response.path == "report.pdf"
     assert response.full_path == "documents/report.pdf"
-    assert file_options[header_name] == "application/pdf"
+    assert regular_options == original_regular_options
+    assert signed_options == original_signed_options
 
 
 @pytest.mark.parametrize("method", ["upload", "update", "upload_to_signed_url"])
@@ -83,12 +95,27 @@ def test_sync_upload_preserves_multipart_content_type(
 async def test_async_upload_preserves_multipart_content_type(
     method: UploadMethod, header_name: str
 ) -> None:
-    file_options = {
-        header_name: "application/pdf",
+    # Lowercase options are the public TypedDict contract and need no cast.
+    regular_options: FileOptions = {
+        "content-type": "application/pdf",
         "cache-control": "7200",
         "metadata": {"DocumentType": "PDF"},
         "headers": {"x-custom-header": "custom-value"},
     }
+    signed_options: UploadSignedUrlFileOptions = {
+        "content-type": "application/pdf",
+        "cache-control": "7200",
+        "metadata": {"DocumentType": "PDF"},
+        "headers": {"x-custom-header": "custom-value"},
+    }
+    file_options = {header_name: "application/pdf", **regular_options}
+    if header_name != "content-type":
+        # Deliberately exercise untyped runtime input outside that contract.
+        del file_options["content-type"]
+        regular_options = cast(FileOptions, file_options)
+        signed_options = cast(UploadSignedUrlFileOptions, file_options)
+    original_regular_options = dict(regular_options)
+    original_signed_options = dict(signed_options)
     async with AsyncClient(transport=MockTransport(assert_multipart_upload)) as http:
         storage = AsyncStorageClient(
             "https://example.com/storage/v1/", {}, http_client=http
@@ -99,17 +126,14 @@ async def test_async_upload_preserves_multipart_content_type(
                 "report.pdf",
                 "test-upload-token",
                 FILE_CONTENTS,
-                cast(UploadSignedUrlFileOptions, file_options),
+                signed_options,
             )
         elif method == "update":
-            response = await bucket.update(
-                "report.pdf", FILE_CONTENTS, cast(FileOptions, file_options)
-            )
+            response = await bucket.update("report.pdf", FILE_CONTENTS, regular_options)
         else:
-            response = await bucket.upload(
-                "report.pdf", FILE_CONTENTS, cast(FileOptions, file_options)
-            )
+            response = await bucket.upload("report.pdf", FILE_CONTENTS, regular_options)
 
     assert response.path == "report.pdf"
     assert response.full_path == "documents/report.pdf"
-    assert file_options[header_name] == "application/pdf"
+    assert regular_options == original_regular_options
+    assert signed_options == original_signed_options
