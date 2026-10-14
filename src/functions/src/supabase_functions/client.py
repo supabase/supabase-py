@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Dict, Generic, Literal, overload
 
 from httpx import AsyncClient, Client
@@ -12,15 +13,13 @@ from supabase_utils.http.io import (
 )
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import (
-    BytesRequest,
     EmptyRequest,
     HTTPRequestMethod,
-    JSONRequest,
+    Request,
     Response,
-    TextRequest,
     ToRequest,
 )
-from supabase_utils.types import JSON
+from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
 from .errors import _is_relay_error, on_error_response
@@ -29,6 +28,24 @@ from .utils import (
     is_valid_str_arg,
 )
 from .version import __version__
+
+
+@dataclass
+class _BodyRequest(EmptyRequest):
+    content: bytes
+    content_type: str
+
+    def finalize(self, base_url: URL, default_headers: Headers) -> Request:
+        headers = default_headers.update(self.headers)
+        if "content-type" not in headers:
+            headers = headers.set("Content-Type", self.content_type)
+        return Request(
+            method=self.method,
+            url=base_url.joinpath(*self.path).with_query(self.query.as_query()),
+            headers=headers,
+            content=self.content,
+            delay=self.delay,
+        )
 
 
 class FunctionsClient(Generic[HttpIO]):
@@ -77,34 +94,26 @@ class FunctionsClient(Generic[HttpIO]):
             # Add region as query parameter
             query_params = query_params.set("forceFunctionRegion", region.value)
         if isinstance(body, str):
-            return TextRequest(
-                text=body,
-                method=method,
-                path=path,
-                headers=new_headers,
-                query=query_params,
-            )
+            content = body.encode("utf-8")
+            content_type = "text/plain; charset=utf-8"
         elif isinstance(body, dict):
-            return JSONRequest(
-                body=body,
-                method=method,
-                path=path,
-                headers=new_headers,
-                query=query_params,
-                exclude_none=False,
-            )
+            content = JSONParser.dump_json(body)
+            content_type = "application/json"
         elif isinstance(body, bytes):
-            return BytesRequest(
-                body=body,
-                method=method,
-                path=path,
-                headers=new_headers,
-                query=query_params,
-            )
+            content = body
+            content_type = "application/octet-stream"
         else:
             return EmptyRequest(
                 method=method, path=path, headers=new_headers, query=query_params
             )
+        return _BodyRequest(
+            content=content,
+            content_type=content_type,
+            method=method,
+            path=path,
+            headers=new_headers,
+            query=query_params,
+        )
 
     @handle_http_io
     def invoke(
