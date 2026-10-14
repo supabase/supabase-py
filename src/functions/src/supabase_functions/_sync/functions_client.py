@@ -3,7 +3,7 @@ import sys
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
-from httpx import Client, HTTPError, QueryParams, Response
+from httpx import Client, Headers, HTTPError, QueryParams, Response
 from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError, _error_message_from
@@ -81,12 +81,11 @@ class SyncFunctionsClient:
         self,
         method: HTTPMethod,
         path: list[str],
-        headers: Optional[Dict[str, str]] = None,
+        headers: Headers,
         json: Optional[Union[Dict[Any, Any], str, bytes]] = None,
         params: Optional[QueryParams] = None,
     ) -> Response:
         url = self.url.joinpath(*path)
-        headers = {**self.headers, **(headers or {})}
         response = (
             self._client.request(
                 method, str(url), content=json, headers=headers, params=params
@@ -141,7 +140,7 @@ class SyncFunctionsClient:
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
-        headers = {**self.headers}
+        headers = Headers(self.headers)
         params = QueryParams()
         body = None
         method: HTTPMethod = "POST"
@@ -164,12 +163,13 @@ class SyncFunctionsClient:
                     params = params.set("forceFunctionRegion", region.value)
 
             body = invoke_options.get("body")
-            if isinstance(body, str):
-                headers["Content-Type"] = "text/plain"
-            elif isinstance(body, dict):
-                headers["Content-Type"] = "application/json"
-            elif isinstance(body, bytes):
-                headers["Content-Type"] = "application/octet-stream"
+            if headers.get("content-type", None) is None:
+                if isinstance(body, str):
+                    headers["Content-Type"] = "text/plain"
+                elif isinstance(body, dict):
+                    headers["Content-Type"] = "application/json"
+                elif isinstance(body, bytes):
+                    headers["Content-Type"] = "application/octet-stream"
 
         response = self._request(
             method, [function_name], headers=headers, json=body, params=params
