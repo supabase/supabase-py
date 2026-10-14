@@ -183,7 +183,7 @@ async def test_invoke_per_call_headers_override_client_headers() -> None:
     client = client_returning(
         content=b"{}",
         status=200,
-        client_headers={"Authorization": "Bearer valid.jwt.token"},
+        client_headers={"authorization": "Bearer valid.jwt.token"},
     )
     response = await client.invoke(
         "test-function", headers={"Authorization": "Bearer override"}
@@ -221,12 +221,13 @@ async def test_invoke_string_body_sent_as_content() -> None:
 @pytest.mark.parametrize(
     "body", ["<xml/>", {"key": "value"}, b"<xml/>"], ids=["str", "dict", "bytes"]
 )
+@pytest.mark.parametrize("header_name", ["Content-Type", "content-type"])
 async def test_invoke_does_not_overwrite_content_type(
-    body: bytes | str | dict[str, JSON],
+    body: bytes | str | dict[str, JSON], header_name: str
 ) -> None:
     client = client_returning(content=b"{}", status=200)
     response = await client.invoke(
-        "test-function", body=body, headers={"Content-Type": "application/xml"}
+        "test-function", body=body, headers={header_name: "application/xml"}
     )
     assert response.request.headers.get_list("Content-Type") == ["application/xml"]
 
