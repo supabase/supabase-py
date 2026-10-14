@@ -7,6 +7,7 @@ from supabase_utils.http.io import AsyncHttpIO
 
 # Import the class to test
 from supabase_utils.http.request import HTTPRequestMethod, Request, Response
+from supabase_utils.types import JSON
 from yarl import URL
 
 from supabase_functions.client import AsyncFunctionsClient, FunctionsClient
@@ -215,3 +216,26 @@ async def test_invoke_string_body_sent_as_content() -> None:
     client = client_returning(content=b"{}", status=200)
     response = await client.invoke("test-function", body="string data")
     assert response.request.content == b"string data"
+
+
+@pytest.mark.parametrize(
+    "body", ["<xml/>", {"key": "value"}, b"<xml/>"], ids=["str", "dict", "bytes"]
+)
+async def test_invoke_does_not_overwrite_content_type(
+    body: bytes | str | dict[str, JSON],
+) -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke(
+        "test-function", body=body, headers={"Content-Type": "application/xml"}
+    )
+    assert response.request.headers.get_list("Content-Type") == ["application/xml"]
+
+
+async def test_invoke_does_not_overwrite_client_content_type() -> None:
+    client = client_returning(
+        content=b"{}",
+        status=200,
+        client_headers={"Content-Type": "application/xml"},
+    )
+    response = await client.invoke("test-function", body="<xml/>")
+    assert response.request.headers.get_list("Content-Type") == ["application/xml"]
