@@ -30,16 +30,18 @@ class SyncFunctionsClient:
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)
-        self.headers = {
-            "X-Client-Info": (
-                f"supabase-py/supabase_functions v{__version__}"
-                f"; platform={platform.system()}"
-                f"; platform-version={platform.release()}"
-                f"; runtime=python"
-                f"; runtime-version={platform.python_version()}"
-            ),
-            **headers,
-        }
+        self.headers = Headers(
+            {
+                "X-Client-Info": (
+                    f"supabase-py/supabase_functions v{__version__}"
+                    f"; platform={platform.system()}"
+                    f"; platform-version={platform.release()}"
+                    f"; runtime=python"
+                    f"; runtime-version={platform.python_version()}"
+                )
+            }
+        )
+        self.headers.update(headers)
 
         if sys.version_info < (3, 10):
             warn(
