@@ -246,11 +246,18 @@ class RealtimeClient:
         """
         Initialize a channel and create a two-way association with the socket.
 
+        If a channel for this topic already exists, that channel is returned
+        instead of a new one. Messages are routed to one channel per topic, so
+        replacing it would silently stop delivering messages to the existing
+        channel.
+
         :param topic: The topic to subscribe to
         :param params: Optional channel parameters
-        :return: AsyncRealtimeChannel instance
+        :return: RealtimeChannel instance
         """
         topic = f"realtime:{topic}"
+        if existing := self.channels.get(topic):
+            return existing
         chan = RealtimeChannel(self, topic, params)
         self.channels[topic] = chan
         return chan
@@ -259,12 +266,12 @@ class RealtimeClient:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: RealtimeChannel) -> None:
-        del self.channels[channel.topic]
+        if self.channels.get(channel.topic) is channel:
+            del self.channels[channel.topic]
 
     async def remove_channel(self, channel: RealtimeChannel) -> None:
         if chan := self.channels.get(channel.topic):
             await chan.unsubscribe()
-            self._remove_channel(channel)
 
     async def remove_all_channels(self) -> None:
         """
