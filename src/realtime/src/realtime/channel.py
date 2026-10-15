@@ -274,7 +274,13 @@ class RealtimeChannel:
                 yield server_message
 
     async def unsubscribe(self) -> None:
-        await self.send_event(ChannelEvents.leave, payload={})
+        self.state = ChannelStates.LEAVING
+        try:
+            await self.send_event(ChannelEvents.leave, payload={})
+        finally:
+            self.joined = False
+            self.state = ChannelStates.CLOSED
+            self.socket._remove_channel(self)
 
     # Presence methods
     async def track(self, user_status: Dict[str, Any]) -> ReplyMessage:
