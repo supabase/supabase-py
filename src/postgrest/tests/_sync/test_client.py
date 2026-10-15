@@ -1,4 +1,5 @@
 import re
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -174,3 +175,14 @@ def test_response_client_invalid_response_but_valid_json(
         assert isinstance(exc_response.get("message"), str)
         assert exc_response.get("message") == "JSON could not be generated"
         assert "code" in exc_response and int(exc_response["code"]) == 502
+
+
+@pytest.mark.parametrize("head", [False, True])
+def test_rpc_query_params_send_lists_as_array_literals(
+    postgrest_client: SyncPostgrestClient, head: bool
+):
+    params: Any = {"ids": [1, 2, 3], "name": "x"}
+    builder = postgrest_client.rpc("sum_ids", params, head=head, get=not head)
+
+    assert builder.request.params.get_list("ids") == ["{1,2,3}"]
+    assert builder.request.params["name"] == "x"
