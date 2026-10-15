@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 from typing import AsyncIterator
+from unittest.mock import AsyncMock
 
 import aiohttp
 import pytest
@@ -402,3 +403,57 @@ def test_broadcast_replication_ready_is_forwarded_only_when_set() -> None:
 
     assert enabled_payload["config"]["broadcast"]["replication_ready"] is True
     assert "replication_ready" not in disabled_payload["config"]["broadcast"]
+
+
+def fake_client() -> tuple[RealtimeClient, list[Message]]:
+    """A client over a mocked websocket that acks every message carrying a ref."""
+    sent: list[Message] = []
+    ws = AsyncMock()
+    client = RealtimeClient(URL("ws://localhost/realtime/v1"), ws)
+
+    async def send(raw: str) -> None:
+        message = Message.model_validate_json(raw)
+        sent.append(message)
+        if message.ref is not None:
+            reply = Message(
+                topic=message.topic,
+                event=ChannelEvents.reply,
+                ref=message.ref,
+                payload={"status": "ok", "response": {"postgres_changes": []}},
+            )
+            client.message_refs[message.ref].set_result(reply)
+
+    ws.send.side_effect = send
+    return client, sent
+
+
+async def test_channel_returns_existing_channel_for_same_topic() -> None:
+    client, _ = fake_client()
+
+    first = client.channel("room")
+
+    assert client.channel("room") is first
+    assert client.get_channels() == [first]
+
+
+async def test_second_channel_call_keeps_first_subscription_receiving() -> None:
+    client, _ = fake_client()
+
+    channel = client.channel("room")
+    await channel.subscribe()
+
+    assert client.channel("room") is channel
+    assert client.channels["realtime:room"] is channel
+
+
+async def test_channel_after_unsubscribe_creates_new_channel() -> None:
+    client, _ = fake_client()
+
+    first = client.channel("room")
+    await first.subscribe()
+    await first.unsubscribe()
+
+    second = client.channel("room")
+
+    assert second is not first
+    assert client.get_channels() == [second]
