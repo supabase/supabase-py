@@ -760,7 +760,9 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 expires_at=expires_at,
             )
         await self._save_session(session)
-        self._notify_all_subscribers("TOKEN_REFRESHED", session)
+        # A still-valid token is a sign-in. TOKEN_REFRESHED is only for a refresh.
+        event: AuthChangeEvent = "TOKEN_REFRESHED" if has_expired else "SIGNED_IN"
+        self._notify_all_subscribers(event, session)
         return AuthResponse(session=session, user=session.user)
 
     async def refresh_session(
