@@ -252,6 +252,7 @@ class RealtimeChannel:
             )
         self.join_ref = join_ref
         self.joined = True
+        self.state = ChannelStates.JOINED
         return msg
 
     @property
