@@ -457,3 +457,20 @@ async def test_channel_after_unsubscribe_creates_new_channel() -> None:
 
     assert second is not first
     assert client.get_channels() == [second]
+
+
+async def test_set_auth_updates_join_payload_used_on_rejoin() -> None:
+    client, sent = fake_client()
+
+    channel = client.channel("test-set-auth-rejoin")
+    await channel.subscribe()
+
+    await client.set_auth("refreshed-token")
+
+    assert sent[-1].event == ChannelEvents.access_token
+    assert sent[-1].payload == {"access_token": "refreshed-token"}
+
+    await channel.subscribe()
+
+    assert sent[-1].event == ChannelEvents.join
+    assert sent[-1].payload["access_token"] == "refreshed-token"
