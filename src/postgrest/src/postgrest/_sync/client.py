@@ -36,6 +36,7 @@ class SyncPostgrestClient(BasePostgrestClient):
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,
         http_client: Optional[Client] = None,
+        retry_enabled: bool = True,
     ) -> None:
         headers = {
             "X-Client-Info": (
@@ -93,6 +94,7 @@ class SyncPostgrestClient(BasePostgrestClient):
             verify=self.verify,
             proxy=proxy,
         )
+        self.retry_enabled = retry_enabled
 
         self.session = http_client or Client(
             base_url=base_url,
@@ -113,6 +115,7 @@ class SyncPostgrestClient(BasePostgrestClient):
             timeout=self.timeout,
             verify=self.verify,
             proxy=self.proxy,
+            retry_enabled=self.retry_enabled,
         )
 
     def __enter__(self) -> SyncPostgrestClient:
@@ -134,7 +137,11 @@ class SyncPostgrestClient(BasePostgrestClient):
             :class:`AsyncRequestBuilder`
         """
         return SyncRequestBuilder(
-            self.session, self.base_url.joinpath(table), self.headers, self.basic_auth
+            self.session,
+            self.base_url.joinpath(table),
+            self.headers,
+            self.basic_auth,
+            retry_enabled=self.retry_enabled,
         )
 
     def table(self, table: str) -> SyncRequestBuilder:
@@ -193,5 +200,6 @@ class SyncPostgrestClient(BasePostgrestClient):
             http_params,
             self.basic_auth,
             json,
+            retry_enabled=self.retry_enabled,
         )
         return SyncRPCFilterRequestBuilder(request)
