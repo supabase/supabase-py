@@ -24,6 +24,7 @@ from .request_builder import (
     RPCFilterRequestBuilder,
 )
 from .types import CountMethod
+from .utils import _rpc_query_param
 from .version import __version__
 
 
@@ -208,7 +209,12 @@ class PostgrestClient(Generic[HttpIO]):
 
         # the params here are params to be sent to the RPC and not the queryparams!
         json, http_params = (
-            ({}, URLQuery.from_mapping(params))
+            (
+                {},
+                URLQuery.from_mapping(
+                    {k: _rpc_query_param(v) for k, v in params.items()}
+                ),
+            )
             if method in ("HEAD", "GET")
             else (params, URLQuery.empty())
         )
