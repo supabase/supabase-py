@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.33.1](https://github.com/supabase/supabase-py/compare/v2.33.0...v2.33.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **postgrest:** send rpc list args as array literals on GET and HEAD ([#1752](https://github.com/supabase/supabase-py/issues/1752)) ([50e7a4c](https://github.com/supabase/supabase-py/commit/50e7a4c2866a668e5248234e9f36034ef7582c09))
+
 ## [2.33.0](https://github.com/supabase/supabase-py/compare/v2.32.0...v2.33.0) (2026-10-15)
 
 
