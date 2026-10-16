@@ -71,6 +71,17 @@ def sanitize_pattern_param(pattern: str) -> str:
     return sanitize_param(pattern.replace("%", "*"))
 
 
+def rpc_query_param(value: Any) -> Any:
+    """Format an RPC argument sent in the query string, as in GET or HEAD calls.
+
+    Lists and tuples become PostgreSQL array literals, since PostgREST keeps only
+    one value when a non-variadic argument is repeated.
+    """
+    if isinstance(value, (list, tuple)):
+        return f"{{{','.join(str(v) for v in value)}}}"
+    return value
+
+
 def is_http_url(url: URL) -> bool:
     return url.scheme in {"https", "http"}
 
