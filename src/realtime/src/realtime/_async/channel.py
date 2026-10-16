@@ -92,12 +92,13 @@ class AsyncRealtimeChannel:
         )
         self.topic = topic
         self._joined_once = False
+        self._resubscribing = False
         self.presence: AsyncRealtimePresence = AsyncRealtimePresence()
         self.state = ChannelStates.CLOSED
         self._push_buffer: list[AsyncPush] = []
         self.timeout = self.socket.timeout
 
-        self.join_push: AsyncPush = AsyncPush(self, ChannelEvents.join, self.params)
+        self.join_push: AsyncPush = self._create_join_push()
         self.messages_waiting_for_ack: dict[str, AsyncPush] = {}
         self.broadcast_callbacks: list[BroadcastCallback] = []
         self.system_callbacks: list[Callable[[SuccessSystemPayload], None]] = []
@@ -111,6 +112,9 @@ class AsyncRealtimeChannel:
         )
 
         self.broadcast_endpoint_url = self._broadcast_endpoint_url()
+
+    def _create_join_push(self) -> AsyncPush:
+        join_push = AsyncPush(self, ChannelEvents.join, self.params)
 
         def on_join_push_ok(payload: ReplyPostgresChanges):
             self.state = ChannelStates.JOINED
@@ -127,9 +131,10 @@ class AsyncRealtimeChannel:
             self.state = ChannelStates.ERRORED
             self.rejoin_timer.schedule_timeout()
 
-        self.join_push.receive(
-            RealtimeAcknowledgementStatus.Ok, on_join_push_ok
-        ).receive(RealtimeAcknowledgementStatus.Timeout, on_join_push_timeout)
+        join_push.receive(RealtimeAcknowledgementStatus.Ok, on_join_push_ok).receive(
+            RealtimeAcknowledgementStatus.Timeout, on_join_push_timeout
+        )
+        return join_push
 
     def on_close(self):
         logger.info(f"channel {self.topic} closed")
@@ -216,6 +221,7 @@ class AsyncRealtimeChannel:
                 config_payload["access_token"] = self.socket.access_token
 
             self.join_push.update_payload(config_payload)
+            self.subscribe_callback = callback
             self._joined_once = True
 
             def on_join_push_ok(payload: ReplyPostgresChanges):
@@ -280,6 +286,9 @@ class AsyncRealtimeChannel:
         Unsubscribe from the channel and leave the topic.
         Sets channel state to LEAVING and cleans up timers and pushes.
         """
+        await self._leave()
+
+    async def _leave(self) -> AsyncPush:
         self.state = ChannelStates.LEAVING
 
         self.rejoin_timer.reset()
@@ -294,6 +303,7 @@ class AsyncRealtimeChannel:
             RealtimeAcknowledgementStatus.Error, _close
         )
         await leave_push.send()
+        return leave_push
 
     async def push(
         self, event: str, payload: Dict[str, Any], timeout: Optional[int] = None
@@ -513,8 +523,30 @@ class AsyncRealtimeChannel:
     # Internal methods
 
     async def _resubscribe(self) -> None:
-        await self.unsubscribe()
-        await self.subscribe()
+        if self._resubscribing:
+            return
+        self._resubscribing = True
+        try:
+            callback = self.subscribe_callback
+            closed: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+
+            def _on_left(*args) -> None:
+                if not closed.done():
+                    closed.set_result(None)
+
+            leave_push = await self._leave()
+            leave_push.receive(RealtimeAcknowledgementStatus.Ok, _on_left).receive(
+                RealtimeAcknowledgementStatus.Error, _on_left
+            ).receive(RealtimeAcknowledgementStatus.Timeout, _on_left)
+            await closed
+
+            self.state = ChannelStates.CLOSED
+            self.socket.channels[self.topic] = self
+            self.join_push = self._create_join_push()
+            self._joined_once = False
+            await self.subscribe(callback)
+        finally:
+            self._resubscribing = False
 
     def _broadcast_endpoint_url(self):
         return f"{http_endpoint_url(self.socket.http_endpoint)}/api/broadcast"
