@@ -632,7 +632,12 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         auth_response = parse_auth_response(response)
         if auth_response.session:
             await self._save_session(auth_response.session)
-            self._notify_all_subscribers("SIGNED_IN", auth_response.session)
+            # auth-js verifyOtp emits PASSWORD_RECOVERY instead of SIGNED_IN
+            # so listeners can show the reset form.
+            event: AuthChangeEvent = (
+                "PASSWORD_RECOVERY" if params.get("type") == "recovery" else "SIGNED_IN"
+            )
+            self._notify_all_subscribers(event, auth_response.session)
         return auth_response
 
     async def reauthenticate(self) -> AuthResponse:
