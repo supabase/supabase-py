@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -19,6 +20,7 @@ from supabase_auth.errors import (
 from supabase_auth.helpers import (
     decode_jwt,
     generate_pkce_challenge,
+    generate_pkce_flow_id,
     generate_pkce_verifier,
     handle_exception,
     model_dump,
@@ -26,7 +28,11 @@ from supabase_auth.helpers import (
     model_validate,
     parse_link_identity_response,
     parse_response_api_version,
+    pkce_flow_index_key,
+    pkce_legacy_verifier_key,
+    pkce_verifier_slot_key,
     validate_exp,
+    validate_pkce_flow_id,
 )
 
 from ._sync.clients import mock_access_token
@@ -140,6 +146,29 @@ def test_generate_pkce_verifier() -> None:
 def test_generate_pkce_challenge() -> None:
     pkce = generate_pkce_verifier(45)
     assert isinstance(generate_pkce_challenge(pkce), str)
+
+
+def test_generate_pkce_flow_id() -> None:
+    flow_id = generate_pkce_flow_id()
+    assert re.match(r"^[a-f0-9]{32}$", flow_id)
+    assert flow_id != generate_pkce_flow_id()
+    assert validate_pkce_flow_id(flow_id) == flow_id
+
+
+@pytest.mark.parametrize(
+    "flow_id",
+    [None, 42, "", "short", "has spaces here", "a" * 65, "slash/../evil", "dot.ted"],
+)
+def test_validate_pkce_flow_id_rejects_unsafe_values(flow_id) -> None:
+    assert validate_pkce_flow_id(flow_id) is None
+
+
+def test_pkce_storage_keys() -> None:
+    assert pkce_legacy_verifier_key("sb") == "sb-code-verifier"
+    assert pkce_verifier_slot_key("sb", "flow-id-aaaaaaaa") == (
+        "sb-flow-flow-id-aaaaaaaa-code-verifier"
+    )
+    assert pkce_flow_index_key("sb") == "sb-flows-code-verifier"
 
 
 def test_parse_response_api_version_invalid_date() -> None:
