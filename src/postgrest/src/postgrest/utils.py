@@ -78,7 +78,7 @@ def rpc_query_param(value: Any) -> Any:
     one value when a non-variadic argument is repeated.
     """
     if isinstance(value, (list, tuple)):
-        return f"{{{','.join(str(v) for v in value)}}}"
+        return sanitize_array_param(value)
     return value
 
 
