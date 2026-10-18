@@ -15,6 +15,7 @@ from httpx import (
 )
 
 from postgrest import AsyncPostgrestClient
+from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.exceptions import APIError
 
 
@@ -48,6 +49,14 @@ class TestConstructor:
             }
         )
         assert session.headers.items() >= headers.items()
+
+    @pytest.mark.asyncio
+    async def test_default_timeout_uses_postgrest_constant(self) -> None:
+        async with AsyncPostgrestClient("https://example.com") as client:
+            assert client.timeout == DEFAULT_POSTGREST_CLIENT_TIMEOUT
+            assert client.session.timeout == Timeout(
+                timeout=DEFAULT_POSTGREST_CLIENT_TIMEOUT
+            )
 
     @pytest.mark.asyncio
     async def test_custom_headers(self):
