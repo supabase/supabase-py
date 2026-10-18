@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 from warnings import warn
 
-from httpx import AsyncClient, QueryParams, Response
+from httpx import AsyncClient, Headers, QueryParams, Response
 from jwt import get_algorithm_by_name
 from typing_extensions import cast
 
@@ -112,15 +112,17 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:
-        extra_headers = {
-            "X-Client-Info": (
-                f"supabase-py/supabase_auth v{__version__}"
-                f"; platform={platform.system()}"
-                f"; platform-version={platform.release()}"
-                f"; runtime=python"
-                f"; runtime-version={platform.python_version()}"
-            ),
-        }
+        extra_headers = Headers(
+            {
+                "X-Client-Info": (
+                    f"supabase-py/supabase_auth v{__version__}"
+                    f"; platform={platform.system()}"
+                    f"; platform-version={platform.release()}"
+                    f"; runtime=python"
+                    f"; runtime-version={platform.python_version()}"
+                ),
+            }
+        )
         if headers:
             extra_headers.update(headers)
 
@@ -134,7 +136,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         AsyncGoTrueBaseAPI.__init__(
             self,
             url=url or GOTRUE_URL,
-            headers=extra_headers,
+            headers=dict(extra_headers),
             http_client=http_client,
             verify=verify,
             proxy=proxy,
@@ -156,7 +158,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
         self.admin = AsyncGoTrueAdminAPI(
             url=self._url,
-            headers=self._headers,
+            headers=dict(self._headers),
             http_client=self._http_client,
         )
         # TODO(@o-santi): why is it like this?

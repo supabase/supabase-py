@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from httpx import AsyncClient, HTTPStatusError, QueryParams, Response
+from httpx import AsyncClient, Headers, HTTPStatusError, QueryParams, Response
 from pydantic import BaseModel
 from typing_extensions import Literal, Self
 
@@ -21,7 +21,7 @@ class AsyncGoTrueBaseAPI:
         proxy: Optional[str] = None,
     ) -> None:
         self._url = url
-        self._headers = headers
+        self._headers = Headers(headers)
         self._http_client = http_client or AsyncClient(
             verify=bool(verify),
             proxy=proxy,
@@ -51,13 +51,14 @@ class AsyncGoTrueBaseAPI:
         no_resolve_json: bool = False,
     ) -> Response:
         url = f"{self._url}/{path}"
-        headers = {**self._headers, **(headers or {})}
-        if API_VERSION_HEADER_NAME not in headers:
-            headers[API_VERSION_HEADER_NAME] = API_VERSIONS_2024_01_01_NAME
-        if "Content-Type" not in headers:
-            headers["Content-Type"] = "application/json;charset=UTF-8"
+        request_headers = Headers(self._headers)
+        request_headers.update(headers or {})
+        if API_VERSION_HEADER_NAME not in request_headers:
+            request_headers[API_VERSION_HEADER_NAME] = API_VERSIONS_2024_01_01_NAME
+        if "Content-Type" not in request_headers:
+            request_headers["Content-Type"] = "application/json;charset=UTF-8"
         if jwt:
-            headers["Authorization"] = f"Bearer {jwt}"
+            request_headers["Authorization"] = f"Bearer {jwt}"
         query = query or QueryParams()
         if redirect_to:
             query = query.set("redirect_to", redirect_to)
@@ -65,7 +66,7 @@ class AsyncGoTrueBaseAPI:
             response = await self._http_client.request(
                 method,
                 url,
-                headers=headers,
+                headers=request_headers,
                 params=query,
                 json=model_dump(body) if isinstance(body, BaseModel) else body,
             )
