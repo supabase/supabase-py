@@ -188,3 +188,15 @@ def test_rpc_query_params_send_lists_as_array_literals(
 
     assert builder.request.params.get_list("ids") == ["{1,2,3}"]
     assert builder.request.params["name"] == "x"
+
+
+@pytest.mark.parametrize("head", [False, True])
+def test_rpc_query_params_quote_array_elements(
+    postgrest_client: AsyncPostgrestClient, head: bool
+):
+    params: Any = {"tags": ["a,b", "c d", "", 'say "hi"', "x}", "null", None]}
+    builder = postgrest_client.rpc("tag_fn", params, head=head, get=not head)
+
+    assert builder.request.params.get_list("tags") == [
+        '{"a,b","c d","","say \\"hi\\"","x}","null",NULL}'
+    ]

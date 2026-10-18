@@ -45,8 +45,11 @@ def sanitize_array_element(element: Any) -> str:
     case-insensitively, or contains a brace, the comma delimiter, a double
     quote, a backslash, or whitespace; embedded double quotes and backslashes
     are backslash-escaped. Without this, a value such as ``"a,b"`` is emitted
-    bare and parsed by PostgREST as two separate elements.
+    bare and parsed by PostgREST as two separate elements. ``None`` becomes an
+    unquoted ``NULL`` element.
     """
+    if element is None:
+        return "NULL"
     element_str = str(element)
     needs_quoting = (
         element_str == ""
@@ -78,7 +81,7 @@ def rpc_query_param(value: Any) -> Any:
     one value when a non-variadic argument is repeated.
     """
     if isinstance(value, (list, tuple)):
-        return f"{{{','.join(str(v) for v in value)}}}"
+        return sanitize_array_param(value)
     return value
 
 
