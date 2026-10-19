@@ -161,8 +161,6 @@ class AsyncRealtimeClient:
             return
 
         retries = 0
-        backoff = self.initial_backoff
-
         endpoint_url = self.endpoint_url()
         logger.debug(f"Attempting to connect to WebSocket at {endpoint_url}")
 
@@ -182,12 +180,11 @@ class AsyncRealtimeClient:
                     )
                     raise
                 else:
-                    wait_time = backoff * (2 ** (retries - 1))
+                    wait_time = min(self.initial_backoff * (2 ** (retries - 1)), 60)
                     logger.debug(
-                        f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (backoff={backoff}s)"
+                        f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (initial_backoff={self.initial_backoff}s)"
                     )
                     await asyncio.sleep(wait_time)
-                    backoff = min(backoff, 60)
 
         raise Exception(
             f"Failed to establish WebSocket connection after {self.max_retries} attempts"
