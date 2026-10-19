@@ -21,7 +21,11 @@ class SyncGoTrueBaseAPI:
         proxy: Optional[str] = None,
     ) -> None:
         self._url = url
-        self._headers = headers
+        # Copy: callers pass a dict they keep mutating, and GoTrueClient hands
+        # its own `_headers` to the admin API. Sharing the object means a later
+        # `_headers["Authorization"] = <user token>` silently downgrades every
+        # other holder of that dict.
+        self._headers = dict(headers)
         self._http_client = http_client or Client(
             verify=bool(verify),
             proxy=proxy,
