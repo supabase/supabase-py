@@ -40,10 +40,13 @@ __all__ = ["SyncBucket"]
 
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
-    url = URL(path)
-    if url.absolute or url.parts[0] == "/":
-        return url.parts[1:]
-    return url.parts
+    # Split on "/" rather than parsing the path as a URL: a URL parser treats
+    # "?" and "#" as the start of a query or fragment and would silently drop
+    # the rest of the object key.
+    path = path.removeprefix("/")
+    if not path:
+        return ()
+    return tuple(path.split("/"))
 
 
 class SyncBucketActionsMixin:
