@@ -797,3 +797,29 @@ async def test_initialize_from_storage_keeps_refreshed_session() -> None:
     assert Session.model_validate_json(stored).access_token == "new-access-token"
     assert client._refresh_token_timer is not None
     client._refresh_token_timer.cancel()
+
+
+async def test_trailing_slash_in_url_does_not_produce_double_slash_paths() -> None:
+    from urllib.parse import urlsplit
+
+    from httpx import AsyncClient, MockTransport, Request, Response
+    from supabase_auth import AsyncGoTrueClient
+
+    requested_paths = []
+
+    def handler(request: Request) -> Response:
+        requested_paths.append(request.url.path)
+        return Response(200, json={})
+
+    client = AsyncGoTrueClient(
+        url="https://project.example/auth/v1/",
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    )
+
+    # The OAuth authorize URL must not contain a doubled slash.
+    oauth_response = await client.sign_in_with_oauth({"provider": "github"})
+    assert urlsplit(oauth_response.url).path == "/auth/v1/authorize"
+
+    # Regular request paths must not contain a doubled slash either.
+    await client._request("GET", "user")
+    assert requested_paths == ["/auth/v1/user"]
