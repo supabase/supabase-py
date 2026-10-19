@@ -4,6 +4,13 @@ from typing import Literal, Union, overload
 
 from ._async.functions_client import AsyncFunctionsClient
 from ._sync.functions_client import SyncFunctionsClient
+from .types import (
+    FunctionInvokeOptions,
+    FunctionInvokeOptionsJson,
+    FunctionInvokeOptionsNonJson,
+    HTTPMethod,
+    ResponseType,
+)
 from .utils import FunctionRegion
 
 __all__ = [
@@ -11,6 +18,11 @@ __all__ = [
     "FunctionRegion",
     "AsyncFunctionsClient",
     "SyncFunctionsClient",
+    "FunctionInvokeOptions",
+    "FunctionInvokeOptionsJson",
+    "FunctionInvokeOptionsNonJson",
+    "HTTPMethod",
+    "ResponseType",
 ]
 
 

@@ -1,20 +1,24 @@
 import platform
 import sys
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Dict, Mapping, Optional, Union, cast, overload
 from warnings import warn
 
 from httpx import AsyncClient, Headers, HTTPError, QueryParams, Response
 from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError, _error_message_from
+from ..types import (
+    FunctionInvokeOptions,
+    FunctionInvokeOptionsJson,
+    FunctionInvokeOptionsNonJson,
+    HTTPMethod,
+)
 from ..utils import (
     FunctionRegion,
     is_http_url,
     is_valid_str_arg,
 )
 from ..version import __version__
-
-HTTPMethod = Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
 
 
 class AsyncFunctionsClient:
@@ -126,9 +130,43 @@ class AsyncFunctionsClient:
 
         self.headers["Authorization"] = f"Bearer {token}"
 
+    @overload
     async def invoke(
-        self, function_name: str, invoke_options: Optional[Dict] = None
-    ) -> Union[Dict, bytes]:
+        self,
+        function_name: str,
+        invoke_options: FunctionInvokeOptionsJson,
+    ) -> Any: ...
+
+    @overload
+    async def invoke(
+        self,
+        function_name: str,
+        invoke_options: FunctionInvokeOptionsNonJson,
+    ) -> bytes: ...
+
+    @overload
+    async def invoke(
+        self,
+        function_name: str,
+        invoke_options: None = None,
+    ) -> bytes: ...
+
+    @overload
+    async def invoke(
+        self,
+        function_name: str,
+        invoke_options: Optional[
+            Union[FunctionInvokeOptions, Mapping[str, Any]]
+        ] = None,
+    ) -> Union[Any, bytes]: ...
+
+    async def invoke(
+        self,
+        function_name: str,
+        invoke_options: Optional[
+            Union[FunctionInvokeOptions, Mapping[str, Any]]
+        ] = None,
+    ) -> Union[Any, bytes]:
         """Invokes a function
 
         Parameters
@@ -138,7 +176,8 @@ class AsyncFunctionsClient:
             `headers`: object representing the headers to send with the request
             `body`: the body of the request
             `method`: the HTTP method to invoke the function with. The default is `POST`
-            `responseType`: how the response should be parsed. The default is `json`
+            `responseType`: how the response should be parsed. The default is `text/plain`
+            `region`: the region where the function should be invoked
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
@@ -150,7 +189,7 @@ class AsyncFunctionsClient:
 
         if invoke_options is not None:
             headers.update(invoke_options.get("headers", {}))
-            method = invoke_options.get("method", "POST")
+            method = cast(HTTPMethod, invoke_options.get("method", "POST"))
             response_type = invoke_options.get("responseType", "text/plain")
 
             region = invoke_options.get("region")
