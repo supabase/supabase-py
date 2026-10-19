@@ -105,6 +105,9 @@ class connect_once:
         await self.client.close()
 
 
+MAX_RECONNECT_DELAY = 60
+
+
 class MaxRetriesExceeded(Exception):
     pass
 
@@ -113,7 +116,7 @@ def exponential_delay(max_retries: int, retry_count: int) -> float | None:
     if retry_count == max_retries:
         return None
     else:
-        return float(2**retry_count)
+        return float(min(2**retry_count, MAX_RECONNECT_DELAY))
 
 
 async def automatically_reconnect(
