@@ -26,7 +26,12 @@ from supabase_utils.http.io import (
     handle_http_io,
 )
 from supabase_utils.http.query import URLQuery
-from supabase_utils.http.request import HTTPRequestMethod, JSONRequest, Response
+from supabase_utils.http.request import (
+    HTTPRequestMethod,
+    JSONRequest,
+    Request,
+    Response,
+)
 from supabase_utils.types import JSON
 from typing_extensions import Self
 from yarl import URL
@@ -240,6 +245,21 @@ class SingleAPIResponse:
 
 class PostgrestRequest(JSONRequest):
     retry: bool = True
+    strip_nulls: bool = False
+
+    def finalize(self, base_url: URL, default_headers: Headers) -> Request:
+        request = super().finalize(base_url, default_headers)
+        if self.strip_nulls:
+            accept = request.headers.get("Accept")
+            if accept == "application/vnd.pgrst.object+json":
+                request.headers = request.headers.override(
+                    "Accept", f"{accept};nulls=stripped"
+                )
+            elif accept in (None, "application/json"):
+                request.headers = request.headers.override(
+                    "Accept", "application/vnd.pgrst.array+json;nulls=stripped"
+                )
+        return request
 
 
 class BaseFilterRequestBuilder:
@@ -563,6 +583,16 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         )
         val = f"{order}{nullsfirst_str}"
         self.request.query = self.request.query.set(key, val)
+        return self
+
+    def strip_nulls(self: Self) -> Self:
+        """Strip null values from the response data.
+
+        Only available in PostgREST v11.2+.
+        """
+        if self.request.headers.get("Accept") == "text/csv":
+            raise ValueError("strip_nulls() cannot be used with csv()")
+        self.request.strip_nulls = True
         return self
 
     def limit(self: Self, size: int, *, foreign_table: str | None = None) -> Self:
