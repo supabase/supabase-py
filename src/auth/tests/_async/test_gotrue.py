@@ -797,3 +797,82 @@ async def test_initialize_from_storage_keeps_refreshed_session() -> None:
     assert Session.model_validate_json(stored).access_token == "new-access-token"
     assert client._refresh_token_timer is not None
     client._refresh_token_timer.cancel()
+
+
+async def test_auto_refresh_only_refreshes_once(mocker) -> None:
+    import json
+
+    from httpx import AsyncClient, MockTransport, Request, Response
+    from supabase_auth import AsyncGoTrueClient
+    from supabase_auth.types import Session
+
+    class CapturedTimer:
+        def __init__(self, milliseconds, callback) -> None:
+            self.callback = callback
+            self.started = False
+            self.cancelled = False
+
+        def start(self) -> None:
+            self.started = True
+
+        def cancel(self) -> None:
+            self.cancelled = True
+
+    mocker.patch("supabase_auth._async.gotrue_client.Timer", CapturedTimer)
+    now = round(time.time())
+    refresh_tokens = []
+    events = []
+    user = {
+        "id": str(uuid4()),
+        "aud": "authenticated",
+        "app_metadata": {},
+        "user_metadata": {},
+        "created_at": "2024-01-01T00:00:00Z",
+    }
+
+    def response(number, expires_in) -> dict[str, object]:
+        return {
+            "access_token": f"access-{number}",
+            "refresh_token": f"refresh-{number}",
+            "token_type": "bearer",
+            "expires_in": expires_in,
+            "expires_at": now + expires_in,
+            "user": user,
+        }
+
+    def handler(request: Request) -> Response:
+        if request.url.params.get("grant_type") == "refresh_token":
+            refresh_tokens.append(json.loads(request.content)["refresh_token"])
+            return Response(200, json=response(len(refresh_tokens), 3600))
+        return Response(200, json=response(0, 11))
+
+    async with AsyncClient(transport=MockTransport(handler)) as http_client:
+        client = AsyncGoTrueClient(url="http://auth.test", http_client=http_client)
+        client.on_auth_state_change(lambda event, _session: events.append(event))
+        await client.sign_in_with_password(
+            {"email": "user@example.test", "password": "unused"}
+        )
+        initial_timer = client._refresh_token_timer
+        assert initial_timer is not None and initial_timer.started
+
+        mocker.patch(
+            "supabase_auth._async.gotrue_client.time.time", return_value=now + 1
+        )
+        await initial_timer.callback()
+
+        assert refresh_tokens == ["refresh-0"]
+        assert events == ["SIGNED_IN", "TOKEN_REFRESHED"]
+        assert initial_timer.cancelled
+        stored = await client._storage.get_item(client._storage_key)
+        assert stored is not None
+        assert Session.model_validate_json(stored).refresh_token == "refresh-1"
+
+        # Explicit refresh still rotates the current session once.
+        await client.refresh_session()
+        assert refresh_tokens == ["refresh-0", "refresh-1"]
+        assert events == ["SIGNED_IN", "TOKEN_REFRESHED", "TOKEN_REFRESHED"]
+        current_timer = client._refresh_token_timer
+        assert current_timer is not None and current_timer.started
+        await client._remove_session()
+        assert current_timer.cancelled
+        assert await client._storage.get_item(client._storage_key) is None

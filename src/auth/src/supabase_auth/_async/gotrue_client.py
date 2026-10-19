@@ -1119,9 +1119,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         async def refresh_token_function() -> None:
             self._network_retries += 1
             try:
-                session = await self.get_session()
-                if session:
-                    await self._call_refresh_token(session.refresh_token)
+                if await self.get_session():
                     self._network_retries = 0
             except Exception as e:
                 if (
