@@ -83,6 +83,7 @@ class RequestConfig(Generic[C]):
         self.json = None if http_method in {"GET", "HEAD"} else json
         self.auth = auth
         self.retry_enabled = retry_enabled
+        self.strip_nulls = False
 
     @overload
     def send(
@@ -95,6 +96,14 @@ class RequestConfig(Generic[C]):
 
     def send(self: RequestConfig[C], additional_headers: Headers):
         additional_headers.update(self.headers)
+        if self.strip_nulls:
+            accept = additional_headers.get("Accept")
+            if accept == "application/vnd.pgrst.object+json":
+                additional_headers["Accept"] = f"{accept};nulls=stripped"
+            elif accept in (None, "application/json"):
+                additional_headers["Accept"] = (
+                    "application/vnd.pgrst.array+json;nulls=stripped"
+                )
         return self.session.request(
             self.http_method,
             str(self.path),
@@ -672,6 +681,16 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
             f"{foreign_table}.limit" if foreign_table else "limit",
             end - start + 1,
         )
+        return self
+
+    def strip_nulls(self: Self) -> Self:
+        """Strip null values from the response data.
+
+        Only available in PostgREST v11.2+.
+        """
+        if self.request.headers.get("Accept") == "text/csv":
+            raise ValueError("strip_nulls() cannot be used with csv()")
+        self.request.strip_nulls = True
         return self
 
 

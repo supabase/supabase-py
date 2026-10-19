@@ -418,7 +418,10 @@ features:
     symbols:
       - AsyncSelectRequestBuilder.maybe_single
       - SyncSelectRequestBuilder.maybe_single
-  database.using_modifiers.strip_nulls: not_implemented
+  database.using_modifiers.strip_nulls:
+    status: implemented
+    symbols:
+      - BaseSelectRequestBuilder.strip_nulls
   database.using_modifiers.format_csv:
     status: implemented
     symbols:
