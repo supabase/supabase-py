@@ -282,3 +282,61 @@ async def test_httpx_client_base_url_isolation() -> None:
     assert str(postgrest.base_url).rstrip("/").endswith("/rest/v1"), (
         "PostgREST base_url was mutated after accessing functions"
     )
+
+
+async def test_async_client_aclose_cleans_up_all_resources() -> None:
+    """Verify that aclose() closes all underlying sub-clients."""
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = await create_async_client(url, key)
+    # Eagerly initialize sub-clients
+    _ = client.postgrest
+    _ = client.storage
+    _ = client.functions
+
+    assert client._postgrest is not None
+    assert client._storage is not None
+    assert client._functions is not None
+
+    await client.aclose()
+
+    assert client.auth._http_client.is_closed
+    assert client._postgrest.session.is_closed
+    assert client._storage.session.is_closed
+    assert client._functions._client.is_closed
+    assert not client.realtime.is_connected
+
+
+async def test_async_client_context_manager() -> None:
+    """Verify that AsyncClient supports async context manager and cleans up on exit."""
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    async with await create_async_client(url, key) as client:
+        _ = client.postgrest
+        _ = client.storage
+        _ = client.functions
+        assert not client.auth._http_client.is_closed
+
+    assert client.auth._http_client.is_closed
+    assert client._postgrest.session.is_closed
+    assert client._storage.session.is_closed
+    assert client._functions._client.is_closed
+
+
+async def test_async_client_aclose_without_subclients_accessed() -> None:
+    """Verify aclose() handles uninstantiated lazy sub-clients cleanly."""
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = await create_async_client(url, key)
+    assert client._postgrest is None
+    assert client._storage is None
+    assert client._functions is None
+
+    await client.aclose()
+    assert client.auth._http_client.is_closed
+    assert client._postgrest is None
+    assert client._storage is None
+    assert client._functions is None

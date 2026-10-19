@@ -125,6 +125,50 @@ class Client:
 
         return client
 
+    def __enter__(self) -> "Client":
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        self.close()
+
+    def close(self) -> None:
+        """Close all underlying sub-client HTTP connections and resources."""
+        if hasattr(self.auth, "close"):
+            self.auth.close()
+        elif hasattr(self.auth, "_http_client") and hasattr(
+            self.auth._http_client, "close"
+        ):
+            self.auth._http_client.close()
+
+        if self._postgrest is not None:
+            if hasattr(self._postgrest, "close"):
+                self._postgrest.close()
+            elif hasattr(self._postgrest, "aclose"):
+                self._postgrest.aclose()
+            elif hasattr(self._postgrest, "session") and hasattr(
+                self._postgrest.session, "close"
+            ):
+                self._postgrest.session.close()
+
+        if self._storage is not None:
+            if hasattr(self._storage, "close"):
+                self._storage.close()
+            elif hasattr(self._storage, "session") and hasattr(
+                self._storage.session, "close"
+            ):
+                self._storage.session.close()
+
+        if self._functions is not None:
+            if hasattr(self._functions, "close"):
+                self._functions.close()
+            elif hasattr(self._functions, "_client") and hasattr(
+                self._functions._client, "close"
+            ):
+                self._functions._client.close()
+
+        if self.realtime is not None and hasattr(self.realtime, "close"):
+            self.realtime.close()
+
     def table(self, table_name: str) -> SyncRequestBuilder:
         """Perform a table operation.
 

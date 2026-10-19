@@ -282,3 +282,60 @@ def test_httpx_client_base_url_isolation() -> None:
     assert str(postgrest.base_url).rstrip("/").endswith("/rest/v1"), (
         "PostgREST base_url was mutated after accessing functions"
     )
+
+
+def test_sync_client_close_cleans_up_all_resources() -> None:
+    """Verify that close() closes all underlying sub-clients."""
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = create_client(url, key)
+    # Eagerly initialize sub-clients
+    _ = client.postgrest
+    _ = client.storage
+    _ = client.functions
+
+    assert client._postgrest is not None
+    assert client._storage is not None
+    assert client._functions is not None
+
+    client.close()
+
+    assert client.auth._http_client.is_closed
+    assert client._postgrest.session.is_closed
+    assert client._storage.session.is_closed
+    assert client._functions._client.is_closed
+
+
+def test_sync_client_context_manager() -> None:
+    """Verify that Client supports context manager and cleans up on exit."""
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    with create_client(url, key) as client:
+        _ = client.postgrest
+        _ = client.storage
+        _ = client.functions
+        assert not client.auth._http_client.is_closed
+
+    assert client.auth._http_client.is_closed
+    assert client._postgrest.session.is_closed
+    assert client._storage.session.is_closed
+    assert client._functions._client.is_closed
+
+
+def test_sync_client_close_without_subclients_accessed() -> None:
+    """Verify close() handles uninstantiated lazy sub-clients cleanly."""
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = create_client(url, key)
+    assert client._postgrest is None
+    assert client._storage is None
+    assert client._functions is None
+
+    client.close()
+    assert client.auth._http_client.is_closed
+    assert client._postgrest is None
+    assert client._storage is None
+    assert client._functions is None

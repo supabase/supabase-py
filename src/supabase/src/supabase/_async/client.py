@@ -126,6 +126,48 @@ class AsyncClient:
 
         return client
 
+    async def __aenter__(self) -> "AsyncClient":
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        await self.aclose()
+
+    async def aclose(self) -> None:
+        """Close all underlying sub-client HTTP connections and resources."""
+        if hasattr(self.auth, "close"):
+            await self.auth.close()
+        elif hasattr(self.auth, "_http_client") and hasattr(
+            self.auth._http_client, "aclose"
+        ):
+            await self.auth._http_client.aclose()
+
+        if self._postgrest is not None:
+            if hasattr(self._postgrest, "aclose"):
+                await self._postgrest.aclose()
+            elif hasattr(self._postgrest, "session") and hasattr(
+                self._postgrest.session, "aclose"
+            ):
+                await self._postgrest.session.aclose()
+
+        if self._storage is not None:
+            if hasattr(self._storage, "aclose"):
+                await self._storage.aclose()
+            elif hasattr(self._storage, "session") and hasattr(
+                self._storage.session, "aclose"
+            ):
+                await self._storage.session.aclose()
+
+        if self._functions is not None:
+            if hasattr(self._functions, "aclose"):
+                await self._functions.aclose()
+            elif hasattr(self._functions, "_client") and hasattr(
+                self._functions._client, "aclose"
+            ):
+                await self._functions._client.aclose()
+
+        if self.realtime is not None and hasattr(self.realtime, "close"):
+            await self.realtime.close()
+
     def table(self, table_name: str) -> AsyncRequestBuilder:
         """Perform a table operation.
 
