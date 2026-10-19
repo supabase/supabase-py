@@ -3,7 +3,15 @@ from __future__ import annotations
 import time
 from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
 
-from httpx import BasicAuth, Client, Headers, QueryParams, Response
+from httpx import (
+    BasicAuth,
+    Client,
+    Headers,
+    NetworkError,
+    QueryParams,
+    RemoteProtocolError,
+    Response,
+)
 from pydantic import ValidationError
 from typing_extensions import Self, override
 from yarl import URL
@@ -30,16 +38,17 @@ ReqConfig = RequestConfig[Client]
 QueryBuilderT = TypeVar("QueryBuilderT", bound="SyncQueryRequestBuilder")
 
 
-def get_retry_delay(resp: Response, attempt_count: int) -> int:
+def get_retry_delay(attempt_count: int) -> int:
     delay: int = min(2**attempt_count, 30)
     return delay
 
 
 def send_with_retry(req: ReqConfig) -> Response:
     """
-    Retries idempotent requests that failed due to Cloudflare errors.
-    Request method must be either "GET" or "HEAD", and the response status code
-    must be either 503 or 520.
+    Retries idempotent requests that failed due to a transient error.
+    Request method must be either "GET" or "HEAD", and the request must either
+    get a 503 or 520 response, or fail at the network level (connection reset
+    or closed by the server, e.g. an HTTP/2 GOAWAY).
     """
     attempt_count = 0
     while True:
@@ -48,12 +57,18 @@ def send_with_retry(req: ReqConfig) -> Response:
             if attempt_count > 0
             else Headers()
         )
-        resp = req.send(headers)
-        if resp.is_success or not req.should_retry(resp, attempt_count=attempt_count):
-            break
-        time.sleep(get_retry_delay(resp, attempt_count))
+        try:
+            resp = req.send(headers)
+        except (NetworkError, RemoteProtocolError) as error:
+            if not req.should_retry_error(error, attempt_count=attempt_count):
+                raise
+        else:
+            if resp.is_success or not req.should_retry(
+                resp, attempt_count=attempt_count
+            ):
+                return resp
+        time.sleep(get_retry_delay(attempt_count))
         attempt_count += 1
-    return resp
 
 
 class SyncQueryRequestBuilder:

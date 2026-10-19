@@ -1,7 +1,16 @@
+import asyncio
 from typing import Any, AsyncIterable, Dict, List
 
 import pytest
-from httpx import AsyncClient, Headers, QueryParams, Request, Response
+from httpx import (
+    AsyncClient,
+    Headers,
+    MockTransport,
+    QueryParams,
+    RemoteProtocolError,
+    Request,
+    Response,
+)
 from yarl import URL
 
 from postgrest import (
@@ -10,7 +19,7 @@ from postgrest import (
     AsyncSingleRequestBuilder,
 )
 from postgrest._async.request_builder import RequestConfig
-from postgrest.base_request_builder import APIResponse, SingleAPIResponse
+from postgrest.base_request_builder import MAX_RETRIES, APIResponse, SingleAPIResponse
 from postgrest.types import JSON, CountMethod, ReturnMethod
 
 
@@ -654,3 +663,53 @@ class TestApiResponse:
         )
         assert isinstance(result.data, str)
         assert result.data == csv_api_response
+
+
+class TestRetryOnNetworkError:
+    @staticmethod
+    def make_builder(failures: int, calls: List[str]) -> AsyncRequestBuilder:
+        def handler(request: Request) -> Response:
+            calls.append(request.method)
+            if len(calls) <= failures:
+                raise RemoteProtocolError("Server disconnected", request=request)
+            return Response(200, json=[])
+
+        client = AsyncClient(
+            base_url="http://example.com", transport=MockTransport(handler)
+        )
+        return AsyncRequestBuilder(client, URL("/example_table"), Headers(), None)
+
+    @pytest.fixture(autouse=True)
+    def no_sleep(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def sleep(_: float) -> None:
+            return None
+
+        monkeypatch.setattr(asyncio, "sleep", sleep)
+
+    async def test_select_is_retried_after_a_dropped_connection(self):
+        calls: List[str] = []
+        response = await self.make_builder(1, calls).select("*").execute()
+
+        assert response.data == []
+        assert calls == ["GET", "GET"]
+
+    async def test_gives_up_after_max_retries(self):
+        calls: List[str] = []
+        with pytest.raises(RemoteProtocolError):
+            await self.make_builder(10, calls).select("*").execute()
+
+        assert len(calls) == MAX_RETRIES + 1
+
+    async def test_write_is_not_retried(self):
+        calls: List[str] = []
+        with pytest.raises(RemoteProtocolError):
+            await self.make_builder(1, calls).insert({"a": 1}).execute()
+
+        assert calls == ["POST"]
+
+    async def test_retry_disabled(self):
+        calls: List[str] = []
+        with pytest.raises(RemoteProtocolError):
+            await self.make_builder(1, calls).select("*").retry(False).execute()
+
+        assert calls == ["GET"]
