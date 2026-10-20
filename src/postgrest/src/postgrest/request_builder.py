@@ -26,14 +26,19 @@ from supabase_utils.http.io import (
     handle_http_io,
 )
 from supabase_utils.http.query import URLQuery
-from supabase_utils.http.request import HTTPRequestMethod, JSONRequest, Response
+from supabase_utils.http.request import (
+    HTTPRequestMethod,
+    JSONRequest,
+    Request,
+    Response,
+)
 from supabase_utils.types import JSON
 from typing_extensions import Self
 from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
-from .types import CountMethod, Filters, ReturnMethod
-from .utils import model_validate_json, sanitize_param
+from .types import CountMethod, Filters, FilterValue, ReturnMethod
+from .utils import _sanitize_array_param, model_validate_json, sanitize_param
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -58,6 +63,21 @@ def _unique_columns(json: List[Dict[str, JSON]]):
     unique_keys = {key for row in json for key in row.keys()}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
+
+
+def _serialize_filter_value(value: Any) -> str:
+    """Serialize a filter value into the wire format PostgREST expects.
+
+    ``None`` maps to ``null``, booleans to ``true``/``false``, and dicts/lists
+    to compact JSON, instead of the plain ``str()`` result (e.g. ``"None"``).
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"))
+    return str(value)
 
 
 def _cleaned_columns(columns: Tuple[str, ...]) -> str:
@@ -225,6 +245,21 @@ class SingleAPIResponse:
 
 class PostgrestRequest(JSONRequest):
     retry: bool = True
+    strip_nulls: bool = False
+
+    def finalize(self, base_url: URL, default_headers: Headers) -> Request:
+        request = super().finalize(base_url, default_headers)
+        if self.strip_nulls:
+            accept = request.headers.get("Accept")
+            if accept == "application/vnd.pgrst.object+json":
+                request.headers = request.headers.override(
+                    "Accept", f"{accept};nulls=stripped"
+                )
+            elif accept in (None, "application/json"):
+                request.headers = request.headers.override(
+                    "Accept", "application/vnd.pgrst.array+json;nulls=stripped"
+                )
+        return request
 
 
 class BaseFilterRequestBuilder:
@@ -256,14 +291,14 @@ class BaseFilterRequestBuilder:
         self.request.query = self.request.query.set(key, val)
         return self
 
-    def eq(self: Self, column: str, value: str | int) -> Self:
+    def eq(self: Self, column: str, value: Any) -> Self:
         """An 'equal to' filter.
 
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.EQ, value)
+        return self.filter(column, Filters.EQ, _serialize_filter_value(value))
 
     def neq(self: Self, column: str, value: Any) -> Self:
         """A 'not equal to' filter
@@ -272,7 +307,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.NEQ, value)
+        return self.filter(column, Filters.NEQ, _serialize_filter_value(value))
 
     def gt(self: Self, column: str, value: Any) -> Self:
         """A 'greater than' filter
@@ -281,7 +316,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.GT, value)
+        return self.filter(column, Filters.GT, _serialize_filter_value(value))
 
     def gte(self: Self, column: str, value: Any) -> Self:
         """A 'greater than or equal to' filter
@@ -290,7 +325,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.GTE, value)
+        return self.filter(column, Filters.GTE, _serialize_filter_value(value))
 
     def lt(self: Self, column: str, value: Any) -> Self:
         """A 'less than' filter
@@ -299,7 +334,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.LT, value)
+        return self.filter(column, Filters.LT, _serialize_filter_value(value))
 
     def lte(self: Self, column: str, value: Any) -> Self:
         """A 'less than or equal to' filter
@@ -308,7 +343,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.LTE, value)
+        return self.filter(column, Filters.LTE, _serialize_filter_value(value))
 
     def is_(self: Self, column: str, value: Any) -> Self:
         """An 'is' filter
@@ -319,6 +354,10 @@ class BaseFilterRequestBuilder:
         """
         if value is None:
             value = "null"
+        elif value is True:
+            value = "true"
+        elif value is False:
+            value = "false"
         return self.filter(column, Filters.IS, value)
 
     def like(self: Self, column: str, pattern: str) -> Self:
@@ -386,7 +425,15 @@ class BaseFilterRequestBuilder:
             filters: The filters to use, following PostgREST syntax
             reference_table: Set this to filter on referenced tables instead of the parent table
         """
-        key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
+        if self.negate_next:
+            self.negate_next = False
+            key = (
+                f"{sanitize_param(reference_table)}.not.or"
+                if reference_table
+                else "not.or"
+            )
+        else:
+            key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
         self.request.query = self.request.query.set(key, f"({filters})")
         return self
 
@@ -402,21 +449,18 @@ class BaseFilterRequestBuilder:
     def wfts(self: Self, column: str, query: Any) -> Self:
         return self.filter(column, Filters.WFTS, query)
 
-    def in_(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = map(sanitize_param, values)
-        values = ",".join(values)
-        return self.filter(column, Filters.IN, f"({values})")
+    def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
+        stringified_values = ",".join(map(sanitize_param, values))
+        return self.filter(column, Filters.IN, f"({stringified_values})")
 
-    def cs(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(values)
-        return self.filter(column, Filters.CS, f"{{{values}}}")
+    def cs(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
+        return self.filter(column, Filters.CS, _sanitize_array_param(values))
 
-    def cd(self: Self, column: str, values: Iterable[Any]) -> Self:
-        values = ",".join(values)
-        return self.filter(column, Filters.CD, f"{{{values}}}")
+    def cd(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
+        return self.filter(column, Filters.CD, _sanitize_array_param(values))
 
     def contains(
-        self: Self, column: str, value: Iterable[str] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[FilterValue] | str | Dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -424,24 +468,22 @@ class BaseFilterRequestBuilder:
             return self.filter(column, Filters.CS, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(value)
-            return self.filter(column, Filters.CS, f"{{{stringified_values}}}")
+            return self.filter(column, Filters.CS, _sanitize_array_param(value))
 
         return self.filter(column, Filters.CS, json.dumps(value))
 
     def contained_by(
-        self: Self, column: str, value: Iterable[str] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[FilterValue] | str | Dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range
             return self.filter(column, Filters.CD, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
-            stringified_values = ",".join(value)
-            return self.filter(column, Filters.CD, f"{{{stringified_values}}}")
+            return self.filter(column, Filters.CD, _sanitize_array_param(value))
         return self.filter(column, Filters.CD, json.dumps(value))
 
     def ov(
-        self: Self, column: str, value: Iterable[str] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[FilterValue] | str | Dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -449,8 +491,7 @@ class BaseFilterRequestBuilder:
             return self.filter(column, Filters.OV, value)
         if not isinstance(value, dict) and isinstance(value, Iterable):
             # Expected to be some type of iterable
-            stringified_values = ",".join(value)
-            return self.filter(column, Filters.OV, f"{{{stringified_values}}}")
+            return self.filter(column, Filters.OV, _sanitize_array_param(value))
         return self.filter(column, Filters.OV, json.dumps(value))
 
     def sl(self: Self, column: str, min: str, max: str) -> Self:
@@ -483,7 +524,7 @@ class BaseFilterRequestBuilder:
     def range_adjacent(self: Self, column: str, min: str, max: str) -> Self:
         return self.adj(column, min, max)
 
-    def overlaps(self: Self, column: str, values: str | Iterable[str]) -> Self:
+    def overlaps(self: Self, column: str, values: str | Iterable[FilterValue]) -> Self:
         return self.ov(column, values)
 
     def match(self: Self, query: Dict[str, str | int]) -> Self:
@@ -542,6 +583,16 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         )
         val = f"{order}{nullsfirst_str}"
         self.request.query = self.request.query.set(key, val)
+        return self
+
+    def strip_nulls(self: Self) -> Self:
+        """Strip null values from the response data.
+
+        Only available in PostgREST v11.2+.
+        """
+        if self.request.headers.get("Accept") == "text/csv":
+            raise ValueError("strip_nulls() cannot be used with csv()")
+        self.request.strip_nulls = True
         return self
 
     def limit(self: Self, size: int, *, foreign_table: str | None = None) -> Self:
@@ -620,7 +671,7 @@ class BaseRequestClient(Generic[HttpIO]):
 def can_retry(resp: Response, retry_enabled: bool, attempt_count: int) -> bool:
     if not retry_enabled or attempt_count >= MAX_RETRIES:
         return False
-    if not (resp.request.method == "GET" or resp.request.method == "HTTP"):
+    if not (resp.request.method == "GET" or resp.request.method == "HEAD"):
         return False
     return resp.status == 503 or resp.status == 520
 
@@ -639,7 +690,7 @@ def send_with_retry(req: PostgrestRequest) -> HttpMethod[Response]:
 
 
 class QueryRequestBuilder(BaseRequestClient[HttpIO]):
-    def select(self, *columns: str) -> QueryRequestBuilder[HttpIO]:
+    def select(self, *columns: str) -> Self:
         _, params, _, _ = pre_select(*columns, count=None)
         self.request.query = self.request.query.set("select", params["select"])
         if prefer_headers := self.request.headers.get_list("Prefer"):
@@ -751,7 +802,14 @@ class MaybeSingleRequestBuilder(BaseRequestClient[HttpIO]):
             if len(parsed.data) == 1:
                 return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
             else:
-                raise APIError(dict())
+                raise APIError(
+                    {
+                        "message": "Cannot coerce the result to a single JSON object",
+                        "code": "406",
+                        "hint": "Please check traceback of the code",
+                        "details": "The result contains more than one row.",
+                    }
+                )
         else:
             json_obj = model_validate_json(APIErrorFromJSON, response.content)
             raise APIError(dict(json_obj))
@@ -772,6 +830,15 @@ class RPCFilterRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
             "Accept", "application/vnd.pgrst.object+json"
         )
         return SingleRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=self.request,
+        )
+
+    def maybe_single(self) -> MaybeSingleRequestBuilder[HttpIO]:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return MaybeSingleRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
@@ -863,9 +930,7 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.request.query = self.request.query.set(
-            column, f"{type_part}fts{config_part}.{query}"
-        )
+        self.filter(column, f"{type_part}fts{config_part}", query)
 
         return QueryRequestBuilder(
             executor=self.executor,
@@ -994,7 +1059,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         returning: ReturnMethod = ReturnMethod.representation,
         upsert: bool = False,
         default_to_null: bool = True,
-    ) -> QueryRequestBuilder[HttpIO]:
+    ) -> SelectRequestBuilder[HttpIO]:
         """Run an INSERT query.
 
         Args:
@@ -1006,7 +1071,7 @@ class RequestBuilder(Generic[HttpIO]):  #
                 Otherwise, use the default value for the column.
                 Only applies for bulk inserts.
         Returns:
-            :class:`AsyncQueryRequestBuilder`
+            :class:`SelectRequestBuilder`
         """
         method, params, headers, json = pre_insert(
             json,
@@ -1023,7 +1088,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             headers=headers,
             body=json,
         )
-        return QueryRequestBuilder(
+        return SelectRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
@@ -1039,7 +1104,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         ignore_duplicates: bool = False,
         on_conflict: str = "",
         default_to_null: bool = True,
-    ) -> QueryRequestBuilder[HttpIO]:
+    ) -> SelectRequestBuilder[HttpIO]:
         """Run an upsert (INSERT ... ON CONFLICT DO UPDATE) query.
 
         Args:
@@ -1053,7 +1118,7 @@ class RequestBuilder(Generic[HttpIO]):  #
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
         Returns:
-            :class:`AsyncQueryRequestBuilder`
+            :class:`SelectRequestBuilder`
         """
         method, params, headers, json = pre_upsert(
             json,
@@ -1070,7 +1135,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             headers=headers,
             body=json,
         )
-        return QueryRequestBuilder(
+        return SelectRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
@@ -1083,7 +1148,7 @@ class RequestBuilder(Generic[HttpIO]):  #
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> FilterRequestBuilder[HttpIO]:
+    ) -> SelectRequestBuilder[HttpIO]:
         """Run an UPDATE query.
 
         Args:
@@ -1091,7 +1156,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`AsyncFilterRequestBuilder`
+            :class:`SelectRequestBuilder`
         """
         method, params, headers, json = pre_update(
             json,
@@ -1105,7 +1170,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             headers=headers,
             body=json,
         )
-        return FilterRequestBuilder(
+        return SelectRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
@@ -1117,14 +1182,14 @@ class RequestBuilder(Generic[HttpIO]):  #
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> FilterRequestBuilder[HttpIO]:
+    ) -> SelectRequestBuilder[HttpIO]:
         """Run a DELETE query.
 
         Args:
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`AsyncFilterRequestBuilder`
+            :class:`SelectRequestBuilder`
         """
         method, params, headers, json = pre_delete(
             count=count,
@@ -1137,7 +1202,7 @@ class RequestBuilder(Generic[HttpIO]):  #
             headers=headers,
             body=json,
         )
-        return FilterRequestBuilder(
+        return SelectRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
