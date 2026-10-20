@@ -1,4 +1,6 @@
+import json
 from datetime import datetime
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,12 +12,15 @@ from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
 )
 from supabase_auth.errors import (
+    AuthApiError,
     AuthInvalidJwtError,
+    AuthWeakPasswordError,
 )
 from supabase_auth.helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
+    handle_error_response,
     parse_link_identity_response,
     parse_response_api_version,
     validate_exp,
@@ -129,3 +134,71 @@ def test_is_http_url() -> None:
     assert is_http_url("example.com") is False  # Missing scheme
     assert is_http_url("") is False
     assert is_http_url("not a url") is False
+
+
+def error_response(status: int, body: Any) -> Response:
+    return Response(
+        headers=Headers.empty(),
+        content=json.dumps(body).encode(),
+        status=status,
+        request=valid_request(),
+    )
+
+
+def test_handle_error_response_legacy_weak_password_without_error_code() -> None:
+    result = handle_error_response(
+        error_response(
+            422,
+            {
+                "message": "Password too weak",
+                "weak_password": {"reasons": ["length", "characters"]},
+            },
+        )
+    )
+
+    assert isinstance(result, AuthWeakPasswordError)
+    assert result.message == "Password too weak"
+    assert result.status == 422
+    assert result.reasons == ["length", "characters"]
+
+
+@pytest.mark.parametrize(
+    "weak_password",
+    [
+        {"reasons": []},
+        {"reasons": "length"},
+        {"reasons": ["length", 1]},
+        {},
+        "length",
+    ],
+)
+def test_handle_error_response_legacy_weak_password_ignores_malformed_reasons(
+    weak_password: Any,
+) -> None:
+    result = handle_error_response(
+        error_response(
+            422,
+            {"message": "Password too weak", "weak_password": weak_password},
+        )
+    )
+
+    assert isinstance(result, AuthApiError)
+    assert not isinstance(result, AuthWeakPasswordError)
+    assert result.message == "Password too weak"
+    assert result.status == 422
+
+
+def test_handle_error_response_weak_password_with_error_code() -> None:
+    result = handle_error_response(
+        error_response(
+            422,
+            {
+                "message": "Password too weak",
+                "error_code": "weak_password",
+                "weak_password": {"reasons": ["length"]},
+            },
+        )
+    )
+
+    assert isinstance(result, AuthWeakPasswordError)
+    assert result.reasons == ["length"]

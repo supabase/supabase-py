@@ -120,7 +120,7 @@ class SessionManagerCommon(Generic[HttpIO]):
         event: AuthChangeEvent,
         session: Session | None,
     ) -> None:
-        for subscription in self.state_change_emitters.values():
+        for subscription in list(self.state_change_emitters.values()):
             subscription.callback(event, session)
 
 
@@ -225,6 +225,7 @@ class AsyncSessionManager(SessionManagerCommon[AsyncHttpIO]):
                 try:
                     await self.call_refresh_token(refresh_token)
                     self.network_retries = 0
+                    return
                 except Exception as e:
                     if (
                         isinstance(e, AuthRetryableError)
@@ -410,6 +411,7 @@ class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
                 try:
                     self.call_refresh_token(refresh_token)
                     self.network_retries = 0
+                    return
                 except Exception as e:
                     if (
                         isinstance(e, AuthRetryableError)
