@@ -9,7 +9,12 @@ from dotenv import load_dotenv
 from realtime import RealtimeChannel, RealtimeClient
 from realtime.client import connect_once
 from realtime.message import PresenceDiffMessage, ServerMessage
-from realtime.presence import PresenceJoin, PresenceLeave, _transform_state
+from realtime.presence import (
+    PresenceJoin,
+    PresenceLeave,
+    RealtimePresence,
+    _transform_state,
+)
 from realtime.types import ChannelStates, Presence, RawPresenceState
 
 load_dotenv()
@@ -139,3 +144,17 @@ def test_transform_state_additional_fields() -> None:
 
     result = _transform_state(state_with_additional_fields)
     assert result == expected_output
+
+
+def test_diff_join_for_known_presence_is_not_reported_twice() -> None:
+    presence = RealtimePresence()
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}  # type: ignore
+    assert len(list(presence._on_state_event(state))) == 1
+
+    diff_joins: RawPresenceState = {
+        "k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}  # type: ignore
+    }
+    events = list(presence._on_diff_event({"joins": diff_joins, "leaves": {}}))
+
+    assert events == []
+    assert presence.state == {"k": [{"presence_ref": "A", "user_id": "1"}]}

@@ -177,8 +177,10 @@ class RealtimeClient:
                 except ValidationError as e:
                     logger.error(f"Unrecognized message format {msg!r}\n{e}")
                     continue
-                if message.ref is not None:
-                    self.message_refs[message.ref].set_result(message)
+                if message.ref is not None and (
+                    fut := self.message_refs.get(message.ref)
+                ):
+                    fut.set_result(message)
                 elif channel := self.channels.get(message.topic):
                     await channel.message_stream.put(message)
                 else:
