@@ -21,15 +21,18 @@ help::
 
 unasync:
 	uv run run-unasync.py
-build-sync: unasync
-	sed -i 's/asyncio.create_task(self.realtime.set_auth(access_token))//g' src/supabase/_sync/client.py
-	sed -i 's/asynch/synch/g' src/supabase/_sync/auth_client.py
-	sed -i 's/Async/Sync/g' src/supabase/_sync/auth_client.py
-	sed -i 's/Async/Sync/g' src/supabase/_sync/client.py
-	sed -i 's/create_async_client/create_client/g' tests/_sync/test_client.py
-	sed -i 's/SyncClient/Client/gi' tests/_sync/test_client.py
-	sed -i 's/SyncHTTPTransport/HTTPTransport/g' tests/_sync/test_client.py
-	sed -i 's/SyncMock/Mock/g' tests/_sync/test_client.py
+include ../../gnu-sed.mk
+
+build-sync: gnu-sed
+	@$(MAKE) --no-print-directory unasync
+	$(SED) -i 's/asyncio.create_task(self.realtime.set_auth(access_token))//g' src/supabase/_sync/client.py
+	$(SED) -i 's/asynch/synch/g' src/supabase/_sync/auth_client.py
+	$(SED) -i 's/Async/Sync/g' src/supabase/_sync/auth_client.py
+	$(SED) -i 's/Async/Sync/g' src/supabase/_sync/client.py
+	$(SED) -i 's/create_async_client/create_client/g' tests/_sync/test_client.py
+	$(SED) -i 's/SyncClient/Client/gi' tests/_sync/test_client.py
+	$(SED) -i 's/SyncHTTPTransport/HTTPTransport/g' tests/_sync/test_client.py
+	$(SED) -i 's/SyncMock/Mock/g' tests/_sync/test_client.py
 help::
 	@echo "  build-sync     -- generate _sync from _async implementation"
 

@@ -33,6 +33,7 @@
       pkgs.supabase-cli
       pkgs.uv
       pkgs.gnumake
+      pkgs.gnused
       pkgs.docker
       pkgs.postgresql_15
     ];
