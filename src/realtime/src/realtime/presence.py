@@ -141,21 +141,26 @@ class RealtimePresence:
     def _sync_diff(
         self, joins: RealtimePresenceState, leaves: RealtimePresenceState
     ) -> Generator[PresenceEvent, None, RealtimePresenceState]:
-        for key, new_presences in joins.items():
+        for key, joined_presences in joins.items():
             current_presences = self.state.get(key, [])
-            self.state[key] = new_presences
-
-            if len(current_presences) > 0:
-                joined_presence_refs = {
-                    presence["presence_ref"] for presence in new_presences
-                }
-                cur_presences = list(
-                    presence
-                    for presence in current_presences
-                    if presence["presence_ref"] not in joined_presence_refs
-                )
-                self.state[key].extend(cur_presences)
-            yield PresenceJoin(key, current_presences, new_presences)
+            current_presence_refs = {
+                presence["presence_ref"] for presence in current_presences
+            }
+            new_presences = [
+                presence
+                for presence in joined_presences
+                if presence["presence_ref"] not in current_presence_refs
+            ]
+            joined_presence_refs = {
+                presence["presence_ref"] for presence in joined_presences
+            }
+            self.state[key] = joined_presences + [
+                presence
+                for presence in current_presences
+                if presence["presence_ref"] not in joined_presence_refs
+            ]
+            if new_presences:
+                yield PresenceJoin(key, current_presences, new_presences)
 
         for key, left_presences in leaves.items():
             current_presences = self.state.get(key, [])
