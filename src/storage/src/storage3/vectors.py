@@ -95,7 +95,7 @@ class VectorBucketScope(Generic[HttpIO]):
         prefix: str | None = None,
     ) -> HttpMethod[ListVectorIndexesResponse]:
         body = self.with_metadata(
-            next_token=next_token, max_results=max_results, prefix=prefix
+            nextToken=next_token, maxResults=max_results, prefix=prefix
         )
         response = yield JSONRequest(
             method="POST",

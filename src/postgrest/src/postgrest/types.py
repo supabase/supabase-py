@@ -7,6 +7,8 @@ if sys.version_info >= (3, 11):
 else:
     from strenum import StrEnum
 
+FilterValue = str | int | float | bool
+
 
 class CountMethod(StrEnum):
     exact = "exact"

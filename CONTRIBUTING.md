@@ -4,7 +4,7 @@ We highly appreciate feedback and contributions from the community! If you'd lik
 
 ## Code of conduct
 
-In the interest of fostering an open and welcoming environment, please review and follow our [code of conduct](./CODE_OF_CONDUCT.md).
+In the interest of fostering an open and welcoming environment, please review and follow our [code of conduct](https://github.com/supabase/.github/blob/main/CODE_OF_CONDUCT.md).
 
 ## Code and copy reviews
 

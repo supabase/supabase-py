@@ -9,7 +9,12 @@ from dotenv import load_dotenv
 from realtime import RealtimeChannel, RealtimeClient
 from realtime.client import connect_once
 from realtime.message import PresenceDiffMessage, ServerMessage
-from realtime.presence import PresenceJoin, PresenceLeave, _transform_state
+from realtime.presence import (
+    PresenceJoin,
+    PresenceLeave,
+    RealtimePresence,
+    _transform_state,
+)
 from realtime.types import ChannelStates, Presence, RawPresenceState
 
 load_dotenv()
@@ -139,3 +144,31 @@ def test_transform_state_additional_fields() -> None:
 
     result = _transform_state(state_with_additional_fields)
     assert result == expected_output
+
+
+def test_sync_diff_processes_every_leave_key() -> None:
+    """Leaves for a key the client never tracked must not skip the remaining keys."""
+    presence = RealtimePresence()
+
+    state: RawPresenceState = {
+        "bob": {"metas": [{"phx_ref": "ref-bob"}]},
+    }
+    list(presence._on_state_event(state))
+    assert list(presence.state) == ["bob"]
+
+    events = list(
+        presence._on_diff_event(
+            {
+                "joins": {},
+                "leaves": {
+                    "alice": {"metas": [{"phx_ref": "ref-alice"}]},
+                    "bob": {"metas": [{"phx_ref": "ref-bob"}]},
+                },
+            }
+        )
+    )
+
+    assert presence.state == {}
+    assert [event.key for event in events if isinstance(event, PresenceLeave)] == [
+        "bob"
+    ]

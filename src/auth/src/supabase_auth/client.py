@@ -7,6 +7,7 @@ from typing import Callable, Generic, Literal
 from uuid import uuid4
 
 from jwt import get_algorithm_by_name
+from pydantic import BaseModel
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
@@ -89,6 +90,32 @@ def is_implicit_grant_flow(url: URL) -> bool:
     return "access_token" in params or "error_description" in params
 
 
+PASSWORD_RECOVERY_SUFFIX = "/PASSWORD_RECOVERY"
+
+
+def pkce_challenge_params(code_verifier: str) -> dict[str, str]:
+    code_challenge = generate_pkce_challenge(code_verifier)
+    code_challenge_method = "plain" if code_verifier == code_challenge else "s256"
+    return {
+        "code_challenge": code_challenge,
+        "code_challenge_method": code_challenge_method,
+    }
+
+
+def with_pkce_challenge(
+    body: BaseModel | dict[str, JSON], code_verifier: str | None
+) -> BaseModel | dict[str, JSON]:
+    if code_verifier is None:
+        return body
+    if isinstance(body, BaseModel):
+        body = body.model_dump(mode="json", exclude_none=True)
+    return {**body, **pkce_challenge_params(code_verifier)}
+
+
+def strip_password_recovery_suffix(code_verifier: str) -> str:
+    return code_verifier.split("/", 1)[0]
+
+
 @dataclass
 class SupabaseAuthHttpClient(Generic[HttpIO]):
     executor: HttpIO
@@ -99,6 +126,15 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
     flow_type: AuthFlowType = "implicit"
     _jwks_ttl: float = 600  # 10 minutes
     _jwks_cached_at: float | None = None
+
+    def _new_code_verifier(self) -> str | None:
+        if self.flow_type != "pkce":
+            return None
+        return generate_pkce_verifier()
+
+    @property
+    def _code_verifier_storage_key(self) -> str:
+        return f"{self.session_manager.storage_key}-code-verifier"
 
     @handle_http_io
     def _sign_in_anonymously(
@@ -123,16 +159,19 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
     def _sign_up(
         self,
         credentials: SignUpWithPasswordCredentials,
+        code_verifier: str | None = None,
     ) -> HttpMethod[AuthResponse]:
         """
         Creates a new user.
         """
+        body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, SignUpWithEmailAndPasswordCredentials):
             query = redirect_to_as_query(credentials.redirect_to)
+            body = with_pkce_challenge(body, code_verifier)
         else:
             query = URLQuery.empty()
         response = yield JSONRequest(
-            method="POST", path=["signup"], body=credentials.body, query=query
+            method="POST", path=["signup"], body=body, query=query
         )
         auth_response = parse_auth_response(response)
         return auth_response
@@ -184,13 +223,13 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         return auth_response
 
     @handle_http_io
-    def sign_in_with_sso(
-        self, credentials: SignInWithSSOCredentials
+    def _sign_in_with_sso(
+        self, credentials: SignInWithSSOCredentials, code_verifier: str | None = None
     ) -> HttpMethod[SSOResponse]:
         response = yield JSONRequest(
             method="POST",
             path=["sso"],
-            body=credentials,
+            body=with_pkce_challenge(credentials, code_verifier),
         )
         return parse_sso_response(response)
 
@@ -272,15 +311,18 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
     def _sign_in_with_otp(
         self,
         credentials: SignInWithPasswordlessCredentials,
+        code_verifier: str | None = None,
     ) -> HttpMethod[AuthOtpResponse]:
+        body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials):
             query = redirect_to_as_query(credentials.email_redirect_to)
+            body = with_pkce_challenge(body, code_verifier)
         else:
             query = URLQuery.empty()
         response = yield JSONRequest(
             method="POST",
             path=["otp"],
-            body=credentials.body,
+            body=body,
             query=query,
         )
         return parse_auth_otp_response(response)
@@ -334,6 +376,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         session: Session,
         attributes: UserAttributes,
         email_redirect_to: str | None = None,
+        code_verifier: str | None = None,
     ) -> HttpMethod[UserResponse]:
         """
         Updates user data, if there is a logged in user.
@@ -341,7 +384,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         response = yield JSONRequest(
             method="PUT",
             path=["user"],
-            body=attributes,
+            body=with_pkce_challenge(attributes, code_verifier),
             query=redirect_to_as_query(email_redirect_to),
             headers=session.encode_access_token(),
         )
@@ -374,7 +417,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         else:
             user_response = yield from self.session_manager._get_user(access_token)
             if user_response is None:
-                raise UserDoesntExist(access_token)
+                raise UserDoesntExist()
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -403,11 +446,12 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         return subscription
 
     @handle_http_io
-    def reset_password_for_email(
+    def _reset_password_for_email(
         self,
         email: str,
         captcha_token: str | None = None,
         redirect_to: str | None = None,
+        code_verifier: str | None = None,
     ) -> HttpMethod[None]:
         """
         Sends a password reset request to an email address.
@@ -415,12 +459,15 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         response = yield JSONRequest(
             method="POST",
             path=["recover"],
-            body={
-                "email": email,
-                "gotrue_meta_security": {
-                    "captcha_token": captcha_token,
+            body=with_pkce_challenge(
+                {
+                    "email": email,
+                    "gotrue_meta_security": {
+                        "captcha_token": captcha_token,
+                    },
                 },
-            },
+                code_verifier,
+            ),
             query=redirect_to_as_query(redirect_to),
         )
         if not response.is_success:
@@ -466,7 +513,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         expires_at = time_now + int(expires_in)
         user = yield from self.session_manager._get_user(access_token)
         if user is None:
-            raise UserDoesntExist(access_token)
+            raise UserDoesntExist()
         session = Session(
             provider_token=provider_token,
             provider_refresh_token=provider_refresh_token,
@@ -488,13 +535,8 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         code_verifier = None
         if self.flow_type == "pkce":
             code_verifier = generate_pkce_verifier()
-            code_challenge = generate_pkce_challenge(code_verifier)
-            code_challenge_method = (
-                "plain" if code_verifier == code_challenge else "s256"
-            )
-            query = query.set("code_challenge", code_challenge).set(
-                "code_challenge_method", code_challenge_method
-            )
+            for key, value in pkce_challenge_params(code_verifier).items():
+                query = query.set(key, value)
         query = query.set("provider", provider)
         return code_verifier, query
 
@@ -508,7 +550,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
             path=["token"],
             body={
                 "auth_code": auth_code,
-                "code_verifier": code_verifier,
+                "code_verifier": strip_password_recovery_suffix(code_verifier),
             },
             query=query,
         )
@@ -676,6 +718,21 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
                 "SIGNED_IN", auth_response.session
             )
 
+    async def _prepare_code_verifier(
+        self, *, password_recovery: bool = False
+    ) -> str | None:
+        code_verifier = self._new_code_verifier()
+        if code_verifier:
+            stored_verifier = (
+                code_verifier + PASSWORD_RECOVERY_SUFFIX
+                if password_recovery
+                else code_verifier
+            )
+            await self.session_manager.storage.set_item(
+                self._code_verifier_storage_key, stored_verifier
+            )
+        return code_verifier
+
     # Public methods
 
     async def sign_in_anonymously(
@@ -695,7 +752,12 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         """
         Creates a new user.
         """
-        auth_response = await self._sign_up(credentials)
+        code_verifier = (
+            await self._prepare_code_verifier()
+            if isinstance(credentials, SignUpWithEmailAndPasswordCredentials)
+            else None
+        )
+        auth_response = await self._sign_up(credentials, code_verifier)
         await self.save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -789,7 +851,35 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         You won't be able to send a magiclink for phone sign-ins.
         """
         await self.session_manager.remove_session()
-        return await self._sign_in_with_otp(credentials)
+        code_verifier = (
+            await self._prepare_code_verifier()
+            if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials)
+            else None
+        )
+        return await self._sign_in_with_otp(credentials, code_verifier)
+
+    async def sign_in_with_sso(
+        self, credentials: SignInWithSSOCredentials
+    ) -> SSOResponse:
+        """
+        Attempts a single-sign on using an enterprise Identity Provider.
+        """
+        code_verifier = await self._prepare_code_verifier()
+        return await self._sign_in_with_sso(credentials, code_verifier)
+
+    async def reset_password_for_email(
+        self,
+        email: str,
+        captcha_token: str | None = None,
+        redirect_to: str | None = None,
+    ) -> None:
+        """
+        Sends a password reset request to an email address.
+        """
+        code_verifier = await self._prepare_code_verifier(password_recovery=True)
+        await self._reset_password_for_email(
+            email, captcha_token, redirect_to, code_verifier
+        )
 
     async def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
         """
@@ -833,7 +923,14 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         Updates user data, if there is a logged in user.
         """
         session = await self.session_manager.get_session_or_raise()
-        user_response = await self._update_user(session, attributes, email_redirect_to)
+        code_verifier = (
+            await self._prepare_code_verifier()
+            if attributes.email is not None
+            else None
+        )
+        user_response = await self._update_user(
+            session, attributes, email_redirect_to, code_verifier
+        )
         await self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers("USER_UPDATED", session)
         return user_response
@@ -1016,6 +1113,19 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
                 "SIGNED_IN", auth_response.session
             )
 
+    def _prepare_code_verifier(self, *, password_recovery: bool = False) -> str | None:
+        code_verifier = self._new_code_verifier()
+        if code_verifier:
+            stored_verifier = (
+                code_verifier + PASSWORD_RECOVERY_SUFFIX
+                if password_recovery
+                else code_verifier
+            )
+            self.session_manager.storage.set_item(
+                self._code_verifier_storage_key, stored_verifier
+            )
+        return code_verifier
+
     # Public methods
 
     def sign_in_anonymously(
@@ -1035,7 +1145,12 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         """
         Creates a new user.
         """
-        auth_response = self._sign_up(credentials)
+        code_verifier = (
+            self._prepare_code_verifier()
+            if isinstance(credentials, SignUpWithEmailAndPasswordCredentials)
+            else None
+        )
+        auth_response = self._sign_up(credentials, code_verifier)
         self.save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -1129,7 +1244,31 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         You won't be able to send a magiclink for phone sign-ins.
         """
         self.session_manager.remove_session()
-        return self._sign_in_with_otp(credentials)
+        code_verifier = (
+            self._prepare_code_verifier()
+            if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials)
+            else None
+        )
+        return self._sign_in_with_otp(credentials, code_verifier)
+
+    def sign_in_with_sso(self, credentials: SignInWithSSOCredentials) -> SSOResponse:
+        """
+        Attempts a single-sign on using an enterprise Identity Provider.
+        """
+        code_verifier = self._prepare_code_verifier()
+        return self._sign_in_with_sso(credentials, code_verifier)
+
+    def reset_password_for_email(
+        self,
+        email: str,
+        captcha_token: str | None = None,
+        redirect_to: str | None = None,
+    ) -> None:
+        """
+        Sends a password reset request to an email address.
+        """
+        code_verifier = self._prepare_code_verifier(password_recovery=True)
+        self._reset_password_for_email(email, captcha_token, redirect_to, code_verifier)
 
     def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
         """
@@ -1173,7 +1312,12 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         Updates user data, if there is a logged in user.
         """
         session = self.session_manager.get_session_or_raise()
-        user_response = self._update_user(session, attributes, email_redirect_to)
+        code_verifier = (
+            self._prepare_code_verifier() if attributes.email is not None else None
+        )
+        user_response = self._update_user(
+            session, attributes, email_redirect_to, code_verifier
+        )
         self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers("USER_UPDATED", session)
         return user_response

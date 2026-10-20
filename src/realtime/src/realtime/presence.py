@@ -161,7 +161,7 @@ class RealtimePresence:
             current_presences = self.state.get(key, [])
 
             if len(current_presences) == 0:
-                break
+                continue
 
             presence_refs_to_remove = {
                 presence["presence_ref"] for presence in left_presences

@@ -1,7 +1,8 @@
-from dataclasses import dataclass
-from typing import Generic, List
+from __future__ import annotations
 
-from pyiceberg.catalog.rest import RestCatalog
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Generic, List
+
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     HttpIO,
@@ -23,6 +24,9 @@ from .types import (
     SortColumn,
     SortOrder,
 )
+
+if TYPE_CHECKING:
+    from pyiceberg.catalog.rest import RestCatalog
 
 
 @dataclass
@@ -53,8 +57,8 @@ class StorageAnalyticsClient(Generic[HttpIO]):
         params = dict(
             limit=limit,
             offset=offset,
-            sort_column=sort_column,
-            sort_order=sort_order,
+            sortColumn=sort_column,
+            sortOrder=sort_order,
             search=search,
         )
         filtered_params = URLQuery.from_mapping(
@@ -78,6 +82,14 @@ class StorageAnalyticsClient(Generic[HttpIO]):
     def catalog(
         self, catalog_name: str, access_key_id: str, secret_access_key: str
     ) -> RestCatalog:
+        try:
+            from pyiceberg.catalog.rest import RestCatalog
+        except ImportError as err:
+            raise ImportError(
+                "pyiceberg is required for storage analytics catalog support, "
+                "install it with `pip install storage3[iceberg]`"
+            ) from err
+
         catalog_uri = self.base_url
         s3_endpoint = self.base_url.parent.joinpath("s3")
         service_key = self.default_headers.get("apiKey")

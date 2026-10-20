@@ -43,9 +43,9 @@ logger = logging.getLogger(__name__)
 def normalize_url(url: URL, token: str | None) -> URL:
     if url.scheme not in {"ws", "wss", "http", "https"}:
         raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
-    url = url.joinpath("websocket")
+    url = url.joinpath("websocket").with_query(url.query).update_query(vsn=VSN)
     if token:
-        url = url.with_query(**url.query, apikey=token)
+        url = url.update_query(apikey=token)
     if url.scheme in {"ws", "wss"}:
         return url
     if url.scheme == "https":
@@ -105,6 +105,9 @@ class connect_once:
         await self.client.close()
 
 
+MAX_RECONNECT_DELAY = 60
+
+
 class MaxRetriesExceeded(Exception):
     pass
 
@@ -113,7 +116,7 @@ def exponential_delay(max_retries: int, retry_count: int) -> float | None:
     if retry_count == max_retries:
         return None
     else:
-        return float(2**retry_count)
+        return float(min(2**retry_count, MAX_RECONNECT_DELAY))
 
 
 async def automatically_reconnect(
@@ -244,11 +247,18 @@ class RealtimeClient:
         """
         Initialize a channel and create a two-way association with the socket.
 
+        If a channel for this topic already exists, that channel is returned
+        instead of a new one. Messages are routed to one channel per topic, so
+        replacing it would silently stop delivering messages to the existing
+        channel.
+
         :param topic: The topic to subscribe to
         :param params: Optional channel parameters
-        :return: AsyncRealtimeChannel instance
+        :return: RealtimeChannel instance
         """
         topic = f"realtime:{topic}"
+        if existing := self.channels.get(topic):
+            return existing
         chan = RealtimeChannel(self, topic, params)
         self.channels[topic] = chan
         return chan
@@ -257,12 +267,12 @@ class RealtimeClient:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: RealtimeChannel) -> None:
-        del self.channels[channel.topic]
+        if self.channels.get(channel.topic) is channel:
+            del self.channels[channel.topic]
 
     async def remove_channel(self, channel: RealtimeChannel) -> None:
         if chan := self.channels.get(channel.topic):
             await chan.unsubscribe()
-            self._remove_channel(channel)
 
     async def remove_all_channels(self) -> None:
         """

@@ -283,6 +283,10 @@ def test_client_upload(
     assert image_info is not None
     assert image_info.metadata.get("mimetype") == file.mime_type
 
+    # Default cache-control is "3600" seconds and must be stored as max-age=3600
+    info = storage_file_client.info(file.bucket_path)
+    assert info.cache_control == "max-age=3600"
+
 
 def test_client_upload_with_query(
     storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
@@ -342,6 +346,7 @@ def test_client_update(
         two_files[0].bucket_path,
         two_files[1].local_path,
         content_type=two_files[1].mime_type,
+        cache_control="7200",
     )
 
     image = storage_file_client.download(two_files[0].bucket_path)
@@ -351,6 +356,8 @@ def test_client_update(
     assert image == two_files[1].file_content
     assert image_info is not None
     assert image_info.metadata.get("mimetype") == two_files[1].mime_type
+    info = storage_file_client.info(two_files[0].bucket_path)
+    assert info.cache_control == "max-age=7200"
 
 
 @pytest.mark.parametrize(
@@ -375,7 +382,11 @@ def test_client_upload_to_signed_url(
     data = storage_file_client.create_signed_upload_url(file.bucket_path)
 
     storage_file_client.upload_to_signed_url(
-        file.bucket_path, data.token, file.file_content, content_type=file.mime_type
+        file.bucket_path,
+        data.token,
+        file.file_content,
+        content_type=file.mime_type,
+        metadata={"source": "signed-upload"},
     )
     image = storage_file_client.download(file.bucket_path)
     files = storage_file_client.list(file.bucket_folder)
@@ -384,8 +395,10 @@ def test_client_upload_to_signed_url(
     assert image == file.file_content
     assert image_info is not None
     assert image_info.metadata.get("mimetype") == file.mime_type
+    info = storage_file_client.info(file.bucket_path)
+    assert info.metadata == {"source": "signed-upload"}
 
-    # Test with file_options=None
+    # Test with no options, still applies default cache-control max-age=3600
     data = storage_file_client.create_signed_upload_url(
         f"no_options_{file.bucket_path}"
     )
@@ -394,17 +407,19 @@ def test_client_upload_to_signed_url(
     )
     image = storage_file_client.download(f"no_options_{file.bucket_path}")
     assert image == file.file_content
+    no_options_info = storage_file_client.info(f"no_options_{file.bucket_path}")
+    assert no_options_info.cache_control == "max-age=3600"
 
-    # Test with cache-control
+    # Test with explicit cache-control
     data = storage_file_client.create_signed_upload_url(f"cached_{file.bucket_path}")
     storage_file_client.upload_to_signed_url(
         f"cached_{file.bucket_path}",
-        data.token,
-        file.file_content,
-        cache_control="3600",
+        token=data.token,
+        file=file.file_content,
+        cache_control="86400",
     )
     cached_info = storage_file_client.info(f"cached_{file.bucket_path}")
-    assert cached_info.cache_control == "max-age=3600"
+    assert cached_info.cache_control == "max-age=86400"
 
 
 def test_client_create_signed_url(
@@ -733,7 +748,7 @@ def test_client_list_v2_folder(
     assert len(result.objects) == 0
     assert len(result.folders) == 1
     folder = result.folders[0]
-    assert folder.key == file.bucket_folder
+    assert folder.name == file.bucket_folder + "/"
 
 
 def test_client_list_v2_paginated(

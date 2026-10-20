@@ -70,6 +70,7 @@ class RealtimeChannelOptions:
     broadcast_self: bool = False
     broadcast_replay_since: int | None = None
     broadcast_replay_limit: int | None = None
+    broadcast_replication_ready: bool = False
     presence_key: str = ""
     presence_enabled: bool = False
     is_private: bool = False
@@ -84,11 +85,21 @@ class RealtimeChannelOptions:
         listen_self: bool = False,
         replay_since: int | None = None,
         replay_limit: int | None = None,
+        replication_ready: bool = False,
     ) -> RealtimeChannelOptions:
+        """
+        Configure broadcast for the channel.
+
+        :param replication_ready: When True, the server emits a ``system`` message once
+            the Postgres replication connection backing the channel is ready to stream
+            changes. Its payload ``status`` is ``"ok"`` on success or ``"error"`` if the
+            connection is not ready in time.
+        """
         self.broadcast_ack = ack
         self.broadcast_self = listen_self
         self.broadcast_replay_since = replay_since
         self.broadcast_replay_limit = replay_limit
+        self.broadcast_replication_ready = replication_ready
         return self
 
     def presence(self, key: str = "", enabled: bool = False) -> RealtimeChannelOptions:
@@ -107,9 +118,34 @@ class RealtimeChannelOptions:
         schema: str | None = None,
         filter: str | None = None,
         id: int | None = None,
+        select: list[str] | None = None,
     ) -> RealtimeChannelOptions:
+        """
+        Listen for Postgres database changes.
+
+        :param event: The change event to listen for (``INSERT``, ``UPDATE``, ``DELETE`` or ``*``)
+        :param table: The table name to monitor. Defaults to all tables
+        :param schema: The database schema to monitor
+        :param filter: Optional filter string, evaluated server-side, in the form
+            ``column=operator.value`` (e.g. ``"id=eq.1"`` or ``"title=like.%foo%"``).
+            Supported operators: ``eq``, ``neq``, ``lt``, ``lte``, ``gt``, ``gte``,
+            ``in`` (``"status=in.(active,pending)"``), ``like``, ``ilike``, ``is``
+            (``"deleted_at=is.null"``), ``match``, ``imatch`` (POSIX regex),
+            ``isdistinct`` (NULL-safe inequality). Any operator can be negated with
+            the ``not.`` prefix (e.g. ``"status=not.in.(draft,archived)"``). Combine
+            multiple conditions with commas to apply them as an ``AND``
+            (e.g. ``"amount=gt.100,status=in.(open,pending)"``).
+        :param select: Optional list of columns to receive instead of the full row.
+            Reduces payload size (helpful for large ``bytea``/``jsonb`` columns). The
+            listed columns must be selectable by the subscribing role.
+        """
         binding = PostgresChangesBinding(
-            event=event, table=table, schema=schema, filter=filter, id=id
+            event=event,
+            table=table,
+            schema=schema,
+            filter=filter,
+            select=select,
+            id=id,
         )
         self.postgres_changes_bindings.append(binding)
         return self
@@ -131,6 +167,7 @@ class RealtimeChannelOptions:
                     ack=self.broadcast_ack,
                     self=self.broadcast_self,
                     replay=replay,
+                    replication_ready=self.broadcast_replication_ready or None,
                 ),
                 presence=RealtimeChannelPresenceConfig(
                     key=self.presence_key,
@@ -215,6 +252,7 @@ class RealtimeChannel:
             )
         self.join_ref = join_ref
         self.joined = True
+        self.state = ChannelStates.JOINED
         return msg
 
     @property
@@ -237,7 +275,13 @@ class RealtimeChannel:
                 yield server_message
 
     async def unsubscribe(self) -> None:
-        await self.send_event(ChannelEvents.leave, payload={})
+        self.state = ChannelStates.LEAVING
+        try:
+            await self.send_event(ChannelEvents.leave, payload={})
+        finally:
+            self.joined = False
+            self.state = ChannelStates.CLOSED
+            self.socket._remove_channel(self)
 
     # Presence methods
     async def track(self, user_status: Dict[str, Any]) -> ReplyMessage:

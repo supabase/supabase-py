@@ -1,13 +1,35 @@
 from typing import Type
 
 import pytest
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.request import Request, Response
+from yarl import URL
 
 from supabase_functions.errors import (
     FunctionsApiErrorDict,
     FunctionsError,
     FunctionsHttpError,
     FunctionsRelayError,
+    _error_message_from,
+    on_error_response,
 )
+
+
+def make_response(
+    content: bytes, status: int = 500, headers: Headers | None = None
+) -> Response:
+    return Response(
+        headers=headers or Headers.empty(),
+        content=content,
+        status=status,
+        request=Request(
+            url=URL("https://example.com/test-function"),
+            method="POST",
+            headers=Headers.empty(),
+            content=None,
+            delay=None,
+        ),
+    )
 
 
 @pytest.mark.parametrize(
@@ -106,3 +128,43 @@ def test_error_message_types() -> None:
         error = FunctionsError(message, "test", 500)
         assert error.message == message
         assert error.to_dict()["message"] == message
+
+
+@pytest.mark.parametrize(
+    "content,expected",
+    [
+        (b'{"error": "boom"}', "boom"),
+        (b'{"detail": "boom"}', None),
+        (b'["boom"]', '["boom"]'),
+        (b"plain boom", "plain boom"),
+        (b"", None),
+    ],
+)
+def test_error_message_from(content: bytes, expected: str | None) -> None:
+    assert _error_message_from(make_response(content)) == expected
+
+
+def test_on_error_response_http_error() -> None:
+    error = on_error_response(make_response(b'{"error": "boom"}', status=404))
+    assert isinstance(error, FunctionsHttpError)
+    assert error.message == "boom"
+    assert error.status == 404
+
+
+def test_on_error_response_http_error_fallback_message() -> None:
+    error = on_error_response(make_response(b"", status=500))
+    assert isinstance(error, FunctionsHttpError)
+    assert "https://example.com/test-function" in error.message
+
+
+def test_on_error_response_relay_error_keeps_raw_text() -> None:
+    error = on_error_response(
+        make_response(
+            b'{"error": "relay"}',
+            status=546,
+            headers=Headers.from_mapping({"x-relay-error": "true"}),
+        )
+    )
+    assert isinstance(error, FunctionsRelayError)
+    assert error.message == '{"error": "relay"}'
+    assert error.status == 546
