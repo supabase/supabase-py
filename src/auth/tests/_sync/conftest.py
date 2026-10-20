@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from random import random
 from time import time
-from uuid import uuid4
 from typing import Iterator
+from uuid import uuid4
 
 import pytest
 from faker import Faker
