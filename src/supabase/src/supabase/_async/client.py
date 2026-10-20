@@ -335,13 +335,16 @@ class AsyncClient:
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Optional[Session]
     ) -> None:
-        access_token = self.supabase_key
-        if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
-            # reset postgrest and storage instance on event change
-            self._postgrest = None
-            self._storage = None
-            self._functions = None
-            access_token = session.access_token if session else self.supabase_key
+        if event != "SIGNED_OUT" and session and session.access_token:
+            access_token = session.access_token
+        else:
+            access_token = self.supabase_key
+
+        # reset postgrest, storage, and functions instances on auth state change
+        self._postgrest = None
+        self._storage = None
+        self._functions = None
+
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
         self.auth._headers["Authorization"] = auth_header

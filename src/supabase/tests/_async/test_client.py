@@ -6,6 +6,7 @@ import pytest
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import AsyncHTTPTransport, Limits, Timeout
 from supabase_auth import AsyncMemoryStorage
+from supabase_auth.types import AuthChangeEvent
 
 from supabase import (
     AsyncClient,
@@ -118,6 +119,71 @@ async def test_updates_the_authorization_header_on_auth_events() -> None:
 
     assert client.storage.session.headers.get("apiKey") == key
     assert client.storage.session.headers.get("Authorization") == updated_authorization
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        "USER_UPDATED",
+        "MFA_CHALLENGE_VERIFIED",
+        "PASSWORD_RECOVERY",
+        "TOKEN_REFRESHED",
+    ],
+)
+async def test_retains_session_token_on_auth_state_change_events(
+    event: AuthChangeEvent,
+) -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = await create_async_client(url, key)
+
+    _ = client.postgrest
+    _ = client.storage
+    _ = client.functions
+
+    mock_session = MagicMock(access_token="updatedsessionjwt")
+    realtime_mock = AsyncMock()
+    client.realtime = realtime_mock
+
+    client._listen_to_auth_events(event, mock_session)
+
+    expected_auth = f"Bearer {mock_session.access_token}"
+
+    assert client.options.headers.get("apiKey") == key
+    assert client.options.headers.get("Authorization") == expected_auth
+    assert client.auth._headers.get("Authorization") == expected_auth
+    assert client.postgrest.session.headers.get("Authorization") == expected_auth
+    assert client.storage.session.headers.get("Authorization") == expected_auth
+    assert client.functions.headers.get("Authorization") == expected_auth
+    realtime_mock.set_auth.assert_called_with(mock_session.access_token)
+
+
+async def test_signed_out_resets_authorization_header_to_anon_key() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = await create_async_client(url, key)
+
+    user_session = MagicMock(access_token="user_token")
+    client.realtime = AsyncMock()
+    client._listen_to_auth_events("SIGNED_IN", user_session)
+    assert (
+        client.options.headers.get("Authorization")
+        == f"Bearer {user_session.access_token}"
+    )
+
+    client.realtime = AsyncMock()
+    client._listen_to_auth_events("SIGNED_OUT", None)
+
+    anon_auth = f"Bearer {key}"
+    assert client.options.headers.get("apiKey") == key
+    assert client.options.headers.get("Authorization") == anon_auth
+    assert client.auth._headers.get("Authorization") == anon_auth
+    assert client.postgrest.session.headers.get("Authorization") == anon_auth
+    assert client.storage.session.headers.get("Authorization") == anon_auth
+    assert client.functions.headers.get("Authorization") == anon_auth
+    client.realtime.set_auth.assert_called_with(key)
 
 
 async def test_supports_setting_a_global_authorization_header() -> None:
