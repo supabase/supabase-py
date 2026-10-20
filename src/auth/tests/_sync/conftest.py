@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from random import random
 from time import time
 from typing import Iterator
+from uuid import uuid4
 
 import pytest
 from faker import Faker
@@ -49,7 +50,7 @@ def mock_user_credentials(
     user_options = options or {}
     rand_numbers = str(int(time()))
     return Credentials(
-        email=user_options.get("email") or fake.email(),
+        email=user_options.get("email") or f"{uuid4().hex}@{fake.domain_name()}",
         phone=user_options.get("phone") or f"1{rand_numbers[-11:]}",
         password=user_options.get("password") or fake.password(),
     )
