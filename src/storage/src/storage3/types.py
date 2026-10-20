@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
+from supabase_utils.types import JSON
 from typing_extensions import TypeAlias, TypedDict
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
@@ -128,7 +129,7 @@ class SearchV2Object(BaseModel):
 
 
 class SearchV2Folder(BaseModel):
-    key: str
+    key: str | None = None
     name: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -221,7 +222,7 @@ class VectorIndex(BaseModel, extra="ignore"):
     metadata: MetadataConfiguration | None = Field(
         alias="metadataConfiguration", default=None
     )
-    creation_time: datetime | None = None
+    creation_time: datetime | None = Field(alias="creationTime", default=None)
 
 
 class GetVectorIndexResponse(BaseModel, extra="ignore"):
@@ -238,7 +239,7 @@ class VectorData(BaseModel, extra="ignore"):
 class VectorObject(BaseModel, extra="ignore"):
     key: str
     data: VectorData
-    metadata: dict[str, str | bool | float] | None = None
+    metadata: dict[str, JSON] | None = None
 
 
 class VectorMatch(BaseModel, extra="ignore"):
