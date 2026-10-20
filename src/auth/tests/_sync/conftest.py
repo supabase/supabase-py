@@ -4,7 +4,6 @@ from time import time
 from typing import Iterator
 
 import pytest
-from faker import Faker
 from httpx import Client
 from jwt import encode
 from supabase_utils.http.adapters.httpx import HttpxSession
@@ -17,6 +16,8 @@ from supabase_auth.types import (
     SignUpWithPassword,
     User,
 )
+
+from ..conftest import fake
 
 
 def mock_access_token() -> str:
@@ -45,11 +46,10 @@ class Credentials:
 def mock_user_credentials(
     options: OptionalCredentials | None = None,
 ) -> Credentials:
-    fake = Faker()
     user_options = options or {}
     rand_numbers = str(int(time()))
     return Credentials(
-        email=user_options.get("email") or fake.email(),
+        email=user_options.get("email") or fake.unique.email(),
         phone=user_options.get("phone") or f"1{rand_numbers[-11:]}",
         password=user_options.get("password") or fake.password(),
     )
@@ -60,7 +60,6 @@ def mock_verification_otp() -> str:
 
 
 def mock_user_metadata() -> dict[str, str]:
-    fake = Faker()
     return {
         "profile_image": fake.url(),
     }
