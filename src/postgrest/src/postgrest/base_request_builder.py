@@ -14,6 +14,7 @@ from typing import (
     Literal,
     NamedTuple,
     Optional,
+    Sequence,
     Tuple,
     Type,
     TypeVar,
@@ -544,34 +545,34 @@ class BaseFilterRequestBuilder(Generic[C]):
             return self.filter(column, Filters.OV, sanitize_array_param(value))
         return self.filter(column, Filters.OV, json.dumps(value))
 
-    def sl(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def sl(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.filter(column, Filters.SL, f"({range[0]},{range[1]})")
 
-    def sr(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def sr(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.filter(column, Filters.SR, f"({range[0]},{range[1]})")
 
-    def nxl(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def nxl(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.filter(column, Filters.NXL, f"({range[0]},{range[1]})")
 
-    def nxr(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def nxr(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.filter(column, Filters.NXR, f"({range[0]},{range[1]})")
 
-    def adj(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def adj(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.filter(column, Filters.ADJ, f"({range[0]},{range[1]})")
 
-    def range_gt(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_gt(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.sr(column, range)
 
-    def range_gte(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_gte(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.nxl(column, range)
 
-    def range_lt(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_lt(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.sl(column, range)
 
-    def range_lte(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_lte(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.nxr(column, range)
 
-    def range_adjacent(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_adjacent(self: Self, column: str, range: Sequence[FilterValue]) -> Self:
         return self.adj(column, range)
 
     def overlaps(self: Self, column: str, values: Iterable[FilterValue]) -> Self:

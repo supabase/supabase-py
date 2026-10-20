@@ -446,3 +446,26 @@ def test_max_affected_returns_self(filter_request_builder):
     builder = filter_request_builder.max_affected(1)
 
     assert builder is filter_request_builder
+
+
+def test_range_filters_are_typed_for_timestamp_and_numeric_ranges(
+    filter_request_builder: AsyncFilterRequestBuilder,
+):
+    # Checked by mypy: range bounds are not limited to ``int``.
+    timestamps = ["2000-01-02 08:30", "2000-01-02 09:30"]
+    builder = (
+        filter_request_builder.range_gt("a", timestamps)
+        .range_gte("b", ("2000-01-02", "2000-01-03"))
+        .range_lt("c", (1.5, 2.5))
+        .range_lte("d", [1, 2])
+        .range_adjacent("e", (1, 2))
+        .sl("f", ["a", "b"])
+        .sr("g", (0.5, 1))
+        .nxl("h", ("x", "y"))
+        .nxr("i", [1.0, 2.0])
+        .adj("j", ("2000-01-01", "2000-01-02"))
+    )
+
+    assert builder.request.params["a"] == "sr.(2000-01-02 08:30,2000-01-02 09:30)"
+    assert builder.request.params["c"] == "sl.(1.5,2.5)"
+    assert builder.request.params["j"] == "adj.(2000-01-01,2000-01-02)"
