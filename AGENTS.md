@@ -16,7 +16,7 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 
 - `make <pkg>.tests` runs mypy and pytest. For `auth`, `postgrest`, `storage` and `realtime`, pytest first starts Docker / Supabase CLI infra; `make stop-infra` when done.
 - Fast loop for tests that need no infra: from `src/<pkg>`, `uv run --frozen --package <import name> pytest tests/<file>.py`.
-- Code must run on Python 3.9 — CI tests 3.9–3.14 ([ci.yml](.github/workflows/ci.yml)).
+- Code must run on Python 3.10 — CI tests 3.10–3.14 ([ci.yml](.github/workflows/ci.yml)).
 
 ## Public API
 
