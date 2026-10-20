@@ -111,8 +111,9 @@ class SyncBucketActionsMixin:
             Additional options for the upload url creation.
         """
         headers: dict[str, str] = dict()
-        if options is not None and options.upsert:
-            headers.update({"x-upsert": options.upsert})
+        upsert = (options or {}).get("upsert")
+        if upsert:
+            headers.update({"x-upsert": upsert})
 
         path_parts = relative_path_to_parts(path)
         response = self._request(

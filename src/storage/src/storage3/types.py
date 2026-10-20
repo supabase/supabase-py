@@ -176,7 +176,7 @@ class SignedUrlsJsonItem(BaseModel, extra="ignore"):
 SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
 
 
-class CreateSignedUploadUrlOptions(BaseModel, extra="ignore"):
+class CreateSignedUploadUrlOptions(TypedDict, total=False):
     upsert: str
 
 

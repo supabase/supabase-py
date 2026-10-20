@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, List, Mapping, Optional
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -9,6 +9,7 @@ from storage3._async.file_api import AsyncBucketProxy
 from storage3._sync.file_api import SyncBucketProxy
 from storage3.constants import DEFAULT_TIMEOUT
 from storage3.exceptions import StorageApiError
+from storage3.types import CreateSignedUploadUrlOptions
 from yarl import URL
 
 
@@ -539,3 +540,68 @@ def test_sync_list_indexes_sends_camel_case_pagination(
         "maxResults": 10,
         "prefix": "idx-",
     }
+
+
+def _signed_upload_url_handler(captured: List[Optional[str]]) -> Any:
+    def handler(request: Request) -> Response:
+        captured.append(request.headers.get("x-upsert"))
+        return Response(
+            200, json={"url": "/object/upload/sign/bucket/folder/file.txt?token=tok"}
+        )
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_async_create_signed_upload_url_sends_upsert_header(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: List[Optional[str]] = []
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(
+            transport=MockTransport(_signed_upload_url_handler(captured))
+        ),
+    )
+    bucket = client.from_("bucket")
+
+    data = await bucket.create_signed_upload_url(
+        "folder/file.txt", options={"upsert": "true"}
+    )
+    await bucket.create_signed_upload_url(
+        "folder/file.txt", options=CreateSignedUploadUrlOptions(upsert="true")
+    )
+    await bucket.create_signed_upload_url("folder/file.txt")
+
+    assert captured == ["true", "true", None]
+    assert data["token"] == "tok"
+
+
+def test_sync_create_signed_upload_url_sends_upsert_header(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: List[Optional[str]] = []
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(
+            transport=MockTransport(_signed_upload_url_handler(captured))
+        ),
+    )
+    bucket = client.from_("bucket")
+
+    data = bucket.create_signed_upload_url(
+        "folder/file.txt", options={"upsert": "true"}
+    )
+    bucket.create_signed_upload_url(
+        "folder/file.txt", options=CreateSignedUploadUrlOptions(upsert="true")
+    )
+    bucket.create_signed_upload_url("folder/file.txt")
+
+    assert captured == ["true", "true", None]
+    assert data["token"] == "tok"
