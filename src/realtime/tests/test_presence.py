@@ -172,3 +172,17 @@ def test_sync_diff_processes_every_leave_key() -> None:
     assert [event.key for event in events if isinstance(event, PresenceLeave)] == [
         "bob"
     ]
+
+
+def test_diff_join_for_known_presence_is_not_reported_twice() -> None:
+    presence = RealtimePresence()
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}  # type: ignore
+    assert len(list(presence._on_state_event(state))) == 1
+
+    diff_joins: RawPresenceState = {
+        "k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}  # type: ignore
+    }
+    events = list(presence._on_diff_event({"joins": diff_joins, "leaves": {}}))
+
+    assert events == []
+    assert presence.state == {"k": [{"presence_ref": "A", "user_id": "1"}]}
