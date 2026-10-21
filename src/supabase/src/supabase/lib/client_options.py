@@ -65,6 +65,7 @@ class AsyncClientOptions(ClientOptions):
 
     def replace(
         self,
+        *,
         schema: str | None = None,
         headers: Dict[str, str] | None = None,
         auto_refresh_token: bool | None = None,
@@ -92,6 +93,7 @@ class SyncClientOptions(ClientOptions):
 
     def replace(
         self,
+        *,
         schema: str | None = None,
         headers: Dict[str, str] | None = None,
         auto_refresh_token: bool | None = None,
