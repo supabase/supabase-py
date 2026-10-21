@@ -556,7 +556,12 @@ class AsyncRealtimeChannel:
         elif isinstance(message, BroadcastMessage):
             broadcast_payload = message.payload
             for broadcast_callback in self.broadcast_callbacks:
-                broadcast_callback(broadcast_payload)
+                try:
+                    broadcast_callback(broadcast_payload)
+                except Exception:
+                    logger.exception(
+                        "Broadcast callback failed for channel %s", self.topic
+                    )
         elif isinstance(message, PresenceStateMessage):
             self.presence._on_state_event(message.payload)
         elif isinstance(message, PresenceDiffMessage):

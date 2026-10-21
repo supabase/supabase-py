@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import json
 import os
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs, urlparse
@@ -103,6 +104,47 @@ async def test_connect_includes_connection_params() -> None:
         "log_level": ["info"],
         "vsn": ["1.0.0"],
     }
+
+
+@pytest.mark.asyncio
+async def test_broadcast_callback_failure_does_not_stop_other_callbacks_or_messages(
+    socket: AsyncRealtimeClient, caplog: pytest.LogCaptureFixture
+):
+    class FakeWebSocket:
+        async def __aiter__(self):
+            for number in (1, 2):
+                yield json.dumps(
+                    {
+                        "topic": "realtime:room",
+                        "event": "broadcast",
+                        "ref": None,
+                        "payload": {"event": "ping", "payload": {"number": number}},
+                    }
+                )
+
+    channel = socket.channel("room")
+    seen_by_failing_callback = []
+    seen_by_healthy_callback = []
+
+    def failing_callback(payload):
+        number = payload["payload"]["number"]
+        seen_by_failing_callback.append(number)
+        if number == 1:
+            raise ValueError("callback failed")
+
+    channel.on_broadcast("ping", failing_callback)
+    channel.on_broadcast(
+        "ping",
+        lambda payload: seen_by_healthy_callback.append(payload["payload"]["number"]),
+    )
+
+    with patch.object(socket, "_ws_connection", FakeWebSocket()):
+        await socket._listen()
+        assert socket.is_connected
+
+    assert seen_by_failing_callback == [1, 2]
+    assert seen_by_healthy_callback == [1, 2]
+    assert "callback failed" in caplog.text
 
 
 @pytest.mark.asyncio
