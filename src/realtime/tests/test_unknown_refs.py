@@ -97,6 +97,8 @@ async def test_orphan_reply_is_not_forwarded_to_the_channel(server: FakeServer):
         while not channel.message_stream.empty():
             queued.append(channel.message_stream.get_nowait())
         assert all(message.event != ChannelEvents.reply for message in queued)
+        assert any(message.event == ChannelEvents.close for message in queued)
+        assert not client._connection_failure.done()
 
 
 @pytest.mark.asyncio

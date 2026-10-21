@@ -138,11 +138,11 @@ class RealtimePresence:
             joined_presence_refs = {
                 presence["presence_ref"] for presence in joined_presences
             }
-            self.state[key] = joined_presences + [
+            self.state[key] = [
                 presence
                 for presence in current_presences
                 if presence["presence_ref"] not in joined_presence_refs
-            ]
+            ] + joined_presences
             if new_presences:
                 yield PresenceJoin(key, current_presences, new_presences)
 
