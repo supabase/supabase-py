@@ -170,3 +170,26 @@ def test_diff_leave_for_presence_already_gone_is_not_reported() -> None:
 
     assert events == []
     assert presence.state == {"k": [{"presence_ref": "B"}]}
+
+
+def test_diff_join_reports_only_new_presences_for_a_key() -> None:
+    presence = RealtimePresence()
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
+    list(presence._on_state_event(state))
+
+    joins: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}, {"phx_ref": "B"}]}}
+    events = list(presence._on_diff_event({"joins": joins, "leaves": {}}))
+
+    assert events == [
+        PresenceJoin("k", [{"presence_ref": "A"}], [{"presence_ref": "B"}])
+    ]
+    assert presence.state == {"k": [{"presence_ref": "A"}, {"presence_ref": "B"}]}
+
+
+def test_unchanged_state_resync_reports_nothing() -> None:
+    presence = RealtimePresence()
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
+    list(presence._on_state_event(state))
+
+    resync: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
+    assert list(presence._on_state_event(resync)) == []
