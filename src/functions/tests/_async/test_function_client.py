@@ -7,7 +7,7 @@ from supabase_utils.http.io import AsyncHttpIO
 
 # Import the class to test
 from supabase_utils.http.request import HTTPRequestMethod, Request, Response
-from supabase_utils.types import JSON
+from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
 from supabase_functions.client import AsyncFunctionsClient, FunctionsClient
@@ -240,3 +240,29 @@ async def test_invoke_does_not_overwrite_client_content_type() -> None:
     )
     response = await client.invoke("test-function", body="<xml/>")
     assert response.request.headers.get_list("Content-Type") == ["application/xml"]
+
+
+@pytest.mark.parametrize("body", [[1, 2, 3], []], ids=["list", "empty-list"])
+async def test_invoke_with_list_body_sends_json(body: list[JSON]) -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke("test-function", body=body)
+    assert response.request.headers["Content-Type"] == "application/json"
+    assert response.request.content == JSONParser.dump_json(body)
+
+
+async def test_invoke_with_bytearray_body() -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke("test-function", body=bytearray(b"x"))  # type: ignore[arg-type]
+    assert response.request.content == b"x"
+
+
+async def test_invoke_with_unsupported_body_raises() -> None:
+    client = client_returning(content=b"{}", status=200)
+    with pytest.raises(TypeError):
+        await client.invoke("test-function", body=1.5)  # type: ignore[arg-type]
+
+
+async def test_invoke_raises_on_300() -> None:
+    client = client_returning(content=b"", status=300)
+    with pytest.raises(FunctionsHttpError):
+        await client.invoke("test-function")

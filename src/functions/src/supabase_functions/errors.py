@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import json
 from typing import TypedDict
 
+from pydantic import ValidationError
 from supabase_utils.http.request import Response
+from supabase_utils.types import JSONParser
 
 
 class FunctionsApiErrorDict(TypedDict):
@@ -41,15 +42,17 @@ def _is_relay_error(response: Response) -> bool:
 
 
 def _error_message_from(response: Response) -> str | None:
-    text = response.content.decode("utf-8", errors="replace")
     try:
-        body = json.loads(response.content)
-    except ValueError:
-        return text or None
+        body = JSONParser.validate_json(response.content)
+    except ValidationError:
+        body = None
     if isinstance(body, dict):
-        error = body.get("error")
-        return None if error is None else str(error)
-    return text or None
+        error = body.get("error") or body.get("message")
+        if isinstance(error, str):
+            return error
+        if error is not None:
+            return JSONParser.dump_json(error).decode("utf-8")
+    return response.content.decode("utf-8", errors="replace") or None
 
 
 def on_error_response(response: Response) -> FunctionsHttpError | FunctionsRelayError:

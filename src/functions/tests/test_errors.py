@@ -134,7 +134,12 @@ def test_error_message_types() -> None:
     "content,expected",
     [
         (b'{"error": "boom"}', "boom"),
-        (b'{"detail": "boom"}', None),
+        (b'{"detail": "boom"}', '{"detail": "boom"}'),
+        (b'{"code": "NOT_FOUND", "message": "missing"}', "missing"),
+        (
+            b'{"error": {"message": "bad", "field": "email"}}',
+            '{"message":"bad","field":"email"}',
+        ),
         (b'["boom"]', '["boom"]'),
         (b"plain boom", "plain boom"),
         (b"", None),
