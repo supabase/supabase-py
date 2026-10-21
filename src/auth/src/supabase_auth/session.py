@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -23,6 +24,8 @@ from .errors import AuthRetryableError, AuthSessionMissingError
 from .helpers import parse_auth_response, parse_user_response
 from .timer import AsyncTimer, SyncTimer
 from .types import AuthChangeEvent, AuthResponse, Session, Subscription, UserResponse
+
+logger = logging.getLogger(__name__)
 
 
 class AsyncSupportedStorage(ABC):
@@ -121,7 +124,10 @@ class SessionManagerCommon(Generic[HttpIO]):
         session: Session | None,
     ) -> None:
         for subscription in list(self.state_change_emitters.values()):
-            subscription.callback(event, session)
+            try:
+                subscription.callback(event, session)
+            except Exception:
+                logger.exception("auth state change callback raised for %s", event)
 
 
 @dataclass

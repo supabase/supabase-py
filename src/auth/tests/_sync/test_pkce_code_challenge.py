@@ -2,10 +2,12 @@ import json
 import time
 from typing import Any, Callable
 
+import pytest
 from httpx import Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import HttpxSession
 
 from supabase_auth import SyncSupabaseAuthClient
+from supabase_auth.errors import AuthError
 from supabase_auth.helpers import generate_pkce_challenge
 from supabase_auth.types import (
     AuthChangeEvent,
@@ -214,3 +216,44 @@ def test_autoconfirmed_email_sign_up_removes_verifier() -> None:
     client.sign_up(SignUpWithPassword.email(email="a@example.com", password="password"))
 
     assert stored_verifier(client) is None
+
+
+def test_failed_exchange_removes_stored_verifier() -> None:
+    def handler(request: Request) -> Response:
+        return Response(400, json={"code": "bad_code", "msg": "invalid code"})
+
+    client = SyncSupabaseAuthClient(
+        url="https://example.supabase.co/auth/v1",
+        http_session=HttpxSession(client=Client(transport=MockTransport(handler))),
+        auto_refresh_token=False,
+        flow_type="pkce",
+    )
+    client.session_manager.storage.set_item(verifier_key(client), "verifier")
+    with pytest.raises(AuthError):
+        client.exchange_code_for_session("auth-code")
+
+    assert stored_verifier(client) is None
+
+
+def test_sign_out_removes_stored_verifier() -> None:
+    requests: list[Request] = []
+    client = mock_client({}, requests)
+    client.session_manager.storage.set_item(verifier_key(client), "verifier")
+    client.sign_out()
+
+    assert stored_verifier(client) is None
+
+
+def test_raising_listener_does_not_stop_other_listeners() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    events: list[AuthChangeEvent] = []
+
+    def failing(event: AuthChangeEvent, session: Session | None) -> None:
+        raise RuntimeError("listener failed")
+
+    client.on_auth_state_change(failing)
+    client.on_auth_state_change(lambda event, session: events.append(event))
+    client.exchange_code_for_session("auth-code", code_verifier="verifier")
+
+    assert events == ["SIGNED_IN"]
