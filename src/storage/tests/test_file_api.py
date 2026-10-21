@@ -149,3 +149,10 @@ async def test_exists_reraises_unexpected_status(use_async: bool) -> None:
     with pytest.raises(StorageApiError) as error:
         await run(use_async, lambda b: b.exists("missing.txt"), 401, b"")
     assert error.value.status == 401
+
+
+@use_async
+async def test_error_with_binary_body_raises_storage_api_error(use_async: bool) -> None:
+    with pytest.raises(StorageApiError) as error:
+        await run(use_async, lambda b: b.download("file.txt"), 502, b"\xff\xfe")
+    assert error.value.status == 502
