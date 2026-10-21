@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any, Iterable, Type, TypeVar
 
 from deprecation import deprecated
@@ -80,6 +81,12 @@ def _rpc_query_param(value: Any) -> Any:
     """
     if isinstance(value, (list, tuple)):
         return _sanitize_array_param(value)
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, dict):
+        return json.dumps(value, separators=(",", ":"))
     return value
 
 
