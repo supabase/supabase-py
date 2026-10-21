@@ -116,7 +116,8 @@ features:
   auth.sign_in.exchange_code_for_session:
     status: implemented
     symbols:
-      - SupabaseAuthHttpClient.exchange_code_for_session
+      - AsyncSupabaseAuthClient.exchange_code_for_session
+      - SyncSupabaseAuthClient.exchange_code_for_session
   auth.sign_in.concurrent_pkce_flows: not_implemented
 
   auth.session.get_session:
@@ -857,6 +858,7 @@ features:
     symbols:
       - RealtimeChannel.subscribe
     supporting_symbols:
+      - RealtimeChannel.joined
       - ReplyMessage
       - SuccessReplyMessage
       - ErrorReplyMessage
@@ -1216,7 +1218,6 @@ features:
     symbols:
       - VectorBucketScope.list_indexes
     supporting_symbols:
-      - ListIndexesOptions
       - ListIndexesResponseItem
       - ListVectorIndexesResponse
   storage.vector_buckets.put_vectors:
