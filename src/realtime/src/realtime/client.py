@@ -3,7 +3,6 @@ import json
 import logging
 import re
 import sys
-from dataclasses import replace
 from functools import wraps
 from types import TracebackType
 from typing import (
@@ -114,7 +113,7 @@ class MaxRetriesExceeded(Exception):
 
 
 def exponential_delay(max_retries: int, retry_count: int) -> float | None:
-    if retry_count == max_retries:
+    if retry_count >= max_retries:
         return None
     else:
         return float(min(2**retry_count, MAX_RECONNECT_DELAY))
@@ -126,23 +125,31 @@ async def automatically_reconnect(
     client_handler: Callable[["RealtimeClient"], Awaitable[None]],
     max_retries: int = 3,
 ) -> None:
+    loop = asyncio.get_running_loop()
     retries = 0
     while True:
+        connected_at: float | None = None
         try:
             async with connect_once(url, token_callback) as client:
-                retries = 0
+                connected_at = loop.time()
                 await client_handler(client)
                 break
-        except websockets.ConnectionClosed:
-            retries += 1
-            await asyncio.sleep(min(2**retries, MAX_RECONNECT_DELAY))
-        except (TimeoutError, OSError):
+        except (
+            websockets.ConnectionClosed,
+            TimeoutError,
+            asyncio.TimeoutError,
+            OSError,
+        ):
+            if (
+                connected_at is not None
+                and loop.time() - connected_at >= MAX_RECONNECT_DELAY
+            ):
+                retries = 0
             retries += 1
             delay = exponential_delay(max_retries, retries)
-            if delay is not None:
-                await asyncio.sleep(delay)
-            else:
+            if delay is None:
                 raise MaxRetriesExceeded(retries)
+            await asyncio.sleep(delay)
 
 
 class RealtimeClient:
@@ -264,9 +271,7 @@ class RealtimeClient:
         """
         topic = f"realtime:{topic}"
         if existing := self.channels.get(topic):
-            if params is not None and params != replace(
-                existing.params, token=params.token
-            ):
+            if params is not None and params != existing.params:
                 warn(
                     f"channel {topic!r} already exists, so the given options are ignored",
                     stacklevel=2,
@@ -292,12 +297,13 @@ class RealtimeClient:
         Unsubscribes and removes all channels from the socket
         :return: None
         """
-        tasks = [
-            asyncio.create_task(channel.unsubscribe())
-            for channel in list(self.channels.values())
-        ]
-        if tasks:
-            await asyncio.wait(tasks)
+        results = await asyncio.gather(
+            *(channel.unsubscribe() for channel in list(self.channels.values())),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, Exception):
+                logger.warning(f"failed to unsubscribe a channel: {result!r}")
 
     async def set_auth(self, token: str | None = None) -> None:
         """
@@ -326,17 +332,19 @@ class RealtimeClient:
             logger.info("generated access token is still the same, skipping")
             return
 
-        tasks = []
-        for channel in self.channels.values():
-            if channel.joined:
-                task = asyncio.create_task(
-                    channel.send_event_no_wait(
-                        ChannelEvents.access_token, {"access_token": token}
-                    )
+        results = await asyncio.gather(
+            *(
+                channel.send_event_no_wait(
+                    ChannelEvents.access_token, {"access_token": token}
                 )
-                tasks.append(task)
-        if tasks:
-            await asyncio.wait(tasks)
+                for channel in list(self.channels.values())
+                if channel.joined
+            ),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, Exception):
+                logger.warning(f"failed to send the access token: {result!r}")
         self.last_token = token
 
     def _make_ref(self) -> str:

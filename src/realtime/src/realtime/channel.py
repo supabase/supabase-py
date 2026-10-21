@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -236,9 +236,17 @@ class RealtimeChannel:
             pass
 
     async def subscribe(self) -> ReplyMessage:
+        owner = self.socket.channels.setdefault(self.topic, self)
+        if owner is not self:
+            raise ValueError(
+                f"another channel is already registered for {self.topic!r}"
+            )
+        while not self.message_stream.empty():
+            self.message_stream.get_nowait()
+        params = self.params
         if self.socket.last_token is not None:
-            self.params.token = self.socket.last_token
-        payload = self.params.to_payload()
+            params = replace(params, token=self.socket.last_token)
+        payload = params.to_payload()
         join_ref = self.socket._make_ref()
         message = Message(
             topic=self.topic,
@@ -278,11 +286,11 @@ class RealtimeChannel:
 
     async def unsubscribe(self) -> None:
         self.state = ChannelStates.LEAVING
+        self.socket._remove_channel(self)
         try:
             await self.send_event(ChannelEvents.leave, payload={})
         finally:
             self.state = ChannelStates.CLOSED
-            self.socket._remove_channel(self)
             self.message_stream.put_nowait(
                 Message(
                     topic=self.topic,

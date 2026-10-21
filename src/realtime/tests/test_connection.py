@@ -19,7 +19,7 @@ from realtime import (
     RealtimeSubscribeStates,
 )
 from realtime.channel import RealtimeChannelOptions
-from realtime.client import connect_once, normalize_url
+from realtime.client import connect_once, exponential_delay, normalize_url
 from realtime.message import (
     BroadcastMessage,
     ChannelCloseMessage,
@@ -524,3 +524,32 @@ async def test_remove_all_channels_twice() -> None:
     await client.remove_all_channels()
 
     assert client.get_channels() == []
+
+
+async def test_resubscribing_the_same_channel_keeps_receiving() -> None:
+    client, _ = fake_client()
+
+    channel = client.channel("room")
+    await channel.subscribe()
+    await channel.unsubscribe()
+    await channel.subscribe()
+
+    assert client.channels["realtime:room"] is channel
+    assert channel.message_stream.empty()
+
+
+async def test_subscribe_does_not_store_the_token_in_shared_options() -> None:
+    client, sent = fake_client()
+    client.last_token = "user-token"
+    options = RealtimeChannelOptions()
+
+    await client.channel("room", options).subscribe()
+
+    assert options.token is None
+    assert sent[-1].payload["access_token"] == "user-token"
+
+
+def test_exponential_delay_stops_once_retries_reach_the_limit() -> None:
+    assert exponential_delay(1, 1) is None
+    assert exponential_delay(1, 2) is None
+    assert exponential_delay(3, 1) == 2
