@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import sys
+from dataclasses import replace
 from functools import wraps
 from types import TracebackType
 from typing import (
@@ -133,7 +134,8 @@ async def automatically_reconnect(
                 await client_handler(client)
                 break
         except websockets.ConnectionClosed:
-            continue
+            retries += 1
+            await asyncio.sleep(min(2**retries, MAX_RECONNECT_DELAY))
         except (TimeoutError, OSError):
             retries += 1
             delay = exponential_delay(max_retries, retries)
@@ -262,6 +264,13 @@ class RealtimeClient:
         """
         topic = f"realtime:{topic}"
         if existing := self.channels.get(topic):
+            if params is not None and params != replace(
+                existing.params, token=params.token
+            ):
+                warn(
+                    f"channel {topic!r} already exists, so the given options are ignored",
+                    stacklevel=2,
+                )
             return existing
         chan = RealtimeChannel(self, topic, params)
         self.channels[topic] = chan
@@ -275,18 +284,20 @@ class RealtimeClient:
             del self.channels[channel.topic]
 
     async def remove_channel(self, channel: RealtimeChannel) -> None:
-        if chan := self.channels.get(channel.topic):
-            await chan.unsubscribe()
+        if self.channels.get(channel.topic) is channel:
+            await channel.unsubscribe()
 
     async def remove_all_channels(self) -> None:
         """
         Unsubscribes and removes all channels from the socket
         :return: None
         """
-        tasks = []
-        for channel in self.channels.values():
-            tasks.append(asyncio.create_task(channel.unsubscribe()))
-        await asyncio.wait(tasks)
+        tasks = [
+            asyncio.create_task(channel.unsubscribe())
+            for channel in list(self.channels.values())
+        ]
+        if tasks:
+            await asyncio.wait(tasks)
 
     async def set_auth(self, token: str | None = None) -> None:
         """
@@ -317,9 +328,9 @@ class RealtimeClient:
 
         tasks = []
         for channel in self.channels.values():
-            if channel.joined and channel.state == ChannelStates.JOINED:
+            if channel.joined:
                 task = asyncio.create_task(
-                    channel.send_event(
+                    channel.send_event_no_wait(
                         ChannelEvents.access_token, {"access_token": token}
                     )
                 )
@@ -355,5 +366,4 @@ class RealtimeClient:
         await self._ws_connection.send(message_str)
 
     def endpoint_url(self) -> str:
-        query = self.url.with_query(**self.url.query, vsn=VSN)
-        return str(query)
+        return str(normalize_url(self.url, self.last_token))
