@@ -113,3 +113,19 @@ async def test_late_reply_for_timed_out_send_keeps_client_alive(server: FakeServ
         async with client.channel("fast") as channel:
             assert channel.joined
         assert not client._connection_failure.done()
+
+
+@pytest.mark.asyncio
+async def test_unsubscribe_delivers_a_single_close(server: FakeServer):
+    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+        channel = client.channel("room")
+        await channel.subscribe()
+        await channel.unsubscribe()
+        await asyncio.sleep(0.1)
+
+        closes = []
+        while not channel.message_stream.empty():
+            message = channel.message_stream.get_nowait()
+            if message.event == ChannelEvents.close:
+                closes.append(message)
+        assert len(closes) == 1
