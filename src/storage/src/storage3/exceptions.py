@@ -42,7 +42,9 @@ def parse_api_error(response: Response) -> StorageApiError:
         return StorageApiErrorParser.validate_json(response.content)
     except ValidationError:
         message = f"Unable to parse error message: {response.content.decode('utf-8')}"
-        return StorageApiError(message=message, code="InternalError", status=400)
+        return StorageApiError(
+            message=message, code="InternalError", status=response.status
+        )
 
 
 Inner = TypeVar("Inner")

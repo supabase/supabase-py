@@ -3,14 +3,13 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from httpx import AsyncClient, Client, MockTransport, Request, Response
-from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
+from httpx import Request, Response
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 
-from storage3 import AsyncStorageClient, StorageFileApiClient, SyncStorageClient
+from storage3 import StorageFileApiClient
 from storage3.exceptions import StorageApiError
 
-URL = "https://example.com/storage/v1/"
+from .utils import call_with_client, use_async
 
 FileAction = Callable[[StorageFileApiClient[Any]], Any]
 
@@ -40,24 +39,11 @@ async def run(
             return Response(status, content=content)
         return Response(status, json={"Key": "bucket/file.txt", "Id": "id"})
 
-    transport = MockTransport(handler)
-    if use_async:
-        async with AsyncStorageClient(
-            URL, {}, http_session=AsyncHttpxSession(AsyncClient(transport=transport))
-        ) as client:
-            async_bucket: StorageFileApiClient[AsyncHttpIO] = client.from_("bucket")
-            await action(async_bucket)
-    else:
-        with SyncStorageClient(
-            URL, {}, http_session=HttpxSession(Client(transport=transport))
-        ) as sync_client:
-            sync_bucket: StorageFileApiClient[SyncHttpIO] = sync_client.from_("bucket")
-            action(sync_bucket)
+    await call_with_client(
+        use_async, handler, lambda client: action(client.from_("bucket"))
+    )
     assert len(requests) == 1
     return requests[0]
-
-
-use_async = pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
 
 
 @use_async
@@ -160,5 +146,6 @@ async def test_exists_false_on_headless_error(use_async: bool, status: int) -> N
 
 @use_async
 async def test_exists_reraises_unexpected_status(use_async: bool) -> None:
-    with pytest.raises(StorageApiError):
+    with pytest.raises(StorageApiError) as error:
         await run(use_async, lambda b: b.exists("missing.txt"), 401, b"")
+    assert error.value.status == 401

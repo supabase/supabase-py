@@ -572,7 +572,7 @@ def test_client_info_with_error(
 
     """Ensure StorageException is raised when signed URL creation fails"""
     mock_error_response = Mock(spec=Response)
-    mock_error_response.status_code = 404
+    mock_error_response.status = 404
     mock_error_response.is_success = False
     mock_error_response.content = b'{"error": "Custom error message", "statusCode": 404, "message": "File not found"}'
 
