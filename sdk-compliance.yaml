@@ -403,7 +403,7 @@ features:
   client.authentication_integration.third_party_auth: not_implemented
   client.authentication_integration.cross_client_token_sync:
     status: partially_implemented
-    note: "On SIGNED_IN, TOKEN_REFRESHED, and SIGNED_OUT events the Authorization header used by postgrest, storage and functions is updated and realtime picks up the new token through its token callback. This works for the sync Client; AsyncClient.auth builds a new auth client on every access, so the listener registered at construction never receives events."
+    note: "On SIGNED_IN, TOKEN_REFRESHED, and SIGNED_OUT events the sync Client updates the Authorization header used by postgrest, storage and functions; it has no realtime client. AsyncClient.auth builds a new auth client on every access, so the listener registered at construction never receives events and neither the other clients nor realtime get the new token."
   client.authentication_integration.oauth_flow_type:
     status: implemented
     note: "flow_type option on ClientOptions and the auth client constructor."
@@ -751,10 +751,10 @@ features:
   database.configuration.auto_retry:
     status: implemented
     symbols:
-      - QueryRequestBuilder.retry
+      - BaseRequestClient.retry
   database.configuration.request_timeout:
     status: implemented
-    note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including query execution."
+    note: "No timeout parameter. Configure the timeout on the httpx client passed in through http_session, or wrap async calls in asyncio.wait_for (asyncio.timeout on Python 3.11+)."
     no_public_symbols: true
   database.configuration.access_token:
     status: partially_implemented
@@ -800,7 +800,7 @@ features:
     no_public_symbols: true
   functions.invocation.timeout:
     status: implemented
-    note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including invoke()."
+    note: "No timeout parameter. Configure the timeout on the httpx client passed in as http_client, or wrap async calls in asyncio.wait_for (asyncio.timeout on Python 3.11+)."
     no_public_symbols: true
 
   # ── Realtime ───────────────────────────────────────────────────────────────
@@ -975,19 +975,19 @@ features:
   realtime.configuration.custom_websocket_transport: not_implemented
   realtime.configuration.reconnect_backoff:
     status: partially_implemented
-    note: "automatically_reconnect() retries with exponential backoff capped at 60 seconds and a max_retries parameter. supabase-js accepts a custom reconnect function mapping attempt count to delay; Python only supports the fixed strategy."
+    note: "automatically_reconnect() retries failed and dropped connections with exponential backoff capped at 60 seconds, up to max_retries attempts in a row; the count resets once a connection has stayed up for 60 seconds. supabase-js accepts a custom reconnect function mapping attempt count to delay; Python only supports the fixed strategy."
     supporting_symbols:
       - exponential_delay
   realtime.configuration.heartbeat_interval:
     status: implemented
-    note: "hb_interval parameter on connect_once (and RealtimeClientOptions on the supabase client)."
+    note: "hb_interval parameter (in seconds) on connect_once, and RealtimeClientOptions on the supabase client. Intervals below 15 seconds are raised to 15."
     symbols:
       - connect_once
     supporting_symbols:
       - RealtimeClientOptions
   realtime.configuration.access_token_callback:
-    status: implemented
-    note: "token_callback parameter on connect_once; awaited on connect and on each heartbeat, and the supabase client wires it to the current auth token."
+    status: partially_implemented
+    note: "token_callback parameter on connect_once, awaited on connect and on each heartbeat. AsyncClient passes realtime_get_token_callback, but that only returns the anon key, because the auth listener that should update it never fires (see cross_client_token_sync)."
     symbols:
       - connect_once
     supporting_symbols:
