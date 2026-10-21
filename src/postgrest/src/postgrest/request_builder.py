@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import sys
 from dataclasses import dataclass
@@ -225,6 +226,8 @@ class APIResponse:
     @staticmethod
     def from_http_request_response(response: Response) -> APIResponse:
         count = APIResponse._get_count_from_http_request_response(response)
+        if response.request.method == "HEAD" or not response.content:
+            return APIResponse(data=[], count=count)
         data = JSONListParser.validate_json(response.content)
         return APIResponse(data=data, count=count)
 
@@ -582,7 +585,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         Only available in PostgREST v11.2+.
         """
         if self.request.headers.get("Accept") == "text/csv":
-            raise ValueError("strip_nulls() cannot be used with csv()")
+            raise ValueError("strip_nulls() cannot be used with Accept: text/csv")
         self.request.strip_nulls = True
         return self
 
@@ -658,6 +661,11 @@ class BaseRequestClient(Generic[HttpIO]):
     default_headers: Headers
     request: PostgrestRequest
 
+    def retry(self, enabled: bool) -> Self:
+        """Enable or disable retrying GET and HEAD requests on 503 and 520."""
+        self.request.retry = enabled
+        return self
+
 
 def _api_error(response: Response) -> APIError:
     try:
@@ -677,14 +685,15 @@ def can_retry(resp: Response, retry_enabled: bool, attempt_count: int) -> bool:
 
 def send_with_retry(req: PostgrestRequest) -> HttpMethod[Response]:
     attempt_count = 0
+    attempt = req
     while True:
-        if attempt_count > 0:
-            req.headers = req.headers.override("X-Retry-Count", str(attempt_count))
-            req.delay = min(2**attempt_count, 30)
-        resp = yield req
+        resp = yield attempt
         if resp.is_success or not can_retry(resp, req.retry, attempt_count):
             break
         attempt_count += 1
+        attempt = copy.copy(req)
+        attempt.headers = req.headers.override("X-Retry-Count", str(attempt_count))
+        attempt.delay = min(2 ** (attempt_count - 1), 30)
     return resp
 
 
@@ -702,10 +711,6 @@ class QueryRequestBuilder(BaseRequestClient[HttpIO]):
             self.request.headers = self.request.headers.set(
                 "Prefer", "return=representation"
             )
-        return self
-
-    def retry(self, enabled: bool) -> Self:
-        self.request.retry = enabled
         return self
 
     @handle_http_io
