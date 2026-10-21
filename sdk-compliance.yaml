@@ -180,7 +180,7 @@ features:
   auth.session.auto_refresh:
     status: implemented
     note: "Token refresh runs automatically as an internal background task controlled by the auto_refresh_token constructor option."
-    supporting_symbols:
+    symbols:
       - AsyncSessionManager.start_auto_refresh_token
       - SyncSessionManager.start_auto_refresh_token
   auth.session.sign_out_reason: not_implemented
@@ -406,17 +406,21 @@ features:
   client.authentication_integration.oauth_flow_type:
     status: implemented
     note: "flow_type option on ClientOptions and the auth client constructor."
+    symbols:
+      - AsyncClientOptions
+      - SyncClientOptions
   client.authentication_integration.session_url_detection: not_implemented
 
   client.session_management.custom_storage:
     status: implemented
     note: "storage option on AsyncClientOptions/SyncClientOptions and the auth client constructor accepts a custom storage backend."
-    supporting_symbols:
+    symbols:
       - AsyncSupportedStorage
+      - SyncSupportedStorage
+    supporting_symbols:
       - AsyncSupportedStorage.get_item
       - AsyncSupportedStorage.remove_item
       - AsyncSupportedStorage.set_item
-      - SyncSupportedStorage
       - SyncSupportedStorage.get_item
       - SyncSupportedStorage.remove_item
       - SyncSupportedStorage.set_item
@@ -441,6 +445,9 @@ features:
   client.request_configuration.global_headers:
     status: implemented
     note: "headers option on ClientOptions, accepted by all sub-client constructors."
+    symbols:
+      - AsyncClientOptions
+      - SyncClientOptions
 
   client.observability.trace_propagation: not_implemented
   client.observability.diagnostic_logging: not_implemented
@@ -514,14 +521,25 @@ features:
   database.mutate.bulk_rows_with_differing_fields:
     status: implemented
     note: "Bulk insert/upsert with a list sends a columns query parameter built from the union of all row keys."
+    symbols:
+      - RequestBuilder.insert
+      - RequestBuilder.upsert
   database.mutate.count:
     status: implemented
     note: "insert, upsert, update and delete accept a count argument (CountMethod)."
+    symbols:
+      - RequestBuilder.insert
+      - RequestBuilder.upsert
+      - RequestBuilder.update
+      - RequestBuilder.delete
     supporting_symbols:
       - CountMethod
   database.mutate.missing_defaults:
     status: implemented
     note: "Bulk insert/upsert accept default_to_null=False, which sends Prefer: missing=default."
+    symbols:
+      - RequestBuilder.insert
+      - RequestBuilder.upsert
 
   database.using_filters.eq:
     status: implemented
@@ -632,13 +650,20 @@ features:
   database.using_filters.regex:
     status: implemented
     note: "No dedicated method; use filter(column, \"match\", pattern)."
+    symbols:
+      - BaseFilterRequestBuilder.filter
   database.using_filters.regex_icase:
     status: implemented
     note: "No dedicated method; use filter(column, \"imatch\", pattern)."
+    symbols:
+      - BaseFilterRequestBuilder.filter
   database.using_filters.is_distinct: not_implemented
   database.using_filters.not_in:
     status: implemented
     note: "Achieved by chaining .not_.in_()."
+    symbols:
+      - BaseFilterRequestBuilder.not_
+      - BaseFilterRequestBuilder.in_
   database.using_filters.like_all:
     status: implemented
     symbols:
@@ -714,9 +739,12 @@ features:
   database.using_modifiers.request_cancellation:
     status: implemented
     note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running the query propagates cancellation through the HTTP client."
+    no_public_symbols: true
   database.using_modifiers.relationship_embed:
     status: implemented
     note: "Supported via query-string syntax in select() (e.g. 'user(*)'); no dedicated relationship builder API."
+    symbols:
+      - RequestBuilder.select
   database.using_modifiers.dry_run: not_implemented
 
   database.configuration.auto_retry:
@@ -726,6 +754,7 @@ features:
   database.configuration.request_timeout:
     status: implemented
     note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including query execution."
+    no_public_symbols: true
   database.configuration.access_token:
     status: partially_implemented
     note: "set_auth(token) sets the bearer token on the client in place; there is no per-request access token option."
@@ -754,18 +783,24 @@ features:
   functions.invocation.method_override:
     status: implemented
     note: "Passed via the method argument of invoke() (defaults to POST)."
+    symbols:
+      - FunctionsClient.invoke
   functions.invocation.streaming_response: not_implemented
   functions.invocation.region_selection:
     status: implemented
     note: "Passed via the region argument of invoke(); maps to the x-region header and forceFunctionRegion query param using the FunctionRegion enum."
+    symbols:
+      - FunctionsClient.invoke
     supporting_symbols:
       - FunctionRegion
   functions.invocation.request_cancellation:
     status: implemented
     note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running invoke() propagates cancellation through the HTTP client."
+    no_public_symbols: true
   functions.invocation.timeout:
     status: implemented
     note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including invoke()."
+    no_public_symbols: true
 
   # ── Realtime ───────────────────────────────────────────────────────────────
 
@@ -881,6 +916,8 @@ features:
   realtime.subscriptions.postgres_changes_filter:
     status: implemented
     note: "filter parameter on RealtimeChannelOptions.postgres_changes()."
+    symbols:
+      - RealtimeChannelOptions.postgres_changes
   realtime.subscriptions.private_channel:
     status: implemented
     symbols:
@@ -895,14 +932,21 @@ features:
   realtime.subscriptions.broadcast_ack:
     status: implemented
     note: "With ack=True on RealtimeChannelOptions.broadcast(), send_broadcast() waits for the server reply and returns it."
+    symbols:
+      - RealtimeChannelOptions.broadcast
+      - RealtimeChannel.send_broadcast
   realtime.subscriptions.broadcast_replay:
     status: implemented
     note: "replay_since and replay_limit parameters on RealtimeChannelOptions.broadcast(); forwarded in the phx_join payload."
+    symbols:
+      - RealtimeChannelOptions.broadcast
     supporting_symbols:
       - ReplayOption
   realtime.subscriptions.postgres_changes_multiple_filters:
     status: implemented
     note: "The filter string is passed through to the server unchanged; combine conditions with commas (AND)."
+    symbols:
+      - RealtimeChannelOptions.postgres_changes
 
   realtime.presence.track:
     status: implemented
@@ -923,6 +967,8 @@ features:
   realtime.presence.presence_key:
     status: implemented
     note: "key parameter on RealtimeChannelOptions.presence(); passed to the server so multiple connections from the same user share one logical presence key."
+    symbols:
+      - RealtimeChannelOptions.presence
 
   realtime.configuration.custom_websocket_transport: not_implemented
   realtime.configuration.reconnect_backoff:
@@ -933,11 +979,15 @@ features:
   realtime.configuration.heartbeat_interval:
     status: implemented
     note: "hb_interval parameter on connect_once (and RealtimeClientOptions on the supabase client)."
+    symbols:
+      - connect_once
     supporting_symbols:
       - RealtimeClientOptions
   realtime.configuration.access_token_callback:
     status: implemented
     note: "token_callback parameter on connect_once; awaited on connect and on each heartbeat, and the supabase client wires it to the current auth token."
+    symbols:
+      - connect_once
     supporting_symbols:
       - AsyncClient.realtime_get_token_callback
   realtime.configuration.deferred_disconnect: not_implemented
@@ -1065,6 +1115,10 @@ features:
   storage.file_buckets.download_with_transform:
     status: implemented
     note: "Pass transform to download(), get_public_url() or create_signed_url()."
+    symbols:
+      - StorageFileApiClient.download
+      - StorageFileApiClient.get_public_url
+      - StorageFileApiClient.create_signed_url
     supporting_symbols:
       - TransformOptions
       - transform_to_dict
@@ -1073,9 +1127,13 @@ features:
   storage.file_buckets.upload_with_metadata:
     status: implemented
     note: "Pass metadata (and content_type/cache_control) when calling upload(); metadata is sent as a multipart field."
+    symbols:
+      - StorageFileApiClient.upload
   storage.file_buckets.url_cache_nonce:
     status: implemented
     note: "Pass a nonce (e.g. {\"t\": \"<timestamp>\"}) via the query_params argument of download() to bypass CDN caching."
+    symbols:
+      - StorageFileApiClient.download
   storage.file_buckets.resumable_upload: not_implemented
   storage.file_buckets.transfer_progress: not_implemented
   storage.file_buckets.download_as_stream: not_implemented
@@ -1094,6 +1152,7 @@ features:
   storage.file_buckets.request_cancellation:
     status: implemented
     note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running the storage call propagates cancellation through the HTTP client."
+    no_public_symbols: true
   storage.file_buckets.update_bucket_lifecycle: not_implemented
 
   storage.configuration.auto_retry: not_implemented
