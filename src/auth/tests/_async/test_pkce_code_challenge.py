@@ -8,6 +8,7 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 from supabase_auth import AsyncSupabaseAuthClient
 from supabase_auth.helpers import generate_pkce_challenge
 from supabase_auth.types import (
+    AuthChangeEvent,
     AuthFlowType,
     Session,
     SignInWithPasswordless,
@@ -184,7 +185,42 @@ async def test_exchange_code_strips_recovery_suffix() -> None:
     requests: list[Request] = []
     client = mock_client(SESSION, requests)
     await client.exchange_code_for_session(
-        "verifier-value/PASSWORD_RECOVERY", "auth-code"
+        "auth-code", code_verifier="verifier-value/PASSWORD_RECOVERY"
     )
 
     assert request_body(requests)["code_verifier"] == "verifier-value"
+
+
+async def test_exchange_code_uses_and_removes_stored_verifier() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    await client.session_manager.storage.set_item(
+        verifier_key(client), "stored-verifier/PASSWORD_RECOVERY"
+    )
+    await client.exchange_code_for_session("auth-code")
+
+    assert request_body(requests)["code_verifier"] == "stored-verifier"
+    assert await stored_verifier(client) is None
+
+
+async def test_exchange_code_saves_session_and_signs_in() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    events: list[AuthChangeEvent] = []
+    client.on_auth_state_change(lambda event, session: events.append(event))
+    await client.exchange_code_for_session("auth-code", code_verifier="verifier")
+
+    assert await client.session_manager.storage.get_item(
+        client.session_manager.storage_key
+    )
+    assert events == ["SIGNED_IN"]
+
+
+async def test_autoconfirmed_email_sign_up_removes_verifier() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    await client.sign_up(
+        SignUpWithPassword.email(email="a@example.com", password="password")
+    )
+
+    assert await stored_verifier(client) is None

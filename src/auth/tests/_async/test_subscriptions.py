@@ -25,3 +25,5 @@ async def test_auth_state_change_callback_can_unsubscribe_during_notification(
         ("always", "SIGNED_OUT"),
         ("always", "SIGNED_OUT"),
     ]
+
+    subscription.unsubscribe()
