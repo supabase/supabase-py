@@ -763,10 +763,14 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         produced the auth code is used.
         """
         verifier = await self._code_verifier_for_exchange(code_verifier)
-        auth_response = await self._exchange_code_for_session(
-            verifier, auth_code, redirect_to
-        )
-        await self.session_manager.storage.remove_item(self._code_verifier_storage_key)
+        try:
+            auth_response = await self._exchange_code_for_session(
+                verifier, auth_code, redirect_to
+            )
+        finally:
+            await self.session_manager.storage.remove_item(
+                self._code_verifier_storage_key
+            )
         await self.save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -903,6 +907,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         """
         Attempts a single-sign on using an enterprise Identity Provider.
         """
+        await self.session_manager.remove_session()
         code_verifier = await self._prepare_code_verifier()
         return await self._sign_in_with_sso(credentials, code_verifier)
 
@@ -1030,6 +1035,9 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
 
         if scope != "others":
             await self.session_manager.remove_session()
+            await self.session_manager.storage.remove_item(
+                self._code_verifier_storage_key
+            )
             self.session_manager.notify_all_subscribers("SIGNED_OUT", None)
 
     def on_auth_state_change(
@@ -1187,10 +1195,12 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         produced the auth code is used.
         """
         verifier = self._code_verifier_for_exchange(code_verifier)
-        auth_response = self._exchange_code_for_session(
-            verifier, auth_code, redirect_to
-        )
-        self.session_manager.storage.remove_item(self._code_verifier_storage_key)
+        try:
+            auth_response = self._exchange_code_for_session(
+                verifier, auth_code, redirect_to
+            )
+        finally:
+            self.session_manager.storage.remove_item(self._code_verifier_storage_key)
         self.save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -1323,6 +1333,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         """
         Attempts a single-sign on using an enterprise Identity Provider.
         """
+        self.session_manager.remove_session()
         code_verifier = self._prepare_code_verifier()
         return self._sign_in_with_sso(credentials, code_verifier)
 
@@ -1446,6 +1457,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
 
         if scope != "others":
             self.session_manager.remove_session()
+            self.session_manager.storage.remove_item(self._code_verifier_storage_key)
             self.session_manager.notify_all_subscribers("SIGNED_OUT", None)
 
     def on_auth_state_change(
