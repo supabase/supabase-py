@@ -98,22 +98,23 @@ await channel.send_broadcast("some-event", {"hello": "world"})
 - Setting `ack` to `true` means that the `channel.send` promise will resolve once server replies with acknowledgement that it received the broadcast message request.
 - Setting `self` to `true` means that the client will receive the broadcast message it sent out.
 - Setting `private` to `true` means that the client will use RLS to determine if the user can connect or not to a given channel.
-- Setting `replication_ready` to `true` instructs the server to emit a `system` event once the Postgres replication connection backing the channel is established and ready to stream changes. Listen for it with `on_system`; the payload's `status` is `"ok"` (`message: "Replication connection established"`) on success or `"error"` if the connection is not ready in time.
+- Setting `replication_ready` to `true` instructs the server to emit a `system` message once the Postgres replication connection backing the channel is established and ready to stream changes. Its payload's `status` is `"ok"` (`message: "Replication connection established"`) on success or `"error"` if the connection is not ready in time.
 
 ```python
-channel = client.channel(
-    "db-changes", {"config": {"broadcast": {"replication_ready": True}}}
+from realtime import PostgresChangesMessage, RealtimeChannelOptions, SystemMessage
+
+options = (
+    RealtimeChannelOptions()
+    .broadcast(replication_ready=True)
+    .postgres_changes("*", schema="public", table="messages")
 )
 
-channel.on_postgres_changes(
-    "*", schema="public", table="messages",
-    callback=lambda payload: print("Change received!", payload),
-).on_system(
-    lambda payload: payload.status == "ok"
-    and print("Replication connection is ready:", payload.message)
-)
-
-await channel.subscribe()
+async with client.channel("db-changes", options) as channel:
+    async for message in channel.messages:
+        if isinstance(message, SystemMessage) and message.payload.status == "ok":
+            print("Replication connection is ready:", message.payload.message)
+        elif isinstance(message, PostgresChangesMessage):
+            print("Change received!", message.payload)
 ```
 
 ## Presence
@@ -211,14 +212,14 @@ reduces payload size (helpful for large `bytea`/`jsonb` columns). The selected
 columns must be selectable by the subscribing role:
 
 ```python
-channel.on_postgres_changes(
-    "*",
-    schema="public",
-    table="users",
-    select=["id", "first_name"],
-    # payload record only contains { "id": ..., "first_name": ... }
-    callback=lambda payload: print("Selected columns only: ", payload),
+options = RealtimeChannelOptions().postgres_changes(
+    "*", schema="public", table="users", select=["id", "first_name"]
 )
+
+async with client.channel("db-changes", options) as channel:
+    async for message in channel.messages:
+        # the record only contains {"id": ..., "first_name": ...}
+        print("Selected columns only: ", message)
 ```
 
 ## Get All Channels

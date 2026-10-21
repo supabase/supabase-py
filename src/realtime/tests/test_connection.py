@@ -22,6 +22,7 @@ from realtime.channel import RealtimeChannelOptions
 from realtime.client import connect_once, normalize_url
 from realtime.message import (
     BroadcastMessage,
+    ChannelCloseMessage,
     Message,
     PostgresChangesMessage,
     SystemMessage,
@@ -406,7 +407,10 @@ def test_broadcast_replication_ready_is_forwarded_only_when_set() -> None:
 
 
 def fake_client() -> tuple[RealtimeClient, list[Message]]:
-    """A client over a mocked websocket that acks every message carrying a ref."""
+    """A client over a mocked websocket that acks every message carrying a ref.
+
+    Like the Realtime server, it does not reply to access_token messages.
+    """
     sent: list[Message] = []
     ws = AsyncMock()
     client = RealtimeClient(URL("ws://localhost/realtime/v1"), ws)
@@ -414,7 +418,7 @@ def fake_client() -> tuple[RealtimeClient, list[Message]]:
     async def send(raw: str) -> None:
         message = Message.model_validate_json(raw)
         sent.append(message)
-        if message.ref is not None:
+        if message.ref is not None and message.event != ChannelEvents.access_token:
             reply = Message(
                 topic=message.topic,
                 event=ChannelEvents.reply,
@@ -465,12 +469,58 @@ async def test_set_auth_updates_join_payload_used_on_rejoin() -> None:
     channel = client.channel("test-set-auth-rejoin")
     await channel.subscribe()
 
-    await client.set_auth("refreshed-token")
+    await asyncio.wait_for(client.set_auth("refreshed-token"), timeout=1)
 
     assert sent[-1].event == ChannelEvents.access_token
     assert sent[-1].payload == {"access_token": "refreshed-token"}
 
-    await channel.subscribe()
+    await channel.unsubscribe()
+    await client.channel("test-set-auth-rejoin").subscribe()
 
     assert sent[-1].event == ChannelEvents.join
     assert sent[-1].payload["access_token"] == "refreshed-token"
+
+
+async def test_messages_receive_close_after_unsubscribe() -> None:
+    client, _ = fake_client()
+
+    channel = client.channel("room")
+    await channel.subscribe()
+    await channel.unsubscribe()
+
+    message = await asyncio.wait_for(channel.messages.__anext__(), timeout=1)
+
+    assert isinstance(message, ChannelCloseMessage)
+
+
+async def test_channel_warns_when_options_for_existing_topic_differ() -> None:
+    client, _ = fake_client()
+    client.channel("room")
+
+    with pytest.warns(UserWarning):
+        client.channel("room", RealtimeChannelOptions().private(True))
+
+
+async def test_remove_channel_ignores_a_replaced_channel() -> None:
+    client, sent = fake_client()
+
+    first = client.channel("room")
+    await first.subscribe()
+    await first.unsubscribe()
+    second = client.channel("room")
+    await second.subscribe()
+
+    await client.remove_channel(first)
+
+    assert second.joined
+    assert client.get_channels() == [second]
+
+
+async def test_remove_all_channels_twice() -> None:
+    client, _ = fake_client()
+    await client.channel("room").subscribe()
+
+    await client.remove_all_channels()
+    await client.remove_all_channels()
+
+    assert client.get_channels() == []

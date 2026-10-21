@@ -216,10 +216,13 @@ class RealtimeChannel:
         self.topic = topic
         self.presence: RealtimePresence = RealtimePresence()
         self.state = ChannelStates.CLOSED
-        self.joined = False
         self.join_ref: str | None = None
         self.message_stream: asyncio.Queue[Message] = asyncio.Queue()
         self.broadcast_endpoint_url = self._broadcast_endpoint_url()
+
+    @property
+    def joined(self) -> bool:
+        return self.state == ChannelStates.JOINED
 
     async def __aenter__(self) -> RealtimeChannel:
         await self.subscribe()
@@ -251,7 +254,6 @@ class RealtimeChannel:
                 f"error while subscribing to channel: {msg.payload.response!r}"
             )
         self.join_ref = join_ref
-        self.joined = True
         self.state = ChannelStates.JOINED
         return msg
 
@@ -279,9 +281,17 @@ class RealtimeChannel:
         try:
             await self.send_event(ChannelEvents.leave, payload={})
         finally:
-            self.joined = False
             self.state = ChannelStates.CLOSED
             self.socket._remove_channel(self)
+            self.message_stream.put_nowait(
+                Message(
+                    topic=self.topic,
+                    event=ChannelEvents.close,
+                    payload={},
+                    ref=self.join_ref,
+                    join_ref=self.join_ref,
+                )
+            )
 
     # Presence methods
     async def track(self, user_status: Dict[str, Any]) -> ReplyMessage:
