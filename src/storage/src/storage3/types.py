@@ -198,12 +198,6 @@ class MetadataConfiguration(BaseModel, extra="ignore"):
     )
 
 
-class ListIndexesOptions(BaseModel, extra="ignore"):
-    nextToken: str | None = None
-    maxResults: int | None = None
-    prefix: str | None = None
-
-
 class ListIndexesResponseItem(BaseModel, extra="ignore"):
     indexName: str
 
@@ -246,7 +240,7 @@ class VectorMatch(BaseModel, extra="ignore"):
     key: str
     data: VectorData | None = None
     distance: float | None = None
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, JSON] | None = None
 
 
 class GetVectorsResponse(BaseModel, extra="ignore"):
