@@ -136,6 +136,12 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
     def _code_verifier_storage_key(self) -> str:
         return f"{self.session_manager.storage_key}-code-verifier"
 
+    @staticmethod
+    def _stored_code_verifier(code_verifier: str, password_recovery: bool) -> str:
+        if password_recovery:
+            return code_verifier + _PASSWORD_RECOVERY_SUFFIX
+        return code_verifier
+
     @handle_http_io
     def _sign_in_anonymously(
         self, data: JSON = None, captcha_token: str | None = None
@@ -435,7 +441,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         unique_id = str(uuid4())
 
         def _unsubscribe() -> None:
-            self.session_manager.state_change_emitters.pop(unique_id)
+            self.session_manager.state_change_emitters.pop(unique_id, None)
 
         subscription = Subscription(
             id=unique_id,
@@ -532,17 +538,16 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         provider: Provider,
         query: URLQuery,
     ) -> tuple[str | None, URLQuery]:
-        code_verifier = None
-        if self.flow_type == "pkce":
-            code_verifier = generate_pkce_verifier()
+        code_verifier = self._new_code_verifier()
+        if code_verifier:
             for key, value in _pkce_challenge_params(code_verifier).items():
                 query = query.set(key, value)
         query = query.set("provider", provider)
         return code_verifier, query
 
     @handle_http_io
-    def exchange_code_for_session(
-        self, code_verifier: str, auth_code: str, redirect_to: str | None = None
+    def _exchange_code_for_session(
+        self, code_verifier: str | None, auth_code: str, redirect_to: str | None
     ) -> HttpMethod[AuthResponse]:
         query = redirect_to_as_query(redirect_to).set("grant_type", "pkce")
         response = yield JSONRequest(
@@ -550,7 +555,8 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
             path=["token"],
             body={
                 "auth_code": auth_code,
-                "code_verifier": _strip_password_recovery_suffix(code_verifier),
+                "code_verifier": code_verifier
+                and _strip_password_recovery_suffix(code_verifier),
             },
             query=query,
         )
@@ -718,20 +724,51 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
                 "SIGNED_IN", auth_response.session
             )
 
+    async def _store_code_verifier(
+        self, code_verifier: str, *, password_recovery: bool = False
+    ) -> None:
+        await self.session_manager.storage.set_item(
+            self._code_verifier_storage_key,
+            self._stored_code_verifier(code_verifier, password_recovery),
+        )
+
     async def _prepare_code_verifier(
         self, *, password_recovery: bool = False
     ) -> str | None:
         code_verifier = self._new_code_verifier()
         if code_verifier:
-            stored_verifier = (
-                code_verifier + _PASSWORD_RECOVERY_SUFFIX
-                if password_recovery
-                else code_verifier
-            )
-            await self.session_manager.storage.set_item(
-                self._code_verifier_storage_key, stored_verifier
+            await self._store_code_verifier(
+                code_verifier, password_recovery=password_recovery
             )
         return code_verifier
+
+    async def _code_verifier_for_exchange(self, explicit: str | None) -> str | None:
+        if explicit:
+            return explicit
+        return await self.session_manager.storage.get_item(
+            self._code_verifier_storage_key
+        )
+
+    async def exchange_code_for_session(
+        self,
+        auth_code: str,
+        *,
+        code_verifier: str | None = None,
+        redirect_to: str | None = None,
+    ) -> AuthResponse:
+        """
+        Exchanges a PKCE auth code for a session and signs the user in.
+
+        When code_verifier is not given, the verifier stored by the flow that
+        produced the auth code is used.
+        """
+        verifier = await self._code_verifier_for_exchange(code_verifier)
+        auth_response = await self._exchange_code_for_session(
+            verifier, auth_code, redirect_to
+        )
+        await self.session_manager.storage.remove_item(self._code_verifier_storage_key)
+        await self.save_session_and_sign_in(auth_response)
+        return auth_response
 
     # Public methods
 
@@ -758,6 +795,10 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             else None
         )
         auth_response = await self._sign_up(credentials, code_verifier)
+        if code_verifier and auth_response.session:
+            await self.session_manager.storage.remove_item(
+                self._code_verifier_storage_key
+            )
         await self.save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -804,8 +845,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             provider, redirect_to, scopes, query_params
         )
         if code_verifier:
-            key = f"{self.session_manager.storage_key}-code-verifier"
-            await self.session_manager.storage.set_item(key, code_verifier)
+            await self._store_code_verifier(code_verifier)
         return oauth_response
 
     async def link_identity(
@@ -820,8 +860,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             session, provider, redirect_to, scopes, query_params
         )
         if code_verifier:
-            key = f"{self.session_manager.storage_key}-code-verifier"
-            await self.session_manager.storage.set_item(key, code_verifier)
+            await self._store_code_verifier(code_verifier)
         return oauth_response
 
     async def get_user_identities(self) -> IdentitiesResponse:
@@ -1003,7 +1042,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         unique_id = str(uuid4())
 
         def _unsubscribe() -> None:
-            self.session_manager.state_change_emitters.pop(unique_id)
+            self.session_manager.state_change_emitters.pop(unique_id, None)
 
         subscription = Subscription(
             id=unique_id,
@@ -1113,18 +1152,47 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
                 "SIGNED_IN", auth_response.session
             )
 
+    def _store_code_verifier(
+        self, code_verifier: str, *, password_recovery: bool = False
+    ) -> None:
+        self.session_manager.storage.set_item(
+            self._code_verifier_storage_key,
+            self._stored_code_verifier(code_verifier, password_recovery),
+        )
+
     def _prepare_code_verifier(self, *, password_recovery: bool = False) -> str | None:
         code_verifier = self._new_code_verifier()
         if code_verifier:
-            stored_verifier = (
-                code_verifier + _PASSWORD_RECOVERY_SUFFIX
-                if password_recovery
-                else code_verifier
-            )
-            self.session_manager.storage.set_item(
-                self._code_verifier_storage_key, stored_verifier
+            self._store_code_verifier(
+                code_verifier, password_recovery=password_recovery
             )
         return code_verifier
+
+    def _code_verifier_for_exchange(self, explicit: str | None) -> str | None:
+        if explicit:
+            return explicit
+        return self.session_manager.storage.get_item(self._code_verifier_storage_key)
+
+    def exchange_code_for_session(
+        self,
+        auth_code: str,
+        *,
+        code_verifier: str | None = None,
+        redirect_to: str | None = None,
+    ) -> AuthResponse:
+        """
+        Exchanges a PKCE auth code for a session and signs the user in.
+
+        When code_verifier is not given, the verifier stored by the flow that
+        produced the auth code is used.
+        """
+        verifier = self._code_verifier_for_exchange(code_verifier)
+        auth_response = self._exchange_code_for_session(
+            verifier, auth_code, redirect_to
+        )
+        self.session_manager.storage.remove_item(self._code_verifier_storage_key)
+        self.save_session_and_sign_in(auth_response)
+        return auth_response
 
     # Public methods
 
@@ -1151,6 +1219,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
             else None
         )
         auth_response = self._sign_up(credentials, code_verifier)
+        if code_verifier and auth_response.session:
+            self.session_manager.storage.remove_item(self._code_verifier_storage_key)
         self.save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -1197,8 +1267,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
             provider, redirect_to, scopes, query_params
         )
         if code_verifier:
-            key = f"{self.session_manager.storage_key}-code-verifier"
-            self.session_manager.storage.set_item(key, code_verifier)
+            self._store_code_verifier(code_verifier)
         return oauth_response
 
     def link_identity(
@@ -1213,8 +1282,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
             session, provider, redirect_to, scopes, query_params
         )
         if code_verifier:
-            key = f"{self.session_manager.storage_key}-code-verifier"
-            self.session_manager.storage.set_item(key, code_verifier)
+            self._store_code_verifier(code_verifier)
         return oauth_response
 
     def get_user_identities(self) -> IdentitiesResponse:
@@ -1390,7 +1458,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         unique_id = str(uuid4())
 
         def _unsubscribe() -> None:
-            self.session_manager.state_change_emitters.pop(unique_id)
+            self.session_manager.state_change_emitters.pop(unique_id, None)
 
         subscription = Subscription(
             id=unique_id,
