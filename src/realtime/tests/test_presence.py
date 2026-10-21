@@ -158,3 +158,15 @@ def test_diff_join_for_known_presence_is_not_reported_twice() -> None:
 
     assert events == []
     assert presence.state == {"k": [{"presence_ref": "A", "user_id": "1"}]}
+
+
+def test_diff_leave_for_presence_already_gone_is_not_reported() -> None:
+    presence = RealtimePresence()
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "B"}]}}
+    list(presence._on_state_event(state))
+
+    leaves: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
+    events = list(presence._on_diff_event({"joins": {}, "leaves": leaves}))
+
+    assert events == []
+    assert presence.state == {"k": [{"presence_ref": "B"}]}

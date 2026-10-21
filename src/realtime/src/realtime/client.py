@@ -181,6 +181,8 @@ class RealtimeClient:
                     fut := self.message_refs.get(message.ref)
                 ):
                     fut.set_result(message)
+                elif message.event == ChannelEvents.reply:
+                    logger.info(f"Ignoring reply nobody is waiting on: {message!r}")
                 elif channel := self.channels.get(message.topic):
                     await channel.message_stream.put(message)
                 else:
@@ -328,11 +330,12 @@ class RealtimeClient:
 
         receive: asyncio.Future[Message] = asyncio.Future()
         self.message_refs[message.ref] = receive
-        await self._ws_connection.send(message_str)
-        logger.debug(f"waiting for ref='{message.ref}'")
-
-        response = await self.get_message_or_raise(receive)
-        del self.message_refs[message.ref]
+        try:
+            await self._ws_connection.send(message_str)
+            logger.debug(f"waiting for ref='{message.ref}'")
+            response = await self.get_message_or_raise(receive)
+        finally:
+            del self.message_refs[message.ref]
 
         return ReplyMessage.model_validate(response)
 
