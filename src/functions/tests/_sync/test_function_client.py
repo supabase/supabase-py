@@ -240,3 +240,12 @@ def test_invoke_does_not_overwrite_client_content_type() -> None:
     )
     response = client.invoke("test-function", body="<xml/>")
     assert response.request.headers.get_list("Content-Type") == ["application/xml"]
+
+
+def test_invoke_accepts_region_as_string() -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = client.invoke(
+        "test-function", region="us-east-1", headers={"x-region": "eu-west-1"}
+    )
+    assert response.request.headers.get_list("x-region") == ["us-east-1"]
+    assert response.request.url.query["forceFunctionRegion"] == "us-east-1"

@@ -67,9 +67,9 @@ class EmptyRequest:
         self, default_headers: Headers, content_type: str
     ) -> Headers:
         headers = default_headers.update(self.headers)
-        if "content-type" in headers:
+        if "content-type" in self.headers:
             return headers
-        return headers.set("Content-Type", content_type)
+        return headers.override("Content-Type", content_type)
 
 
 @dataclass

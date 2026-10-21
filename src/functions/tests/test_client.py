@@ -2,6 +2,9 @@ import re
 from typing import Dict
 
 import pytest
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.request import JSONRequest
+from yarl import URL
 
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient, create_client
 
@@ -73,3 +76,20 @@ def test_type_hints() -> None:
     assert hints["headers"] == dict[str, str]
     assert hints["is_async"] is bool
     assert hints["return"] == AsyncFunctionsClient | SyncFunctionsClient
+
+
+def test_json_request_body_type_wins_over_client_default_content_type() -> None:
+    request = JSONRequest(path=["x"], method="POST", body={"a": 1}).finalize(
+        URL("https://example.com"), Headers.from_mapping({"Content-Type": "text/plain"})
+    )
+    assert request.headers.get_list("Content-Type") == ["application/json"]
+
+
+def test_json_request_keeps_request_content_type() -> None:
+    request = JSONRequest(
+        path=["x"],
+        method="POST",
+        body={"a": 1},
+        headers=Headers.from_mapping({"Content-Type": "application/merge-patch+json"}),
+    ).finalize(URL("https://example.com"), Headers.empty())
+    assert request.headers.get_list("Content-Type") == ["application/merge-patch+json"]

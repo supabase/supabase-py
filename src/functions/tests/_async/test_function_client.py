@@ -266,3 +266,12 @@ async def test_invoke_raises_on_300() -> None:
     client = client_returning(content=b"", status=300)
     with pytest.raises(FunctionsHttpError):
         await client.invoke("test-function")
+
+
+async def test_invoke_accepts_region_as_string() -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke(
+        "test-function", region="us-east-1", headers={"x-region": "eu-west-1"}
+    )
+    assert response.request.headers.get_list("x-region") == ["us-east-1"]
+    assert response.request.url.query["forceFunctionRegion"] == "us-east-1"
