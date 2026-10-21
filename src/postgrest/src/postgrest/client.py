@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from base64 import b64encode
 from types import TracebackType
-from typing import Generic, Literal, overload
+from typing import Generic, Literal, Mapping, overload
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -14,6 +14,7 @@ from supabase_utils.http.io import (
 )
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import HTTPRequestMethod
+from supabase_utils.types import JSON
 from typing_extensions import Self
 from yarl import URL
 
@@ -100,7 +101,7 @@ class PostgrestClient(Generic[HttpIO]):
     def rpc(
         self,
         func: str,
-        params: dict[str, str],
+        params: Mapping[str, JSON],
         *,
         head: Literal[False],
         count: CountMethod | None,
@@ -111,7 +112,7 @@ class PostgrestClient(Generic[HttpIO]):
     def rpc(
         self,
         func: str,
-        params: dict[str, str],
+        params: Mapping[str, JSON],
         *,
         head: Literal[True],
         count: CountMethod | None,
@@ -122,14 +123,14 @@ class PostgrestClient(Generic[HttpIO]):
     def rpc(
         self,
         func: str,
-        params: dict[str, str],
+        params: Mapping[str, JSON],
     ) -> RPCFilterRequestBuilder[HttpIO]: ...
 
     @overload
     def rpc(
         self,
         func: str,
-        params: dict[str, str],
+        params: Mapping[str, JSON],
         *,
         get: Literal[True],
     ) -> RPCFilterRequestBuilder[HttpIO]: ...
@@ -138,7 +139,7 @@ class PostgrestClient(Generic[HttpIO]):
     def rpc(
         self,
         func: str,
-        params: dict[str, str],
+        params: Mapping[str, JSON],
         *,
         count: CountMethod | None,
         get: Literal[False],
@@ -148,7 +149,7 @@ class PostgrestClient(Generic[HttpIO]):
     def rpc(
         self,
         func: str,
-        params: dict[str, str],
+        params: Mapping[str, JSON],
         *,
         count: CountMethod | None,
         get: Literal[True],
@@ -158,7 +159,7 @@ class PostgrestClient(Generic[HttpIO]):
     def rpc(
         self,
         func: str,
-        params: dict[str, str],
+        params: Mapping[str, JSON],
         *,
         count: CountMethod | None,
         head: Literal[True],
@@ -168,7 +169,7 @@ class PostgrestClient(Generic[HttpIO]):
     def rpc(
         self,
         func: str,
-        params: dict[str, str],
+        params: Mapping[str, JSON],
         *,
         head: bool = ...,
         count: CountMethod | None = ...,
@@ -178,7 +179,7 @@ class PostgrestClient(Generic[HttpIO]):
     def rpc(
         self,
         func: str,
-        params: dict[str, str],
+        params: Mapping[str, JSON],
         *,
         head: bool = False,
         count: CountMethod | None = None,
@@ -216,7 +217,7 @@ class PostgrestClient(Generic[HttpIO]):
                 ),
             )
             if method in ("HEAD", "GET")
-            else (params, URLQuery.empty())
+            else (dict(params), URLQuery.empty())
         )
         request = PostgrestRequest(
             path=["rpc", func],

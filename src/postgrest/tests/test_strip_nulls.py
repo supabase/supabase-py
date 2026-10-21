@@ -37,3 +37,13 @@ def test_strip_nulls_rejects_csv() -> None:
         query.request.headers = query.request.headers.set("Accept", "text/csv")
         with pytest.raises(ValueError):
             query.strip_nulls()
+
+
+def test_strip_nulls_rejects_csv_set_after_strip_nulls() -> None:
+    with Client() as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        query = client.from_("users").select("*").strip_nulls().csv()
+        with pytest.raises(ValueError):
+            query.execute()

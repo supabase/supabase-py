@@ -46,6 +46,8 @@ def _sanitize_array_element(element: Any) -> str:
     are backslash-escaped. Without this, a value such as ``"a,b"`` is emitted
     bare and parsed by PostgREST as two separate elements.
     """
+    if element is None:
+        return "NULL"
     element_str = str(element)
     needs_quoting = (
         element_str == ""
@@ -77,7 +79,7 @@ def _rpc_query_param(value: Any) -> Any:
     one value when a non-variadic argument is repeated.
     """
     if isinstance(value, (list, tuple)):
-        return f"{{{','.join(str(v) for v in value)}}}"
+        return _sanitize_array_param(value)
     return value
 
 

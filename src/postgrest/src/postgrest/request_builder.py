@@ -259,6 +259,8 @@ class PostgrestRequest(JSONRequest):
                 request.headers = request.headers.override(
                     "Accept", "application/vnd.pgrst.array+json;nulls=stripped"
                 )
+            else:
+                raise ValueError(f"strip_nulls() cannot be used with Accept: {accept}")
         return request
 
 
@@ -276,7 +278,7 @@ class BaseFilterRequestBuilder:
         self.negate_next = True
         return self
 
-    def filter(self: Self, column: str, operator: str, criteria: str | int) -> Self:
+    def filter(self: Self, column: str, operator: str, criteria: Any) -> Self:
         """Apply filters on a query.
 
         Args:
@@ -287,7 +289,8 @@ class BaseFilterRequestBuilder:
         if self.negate_next is True:
             self.negate_next = False
             operator = f"{Filters.NOT}.{operator}"
-        key, val = sanitize_param(column), f"{operator}.{criteria}"
+        key = sanitize_param(column)
+        val = f"{operator}.{_serialize_filter_value(criteria)}"
         self.request.query = self.request.query.set(key, val)
         return self
 
@@ -298,7 +301,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.EQ, _serialize_filter_value(value))
+        return self.filter(column, Filters.EQ, value)
 
     def neq(self: Self, column: str, value: Any) -> Self:
         """A 'not equal to' filter
@@ -307,7 +310,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.NEQ, _serialize_filter_value(value))
+        return self.filter(column, Filters.NEQ, value)
 
     def gt(self: Self, column: str, value: Any) -> Self:
         """A 'greater than' filter
@@ -316,7 +319,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.GT, _serialize_filter_value(value))
+        return self.filter(column, Filters.GT, value)
 
     def gte(self: Self, column: str, value: Any) -> Self:
         """A 'greater than or equal to' filter
@@ -325,7 +328,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.GTE, _serialize_filter_value(value))
+        return self.filter(column, Filters.GTE, value)
 
     def lt(self: Self, column: str, value: Any) -> Self:
         """A 'less than' filter
@@ -334,7 +337,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.LT, _serialize_filter_value(value))
+        return self.filter(column, Filters.LT, value)
 
     def lte(self: Self, column: str, value: Any) -> Self:
         """A 'less than or equal to' filter
@@ -343,7 +346,7 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.LTE, _serialize_filter_value(value))
+        return self.filter(column, Filters.LTE, value)
 
     def is_(self: Self, column: str, value: Any) -> Self:
         """An 'is' filter
@@ -352,12 +355,6 @@ class BaseFilterRequestBuilder:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        if value is None:
-            value = "null"
-        elif value is True:
-            value = "true"
-        elif value is False:
-            value = "false"
         return self.filter(column, Filters.IS, value)
 
     def like(self: Self, column: str, pattern: str) -> Self:
@@ -425,15 +422,9 @@ class BaseFilterRequestBuilder:
             filters: The filters to use, following PostgREST syntax
             reference_table: Set this to filter on referenced tables instead of the parent table
         """
-        if self.negate_next:
-            self.negate_next = False
-            key = (
-                f"{sanitize_param(reference_table)}.not.or"
-                if reference_table
-                else "not.or"
-            )
-        else:
-            key = f"{sanitize_param(reference_table)}.or" if reference_table else "or"
+        op = "not.or" if self.negate_next else "or"
+        self.negate_next = False
+        key = f"{sanitize_param(reference_table)}.{op}" if reference_table else op
         self.request.query = self.request.query.set(key, f"({filters})")
         return self
 
@@ -668,6 +659,14 @@ class BaseRequestClient(Generic[HttpIO]):
     request: PostgrestRequest
 
 
+def _api_error(response: Response) -> APIError:
+    try:
+        json_obj = model_validate_json(APIErrorFromJSON, response.content)
+    except ValidationError:
+        return APIError(generate_default_error_message(response))
+    return APIError(dict(json_obj))
+
+
 def can_retry(resp: Response, retry_enabled: bool, attempt_count: int) -> bool:
     if not retry_enabled or attempt_count >= MAX_RETRIES:
         return False
@@ -723,12 +722,10 @@ class QueryRequestBuilder(BaseRequestClient[HttpIO]):
             :class:`APIError` If the API raised an error.
         """
         r = yield from send_with_retry(self.request)
+        if not r.is_success:
+            raise _api_error(r)
         try:
-            if r.is_success:
-                return APIResponse.from_http_request_response(r)
-            else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
-                raise APIError(dict(json_obj))
+            return APIResponse.from_http_request_response(r)
         except ValidationError:
             raise APIError(generate_default_error_message(r))
 
@@ -751,8 +748,7 @@ class SingleRequestBuilder(BaseRequestClient[HttpIO]):
         if response.is_success:
             return SingleAPIResponse.from_http_request_response(response)
         else:
-            json_obj = model_validate_json(APIErrorFromJSON, response.content)
-            raise APIError(dict(json_obj))
+            raise _api_error(response)
 
 
 class TextRequestBuilder(BaseRequestClient[HttpIO]):
@@ -773,22 +769,16 @@ class TextRequestBuilder(BaseRequestClient[HttpIO]):
         if response.is_success:
             return response.content.decode("utf8")
         else:
-            json_obj = model_validate_json(APIErrorFromJSON, response.content)
-            raise APIError(dict(json_obj))
+            raise _api_error(response)
 
 
 class ExplainRequestBuilder(BaseRequestClient[HttpIO]):
     @handle_http_io
     def execute(self) -> HttpMethod[str]:
         r = yield from send_with_retry(self.request)
-        try:
-            if r.is_success:
-                return r.content.decode("utf-8")
-            else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
-                raise APIError(dict(json_obj))
-        except ValidationError:
-            raise APIError(generate_default_error_message(r))
+        if not r.is_success:
+            raise _api_error(r)
+        return r.content.decode("utf-8")
 
 
 class MaybeSingleRequestBuilder(BaseRequestClient[HttpIO]):
@@ -796,7 +786,10 @@ class MaybeSingleRequestBuilder(BaseRequestClient[HttpIO]):
     def execute(self) -> HttpMethod[SingleAPIResponse | None]:
         response = yield from send_with_retry(self.request)
         if response.is_success:
-            parsed = APIResponse.from_http_request_response(response)
+            try:
+                parsed = APIResponse.from_http_request_response(response)
+            except ValidationError:
+                raise APIError(generate_default_error_message(response))
             if len(parsed.data) == 0:
                 return None
             if len(parsed.data) == 1:
@@ -811,8 +804,7 @@ class MaybeSingleRequestBuilder(BaseRequestClient[HttpIO]):
                     }
                 )
         else:
-            json_obj = model_validate_json(APIErrorFromJSON, response.content)
-            raise APIError(dict(json_obj))
+            raise _api_error(response)
 
 
 class FilterRequestBuilder(QueryRequestBuilder[HttpIO], BaseFilterRequestBuilder):
@@ -858,13 +850,11 @@ class RPCFilterRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        r = yield self.request
+        r = yield from send_with_retry(self.request)
+        if not r.is_success:
+            raise _api_error(r)
         try:
-            if r.is_success:
-                return APIResponse.from_http_request_response(r)
-            else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
-                raise APIError(dict(json_obj))
+            return APIResponse.from_http_request_response(r)
         except ValidationError:
             raise APIError(generate_default_error_message(r))
 
@@ -883,13 +873,12 @@ class RPCCountRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        response = yield self.request
+        response = yield from send_with_retry(self.request)
         if response.is_success:
             count = APIResponse._get_count_from_http_request_response(response)
             return count
         else:
-            json_obj = model_validate_json(APIErrorFromJSON, response.content)
-            raise APIError(dict(json_obj))
+            raise _api_error(response)
 
 
 class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder):
