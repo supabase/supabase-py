@@ -61,7 +61,7 @@ class FunctionsClient(Generic[HttpIO]):
         self,
         function_name: str,
         body: bytes | str | Dict[str, JSON] | List[JSON] | None,
-        region: FunctionRegion | None,
+        region: FunctionRegion | str | None,
         headers: Dict[str, str] | None,
         method: HTTPRequestMethod,
     ) -> ToRequest:
@@ -70,10 +70,14 @@ class FunctionsClient(Generic[HttpIO]):
 
         path = [function_name]
         new_headers = Headers.from_mapping(headers) if headers else Headers.empty()
+        if "content-type" not in new_headers and (
+            client_content_type := self.default_headers.get("Content-Type")
+        ):
+            new_headers = new_headers.set("Content-Type", client_content_type)
         query_params = URLQuery.empty()
 
-        if region and region != FunctionRegion.Any:
-            new_headers = new_headers.set("x-region", region.value)
+        if region and (region := FunctionRegion(region)) != FunctionRegion.Any:
+            new_headers = new_headers.override("x-region", region.value)
             # Add region as query parameter
             query_params = query_params.set("forceFunctionRegion", region.value)
         if body is None:
@@ -113,7 +117,7 @@ class FunctionsClient(Generic[HttpIO]):
         self,
         function_name: str,
         body: bytes | str | Dict[str, JSON] | List[JSON] | None = None,
-        region: FunctionRegion | None = None,
+        region: FunctionRegion | str | None = None,
         headers: Dict[str, str] | None = None,
         method: HTTPRequestMethod = "POST",
     ) -> HttpMethod[Response]:
