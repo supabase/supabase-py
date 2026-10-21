@@ -51,7 +51,7 @@ def mock_user_credentials(
     user_options = options or {}
     rand_numbers = str(int(time()))
     return Credentials(
-        email=user_options.get("email") or f"{uuid4().hex}@{fake.domain_name()}",
+        email=user_options.get("email") or f"{uuid4().hex}@example.com",
         phone=user_options.get("phone") or f"1{rand_numbers[-11:]}",
         password=user_options.get("password") or fake.password(),
     )
