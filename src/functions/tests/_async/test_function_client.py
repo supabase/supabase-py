@@ -1,9 +1,9 @@
 import re
-from typing import Dict
+from typing import Dict, List
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, HTTPError, Request, Response, Timeout
+from httpx import AsyncClient, HTTPError, MockTransport, Request, Response, Timeout
 
 # Import the class to test
 from supabase_functions import AsyncFunctionsClient
@@ -439,3 +439,41 @@ async def test_invoke_http_error_with_empty_body(client: AsyncFunctionsClient) -
 
         with pytest.raises(FunctionsHttpError, match="not json"):
             await client.invoke("test-function")
+
+
+def _recording_client(seen: List[Request]) -> AsyncFunctionsClient:
+    def handler(request: Request) -> Response:
+        seen.append(request)
+        return Response(200, content=b"ok")
+
+    return AsyncFunctionsClient(
+        url="https://example.com/functions/v1",
+        headers={},
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    )
+
+
+@pytest.mark.parametrize("function_name", ["hello?name=bob", "hello?name=bob#top"])
+async def test_invoke_keeps_query_string_in_function_name(function_name: str) -> None:
+    seen: List[Request] = []
+    client = _recording_client(seen)
+
+    await client.invoke(function_name, {"region": FunctionRegion.UsEast1})
+
+    (request,) = seen
+    assert request.url.path == "/functions/v1/hello", str(request.url)
+    assert dict(request.url.params) == {
+        "name": "bob",
+        "forceFunctionRegion": "us-east-1",
+    }
+
+
+async def test_invoke_plain_function_name_has_no_query() -> None:
+    seen: List[Request] = []
+    client = _recording_client(seen)
+
+    await client.invoke("hello")
+
+    (request,) = seen
+    assert request.url.path == "/functions/v1/hello"
+    assert request.url.query == b""
