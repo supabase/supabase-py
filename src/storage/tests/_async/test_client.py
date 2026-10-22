@@ -8,10 +8,11 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient as HttpxClient
-from httpx import HTTPStatusError, Response
+from httpx import Headers, HTTPStatusError, MockTransport, Request, Response
 from storage3 import AsyncStorageClient
 from storage3.exceptions import StorageApiError
 from storage3.utils import StorageException
+from yarl import URL
 
 from .. import AsyncBucketProxy
 from ..utils import AsyncFinalizerFactory
@@ -778,6 +779,7 @@ async def test_client_list_v2(
     assert len(result.objects) == 1
     object = result.objects[0]
     assert object.name == file.bucket_path
+    assert object.metadata is not None
     assert object.metadata.get("mimetype") == file.mime_type
 
 
@@ -827,3 +829,40 @@ async def test_client_list_v2_paginated(
         assert all(f.name.startswith(file.bucket_path) for f in result.objects)
         pages += 1
     assert pages == 4
+
+
+async def test_client_list_v2_allows_null_object_metadata() -> None:
+    response_body = {
+        "hasNext": False,
+        "folders": [],
+        "objects": [
+            {
+                "id": "object-without-metadata",
+                "name": "file-without-metadata.txt",
+                "updated_at": "2024-01-01T00:00:00Z",
+                "created_at": "2024-01-01T00:00:00Z",
+                "metadata": None,
+            },
+            {
+                "id": "object-with-metadata",
+                "name": "file-with-metadata.txt",
+                "updated_at": "2024-01-01T00:00:00Z",
+                "created_at": "2024-01-01T00:00:00Z",
+                "metadata": {"mimetype": "text/plain"},
+            },
+        ],
+    }
+
+    async def handle_request(request: Request) -> Response:
+        return Response(200, json=response_body, request=request)
+
+    async with HttpxClient(transport=MockTransport(handle_request)) as http_client:
+        bucket = AsyncBucketProxy(
+            "bucket", URL("https://example.com/storage/v1/"), Headers(), http_client
+        )
+        result = await bucket.list_v2()
+
+    assert len(result.objects) == 2
+    assert result.objects[0].name == "file-without-metadata.txt"
+    assert result.objects[0].metadata is None
+    assert result.objects[1].metadata == {"mimetype": "text/plain"}

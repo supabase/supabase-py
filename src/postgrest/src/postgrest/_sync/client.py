@@ -15,6 +15,7 @@ from ..constants import (
     DEFAULT_POSTGREST_CLIENT_TIMEOUT,
 )
 from ..types import CountMethod
+from ..utils import rpc_query_param
 from ..version import __version__
 from .request_builder import (
     RequestConfig,
@@ -181,7 +182,7 @@ class SyncPostgrestClient(BasePostgrestClient):
         headers.update(self.headers)
         # the params here are params to be sent to the RPC and not the queryparams!
         json, http_params = (
-            ({}, QueryParams(params))
+            ({}, QueryParams({k: rpc_query_param(v) for k, v in params.items()}))
             if method in ("HEAD", "GET")
             else (params, QueryParams())
         )

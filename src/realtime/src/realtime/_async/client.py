@@ -161,8 +161,6 @@ class AsyncRealtimeClient:
             return
 
         retries = 0
-        backoff = self.initial_backoff
-
         endpoint_url = self.endpoint_url()
         logger.debug(f"Attempting to connect to WebSocket at {endpoint_url}")
 
@@ -182,12 +180,11 @@ class AsyncRealtimeClient:
                     )
                     raise
                 else:
-                    wait_time = backoff * (2 ** (retries - 1))
+                    wait_time = min(self.initial_backoff * (2 ** (retries - 1)), 60)
                     logger.debug(
-                        f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (backoff={backoff}s)"
+                        f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (initial_backoff={self.initial_backoff}s)"
                     )
                     await asyncio.sleep(wait_time)
-                    backoff = min(backoff, 60)
 
         raise Exception(
             f"Failed to establish WebSocket connection after {self.max_retries} attempts"
@@ -279,11 +276,19 @@ class AsyncRealtimeClient:
         """
         Initialize a channel and create a two-way association with the socket.
 
+        If a channel for this topic already exists and is not being left, that
+        channel is returned instead of a new one. Messages are routed to one
+        channel per topic, so replacing it would silently stop delivering
+        events to callbacks registered on the existing channel.
+
         :param topic: The topic to subscribe to
         :param params: Optional channel parameters
         :return: AsyncRealtimeChannel instance
         """
         topic = f"realtime:{topic}"
+        existing = self.channels.get(topic)
+        if existing and not existing.is_leaving:
+            return existing
         chan = AsyncRealtimeChannel(self, topic, params)
         self.channels[topic] = chan
 
@@ -334,6 +339,8 @@ class AsyncRealtimeClient:
         self.access_token = token
 
         for _, channel in self.channels.items():
+            # Rejoins resend the stored join payload, so keep its token current.
+            channel.join_push.update_payload({"access_token": token})
             if channel._joined_once and channel.is_joined:
                 await channel.push(ChannelEvents.access_token, {"access_token": token})
 

@@ -1,4 +1,5 @@
 import re
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -202,3 +203,26 @@ def test_response_error_json_missing_or_non_string_fields(
             postgrest_client.from_("test").select("a").execute()
         assert exc_info.value.message == message
         assert exc_info.value.details == details
+
+
+@pytest.mark.parametrize("head", [False, True])
+def test_rpc_query_params_send_lists_as_array_literals(
+    postgrest_client: SyncPostgrestClient, head: bool
+):
+    params: Any = {"ids": [1, 2, 3], "name": "x"}
+    builder = postgrest_client.rpc("sum_ids", params, head=head, get=not head)
+
+    assert builder.request.params.get_list("ids") == ["{1,2,3}"]
+    assert builder.request.params["name"] == "x"
+
+
+@pytest.mark.parametrize("head", [False, True])
+def test_rpc_query_params_quote_array_elements(
+    postgrest_client: SyncPostgrestClient, head: bool
+):
+    params: Any = {"tags": ["a,b", "c d", "", 'say "hi"', "x}", "null", None]}
+    builder = postgrest_client.rpc("tag_fn", params, head=head, get=not head)
+
+    assert builder.request.params.get_list("tags") == [
+        '{"a,b","c d","","say \\"hi\\"","x}","null",NULL}'
+    ]

@@ -20,7 +20,7 @@ class AsyncGoTrueBaseAPI:
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:
-        self._url = url
+        self._url = url.rstrip("/")
         self._headers = headers
         self._http_client = http_client or AsyncClient(
             verify=bool(verify),
