@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union
 from urllib.parse import urlparse
 
-from httpx import HTTPStatusError, Response
+from httpx import HTTPStatusError, RequestError, Response
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from .constants import (
@@ -132,7 +132,9 @@ def get_error_message(error: Any) -> str:
     return next((error[prop] for prop in props if filter(prop)), str(error))
 
 
-def handle_exception(error: HTTPStatusError | RuntimeError) -> AuthError:
+def handle_exception(
+    error: HTTPStatusError | RequestError | RuntimeError,
+) -> AuthError:
     if not isinstance(error, HTTPStatusError):
         return AuthRetryableError(get_error_message(error), 0)
     try:
