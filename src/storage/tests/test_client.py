@@ -539,3 +539,60 @@ def test_sync_list_indexes_sends_camel_case_pagination(
         "maxResults": 10,
         "prefix": "idx-",
     }
+
+
+_PARTIAL_SORT_BY_CASES = [
+    ({"order": "desc"}, {"column": "name", "order": "desc"}),
+    ({"column": "updated_at"}, {"column": "updated_at", "order": "asc"}),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sort_by, expected", _PARTIAL_SORT_BY_CASES)
+async def test_async_list_merges_partial_sort_by_with_default(
+    valid_url, valid_headers, sort_by, expected
+) -> None:
+    from httpx import MockTransport
+
+    captured: Dict[str, Any] = {}
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(
+            transport=MockTransport(_list_indexes_transport(captured))
+        ),
+    )
+
+    await client.from_("b").list("folder", {"sortBy": sort_by})
+
+    assert captured["url"].endswith("/object/list/b")
+    assert captured["body"] == {
+        "limit": 100,
+        "offset": 0,
+        "sortBy": expected,
+        "prefix": "folder",
+    }
+
+
+@pytest.mark.parametrize("sort_by, expected", _PARTIAL_SORT_BY_CASES)
+def test_sync_list_merges_partial_sort_by_with_default(
+    valid_url, valid_headers, sort_by, expected
+) -> None:
+    from httpx import MockTransport
+
+    captured: Dict[str, Any] = {}
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(transport=MockTransport(_list_indexes_transport(captured))),
+    )
+
+    client.from_("b").list("folder", {"sortBy": sort_by})
+
+    assert captured["url"].endswith("/object/list/b")
+    assert captured["body"] == {
+        "limit": 100,
+        "offset": 0,
+        "sortBy": expected,
+        "prefix": "folder",
+    }
