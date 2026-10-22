@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Literal, Optional, Union, cast
 from httpx import Client, Headers, HTTPStatusError, Response
 from yarl import URL
 
-from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
+from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS, DEFAULT_SORT_BY
 from ..exceptions import StorageApiError
 from ..types import (
     BaseBucket,
@@ -446,6 +446,10 @@ class SyncBucketActionsMixin:
         body = {
             **DEFAULT_SEARCH_OPTIONS,
             **extra_options,
+            "sortBy": {
+                **DEFAULT_SORT_BY,
+                **extra_options.get("sortBy", {}),
+            },
             "prefix": path or "",
         }
         response = self._request(
