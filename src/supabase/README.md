@@ -41,7 +41,16 @@ url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 ```
+### Configure PostgREST retries
 
+PostgREST requests retry transient errors by default. To disable automatic
+retries, pass `postgrest_client_retry=False` through `ClientOptions`:
+
+```python
+from supabase import Client, ClientOptions, create_client
+
+options = ClientOptions(postgrest_client_retry=False)
+supabase: Client = create_client(url, key, options)
 Use the supabase client to interface with your database.
 
 ### Sign-up
