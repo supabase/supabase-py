@@ -21,7 +21,15 @@ from typing import (
     overload,
 )
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
+from httpx import (
+    AsyncClient,
+    BasicAuth,
+    Client,
+    Headers,
+    NetworkError,
+    QueryParams,
+    RemoteProtocolError,
+)
 from httpx import Response as RequestResponse
 from pydantic import BaseModel, ValidationError
 from yarl import URL
@@ -113,12 +121,21 @@ class RequestConfig(Generic[C]):
             auth=self.auth,
         )
 
-    def should_retry(self, response: RequestResponse, attempt_count: int) -> bool:
+    def _is_retryable(self, attempt_count: int) -> bool:
         if not self.retry_enabled or attempt_count >= MAX_RETRIES:
             return False
-        if not (self.http_method == "GET" or self.http_method == "HEAD"):
+        return self.http_method == "GET" or self.http_method == "HEAD"
+
+    def should_retry(self, response: RequestResponse, attempt_count: int) -> bool:
+        if not self._is_retryable(attempt_count):
             return False
         return response.status_code == 503 or response.status_code == 520
+
+    def should_retry_error(self, error: Exception, attempt_count: int) -> bool:
+        """A dropped connection (reset, HTTP/2 GOAWAY) on an idempotent request."""
+        if not self._is_retryable(attempt_count):
+            return False
+        return isinstance(error, (NetworkError, RemoteProtocolError))
 
 
 def _unique_columns(json: List[Dict[str, JSON]]):
