@@ -15,6 +15,7 @@ from httpx import (
 )
 
 from postgrest import SyncPostgrestClient
+from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.exceptions import APIError
 
 
@@ -48,6 +49,13 @@ class TestConstructor:
             }
         )
         assert session.headers.items() >= headers.items()
+
+    def test_default_timeout_uses_postgrest_constant(self) -> None:
+        with SyncPostgrestClient("https://example.com") as client:
+            assert client.timeout == DEFAULT_POSTGREST_CLIENT_TIMEOUT
+            assert client.session.timeout == Timeout(
+                timeout=DEFAULT_POSTGREST_CLIENT_TIMEOUT
+            )
 
     def test_custom_headers(self):
         with SyncPostgrestClient(
