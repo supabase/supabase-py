@@ -407,22 +407,24 @@ class SyncBucketActionsMixin:
         """
         Returns True if the file exists, False otherwise.
 
+        This reads the object's info, so the result is False only when Storage
+        reports that the object does not exist. Any other failure, such as an
+        invalid JWT or a missing bucket, raises.
+
         Parameters
         ----------
         path
             The path to the file.
         """
         try:
-            path_parts = relative_path_to_parts(path)  # split paths by /
-            response = self._request(
-                "HEAD",
-                ["object", self.id, *path_parts],
-            )
-            return response.status_code == 200
+            self.info(path)
+            return True
         except StorageApiError as exc:
-            # HEAD responses have no body, so a missing object surfaces as an
-            # unparsable 400/404 rather than a structured storage error.
-            if str(exc.status) in ("400", "404"):
+            # A HEAD response has no body, so it can't tell an invalid JWT or a
+            # missing bucket apart from a missing object. The info response
+            # can: a missing object is a 404 "not_found", or a 404 without a
+            # parsable body.
+            if str(exc.status) == "404" and exc.code in ("not_found", "InternalError"):
                 return False
             raise
 
