@@ -209,6 +209,53 @@ def test_handle_exception_network_error() -> None:
     assert result.status == 503
 
 
+def _network_error(response: Response) -> HTTPStatusError:
+    response.request = httpx.Request("POST", f"{TEST_URL}/token")
+    return HTTPStatusError("Server error", request=response.request, response=response)
+
+
+@pytest.mark.parametrize("key", ["msg", "message"])
+def test_handle_exception_network_error_preserves_json_message(key: str) -> None:
+    exception = _network_error(Response(503, json={key: "upstream unavailable"}))
+
+    result = handle_exception(exception)
+
+    assert isinstance(result, AuthRetryableError)
+    assert result.message == "upstream unavailable"
+    assert result.status == 503
+
+
+def test_handle_exception_network_error_non_json_uses_reason_phrase() -> None:
+    exception = _network_error(Response(502, text="<html>Bad Gateway</html>"))
+
+    result = handle_exception(exception)
+
+    assert isinstance(result, AuthRetryableError)
+    assert result.message == "Bad Gateway"
+    assert result.status == 502
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        # Server sent an empty reason phrase.
+        Response(503, text="oops", extensions={"reason_phrase": b""}),
+        # Cloudflare codes have no standard reason phrase.
+        Response(520, text="oops"),
+    ],
+)
+def test_handle_exception_network_error_non_json_without_reason_phrase(
+    response: Response,
+) -> None:
+    exception = _network_error(response)
+
+    result = handle_exception(exception)
+
+    assert isinstance(result, AuthRetryableError)
+    assert result.message == f"HTTP {response.status_code}"
+    assert result.status == response.status_code
+
+
 def test_handle_exception_with_weak_password_attribute() -> None:
     # Test case with error_code=None and no weak_password object, so the
     # generic AuthApiError path is taken.
