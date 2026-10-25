@@ -1,17 +1,25 @@
 import time
+from datetime import datetime, timezone
+from typing import Any, List, Optional
 from uuid import uuid4
 
 import pytest
+from httpx import ConnectError
 from jwt import encode
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
+    AuthRetryableError,
     AuthSessionMissingError,
+    AuthUnknownError,
 )
 from supabase_auth.helpers import decode_jwt
 from supabase_auth.types import (
+    Session,
     SignInWithOAuthCredentials,
+    SignOutScope,
     SignUpWithEmailAndPasswordCredentials,
+    User,
 )
 
 from .clients import (
@@ -739,6 +747,81 @@ async def test_sign_out() -> None:
 
                     # Verify that _notify_all_subscribers was still called despite the error
                     mock_notify.assert_called_once_with("SIGNED_OUT", None)
+
+
+@pytest.mark.parametrize(
+    ("scope", "response", "raises", "cleared"),
+    [
+        ("global", (204, None), None, True),
+        ("global", (401, {"msg": "invalid JWT"}), None, True),
+        ("global", (403, {"msg": "session not found"}), None, True),
+        ("global", (404, {"msg": "user not found"}), None, True),
+        ("global", (429, {"msg": "rate limited"}), AuthApiError, False),
+        ("global", (500, {"msg": "boom"}), AuthApiError, False),
+        ("global", (500, "not json"), AuthUnknownError, False),
+        ("global", (503, {"msg": "unavailable"}), AuthRetryableError, False),
+        ("global", ConnectError, ConnectError, False),
+        ("local", (204, None), None, True),
+        ("local", (401, {"msg": "invalid JWT"}), None, True),
+        ("local", (500, {"msg": "boom"}), AuthApiError, True),
+        ("local", (500, "not json"), AuthUnknownError, True),
+        ("local", (503, {"msg": "unavailable"}), AuthRetryableError, True),
+        ("local", ConnectError, ConnectError, True),
+        ("others", (204, None), None, False),
+        ("others", (401, {"msg": "invalid JWT"}), None, False),
+        ("others", (500, {"msg": "boom"}), AuthApiError, False),
+        ("others", (503, {"msg": "unavailable"}), AuthRetryableError, False),
+    ],
+)
+async def test_sign_out_when_logout_request_fails(
+    scope: SignOutScope,
+    response: Any,
+    raises: Optional[type],
+    cleared: bool,
+) -> None:
+    from httpx import AsyncClient, MockTransport, Request, Response
+    from supabase_auth import AsyncGoTrueClient
+
+    def handler(request: Request) -> Response:
+        assert request.url.path.endswith("/logout")
+        if response is ConnectError:
+            raise ConnectError("connection refused", request=request)
+        status, body = response
+        if isinstance(body, str):
+            return Response(status, text=body)
+        return Response(status, json=body)
+
+    client = AsyncGoTrueClient(
+        url="http://localhost/auth/v1",
+        auto_refresh_token=False,
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    )
+    session = Session(
+        access_token="access",
+        refresh_token="refresh",
+        expires_in=3600,
+        expires_at=int(time.time()) + 3600,
+        token_type="bearer",
+        user=User(
+            id=str(uuid4()),
+            app_metadata={},
+            user_metadata={},
+            aud="authenticated",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ),
+    )
+    await client._save_session(session)
+    events: List[str] = []
+    client.on_auth_state_change(lambda event, _: events.append(event))
+
+    if raises is None:
+        await client.sign_out({"scope": scope})
+    else:
+        with pytest.raises(raises):
+            await client.sign_out({"scope": scope})
+
+    assert (await client.get_session() is None) == cleared
+    assert events == (["SIGNED_OUT"] if cleared else [])
 
 
 async def test_initialize_from_storage_keeps_refreshed_session() -> None:
