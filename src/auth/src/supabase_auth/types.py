@@ -921,7 +921,7 @@ class OAuthClient(BaseModel):
 
     client_id: str
     """Unique client identifier"""
-    client_name: str
+    client_name: Optional[str] = None
     """Human-readable name of the client application"""
     client_secret: Optional[str] = None
     """Client secret for confidential clients (only returned on registration/regeneration)"""
