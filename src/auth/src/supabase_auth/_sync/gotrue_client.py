@@ -97,6 +97,14 @@ from .gotrue_mfa_api import SyncGoTrueMFAAPI
 from .storage import SyncMemoryStorage, SyncSupportedStorage
 
 
+def _is_signed_out_error(error: Exception) -> bool:
+    # The session is already gone server side (expired or invalid JWT, or the
+    # user was deleted), so the sign out has the effect the caller asked for.
+    return isinstance(error, AuthSessionMissingError) or (
+        isinstance(error, AuthApiError) and error.status in (401, 403, 404)
+    )
+
+
 class SyncGoTrueClient(SyncGoTrueBaseAPI):
     def __init__(
         self,
@@ -798,17 +806,37 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
 
         There is no way to revoke a user's access token jwt until it expires.
         It is recommended to set a shorter expiry on the jwt for this reason.
+
+        If the logout request fails (a 401, 403 or 404 counts as signed out):
+
+        - `global` raises the error and keeps the session, so the call can be
+          retried or replaced with a `local` sign out.
+        - `local` removes the session, emits `"SIGNED_OUT"`, then raises the error.
+        - `others` raises the error and keeps the session.
         """
-        signout_options = options or {"scope": "global"}
+        scope = (options or {}).get("scope", "global")
+        access_token = None
         with suppress(AuthApiError):
             session = self.get_session()
             access_token = session.access_token if session else None
-            if access_token:
-                self.admin.sign_out(access_token, signout_options["scope"])
 
-        if signout_options["scope"] != "others":
+        error: Optional[Exception] = None
+        if access_token:
+            try:
+                self.admin.sign_out(access_token, scope)
+            except Exception as e:
+                if not _is_signed_out_error(e):
+                    error = e
+
+        if error is not None and scope != "local":
+            raise error
+
+        if scope != "others":
             self._remove_session()
             self._notify_all_subscribers("SIGNED_OUT", None)
+
+        if error is not None:
+            raise error
 
     def on_auth_state_change(
         self,
