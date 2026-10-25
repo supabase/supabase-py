@@ -195,23 +195,20 @@ def test_model_dump_json_pydantic_v1() -> None:
     mock_model.json.assert_called_once()
 
 
-def test_handle_exception_network_error() -> None:
-    # Test case for network errors (502, 503, 504)
-    mock_response = MagicMock(spec=Response)
-    mock_response.status_code = 503
-
-    exception = HTTPStatusError(
-        "Network error", request=MagicMock(), response=mock_response
-    )
-    result = handle_exception(exception)
-
-    assert isinstance(result, AuthRetryableError)
-    assert result.status == 503
-
-
 def _network_error(response: Response) -> HTTPStatusError:
     response.request = httpx.Request("POST", f"{TEST_URL}/token")
     return HTTPStatusError("Server error", request=response.request, response=response)
+
+
+@pytest.mark.parametrize("status", [502, 503, 504, 520, 521, 522, 523, 524, 530])
+def test_handle_exception_network_error(status: int) -> None:
+    exception = _network_error(Response(status, json={"msg": "upstream unavailable"}))
+
+    result = handle_exception(exception)
+
+    assert isinstance(result, AuthRetryableError)
+    assert result.message == "upstream unavailable"
+    assert result.status == status
 
 
 @pytest.mark.parametrize("key", ["msg", "message"])
