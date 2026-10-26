@@ -139,11 +139,19 @@ def handle_exception(
         return AuthRetryableError(get_error_message(error), 0)
     try:
         network_error_codes = [502, 503, 504, 520, 521, 522, 523, 524, 530]
-        if error.response.status_code in network_error_codes:
-            return AuthRetryableError(
-                get_error_message(error), error.response.status_code
-            )
-        data = error.response.json()
+        status = error.response.status_code
+        try:
+            data = error.response.json()
+        except Exception:
+            if status in network_error_codes:
+                # The reason phrase is empty when the server sends none and
+                # the status is non-standard (e.g. Cloudflare's 520-530).
+                return AuthRetryableError(
+                    error.response.reason_phrase or f"HTTP {status}", status
+                )
+            raise
+        if status in network_error_codes:
+            return AuthRetryableError(get_error_message(data), status)
 
         error_code = None
         response_api_version = parse_response_api_version(error.response)
