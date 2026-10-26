@@ -238,6 +238,19 @@ async def test_replace_preserves_and_overrides_function_timeout() -> None:
     assert client.functions._client.timeout == Timeout(30)
 
 
+async def test_replace_preserves_and_overrides_postgrest_and_storage_timeouts() -> None:
+    options = AsyncClientOptions(postgrest_client_timeout=5, storage_client_timeout=7)
+
+    updated = options.replace(schema="private")
+    assert updated.postgrest_client_timeout == 5
+    assert updated.storage_client_timeout == 7
+    assert updated.schema == "private"
+
+    overridden = updated.replace(postgrest_client_timeout=9, storage_client_timeout=11)
+    assert overridden.postgrest_client_timeout == 9
+    assert overridden.storage_client_timeout == 11
+
+
 async def test_custom_headers_immutable() -> None:
     url = os.environ["SUPABASE_TEST_URL"]
     key = os.environ["SUPABASE_TEST_KEY"]
