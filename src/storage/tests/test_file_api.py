@@ -156,3 +156,39 @@ async def test_error_with_binary_body_raises_storage_api_error(use_async: bool) 
     with pytest.raises(StorageApiError) as error:
         await run(use_async, lambda b: b.download("file.txt"), 502, b"\xff\xfe")
     assert error.value.status == 502
+
+
+@use_async
+async def test_list_v2_allows_null_object_metadata(use_async: bool) -> None:
+    response_body = {
+        "hasNext": False,
+        "folders": [],
+        "objects": [
+            {
+                "id": "object-without-metadata",
+                "name": "file-without-metadata.txt",
+                "updated_at": "2024-01-01T00:00:00Z",
+                "created_at": "2024-01-01T00:00:00Z",
+                "metadata": None,
+            },
+            {
+                "id": "object-with-metadata",
+                "name": "file-with-metadata.txt",
+                "updated_at": "2024-01-01T00:00:00Z",
+                "created_at": "2024-01-01T00:00:00Z",
+                "metadata": {"mimetype": "text/plain"},
+            },
+        ],
+    }
+
+    def handler(request: Request) -> Response:
+        return Response(200, json=response_body)
+
+    result = await call_with_client(
+        use_async, handler, lambda client: client.from_("bucket").list_v2()
+    )
+
+    assert len(result.objects) == 2
+    assert result.objects[0].name == "file-without-metadata.txt"
+    assert result.objects[0].metadata is None
+    assert result.objects[1].metadata == {"mimetype": "text/plain"}

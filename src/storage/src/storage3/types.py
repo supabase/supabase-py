@@ -124,7 +124,7 @@ class SearchV2Object(BaseModel):
     name: str
     updated_at: datetime
     created_at: datetime
-    metadata: Dict[str, Any]
+    metadata: Dict[str, Any] | None
     key: str | None = None
 
 

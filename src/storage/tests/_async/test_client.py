@@ -737,6 +737,7 @@ async def test_client_list_v2(
     assert len(result.objects) == 1
     object = result.objects[0]
     assert object.name == file.bucket_path
+    assert object.metadata is not None
     assert object.metadata.get("mimetype") == file.mime_type
 
 
