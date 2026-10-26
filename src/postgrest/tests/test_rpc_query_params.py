@@ -33,6 +33,20 @@ def test_rpc_query_params_escape_array_elements() -> None:
 
 
 @pytest.mark.parametrize("head", [False, True])
+def test_rpc_query_params_quote_array_elements(head: bool) -> None:
+    with Client() as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        params: Any = {"tags": ["a,b", "c d", "", 'say "hi"', "x}", "null", None]}
+        builder = client.rpc("tag_fn", params, head=head, get=not head)
+
+        assert builder.request.query.get_list("tags") == [
+            '{"a,b","c d","","say \\"hi\\"","x}","null",NULL}'
+        ]
+
+
+@pytest.mark.parametrize("head", [False, True])
 def test_rpc_get_and_head_retry_on_503(head: bool) -> None:
     attempts: list[str | None] = []
 
