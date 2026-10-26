@@ -199,6 +199,10 @@ class Factor(BaseModel):
     """
     Friendly name of the factor, useful to disambiguate between multiple factors.
     """
+    phone: Optional[str] = None
+    """
+    Phone number associated with a phone factor.
+    """
     factor_type: Union[Literal["totp", "phone"], str]
     """
     Type of factor. Only `totp` supported with this version but may change in
