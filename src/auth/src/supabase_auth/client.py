@@ -997,9 +997,12 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         auth_response = await self._set_session(access_token, refresh_token)
         if auth_response.session:
             await self.session_manager.save_session(auth_response.session)
-            self.session_manager.notify_all_subscribers(
-                "TOKEN_REFRESHED", auth_response.session
+            event: AuthChangeEvent = (
+                "SIGNED_IN"
+                if auth_response.session.access_token == access_token
+                else "TOKEN_REFRESHED"
             )
+            self.session_manager.notify_all_subscribers(event, auth_response.session)
         return auth_response
 
     async def refresh_session(self, refresh_token: str | None = None) -> AuthResponse:
@@ -1419,9 +1422,12 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         auth_response = self._set_session(access_token, refresh_token)
         if auth_response.session:
             self.session_manager.save_session(auth_response.session)
-            self.session_manager.notify_all_subscribers(
-                "TOKEN_REFRESHED", auth_response.session
+            event: AuthChangeEvent = (
+                "SIGNED_IN"
+                if auth_response.session.access_token == access_token
+                else "TOKEN_REFRESHED"
             )
+            self.session_manager.notify_all_subscribers(event, auth_response.session)
         return auth_response
 
     def refresh_session(self, refresh_token: str | None = None) -> AuthResponse:
