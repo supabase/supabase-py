@@ -913,8 +913,8 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
         )
 
     def text_search(
-        self, column: str, query: str, options: dict[str, Any] = {}
-    ) -> QueryRequestBuilder[HttpIO]:
+        self: Self, column: str, query: str, options: dict[str, Any] = {}
+    ) -> Self:
         type_ = options.get("type")
         type_part = ""
         if type_ == "plain":
@@ -925,13 +925,7 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
         self.filter(column, f"{type_part}fts{config_part}", query)
-
-        return QueryRequestBuilder(
-            executor=self.executor,
-            base_url=self.base_url,
-            default_headers=self.default_headers,
-            request=self.request,
-        )
+        return self
 
     def csv(self) -> TextRequestBuilder[HttpIO]:
         """Specify that the query must retrieve data as a single CSV string."""
