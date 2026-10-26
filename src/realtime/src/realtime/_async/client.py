@@ -166,7 +166,7 @@ class AsyncRealtimeClient:
 
         while retries < self.max_retries:
             try:
-                ws = await connect(endpoint_url)
+                ws = await connect(endpoint_url, open_timeout=self.timeout)
                 self._ws_connection = ws
                 logger.debug("WebSocket connection established successfully")
                 return await self._on_connect()
