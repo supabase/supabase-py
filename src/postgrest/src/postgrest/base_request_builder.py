@@ -21,7 +21,7 @@ from typing import (
     overload,
 )
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
+from httpx import AsyncClient, Auth, BasicAuth, Client, Headers, QueryParams
 from httpx import Response as RequestResponse
 from pydantic import BaseModel, ValidationError
 from yarl import URL
@@ -96,6 +96,9 @@ class RequestConfig(Generic[C]):
 
     def send(self: RequestConfig[C], additional_headers: Headers):
         additional_headers.update(self.headers)
+        auth: Auth | None = self.auth
+        if auth is None and "Authorization" not in additional_headers:
+            auth = self.session.auth
         if self.strip_nulls:
             accept = additional_headers.get("Accept")
             if accept == "application/vnd.pgrst.object+json":
@@ -110,7 +113,7 @@ class RequestConfig(Generic[C]):
             json=self.json,
             params=self.params,
             headers=additional_headers,
-            auth=self.auth,
+            auth=auth,
         )
 
     def should_retry(self, response: RequestResponse, attempt_count: int) -> bool:
