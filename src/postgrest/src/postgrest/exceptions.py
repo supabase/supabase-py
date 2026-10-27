@@ -10,13 +10,13 @@ class APIErrorFromJSON(BaseModel):
     from a json string.
     """
 
-    message: str | None
+    message: str | None = None
     """The error message."""
-    code: str | None
+    code: str | None = None
     """The error code."""
-    hint: str | None
+    hint: str | None = None
     """The error hint."""
-    details: str | None
+    details: Any = None
     """The error details."""
 
 
@@ -25,14 +25,14 @@ class APIError(Exception):
     Base exception for all API errors.
     """
 
-    _raw_error: Dict[str, str]
+    _raw_error: Dict[str, Any]
     message: str | None
     """The error message."""
     code: str | None
     """The error code."""
     hint: str | None
     """The error hint."""
-    details: str | None
+    details: Any
     """The error details."""
 
     def __init__(self, error: Dict[str, Any]) -> None:
@@ -51,7 +51,7 @@ class APIError(Exception):
         complete_error_text = f"{error_text}{message_text}{hint_text}{details_text}"
         return complete_error_text or "Empty error"
 
-    def json(self) -> Dict[str, str]:
+    def json(self) -> Dict[str, Any]:
         """Convert the error into a dictionary.
 
         Returns:

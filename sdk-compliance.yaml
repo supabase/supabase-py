@@ -434,7 +434,11 @@ features:
     symbols:
       - AsyncSelectRequestBuilder.maybe_single
       - SyncSelectRequestBuilder.maybe_single
-  database.using_modifiers.strip_nulls: not_implemented
+      - RPCFilterRequestBuilder.maybe_single
+  database.using_modifiers.strip_nulls:
+    status: implemented
+    symbols:
+      - BaseSelectRequestBuilder.strip_nulls
   database.using_modifiers.format_csv:
     status: implemented
     symbols:
@@ -464,6 +468,7 @@ features:
     symbols:
       - AsyncSelectRequestBuilder.retry
       - SyncSelectRequestBuilder.retry
+      - BaseRequestClient.retry
   database.configuration.request_timeout:
     status: implemented
     note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including query execution."
@@ -995,3 +1000,6 @@ features:
   storage.errors.error_codes:
     status: partially_implemented
     note: "File and bucket errors fill code from the response body's error field rather than its code field."
+
+supporting_symbols:
+  - PostgrestRequest.finalize

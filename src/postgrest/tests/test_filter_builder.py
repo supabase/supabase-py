@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Any, Iterable
 
 import pytest
 from supabase_utils.http.headers import Headers
@@ -66,6 +66,50 @@ def test_equals(filter_request_builder: BaseFilterRequestBuilder):
     assert builder.request.query.get("x") == "eq.a"
 
 
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (None, "eq.null"),
+        (True, "eq.true"),
+        (False, "eq.false"),
+        ({"key": "value"}, 'eq.{"key":"value"}'),
+        (["a", "b"], 'eq.["a","b"]'),
+        ("a", "eq.a"),
+        (42, "eq.42"),
+    ],
+)
+def test_eq_serializes_values(
+    filter_request_builder: BaseFilterRequestBuilder, value: Any, expected: str
+) -> None:
+    builder = filter_request_builder.eq("x", value)
+
+    assert builder.request.query.get("x") == expected
+
+
+@pytest.mark.parametrize("method", ["neq", "gt", "gte", "lt", "lte"])
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        (None, "null"),
+        (True, "true"),
+        (False, "false"),
+        ({"key": "value"}, '{"key":"value"}'),
+        (["a", "b"], '["a","b"]'),
+        ("a", "a"),
+        (42, "42"),
+    ],
+)
+def test_comparison_filters_serialize_values(
+    filter_request_builder: BaseFilterRequestBuilder,
+    method: str,
+    value: Any,
+    expected: str,
+) -> None:
+    builder = getattr(filter_request_builder, method)("x", value)
+
+    assert builder.request.query.get("x") == f"{method}.{expected}"
+
+
 def test_not_equal(filter_request_builder: BaseFilterRequestBuilder):
     builder = filter_request_builder.neq("x", "a")
 
@@ -106,6 +150,42 @@ def test_contains_any_item(filter_request_builder: BaseFilterRequestBuilder):
     assert builder.request.query.get("x") == "cs.{a,b}"
 
 
+def test_contains_non_string_items(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.contains("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "cs.{1,2,3}"
+
+
+def test_cs_non_string_items(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.cs("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "cs.{1,2,3}"
+
+
+def test_cd_non_string_items(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.cd("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "cd.{1,2,3}"
+
+
+def test_contained_by_non_string_items(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.contained_by("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "cd.{1,2,3}"
+
+
+def test_overlaps_non_string_items(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.overlaps("x", [1, 2, 3])
+
+    assert builder.request.query.get("x") == "ov.{1,2,3}"
+
+
 def test_contains_in_list(filter_request_builder: BaseFilterRequestBuilder):
     builder = filter_request_builder.contains("x", '[{"a": "b"}]')
 
@@ -118,8 +198,47 @@ def test_contained_by_mixed_items(
 ):
     builder = filter_request_builder.contained_by("x", ["a", '["b", "c"]'])
 
-    # {a,["b",+"c"]}
-    assert builder.request.query.get("x") == 'cd.{a,["b", "c"]}'
+    assert builder.request.query.get("x") == 'cd.{a,"[\\"b\\", \\"c\\"]"}'
+
+
+def test_contains_quotes_element_containing_the_delimiter(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.contains("x", ["a,b", "c"])
+
+    assert builder.request.query.get("x") == 'cs.{"a,b",c}'
+
+
+def test_cs_quotes_element_containing_the_delimiter(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.cs("x", ["a,b"])
+
+    assert builder.request.query.get("x") == 'cs.{"a,b"}'
+
+
+def test_cd_quotes_element_containing_the_delimiter(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.cd("x", ["a,b"])
+
+    assert builder.request.query.get("x") == 'cd.{"a,b"}'
+
+
+def test_overlaps_quotes_element_containing_the_delimiter(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.overlaps("x", ["a,b"])
+
+    assert builder.request.query.get("x") == 'ov.{"a,b"}'
+
+
+def test_contains_quotes_braces_quotes_whitespace_empty_and_null(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.contains("x", ["a}b", 'x"y', "a b", "", "NULL"])
+
+    assert builder.request.query.get("x") == 'cs.{"a}b","x\\"y","a b","","NULL"}'
 
 
 def test_range_greater_than(filter_request_builder: BaseFilterRequestBuilder):
@@ -230,6 +349,24 @@ def test_is_(filter_request_builder: BaseFilterRequestBuilder):
     assert builder.request.query.get("x") == "is.a"
 
 
+def test_is_true(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.is_("x", True)
+
+    assert builder.request.query.get("x") == "is.true"
+
+
+def test_is_false(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.is_("x", False)
+
+    assert builder.request.query.get("x") == "is.false"
+
+
+def test_is_none(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.is_("x", None)
+
+    assert builder.request.query.get("x") == "is.null"
+
+
 def test_in_(filter_request_builder: BaseFilterRequestBuilder):
     builder = filter_request_builder.in_("x", ["a", "b"])
 
@@ -240,6 +377,18 @@ def test_or_(filter_request_builder: BaseFilterRequestBuilder):
     builder = filter_request_builder.or_("x.eq.1")
 
     assert builder.request.query.get("or") == "(x.eq.1)"
+
+
+def test_not_or_(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.not_.or_("x.eq.1")
+
+    assert builder.request.query.get("not.or") == "(x.eq.1)"
+    assert "or" not in builder.request.query
+    assert not builder.negate_next
+
+    foreign = filter_request_builder.not_.or_("x.eq.1", reference_table="cities")
+    assert foreign.request.query.get("cities.not.or") == "(x.eq.1)"
+    assert not foreign.negate_next
 
 
 def test_or_in_contain(filter_request_builder: BaseFilterRequestBuilder):

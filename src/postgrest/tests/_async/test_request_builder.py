@@ -11,9 +11,12 @@ from yarl import URL
 
 from postgrest.request_builder import (
     APIResponse,
+    MaybeSingleRequestBuilder,
     RequestBuilder,
     SingleAPIResponse,
+    SingleRequestBuilder,
     TextRequestBuilder,
+    can_retry,
 )
 from postgrest.types import CountMethod, ReturnMethod
 
@@ -26,6 +29,20 @@ async def request_builder() -> AsyncIterable[RequestBuilder[AsyncHttpIO]]:
             base_url=URL("/example_table"),
             default_headers=Headers.empty(),
         )
+
+
+@pytest.mark.parametrize("head", [False, True])
+def test_select_request_retries_transient_response(
+    request_builder: RequestBuilder[AsyncHttpIO], head: bool
+) -> None:
+    request = request_builder.select(head=head).request.finalize(
+        URL("http://example.com"), Headers.empty()
+    )
+    response = Response(
+        status=503, headers=Headers.empty(), content=b"", request=request
+    )
+
+    assert can_retry(response, retry_enabled=True, attempt_count=0)
 
 
 class TestSelect:
@@ -156,6 +173,36 @@ class TestInsert:
             "return=representation",
         ]
 
+    def test_insert_with_select_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.insert({"key1": "val1"}).select("id").single()
+
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["select"] == "id"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
+        assert builder.request.method == "POST"
+
+    def test_insert_with_select_maybe_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.insert({"key1": "val1"}).select("id").maybe_single()
+
+        assert isinstance(builder, MaybeSingleRequestBuilder)
+        assert builder.request.query["select"] == "id"
+        assert builder.request.method == "POST"
+
+    def test_upsert_with_select_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.upsert({"key1": "val1"}).select("id").single()
+
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["select"] == "id"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.method == "POST"
+
     def test_bulk_upsert_with_default(
         self, request_builder: RequestBuilder[AsyncHttpIO]
     ) -> None:
@@ -214,6 +261,25 @@ class TestUpdate:
         assert builder.request.query["id"] == "eq.1"
         assert builder.request.query["select"] == "id"
 
+    def test_update_with_select_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.update({"key1": "val1"}).eq("id", 1).select().single()
+
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["id"] == "eq.1"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.method == "PATCH"
+
+    def test_update_with_order_and_limit(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.update({"key1": "val1"}).order("id").limit(1)
+
+        assert builder.request.query["order"] == "id.asc"
+        assert builder.request.query["limit"] == "1"
+        assert builder.request.method == "PATCH"
+
 
 class TestDelete:
     def test_delete(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
@@ -252,8 +318,77 @@ class TestDelete:
         assert builder.request.query["id"] == "eq.1"
         assert builder.request.query["select"] == "id"
 
+    def test_delete_with_select_single(
+        self, request_builder: RequestBuilder[AsyncHttpIO]
+    ) -> None:
+        builder = request_builder.delete().eq("id", 1).select("id").single()
+
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["id"] == "eq.1"
+        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.method == "DELETE"
+
 
 class TestTextSearch:
+    @pytest.mark.parametrize("mode", [None, "plain", "phrase", "web_search"])
+    def test_text_search_allows_filters_and_modifiers(
+        self, request_builder: RequestBuilder[AsyncHttpIO], mode: str | None
+    ) -> None:
+        builder = (
+            request_builder.select("id")
+            .text_search("content", "python", {"type": mode, "config": "english"})
+            .eq("published", True)
+            .order("id")
+            .limit(10)
+        )
+
+        operator = {
+            None: "fts",
+            "plain": "plfts",
+            "phrase": "phfts",
+            "web_search": "wfts",
+        }[mode]
+        assert builder.request.query["content"] == f"{operator}(english).python"
+        assert builder.request.query["published"] == "eq.true"
+        assert builder.request.query["order"] == "id.asc"
+        assert builder.request.query["limit"] == "10"
+        assert builder.request.query["select"] == "id"
+
+    @pytest.mark.parametrize(
+        "mode,operator",
+        [
+            (None, "fts"),
+            ("plain", "plfts"),
+            ("phrase", "phfts"),
+            ("web_search", "wfts"),
+        ],
+    )
+    @pytest.mark.parametrize("config", [None, "english"])
+    @pytest.mark.parametrize("negate", [False, True])
+    def test_negation_is_applied_only_to_text_search(
+        self,
+        request_builder: RequestBuilder[AsyncHttpIO],
+        mode: str | None,
+        operator: str,
+        config: str | None,
+        negate: bool,
+    ) -> None:
+        selected = request_builder.select("content")
+        if negate:
+            selected = selected.not_
+
+        builder = selected.text_search(
+            "content", "fat cat", {"type": mode, "config": config}
+        )
+
+        expected_operator = ("not." if negate else "") + operator
+        if config:
+            expected_operator += f"({config})"
+        assert builder.request.query["content"] == f"{expected_operator}.fat cat"
+        assert not selected.negate_next
+        selected.eq("published", "true")
+        assert builder.request.query["published"] == "eq.true"
+
     def test_text_search(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
         builder = request_builder.select("catchphrase").text_search(
             "catchphrase",
