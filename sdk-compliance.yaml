@@ -553,6 +553,8 @@ features:
     symbols:
       - AsyncRealtimeChannel.subscribe
       - SyncRealtimeChannel.subscribe
+    supporting_symbols:
+      - RealtimeChannel.joined
   realtime.channel.unsubscribe:
     status: implemented
     symbols:
