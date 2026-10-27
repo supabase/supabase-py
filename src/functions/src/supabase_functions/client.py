@@ -1,4 +1,4 @@
-from typing import Dict, Generic, Literal, overload
+from typing import Dict, Generic, List, Literal, overload
 
 from httpx import AsyncClient, Client
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
@@ -23,7 +23,7 @@ from supabase_utils.http.request import (
 from supabase_utils.types import JSON
 from yarl import URL
 
-from .errors import on_error_response
+from .errors import _is_relay_error, on_error_response
 from .utils import (
     FunctionRegion,
     is_valid_str_arg,
@@ -60,8 +60,8 @@ class FunctionsClient(Generic[HttpIO]):
     def _invoke_options_to_request(
         self,
         function_name: str,
-        body: bytes | str | Dict[str, JSON] | None,
-        region: FunctionRegion | None,
+        body: bytes | str | Dict[str, JSON] | List[JSON] | None,
+        region: FunctionRegion | str | None,
         headers: Dict[str, str] | None,
         method: HTTPRequestMethod,
     ) -> ToRequest:
@@ -70,12 +70,20 @@ class FunctionsClient(Generic[HttpIO]):
 
         path = [function_name]
         new_headers = Headers.from_mapping(headers) if headers else Headers.empty()
+        if "content-type" not in new_headers and (
+            client_content_type := self.default_headers.get("Content-Type")
+        ):
+            new_headers = new_headers.set("Content-Type", client_content_type)
         query_params = URLQuery.empty()
 
-        if region and region != FunctionRegion.Any:
-            new_headers = new_headers.set("x-region", region.value)
+        if region and (region := FunctionRegion(region)) != FunctionRegion.Any:
+            new_headers = new_headers.override("x-region", region.value)
             # Add region as query parameter
             query_params = query_params.set("forceFunctionRegion", region.value)
+        if body is None:
+            return EmptyRequest(
+                method=method, path=path, headers=new_headers, query=query_params
+            )
         if isinstance(body, str):
             return TextRequest(
                 text=body,
@@ -84,34 +92,32 @@ class FunctionsClient(Generic[HttpIO]):
                 headers=new_headers,
                 query=query_params,
             )
-        elif isinstance(body, dict):
+        if isinstance(body, (bytes, bytearray)):
+            return BytesRequest(
+                body=bytes(body),
+                method=method,
+                path=path,
+                headers=new_headers,
+                query=query_params,
+            )
+        if isinstance(body, (dict, list)):
             return JSONRequest(
                 body=body,
                 method=method,
                 path=path,
                 headers=new_headers,
                 query=query_params,
-                exclude_none=False,
             )
-        elif isinstance(body, bytes):
-            return BytesRequest(
-                body=body,
-                method=method,
-                path=path,
-                headers=new_headers,
-                query=query_params,
-            )
-        else:
-            return EmptyRequest(
-                method=method, path=path, headers=new_headers, query=query_params
-            )
+        raise TypeError(
+            f"body must be str, bytes, dict, list or None, not {type(body).__name__}"
+        )
 
     @handle_http_io
     def invoke(
         self,
         function_name: str,
-        body: bytes | str | Dict[str, JSON] | None = None,
-        region: FunctionRegion | None = None,
+        body: bytes | str | Dict[str, JSON] | List[JSON] | None = None,
+        region: FunctionRegion | str | None = None,
         headers: Dict[str, str] | None = None,
         method: HTTPRequestMethod = "POST",
     ) -> HttpMethod[Response]:
@@ -120,15 +126,16 @@ class FunctionsClient(Generic[HttpIO]):
         Parameters
         ----------
         function_name : the name of the function to invoke
-        invoke_options : object with the following properties
-            `headers`: object representing the headers to send with the request
-            `body`: the body of the request
-            `responseType`: how the response should be parsed. The default is `json`
+        body : the request body. A str is sent as text, bytes as binary data,
+            and a dict or list as JSON.
+        region : the region to invoke the function in
+        headers : extra headers to send with the request
+        method : the HTTP method to use, POST by default
         """
         response = yield self._invoke_options_to_request(
             function_name, body, region, headers, method
         )
-        if not response.is_success:
+        if _is_relay_error(response) or not response.is_success:
             raise on_error_response(response)
         return response
 

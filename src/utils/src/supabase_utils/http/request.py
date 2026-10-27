@@ -35,7 +35,7 @@ class Response:
 
     @property
     def is_success(self) -> bool:
-        return 200 <= self.status <= 300
+        return 200 <= self.status < 300
 
     @property
     def is_error(self) -> bool:
@@ -63,14 +63,22 @@ class EmptyRequest:
             delay=self.delay,
         )
 
+    def _headers_with_content_type(
+        self, default_headers: Headers, content_type: str
+    ) -> Headers:
+        headers = default_headers.update(self.headers)
+        if "content-type" in self.headers:
+            return headers
+        return headers.override("Content-Type", content_type)
+
 
 @dataclass
 class BytesRequest(EmptyRequest):
     body: bytes
 
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
-        headers = default_headers.update(self.headers).set(
-            "Content-Type", "application/octet-stream"
+        headers = self._headers_with_content_type(
+            default_headers, "application/octet-stream"
         )
         return Request(
             method=self.method,
@@ -87,9 +95,7 @@ class JSONRequest(EmptyRequest):
     exclude_none: bool = True
 
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
-        headers = default_headers.update(self.headers).set(
-            "Content-Type", "application/json"
-        )
+        headers = self._headers_with_content_type(default_headers, "application/json")
         if isinstance(self.body, BaseModel):
             content = self.body.__pydantic_serializer__.to_json(
                 self.body, exclude_none=self.exclude_none
@@ -110,8 +116,8 @@ class TextRequest(EmptyRequest):
     text: str
 
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
-        headers = default_headers.update(self.headers).set(
-            "Content-Type", "text/plain; charset=utf-8"
+        headers = self._headers_with_content_type(
+            default_headers, "text/plain; charset=utf-8"
         )
         return Request(
             method=self.method,
@@ -198,7 +204,9 @@ class MultipartFormDataRequest(EmptyRequest):
 
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         content, content_type = encode_multipart_formdata(fields=self.fields)
-        headers = default_headers.update(self.headers).set("Content-Type", content_type)
+        headers = default_headers.update(self.headers).override(
+            "Content-Type", content_type
+        )
         return Request(
             method=self.method,
             url=base_url.joinpath(*self.path).with_query(self.query.as_query()),
