@@ -62,3 +62,23 @@ class TestClientOptions:
         # Assert
         assert options.storage.get_item("key") == "new_value"
         assert new_options.storage.get_item("key") == "new_value"
+
+    def test_replace_honors_falsy_values(self) -> None:
+        options = ClientOptions(headers={"key": "value"}, realtime={"hb_interval": 1})
+
+        actual = options.replace(
+            auto_refresh_token=False, persist_session=False, headers={}, realtime={}
+        )
+
+        assert actual.auto_refresh_token is False
+        assert actual.persist_session is False
+        assert actual.headers == {}
+        assert actual.realtime == {}
+
+    def test_replace_keeps_realtime_options(self) -> None:
+        options = ClientOptions(realtime={"hb_interval": 1})
+
+        assert options.replace(schema="other").realtime == {"hb_interval": 1}
+        assert AClientOptions(realtime={"hb_interval": 1}).replace(
+            schema="other"
+        ).realtime == {"hb_interval": 1}

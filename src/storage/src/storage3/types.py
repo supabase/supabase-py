@@ -128,7 +128,7 @@ class SearchV2Object(BaseModel):
 
 
 class SearchV2Folder(BaseModel):
-    key: str
+    key: str | None = None
     name: str
     created_at: datetime | None = None
     updated_at: datetime | None = None

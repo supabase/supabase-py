@@ -1,6 +1,7 @@
+import dataclasses
 import platform
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Any, Dict, TypeVar
 
 from supabase_auth import (
     AsyncMemoryStorage,
@@ -23,6 +24,9 @@ DEFAULT_HEADERS = {
         f"; runtime-version={platform.python_version()}"
     )
 }
+
+
+_ClientOptions = TypeVar("_ClientOptions", bound="ClientOptions")
 
 
 @dataclass
@@ -48,6 +52,11 @@ class ClientOptions:
     flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""
 
+    def _replace(self: _ClientOptions, **changes: Any) -> _ClientOptions:
+        return dataclasses.replace(
+            self, **{key: value for key, value in changes.items() if value is not None}
+        )
+
 
 @dataclass
 class AsyncClientOptions(ClientOptions):
@@ -56,27 +65,25 @@ class AsyncClientOptions(ClientOptions):
 
     def replace(
         self,
+        *,
         schema: str | None = None,
         headers: Dict[str, str] | None = None,
         auto_refresh_token: bool | None = None,
         persist_session: bool | None = None,
         storage: AsyncSupportedStorage | None = None,
         realtime: RealtimeClientOptions | None = None,
-        storage_client_timeout: int | None = None,
         flow_type: AuthFlowType | None = None,
     ) -> "AsyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
-        client_options = AsyncClientOptions()
-        client_options.schema = schema or self.schema
-        client_options.headers = headers or self.headers
-        client_options.auto_refresh_token = (
-            auto_refresh_token or self.auto_refresh_token
+        return self._replace(
+            schema=schema,
+            headers=headers,
+            auto_refresh_token=auto_refresh_token,
+            persist_session=persist_session,
+            storage=storage,
+            realtime=realtime,
+            flow_type=flow_type,
         )
-        client_options.persist_session = persist_session or self.persist_session
-        client_options.storage = storage or self.storage
-        client_options.realtime = realtime or self.realtime
-        client_options.flow_type = flow_type or self.flow_type
-        return client_options
 
 
 @dataclass
@@ -86,22 +93,22 @@ class SyncClientOptions(ClientOptions):
 
     def replace(
         self,
+        *,
         schema: str | None = None,
         headers: Dict[str, str] | None = None,
         auto_refresh_token: bool | None = None,
         persist_session: bool | None = None,
         storage: SyncSupportedStorage | None = None,
-        storage_client_timeout: int | None = None,
+        realtime: RealtimeClientOptions | None = None,
         flow_type: AuthFlowType | None = None,
     ) -> "SyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
-        client_options = SyncClientOptions()
-        client_options.schema = schema or self.schema
-        client_options.headers = headers or self.headers
-        client_options.auto_refresh_token = (
-            auto_refresh_token or self.auto_refresh_token
+        return self._replace(
+            schema=schema,
+            headers=headers,
+            auto_refresh_token=auto_refresh_token,
+            persist_session=persist_session,
+            storage=storage,
+            realtime=realtime,
+            flow_type=flow_type,
         )
-        client_options.persist_session = persist_session or self.persist_session
-        client_options.storage = storage or self.storage
-        client_options.flow_type = flow_type or self.flow_type
-        return client_options
