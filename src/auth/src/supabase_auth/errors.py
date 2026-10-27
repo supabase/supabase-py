@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Literal
+from typing import Any, List, Literal
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError, field_validator
 
 ErrorCode = Literal[
     "unexpected_failure",
@@ -106,6 +106,14 @@ class RawApiError(BaseModel):
     error_code: ErrorCode | None = None
     weak_password: WeakPasswordReasons | None = None
 
+    @field_validator("weak_password", mode="before")
+    @classmethod
+    def _ignore_malformed_weak_password(cls, value: Any) -> WeakPasswordReasons | None:
+        try:
+            return WeakPasswordReasons.model_validate(value)
+        except ValidationError:
+            return None
+
     def get_error_message(self) -> str:
         return (
             self.msg
@@ -114,11 +122,6 @@ class RawApiError(BaseModel):
             or self.error
             or "Unknown"
         )
-
-
-class UserDoesntExist(Exception):
-    def __init__(self, access_token: str) -> None:
-        self.access_token = access_token
 
 
 @dataclass
@@ -141,6 +144,16 @@ class AuthUnknownError(AuthError):
 @dataclass
 class CustomAuthError(AuthError):
     status: int
+
+
+class UserDoesntExist(CustomAuthError):
+    def __init__(self) -> None:
+        CustomAuthError.__init__(
+            self,
+            message="User does not exist for the provided access token",
+            status=404,
+            code="user_not_found",
+        )
 
 
 class AuthSessionMissingError(CustomAuthError):

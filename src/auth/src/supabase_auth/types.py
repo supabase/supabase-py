@@ -1141,7 +1141,7 @@ class OAuthClientListResponse(BaseModel):
     Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
     """
 
-    clients: list[OAuthClient]
+    clients: list[OAuthClient] = Field(default_factory=list)
     aud: str | None = None
     next_page: int | None = None
     last_page: int = 0

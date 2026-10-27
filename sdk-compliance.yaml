@@ -30,8 +30,8 @@ features:
   auth.sign_in.sign_in_with_sso:
     status: implemented
     symbols:
-      - AsyncGoTrueClient.sign_in_with_sso
-      - SyncGoTrueClient.sign_in_with_sso
+      - AsyncSupabaseAuthClient.sign_in_with_sso
+      - SyncSupabaseAuthClient.sign_in_with_sso
   auth.sign_in.sign_in_with_id_token:
     status: implemented
     symbols:
@@ -56,8 +56,8 @@ features:
   auth.sign_in.send_password_reset_email:
     status: implemented
     symbols:
-      - AsyncGoTrueClient.reset_password_for_email
-      - SyncGoTrueClient.reset_password_for_email
+      - AsyncSupabaseAuthClient.reset_password_for_email
+      - SyncSupabaseAuthClient.reset_password_for_email
   auth.sign_in.reauthenticate:
     status: implemented
     symbols:
@@ -66,8 +66,8 @@ features:
   auth.sign_in.exchange_code_for_session:
     status: implemented
     symbols:
-      - AsyncGoTrueClient.exchange_code_for_session
-      - SyncGoTrueClient.exchange_code_for_session
+      - AsyncSupabaseAuthClient.exchange_code_for_session
+      - SyncSupabaseAuthClient.exchange_code_for_session
   auth.sign_in.concurrent_pkce_flows: not_implemented
 
   auth.session.get_session:
