@@ -107,61 +107,57 @@ class RealtimePresence:
         self,
         new_state: RealtimePresenceState,
     ) -> Generator[PresenceEvent, None, RealtimePresenceState]:
-        joins = {}
         leaves = {k: v for k, v in self.state.items() if k not in new_state}
 
         for key, value in new_state.items():
-            current_presences = self.state.get(key, [])
+            new_presence_refs = {presence["presence_ref"] for presence in value}
+            left_presences = [
+                presence
+                for presence in self.state.get(key, [])
+                if presence["presence_ref"] not in new_presence_refs
+            ]
+            if left_presences:
+                leaves[key] = left_presences
 
-            if len(current_presences) > 0:
-                new_presence_refs = {presence["presence_ref"] for presence in value}
-                cur_presence_refs = {
-                    presence["presence_ref"] for presence in current_presences
-                }
-
-                joined_presences = [
-                    p for p in value if p["presence_ref"] not in cur_presence_refs
-                ]
-                left_presences = [
-                    p
-                    for p in current_presences
-                    if p["presence_ref"] not in new_presence_refs
-                ]
-
-                if joined_presences:
-                    joins[key] = joined_presences
-                if left_presences:
-                    leaves[key] = left_presences
-            else:
-                joins[key] = value
-
-        res = yield from self._sync_diff(joins, leaves)
+        res = yield from self._sync_diff(new_state, leaves)
         return res
 
     def _sync_diff(
         self, joins: RealtimePresenceState, leaves: RealtimePresenceState
     ) -> Generator[PresenceEvent, None, RealtimePresenceState]:
-        for key, new_presences in joins.items():
+        for key, joined_presences in joins.items():
             current_presences = self.state.get(key, [])
-            self.state[key] = new_presences
-
-            if len(current_presences) > 0:
-                joined_presence_refs = {
-                    presence["presence_ref"] for presence in new_presences
-                }
-                cur_presences = list(
-                    presence
-                    for presence in current_presences
-                    if presence["presence_ref"] not in joined_presence_refs
-                )
-                self.state[key].extend(cur_presences)
-            yield PresenceJoin(key, current_presences, new_presences)
+            current_presence_refs = {
+                presence["presence_ref"] for presence in current_presences
+            }
+            new_presences = [
+                presence
+                for presence in joined_presences
+                if presence["presence_ref"] not in current_presence_refs
+            ]
+            joined_presence_refs = {
+                presence["presence_ref"] for presence in joined_presences
+            }
+            self.state[key] = [
+                presence
+                for presence in current_presences
+                if presence["presence_ref"] not in joined_presence_refs
+            ] + joined_presences
+            if new_presences:
+                yield PresenceJoin(key, current_presences, new_presences)
 
         for key, left_presences in leaves.items():
             current_presences = self.state.get(key, [])
-
-            if len(current_presences) == 0:
-                break
+            current_presence_refs = {
+                presence["presence_ref"] for presence in current_presences
+            }
+            left_presences = [
+                presence
+                for presence in left_presences
+                if presence["presence_ref"] in current_presence_refs
+            ]
+            if not left_presences:
+                continue
 
             presence_refs_to_remove = {
                 presence["presence_ref"] for presence in left_presences
@@ -171,9 +167,9 @@ class RealtimePresence:
                 for presence in current_presences
                 if presence["presence_ref"] not in presence_refs_to_remove
             ]
-            self.state[key] = current_presences
-
-            if len(current_presences) == 0:
+            if current_presences:
+                self.state[key] = current_presences
+            else:
                 del self.state[key]
             yield PresenceLeave(key, current_presences, left_presences)
 

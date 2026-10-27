@@ -1,6 +1,9 @@
 from typing import Dict, Tuple
 
 import pytest
+from faker import Faker
+
+fake = Faker()
 
 # store history of failures per test class name and per index
 # in parametrize (if parametrize used)
