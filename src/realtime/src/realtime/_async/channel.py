@@ -138,6 +138,8 @@ class AsyncRealtimeChannel:
         self.rejoin_timer.reset()
         self.state = ChannelStates.CLOSED
         self.socket._remove_channel(self)
+        if self.subscribe_callback:
+            self.subscribe_callback(RealtimeSubscribeStates.CLOSED, None)
 
     def on_error(self, payload: dict[str, Any]):
         if self.is_leaving or self.is_closed:
@@ -146,6 +148,10 @@ class AsyncRealtimeChannel:
         logger.info(f"channel {self.topic} error: {payload}")
         self.state = ChannelStates.ERRORED
         self.rejoin_timer.schedule_timeout()
+        if self.subscribe_callback:
+            self.subscribe_callback(
+                RealtimeSubscribeStates.CHANNEL_ERROR, Exception(json.dumps(payload))
+            )
 
     # Properties
     @property
@@ -191,6 +197,7 @@ class AsyncRealtimeChannel:
                 "Tried to subscribe multiple times. 'subscribe' can only be called a single time per channel instance"
             )
         else:
+            self.subscribe_callback = callback
             config: RealtimeChannelConfig = self.params["config"]
             broadcast = config.get("broadcast")
             presence = config.get("presence") or RealtimeChannelPresenceConfig(
