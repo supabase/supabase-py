@@ -833,7 +833,7 @@ class SignOutOptions(TypedDict):
 )  # pydantic <2.7.0 with_config does not accept kwargs
 class JWTHeader(TypedDict):
     alg: Literal["RS256", "ES256", "HS256"]
-    typ: str
+    typ: NotRequired[str]
     kid: NotRequired[str]
 
 

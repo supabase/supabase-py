@@ -240,15 +240,15 @@ def decode_jwt(token: str) -> DecodedJWT:
         raise AuthInvalidJwtError("Invalid JWT structure")
 
     try:
-        header = base64url_to_bytes(parts[0])
-        payload = base64url_to_bytes(parts[1])
+        header = JWTHeaderParser.validate_json(base64url_to_bytes(parts[0]))
+        payload = JWTPayloadParser.validate_json(base64url_to_bytes(parts[1]))
         signature = base64url_to_bytes(parts[2])
-    except binascii.Error as e:
+    except (binascii.Error, ValidationError) as e:
         raise AuthInvalidJwtError("Invalid JWT structure") from e
 
     return DecodedJWT(
-        header=JWTHeaderParser.validate_json(header),
-        payload=JWTPayloadParser.validate_json(payload),
+        header=header,
+        payload=payload,
         signature=signature,
         raw={
             "header": parts[0],

@@ -1,3 +1,5 @@
+import base64
+import json
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -126,6 +128,50 @@ def test_decode_jwt() -> None:
     with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure") as exc:
         decode_jwt("non-valid-jwt")
     assert exc.value is not None
+
+
+def _segment(value: object) -> str:
+    raw = value if isinstance(value, bytes) else json.dumps(value).encode()
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def _token(header: object, payload: object) -> str:
+    return f"{_segment(header)}.{_segment(payload)}.{_segment(b'signature')}"
+
+
+_HEADER = {"alg": "HS256", "typ": "JWT"}
+_PAYLOAD = {"sub": "user", "exp": 9999999999}
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        _token(b"not json", _PAYLOAD),
+        _token(_HEADER, b"not json"),
+        _token({"alg": "none", "typ": "JWT"}, _PAYLOAD),
+        _token({"alg": "EdDSA", "typ": "JWT"}, _PAYLOAD),
+        _token([_HEADER], _PAYLOAD),
+        _token(_HEADER, {"sub": "user", "exp": "soon"}),
+    ],
+    ids=[
+        "header-not-json",
+        "payload-not-json",
+        "alg-none",
+        "alg-eddsa",
+        "header-array",
+        "exp-string",
+    ],
+)
+def test_decode_jwt_raises_auth_error_for_malformed_segments(token: str) -> None:
+    with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure"):
+        decode_jwt(token)
+
+
+def test_decode_jwt_accepts_header_without_typ() -> None:
+    decoded = decode_jwt(_token({"alg": "HS256"}, _PAYLOAD))
+
+    assert decoded["header"] == {"alg": "HS256"}
+    assert decoded["payload"] == _PAYLOAD
 
 
 def test_generate_pkce_verifier() -> None:
