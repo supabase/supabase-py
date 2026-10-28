@@ -82,6 +82,18 @@ def test_update_closes_file_handle_on_error(source: str) -> None:
     assert captured["files"]["file"][1].closed
 
 
+def test_upload_to_signed_url_closes_file_handle_on_error(source: str) -> None:
+    """upload_to_signed_url() opens its own handle, so it must close it on failure."""
+    captured: dict = {}
+
+    with pytest.raises(StorageApiError):
+        _proxy(_error_response(), captured).upload_to_signed_url(
+            "upload.txt", "token", source
+        )
+
+    assert captured["files"]["file"][1].closed
+
+
 def test_caller_supplied_handle_is_left_open(source: str) -> None:
     """storage3 must not close a stream the caller owns, on either path."""
     captured: dict = {}
