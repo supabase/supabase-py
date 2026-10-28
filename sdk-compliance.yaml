@@ -113,6 +113,7 @@ features:
   auth.session.auto_refresh:
     status: implemented
     note: "Token refresh runs automatically as an internal background task controlled by the auto_refresh_token constructor option."
+    no_public_symbols: true
   auth.session.sign_out_reason: not_implemented
 
   auth.identities.link_identity:
@@ -290,24 +291,32 @@ features:
   client.authentication_integration.cross_client_token_sync:
     status: implemented
     note: "On SIGNED_IN, TOKEN_REFRESHED, and SIGNED_OUT events the Authorization header is updated and sub-clients (postgrest, storage, functions) are lazily recreated with the new token on their next access; realtime.set_auth() is called directly."
+    no_public_symbols: true
   client.authentication_integration.oauth_flow_type:
     status: implemented
     note: "flow_type constructor parameter on the auth client."
+    no_public_symbols: true
   client.authentication_integration.session_url_detection: not_implemented
 
   client.session_management.custom_storage:
     status: implemented
     note: "storage parameter on the auth client accepts a custom async/sync storage backend."
+    symbols:
+      - AsyncSupportedStorage
+      - SyncSupportedStorage
   client.session_management.persist_session:
     status: implemented
     note: "persist_session constructor parameter on the auth client."
+    no_public_symbols: true
 
   client.request_configuration.custom_http_client:
     status: implemented
     note: "http_client parameter on client constructors accepts a custom httpx client."
+    no_public_symbols: true
   client.request_configuration.global_headers:
     status: implemented
     note: "headers parameter accepted by all sub-client constructors."
+    no_public_symbols: true
 
   client.observability.trace_propagation: not_implemented
   client.observability.diagnostic_logging: not_implemented
@@ -361,45 +370,152 @@ features:
   database.mutate.select_after_mutation:
     status: implemented
     note: "Chainable .select(*columns) after insert/update/upsert/delete — sets return=representation and adds a column selection query param. count and returning parameters also supported directly on each mutate method."
+    symbols:
+      - AsyncQueryRequestBuilder.select
+      - SyncQueryRequestBuilder.select
   database.mutate.bulk_rows_with_differing_fields:
     status: implemented
     note: "Bulk insert/upsert with a list sends a columns query parameter built from the union of all row keys."
+    symbols:
+      - AsyncRequestBuilder.insert
+      - AsyncRequestBuilder.upsert
+      - SyncRequestBuilder.insert
+      - SyncRequestBuilder.upsert
   database.mutate.count:
     status: implemented
     note: "insert, upsert, update and delete accept a count argument (CountMethod)."
+    symbols:
+      - AsyncRequestBuilder.insert
+      - AsyncRequestBuilder.upsert
+      - AsyncRequestBuilder.update
+      - AsyncRequestBuilder.delete
+      - SyncRequestBuilder.insert
+      - SyncRequestBuilder.upsert
+      - SyncRequestBuilder.update
+      - SyncRequestBuilder.delete
   database.mutate.missing_defaults:
     status: implemented
     note: "Bulk insert/upsert accept default_to_null=False, which sends Prefer: missing=default."
+    symbols:
+      - AsyncRequestBuilder.insert
+      - AsyncRequestBuilder.upsert
+      - SyncRequestBuilder.insert
+      - SyncRequestBuilder.upsert
 
-  database.using_filters.eq: implemented
-  database.using_filters.neq: implemented
-  database.using_filters.gt: implemented
-  database.using_filters.gte: implemented
-  database.using_filters.lt: implemented
-  database.using_filters.lte: implemented
-  database.using_filters.like: implemented
-  database.using_filters.ilike: implemented
-  database.using_filters.is: implemented
-  database.using_filters.in: implemented
-  database.using_filters.contains: implemented
-  database.using_filters.contained_by: implemented
-  database.using_filters.range_gt: implemented
-  database.using_filters.range_gte: implemented
-  database.using_filters.range_lt: implemented
-  database.using_filters.range_lte: implemented
-  database.using_filters.range_adjacent: implemented
-  database.using_filters.overlaps: implemented
-  database.using_filters.text_search: implemented
-  database.using_filters.match: implemented
-  database.using_filters.not: implemented
-  database.using_filters.or: implemented
-  database.using_filters.raw: implemented
-  database.using_filters.regex: implemented
-  database.using_filters.regex_icase: implemented
+  database.using_filters.eq:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.eq
+  database.using_filters.neq:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.neq
+  database.using_filters.gt:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.gt
+  database.using_filters.gte:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.gte
+  database.using_filters.lt:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.lt
+  database.using_filters.lte:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.lte
+  database.using_filters.like:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.like
+  database.using_filters.ilike:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.ilike
+  database.using_filters.is:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.is_
+  database.using_filters.in:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.in_
+  database.using_filters.contains:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.contains
+  database.using_filters.contained_by:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.contained_by
+  database.using_filters.range_gt:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.range_gt
+  database.using_filters.range_gte:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.range_gte
+  database.using_filters.range_lt:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.range_lt
+  database.using_filters.range_lte:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.range_lte
+  database.using_filters.range_adjacent:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.range_adjacent
+  database.using_filters.overlaps:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.overlaps
+  database.using_filters.text_search:
+    status: implemented
+    symbols:
+      - AsyncSelectRequestBuilder.text_search
+      - SyncSelectRequestBuilder.text_search
+      - BaseFilterRequestBuilder.fts
+      - BaseFilterRequestBuilder.plfts
+      - BaseFilterRequestBuilder.phfts
+      - BaseFilterRequestBuilder.wfts
+  database.using_filters.match:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.match
+  database.using_filters.not:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.not_
+  database.using_filters.or:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.or_
+  database.using_filters.raw:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.filter
+  database.using_filters.regex:
+    status: implemented
+    note: 'Use filter(column, "match", pattern); there is no dedicated regex method.'
+    symbols:
+      - BaseFilterRequestBuilder.filter
+  database.using_filters.regex_icase:
+    status: implemented
+    note: 'Use filter(column, "imatch", pattern); there is no dedicated case-insensitive regex method.'
+    symbols:
+      - BaseFilterRequestBuilder.filter
   database.using_filters.is_distinct: not_implemented
   database.using_filters.not_in:
     status: implemented
     note: "Achieved by chaining .not_().in_()."
+    symbols:
+      - BaseFilterRequestBuilder.not_
+      - BaseFilterRequestBuilder.in_
 
   database.using_filters.like_all:
     status: implemented
@@ -421,9 +537,18 @@ features:
     symbols:
       - BaseFilterRequestBuilder.ilike_any_of
 
-  database.using_modifiers.order: implemented
-  database.using_modifiers.limit: implemented
-  database.using_modifiers.range: implemented
+  database.using_modifiers.order:
+    status: implemented
+    symbols:
+      - BaseSelectRequestBuilder.order
+  database.using_modifiers.limit:
+    status: implemented
+    symbols:
+      - BaseSelectRequestBuilder.limit
+  database.using_modifiers.range:
+    status: implemented
+    symbols:
+      - BaseSelectRequestBuilder.range
   database.using_modifiers.single_row:
     status: implemented
     symbols:
@@ -457,9 +582,13 @@ features:
   database.using_modifiers.request_cancellation:
     status: implemented
     note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running the query propagates cancellation through the httpx client."
+    no_public_symbols: true
   database.using_modifiers.relationship_embed:
     status: implemented
     note: "Supported via query-string syntax in select() (e.g. 'user(*)'); no dedicated relationship builder API."
+    symbols:
+      - AsyncRequestBuilder.select
+      - SyncRequestBuilder.select
   database.using_modifiers.dry_run: not_implemented
 
   database.configuration.auto_retry:
@@ -470,6 +599,7 @@ features:
   database.configuration.request_timeout:
     status: implemented
     note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including query execution."
+    no_public_symbols: true
   database.configuration.access_token:
     status: partially_implemented
     note: "auth(token) sets the bearer token on the client in place; there is no per-request access token option."
@@ -489,17 +619,25 @@ features:
   functions.invocation.method_override:
     status: implemented
     note: "Passed via the method key in invoke_options (defaults to POST)."
+    symbols:
+      - AsyncFunctionsClient.invoke
+      - SyncFunctionsClient.invoke
   functions.invocation.streaming_response: not_implemented
   functions.invocation.region_selection:
     status: implemented
     note: "Passed via the region key in invoke_options; maps to the x-region header and forceFunctionRegion query param using the FunctionRegion enum."
+    symbols:
+      - AsyncFunctionsClient.invoke
+      - SyncFunctionsClient.invoke
   functions.invocation.request_cancellation:
     status: implemented
     note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running invoke() propagates cancellation through the httpx client."
+    no_public_symbols: true
 
   functions.invocation.timeout:
     status: implemented
     note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including invoke()."
+    no_public_symbols: true
 
   # ── Realtime ───────────────────────────────────────────────────────────────
 
@@ -574,21 +712,31 @@ features:
   realtime.subscriptions.postgres_changes_filter:
     status: implemented
     note: "event, schema, table, and filter parameters on on_postgres_changes."
+    symbols:
+      - AsyncRealtimeChannel.on_postgres_changes
   realtime.subscriptions.private_channel:
     status: implemented
     note: "Set private: true in the channel config; passed to the server on subscribe to enforce Row Level Security on postgres changes and restrict access."
+    symbols:
+      - AsyncRealtimeClient.channel
   realtime.subscriptions.broadcast_self:
     status: implemented
     note: "Set broadcast.self: true in the channel config; passed to the server so the sender receives its own broadcast messages."
+    symbols:
+      - AsyncRealtimeClient.channel
   realtime.subscriptions.broadcast_ack:
     status: partially_implemented
     note: "broadcast.ack: true is passed to the server in the channel config, and ack replies from the server are handled internally. However, send_broadcast() returns immediately without awaiting the server acknowledgment — supabase-js resolves the send promise only after the ack is received."
   realtime.subscriptions.broadcast_replay:
     status: implemented
     note: "Pass a replay: {since, limit} option in the broadcast config when creating the channel; it is forwarded in the phx_join payload."
+    symbols:
+      - AsyncRealtimeClient.channel
   realtime.subscriptions.postgres_changes_multiple_filters:
     status: implemented
     note: "The filter string is passed through to the server unchanged; combine conditions with commas (AND)."
+    symbols:
+      - AsyncRealtimeChannel.on_postgres_changes
 
   realtime.presence.track:
     status: implemented
@@ -605,6 +753,8 @@ features:
   realtime.presence.presence_key:
     status: implemented
     note: "Set presence.key in the channel config; passed to the server so multiple connections from the same user share one logical presence key."
+    symbols:
+      - AsyncRealtimeClient.channel
 
   realtime.configuration.custom_websocket_transport: not_implemented
   realtime.configuration.reconnect_backoff:
@@ -613,6 +763,7 @@ features:
   realtime.configuration.heartbeat_interval:
     status: implemented
     note: "hb_interval constructor parameter."
+    no_public_symbols: true
   realtime.configuration.access_token_callback: not_implemented
   realtime.configuration.deferred_disconnect: not_implemented
   realtime.configuration.custom_logger: not_applicable
@@ -650,7 +801,11 @@ features:
     symbols:
       - AsyncStorageBucketAPI.empty_bucket
       - SyncStorageBucketAPI.empty_bucket
-  storage.file_buckets.access_bucket: implemented
+  storage.file_buckets.access_bucket:
+    status: implemented
+    symbols:
+      - AsyncStorageClient.from_
+      - SyncStorageClient.from_
   storage.file_buckets.upload:
     status: implemented
     symbols:
@@ -760,6 +915,7 @@ features:
   storage.file_buckets.request_cancellation:
     status: implemented
     note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running the storage call propagates cancellation through the httpx client."
+    no_public_symbols: true
   storage.file_buckets.update_bucket_lifecycle: not_implemented
 
   # ── Storage — Vector Buckets ───────────────────────────────────────────────
