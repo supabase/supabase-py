@@ -22,6 +22,10 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 
 Adding or renaming a public symbol means updating [sdk-compliance.yaml](sdk-compliance.yaml) with both the `Async*` and `Sync*` names. [validate-capabilities.yml](.github/workflows/validate-capabilities.yml) checks it against the [supabase/sdk](https://github.com/supabase/sdk) capability registry.
 
+## Service compatibility
+
+Update the "Supabase Service Compatibility" section of the READMEs if the supported version of a Supabase service changes. Any change that is not "Latest release" requires integration tests for the minimum supported version.
+
 ## Commits and releases
 
 - Commit and PR title: `type(<pkg>): lowercase subject`, e.g. `fix(realtime): cap reconnect backoff`.
