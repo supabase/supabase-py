@@ -640,8 +640,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         auth_response = parse_auth_response(response)
         if auth_response.session:
             await self._save_session(auth_response.session)
-            # auth-js verifyOtp emits PASSWORD_RECOVERY instead of SIGNED_IN
-            # so listeners can show the reset form.
             event: AuthChangeEvent = (
                 "PASSWORD_RECOVERY" if params.get("type") == "recovery" else "SIGNED_IN"
             )
