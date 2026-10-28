@@ -191,9 +191,7 @@ def pre_insert(
     # Adding 'columns' query parameters
     query_params = {}
     if isinstance(json, list):
-        columns = _unique_columns(json)
-        if columns:
-            query_params = {"columns": columns}
+        query_params = {"columns": _unique_columns(json)}
     return QueryArgs(RequestMethod.POST, QueryParams(query_params), headers, json)
 
 
@@ -219,9 +217,7 @@ def pre_upsert(
         query_params["on_conflict"] = on_conflict
     # Adding 'columns' query parameters
     if isinstance(json, list):
-        columns = _unique_columns(json)
-        if columns:
-            query_params["columns"] = columns
+        query_params["columns"] = _unique_columns(json)
     return QueryArgs(RequestMethod.POST, QueryParams(query_params), headers, json)
 
 
@@ -498,7 +494,14 @@ class BaseFilterRequestBuilder(Generic[C]):
         return self.filter(column, Filters.WFTS, query)
 
     def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
-        stringified_values = ",".join(map(sanitize_param, values))
+        def _serialize_in_value(value: FilterValue) -> str:
+            if value is None:
+                return "null"
+            if isinstance(value, bool):
+                return "true" if value else "false"
+            return sanitize_param(value)
+
+        stringified_values = ",".join(_serialize_in_value(value) for value in values)
         return self.filter(column, Filters.IN, f"({stringified_values})")
 
     def cs(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
