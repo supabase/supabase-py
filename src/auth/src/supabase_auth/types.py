@@ -199,6 +199,10 @@ class Factor(BaseModel):
     """
     Friendly name of the factor, useful to disambiguate between multiple factors.
     """
+    phone: Optional[str] = None
+    """
+    Phone number associated with a phone factor.
+    """
     factor_type: Union[Literal["totp", "phone"], str]
     """
     Type of factor. Only `totp` supported with this version but may change in
@@ -921,7 +925,7 @@ class OAuthClient(BaseModel):
 
     client_id: str
     """Unique client identifier"""
-    client_name: str
+    client_name: Optional[str] = None
     """Human-readable name of the client application"""
     client_secret: Optional[str] = None
     """Client secret for confidential clients (only returned on registration/regeneration)"""
