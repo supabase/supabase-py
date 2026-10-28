@@ -5,6 +5,14 @@ from httpx import AsyncClient, Client, MockTransport, Request, Response
 
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
 
+from .credentials import (
+    BASIC_AUTHORIZATION,
+    BEARER_AUTHORIZATION,
+    PASSWORD,
+    TOKEN,
+    USERNAME,
+)
+
 
 def recording_transport(requests: List[Request]) -> MockTransport:
     def respond(request: Request) -> Response:
@@ -23,19 +31,21 @@ def test_sync_auth_switches_from_basic_to_bearer(username: Optional[str]) -> Non
         with SyncPostgrestClient(
             "https://example.com", http_client=http_client
         ) as client:
-            client.auth(None, username="alice", password="password")
+            client.auth(None, username=USERNAME, password=PASSWORD)
             client.table("countries").select("*").execute()
-            client.auth("new-token", username=username, password="ignored")
+            client.auth(TOKEN, username=username, password=PASSWORD)
             client.table("countries").select("*").execute()
-            client.auth(None, username="alice", password="password")
+            client.auth(None, username=USERNAME, password=PASSWORD)
             client.table("countries").select("*").execute()
-            client.auth("renewed-token")
+            client.auth(TOKEN)
             client.table("countries").select("*").execute()
 
-    assert requests[0].headers["Authorization"] == "Basic YWxpY2U6cGFzc3dvcmQ="
-    assert requests[1].headers["Authorization"] == "Bearer new-token"
-    assert requests[2].headers["Authorization"] == requests[0].headers["Authorization"]
-    assert requests[3].headers["Authorization"] == "Bearer renewed-token"
+    assert [request.headers["Authorization"] for request in requests] == [
+        BASIC_AUTHORIZATION,
+        BEARER_AUTHORIZATION,
+        BASIC_AUTHORIZATION,
+        BEARER_AUTHORIZATION,
+    ]
 
 
 @pytest.mark.parametrize(
@@ -49,16 +59,18 @@ async def test_async_auth_switches_from_basic_to_bearer(
         async with AsyncPostgrestClient(
             "https://example.com", http_client=http_client
         ) as client:
-            client.auth(None, username="alice", password="password")
+            client.auth(None, username=USERNAME, password=PASSWORD)
             await client.table("countries").select("*").execute()
-            client.auth("new-token", username=username, password="ignored")
+            client.auth(TOKEN, username=username, password=PASSWORD)
             await client.table("countries").select("*").execute()
-            client.auth(None, username="alice", password="password")
+            client.auth(None, username=USERNAME, password=PASSWORD)
             await client.table("countries").select("*").execute()
-            client.auth("renewed-token")
+            client.auth(TOKEN)
             await client.table("countries").select("*").execute()
 
-    assert requests[0].headers["Authorization"] == "Basic YWxpY2U6cGFzc3dvcmQ="
-    assert requests[1].headers["Authorization"] == "Bearer new-token"
-    assert requests[2].headers["Authorization"] == requests[0].headers["Authorization"]
-    assert requests[3].headers["Authorization"] == "Bearer renewed-token"
+    assert [request.headers["Authorization"] for request in requests] == [
+        BASIC_AUTHORIZATION,
+        BEARER_AUTHORIZATION,
+        BASIC_AUTHORIZATION,
+        BEARER_AUTHORIZATION,
+    ]
