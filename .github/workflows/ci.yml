@@ -30,6 +30,7 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase"]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - name: Clone Repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -38,7 +39,6 @@ jobs:
         uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: "latest"
-          github-token: ${{ github.token }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
@@ -46,8 +46,40 @@ jobs:
           version: "0.8.2"
           python-version: ${{ matrix.python-version }}
 
+      # The supabase cli publishes host ports inside the ephemeral range, and
+      # parallel image pulls can take one as an outgoing source port, which
+      # fails the container start with "address already in use".
+      - name: Reserve infra ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329,55320-55329
+
+      - name: Print supabase cli version
+        id: supabase-cli
+        run: echo "version=$(supabase --version | head -n 1)" >> "$GITHUB_OUTPUT"
+
+      # Pulling images from the registries on every job gets throttled
+      # (429 / "Data limit exceeded"), so reuse the images between runs.
+      - name: Cache docker images
+        if: ${{ contains(fromJSON('["realtime", "storage", "auth", "postgrest"]'), matrix.package) }}
+        id: docker-images
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /tmp/docker-images
+          key: docker-images-${{ matrix.package }}-${{ steps.supabase-cli.outputs.version }}-${{ hashFiles(format('src/{0}/infra/**', matrix.package)) }}
+
+      - name: Load cached docker images
+        if: ${{ steps.docker-images.outputs.cache-hit == 'true' }}
+        run: zstd -d --stdout /tmp/docker-images/images.tar.zst | docker image load
+
       - name: Run Tests
         run: make ${{ matrix.package }}.tests
+
+      - name: Save docker images to cache
+        if: ${{ steps.docker-images.outputs.cache-hit == 'false' }}
+        run: |
+          mkdir -p /tmp/docker-images
+          docker ps --all --format '{{.Image}}' | sort -u \
+            | xargs docker image save \
+            | zstd -T0 > /tmp/docker-images/images.tar.zst
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
