@@ -2,8 +2,12 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
+include ../../infra.mk
+
+STORAGE_EXCLUDED_SERVICES := studio,gotrue,postgrest,mailpit,realtime,edge-runtime,logflare,vector,supavisor
+
 start-infra:
-	../../scripts/start-infra.sh supabase storage-py studio,gotrue,postgrest,mailpit,realtime,edge-runtime,logflare,vector,supavisor
+	@$(call retry_start_infra,$(call supabase_cleanup,storage-py),supabase --workdir infra start -x $(STORAGE_EXCLUDED_SERVICES))
 help::
 	@echo "  start-infra    -- start containers for tests"
 
@@ -25,6 +29,17 @@ pytest: start-infra
 	uv run --package storage3 pytest --cov=./ --cov-report=xml --cov-report=html -vv
 help::
 	@echo "  pytest         -- run pytest on storage3"
+
+include ../../gnu-sed.mk
+
+build-sync: gnu-sed
+	uv run --package storage3 run-unasync.py
+	$(SED) -i '0,/SyncMock, /{s/SyncMock, //}' tests/_sync/test_bucket.py tests/_sync/test_client.py
+	$(SED) -i 's/SyncMock/Mock/g' tests/_sync/test_bucket.py tests/_sync/test_client.py
+	$(SED) -i 's/SyncClient/Client/g' src/storage3/_sync/client.py src/storage3/_sync/bucket.py src/storage3/_sync/file_api.py tests/_sync/test_bucket.py tests/_sync/test_client.py
+	$(SED) -i 's/self\.session\.aclose/self\.session\.close/g' src/storage3/_sync/client.py
+help::
+	@echo "  build-sync     -- generate _sync from _async implementation"
 
 clean:
 	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
