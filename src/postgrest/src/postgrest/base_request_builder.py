@@ -602,16 +602,19 @@ class BaseFilterRequestBuilder(Generic[C]):
         Args:
             value: The maximum number of rows that can be affected
         """
-        prefer_header = self.request.headers.get("Prefer", "")
-        if prefer_header:
-            if "handling=strict" not in prefer_header:
-                prefer_header += ",handling=strict"
-        else:
-            prefer_header = "handling=strict"
-
-        prefer_header += f",max-affected={value}"
-
-        self.request.headers["Prefer"] = prefer_header
+        preferences = []
+        for preference in self.request.headers.get_list("Prefer", split_commas=True):
+            if not preference or preference.startswith("max-affected="):
+                continue
+            if preference.startswith("handling="):
+                if "handling=strict" not in preferences:
+                    preferences.append("handling=strict")
+            else:
+                preferences.append(preference)
+        if "handling=strict" not in preferences:
+            preferences.append("handling=strict")
+        preferences.append(f"max-affected={value}")
+        self.request.headers["Prefer"] = ",".join(preferences)
         return self
 
 
