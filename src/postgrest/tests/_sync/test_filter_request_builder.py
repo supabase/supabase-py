@@ -352,7 +352,7 @@ def test_ilike_all_of(filter_request_builder):
 def test_ilike_any_of(filter_request_builder):
     builder = filter_request_builder.ilike_any_of("x", "A*,*b")
 
-    assert str(builder.request.params) == "x=ilike%28any%29.%7BA%2A%2C%2Ab%7D"
+    assert str(builder.request.params) == "x=ilike%28any%29.%7Ba%2A%2C%2Ab%7D"
 
 
 def test_is_(filter_request_builder):
@@ -385,6 +385,18 @@ def test_in_(filter_request_builder):
     builder = filter_request_builder.in_("x", ["a", "b"])
 
     assert str(builder.request.params) == "x=in.%28a%2Cb%29"
+
+
+def test_in_serializes_none_as_null(filter_request_builder):
+    builder = filter_request_builder.in_("x", [None, "a"])
+
+    assert str(builder.request.params) == "x=in.%28null%2Ca%29"
+
+
+def test_in_serializes_booleans(filter_request_builder):
+    builder = filter_request_builder.in_("x", [True, False])
+
+    assert str(builder.request.params) == "x=in.%28true%2Cfalse%29"
 
 
 def test_or_(filter_request_builder):
