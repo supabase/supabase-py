@@ -31,7 +31,7 @@ def test_parse_api_error_reads_wire_format() -> None:
     )
     assert err.message == "Object not found"
     assert err.code == "not_found"
-    assert err.status == "404"
+    assert err.status == 400
 
 
 def test_parse_api_error_prefers_explicit_code() -> None:
@@ -41,7 +41,7 @@ def test_parse_api_error_prefers_explicit_code() -> None:
         )
     )
     assert err.code == "PayloadTooLarge"
-    assert err.status == 413
+    assert err.status == 502
 
 
 @pytest.mark.parametrize(

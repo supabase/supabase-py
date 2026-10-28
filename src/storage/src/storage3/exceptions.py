@@ -55,7 +55,7 @@ def parse_api_error(response: Response) -> StorageApiError:
     return StorageApiError(
         message=parsed.message,
         code=parsed.code or parsed.error,
-        status=parsed.statusCode,
+        status=response.status,
     )
 
 
