@@ -16,11 +16,10 @@ mypy:
 help::
 	@echo "  mypy           -- run mypy on postgrest package"
 
+include ../../infra.mk
+
 start-infra:
-	cd infra &&\
-	docker compose down &&\
-	docker compose up -d
-	sleep 2
+	@$(call retry_start_infra,$(compose_cleanup),(cd infra && docker compose up -d))
 help::
 	@echo "  stop-infra     -- start containers for tests"
 

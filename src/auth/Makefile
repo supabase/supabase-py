@@ -14,11 +14,10 @@ mypy:
 help::
 	@echo "  mypy           -- run mypy on supabase_auth"
 
+include ../../infra.mk
+
 start-infra:
-	cd infra &&\
-	docker compose down &&\
-	docker compose up -d
-	sleep 2
+	@$(call retry_start_infra,$(compose_cleanup),(cd infra && docker compose up -d))
 help::
 	@echo "  start-infra    -- start containers for tests"
 
