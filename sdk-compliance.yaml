@@ -1159,10 +1159,12 @@ features:
 
   storage.configuration.auto_retry: not_implemented
   storage.errors.error_codes:
-    status: partially_implemented
-    note: "StorageApiError.code is read from the response body's code field, but the body is parsed strictly and needs a status field (the server sends statusCode); bodies that fail to parse surface as code InternalError."
-    supporting_symbols:
+    status: implemented
+    note: "The error code is exposed as the StorageApiError.code dataclass field, which is not registrable on its own since only properties are extracted as symbols."
+    symbols:
       - StorageApiError
+    supporting_symbols:
+      - StorageApiErrorMessage
       - StorageException
       - parse_api_error
 
