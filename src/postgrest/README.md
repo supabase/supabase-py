@@ -34,6 +34,12 @@ uv add postgrest
 pip install postgrest
 ```
 
+## Supabase Service Compatibility
+
+`postgrest` only guarantees compatibility with the [latest PostgREST release](https://github.com/PostgREST/postgrest/releases). Older PostgREST releases are supported on a best-effort basis, but compatibility is not guaranteed.
+
+If you self-host PostgREST, we recommend upgrading to the latest release when upgrading this SDK.
+
 ## USAGE
 
 ### Getting started
