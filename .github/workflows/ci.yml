@@ -49,7 +49,7 @@ jobs:
 
       - name: Print supabase cli version
         id: supabase-cli
-        run: echo "version=$(supabase --version)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(supabase --version | head -n 1)" >> "$GITHUB_OUTPUT"
 
       # Pulling images from the registries on every job gets throttled
       # (429 / "Data limit exceeded"), so reuse the images between runs.
