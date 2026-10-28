@@ -30,17 +30,6 @@ pytest: start-infra
 help::
 	@echo "  pytest         -- run pytest on storage3"
 
-include ../../gnu-sed.mk
-
-build-sync: gnu-sed
-	uv run --package storage3 run-unasync.py
-	$(SED) -i '0,/SyncMock, /{s/SyncMock, //}' tests/_sync/test_bucket.py tests/_sync/test_client.py
-	$(SED) -i 's/SyncMock/Mock/g' tests/_sync/test_bucket.py tests/_sync/test_client.py
-	$(SED) -i 's/SyncClient/Client/g' src/storage3/_sync/client.py src/storage3/_sync/bucket.py src/storage3/_sync/file_api.py tests/_sync/test_bucket.py tests/_sync/test_client.py
-	$(SED) -i 's/self\.session\.aclose/self\.session\.close/g' src/storage3/_sync/client.py
-help::
-	@echo "  build-sync     -- generate _sync from _async implementation"
-
 clean:
 	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
 	rm -f .coverage coverage.xml
