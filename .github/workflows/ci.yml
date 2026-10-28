@@ -40,6 +40,18 @@ jobs:
       - name: Check formatting
         run: uv run --frozen ruff format --check
 
+      - name: Check _sync is generated from _async
+        run: |
+          make build-sync
+          uv run --frozen ruff check --fix --quiet
+          uv run --frozen ruff format --quiet
+          if [ -n "$(git status --porcelain -- src)" ]; then
+            git status --short -- src
+            git diff -- src
+            echo "::error::_sync is out of date. Edit _async, then run 'make build-sync' and 'make ruff'."
+            exit 1
+          fi
+
   test:
     name: py${{ matrix.python-version }} | ${{ matrix.package }} @ ${{ matrix.os }}
     strategy:
