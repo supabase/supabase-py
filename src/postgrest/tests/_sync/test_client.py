@@ -15,7 +15,16 @@ from httpx import (
 )
 
 from postgrest import SyncPostgrestClient
+from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.exceptions import APIError
+
+from ..credentials import (
+    BASIC_AUTHORIZATION,
+    BEARER_AUTHORIZATION,
+    PASSWORD,
+    TOKEN,
+    USERNAME,
+)
 
 
 @pytest.fixture
@@ -48,6 +57,13 @@ class TestConstructor:
             }
         )
         assert session.headers.items() >= headers.items()
+
+    def test_default_timeout_uses_postgrest_constant(self) -> None:
+        with SyncPostgrestClient("https://example.com") as client:
+            assert client.timeout == DEFAULT_POSTGREST_CLIENT_TIMEOUT
+            assert client.session.timeout == Timeout(
+                timeout=DEFAULT_POSTGREST_CLIENT_TIMEOUT
+            )
 
     def test_custom_headers(self):
         with SyncPostgrestClient(
@@ -91,17 +107,14 @@ class TestHttpxClientConstructor:
 
 class TestAuth:
     def test_auth_token(self, postgrest_client: SyncPostgrestClient):
-        postgrest_client.auth("s3cr3t")
-        assert postgrest_client.headers["Authorization"] == "Bearer s3cr3t"
+        postgrest_client.auth(TOKEN)
+        assert postgrest_client.headers["Authorization"] == BEARER_AUTHORIZATION
 
     def test_auth_basic(self, postgrest_client: SyncPostgrestClient):
-        postgrest_client.auth(None, username="admin", password="s3cr3t")
+        postgrest_client.auth(None, username=USERNAME, password=PASSWORD)
 
         assert isinstance(postgrest_client.basic_auth, BasicAuth)
-        assert (
-            postgrest_client.basic_auth._auth_header
-            == BasicAuth("admin", "s3cr3t")._auth_header
-        )
+        assert postgrest_client.basic_auth._auth_header == BASIC_AUTHORIZATION
 
 
 def test_schema(postgrest_client: SyncPostgrestClient):

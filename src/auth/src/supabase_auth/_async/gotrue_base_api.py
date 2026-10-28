@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from httpx import AsyncClient, HTTPStatusError, QueryParams, Response
+from httpx import AsyncClient, HTTPStatusError, QueryParams, RequestError, Response
 from pydantic import BaseModel
 from typing_extensions import Literal, Self
 
@@ -21,7 +21,11 @@ class AsyncGoTrueBaseAPI:
         proxy: Optional[str] = None,
     ) -> None:
         self._url = url.rstrip("/")
-        self._headers = headers
+        # Copy: callers pass a dict they keep mutating, and GoTrueClient hands
+        # its own `_headers` to the admin API. Sharing the object means a later
+        # `_headers["Authorization"] = <user token>` silently downgrades every
+        # other holder of that dict.
+        self._headers = dict(headers)
         self._http_client = http_client or AsyncClient(
             verify=bool(verify),
             proxy=proxy,
@@ -72,5 +76,5 @@ class AsyncGoTrueBaseAPI:
 
             response.raise_for_status()
             return response
-        except (HTTPStatusError, RuntimeError) as e:
+        except (HTTPStatusError, RequestError, RuntimeError) as e:
             raise handle_exception(e)  # noqa

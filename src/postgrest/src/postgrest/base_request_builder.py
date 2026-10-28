@@ -21,7 +21,7 @@ from typing import (
     overload,
 )
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, QueryParams
+from httpx import AsyncClient, Auth, BasicAuth, Client, Headers, QueryParams
 from httpx import Response as RequestResponse
 from pydantic import BaseModel, ValidationError
 from yarl import URL
@@ -96,6 +96,9 @@ class RequestConfig(Generic[C]):
 
     def send(self: RequestConfig[C], additional_headers: Headers):
         additional_headers.update(self.headers)
+        auth: Auth | None = self.auth
+        if auth is None and "Authorization" not in additional_headers:
+            auth = self.session.auth
         if self.strip_nulls:
             accept = additional_headers.get("Accept")
             if accept == "application/vnd.pgrst.object+json":
@@ -110,7 +113,7 @@ class RequestConfig(Generic[C]):
             json=self.json,
             params=self.params,
             headers=additional_headers,
-            auth=self.auth,
+            auth=auth,
         )
 
     def should_retry(self, response: RequestResponse, attempt_count: int) -> bool:
@@ -191,7 +194,9 @@ def pre_insert(
     # Adding 'columns' query parameters
     query_params = {}
     if isinstance(json, list):
-        query_params = {"columns": _unique_columns(json)}
+        columns = _unique_columns(json)
+        if columns:
+            query_params = {"columns": columns}
     return QueryArgs(RequestMethod.POST, QueryParams(query_params), headers, json)
 
 
@@ -217,7 +222,9 @@ def pre_upsert(
         query_params["on_conflict"] = on_conflict
     # Adding 'columns' query parameters
     if isinstance(json, list):
-        query_params["columns"] = _unique_columns(json)
+        columns = _unique_columns(json)
+        if columns:
+            query_params["columns"] = columns
     return QueryArgs(RequestMethod.POST, QueryParams(query_params), headers, json)
 
 
@@ -598,16 +605,19 @@ class BaseFilterRequestBuilder(Generic[C]):
         Args:
             value: The maximum number of rows that can be affected
         """
-        prefer_header = self.request.headers.get("Prefer", "")
-        if prefer_header:
-            if "handling=strict" not in prefer_header:
-                prefer_header += ",handling=strict"
-        else:
-            prefer_header = "handling=strict"
-
-        prefer_header += f",max-affected={value}"
-
-        self.request.headers["Prefer"] = prefer_header
+        preferences = []
+        for preference in self.request.headers.get_list("Prefer", split_commas=True):
+            if not preference or preference.startswith("max-affected="):
+                continue
+            if preference.startswith("handling="):
+                if "handling=strict" not in preferences:
+                    preferences.append("handling=strict")
+            else:
+                preferences.append(preference)
+        if "handling=strict" not in preferences:
+            preferences.append("handling=strict")
+        preferences.append(f"max-affected={value}")
+        self.request.headers["Prefer"] = ",".join(preferences)
         return self
 
 

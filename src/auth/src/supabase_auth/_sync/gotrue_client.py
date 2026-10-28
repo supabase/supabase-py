@@ -644,7 +644,10 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         auth_response = parse_auth_response(response)
         if auth_response.session:
             self._save_session(auth_response.session)
-            self._notify_all_subscribers("SIGNED_IN", auth_response.session)
+            event: AuthChangeEvent = (
+                "PASSWORD_RECOVERY" if params.get("type") == "recovery" else "SIGNED_IN"
+            )
+            self._notify_all_subscribers(event, auth_response.session)
         return auth_response
 
     def reauthenticate(self) -> AuthResponse:
@@ -666,15 +669,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         The session returned can be null if the session is not detected which
         can happen in the event a user is not signed-in or has logged out.
         """
-        current_session: Optional[Session] = None
-        if self._persist_session:
-            maybe_session = self._storage.get_item(self._storage_key)
-            current_session = self._get_valid_session(maybe_session)
-            if not current_session:
-                self._remove_session()
-        else:
-            current_session = self._in_memory_session
-
+        current_session = self._load_session()
         if not current_session:
             return None
         time_now = round(time.time())
@@ -695,6 +690,9 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
 
         Takes in an optional access token `jwt`. If no `jwt` is provided,
         `get_user()` will attempt to get the `jwt` from the current session.
+
+        Returns `None` if no `jwt` is provided and there is no active
+        session to retrieve one from.
         """
         if not jwt:
             session = self.get_session()
@@ -1016,6 +1014,15 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
 
     # Private methods
 
+    def _load_session(self) -> Optional[Session]:
+        if not self._persist_session:
+            return self._in_memory_session
+        maybe_session = self._storage.get_item(self._storage_key)
+        current_session = self._get_valid_session(maybe_session)
+        if not current_session:
+            self._remove_session()
+        return current_session
+
     def _remove_session(self) -> None:
         if self._persist_session:
             self._storage.remove_item(self._storage_key)
@@ -1157,7 +1164,8 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         def refresh_token_function() -> None:
             self._network_retries += 1
             try:
-                session = self.get_session()
+                # get_session() would refresh too: the timer fires inside EXPIRY_MARGIN.
+                session = self._load_session()
                 if session:
                     self._call_refresh_token(session.refresh_token)
                     self._network_retries = 0
