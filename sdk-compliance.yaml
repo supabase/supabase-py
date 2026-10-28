@@ -1160,6 +1160,8 @@ features:
   storage.configuration.auto_retry: not_implemented
   storage.errors.error_codes:
     status: implemented
+    symbols:
+      - StorageApiError.code
     supporting_symbols:
       - StorageApiError
       - StorageApiErrorMessage
