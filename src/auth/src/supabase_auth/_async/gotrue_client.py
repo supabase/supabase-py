@@ -683,6 +683,9 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
         Takes in an optional access token `jwt`. If no `jwt` is provided,
         `get_user()` will attempt to get the `jwt` from the current session.
+
+        Returns `None` if no `jwt` is provided and there is no active
+        session to retrieve one from.
         """
         if not jwt:
             session = await self.get_session()

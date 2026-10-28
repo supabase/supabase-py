@@ -12,7 +12,8 @@ def test_functions_client_initialization() -> None:
     url = "https://localhost:54322"
     sp_local = supabase.Client(url, key)
     assert str(sp_local.functions_url) == f"{url}/functions/v1"
-    
+
+
 def test_supabase_client_service_urls() -> None:
     ref = "ooqqmozurnggtljmjkii"
     url = f"https://{ref}.supabase.co"
