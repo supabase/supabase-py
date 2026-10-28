@@ -47,6 +47,12 @@ jobs:
           version: "0.8.2"
           python-version: ${{ matrix.python-version }}
 
+      # The supabase cli publishes host ports inside the ephemeral range, and
+      # parallel image pulls can take one as an outgoing source port, which
+      # fails the container start with "address already in use".
+      - name: Reserve infra ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329,55320-55329
+
       - name: Print supabase cli version
         id: supabase-cli
         run: echo "version=$(supabase --version | head -n 1)" >> "$GITHUB_OUTPUT"
