@@ -47,81 +47,94 @@ uv add realtime
 
 ```python
 import asyncio
-from typing import Optional
 
-from realtime import AsyncRealtimeClient, RealtimeSubscribeStates
+from realtime import connect_once
+
+REALTIME_URL = "http://localhost:54321/realtime/v1"
+API_KEY = "your-publishable-key"
 
 
-async def main():
-    REALTIME_URL = "ws://localhost:4000/websocket"
-    API_KEY = "1234567890"
+async def get_token() -> str:
+    return API_KEY
 
-    client = AsyncRealtimeClient(REALTIME_URL, API_KEY)
-    channel = client.channel("test-channel")
 
-    def _on_subscribe(status: RealtimeSubscribeStates, err: Optional[Exception]):
-        if status == RealtimeSubscribeStates.SUBSCRIBED:
+async def main() -> None:
+    async with connect_once(REALTIME_URL, get_token) as client:
+        async with client.channel("test-channel") as channel:
             print("Connected!")
-        elif status == RealtimeSubscribeStates.CHANNEL_ERROR:
-            print(f"There was an error subscribing to channel: {err.args}")
-        elif status == RealtimeSubscribeStates.TIMED_OUT:
-            print("Realtime server did not respond in time.")
-        elif status == RealtimeSubscribeStates.CLOSED:
-            print("Realtime channel was unexpectedly closed.")
+            async for message in channel.messages:
+                print(message)
 
-    await channel.subscribe(_on_subscribe)
+
+asyncio.run(main())
 ```
 
 ### Notes:
 
-- `REALTIME_URL` is `ws://localhost:4000/socket` when developing locally and `wss://<project_ref>.supabase.co/realtime/v1` when connecting to your Supabase project.
-- `API_KEY` is a JWT whose claims must contain `exp` and `role` (existing database role).
+- `REALTIME_URL` is `http://localhost:54321/realtime/v1` when developing locally with the Supabase CLI and `https://<project_ref>.supabase.co/realtime/v1` when connecting to your Supabase project. The client switches to `ws`/`wss` and appends `/websocket` itself.
+- The token callback is awaited when connecting and on every heartbeat, so it can return a refreshed user access token. It must return a JWT whose claims contain `exp` and `role` (an existing database role), or the publishable key.
+- `async with client.channel(...)` subscribes on entry and unsubscribes on exit. `subscribe()` raises if the server rejects the join.
 - Channel name can be any `string`.
+- Use `realtime.client.automatically_reconnect(url, get_token, handler)` instead of `connect_once` to reconnect with exponential backoff when the connection drops.
 
 ## Broadcast
 
 Your client can send and receive messages based on the `event`.
 
 ```python
-# Setup...
+from realtime import BroadcastMessage, RealtimeChannelOptions
 
-channel = client.channel(
-    "broadcast-test", {"config": {"broadcast": {"ack": False, "self": False}}}
-)
+options = RealtimeChannelOptions().broadcast(ack=False, listen_self=False)
 
-await channel.on_broadcast("some-event", lambda payload: print(payload)).subscribe()
-await channel.send_broadcast("some-event", {"hello": "world"})
+async with client.channel("broadcast-test", options) as channel:
+    await channel.send_broadcast("some-event", {"hello": "world"})
+    async for message in channel.messages:
+        if isinstance(message, BroadcastMessage):
+            print(message.payload)
 ```
 
 ### Notes:
 
-- Setting `ack` to `true` means that the `channel.send` promise will resolve once server replies with acknowledgement that it received the broadcast message request.
-- Setting `self` to `true` means that the client will receive the broadcast message it sent out.
-- Setting `private` to `true` means that the client will use RLS to determine if the user can connect or not to a given channel.
+- With `ack=True`, `send_broadcast()` waits for the server to acknowledge the message and returns its reply.
+- With `listen_self=True`, the client receives the broadcast messages it sends.
+- `RealtimeChannelOptions().private(True)` makes the server use RLS to decide whether the user may join the channel.
+- Setting `replication_ready` to `true` instructs the server to emit a `system` message once the Postgres replication connection backing the channel is established and ready to stream changes. Its payload's `status` is `"ok"` (`message: "Replication connection established"`) on success or `"error"` if the connection is not ready in time.
+
+```python
+from realtime import PostgresChangesMessage, RealtimeChannelOptions, SystemMessage
+
+options = (
+    RealtimeChannelOptions()
+    .broadcast(replication_ready=True)
+    .postgres_changes("*", schema="public", table="messages")
+)
+
+async with client.channel("db-changes", options) as channel:
+    async for message in channel.messages:
+        if isinstance(message, SystemMessage) and message.payload.status == "ok":
+            print("Replication connection is ready:", message.payload.message)
+        elif isinstance(message, PostgresChangesMessage):
+            print("Change received!", message.payload)
+```
 
 ## Presence
 
 Your client can track and sync state that's stored in the channel.
 
 ```python
-# Setup...
+from realtime import RealtimeChannelOptions
+from realtime.presence import PresenceJoin, PresenceLeave
 
-channel = client.channel(
-    "presence-test",
-    {
-        "config": {
-            "presence": {
-                "key": ""
-            }
-        }
-    }
-)
+options = RealtimeChannelOptions().presence(key="user-1", enabled=True)
 
-channel.on_presence_sync(lambda: print("Online users: ", channel.presence_state()))
-channel.on_presence_join(lambda new_presences: print("New users have joined: ", new_presences))
-channel.on_presence_leave(lambda left_presences: print("Users have left: ", left_presences))
-
-await channel.track({ 'user_id': 1 })
+async with client.channel("presence-test", options) as channel:
+    await channel.track({"user_id": 1})
+    async for message in channel.messages:
+        if isinstance(message, PresenceJoin):
+            print("New users have joined: ", message.new_presences)
+        elif isinstance(message, PresenceLeave):
+            print("Users have left: ", message.left_presences)
+        print("Online users: ", channel.presence_state())
 ```
 
 ## Postgres CDC
@@ -129,37 +142,64 @@ await channel.track({ 'user_id': 1 })
 Receive database changes on the client.
 
 ```python
-# Setup...
+from realtime import PostgresChangesMessage, RealtimeChannelOptions
 
-channel = client.channel("db-changes")
-
-channel.on_postgres_changes(
-    "*",
-    schema="public",
-    callback=lambda payload: print("All changes in public schema: ", payload),
+options = (
+    RealtimeChannelOptions()
+    .postgres_changes("*", schema="public")
+    .postgres_changes("INSERT", schema="public", table="messages")
+    .postgres_changes(
+        "UPDATE", schema="public", table="users", filter="username=eq.Realtime"
+    )
 )
 
-channel.on_postgres_changes(
-    "INSERT",
-    schema="public",
-    table="messages",
-    callback=lambda payload: print("All inserts in messages table: ", payload),
+async with client.channel("db-changes", options) as channel:
+    print("Ready to receive database changes!")
+    async for message in channel.messages:
+        if isinstance(message, PostgresChangesMessage):
+            print("Change received: ", message.payload)
+```
+
+### Filters
+
+`filter` is a `column=operator.value` expression evaluated server-side. The
+following operators are supported:
+
+| Operator                | Example                             | Meaning                            |
+| ----------------------- | ----------------------------------- | ---------------------------------- |
+| `eq`                    | `id=eq.1`                           | equal                              |
+| `neq`                   | `id=neq.1`                          | not equal                          |
+| `lt` `lte` `gt` `gte`   | `age=gte.18`                        | comparison                         |
+| `in`                    | `status=in.(active,pending)`        | in list                            |
+| `like` `ilike`          | `title=like.%foo%`                  | pattern match (case in/sensitive)  |
+| `is`                    | `deleted_at=is.null`                | `IS null/true/false/unknown`       |
+| `match` `imatch`        | `title=match.^foo`                  | POSIX regex match (`~` / `~*`)     |
+| `isdistinct`            | `value=isdistinct.1`                | NULL-safe inequality               |
+
+Any operator can be **negated** with the `not.` prefix, e.g.
+`filter="status=not.in.(draft,archived)"`. Multiple conditions combined with
+commas are applied as an `AND`, e.g.
+`filter="amount=gt.100,status=in.(open,pending)"`.
+
+> **Note:** Realtime evaluates filters server-side over a single table's WAL —
+> there is no resource embedding or `or()` grouping, and `%` (not `*`) is the
+> wildcard for `like`/`ilike`.
+
+### Selecting columns
+
+Use `select` to receive only a subset of columns instead of the full row. This
+reduces payload size (helpful for large `bytea`/`jsonb` columns). The selected
+columns must be selectable by the subscribing role:
+
+```python
+options = RealtimeChannelOptions().postgres_changes(
+    "*", schema="public", table="users", select=["id", "first_name"]
 )
 
-channel.on_postgres_changes(
-    "UPDATE",
-    schema="public",
-    table="users",
-    filter="username=eq.Realtime",
-    callback=lambda payload: print(
-        "All updates on users table when username is Realtime: ", payload
-    ),
-)
-
-channel.subscribe(
-    lambda status, err: status == RealtimeSubscribeStates.SUBSCRIBED
-    and print("Ready to receive database changes!")
-)
+async with client.channel("db-changes", options) as channel:
+    async for message in channel.messages:
+        # the record only contains {"id": ..., "first_name": ...}
+        print("Selected columns only: ", message)
 ```
 
 ## Get All Channels
@@ -167,8 +207,6 @@ channel.subscribe(
 You can see all the channels that your client has instantiated.
 
 ```python
-# Setup...
-
 client.get_channels()
 ```
 
@@ -179,11 +217,8 @@ It is highly recommended that you clean up your channels after you're done with 
 - Remove a single channel
 
 ```python
-# Setup...
-
-channel = client.channel('some-channel-to-remove')
-
-channel.subscribe()
+channel = client.channel("some-channel-to-remove")
+await channel.subscribe()
 
 await client.remove_channel(channel)
 ```
@@ -191,16 +226,13 @@ await client.remove_channel(channel)
 - Remove all channels
 
 ```python
-# Setup...
-
-channel1 = client.channel('a-channel-to-remove')
-channel2 = client.channel('another-channel-to-remove')
-
-await channel1.subscribe()
-await channel2.subscribe()
+await client.channel("a-channel-to-remove").subscribe()
+await client.channel("another-channel-to-remove").subscribe()
 
 await client.remove_all_channels()
 ```
+
+Leaving `async with client.channel(...)` unsubscribes on its own.
 
 ## Credits
 

@@ -146,6 +146,34 @@ def test_transform_state_additional_fields() -> None:
     assert result == expected_output
 
 
+def test_sync_diff_processes_every_leave_key() -> None:
+    """Leaves for a key the client never tracked must not skip the remaining keys."""
+    presence = RealtimePresence()
+
+    state: RawPresenceState = {
+        "bob": {"metas": [{"phx_ref": "ref-bob"}]},
+    }
+    list(presence._on_state_event(state))
+    assert list(presence.state) == ["bob"]
+
+    events = list(
+        presence._on_diff_event(
+            {
+                "joins": {},
+                "leaves": {
+                    "alice": {"metas": [{"phx_ref": "ref-alice"}]},
+                    "bob": {"metas": [{"phx_ref": "ref-bob"}]},
+                },
+            }
+        )
+    )
+
+    assert presence.state == {}
+    assert [event.key for event in events if isinstance(event, PresenceLeave)] == [
+        "bob"
+    ]
+
+
 def test_diff_join_for_known_presence_is_not_reported_twice() -> None:
     presence = RealtimePresence()
     state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}  # type: ignore

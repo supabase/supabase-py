@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 from typing import AsyncIterator
+from unittest.mock import AsyncMock
 
 import aiohttp
 import pytest
@@ -18,9 +19,10 @@ from realtime import (
     RealtimeSubscribeStates,
 )
 from realtime.channel import RealtimeChannelOptions
-from realtime.client import connect_once
+from realtime.client import connect_once, exponential_delay, normalize_url
 from realtime.message import (
     BroadcastMessage,
+    ChannelCloseMessage,
     Message,
     PostgresChangesMessage,
     SystemMessage,
@@ -343,3 +345,211 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
             assert broadcast.payload["payload"]["i"] == str(i)
             assert broadcast.payload["meta"]
             assert broadcast.payload["meta"]["replayed"]
+
+
+def test_normalize_url_includes_connection_params() -> None:
+    url = normalize_url(
+        URL("https://project.supabase.co/realtime/v1?log_level=info"),
+        "publishable-key",
+    )
+
+    assert url.scheme == "wss"
+    assert url.path == "/realtime/v1/websocket"
+    assert dict(url.query) == {
+        "apikey": "publishable-key",
+        "log_level": "info",
+        "vsn": "1.0.0",
+    }
+
+
+def test_postgres_changes_binding_includes_select_only_when_set() -> None:
+    options = (
+        RealtimeChannelOptions()
+        .postgres_changes(
+            RealtimePostgresChangesListenEvent.Insert,
+            table="todos",
+            schema="public",
+            filter="id=eq.1",
+            select=["id", "description"],
+        )
+        .postgres_changes(
+            RealtimePostgresChangesListenEvent.All, table="todos", schema="public"
+        )
+    )
+
+    payload = options.to_payload().model_dump(exclude_none=True)
+
+    assert payload["config"]["postgres_changes"] == [
+        {
+            "event": RealtimePostgresChangesListenEvent.Insert,
+            "schema": "public",
+            "table": "todos",
+            "filter": "id=eq.1",
+            "select": ["id", "description"],
+        },
+        {
+            "event": RealtimePostgresChangesListenEvent.All,
+            "schema": "public",
+            "table": "todos",
+        },
+    ]
+
+
+def test_broadcast_replication_ready_is_forwarded_only_when_set() -> None:
+    enabled = RealtimeChannelOptions().broadcast(replication_ready=True)
+    disabled = RealtimeChannelOptions().broadcast()
+
+    enabled_payload = enabled.to_payload().model_dump(exclude_none=True)
+    disabled_payload = disabled.to_payload().model_dump(exclude_none=True)
+
+    assert enabled_payload["config"]["broadcast"]["replication_ready"] is True
+    assert "replication_ready" not in disabled_payload["config"]["broadcast"]
+
+
+def fake_client() -> tuple[RealtimeClient, list[Message]]:
+    """A client over a mocked websocket that acks every message carrying a ref.
+
+    Like the Realtime server, it does not reply to access_token messages.
+    """
+    sent: list[Message] = []
+    ws = AsyncMock()
+    client = RealtimeClient(URL("ws://localhost/realtime/v1"), ws)
+
+    async def send(raw: str) -> None:
+        message = Message.model_validate_json(raw)
+        sent.append(message)
+        if message.ref is not None and message.event != ChannelEvents.access_token:
+            reply = Message(
+                topic=message.topic,
+                event=ChannelEvents.reply,
+                ref=message.ref,
+                payload={"status": "ok", "response": {"postgres_changes": []}},
+            )
+            client.message_refs[message.ref].set_result(reply)
+
+    ws.send.side_effect = send
+    return client, sent
+
+
+async def test_channel_returns_existing_channel_for_same_topic() -> None:
+    client, _ = fake_client()
+
+    first = client.channel("room")
+
+    assert client.channel("room") is first
+    assert client.get_channels() == [first]
+
+
+async def test_second_channel_call_keeps_first_subscription_receiving() -> None:
+    client, _ = fake_client()
+
+    channel = client.channel("room")
+    await channel.subscribe()
+
+    assert client.channel("room") is channel
+    assert client.channels["realtime:room"] is channel
+
+
+async def test_channel_after_unsubscribe_creates_new_channel() -> None:
+    client, _ = fake_client()
+
+    first = client.channel("room")
+    await first.subscribe()
+    await first.unsubscribe()
+
+    second = client.channel("room")
+
+    assert second is not first
+    assert client.get_channels() == [second]
+
+
+async def test_set_auth_updates_join_payload_used_on_rejoin() -> None:
+    client, sent = fake_client()
+
+    channel = client.channel("test-set-auth-rejoin")
+    await channel.subscribe()
+
+    await asyncio.wait_for(client.set_auth("refreshed-token"), timeout=1)
+
+    assert sent[-1].event == ChannelEvents.access_token
+    assert sent[-1].payload == {"access_token": "refreshed-token"}
+
+    await channel.unsubscribe()
+    await client.channel("test-set-auth-rejoin").subscribe()
+
+    assert sent[-1].event == ChannelEvents.join
+    assert sent[-1].payload["access_token"] == "refreshed-token"
+
+
+async def test_messages_receive_close_after_unsubscribe() -> None:
+    client, _ = fake_client()
+
+    channel = client.channel("room")
+    await channel.subscribe()
+    await channel.unsubscribe()
+
+    message = await asyncio.wait_for(channel.messages.__anext__(), timeout=1)
+
+    assert isinstance(message, ChannelCloseMessage)
+
+
+async def test_channel_warns_when_options_for_existing_topic_differ() -> None:
+    client, _ = fake_client()
+    client.channel("room")
+
+    with pytest.warns(UserWarning):
+        client.channel("room", RealtimeChannelOptions().private(True))
+
+
+async def test_remove_channel_ignores_a_replaced_channel() -> None:
+    client, sent = fake_client()
+
+    first = client.channel("room")
+    await first.subscribe()
+    await first.unsubscribe()
+    second = client.channel("room")
+    await second.subscribe()
+
+    await client.remove_channel(first)
+
+    assert second.joined
+    assert client.get_channels() == [second]
+
+
+async def test_remove_all_channels_twice() -> None:
+    client, _ = fake_client()
+    await client.channel("room").subscribe()
+
+    await client.remove_all_channels()
+    await client.remove_all_channels()
+
+    assert client.get_channels() == []
+
+
+async def test_resubscribing_the_same_channel_keeps_receiving() -> None:
+    client, _ = fake_client()
+
+    channel = client.channel("room")
+    await channel.subscribe()
+    await channel.unsubscribe()
+    await channel.subscribe()
+
+    assert client.channels["realtime:room"] is channel
+    assert channel.message_stream.empty()
+
+
+async def test_subscribe_does_not_store_the_token_in_shared_options() -> None:
+    client, sent = fake_client()
+    client.last_token = "user-token"
+    options = RealtimeChannelOptions()
+
+    await client.channel("room", options).subscribe()
+
+    assert options.token is None
+    assert sent[-1].payload["access_token"] == "user-token"
+
+
+def test_exponential_delay_stops_once_retries_reach_the_limit() -> None:
+    assert exponential_delay(1, 1) is None
+    assert exponential_delay(1, 2) is None
+    assert exponential_delay(3, 1) == 2

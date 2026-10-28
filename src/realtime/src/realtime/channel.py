@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -70,6 +70,7 @@ class RealtimeChannelOptions:
     broadcast_self: bool = False
     broadcast_replay_since: int | None = None
     broadcast_replay_limit: int | None = None
+    broadcast_replication_ready: bool = False
     presence_key: str = ""
     presence_enabled: bool = False
     is_private: bool = False
@@ -84,11 +85,21 @@ class RealtimeChannelOptions:
         listen_self: bool = False,
         replay_since: int | None = None,
         replay_limit: int | None = None,
+        replication_ready: bool = False,
     ) -> RealtimeChannelOptions:
+        """
+        Configure broadcast for the channel.
+
+        :param replication_ready: When True, the server emits a ``system`` message once
+            the Postgres replication connection backing the channel is ready to stream
+            changes. Its payload ``status`` is ``"ok"`` on success or ``"error"`` if the
+            connection is not ready in time.
+        """
         self.broadcast_ack = ack
         self.broadcast_self = listen_self
         self.broadcast_replay_since = replay_since
         self.broadcast_replay_limit = replay_limit
+        self.broadcast_replication_ready = replication_ready
         return self
 
     def presence(self, key: str = "", enabled: bool = False) -> RealtimeChannelOptions:
@@ -107,9 +118,34 @@ class RealtimeChannelOptions:
         schema: str | None = None,
         filter: str | None = None,
         id: int | None = None,
+        select: list[str] | None = None,
     ) -> RealtimeChannelOptions:
+        """
+        Listen for Postgres database changes.
+
+        :param event: The change event to listen for (``INSERT``, ``UPDATE``, ``DELETE`` or ``*``)
+        :param table: The table name to monitor. Defaults to all tables
+        :param schema: The database schema to monitor
+        :param filter: Optional filter string, evaluated server-side, in the form
+            ``column=operator.value`` (e.g. ``"id=eq.1"`` or ``"title=like.%foo%"``).
+            Supported operators: ``eq``, ``neq``, ``lt``, ``lte``, ``gt``, ``gte``,
+            ``in`` (``"status=in.(active,pending)"``), ``like``, ``ilike``, ``is``
+            (``"deleted_at=is.null"``), ``match``, ``imatch`` (POSIX regex),
+            ``isdistinct`` (NULL-safe inequality). Any operator can be negated with
+            the ``not.`` prefix (e.g. ``"status=not.in.(draft,archived)"``). Combine
+            multiple conditions with commas to apply them as an ``AND``
+            (e.g. ``"amount=gt.100,status=in.(open,pending)"``).
+        :param select: Optional list of columns to receive instead of the full row.
+            Reduces payload size (helpful for large ``bytea``/``jsonb`` columns). The
+            listed columns must be selectable by the subscribing role.
+        """
         binding = PostgresChangesBinding(
-            event=event, table=table, schema=schema, filter=filter, id=id
+            event=event,
+            table=table,
+            schema=schema,
+            filter=filter,
+            select=select,
+            id=id,
         )
         self.postgres_changes_bindings.append(binding)
         return self
@@ -131,6 +167,7 @@ class RealtimeChannelOptions:
                     ack=self.broadcast_ack,
                     self=self.broadcast_self,
                     replay=replay,
+                    replication_ready=self.broadcast_replication_ready or None,
                 ),
                 presence=RealtimeChannelPresenceConfig(
                     key=self.presence_key,
@@ -179,10 +216,13 @@ class RealtimeChannel:
         self.topic = topic
         self.presence: RealtimePresence = RealtimePresence()
         self.state = ChannelStates.CLOSED
-        self.joined = False
         self.join_ref: str | None = None
         self.message_stream: asyncio.Queue[Message] = asyncio.Queue()
         self.broadcast_endpoint_url = self._broadcast_endpoint_url()
+
+    @property
+    def joined(self) -> bool:
+        return self.state == ChannelStates.JOINED
 
     async def __aenter__(self) -> RealtimeChannel:
         await self.subscribe()
@@ -196,9 +236,17 @@ class RealtimeChannel:
             pass
 
     async def subscribe(self) -> ReplyMessage:
+        owner = self.socket.channels.setdefault(self.topic, self)
+        if owner is not self:
+            raise ValueError(
+                f"another channel is already registered for {self.topic!r}"
+            )
+        while not self.message_stream.empty():
+            self.message_stream.get_nowait()
+        params = self.params
         if self.socket.last_token is not None:
-            self.params.token = self.socket.last_token
-        payload = self.params.to_payload()
+            params = replace(params, token=self.socket.last_token)
+        payload = params.to_payload()
         join_ref = self.socket._make_ref()
         message = Message(
             topic=self.topic,
@@ -214,7 +262,7 @@ class RealtimeChannel:
                 f"error while subscribing to channel: {msg.payload.response!r}"
             )
         self.join_ref = join_ref
-        self.joined = True
+        self.state = ChannelStates.JOINED
         return msg
 
     @property
@@ -237,7 +285,21 @@ class RealtimeChannel:
                 yield server_message
 
     async def unsubscribe(self) -> None:
-        await self.send_event(ChannelEvents.leave, payload={})
+        self.state = ChannelStates.LEAVING
+        self.socket._remove_channel(self)
+        try:
+            await self.send_event(ChannelEvents.leave, payload={})
+        finally:
+            self.state = ChannelStates.CLOSED
+            self.message_stream.put_nowait(
+                Message(
+                    topic=self.topic,
+                    event=ChannelEvents.close,
+                    payload={},
+                    ref=self.join_ref,
+                    join_ref=self.join_ref,
+                )
+            )
 
     # Presence methods
     async def track(self, user_status: Dict[str, Any]) -> ReplyMessage:

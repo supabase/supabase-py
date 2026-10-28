@@ -43,9 +43,9 @@ logger = logging.getLogger(__name__)
 def normalize_url(url: URL, token: str | None) -> URL:
     if url.scheme not in {"ws", "wss", "http", "https"}:
         raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
-    url = url.joinpath("websocket")
+    url = url.joinpath("websocket").with_query(url.query).update_query(vsn=VSN)
     if token:
-        url = url.with_query(**url.query, apikey=token)
+        url = url.update_query(apikey=token)
     if url.scheme in {"ws", "wss"}:
         return url
     if url.scheme == "https":
@@ -105,15 +105,18 @@ class connect_once:
         await self.client.close()
 
 
+MAX_RECONNECT_DELAY = 60
+
+
 class MaxRetriesExceeded(Exception):
     pass
 
 
 def exponential_delay(max_retries: int, retry_count: int) -> float | None:
-    if retry_count == max_retries:
+    if retry_count >= max_retries:
         return None
     else:
-        return float(2**retry_count)
+        return float(min(2**retry_count, MAX_RECONNECT_DELAY))
 
 
 async def automatically_reconnect(
@@ -122,22 +125,31 @@ async def automatically_reconnect(
     client_handler: Callable[["RealtimeClient"], Awaitable[None]],
     max_retries: int = 3,
 ) -> None:
+    loop = asyncio.get_running_loop()
     retries = 0
     while True:
+        connected_at: float | None = None
         try:
             async with connect_once(url, token_callback) as client:
-                retries = 0
+                connected_at = loop.time()
                 await client_handler(client)
                 break
-        except websockets.ConnectionClosed:
-            continue
-        except (TimeoutError, OSError):
+        except (
+            websockets.ConnectionClosed,
+            TimeoutError,
+            asyncio.TimeoutError,
+            OSError,
+        ):
+            if (
+                connected_at is not None
+                and loop.time() - connected_at >= MAX_RECONNECT_DELAY
+            ):
+                retries = 0
             retries += 1
             delay = exponential_delay(max_retries, retries)
-            if delay is not None:
-                await asyncio.sleep(delay)
-            else:
+            if delay is None:
                 raise MaxRetriesExceeded(retries)
+            await asyncio.sleep(delay)
 
 
 class RealtimeClient:
@@ -248,11 +260,23 @@ class RealtimeClient:
         """
         Initialize a channel and create a two-way association with the socket.
 
+        If a channel for this topic already exists, that channel is returned
+        instead of a new one. Messages are routed to one channel per topic, so
+        replacing it would silently stop delivering messages to the existing
+        channel.
+
         :param topic: The topic to subscribe to
         :param params: Optional channel parameters
-        :return: AsyncRealtimeChannel instance
+        :return: RealtimeChannel instance
         """
         topic = f"realtime:{topic}"
+        if existing := self.channels.get(topic):
+            if params is not None and params != existing.params:
+                warn(
+                    f"channel {topic!r} already exists, so the given options are ignored",
+                    stacklevel=2,
+                )
+            return existing
         chan = RealtimeChannel(self, topic, params)
         self.channels[topic] = chan
         return chan
@@ -261,22 +285,25 @@ class RealtimeClient:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: RealtimeChannel) -> None:
-        del self.channels[channel.topic]
+        if self.channels.get(channel.topic) is channel:
+            del self.channels[channel.topic]
 
     async def remove_channel(self, channel: RealtimeChannel) -> None:
-        if chan := self.channels.get(channel.topic):
-            await chan.unsubscribe()
-            self._remove_channel(channel)
+        if self.channels.get(channel.topic) is channel:
+            await channel.unsubscribe()
 
     async def remove_all_channels(self) -> None:
         """
         Unsubscribes and removes all channels from the socket
         :return: None
         """
-        tasks = []
-        for channel in self.channels.values():
-            tasks.append(asyncio.create_task(channel.unsubscribe()))
-        await asyncio.wait(tasks)
+        results = await asyncio.gather(
+            *(channel.unsubscribe() for channel in list(self.channels.values())),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, Exception):
+                logger.warning(f"failed to unsubscribe a channel: {result!r}")
 
     async def set_auth(self, token: str | None = None) -> None:
         """
@@ -305,17 +332,19 @@ class RealtimeClient:
             logger.info("generated access token is still the same, skipping")
             return
 
-        tasks = []
-        for channel in self.channels.values():
-            if channel.joined and channel.state == ChannelStates.JOINED:
-                task = asyncio.create_task(
-                    channel.send_event(
-                        ChannelEvents.access_token, {"access_token": token}
-                    )
+        results = await asyncio.gather(
+            *(
+                channel.send_event_no_wait(
+                    ChannelEvents.access_token, {"access_token": token}
                 )
-                tasks.append(task)
-        if tasks:
-            await asyncio.wait(tasks)
+                for channel in list(self.channels.values())
+                if channel.joined
+            ),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, Exception):
+                logger.warning(f"failed to send the access token: {result!r}")
         self.last_token = token
 
     def _make_ref(self) -> str:
@@ -345,5 +374,4 @@ class RealtimeClient:
         await self._ws_connection.send(message_str)
 
     def endpoint_url(self) -> str:
-        query = self.url.with_query(**self.url.query, vsn=VSN)
-        return str(query)
+        return str(normalize_url(self.url, self.last_token))
