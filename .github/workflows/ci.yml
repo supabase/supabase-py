@@ -30,6 +30,7 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase"]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - name: Clone Repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

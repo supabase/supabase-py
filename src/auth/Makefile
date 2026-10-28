@@ -15,10 +15,7 @@ help::
 	@echo "  mypy           -- run mypy on supabase_auth"
 
 start-infra:
-	cd infra &&\
-	docker compose down &&\
-	docker compose up -d
-	sleep 2
+	../../scripts/start-infra.sh compose
 help::
 	@echo "  start-infra    -- start containers for tests"
 

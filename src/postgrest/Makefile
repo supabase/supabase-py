@@ -17,10 +17,7 @@ help::
 	@echo "  mypy           -- run mypy on postgrest package"
 
 start-infra:
-	cd infra &&\
-	docker compose down &&\
-	docker compose up -d
-	sleep 2
+	../../scripts/start-infra.sh compose
 help::
 	@echo "  stop-infra     -- start containers for tests"
 
