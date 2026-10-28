@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
+from supabase_utils.types import JSON
 from typing_extensions import TypeAlias, TypedDict
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
@@ -123,7 +124,7 @@ class SearchV2Object(BaseModel):
     name: str
     updated_at: datetime
     created_at: datetime
-    metadata: Dict[str, Any]
+    metadata: Dict[str, Any] | None
     key: str | None = None
 
 
@@ -197,12 +198,6 @@ class MetadataConfiguration(BaseModel, extra="ignore"):
     )
 
 
-class ListIndexesOptions(BaseModel, extra="ignore"):
-    nextToken: str | None = None
-    maxResults: int | None = None
-    prefix: str | None = None
-
-
 class ListIndexesResponseItem(BaseModel, extra="ignore"):
     indexName: str
 
@@ -221,7 +216,7 @@ class VectorIndex(BaseModel, extra="ignore"):
     metadata: MetadataConfiguration | None = Field(
         alias="metadataConfiguration", default=None
     )
-    creation_time: datetime | None = None
+    creation_time: datetime | None = Field(alias="creationTime", default=None)
 
 
 class GetVectorIndexResponse(BaseModel, extra="ignore"):
@@ -238,14 +233,14 @@ class VectorData(BaseModel, extra="ignore"):
 class VectorObject(BaseModel, extra="ignore"):
     key: str
     data: VectorData
-    metadata: dict[str, str | bool | float] | None = None
+    metadata: dict[str, JSON] | None = None
 
 
 class VectorMatch(BaseModel, extra="ignore"):
     key: str
     data: VectorData | None = None
     distance: float | None = None
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, JSON] | None = None
 
 
 class GetVectorsResponse(BaseModel, extra="ignore"):
