@@ -465,8 +465,8 @@ features:
   database.configuration.auto_retry:
     status: implemented
     symbols:
-      - AsyncSelectRequestBuilder.retry
-      - SyncSelectRequestBuilder.retry
+      - AsyncQueryRequestBuilder.retry
+      - SyncQueryRequestBuilder.retry
   database.configuration.request_timeout:
     status: implemented
     note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including query execution."
@@ -507,12 +507,10 @@ features:
     status: implemented
     symbols:
       - AsyncRealtimeClient.connect
-      - SyncRealtimeClient.connect
   realtime.client.disconnect:
     status: implemented
     symbols:
-      - AsyncRealtimeClient.disconnect
-      - SyncRealtimeClient.disconnect
+      - AsyncRealtimeClient.close
   realtime.client.get_channels:
     status: implemented
     symbols:
@@ -533,7 +531,6 @@ features:
     note: "is_connected boolean property; no full connection-state enum exposed."
     symbols:
       - AsyncRealtimeClient.is_connected
-      - SyncRealtimeClient.is_connected
   realtime.client.listen_heartbeats: not_implemented
   realtime.client.set_auth_token:
     status: implemented
@@ -550,34 +547,30 @@ features:
     status: implemented
     symbols:
       - AsyncRealtimeChannel.subscribe
-      - SyncRealtimeChannel.subscribe
   realtime.channel.unsubscribe:
     status: implemented
     symbols:
       - AsyncRealtimeChannel.unsubscribe
-      - SyncRealtimeChannel.unsubscribe
   realtime.channel.broadcast:
     status: implemented
     symbols:
       - AsyncRealtimeChannel.send_broadcast
-      - SyncRealtimeChannel.send_broadcast
   realtime.channel.broadcast_http: not_implemented
 
   realtime.subscriptions.broadcast:
     status: implemented
     symbols:
       - AsyncRealtimeChannel.on_broadcast
-      - SyncRealtimeChannel.on_broadcast
   realtime.subscriptions.postgres_changes:
     status: implemented
     symbols:
       - AsyncRealtimeChannel.on_postgres_changes
-      - SyncRealtimeChannel.on_postgres_changes
   realtime.subscriptions.subscribe_presence:
     status: implemented
     symbols:
-      - AsyncRealtimeChannel.on_presence_change
-      - SyncRealtimeChannel.on_presence_change
+      - AsyncRealtimeChannel.on_presence_sync
+      - AsyncRealtimeChannel.on_presence_join
+      - AsyncRealtimeChannel.on_presence_leave
   realtime.subscriptions.postgres_changes_filter:
     status: implemented
     note: "event, schema, table, and filter parameters on on_postgres_changes."
@@ -601,17 +594,14 @@ features:
     status: implemented
     symbols:
       - AsyncRealtimeChannel.track
-      - SyncRealtimeChannel.track
   realtime.presence.untrack:
     status: implemented
     symbols:
       - AsyncRealtimeChannel.untrack
-      - SyncRealtimeChannel.untrack
   realtime.presence.presence_state:
     status: implemented
     symbols:
-      - AsyncRealtimeChannel.presences
-      - SyncRealtimeChannel.presences
+      - AsyncRealtimeChannel.presence_state
   realtime.presence.presence_key:
     status: implemented
     note: "Set presence.key in the channel config; passed to the server so multiple connections from the same user share one logical presence key."
