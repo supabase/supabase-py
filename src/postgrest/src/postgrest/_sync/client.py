@@ -98,7 +98,7 @@ class SyncPostgrestClient(BasePostgrestClient):
         self.session = http_client or Client(
             base_url=base_url,
             headers=self.headers,
-            timeout=timeout,
+            timeout=self.timeout,
             verify=self.verify,
             proxy=proxy,
             follow_redirects=True,
