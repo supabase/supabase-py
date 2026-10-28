@@ -124,7 +124,8 @@ class BroadcastCallback:
     event: str
 
     def __call__(self, payload: BroadcastPayload) -> None:
-        if self.event == payload["event"]:
+        event = self.event.lower()
+        if event == "*" or event == payload["event"].lower():
             return self.callback(payload)
 
 

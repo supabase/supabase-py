@@ -96,7 +96,7 @@ class SearchV2Object(BaseModel):
     name: str
     updated_at: datetime
     created_at: datetime
-    metadata: Dict[str, Any]
+    metadata: Optional[Dict[str, Any]]
     key: Optional[str] = None
 
 

@@ -188,6 +188,35 @@ async def test_response_client_invalid_response_but_valid_json(
         assert "code" in exc_response and int(exc_response["code"]) == 502
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "body, message, details",
+    [
+        (b'{"message": "JWT expired"}', "JWT expired", None),
+        (
+            b'{"code": "PGRST201", "details": [{"x": 1}], "hint": null, "message": "m"}',
+            "m",
+            [{"x": 1}],
+        ),
+    ],
+)
+async def test_response_error_json_missing_or_non_string_fields(
+    postgrest_client: AsyncPostgrestClient, body, message, details
+):
+    with patch(
+        "httpx._client.AsyncClient.request",
+        return_value=Response(
+            status_code=400,
+            content=body,
+            request=Request(method="GET", url="http://example.com"),
+        ),
+    ):
+        with pytest.raises(APIError) as exc_info:
+            await postgrest_client.from_("test").select("a").execute()
+        assert exc_info.value.message == message
+        assert exc_info.value.details == details
+
+
 @pytest.mark.parametrize("head", [False, True])
 def test_rpc_query_params_send_lists_as_array_literals(
     postgrest_client: AsyncPostgrestClient, head: bool
@@ -197,3 +226,15 @@ def test_rpc_query_params_send_lists_as_array_literals(
 
     assert builder.request.params.get_list("ids") == ["{1,2,3}"]
     assert builder.request.params["name"] == "x"
+
+
+@pytest.mark.parametrize("head", [False, True])
+def test_rpc_query_params_quote_array_elements(
+    postgrest_client: AsyncPostgrestClient, head: bool
+):
+    params: Any = {"tags": ["a,b", "c d", "", 'say "hi"', "x}", "null", None]}
+    builder = postgrest_client.rpc("tag_fn", params, head=head, get=not head)
+
+    assert builder.request.params.get_list("tags") == [
+        '{"a,b","c d","","say \\"hi\\"","x}","null",NULL}'
+    ]

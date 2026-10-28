@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional
 
 import pytest
 from httpx import Client, Headers, QueryParams, Request, Response
@@ -122,6 +122,24 @@ class TestInsert:
         assert set(builder.request.params["columns"].split(",")) == set(
             '"key1","key2","key3"'.split(",")
         )
+
+    @pytest.mark.parametrize("method", ["insert", "upsert"])
+    @pytest.mark.parametrize(
+        "rows, columns",
+        [([], None), ([{}], None), ([{"key1": "val1"}], '"key1"')],
+    )
+    def test_bulk_write_columns(
+        self,
+        request_builder: SyncRequestBuilder,
+        method: str,
+        rows: List[Dict[str, JSON]],
+        columns: Optional[str],
+    ):
+        builder = getattr(request_builder, method)(rows)
+
+        assert builder.request.http_method == "POST"
+        assert builder.request.json == rows
+        assert builder.request.params.get("columns") == columns
 
     def test_upsert(self, request_builder: SyncRequestBuilder):
         builder = request_builder.upsert({"key1": "val1"})
@@ -294,6 +312,30 @@ class TestDelete:
 
 
 class TestTextSearch:
+    @pytest.mark.parametrize("mode", [None, "plain", "phrase", "web_search"])
+    def test_text_search_allows_filters_and_modifiers(
+        self, request_builder: SyncRequestBuilder, mode
+    ):
+        builder = (
+            request_builder.select("id")
+            .text_search("content", "python", {"type": mode, "config": "english"})
+            .eq("published", True)
+            .order("id")
+            .limit(10)
+        )
+
+        operator = {
+            None: "fts",
+            "plain": "plfts",
+            "phrase": "phfts",
+            "web_search": "wfts",
+        }[mode]
+        assert builder.request.params["content"] == f"{operator}(english).python"
+        assert builder.request.params["published"] == "eq.true"
+        assert builder.request.params["order"] == "id.asc"
+        assert builder.request.params["limit"] == "10"
+        assert builder.request.params["select"] == "id"
+
     @pytest.mark.parametrize(
         "mode,operator",
         [

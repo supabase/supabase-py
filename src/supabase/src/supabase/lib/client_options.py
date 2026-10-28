@@ -83,11 +83,10 @@ class AsyncClientOptions(ClientOptions):
         storage: Optional[AsyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
         httpx_client: Optional[AsyncHttpxClient] = None,
-        postgrest_client_timeout: Union[
-            int, float, Timeout
-        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+        postgrest_client_timeout: Optional[Union[int, float, Timeout]] = None,
+        storage_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
+        function_client_timeout: Optional[int] = None,
     ) -> "AsyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = AsyncClientOptions()
@@ -105,12 +104,21 @@ class AsyncClientOptions(ClientOptions):
         client_options.realtime = realtime or self.realtime
         client_options.httpx_client = httpx_client or self.httpx_client
         client_options.postgrest_client_timeout = (
-            postgrest_client_timeout or self.postgrest_client_timeout
+            postgrest_client_timeout
+            if postgrest_client_timeout is not None
+            else self.postgrest_client_timeout
         )
         client_options.storage_client_timeout = (
-            storage_client_timeout or self.storage_client_timeout
+            storage_client_timeout
+            if storage_client_timeout is not None
+            else self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.function_client_timeout = (
+            function_client_timeout
+            if function_client_timeout is not None
+            else self.function_client_timeout
+        )
         return client_options
 
 
@@ -130,11 +138,10 @@ class SyncClientOptions(ClientOptions):
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
         httpx_client: Optional[SyncHttpxClient] = None,
-        postgrest_client_timeout: Union[
-            int, float, Timeout
-        ] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
-        storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
+        postgrest_client_timeout: Optional[Union[int, float, Timeout]] = None,
+        storage_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
+        function_client_timeout: Optional[int] = None,
     ) -> "SyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
         client_options = SyncClientOptions()
@@ -152,10 +159,19 @@ class SyncClientOptions(ClientOptions):
         client_options.realtime = realtime or self.realtime
         client_options.httpx_client = httpx_client or self.httpx_client
         client_options.postgrest_client_timeout = (
-            postgrest_client_timeout or self.postgrest_client_timeout
+            postgrest_client_timeout
+            if postgrest_client_timeout is not None
+            else self.postgrest_client_timeout
         )
         client_options.storage_client_timeout = (
-            storage_client_timeout or self.storage_client_timeout
+            storage_client_timeout
+            if storage_client_timeout is not None
+            else self.storage_client_timeout
         )
         client_options.flow_type = flow_type or self.flow_type
+        client_options.function_client_timeout = (
+            function_client_timeout
+            if function_client_timeout is not None
+            else self.function_client_timeout
+        )
         return client_options

@@ -76,7 +76,7 @@ class AsyncRealtimeClient:
 
         self.url = f"{re.sub(r'https://', 'wss://', re.sub(r'http://', 'ws://', url, flags=re.IGNORECASE), flags=re.IGNORECASE)}/websocket"
         if token:
-            self.url += f"?apikey={token}"
+            self.url += "?" + urlencode({"apikey": token})
         self.http_endpoint = http_endpoint_url(url)
         self.params = params or {}
         self.apikey = token
@@ -161,10 +161,17 @@ class AsyncRealtimeClient:
             return
 
         retries = 0
-        backoff = self.initial_backoff
-
         endpoint_url = self.endpoint_url()
-        logger.debug(f"Attempting to connect to WebSocket at {endpoint_url}")
+        parsed_url = urlparse(endpoint_url)
+        redacted_query = urlencode(
+            [
+                (k, "REDACTED" if k == "apikey" else v)
+                for k, v in parse_qsl(parsed_url.query, keep_blank_values=True)
+            ]
+        )
+        logger.debug(
+            f"Attempting to connect to WebSocket at {urlunparse(parsed_url._replace(query=redacted_query))}"
+        )
 
         while retries < self.max_retries:
             try:
@@ -182,12 +189,11 @@ class AsyncRealtimeClient:
                     )
                     raise
                 else:
-                    wait_time = backoff * (2 ** (retries - 1))
+                    wait_time = min(self.initial_backoff * (2 ** (retries - 1)), 60)
                     logger.debug(
-                        f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (backoff={backoff}s)"
+                        f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (initial_backoff={self.initial_backoff}s)"
                     )
                     await asyncio.sleep(wait_time)
-                    backoff = min(backoff, 60)
 
         raise Exception(
             f"Failed to establish WebSocket connection after {self.max_retries} attempts"
@@ -374,7 +380,14 @@ class AsyncRealtimeClient:
             )
             msg = Message(**message)
         message_str = msg.model_dump_json()
-        logger.debug(f"send: {message_str}")
+        if logger.isEnabledFor(logging.DEBUG):
+            redacted = {
+                k: "<redacted>" if k == "access_token" else v
+                for k, v in msg.payload.items()
+            }
+            logger.debug(
+                f"send: {msg.model_copy(update={'payload': redacted}).model_dump_json()}"
+            )
 
         async def send_message():
             if not self._ws_connection:
