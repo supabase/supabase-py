@@ -3,7 +3,7 @@ help::
 	@echo "  help           -- (default) print this message"
 
 start-infra:
-	supabase --workdir infra start -x studio,gotrue,postgrest,mailpit,realtime,edge-runtime,logflare,vector,supavisor
+	../../scripts/start-infra.sh supabase storage-py studio,gotrue,postgrest,mailpit,realtime,edge-runtime,logflare,vector,supavisor
 help::
 	@echo "  start-infra    -- start containers for tests"
 

@@ -17,7 +17,7 @@ help::
 	@echo "  pytest         -- run pytest on realtime package"
 
 start-infra:
-	supabase start --workdir infra -x studio,mailpit,edge-runtime,logflare,vector,supavisor,imgproxy,storage-api
+	../../scripts/start-infra.sh supabase realtime-py-tests studio,mailpit,edge-runtime,logflare,vector,supavisor,imgproxy,storage-api
 help::
 	@echo "  stop-infra     -- start containers for tests"
 
