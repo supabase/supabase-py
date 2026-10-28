@@ -90,7 +90,10 @@ class AsyncPush:
 
     def receive(self, status, callback) -> AsyncPush:
         if (received := self.received_resp) and received[0] == status:
-            callback(received[1])
+            if status == RealtimeAcknowledgementStatus.Timeout:
+                callback()
+            else:
+                callback(received[1])
         else:
             if status == RealtimeAcknowledgementStatus.Ok:
                 self.ok_callbacks.append(callback)
