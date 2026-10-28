@@ -20,6 +20,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: "0.8.2"
+          python-version: "3.11"
+
+      - name: Check lint
+        run: uv run --frozen ruff check --output-format=github
+
+      - name: Check formatting
+        run: uv run --frozen ruff format --check
+
   test:
     name: py${{ matrix.python-version }} | ${{ matrix.package }} @ ${{ matrix.os }}
     strategy:
