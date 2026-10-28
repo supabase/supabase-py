@@ -68,6 +68,7 @@ features:
     symbols:
       - AsyncGoTrueClient.exchange_code_for_session
       - SyncGoTrueClient.exchange_code_for_session
+  auth.sign_in.concurrent_pkce_flows: not_implemented
 
   auth.session.get_session:
     status: implemented
@@ -112,6 +113,7 @@ features:
   auth.session.auto_refresh:
     status: implemented
     note: "Token refresh runs automatically as an internal background task controlled by the auto_refresh_token constructor option."
+  auth.session.sign_out_reason: not_implemented
 
   auth.identities.link_identity:
     status: implemented
@@ -227,6 +229,9 @@ features:
 
   auth.passkey.register_passkey: not_implemented
   auth.passkey.sign_in_with_passkey: not_implemented
+  auth.passkey.delete_passkey: not_implemented
+  auth.passkey.list_passkeys: not_implemented
+  auth.passkey.update_passkey: not_implemented
 
   auth.passkey_admin.list_passkeys: not_implemented
   auth.passkey_admin.delete_passkey: not_implemented
@@ -305,6 +310,7 @@ features:
     note: "headers parameter accepted by all sub-client constructors."
 
   client.observability.trace_propagation: not_implemented
+  client.observability.diagnostic_logging: not_implemented
 
   # ── Database ───────────────────────────────────────────────────────────────
 
@@ -330,6 +336,7 @@ features:
     symbols:
       - AsyncPostgrestClient.rpc
       - SyncPostgrestClient.rpc
+  database.query.openapi_spec: not_implemented
 
   database.mutate.insert:
     status: implemented
@@ -354,6 +361,15 @@ features:
   database.mutate.select_after_mutation:
     status: implemented
     note: "Chainable .select(*columns) after insert/update/upsert/delete — sets return=representation and adds a column selection query param. count and returning parameters also supported directly on each mutate method."
+  database.mutate.bulk_rows_with_differing_fields:
+    status: implemented
+    note: "Bulk insert/upsert with a list sends a columns query parameter built from the union of all row keys."
+  database.mutate.count:
+    status: implemented
+    note: "insert, upsert, update and delete accept a count argument (CountMethod)."
+  database.mutate.missing_defaults:
+    status: implemented
+    note: "Bulk insert/upsert accept default_to_null=False, which sends Prefer: missing=default."
 
   database.using_filters.eq: implemented
   database.using_filters.neq: implemented
@@ -418,7 +434,10 @@ features:
     symbols:
       - AsyncSelectRequestBuilder.maybe_single
       - SyncSelectRequestBuilder.maybe_single
-  database.using_modifiers.strip_nulls: not_implemented
+  database.using_modifiers.strip_nulls:
+    status: implemented
+    symbols:
+      - BaseSelectRequestBuilder.strip_nulls
   database.using_modifiers.format_csv:
     status: implemented
     symbols:
@@ -451,6 +470,9 @@ features:
   database.configuration.request_timeout:
     status: implemented
     note: "Timeouts are handled via Python's asyncio.timeout() context manager (asyncio.Timeout in 3.11+), which wraps any awaitable including query execution."
+  database.configuration.access_token:
+    status: partially_implemented
+    note: "auth(token) sets the bearer token on the client in place; there is no per-request access token option."
 
   # ── Functions ──────────────────────────────────────────────────────────────
 
@@ -464,7 +486,9 @@ features:
     symbols:
       - AsyncFunctionsClient.set_auth
       - SyncFunctionsClient.set_auth
-  functions.invocation.method_override: not_implemented
+  functions.invocation.method_override:
+    status: implemented
+    note: "Passed via the method key in invoke_options (defaults to POST)."
   functions.invocation.streaming_response: not_implemented
   functions.invocation.region_selection:
     status: implemented
@@ -569,6 +593,9 @@ features:
   realtime.subscriptions.broadcast_replay:
     status: implemented
     note: "Pass a replay: {since, limit} option in the broadcast config when creating the channel; it is forwarded in the phx_join payload."
+  realtime.subscriptions.postgres_changes_multiple_filters:
+    status: implemented
+    note: "The filter string is passed through to the server unchanged; combine conditions with commas (AND)."
 
   realtime.presence.track:
     status: implemented
@@ -729,6 +756,21 @@ features:
       - AsyncBucketActionsMixin.download
       - SyncBucketActionsMixin.download
   storage.file_buckets.download_as_stream: not_implemented
+  storage.file_buckets.bucket_versioning_status: not_implemented
+  storage.file_buckets.copy_specific_version: not_implemented
+  storage.file_buckets.delete_bucket_lifecycle: not_implemented
+  storage.file_buckets.download_specific_version: not_implemented
+  storage.file_buckets.file_info_specific_version: not_implemented
+  storage.file_buckets.get_bucket_lifecycle: not_implemented
+  storage.file_buckets.list_file_versions: not_implemented
+  storage.file_buckets.move_specific_version: not_implemented
+  storage.file_buckets.purge_bucket_cache: not_implemented
+  storage.file_buckets.purge_cache: not_implemented
+  storage.file_buckets.remove_specific_version: not_implemented
+  storage.file_buckets.request_cancellation:
+    status: implemented
+    note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running the storage call propagates cancellation through the httpx client."
+  storage.file_buckets.update_bucket_lifecycle: not_implemented
 
   # ── Storage — Vector Buckets ───────────────────────────────────────────────
 
@@ -946,3 +988,13 @@ features:
     symbols:
       - AsyncStorageAnalyticsClient.catalog
       - SyncStorageAnalyticsClient.catalog
+  # Newly synced from the canonical spec; no local group yet, place manually.
+  auth.mfa_recovery_codes.generate: not_implemented
+  auth.mfa_recovery_codes.get_status: not_implemented
+  auth.mfa_recovery_codes.regenerate: not_implemented
+  auth.mfa_recovery_codes.unenroll: not_implemented
+  auth.mfa_recovery_codes.verify: not_implemented
+  storage.configuration.auto_retry: not_implemented
+  storage.errors.error_codes:
+    status: partially_implemented
+    note: "File and bucket errors fill code from the response body's error field rather than its code field."

@@ -249,14 +249,16 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             response = await self._request(
                 "POST",
                 "signup",
-                body={
-                    "email": email,
-                    "password": password,
-                    "data": data,
-                    "gotrue_meta_security": {
-                        "captcha_token": captcha_token,
-                    },
-                },
+                body=await self._with_pkce_challenge(
+                    {
+                        "email": email,
+                        "password": password,
+                        "data": data,
+                        "gotrue_meta_security": {
+                            "captcha_token": captcha_token,
+                        },
+                    }
+                ),
                 redirect_to=redirect_to,
             )
         elif phone and password:
@@ -409,28 +411,32 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             response = await self._request(
                 "POST",
                 "sso",
-                body={
-                    "domain": domain,
-                    "skip_http_redirect": skip_http_redirect,
-                    "gotrue_meta_security": {
-                        "captcha_token": captcha_token,
-                    },
-                    "redirect_to": redirect_to,
-                },
+                body=await self._with_pkce_challenge(
+                    {
+                        "domain": domain,
+                        "skip_http_redirect": skip_http_redirect,
+                        "gotrue_meta_security": {
+                            "captcha_token": captcha_token,
+                        },
+                        "redirect_to": redirect_to,
+                    }
+                ),
             )
             return parse_sso_response(response)
         if provider_id:
             response = await self._request(
                 "POST",
                 "sso",
-                body={
-                    "provider_id": provider_id,
-                    "skip_http_redirect": skip_http_redirect,
-                    "gotrue_meta_security": {
-                        "captcha_token": captcha_token,
-                    },
-                    "redirect_to": redirect_to,
-                },
+                body=await self._with_pkce_challenge(
+                    {
+                        "provider_id": provider_id,
+                        "skip_http_redirect": skip_http_redirect,
+                        "gotrue_meta_security": {
+                            "captcha_token": captcha_token,
+                        },
+                        "redirect_to": redirect_to,
+                    }
+                ),
             )
             return parse_sso_response(response)
         raise AuthInvalidCredentialsError(
@@ -450,7 +456,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
         scopes = options.get("scopes")
-        params = options.get("query_params", {})
+        params = {**options.get("query_params", {})}
         if redirect_to:
             params["redirect_to"] = redirect_to
         if scopes:
@@ -540,14 +546,16 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             response = await self._request(
                 "POST",
                 "otp",
-                body={
-                    "email": email,
-                    "data": data,
-                    "create_user": should_create_user,
-                    "gotrue_meta_security": {
-                        "captcha_token": captcha_token,
-                    },
-                },
+                body=await self._with_pkce_challenge(
+                    {
+                        "email": email,
+                        "data": data,
+                        "create_user": should_create_user,
+                        "gotrue_meta_security": {
+                            "captcha_token": captcha_token,
+                        },
+                    }
+                ),
                 redirect_to=email_redirect_to,
             )
             return parse_auth_otp_response(response)
@@ -654,15 +662,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         The session returned can be null if the session is not detected which
         can happen in the event a user is not signed-in or has logged out.
         """
-        current_session: Optional[Session] = None
-        if self._persist_session:
-            maybe_session = await self._storage.get_item(self._storage_key)
-            current_session = self._get_valid_session(maybe_session)
-            if not current_session:
-                await self._remove_session()
-        else:
-            current_session = self._in_memory_session
-
+        current_session = await self._load_session()
         if not current_session:
             return None
         time_now = round(time.time())
@@ -702,10 +702,13 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         if not session:
             raise AuthSessionMissingError()
         update_options = options or {}
+        body = dict(attributes)
+        if attributes.get("email") is not None:
+            await self._with_pkce_challenge(body)
         response = await self._request(
             "PUT",
             "user",
-            body=attributes,
+            body=body,
             redirect_to=update_options.get("email_redirect_to"),
             jwt=session.access_token,
         )
@@ -750,7 +753,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         else:
             user_response = await self.get_user(access_token)
             if user_response is None:
-                raise UserDoesntExist(access_token)
+                raise UserDoesntExist()
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -760,7 +763,9 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                 expires_at=expires_at,
             )
         await self._save_session(session)
-        self._notify_all_subscribers("TOKEN_REFRESHED", session)
+        # A still-valid token is a sign-in. TOKEN_REFRESHED is only for a refresh.
+        event: AuthChangeEvent = "TOKEN_REFRESHED" if has_expired else "SIGNED_IN"
+        self._notify_all_subscribers(event, session)
         return AuthResponse(session=session, user=session.user)
 
     async def refresh_session(
@@ -833,12 +838,15 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         await self._request(
             "POST",
             "recover",
-            body={
-                "email": email,
-                "gotrue_meta_security": {
-                    "captcha_token": reset_options.get("captcha_token"),
+            body=await self._with_pkce_challenge(
+                {
+                    "email": email,
+                    "gotrue_meta_security": {
+                        "captcha_token": reset_options.get("captcha_token"),
+                    },
                 },
-            },
+                password_recovery=True,
+            ),
             redirect_to=reset_options.get("redirect_to"),
         )
 
@@ -978,6 +986,15 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
     # Private methods
 
+    async def _load_session(self) -> Optional[Session]:
+        if not self._persist_session:
+            return self._in_memory_session
+        maybe_session = await self._storage.get_item(self._storage_key)
+        current_session = self._get_valid_session(maybe_session)
+        if not current_session:
+            await self._remove_session()
+        return current_session
+
     async def _remove_session(self) -> None:
         if self._persist_session:
             await self._storage.remove_item(self._storage_key)
@@ -1025,7 +1042,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         expires_at = time_now + int(expires_in)
         user = await self.get_user(access_token)
         if user is None:
-            raise UserDoesntExist(access_token)
+            raise UserDoesntExist()
         session = Session(
             provider_token=provider_token,
             provider_refresh_token=provider_refresh_token,
@@ -1119,7 +1136,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         async def refresh_token_function() -> None:
             self._network_retries += 1
             try:
-                session = await self.get_session()
+                # get_session() would refresh too: the timer fires inside EXPIRY_MARGIN.
+                session = await self._load_session()
                 if session:
                     await self._call_refresh_token(session.refresh_token)
                     self._network_retries = 0
@@ -1176,26 +1194,58 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         params: Dict[str, str],
     ) -> Tuple[str, QueryParams]:
         query = QueryParams(params)
-        if self._flow_type == "pkce":
-            code_verifier = generate_pkce_verifier()
-            code_challenge = generate_pkce_challenge(code_verifier)
-            await self._storage.set_item(
-                f"{self._storage_key}-code-verifier", code_verifier
-            )
-            code_challenge_method = (
-                "plain" if code_verifier == code_challenge else "s256"
-            )
+        prepared = await self._prepare_pkce_challenge()
+        if prepared:
+            code_challenge, code_challenge_method = prepared
             query = query.set("code_challenge", code_challenge).set(
                 "code_challenge_method", code_challenge_method
             )
         query = query.set("provider", provider)
         return f"{url}?{query}", query
 
+    async def _prepare_pkce_challenge(
+        self, *, password_recovery: bool = False
+    ) -> Optional[Tuple[str, str]]:
+        if self._flow_type != "pkce":
+            return None
+        code_verifier = generate_pkce_verifier()
+        stored_verifier = (
+            f"{code_verifier}/PASSWORD_RECOVERY" if password_recovery else code_verifier
+        )
+        await self._storage.set_item(
+            f"{self._storage_key}-code-verifier", stored_verifier
+        )
+        code_challenge = generate_pkce_challenge(code_verifier)
+        code_challenge_method = "plain" if code_verifier == code_challenge else "s256"
+        return code_challenge, code_challenge_method
+
+    async def _with_pkce_challenge(
+        self, body: Dict, *, password_recovery: bool = False
+    ) -> Dict:
+        prepared = await self._prepare_pkce_challenge(
+            password_recovery=password_recovery
+        )
+        if prepared:
+            code_challenge, code_challenge_method = prepared
+            body["code_challenge"] = code_challenge
+            body["code_challenge_method"] = code_challenge_method
+        return body
+
+    async def _code_verifier_for_exchange(
+        self, explicit: Optional[str]
+    ) -> Optional[str]:
+        if explicit:
+            return explicit
+        stored = await self._storage.get_item(f"{self._storage_key}-code-verifier")
+        if not stored:
+            return None
+        return stored.split("/", 1)[0]
+
     async def exchange_code_for_session(
         self, params: CodeExchangeParams
     ) -> AuthResponse:
-        code_verifier = params.get("code_verifier") or await self._storage.get_item(
-            f"{self._storage_key}-code-verifier"
+        code_verifier = await self._code_verifier_for_exchange(
+            params.get("code_verifier")
         )
         response = await self._request(
             "POST",

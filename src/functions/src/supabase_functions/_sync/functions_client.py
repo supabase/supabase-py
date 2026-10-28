@@ -1,10 +1,9 @@
 import platform
 import sys
-from json import JSONDecodeError
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
-from httpx import Client, HTTPError, QueryParams, Response
+from httpx import Client, Headers, HTTPError, QueryParams, Response
 from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError, _error_message_from
@@ -31,16 +30,18 @@ class SyncFunctionsClient:
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)
-        self.headers = {
-            "X-Client-Info": (
-                f"supabase-py/supabase_functions v{__version__}"
-                f"; platform={platform.system()}"
-                f"; platform-version={platform.release()}"
-                f"; runtime=python"
-                f"; runtime-version={platform.python_version()}"
-            ),
-            **headers,
-        }
+        self.headers = Headers(
+            {
+                "X-Client-Info": (
+                    f"supabase-py/supabase_functions v{__version__}"
+                    f"; platform={platform.system()}"
+                    f"; platform-version={platform.release()}"
+                    f"; runtime=python"
+                    f"; runtime-version={platform.python_version()}"
+                )
+            }
+        )
+        self.headers.update(headers)
 
         if sys.version_info < (3, 10):
             warn(
@@ -82,12 +83,11 @@ class SyncFunctionsClient:
         self,
         method: HTTPMethod,
         path: list[str],
-        headers: Optional[Dict[str, str]] = None,
+        headers: Headers,
         json: Optional[Union[Dict[Any, Any], str, bytes]] = None,
         params: Optional[QueryParams] = None,
     ) -> Response:
         url = self.url.joinpath(*path)
-        headers = {**self.headers, **(headers or {})}
         response = (
             self._client.request(
                 method, str(url), content=json, headers=headers, params=params
@@ -99,13 +99,7 @@ class SyncFunctionsClient:
         )
         # Relay failures set this header even on non-2xx responses.
         if response.headers.get("x-relay-error") == "true":
-            try:
-                error = response.json().get("error")
-            except JSONDecodeError:
-                error = response.content or "Relay Error invoking the Edge Function"
-
-            raise FunctionsRelayError(error, response.status_code)
-
+            raise FunctionsRelayError(response.text, response.status_code)
         try:
             response.raise_for_status()
         except HTTPError as exc:
@@ -148,7 +142,7 @@ class SyncFunctionsClient:
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
-        headers = {**self.headers}
+        headers = Headers(self.headers)
         params = QueryParams()
         body = None
         method: HTTPMethod = "POST"
@@ -171,17 +165,17 @@ class SyncFunctionsClient:
                     params = params.set("forceFunctionRegion", region.value)
 
             body = invoke_options.get("body")
-            if isinstance(body, str):
-                headers["Content-Type"] = "text/plain"
-            elif isinstance(body, dict):
-                headers["Content-Type"] = "application/json"
-            elif isinstance(body, bytes):
-                headers["Content-Type"] = "application/octet-stream"
+            if headers.get("content-type", None) is None:
+                if isinstance(body, str):
+                    headers["Content-Type"] = "text/plain"
+                elif isinstance(body, dict):
+                    headers["Content-Type"] = "application/json"
+                elif isinstance(body, bytes):
+                    headers["Content-Type"] = "application/octet-stream"
 
         response = self._request(
             method, [function_name], headers=headers, json=body, params=params
         )
-
         if response_type == "json":
             data = response.json()
         else:

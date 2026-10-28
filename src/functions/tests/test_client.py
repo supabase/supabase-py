@@ -51,6 +51,8 @@ def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> N
     assert isinstance(client, AsyncFunctionsClient)
     assert str(client.url) == valid_url
     assert all(client.headers[key] == value for key, value in valid_headers.items())
+    assert client.verify is True
+    assert client.timeout == 60
 
 
 def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
@@ -62,6 +64,42 @@ def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> No
     assert isinstance(client, SyncFunctionsClient)
     assert str(client.url) == valid_url
     assert all(client.headers[key] == value for key, value in valid_headers.items())
+    assert client.verify is True
+    assert client.timeout == 60
+
+
+def test_create_async_client_no_verify(
+    valid_url: str, valid_headers: Dict[str, str]
+) -> None:
+    client = create_client(
+        url=valid_url, headers=valid_headers, is_async=True, verify=False
+    )
+
+    assert isinstance(client, AsyncFunctionsClient)
+    assert client.verify is False
+    assert client.timeout == 60
+
+
+def test_create_sync_client_no_verify(
+    valid_url: str, valid_headers: Dict[str, str]
+) -> None:
+    client = create_client(
+        url=valid_url, headers=valid_headers, is_async=False, verify=False
+    )
+
+    assert isinstance(client, SyncFunctionsClient)
+    assert client.verify is False
+    assert client.timeout == 60
+
+
+def test_create_client_default(valid_url: str, valid_headers: Dict[str, str]) -> None:
+    sync_client = create_client(url=valid_url, headers=valid_headers, is_async=False)
+    assert sync_client.verify is True
+    assert sync_client.timeout == 60
+
+    async_client = create_client(url=valid_url, headers=valid_headers, is_async=True)
+    assert async_client.verify is True
+    assert async_client.timeout == 60
 
 
 def test_type_hints() -> None:

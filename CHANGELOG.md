@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.33.0](https://github.com/supabase/supabase-py/compare/v2.32.0...v2.33.0) (2026-10-15)
+
+
+### Features
+
+* **postgrest:** return a select builder from insert, upsert, update and delete ([#1558](https://github.com/supabase/supabase-py/issues/1558)) ([04baf59](https://github.com/supabase/supabase-py/commit/04baf59450e554714c7554c69f18d3c6f11103ba))
+
+
+### Bug Fixes
+
+* **auth:** allow listeners to unsubscribe during notification ([#1643](https://github.com/supabase/supabase-py/issues/1643)) ([29ff4ff](https://github.com/supabase/supabase-py/commit/29ff4ff878c938689b2e77466a8549b5615470de))
+* **auth:** avoid mutating OAuth query params ([#1660](https://github.com/supabase/supabase-py/issues/1660)) ([553cb47](https://github.com/supabase/supabase-py/commit/553cb471f256d20a628fdf02435300b27504f252))
+* **auth:** keep the session after refreshing it on initialize ([#1647](https://github.com/supabase/supabase-py/issues/1647)) ([2658d8b](https://github.com/supabase/supabase-py/commit/2658d8b915e37d79ba663779e773d0d61c5f8cf5))
+* **auth:** stop putting the raw JWT in UserDoesntExist ([#1602](https://github.com/supabase/supabase-py/issues/1602)) ([aa73211](https://github.com/supabase/supabase-py/commit/aa73211a69d5c75f54228527e03c3b499a9bfda8))
+* **functions:** copy headers in invoke() to avoid leaking them across calls ([#1536](https://github.com/supabase/supabase-py/issues/1536)) ([655d4c2](https://github.com/supabase/supabase-py/commit/655d4c2eabfd9358dea785b17e5f346945e2ed31))
+* **functions:** do not overwrite content-type when it is passed in ([#1746](https://github.com/supabase/supabase-py/issues/1746)) ([94748bb](https://github.com/supabase/supabase-py/commit/94748bb6b1e3471b479c10a94f7825c47984b356))
+* **functions:** do not parse relay error as json, save it as text instead ([#1714](https://github.com/supabase/supabase-py/issues/1714)) ([dfae141](https://github.com/supabase/supabase-py/commit/dfae1419299d58ae23b77431fa56aa5b7acd62fd))
+* **functions:** handle case insensitive headers with httpx.Headers ([#1747](https://github.com/supabase/supabase-py/issues/1747)) ([2de8af0](https://github.com/supabase/supabase-py/commit/2de8af0ade465cfcf96a305ea388ea5820e587e6))
+* **functions:** pass verify as keyword argument in create_client ([#1705](https://github.com/supabase/supabase-py/issues/1705)) ([#1706](https://github.com/supabase/supabase-py/issues/1706)) ([42549e4](https://github.com/supabase/supabase-py/commit/42549e45f6627db6d6d238dbca288214ee37b4ac))
+* **functions:** raise FunctionsRelayError for x-relay-error responses ([#1638](https://github.com/supabase/supabase-py/issues/1638)) ([f294058](https://github.com/supabase/supabase-py/commit/f2940587241cd0022c251c2193ad34a59b6f47c7))
+* **postgrest:** escape quoted values in in filters ([#1703](https://github.com/supabase/supabase-py/issues/1703)) ([710042f](https://github.com/supabase/supabase-py/commit/710042fcc890632a97905f178266806a56e13594))
+* **postgrest:** serialize neq/gt/gte/lt/lte filter values like eq ([#1723](https://github.com/supabase/supabase-py/issues/1723)) ([d0e1f34](https://github.com/supabase/supabase-py/commit/d0e1f340846b8300dacb1ca287122ed70bcf88f0))
+* **realtime:** include connection params in WebSocket URL ([#1652](https://github.com/supabase/supabase-py/issues/1652)) ([954403b](https://github.com/supabase/supabase-py/commit/954403bc0d4214eaecee384980e2d21ac856131a))
+* **realtime:** return the existing channel for a topic from channel() ([#1673](https://github.com/supabase/supabase-py/issues/1673)) ([df4ed51](https://github.com/supabase/supabase-py/commit/df4ed5133964b65945ee6c64de27ed2a29204764))
+* **realtime:** update channel join payloads in set_auth ([#1656](https://github.com/supabase/supabase-py/issues/1656)) ([a2a142e](https://github.com/supabase/supabase-py/commit/a2a142e2ee02e77c9da0d524431a38022a6917a6))
+* **storage:** make vector object metadata JSON ([#1717](https://github.com/supabase/supabase-py/issues/1717)) ([05c03dc](https://github.com/supabase/supabase-py/commit/05c03dc7cd025f3bf6b626b50ce5e7f13809c048))
+* **storage:** preserve vector index creation time ([#1701](https://github.com/supabase/supabase-py/issues/1701)) ([c5e345d](https://github.com/supabase/supabase-py/commit/c5e345dee8afe07f658b73641fe78dfa28441712))
+
 ## [2.32.0](https://github.com/supabase/supabase-py/compare/v2.31.0...v2.32.0) (2026-10-02)
 
 

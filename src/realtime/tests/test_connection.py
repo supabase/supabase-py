@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import os
+from unittest.mock import AsyncMock, patch
+from urllib.parse import parse_qs, urlparse
 
 import aiohttp
 import pytest
@@ -78,6 +80,29 @@ def test_init_client():
     assert client.max_retries == 5
     assert client.initial_backoff == 1.0
     assert client.timeout == DEFAULT_TIMEOUT
+
+
+@pytest.mark.asyncio
+async def test_connect_includes_connection_params() -> None:
+    client = AsyncRealtimeClient(
+        "https://project.supabase.co/realtime/v1",
+        "publishable-key",
+        params={"log_level": "info"},
+    )
+
+    with (
+        patch("realtime._async.client.connect", new_callable=AsyncMock) as connect,
+        patch.object(client, "_on_connect", new_callable=AsyncMock),
+    ):
+        await client.connect()
+
+    assert connect.await_args is not None
+    websocket_url = urlparse(connect.await_args.args[0])
+    assert parse_qs(websocket_url.query) == {
+        "apikey": ["publishable-key"],
+        "log_level": ["info"],
+        "vsn": ["1.0.0"],
+    }
 
 
 @pytest.mark.asyncio
@@ -789,5 +814,107 @@ async def test_subscribe_forwards_broadcast_replication_ready(
     broadcast_config = message_data["payload"]["config"]["broadcast"]
 
     assert broadcast_config["replication_ready"] is True
+
+    await socket.close()
+
+
+def test_channel_returns_existing_channel_for_same_topic(
+    socket: AsyncRealtimeClient,
+):
+    first = socket.channel("room")
+
+    assert socket.channel("room") is first
+    assert socket.get_channels() == [first]
+
+
+@pytest.mark.asyncio
+async def test_second_channel_call_keeps_first_subscription_receiving(
+    socket: AsyncRealtimeClient,
+):
+    """Calling channel() again for a subscribed topic must not orphan the
+    subscribed channel: incoming messages are routed by topic."""
+    import json
+    from unittest.mock import AsyncMock
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    received = []
+    channel = socket.channel("room").on_broadcast(
+        "ping", lambda payload: received.append(payload["payload"])
+    )
+    await channel.subscribe(lambda state, error: None)
+
+    socket.channel("room")
+
+    mock_ws.__aiter__.return_value = [
+        json.dumps(
+            {
+                "topic": "realtime:room",
+                "event": "broadcast",
+                "ref": None,
+                "payload": {"type": "broadcast", "event": "ping", "payload": {"n": 1}},
+            }
+        )
+    ]
+    await socket._listen()
+
+    assert received == [{"n": 1}]
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_channel_after_unsubscribe_creates_new_channel(
+    socket: AsyncRealtimeClient,
+):
+    from unittest.mock import AsyncMock
+
+    socket._ws_connection = AsyncMock()
+    await socket.connect()
+
+    first = socket.channel("room")
+    await first.subscribe(lambda state, error: None)
+    await first.unsubscribe()
+
+    second = socket.channel("room")
+
+    assert second is not first
+    assert socket.get_channels() == [second]
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_set_auth_updates_join_payload_used_on_rejoin(
+    socket: AsyncRealtimeClient,
+):
+    """A token passed to set_auth must be sent when a joined channel rejoins."""
+    import json
+    from unittest.mock import AsyncMock
+
+    from realtime.types import ChannelStates
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    channel: AsyncRealtimeChannel = socket.channel("test-set-auth-rejoin")
+    await channel.subscribe(lambda state, error: None)
+    channel.state = ChannelStates.JOINED  # the server acknowledged the join
+
+    await socket.set_auth("refreshed-token")
+
+    sent = [json.loads(call.args[0]) for call in mock_ws.send.call_args_list]
+    assert sent[-1]["event"] == ChannelEvents.access_token
+    assert sent[-1]["payload"] == {"access_token": "refreshed-token"}
+
+    # After a dropped connection, _reconnect() rejoins with the stored join push.
+    await channel._rejoin()
+
+    rejoin = json.loads(mock_ws.send.call_args[0][0])
+    assert rejoin["event"] == ChannelEvents.join
+    assert rejoin["payload"]["access_token"] == "refreshed-token"
 
     await socket.close()

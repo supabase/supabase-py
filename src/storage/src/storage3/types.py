@@ -96,7 +96,7 @@ class SearchV2Object(BaseModel):
     name: str
     updated_at: datetime
     created_at: datetime
-    metadata: Dict[str, Any]
+    metadata: Optional[Dict[str, Any]]
     key: Optional[str] = None
 
 
@@ -224,7 +224,7 @@ class VectorIndex(BaseModel, extra="ignore"):
     metadata: Optional[MetadataConfiguration] = Field(
         alias="metadataConfiguration", default=None
     )
-    creation_time: Optional[datetime] = None
+    creation_time: Optional[datetime] = Field(alias="creationTime", default=None)
 
 
 class GetVectorIndexResponse(BaseModel, extra="ignore"):
@@ -241,7 +241,7 @@ class VectorData(BaseModel, extra="ignore"):
 class VectorObject(BaseModel, extra="ignore"):
     key: str
     data: VectorData
-    metadata: Optional[dict[str, Union[str, bool, float]]] = None
+    metadata: Optional[dict[str, JSON]] = None
 
 
 class VectorMatch(BaseModel, extra="ignore"):

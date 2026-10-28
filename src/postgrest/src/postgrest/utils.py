@@ -31,9 +31,10 @@ class SyncClient(BaseClient):
 
 def sanitize_param(param: Any) -> str:
     param_str = str(param)
-    reserved_chars = ",:()"
+    reserved_chars = ',:()"\\'
     if any(char in param_str for char in reserved_chars):
-        return f'"{param_str}"'
+        escaped = param_str.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
     return param_str
 
 
@@ -44,8 +45,11 @@ def sanitize_array_element(element: Any) -> str:
     case-insensitively, or contains a brace, the comma delimiter, a double
     quote, a backslash, or whitespace; embedded double quotes and backslashes
     are backslash-escaped. Without this, a value such as ``"a,b"`` is emitted
-    bare and parsed by PostgREST as two separate elements.
+    bare and parsed by PostgREST as two separate elements. ``None`` becomes an
+    unquoted ``NULL`` element.
     """
+    if element is None:
+        return "NULL"
     element_str = str(element)
     needs_quoting = (
         element_str == ""
@@ -68,6 +72,17 @@ def sanitize_array_param(values: Iterable[Any]) -> str:
 
 def sanitize_pattern_param(pattern: str) -> str:
     return sanitize_param(pattern.replace("%", "*"))
+
+
+def rpc_query_param(value: Any) -> Any:
+    """Format an RPC argument sent in the query string, as in GET or HEAD calls.
+
+    Lists and tuples become PostgreSQL array literals, since PostgREST keeps only
+    one value when a non-variadic argument is repeated.
+    """
+    if isinstance(value, (list, tuple)):
+        return sanitize_array_param(value)
+    return value
 
 
 def is_http_url(url: URL) -> bool:

@@ -9,7 +9,10 @@ from supabase_auth.errors import (
     AuthSessionMissingError,
 )
 from supabase_auth.helpers import decode_jwt
-from supabase_auth.types import SignUpWithEmailAndPasswordCredentials
+from supabase_auth.types import (
+    SignInWithOAuthCredentials,
+    SignUpWithEmailAndPasswordCredentials,
+)
 
 from .clients import (
     GOTRUE_JWT_SECRET,
@@ -348,6 +351,23 @@ async def test_exchange_code_for_session() -> None:
     # Verify the code verifier was stored
     code_verifier = await client._storage.get_item(storage_key)
     assert code_verifier is not None
+
+
+async def test_sign_in_with_oauth_does_not_mutate_query_params() -> None:
+    client = auth_client()
+    query_params = {"prompt": "consent"}
+    credentials: SignInWithOAuthCredentials = {
+        "provider": "github",
+        "options": {
+            "query_params": query_params,
+            "redirect_to": "https://example.com/callback",
+        },
+    }
+
+    response = await client.sign_in_with_oauth(credentials)
+
+    assert "redirect_to=https%3A%2F%2Fexample.com%2Fcallback" in response.url
+    assert query_params == {"prompt": "consent"}
 
 
 async def test_get_authenticator_assurance_level() -> None:
@@ -777,3 +797,74 @@ async def test_initialize_from_storage_keeps_refreshed_session() -> None:
     assert Session.model_validate_json(stored).access_token == "new-access-token"
     assert client._refresh_token_timer is not None
     client._refresh_token_timer.cancel()
+
+
+async def test_network_error_raises_auth_retryable_error() -> None:
+    # A transport failure (no HTTP response) must surface as a retryable auth
+    # error, not as a raw httpx exception.
+    from httpx import AsyncClient, ConnectError, MockTransport, Request, Response
+    from supabase_auth import AsyncGoTrueClient
+    from supabase_auth.errors import AuthRetryableError
+
+    def handler(request: Request) -> Response:
+        raise ConnectError("boom", request=request)
+
+    client = AsyncGoTrueClient(
+        url="http://auth.test",
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    )
+
+    with pytest.raises(AuthRetryableError) as exc_info:
+        await client.sign_in_with_password(
+            {"email": "user@example.com", "password": "password"}
+        )
+    assert exc_info.value.status == 0
+
+
+async def test_initialize_from_storage_keeps_session_on_network_error() -> None:
+    # A network failure while refreshing an expired stored session must keep
+    # the session and schedule a retry instead of signing the user out.
+    from httpx import AsyncClient, ConnectError, MockTransport, Request, Response
+    from supabase_auth import AsyncGoTrueClient
+    from supabase_auth.types import Session, User
+
+    user = {
+        "id": str(uuid4()),
+        "aud": "authenticated",
+        "app_metadata": {},
+        "user_metadata": {},
+        "created_at": "2024-01-01T00:00:00Z",
+    }
+
+    def handler(request: Request) -> Response:
+        assert request.url.path == "/token"
+        raise ConnectError("boom", request=request)
+
+    client = AsyncGoTrueClient(
+        url="http://auth.test",
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    )
+    expired_session = Session(
+        access_token="expired-access-token",
+        refresh_token="old-refresh-token",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) - 60,
+        user=User.model_validate(user),
+    )
+    await client._storage.set_item(
+        client._storage_key, expired_session.model_dump_json()
+    )
+
+    try:
+        await client.initialize_from_storage()
+
+        stored = await client._storage.get_item(client._storage_key)
+        assert stored is not None
+        assert (
+            Session.model_validate_json(stored).access_token == "expired-access-token"
+        )
+        assert client._refresh_token_timer is not None
+    finally:
+        if client._refresh_token_timer:
+            client._refresh_token_timer.cancel()

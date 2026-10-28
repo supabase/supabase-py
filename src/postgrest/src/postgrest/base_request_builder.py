@@ -83,6 +83,7 @@ class RequestConfig(Generic[C]):
         self.json = None if http_method in {"GET", "HEAD"} else json
         self.auth = auth
         self.retry_enabled = retry_enabled
+        self.strip_nulls = False
 
     @overload
     def send(
@@ -95,6 +96,14 @@ class RequestConfig(Generic[C]):
 
     def send(self: RequestConfig[C], additional_headers: Headers):
         additional_headers.update(self.headers)
+        if self.strip_nulls:
+            accept = additional_headers.get("Accept")
+            if accept == "application/vnd.pgrst.object+json":
+                additional_headers["Accept"] = f"{accept};nulls=stripped"
+            elif accept in (None, "application/json"):
+                additional_headers["Accept"] = (
+                    "application/vnd.pgrst.array+json;nulls=stripped"
+                )
         return self.session.request(
             self.http_method,
             str(self.path),
@@ -342,7 +351,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.NEQ, value)
+        return self.filter(column, Filters.NEQ, _serialize_filter_value(value))
 
     def gt(self: Self, column: str, value: Any) -> Self:
         """A 'greater than' filter
@@ -351,7 +360,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.GT, value)
+        return self.filter(column, Filters.GT, _serialize_filter_value(value))
 
     def gte(self: Self, column: str, value: Any) -> Self:
         """A 'greater than or equal to' filter
@@ -360,7 +369,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.GTE, value)
+        return self.filter(column, Filters.GTE, _serialize_filter_value(value))
 
     def lt(self: Self, column: str, value: Any) -> Self:
         """A 'less than' filter
@@ -369,7 +378,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.LT, value)
+        return self.filter(column, Filters.LT, _serialize_filter_value(value))
 
     def lte(self: Self, column: str, value: Any) -> Self:
         """A 'less than or equal to' filter
@@ -378,7 +387,7 @@ class BaseFilterRequestBuilder(Generic[C]):
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
-        return self.filter(column, Filters.LTE, value)
+        return self.filter(column, Filters.LTE, _serialize_filter_value(value))
 
     def is_(self: Self, column: str, value: Any) -> Self:
         """An 'is' filter
@@ -672,6 +681,16 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
             f"{foreign_table}.limit" if foreign_table else "limit",
             end - start + 1,
         )
+        return self
+
+    def strip_nulls(self: Self) -> Self:
+        """Strip null values from the response data.
+
+        Only available in PostgREST v11.2+.
+        """
+        if self.request.headers.get("Accept") == "text/csv":
+            raise ValueError("strip_nulls() cannot be used with csv()")
+        self.request.strip_nulls = True
         return self
 
 
