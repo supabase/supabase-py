@@ -2,8 +2,12 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
+include ../../infra.mk
+
+STORAGE_EXCLUDED_SERVICES := studio,gotrue,postgrest,mailpit,realtime,edge-runtime,logflare,vector,supavisor
+
 start-infra:
-	../../scripts/start-infra.sh supabase storage-py studio,gotrue,postgrest,mailpit,realtime,edge-runtime,logflare,vector,supavisor
+	@$(call retry_start_infra,$(call supabase_cleanup,storage-py),supabase --workdir infra start -x $(STORAGE_EXCLUDED_SERVICES))
 help::
 	@echo "  start-infra    -- start containers for tests"
 
