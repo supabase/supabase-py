@@ -1,8 +1,11 @@
+import json
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from realtime import AsyncRealtimeClient
 from realtime._async.push import AsyncPush
+from realtime.message import ReplyMessage, ReplyPostgresChanges
 from realtime.types import RealtimeAcknowledgementStatus
 
 
@@ -35,3 +38,68 @@ async def test_resend_starts_a_new_timeout():
     await second_timeout
 
     assert timeout_count == 2
+
+
+@pytest.mark.asyncio
+async def test_receive_timeout_after_push_send_outlasts_deadline():
+    socket = AsyncRealtimeClient("http://localhost:54321/realtime/v1", timeout=1)
+    channel = socket.channel("positions")
+
+    async def send(raw):
+        message = json.loads(raw)
+        if message["event"] == "phx_join":
+            channel._handle_message(
+                ReplyMessage.model_validate(
+                    {
+                        "event": "phx_reply",
+                        "topic": message["topic"],
+                        "ref": message["ref"],
+                        "payload": {"status": "ok", "response": {}},
+                    }
+                )
+            )
+        else:
+            push = channel.messages_waiting_for_ack[message["ref"]]
+            assert push.timeout_task is not None
+            await push.timeout_task
+
+    websocket = AsyncMock()
+    websocket.send.side_effect = send
+    socket._ws_connection = websocket
+    timed_out = []
+
+    def on_timeout():
+        timed_out.append(True)
+
+    try:
+        await channel.subscribe()
+        push = await channel.push(
+            "broadcast", {"event": "position", "payload": {"x": 1}}
+        )
+        push.receive(RealtimeAcknowledgementStatus.Timeout, on_timeout)
+
+        assert timed_out == [True]
+    finally:
+        await socket.close()
+
+
+def test_receive_after_ok_preserves_response():
+    push = AsyncPush(Mock(), "broadcast")
+    response = ReplyPostgresChanges(postgres_changes=[])
+    push.trigger(RealtimeAcknowledgementStatus.Ok, response)
+    callback = Mock()
+
+    push.receive(RealtimeAcknowledgementStatus.Ok, callback)
+
+    callback.assert_called_once_with(response)
+
+
+def test_receive_after_error_preserves_response():
+    push = AsyncPush(Mock(), "broadcast")
+    response = {"reason": "permission denied"}
+    push.trigger(RealtimeAcknowledgementStatus.Error, response)
+    callback = Mock()
+
+    push.receive(RealtimeAcknowledgementStatus.Error, callback)
+
+    callback.assert_called_once_with(response)
