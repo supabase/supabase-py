@@ -84,6 +84,7 @@ class AsyncRealtimeClient:
         self.send_buffer: List[Callable] = []
         self.hb_interval = hb_interval
         self._ws_connection: Optional[ClientConnection] = None
+        self._connect_lock: Optional[asyncio.Lock] = None
         self.ref = 0
         self.auto_reconnect = auto_reconnect
         self.channels: Dict[str, AsyncRealtimeChannel] = {}
@@ -160,6 +161,9 @@ class AsyncRealtimeClient:
             logger.debug("WebSocket connection already established")
             return
 
+        if self._connect_lock is None:
+            self._connect_lock = asyncio.Lock()
+
         retries = 0
         endpoint_url = self.endpoint_url()
         parsed_url = urlparse(endpoint_url)
@@ -175,8 +179,11 @@ class AsyncRealtimeClient:
 
         while retries < self.max_retries:
             try:
-                ws = await connect(endpoint_url)
-                self._ws_connection = ws
+                async with self._connect_lock:
+                    if self.is_connected:
+                        return
+                    ws = await connect(endpoint_url)
+                    self._ws_connection = ws
                 logger.debug("WebSocket connection established successfully")
                 return await self._on_connect()
             except Exception as e:
