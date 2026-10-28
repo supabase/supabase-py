@@ -47,8 +47,34 @@ jobs:
           version: "0.8.2"
           python-version: ${{ matrix.python-version }}
 
+      - name: Print supabase cli version
+        id: supabase-cli
+        run: echo "version=$(supabase --version)" >> "$GITHUB_OUTPUT"
+
+      # Pulling images from the registries on every job gets throttled
+      # (429 / "Data limit exceeded"), so reuse the images between runs.
+      - name: Cache docker images
+        if: ${{ contains(fromJSON('["realtime", "storage", "auth", "postgrest"]'), matrix.package) }}
+        id: docker-images
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /tmp/docker-images
+          key: docker-images-${{ matrix.package }}-${{ steps.supabase-cli.outputs.version }}-${{ hashFiles(format('src/{0}/infra/**', matrix.package)) }}
+
+      - name: Load cached docker images
+        if: ${{ steps.docker-images.outputs.cache-hit == 'true' }}
+        run: zstd -d --stdout /tmp/docker-images/images.tar.zst | docker image load
+
       - name: Run Tests
         run: make ${{ matrix.package }}.tests
+
+      - name: Save docker images to cache
+        if: ${{ steps.docker-images.outputs.cache-hit == 'false' }}
+        run: |
+          mkdir -p /tmp/docker-images
+          docker ps --all --format '{{.Image}}' | sort -u \
+            | xargs docker image save \
+            | zstd -T0 > /tmp/docker-images/images.tar.zst
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7

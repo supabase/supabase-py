@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Start test infrastructure, surviving throttled registries and half-started containers.
+# Start test infrastructure, retrying after cleaning up a partial start.
+#
+# A failed start can leave containers holding host ports, which makes every
+# following attempt fail with "address already in use".
 #
 # Usage, from a package directory:
 #   start-infra.sh supabase <project id> <excluded services>
@@ -7,8 +10,7 @@
 set -uo pipefail
 
 mode="$1"
-attempts=4
-registries=("" "ghcr.io" "docker.io" "")
+attempts=3
 
 cleanup() {
   case "$mode" in
@@ -35,21 +37,13 @@ start() {
 
 for attempt in $(seq 1 "$attempts"); do
   cleanup "$@"
-  registry="${registries[$((attempt - 1))]}"
-  if [ -n "$registry" ]; then
-    echo "Attempt $attempt/$attempts using image registry $registry"
-    export SUPABASE_INTERNAL_IMAGE_REGISTRY="$registry"
-  else
-    echo "Attempt $attempt/$attempts using the default image registry"
-    unset SUPABASE_INTERNAL_IMAGE_REGISTRY
-  fi
   if start "$@"; then
     sleep 2
     exit 0
   fi
   if [ "$attempt" -lt "$attempts" ]; then
     delay=$((attempt * 20))
-    echo "Starting infrastructure failed, retrying in ${delay}s"
+    echo "Starting infrastructure failed (attempt $attempt/$attempts), retrying in ${delay}s"
     sleep "$delay"
   fi
 done
