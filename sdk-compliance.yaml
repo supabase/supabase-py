@@ -1160,10 +1160,10 @@ features:
   storage.configuration.auto_retry: not_implemented
   storage.errors.error_codes:
     status: implemented
+    note: "The error code is exposed as the StorageApiError.code dataclass field, which is not registrable on its own since only properties are extracted as symbols."
     symbols:
-      - StorageApiError.code
-    supporting_symbols:
       - StorageApiError
+    supporting_symbols:
       - StorageApiErrorMessage
       - StorageException
       - parse_api_error
