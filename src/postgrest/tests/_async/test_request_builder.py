@@ -1,4 +1,4 @@
-from typing import Any, AsyncIterable, Dict, List
+from typing import Any, AsyncIterable, Dict, List, Optional
 
 import pytest
 from httpx import AsyncClient, Headers, QueryParams, Request, Response
@@ -122,6 +122,24 @@ class TestInsert:
         assert set(builder.request.params["columns"].split(",")) == set(
             '"key1","key2","key3"'.split(",")
         )
+
+    @pytest.mark.parametrize("method", ["insert", "upsert"])
+    @pytest.mark.parametrize(
+        "rows, columns",
+        [([], None), ([{}], None), ([{"key1": "val1"}], '"key1"')],
+    )
+    def test_bulk_write_columns(
+        self,
+        request_builder: AsyncRequestBuilder,
+        method: str,
+        rows: List[Dict[str, JSON]],
+        columns: Optional[str],
+    ):
+        builder = getattr(request_builder, method)(rows)
+
+        assert builder.request.http_method == "POST"
+        assert builder.request.json == rows
+        assert builder.request.params.get("columns") == columns
 
     def test_upsert(self, request_builder: AsyncRequestBuilder):
         builder = request_builder.upsert({"key1": "val1"})
