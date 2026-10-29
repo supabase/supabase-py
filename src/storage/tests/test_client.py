@@ -380,16 +380,8 @@ async def test_async_bucket_proxy_request_non_json_error() -> None:
     assert err.status == 504
 
 
-_MISSING_OBJECT_RESPONSES = [
-    {
-        "statusCode": "404",
-        "error": "not_found",
-        "message": "Object not found",
-        "code": "NoSuchKey",
-    },
-    {"statusCode": "404", "error": "not_found", "message": "Object not found"},
-    None,
-]
+# Integration tests cover real Storage responses; these cover bodies Storage never sends.
+_MISSING_OBJECT_RESPONSES = [None]
 
 _EXISTS_ERROR_RESPONSES = [
     (
@@ -399,15 +391,6 @@ _EXISTS_ERROR_RESPONSES = [
             "error": "InvalidJWT",
             "message": "exp claim timestamp check failed",
             "code": "InvalidJWT",
-        },
-    ),
-    (
-        404,
-        {
-            "statusCode": "404",
-            "error": "Bucket not found",
-            "message": "Bucket not found",
-            "code": "NoSuchBucket",
         },
     ),
     (400, None),
@@ -420,19 +403,6 @@ def _exists_response(status_code: int, body: Any) -> Response:
     if body is None:
         return Response(status_code=status_code, request=request)
     return Response(status_code=status_code, json=body, request=request)
-
-
-def test_sync_bucket_proxy_exists_reads_object_info() -> None:
-    proxy = _sync_bucket_proxy()
-    mock_response = _exists_response(200, {"name": "file.txt"})
-    with patch.object(
-        proxy._client, "request", return_value=mock_response
-    ) as mock_request:
-        assert proxy.exists("folder/file.txt") is True
-
-    method, url = mock_request.call_args.args
-    assert method == "GET"
-    assert url == "https://example.com/storage/v1/object/info/bucket/folder/file.txt"
 
 
 @pytest.mark.parametrize("body", _MISSING_OBJECT_RESPONSES)
@@ -454,20 +424,6 @@ def test_sync_bucket_proxy_exists_reraises_other_errors(
             proxy.exists("file.txt")
 
     assert str(exc_info.value.status) == str(status_code)
-
-
-@pytest.mark.asyncio
-async def test_async_bucket_proxy_exists_reads_object_info() -> None:
-    proxy = _async_bucket_proxy()
-    mock_response = _exists_response(200, {"name": "file.txt"})
-    with patch.object(
-        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
-    ) as mock_request:
-        assert await proxy.exists("folder/file.txt") is True
-
-    method, url = mock_request.call_args.args
-    assert method == "GET"
-    assert url == "https://example.com/storage/v1/object/info/bucket/folder/file.txt"
 
 
 @pytest.mark.asyncio

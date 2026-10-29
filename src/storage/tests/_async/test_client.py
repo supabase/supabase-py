@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncGenerator, Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -613,19 +614,34 @@ async def test_client_exists(
     assert exists
 
 
-async def test_client_exists_json_decode_error(
-    storage_file_client_public: AsyncBucketProxy,
-    monkeypatch: pytest.MonkeyPatch,
+async def test_client_exists_false_for_missing_object(
+    storage_file_client: AsyncBucketProxy, file: FileForTesting
 ) -> None:
-    """Test exists method handling of json.JSONDecodeError"""
-    from json import JSONDecodeError
+    """A missing object in an existing bucket is reported as not existing"""
+    assert await storage_file_client.exists(file.bucket_path) is False
 
-    async def mock_head(*args, **kwargs) -> None:
-        raise JSONDecodeError("Expecting value", "", 0)
 
-    monkeypatch.setattr(storage_file_client_public._client, "head", mock_head)
-    exists = await storage_file_client_public.exists("some/path")
-    assert exists is False
+async def test_client_exists_raises_for_missing_bucket(
+    storage: AsyncStorageClient, uuid_factory: Callable[[], str]
+) -> None:
+    """A missing bucket is an error, not a missing file"""
+    with pytest.raises(StorageApiError) as exc_info:
+        await storage.from_(uuid_factory()).exists("some/path")
+
+    assert str(exc_info.value.status) == "404"
+    assert exc_info.value.code != "not_found"
+
+
+async def test_client_exists_raises_for_invalid_jwt(
+    storage: AsyncStorageClient, bucket: str
+) -> None:
+    """A rejected token is an error, not a missing file"""
+    async with AsyncStorageClient(
+        os.environ["SUPABASE_TEST_URL"],
+        {"apiKey": "invalid", "Authorization": "Bearer invalid"},
+    ) as client:
+        with pytest.raises(StorageApiError):
+            await client.from_(bucket).exists("some/path")
 
 
 async def test_client_copy(
