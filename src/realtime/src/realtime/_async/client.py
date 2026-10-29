@@ -307,7 +307,8 @@ class AsyncRealtimeClient:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: AsyncRealtimeChannel) -> None:
-        del self.channels[channel.topic]
+        if self.channels.get(channel.topic) is channel:
+            del self.channels[channel.topic]
 
     async def remove_channel(self, channel: AsyncRealtimeChannel) -> None:
         """
