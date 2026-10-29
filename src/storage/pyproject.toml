@@ -30,7 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 iceberg = [
-  "pyiceberg>=0.10.0",
+  "pyiceberg[pyarrow]>=0.10.0",
 ]
 
 [project.urls]
@@ -48,7 +48,7 @@ lints = [
   "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
 mypy = [
-  "pyiceberg>=0.10.0",
+  "pyiceberg[pyarrow]>=0.10.0",
 ]
 docs = [
   "Sphinx >=7.1.2",
