@@ -432,6 +432,35 @@ async def test_link_identity() -> None:
             assert response.url == mock_url
 
 
+async def test_link_identity_does_not_mutate_query_params() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from httpx import Response
+
+    client = auth_client()
+    shared_params = {"prompt": "consent"}
+    options = {
+        "redirect_to": "http://localhost/callback",
+        "query_params": shared_params,
+    }
+
+    with (
+        patch.object(
+            client, "get_session", return_value=MagicMock(access_token="token")
+        ),
+        patch.object(
+            client,
+            "_request",
+            return_value=Response(
+                content=b'{"url":"http://example.com/authorize"}', status_code=200
+            ),
+        ),
+    ):
+        await client.link_identity({"provider": "github", "options": options})
+
+    assert shared_params == {"prompt": "consent"}
+
+
 async def test_get_user_identities() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
