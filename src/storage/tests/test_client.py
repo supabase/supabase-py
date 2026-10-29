@@ -380,35 +380,77 @@ async def test_async_bucket_proxy_request_non_json_error() -> None:
     assert err.status == 504
 
 
-def test_sync_bucket_proxy_exists_false_on_headless_error() -> None:
+# Integration tests cover real Storage responses; these cover bodies Storage never sends.
+_MISSING_OBJECT_RESPONSES = [None]
+
+_EXISTS_ERROR_RESPONSES = [
+    (
+        400,
+        {
+            "statusCode": "400",
+            "error": "InvalidJWT",
+            "message": "exp claim timestamp check failed",
+            "code": "InvalidJWT",
+        },
+    ),
+    (400, None),
+    (401, None),
+]
+
+
+def _exists_response(status_code: int, body: Any) -> Response:
+    request = Request("GET", "https://example.com")
+    if body is None:
+        return Response(status_code=status_code, request=request)
+    return Response(status_code=status_code, json=body, request=request)
+
+
+@pytest.mark.parametrize("body", _MISSING_OBJECT_RESPONSES)
+def test_sync_bucket_proxy_exists_false_on_missing_object(body: Any) -> None:
     proxy = _sync_bucket_proxy()
-    mock_response = Response(
-        status_code=400, request=Request("HEAD", "https://example.com")
-    )
+    mock_response = _exists_response(404, body)
     with patch.object(proxy._client, "request", return_value=mock_response):
         assert proxy.exists("missing.txt") is False
 
 
-def test_sync_bucket_proxy_exists_reraises_unexpected_status() -> None:
+@pytest.mark.parametrize("status_code,body", _EXISTS_ERROR_RESPONSES)
+def test_sync_bucket_proxy_exists_reraises_other_errors(
+    status_code: int, body: Any
+) -> None:
     proxy = _sync_bucket_proxy()
-    mock_response = Response(
-        status_code=401, request=Request("HEAD", "https://example.com")
-    )
+    mock_response = _exists_response(status_code, body)
     with patch.object(proxy._client, "request", return_value=mock_response):
-        with pytest.raises(StorageApiError):
-            proxy.exists("missing.txt")
+        with pytest.raises(StorageApiError) as exc_info:
+            proxy.exists("file.txt")
+
+    assert str(exc_info.value.status) == str(status_code)
 
 
 @pytest.mark.asyncio
-async def test_async_bucket_proxy_exists_false_on_headless_error() -> None:
+@pytest.mark.parametrize("body", _MISSING_OBJECT_RESPONSES)
+async def test_async_bucket_proxy_exists_false_on_missing_object(body: Any) -> None:
     proxy = _async_bucket_proxy()
-    mock_response = Response(
-        status_code=400, request=Request("HEAD", "https://example.com")
-    )
+    mock_response = _exists_response(404, body)
     with patch.object(
         proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
     ):
         assert await proxy.exists("missing.txt") is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status_code,body", _EXISTS_ERROR_RESPONSES)
+async def test_async_bucket_proxy_exists_reraises_other_errors(
+    status_code: int, body: Any
+) -> None:
+    proxy = _async_bucket_proxy()
+    mock_response = _exists_response(status_code, body)
+    with patch.object(
+        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
+        with pytest.raises(StorageApiError) as exc_info:
+            await proxy.exists("file.txt")
+
+    assert str(exc_info.value.status) == str(status_code)
 
 
 def _analytics_list_handler(captured: Dict[str, Any]) -> Any:
