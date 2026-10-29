@@ -477,3 +477,30 @@ async def test_invoke_plain_function_name_has_no_query() -> None:
     (request,) = seen
     assert request.url.path == "/functions/v1/hello"
     assert request.url.query == b""
+
+
+@pytest.mark.parametrize("function_name", ["?name=bob", "#top", " ?a=1"])
+async def test_invoke_rejects_name_without_path(function_name: str) -> None:
+    seen: List[Request] = []
+    client = _recording_client(seen)
+
+    with pytest.raises(ValueError):
+        await client.invoke(function_name)
+
+    assert seen == []
+
+
+async def test_invoke_query_string_keeps_repeated_and_encoded_values() -> None:
+    seen: List[Request] = []
+    client = _recording_client(seen)
+
+    await client.invoke("dir/fn?a=1&a=2&q=a%20b&p=x%2By")
+
+    (request,) = seen
+    assert request.url.path == "/functions/v1/dir/fn"
+    assert request.url.params.multi_items() == [
+        ("a", "1"),
+        ("a", "2"),
+        ("q", "a b"),
+        ("p", "x+y"),
+    ]

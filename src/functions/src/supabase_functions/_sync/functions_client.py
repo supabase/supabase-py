@@ -133,7 +133,8 @@ class SyncFunctionsClient:
 
         Parameters
         ----------
-        function_name : the name of the function to invoke
+        function_name : the name of the function to invoke. It may carry a query
+            string, as in `hello?name=bob`. A `#fragment` is dropped.
         invoke_options : object with the following properties
             `headers`: object representing the headers to send with the request
             `body`: the body of the request
@@ -142,10 +143,12 @@ class SyncFunctionsClient:
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
-        headers = Headers(self.headers)
         # Like a URL, a name such as "hello?name=bob" carries query params and
         # the fragment is never sent.
         path, _, query = function_name.split("#", 1)[0].partition("?")
+        if not is_valid_str_arg(path):
+            raise ValueError("function_name must a valid string value.")
+        headers = Headers(self.headers)
         params = QueryParams(query)
         body = None
         method: HTTPMethod = "POST"
