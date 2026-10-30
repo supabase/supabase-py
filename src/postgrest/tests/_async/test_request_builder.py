@@ -696,3 +696,19 @@ class TestApiResponse:
         )
         assert isinstance(result.data, str)
         assert result.data == csv_api_response
+
+    def test_from_http_request_response_with_csv_data(
+        self, request_response_with_csv_data: Response, csv_api_response: str
+    ):
+        result = APIResponse.from_http_request_response(request_response_with_csv_data)
+        assert result.data == csv_api_response
+
+    def test_from_http_request_response_with_non_utf8_body(self):
+        request_response = Response(
+            status_code=200,
+            content=b"caf\xe9",
+            headers={"Content-Type": "text/plain; charset=latin-1"},
+            request=Request(method="GET", url="http://example.com"),
+        )
+        result = APIResponse.from_http_request_response(request_response)
+        assert result.data == "café"
