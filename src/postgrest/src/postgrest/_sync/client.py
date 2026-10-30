@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import platform
 import sys
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 from warnings import warn
 
 from deprecation import deprecated
@@ -32,7 +32,7 @@ class SyncPostgrestClient(BasePostgrestClient):
         base_url: str,
         *,
         schema: str = "public",
-        headers: Dict[str, str] = DEFAULT_POSTGREST_CLIENT_HEADERS,
+        headers: dict[str, str] = DEFAULT_POSTGREST_CLIENT_HEADERS,
         timeout: Union[int, float, Timeout, None] = None,
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,

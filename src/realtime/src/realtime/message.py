@@ -1,4 +1,5 @@
-from typing import Any, List, Literal, Mapping, Optional, Union
+from collections.abc import Mapping
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
 from typing_extensions import TypeAlias
@@ -39,11 +40,11 @@ class PostgresRowChange(BaseModel):
     table: Optional[str] = None
     schema_: Optional[str] = Field(alias="schema", default=None)
     filter: Optional[str] = None
-    select: Optional[List[str]] = None
+    select: Optional[list[str]] = None
 
 
 class ReplyPostgresChanges(BaseModel):
-    postgres_changes: Optional[List[PostgresRowChange]] = None
+    postgres_changes: Optional[list[PostgresRowChange]] = None
 
 
 class SuccessReplyMessage(BaseModel):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Type, TypeVar
+from collections.abc import Iterable
+from typing import Any, TypeVar
 
 from deprecation import deprecated
 from httpx import AsyncClient  # noqa: F401
@@ -91,7 +92,7 @@ def is_http_url(url: URL) -> bool:
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def model_validate_json(model: Type[TBaseModel], contents) -> TBaseModel:
+def model_validate_json(model: type[TBaseModel], contents) -> TBaseModel:
     """Compatibility layer between pydantic 1 and 2 for parsing an instance
     of a BaseModel from varied"""
     try:

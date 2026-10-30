@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 from httpx import BasicAuth, Headers, Timeout
 from typing_extensions import Self
@@ -17,7 +17,7 @@ class BasePostgrestClient:
         base_url: URL,
         *,
         schema: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         timeout: Union[int, float, Timeout],
         verify: bool = True,
         proxy: Optional[str] = None,

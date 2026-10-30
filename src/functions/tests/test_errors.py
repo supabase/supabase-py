@@ -1,4 +1,4 @@
-from typing import Optional, Type
+from typing import Optional
 
 import pytest
 from httpx import Response
@@ -20,7 +20,7 @@ from supabase_functions.errors import (
     ],
 )
 def test_error_initialization(
-    error_class: Type[FunctionsError], expected_name: str, expected_status: int
+    error_class: type[FunctionsError], expected_name: str, expected_status: int
 ) -> None:
     test_message = "Test error message"
     if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
@@ -44,7 +44,7 @@ def test_error_initialization(
     ],
 )
 def test_error_to_dict(
-    error_class: Type[FunctionsError], expected_name: str, expected_status: int
+    error_class: type[FunctionsError], expected_name: str, expected_status: int
 ) -> None:
     test_message = "Test error message"
 

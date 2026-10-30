@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional
+from collections.abc import Coroutine
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from typing_extensions import assert_never
 
@@ -207,7 +208,7 @@ class AsyncRealtimeChannel:
             )
             presence["enabled"] = presence_enabled
 
-            config_payload: Dict[str, Any] = {
+            config_payload: dict[str, Any] = {
                 "config": {
                     "broadcast": broadcast,
                     "presence": presence,
@@ -262,7 +263,7 @@ class AsyncRealtimeChannel:
                 self.postgres_changes_callbacks = new_postgres_bindings
                 callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
 
-            def on_join_push_error(payload: Dict[str, Any]) -> None:
+            def on_join_push_error(payload: dict[str, Any]) -> None:
                 callback and callback(
                     RealtimeSubscribeStates.CHANNEL_ERROR,
                     Exception(json.dumps(payload)),
@@ -302,7 +303,7 @@ class AsyncRealtimeChannel:
         await leave_push.send()
 
     async def push(
-        self, event: str, payload: Dict[str, Any], timeout: Optional[int] = None
+        self, event: str, payload: dict[str, Any], timeout: Optional[int] = None
     ) -> AsyncPush:
         """
         Push a message to the channel.
@@ -341,7 +342,7 @@ class AsyncRealtimeChannel:
         presence = config.get("presence")
         private = config.get("private", False)
 
-        config_payload: Dict[str, Any] = {
+        config_payload: dict[str, Any] = {
             "config": {
                 "broadcast": broadcast,
                 "presence": presence,
@@ -382,7 +383,7 @@ class AsyncRealtimeChannel:
         table: Optional[str] = None,
         schema: Optional[str] = None,
         filter: Optional[str] = None,
-        select: Optional[List[str]] = None,
+        select: Optional[list[str]] = None,
     ) -> AsyncRealtimeChannel:
         """
         Set up a listener for Postgres database changes.
@@ -429,7 +430,7 @@ class AsyncRealtimeChannel:
         return self
 
     # Presence methods
-    async def track(self, user_status: Dict[str, Any]) -> None:
+    async def track(self, user_status: dict[str, Any]) -> None:
         """
         Track presence status for the current user.
 
