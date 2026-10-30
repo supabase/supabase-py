@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any, Iterable, Type, TypeVar, cast, get_origin
 from urllib.parse import urlparse
 
@@ -78,10 +79,13 @@ def rpc_query_param(value: Any) -> Any:
     """Format an RPC argument sent in the query string, as in GET or HEAD calls.
 
     Lists and tuples become PostgreSQL array literals, since PostgREST keeps only
-    one value when a non-variadic argument is repeated.
+    one value when a non-variadic argument is repeated. Dictionaries become JSON
+    for named json/jsonb arguments.
     """
     if isinstance(value, (list, tuple)):
         return sanitize_array_param(value)
+    if isinstance(value, dict):
+        return json.dumps(value)
     return value
 
 
