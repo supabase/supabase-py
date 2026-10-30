@@ -97,6 +97,7 @@ class AsyncClient:
         self._postgrest: Optional[AsyncPostgrestClient] = None
         self._storage: Optional[AsyncStorageClient] = None
         self._functions: Optional[AsyncFunctionsClient] = None
+        self._background_tasks: set[asyncio.Task[None]] = set()
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
@@ -344,7 +345,9 @@ class AsyncClient:
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
         self.auth._headers["Authorization"] = auth_header
-        asyncio.create_task(self.realtime.set_auth(access_token))
+        task = asyncio.create_task(self.realtime.set_auth(access_token))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
 
 async def create_client(
