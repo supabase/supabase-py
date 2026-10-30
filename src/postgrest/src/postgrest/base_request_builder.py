@@ -23,7 +23,7 @@ from typing import (
 
 from httpx import AsyncClient, Auth, BasicAuth, Client, Headers, QueryParams
 from httpx import Response as RequestResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from yarl import URL
 
 if sys.version_info >= (3, 11):
@@ -44,7 +44,6 @@ from .types import (
     CountMethod,
     Filters,
     FilterValue,
-    JSONAdapter,
     RequestMethod,
     ReturnMethod,
 )
@@ -294,8 +293,8 @@ class APIResponse(BaseModel):
     def from_http_request_response(request_response: RequestResponse) -> APIResponse:
         count = APIResponse._get_count_from_http_request_response(request_response)
         try:
-            data = JSONAdapter.validate_json(request_response.content)
-        except ValidationError:
+            data = json.loads(request_response.content)
+        except ValueError:
             data = request_response.text if len(request_response.text) > 0 else []
         return APIResponse.model_construct(data=data, count=count)
 
