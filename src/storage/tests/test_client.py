@@ -517,6 +517,67 @@ def test_sync_analytics_list_sends_camel_case_sort_params(
     }
 
 
+def _analytics_error_handler(request: Request) -> Response:
+    return Response(
+        404,
+        json={
+            "error": {
+                "message": "Bucket not found",
+                "type": "NoSuchBucket",
+                "code": 404,
+            }
+        },
+    )
+
+
+_ANALYTICS_CALLS = [
+    ("create", ("missing",)),
+    ("list", ()),
+    ("delete", ("missing",)),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method, args", _ANALYTICS_CALLS)
+async def test_async_analytics_raises_server_error(
+    valid_url, valid_headers, method, args
+) -> None:
+    from httpx import MockTransport
+
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(transport=MockTransport(_analytics_error_handler)),
+    )
+
+    with pytest.raises(StorageApiError) as exc_info:
+        await getattr(client.analytics(), method)(*args)
+
+    assert exc_info.value.message == "Bucket not found"
+    assert exc_info.value.code == "NoSuchBucket"
+    assert exc_info.value.status == 404
+
+
+@pytest.mark.parametrize("method, args", _ANALYTICS_CALLS)
+def test_sync_analytics_raises_server_error(
+    valid_url, valid_headers, method, args
+) -> None:
+    from httpx import MockTransport
+
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(transport=MockTransport(_analytics_error_handler)),
+    )
+
+    with pytest.raises(StorageApiError) as exc_info:
+        getattr(client.analytics(), method)(*args)
+
+    assert exc_info.value.message == "Bucket not found"
+    assert exc_info.value.code == "NoSuchBucket"
+    assert exc_info.value.status == 404
+
+
 def _list_indexes_transport(captured: dict[str, Any]) -> Any:
     """A transport that records the ListIndexes request body and replies with one page."""
     import json as _json

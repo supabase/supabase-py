@@ -17,6 +17,15 @@ class VectorBucketErrorMessage(BaseModel):
     code: Optional[str] = None
 
 
+class AnalyticsBucketErrorDetail(BaseModel):
+    message: str
+    type: str
+
+
+class AnalyticsBucketErrorMessage(BaseModel):
+    error: AnalyticsBucketErrorDetail
+
+
 class StorageApiErrorDict(TypedDict):
     name: str
     message: str
