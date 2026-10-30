@@ -54,6 +54,9 @@ select = [
   "RUF100",
   # unreferenced asyncio tasks
   "RUF006",
+  # blanket type: ignore and noqa
+  "PGH003",
+  "PGH004",
   # flake8-async
   "ASYNC",
 ]
