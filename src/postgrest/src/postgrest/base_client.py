@@ -23,7 +23,7 @@ class BasePostgrestClient(ABC):
         proxy: Optional[str] = None,
     ) -> None:
         if not is_http_url(base_url):
-            ValueError("base_url must be a valid HTTP URL string")
+            raise ValueError("base_url must be a valid HTTP URL string")
 
         self.base_url = base_url
         self.headers = Headers(headers)

@@ -83,6 +83,15 @@ class TestConstructor:
             )
             assert session.headers.items() >= headers.items()
 
+    def test_invalid_base_url_raises(self):
+        with pytest.raises(ValueError, match="base_url must be a valid HTTP URL"):
+            AsyncPostgrestClient("ftp://example.com")
+
+    @pytest.mark.parametrize("url", ["http://example.com", "https://example.com"])
+    def test_valid_http_base_url_constructs(self, url: str):
+        client = AsyncPostgrestClient(url)
+        assert str(client.base_url) == url
+
 
 class TestHttpxClientConstructor:
     @pytest.mark.asyncio
