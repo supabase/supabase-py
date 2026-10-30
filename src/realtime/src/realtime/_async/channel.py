@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional
 
 from typing_extensions import assert_never
 
@@ -91,6 +91,7 @@ class AsyncRealtimeChannel:
         self.presence: AsyncRealtimePresence = AsyncRealtimePresence()
         self.state = ChannelStates.CLOSED
         self._push_buffer: list[AsyncPush] = []
+        self._background_tasks: set[asyncio.Task[None]] = set()
         self.timeout = self.socket.timeout
 
         self.join_push: AsyncPush = AsyncPush(
@@ -114,7 +115,7 @@ class AsyncRealtimeChannel:
             self.state = ChannelStates.JOINED
             self.rejoin_timer.reset()
             for push in self._push_buffer:
-                asyncio.create_task(push.send())
+                self._run_in_background(push.send())
             self._push_buffer = []
 
         def on_join_push_timeout() -> None:
@@ -249,7 +250,7 @@ class AsyncRealtimeChannel:
                             postgres_callback.id = server_binding.id
                             new_postgres_bindings.append(postgres_callback)
                         else:
-                            asyncio.create_task(self.unsubscribe())
+                            self._run_in_background(self.unsubscribe())
                             callback and callback(
                                 RealtimeSubscribeStates.CHANNEL_ERROR,
                                 Exception(
@@ -463,7 +464,7 @@ class AsyncRealtimeChannel:
             logger.info(
                 f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel"
             )
-            asyncio.create_task(self._resubscribe())
+            self._run_in_background(self._resubscribe())
 
         return self
 
@@ -481,7 +482,7 @@ class AsyncRealtimeChannel:
             logger.info(
                 f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel"
             )
-            asyncio.create_task(self._resubscribe())
+            self._run_in_background(self._resubscribe())
 
         return self
 
@@ -499,7 +500,7 @@ class AsyncRealtimeChannel:
             logger.info(
                 f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel"
             )
-            asyncio.create_task(self._resubscribe())
+            self._run_in_background(self._resubscribe())
         return self
 
     # Broadcast methods
@@ -516,6 +517,11 @@ class AsyncRealtimeChannel:
         )
 
     # Internal methods
+
+    def _run_in_background(self, coroutine: Coroutine[Any, Any, None]) -> None:
+        task = asyncio.create_task(coroutine)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     async def _resubscribe(self) -> None:
         await self.unsubscribe()

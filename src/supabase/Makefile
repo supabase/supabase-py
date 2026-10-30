@@ -25,7 +25,7 @@ include ../../gnu-sed.mk
 
 build-sync: gnu-sed
 	@$(MAKE) --no-print-directory unasync
-	$(SED) -i 's/asyncio.create_task(self.realtime.set_auth(access_token))//g' src/supabase/_sync/client.py
+	$(SED) -i '/_background_tasks\|asyncio\.create_task(self\.realtime\.set_auth/d' src/supabase/_sync/client.py
 	$(SED) -i 's/asynch/synch/g' src/supabase/_sync/auth_client.py
 	$(SED) -i 's/Async/Sync/g' src/supabase/_sync/auth_client.py
 	$(SED) -i 's/Async/Sync/g' src/supabase/_sync/client.py
