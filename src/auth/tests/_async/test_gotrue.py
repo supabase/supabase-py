@@ -1,17 +1,25 @@
 import time
+from datetime import datetime, timezone
+from typing import Any, List, Optional
 from uuid import uuid4
 
 import pytest
+from httpx import ConnectError
 from jwt import encode
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
+    AuthRetryableError,
     AuthSessionMissingError,
+    AuthUnknownError,
 )
 from supabase_auth.helpers import decode_jwt
 from supabase_auth.types import (
+    Session,
     SignInWithOAuthCredentials,
+    SignOutScope,
     SignUpWithEmailAndPasswordCredentials,
+    User,
 )
 
 from .clients import (
@@ -739,6 +747,141 @@ async def test_sign_out() -> None:
 
                     # Verify that _notify_all_subscribers was still called despite the error
                     mock_notify.assert_called_once_with("SIGNED_OUT", None)
+
+
+async def _signed_in_client(handler: Any, expires_at: int) -> Any:
+    from httpx import AsyncClient, MockTransport
+    from supabase_auth import AsyncGoTrueClient
+
+    client = AsyncGoTrueClient(
+        url="http://localhost/auth/v1",
+        auto_refresh_token=False,
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    )
+    session = Session(
+        access_token="access",
+        refresh_token="refresh",
+        expires_in=3600,
+        expires_at=expires_at,
+        token_type="bearer",
+        user=User(
+            id=str(uuid4()),
+            app_metadata={},
+            user_metadata={},
+            aud="authenticated",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ),
+    )
+    await client._save_session(session)
+    return client
+
+
+@pytest.mark.parametrize(
+    ("scope", "response", "raises", "cleared"),
+    [
+        ("global", (204, None), None, True),
+        ("global", (401, {"msg": "invalid JWT"}), None, True),
+        ("global", (403, {"msg": "session not found"}), None, True),
+        ("global", (404, {"msg": "user not found"}), None, True),
+        ("global", (429, {"msg": "rate limited"}), AuthApiError, False),
+        ("global", (500, {"msg": "boom"}), AuthApiError, False),
+        ("global", (500, "not json"), AuthUnknownError, False),
+        ("global", (503, {"msg": "unavailable"}), AuthRetryableError, False),
+        ("global", ConnectError, AuthRetryableError, False),
+        ("local", (204, None), None, True),
+        ("local", (401, {"msg": "invalid JWT"}), None, True),
+        ("local", (500, {"msg": "boom"}), AuthApiError, True),
+        ("local", (500, "not json"), AuthUnknownError, True),
+        ("local", (503, {"msg": "unavailable"}), AuthRetryableError, True),
+        ("local", ConnectError, AuthRetryableError, True),
+        ("others", (204, None), None, False),
+        ("others", (401, {"msg": "invalid JWT"}), None, False),
+        ("others", (500, {"msg": "boom"}), AuthApiError, False),
+        ("others", (503, {"msg": "unavailable"}), AuthRetryableError, False),
+    ],
+)
+async def test_sign_out_when_logout_request_fails(
+    scope: SignOutScope,
+    response: Any,
+    raises: Optional[type],
+    cleared: bool,
+) -> None:
+    from httpx import Request, Response
+
+    events: List[str] = []
+    events_at_request: List[List[str]] = []
+
+    def handler(request: Request) -> Response:
+        assert request.url.path.endswith("/logout")
+        events_at_request.append(list(events))
+        if response is ConnectError:
+            raise ConnectError("connection refused", request=request)
+        status, body = response
+        if isinstance(body, str):
+            return Response(status, text=body)
+        return Response(status, json=body)
+
+    client = await _signed_in_client(handler, int(time.time()) + 3600)
+    client.on_auth_state_change(lambda event, _: events.append(event))
+
+    if raises is None:
+        await client.sign_out({"scope": scope})
+    else:
+        with pytest.raises(raises):
+            await client.sign_out({"scope": scope})
+
+    assert (await client.get_session() is None) == cleared
+    assert events == (["SIGNED_OUT"] if cleared else [])
+    # `local` signs out this device before the request is sent.
+    assert events_at_request == [["SIGNED_OUT"] if scope == "local" else []]
+
+
+@pytest.mark.parametrize(
+    ("scope", "cleared"), [("global", False), ("local", True), ("others", False)]
+)
+async def test_sign_out_when_refresh_fails(scope: SignOutScope, cleared: bool) -> None:
+    # The access token has expired and the refresh fails, so there is no token
+    # to send the logout request with.
+    from httpx import Request, Response
+
+    paths: List[str] = []
+
+    def handler(request: Request) -> Response:
+        paths.append(request.url.path)
+        return Response(503, json={"msg": "unavailable"})
+
+    client = await _signed_in_client(handler, int(time.time()) - 60)
+    events: List[str] = []
+    client.on_auth_state_change(lambda event, _: events.append(event))
+
+    with pytest.raises(AuthRetryableError):
+        await client.sign_out({"scope": scope})
+
+    assert not any(path.endswith("/logout") for path in paths)
+    assert (await client._load_session() is None) == cleared
+    assert events == (["SIGNED_OUT"] if cleared else [])
+
+
+async def test_local_sign_out_sends_request_when_subscriber_raises() -> None:
+    from httpx import Request, Response
+
+    paths: List[str] = []
+
+    def handler(request: Request) -> Response:
+        paths.append(request.url.path)
+        return Response(204)
+
+    def callback(event: str, _: Any) -> None:
+        raise RuntimeError("subscriber failed")
+
+    client = await _signed_in_client(handler, int(time.time()) + 3600)
+    client.on_auth_state_change(callback)
+
+    with pytest.raises(RuntimeError, match="subscriber failed"):
+        await client.sign_out({"scope": "local"})
+
+    assert paths == ["/auth/v1/logout"]
+    assert await client.get_session() is None
 
 
 async def test_initialize_from_storage_keeps_refreshed_session() -> None:

@@ -3,7 +3,6 @@ from __future__ import annotations
 import platform
 import sys
 import time
-from contextlib import suppress
 from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
@@ -95,6 +94,14 @@ from .gotrue_admin_api import AsyncGoTrueAdminAPI
 from .gotrue_base_api import AsyncGoTrueBaseAPI
 from .gotrue_mfa_api import AsyncGoTrueMFAAPI
 from .storage import AsyncMemoryStorage, AsyncSupportedStorage
+
+
+def _is_signed_out_error(error: Exception) -> bool:
+    # The session is already gone server side (expired or invalid JWT, or the
+    # user was deleted), so the sign out has the effect the caller asked for.
+    return isinstance(error, AuthSessionMissingError) or (
+        isinstance(error, AuthApiError) and error.status in (401, 403, 404)
+    )
 
 
 class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
@@ -802,15 +809,60 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
         There is no way to revoke a user's access token jwt until it expires.
         It is recommended to set a shorter expiry on the jwt for this reason.
-        """
-        signout_options = options or {"scope": "global"}
-        with suppress(AuthApiError):
-            session = await self.get_session()
-            access_token = session.access_token if session else None
-            if access_token:
-                await self.admin.sign_out(access_token, signout_options["scope"])
 
-        if signout_options["scope"] != "others":
+        `sign_out` behavior depends on the scope:
+
+        - `global` (the default): the session is removed and `"SIGNED_OUT"` is
+          emitted only after the server revokes all of the user's sessions. If
+          the request fails, the error is raised and the session is kept, so the
+          call can be retried or replaced with a `local` sign out.
+        - `local`: the session is removed and `"SIGNED_OUT"` is emitted first,
+          then the request to revoke it on the server is sent. If the request
+          fails, the error is raised.
+        - `others`: the session is never removed. If the request fails, the
+          error is raised.
+
+        A 401, 403 or 404 response counts as already signed out.
+        """
+        scope = (options or {}).get("scope", "global")
+        try:
+            session = await self.get_session()
+        except AuthApiError:
+            # The refresh was rejected, so there is no session left to revoke.
+            session = None
+        except AuthRetryableError:
+            # The access token expired and could not be refreshed, so there is
+            # nothing to revoke with. `local` still signs out this device.
+            if scope == "local":
+                await self._remove_session()
+                self._notify_all_subscribers("SIGNED_OUT", None)
+            raise
+        access_token = session.access_token if session else None
+
+        teardown_error: Optional[Exception] = None
+        if scope == "local":
+            # A failing `"SIGNED_OUT"` subscriber must not skip the request, so
+            # its error is raised once the request has been sent.
+            try:
+                await self._remove_session()
+                self._notify_all_subscribers("SIGNED_OUT", None)
+            except Exception as e:
+                teardown_error = e
+
+        error: Optional[Exception] = None
+        if access_token:
+            try:
+                await self.admin.sign_out(access_token, scope)
+            except Exception as e:
+                if not _is_signed_out_error(e):
+                    error = e
+
+        if teardown_error is not None:
+            raise teardown_error
+        if error is not None:
+            raise error
+
+        if scope == "global":
             await self._remove_session()
             self._notify_all_subscribers("SIGNED_OUT", None)
 
