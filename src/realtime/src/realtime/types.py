@@ -4,12 +4,10 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Dict, List, Literal, Optional, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, with_config
+from pydantic import ConfigDict, with_config
 from typing_extensions import (
-    Generic,
     NotRequired,
     ParamSpec,
-    Required,
     TypeAlias,
     TypedDict,
 )
@@ -162,7 +160,7 @@ class PostgresChangesCallback:
 
 
 class _Hook:
-    def __init__(self, status: str, callback: Callback[[Dict[str, Any]], None]):
+    def __init__(self, status: str, callback: Callback[[Dict[str, Any]], None]) -> None:
         self.status = status
         self.callback = callback
 
@@ -173,13 +171,13 @@ class Presence(TypedDict):
 
 
 class PresenceEvents:
-    def __init__(self, state: str, diff: str):
+    def __init__(self, state: str, diff: str) -> None:
         self.state = state
         self.diff = diff
 
 
 class PresenceOpts:
-    def __init__(self, events: PresenceEvents):
+    def __init__(self, events: PresenceEvents) -> None:
         self.events = events
 
 

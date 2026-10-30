@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Type, TypeVar, cast, get_origin
-from urllib.parse import urlparse
+from typing import Any, Iterable, Type, TypeVar
 
 from deprecation import deprecated
 from httpx import AsyncClient  # noqa: F401
-from httpx import Client as BaseClient  # noqa: F401
+from httpx import Client as BaseClient
 from pydantic import BaseModel
 from yarl import URL
 

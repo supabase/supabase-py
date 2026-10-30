@@ -10,7 +10,7 @@ from realtime.types import RealtimeAcknowledgementStatus
 
 
 @pytest.mark.asyncio
-async def test_resend_starts_a_new_timeout():
+async def test_resend_starts_a_new_timeout() -> None:
     channel = Mock()
     channel.topic = "realtime:test"
     channel.join_push.ref = "join-ref"
@@ -20,7 +20,7 @@ async def test_resend_starts_a_new_timeout():
 
     timeout_count = 0
 
-    def on_timeout():
+    def on_timeout() -> None:
         nonlocal timeout_count
         timeout_count += 1
 
@@ -41,11 +41,11 @@ async def test_resend_starts_a_new_timeout():
 
 
 @pytest.mark.asyncio
-async def test_receive_timeout_after_push_send_outlasts_deadline():
+async def test_receive_timeout_after_push_send_outlasts_deadline() -> None:
     socket = AsyncRealtimeClient("http://localhost:54321/realtime/v1", timeout=1)
     channel = socket.channel("positions")
 
-    async def send(raw):
+    async def send(raw) -> None:
         message = json.loads(raw)
         if message["event"] == "phx_join":
             channel._handle_message(
@@ -68,7 +68,7 @@ async def test_receive_timeout_after_push_send_outlasts_deadline():
     socket._ws_connection = websocket
     timed_out = []
 
-    def on_timeout():
+    def on_timeout() -> None:
         timed_out.append(True)
 
     try:
@@ -83,7 +83,7 @@ async def test_receive_timeout_after_push_send_outlasts_deadline():
         await socket.close()
 
 
-def test_receive_after_ok_preserves_response():
+def test_receive_after_ok_preserves_response() -> None:
     push = AsyncPush(Mock(), "broadcast")
     response = ReplyPostgresChanges(postgres_changes=[])
     push.trigger(RealtimeAcknowledgementStatus.Ok, response)
@@ -94,7 +94,7 @@ def test_receive_after_ok_preserves_response():
     callback.assert_called_once_with(response)
 
 
-def test_receive_after_error_preserves_response():
+def test_receive_after_error_preserves_response() -> None:
     push = AsyncPush(Mock(), "broadcast")
     response = {"reason": "permission denied"}
     push.trigger(RealtimeAcknowledgementStatus.Error, response)

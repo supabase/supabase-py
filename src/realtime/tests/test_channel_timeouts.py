@@ -17,7 +17,7 @@ async def connected_socket(timeout: float) -> AsyncRealtimeClient:
 
 
 @pytest.mark.asyncio
-async def test_join_push_uses_client_timeout():
+async def test_join_push_uses_client_timeout() -> None:
     socket = await connected_socket(timeout=0.1)
     channel = socket.channel("join-timeout")
     states: list[RealtimeSubscribeStates] = []
@@ -33,7 +33,7 @@ async def test_join_push_uses_client_timeout():
 
 
 @pytest.mark.asyncio
-async def test_unsubscribe_closes_channel_when_leave_times_out():
+async def test_unsubscribe_closes_channel_when_leave_times_out() -> None:
     socket = await connected_socket(timeout=0.1)
     channel = socket.channel("leave-timeout")
     await channel.subscribe(lambda state, error: None)

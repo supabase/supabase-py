@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import re
 import sys
@@ -30,7 +29,7 @@ from .channel import AsyncRealtimeChannel, RealtimeChannelOptions
 
 def deprecated(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         logger.warning(f"Warning: {func.__name__} is deprecated.")
         return func(*args, **kwargs)
 
@@ -200,7 +199,7 @@ class AsyncRealtimeClient:
         )
 
     @deprecated
-    async def listen(self):
+    async def listen(self) -> None:
         pass
 
     async def _on_connect(self) -> None:
@@ -229,7 +228,7 @@ class AsyncRealtimeClient:
         else:
             logger.error("Auto-reconnect disabled, terminating connection")
 
-    async def _flush_send_buffer(self):
+    async def _flush_send_buffer(self) -> None:
         if self.is_connected and len(self.send_buffer) > 0:
             for callback in self.send_buffer:
                 await callback()
@@ -276,7 +275,7 @@ class AsyncRealtimeClient:
 
             except websockets.exceptions.ConnectionClosedError as e:
                 await self._on_connect_error(e)
-            except websockets.exceptions.ConnectionClosedOK as e:
+            except websockets.exceptions.ConnectionClosedOK:
                 pass
 
     def channel(
@@ -389,7 +388,7 @@ class AsyncRealtimeClient:
                 f"send: {msg.model_copy(update={'payload': redacted}).model_dump_json()}"
             )
 
-        async def send_message():
+        async def send_message() -> None:
             if not self._ws_connection:
                 raise NotConnectedError("_send")
 
@@ -405,7 +404,7 @@ class AsyncRealtimeClient:
         else:
             self.send_buffer.append(send_message)
 
-    async def _leave_open_topic(self, topic: str):
+    async def _leave_open_topic(self, topic: str) -> None:
         dup_channels = [
             ch
             for ch in self.channels.values()

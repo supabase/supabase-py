@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import platform
 import sys
-from typing import Any, Dict, Optional, Union, cast
+from typing import Dict, Optional, Union
 from warnings import warn
 
 from deprecation import deprecated
