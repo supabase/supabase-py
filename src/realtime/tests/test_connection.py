@@ -725,6 +725,7 @@ def test_postgres_changes_callback_binding_filter_includes_select() -> None:
     )
     assert with_select.binding_filter == {
         "event": RealtimePostgresChangesListenEvent.Insert,
+        "schema": "public",
         "table": "todos",
         "filter": "id=eq.1",
         "select": ["id", "name"],
@@ -782,6 +783,42 @@ async def test_subscribe_forwards_select_in_postgres_changes(
             "filter": "id=eq.1",
             "select": ["id", "description"],
         }
+    ]
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_subscribe_defaults_postgres_changes_schema_to_public(
+    socket: AsyncRealtimeClient,
+):
+    import json
+    from unittest.mock import AsyncMock
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    channel: AsyncRealtimeChannel = socket.channel("test-default-schema")
+    channel.on_postgres_changes(RealtimePostgresChangesListenEvent.All, lambda _: None)
+    channel.on_postgres_changes(
+        RealtimePostgresChangesListenEvent.Insert,
+        lambda _: None,
+        table="todos",
+        filter="id=eq.1",
+    )
+
+    await channel.subscribe(lambda state, error: None)
+
+    message_data = json.loads(mock_ws.send.call_args[0][0])
+    assert message_data["payload"]["config"]["postgres_changes"] == [
+        {"event": RealtimePostgresChangesListenEvent.All, "schema": "public"},
+        {
+            "event": RealtimePostgresChangesListenEvent.Insert,
+            "schema": "public",
+            "table": "todos",
+            "filter": "id=eq.1",
+        },
     ]
 
     await socket.close()

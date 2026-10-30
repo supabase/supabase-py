@@ -147,9 +147,10 @@ class PostgresChangesCallback:
 
     @property
     def binding_filter(self) -> dict[str, Any]:
-        binding: dict[str, Any] = {"event": self.event}
-        if self.schema:
-            binding["schema"] = self.schema
+        binding: dict[str, Any] = {
+            "event": self.event,
+            "schema": self.schema or "public",
+        }
         if self.table:
             binding["table"] = self.table
         if self.filter:
