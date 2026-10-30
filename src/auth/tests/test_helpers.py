@@ -158,7 +158,7 @@ def test_model_validate_pydantic_v1() -> None:
     mock_model.parse_raw.return_value = "parsed_obj_result"
 
     # Use the patched model in the actual function
-    result = model_validate(mock_model, {"test": "data"})  # type: ignore
+    result = model_validate(mock_model, {"test": "data"})  # type: ignore[arg-type, var-annotated]
 
     # Check that parse_obj was called
     mock_model.parse_raw.assert_called_once_with({"test": "data"})

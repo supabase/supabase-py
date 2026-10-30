@@ -160,15 +160,15 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         )
         # TODO(@o-santi): why is it like this?
         self.mfa = AsyncGoTrueMFAAPI()
-        self.mfa.challenge = self._challenge  # type: ignore
-        self.mfa.challenge_and_verify = self._challenge_and_verify  # type: ignore
-        self.mfa.enroll = self._enroll  # type: ignore
-        self.mfa.get_authenticator_assurance_level = (  # type: ignore
+        self.mfa.challenge = self._challenge  # type: ignore[method-assign]
+        self.mfa.challenge_and_verify = self._challenge_and_verify  # type: ignore[method-assign]
+        self.mfa.enroll = self._enroll  # type: ignore[method-assign]
+        self.mfa.get_authenticator_assurance_level = (  # type: ignore[method-assign]
             self._get_authenticator_assurance_level
         )
-        self.mfa.list_factors = self._list_factors  # type: ignore
-        self.mfa.unenroll = self._unenroll  # type: ignore
-        self.mfa.verify = self._verify  # type: ignore
+        self.mfa.list_factors = self._list_factors  # type: ignore[method-assign]
+        self.mfa.unenroll = self._unenroll  # type: ignore[method-assign]
+        self.mfa.verify = self._verify  # type: ignore[method-assign]
 
     # Initializations
 
@@ -596,7 +596,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         phone = credentials.get("phone")
         type = credentials.get("type")
         options = credentials.get("options", {})
-        email_redirect_to: Optional[str] = options.get("email_redirect_to")  # type: ignore
+        email_redirect_to: Optional[str] = options.get("email_redirect_to")  # type: ignore[assignment]
         captcha_token = options.get("captcha_token")
         body: dict[str, object] = {  # improve later
             "type": type,

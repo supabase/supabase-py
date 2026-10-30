@@ -77,4 +77,4 @@ class SyncGoTrueBaseAPI:
             response.raise_for_status()
             return response
         except (HTTPStatusError, RequestError, RuntimeError) as e:
-            raise handle_exception(e)  # noqa
+            raise handle_exception(e) from e
