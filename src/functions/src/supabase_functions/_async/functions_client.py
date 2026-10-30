@@ -3,7 +3,8 @@ import sys
 from typing import Any, Dict, Literal, Optional, Union
 from warnings import warn
 
-from httpx import AsyncClient, Headers, HTTPError, QueryParams, Response
+from httpx import URL as HttpxURL
+from httpx import AsyncClient, Headers, HTTPError, QueryParams, Request, Response
 from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError, _error_message_from
@@ -15,6 +16,26 @@ from ..utils import (
 from ..version import __version__
 
 HTTPMethod = Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
+
+
+class _RedirectGuardClient(AsyncClient):
+    """httpx client that drops the Supabase ``apiKey`` header on a cross host redirect.
+
+    httpx removes the ``Authorization`` header when a response redirects to a
+    different origin, but it forwards custom headers unchanged. The Supabase
+    ``apiKey`` header carries the project key, which is the ``service_role`` key
+    in server side usage, so it must not be sent to whatever host an invoked
+    edge function redirects to. This mirrors the redirect header handling used
+    by the other Supabase client libraries.
+    """
+
+    def _redirect_headers(
+        self, request: Request, url: HttpxURL, method: str
+    ) -> Headers:
+        headers = super()._redirect_headers(request, url, method)
+        if url.host != request.url.host:
+            headers.pop("apiKey", None)
+        return headers
 
 
 class AsyncFunctionsClient:
@@ -71,7 +92,7 @@ class AsyncFunctionsClient:
 
         self.verify = bool(verify) if verify is not None else True
         self.timeout = int(abs(timeout)) if timeout is not None else 60
-        self._client = http_client or AsyncClient(
+        self._client = http_client or _RedirectGuardClient(
             verify=self.verify,
             timeout=self.timeout,
             proxy=proxy,
