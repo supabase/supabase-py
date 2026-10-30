@@ -1,5 +1,5 @@
 import re
-from typing import Any
+from typing import Any, Dict, Union
 from unittest.mock import patch
 
 import pytest
@@ -191,6 +191,37 @@ async def test_response_client_invalid_response_but_valid_json(
         assert isinstance(exc_response.get("message"), str)
         assert exc_response.get("message") == "JSON could not be generated"
         assert "code" in exc_response and int(exc_response["code"]) == 502
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "headers, code",
+    [
+        ({"Proxy-Status": "PostgREST; error=PGRST108"}, "PGRST108"),
+        ({"Proxy-Status": 'PostgREST; error="42703"'}, "42703"),
+        ({"Proxy-Status": "PostgREST"}, 400),
+        ({}, 400),
+    ],
+)
+async def test_response_client_empty_error_body(
+    postgrest_client: AsyncPostgrestClient,
+    headers: Dict[str, str],
+    code: Union[str, int],
+):
+    with patch(
+        "httpx._client.AsyncClient.request",
+        return_value=Response(
+            status_code=400,
+            headers=headers,
+            request=Request(method="HEAD", url="http://example.com"),
+        ),
+    ):
+        client = postgrest_client.from_("test").select("*", head=True)
+        with pytest.raises(APIError) as exc_info:
+            await client.execute()
+        assert exc_info.value.code == code
+        assert exc_info.value.message == "Bad Request"
+        assert exc_info.value.details is None
 
 
 @pytest.mark.asyncio

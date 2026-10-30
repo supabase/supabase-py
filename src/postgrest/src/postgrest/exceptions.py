@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional
 
+from httpx import Response
 from pydantic import BaseModel
 
 
@@ -59,7 +60,25 @@ class APIError(Exception):
         return self._raw_error
 
 
+def _proxy_status_error_code(r: Response) -> Optional[str]:
+    proxy_status: str = r.headers.get("Proxy-Status", "")
+    for param in proxy_status.split(";")[1:]:
+        key, _, value = param.strip().partition("=")
+        if key == "error" and value:
+            return value.strip('"')
+    return None
+
+
 def generate_default_error_message(r):
+    if not r.content:
+        # HEAD responses have no body, so PostgREST reports the error code
+        # in the Proxy-Status header instead.
+        return {
+            "message": r.reason_phrase or f"Request failed with status {r.status_code}",
+            "code": _proxy_status_error_code(r) or r.status_code,
+            "hint": None,
+            "details": None,
+        }
     return {
         "message": "JSON could not be generated",
         "code": r.status_code,
