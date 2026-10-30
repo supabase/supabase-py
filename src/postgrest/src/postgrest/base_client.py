@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import Dict, Optional, Union
 
-from httpx import AsyncClient, BasicAuth, Client, Headers, Timeout
+from httpx import BasicAuth, Headers, Timeout
+from typing_extensions import Self
 from yarl import URL
 
 from .utils import is_http_url
 
 
-class BasePostgrestClient(ABC):
+class BasePostgrestClient:
     """Base PostgREST client."""
 
     def __init__(
@@ -40,7 +40,7 @@ class BasePostgrestClient(ABC):
         *,
         username: Union[str, bytes, None] = None,
         password: Union[str, bytes] = "",
-    ):
+    ) -> Self:
         """
         Authenticate the client with either bearer token or basic authentication.
 

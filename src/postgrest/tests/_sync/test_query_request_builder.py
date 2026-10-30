@@ -17,7 +17,7 @@ def query_request_builder() -> Iterable[SyncQueryRequestBuilder]:
         yield SyncQueryRequestBuilder(request)
 
 
-def test_constructor(query_request_builder: SyncQueryRequestBuilder):
+def test_constructor(query_request_builder: SyncQueryRequestBuilder) -> None:
     builder = query_request_builder
 
     assert str(builder.request.path) == "/example_table"

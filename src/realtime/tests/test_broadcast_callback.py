@@ -44,7 +44,7 @@ def receive_broadcast(channel: AsyncRealtimeChannel, payload: dict) -> None:
 @pytest.mark.asyncio
 async def test_wildcard_and_matching_listeners_receive_broadcast(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     channel = await subscribed_channel(socket)
     wildcard: list[BroadcastPayload] = []
     insert: list[BroadcastPayload] = []
@@ -63,7 +63,9 @@ async def test_wildcard_and_matching_listeners_receive_broadcast(
 
 
 @pytest.mark.asyncio
-async def test_broadcast_event_matching_ignores_case(socket: AsyncRealtimeClient):
+async def test_broadcast_event_matching_ignores_case(
+    socket: AsyncRealtimeClient,
+) -> None:
     channel = await subscribed_channel(socket)
     received: list[BroadcastPayload] = []
     channel.on_broadcast("insert", received.append)

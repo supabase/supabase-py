@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
+from typing import Any, Literal, Optional, TypeVar, overload
 
-from httpx import AsyncClient, BasicAuth, Headers, QueryParams, Response
+from httpx import AsyncClient, BasicAuth, Headers, Response
 from pydantic import ValidationError
-from typing_extensions import Self, override
+from typing_extensions import Self
 from yarl import URL
 
 from ..base_request_builder import (
@@ -57,7 +57,7 @@ async def send_with_retry(req: ReqConfig) -> Response:
 
 
 class AsyncQueryRequestBuilder:
-    def __init__(self, request: ReqConfig):
+    def __init__(self, request: ReqConfig) -> None:
         self.request = request
 
     def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
@@ -95,11 +95,11 @@ class AsyncQueryRequestBuilder:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r))
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class AsyncSingleRequestBuilder:
-    def __init__(self, request: ReqConfig):
+    def __init__(self, request: ReqConfig) -> None:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
@@ -128,11 +128,11 @@ class AsyncSingleRequestBuilder:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r))
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class AsyncExplainRequestBuilder:
-    def __init__(self, request: ReqConfig):
+    def __init__(self, request: ReqConfig) -> None:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
@@ -148,11 +148,11 @@ class AsyncExplainRequestBuilder:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r))
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class AsyncMaybeSingleRequestBuilder:
-    def __init__(self, request: ReqConfig):
+    def __init__(self, request: ReqConfig) -> None:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
@@ -181,7 +181,7 @@ class AsyncMaybeSingleRequestBuilder:
                 json_obj = model_validate_json(APIErrorFromJSON, r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r))
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class AsyncFilterRequestBuilder(
@@ -223,8 +223,9 @@ class AsyncSelectRequestBuilder(
         return AsyncMaybeSingleRequestBuilder(self.request)
 
     def text_search(
-        self, column: str, query: str, options: dict[str, Any] = {}
+        self, column: str, query: str, options: Optional[dict[str, Any]] = None
     ) -> Self:
+        options = options or {}
         type_ = options.get("type")
         type_part = ""
         if type_ == "plain":

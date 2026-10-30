@@ -17,7 +17,7 @@ def filter_request_builder() -> Iterable[SyncFilterRequestBuilder]:
         yield SyncFilterRequestBuilder(request)
 
 
-def test_constructor(filter_request_builder: SyncFilterRequestBuilder):
+def test_constructor(filter_request_builder: SyncFilterRequestBuilder) -> None:
     builder = filter_request_builder
 
     assert str(builder.request.path) == "/example_table"
@@ -28,13 +28,13 @@ def test_constructor(filter_request_builder: SyncFilterRequestBuilder):
     assert not builder.negate_next
 
 
-def test_not_(filter_request_builder):
+def test_not_(filter_request_builder) -> None:
     builder = filter_request_builder.not_
 
     assert builder.negate_next
 
 
-def test_filter(filter_request_builder):
+def test_filter(filter_request_builder) -> None:
     builder = filter_request_builder.filter(":col.name", "eq", "val")
 
     assert builder.request.params['":col.name"'] == "eq.val"
@@ -49,24 +49,24 @@ def test_filter(filter_request_builder):
 )
 def test_filter_special_characters(
     filter_request_builder, col_name, expected_query_prefix
-):
+) -> None:
     builder = filter_request_builder.filter(col_name, "eq", "val")
 
     assert str(builder.request.params) == f"{expected_query_prefix}=eq.val"
 
 
-def test_multivalued_param(filter_request_builder):
+def test_multivalued_param(filter_request_builder) -> None:
     builder = filter_request_builder.lte("x", "a").gte("x", "b")
 
     assert str(builder.request.params) == "x=lte.a&x=gte.b"
 
 
-def test_match(filter_request_builder):
+def test_match(filter_request_builder) -> None:
     builder = filter_request_builder.match({"id": "1", "done": "false"})
     assert str(builder.request.params) == "id=eq.1&done=eq.false"
 
 
-def test_equals(filter_request_builder):
+def test_equals(filter_request_builder) -> None:
     builder = filter_request_builder.eq("x", "a")
 
     assert str(builder.request.params) == "x=eq.a"
@@ -84,7 +84,7 @@ def test_equals(filter_request_builder):
         (42, "eq.42"),
     ],
 )
-def test_eq_serializes_values(filter_request_builder, value, expected):
+def test_eq_serializes_values(filter_request_builder, value, expected) -> None:
     builder = filter_request_builder.eq("x", value)
 
     assert builder.request.params["x"] == expected
@@ -105,51 +105,51 @@ def test_eq_serializes_values(filter_request_builder, value, expected):
 )
 def test_comparison_filters_serialize_values(
     filter_request_builder, method, value, expected
-):
+) -> None:
     builder = getattr(filter_request_builder, method)("x", value)
 
     assert builder.request.params["x"] == f"{method}.{expected}"
 
 
-def test_not_equal(filter_request_builder):
+def test_not_equal(filter_request_builder) -> None:
     builder = filter_request_builder.neq("x", "a")
 
     assert str(builder.request.params) == "x=neq.a"
 
 
-def test_greater_than(filter_request_builder):
+def test_greater_than(filter_request_builder) -> None:
     builder = filter_request_builder.gt("x", "a")
 
     assert str(builder.request.params) == "x=gt.a"
 
 
-def test_greater_than_or_equals_to(filter_request_builder):
+def test_greater_than_or_equals_to(filter_request_builder) -> None:
     builder = filter_request_builder.gte("x", "a")
 
     assert str(builder.request.params) == "x=gte.a"
 
 
-def test_contains(filter_request_builder):
+def test_contains(filter_request_builder) -> None:
     builder = filter_request_builder.contains("x", "a")
 
     assert str(builder.request.params) == "x=cs.a"
 
 
-def test_contains_dictionary(filter_request_builder):
+def test_contains_dictionary(filter_request_builder) -> None:
     builder = filter_request_builder.contains("x", {"a": "b"})
 
     # {"a":"b"}
     assert str(builder.request.params) == "x=cs.%7B%22a%22%3A+%22b%22%7D"
 
 
-def test_contains_any_item(filter_request_builder):
+def test_contains_any_item(filter_request_builder) -> None:
     builder = filter_request_builder.contains("x", ["a", "b"])
 
     # {a,b}
     assert str(builder.request.params) == "x=cs.%7Ba%2Cb%7D"
 
 
-def test_contains_non_string_items(filter_request_builder):
+def test_contains_non_string_items(filter_request_builder) -> None:
     # Non-string iterables (e.g. integer arrays) must be coerced to str
     # instead of raising TypeError from ",".join(...).
     builder = filter_request_builder.contains("x", [1, 2, 3])
@@ -158,42 +158,42 @@ def test_contains_non_string_items(filter_request_builder):
     assert str(builder.request.params) == "x=cs.%7B1%2C2%2C3%7D"
 
 
-def test_cs_non_string_items(filter_request_builder):
+def test_cs_non_string_items(filter_request_builder) -> None:
     builder = filter_request_builder.cs("x", [1, 2, 3])
 
     # {1,2,3}
     assert str(builder.request.params) == "x=cs.%7B1%2C2%2C3%7D"
 
 
-def test_cd_non_string_items(filter_request_builder):
+def test_cd_non_string_items(filter_request_builder) -> None:
     builder = filter_request_builder.cd("x", [1, 2, 3])
 
     # {1,2,3}
     assert str(builder.request.params) == "x=cd.%7B1%2C2%2C3%7D"
 
 
-def test_contained_by_non_string_items(filter_request_builder):
+def test_contained_by_non_string_items(filter_request_builder) -> None:
     builder = filter_request_builder.contained_by("x", [1, 2, 3])
 
     # {1,2,3}
     assert str(builder.request.params) == "x=cd.%7B1%2C2%2C3%7D"
 
 
-def test_overlaps_non_string_items(filter_request_builder):
+def test_overlaps_non_string_items(filter_request_builder) -> None:
     builder = filter_request_builder.overlaps("x", [1, 2, 3])
 
     # {1,2,3}
     assert str(builder.request.params) == "x=ov.%7B1%2C2%2C3%7D"
 
 
-def test_contains_in_list(filter_request_builder):
+def test_contains_in_list(filter_request_builder) -> None:
     builder = filter_request_builder.contains("x", '[{"a": "b"}]')
 
     # [{"a":+"b"}] (the + represents the space)
     assert str(builder.request.params) == "x=cs.%5B%7B%22a%22%3A+%22b%22%7D%5D"
 
 
-def test_contained_by_mixed_items(filter_request_builder):
+def test_contained_by_mixed_items(filter_request_builder) -> None:
     # The second element is the literal string '["b", "c"]'. It contains the
     # array delimiter, so it has to be quoted (with its inner quotes escaped);
     # emitting it bare as {a,["b", "c"]} produced a corrupted literal that
@@ -203,7 +203,9 @@ def test_contained_by_mixed_items(filter_request_builder):
     assert builder.request.params["x"] == 'cd.{a,"[\\"b\\", \\"c\\"]"}'
 
 
-def test_contains_quotes_element_containing_the_delimiter(filter_request_builder):
+def test_contains_quotes_element_containing_the_delimiter(
+    filter_request_builder,
+) -> None:
     # A value containing the comma delimiter must be quoted, otherwise
     # PostgREST reads {a,b,c} as three elements rather than the two passed.
     builder = filter_request_builder.contains("x", ["a,b", "c"])
@@ -211,19 +213,21 @@ def test_contains_quotes_element_containing_the_delimiter(filter_request_builder
     assert builder.request.params["x"] == 'cs.{"a,b",c}'
 
 
-def test_cs_quotes_element_containing_the_delimiter(filter_request_builder):
+def test_cs_quotes_element_containing_the_delimiter(filter_request_builder) -> None:
     builder = filter_request_builder.cs("x", ["a,b"])
 
     assert builder.request.params["x"] == 'cs.{"a,b"}'
 
 
-def test_cd_quotes_element_containing_the_delimiter(filter_request_builder):
+def test_cd_quotes_element_containing_the_delimiter(filter_request_builder) -> None:
     builder = filter_request_builder.cd("x", ["a,b"])
 
     assert builder.request.params["x"] == 'cd.{"a,b"}'
 
 
-def test_overlaps_quotes_element_containing_the_delimiter(filter_request_builder):
+def test_overlaps_quotes_element_containing_the_delimiter(
+    filter_request_builder,
+) -> None:
     builder = filter_request_builder.overlaps("x", ["a,b"])
 
     assert builder.request.params["x"] == 'ov.{"a,b"}'
@@ -231,7 +235,7 @@ def test_overlaps_quotes_element_containing_the_delimiter(filter_request_builder
 
 def test_contains_quotes_braces_quotes_whitespace_empty_and_null(
     filter_request_builder,
-):
+) -> None:
     # Braces, embedded double quotes, whitespace, the empty string and the word
     # NULL all force quoting; embedded quotes are backslash-escaped so each
     # element round-trips as a single value.
@@ -240,7 +244,7 @@ def test_contains_quotes_braces_quotes_whitespace_empty_and_null(
     assert builder.request.params["x"] == 'cs.{"a}b","x\\"y","a b","","NULL"}'
 
 
-def test_range_greater_than(filter_request_builder):
+def test_range_greater_than(filter_request_builder) -> None:
     builder = filter_request_builder.range_gt(
         "x", ["2000-01-02 08:30", "2000-01-02 09:30"]
     )
@@ -252,7 +256,7 @@ def test_range_greater_than(filter_request_builder):
     )
 
 
-def test_range_greater_than_or_equal_to(filter_request_builder):
+def test_range_greater_than_or_equal_to(filter_request_builder) -> None:
     builder = filter_request_builder.range_gte(
         "x", ["2000-01-02 08:30", "2000-01-02 09:30"]
     )
@@ -264,7 +268,7 @@ def test_range_greater_than_or_equal_to(filter_request_builder):
     )
 
 
-def test_range_less_than(filter_request_builder):
+def test_range_less_than(filter_request_builder) -> None:
     builder = filter_request_builder.range_lt(
         "x", ["2000-01-02 08:30", "2000-01-02 09:30"]
     )
@@ -276,7 +280,7 @@ def test_range_less_than(filter_request_builder):
     )
 
 
-def test_range_less_than_or_equal_to(filter_request_builder):
+def test_range_less_than_or_equal_to(filter_request_builder) -> None:
     builder = filter_request_builder.range_lte(
         "x", ["2000-01-02 08:30", "2000-01-02 09:30"]
     )
@@ -288,7 +292,7 @@ def test_range_less_than_or_equal_to(filter_request_builder):
     )
 
 
-def test_range_adjacent(filter_request_builder):
+def test_range_adjacent(filter_request_builder) -> None:
     builder = filter_request_builder.range_adjacent(
         "x", ["2000-01-02 08:30", "2000-01-02 09:30"]
     )
@@ -300,14 +304,14 @@ def test_range_adjacent(filter_request_builder):
     )
 
 
-def test_overlaps(filter_request_builder):
+def test_overlaps(filter_request_builder) -> None:
     builder = filter_request_builder.overlaps("x", ["is:closed", "severity:high"])
 
     # {a,["b",+"c"]}
     assert str(builder.request.params) == "x=ov.%7Bis%3Aclosed%2Cseverity%3Ahigh%7D"
 
 
-def test_overlaps_with_timestamp_range(filter_request_builder):
+def test_overlaps_with_timestamp_range(filter_request_builder) -> None:
     builder = filter_request_builder.overlaps(
         "x", "[2000-01-01 12:45, 2000-01-01 13:15)"
     )
@@ -319,49 +323,49 @@ def test_overlaps_with_timestamp_range(filter_request_builder):
     )
 
 
-def test_like(filter_request_builder):
+def test_like(filter_request_builder) -> None:
     builder = filter_request_builder.like("x", "%a%")
 
     assert str(builder.request.params) == "x=like.%25a%25"
 
 
-def test_ilike(filter_request_builder):
+def test_ilike(filter_request_builder) -> None:
     builder = filter_request_builder.ilike("x", "%a%")
 
     assert str(builder.request.params) == "x=ilike.%25a%25"
 
 
-def test_like_all_of(filter_request_builder):
+def test_like_all_of(filter_request_builder) -> None:
     builder = filter_request_builder.like_all_of("x", "A*,*b")
 
     assert str(builder.request.params) == "x=like%28all%29.%7BA%2A%2C%2Ab%7D"
 
 
-def test_like_any_of(filter_request_builder):
+def test_like_any_of(filter_request_builder) -> None:
     builder = filter_request_builder.like_any_of("x", "a*,*b")
 
     assert str(builder.request.params) == "x=like%28any%29.%7Ba%2A%2C%2Ab%7D"
 
 
-def test_ilike_all_of(filter_request_builder):
+def test_ilike_all_of(filter_request_builder) -> None:
     builder = filter_request_builder.ilike_all_of("x", "A*,*b")
 
     assert str(builder.request.params) == "x=ilike%28all%29.%7BA%2A%2C%2Ab%7D"
 
 
-def test_ilike_any_of(filter_request_builder):
+def test_ilike_any_of(filter_request_builder) -> None:
     builder = filter_request_builder.ilike_any_of("x", "A*,*b")
 
     assert str(builder.request.params) == "x=ilike%28any%29.%7BA%2A%2C%2Ab%7D"
 
 
-def test_is_(filter_request_builder):
+def test_is_(filter_request_builder) -> None:
     builder = filter_request_builder.is_("x", "a")
 
     assert str(builder.request.params) == "x=is.a"
 
 
-def test_is_true(filter_request_builder):
+def test_is_true(filter_request_builder) -> None:
     # PostgREST's `is` operator is case-sensitive and only accepts lowercase
     # trilean literals, so a Python ``True`` must become ``is.true``.
     builder = filter_request_builder.is_("x", True)
@@ -369,31 +373,31 @@ def test_is_true(filter_request_builder):
     assert str(builder.request.params) == "x=is.true"
 
 
-def test_is_false(filter_request_builder):
+def test_is_false(filter_request_builder) -> None:
     builder = filter_request_builder.is_("x", False)
 
     assert str(builder.request.params) == "x=is.false"
 
 
-def test_is_none(filter_request_builder):
+def test_is_none(filter_request_builder) -> None:
     builder = filter_request_builder.is_("x", None)
 
     assert str(builder.request.params) == "x=is.null"
 
 
-def test_in_(filter_request_builder):
+def test_in_(filter_request_builder) -> None:
     builder = filter_request_builder.in_("x", ["a", "b"])
 
     assert str(builder.request.params) == "x=in.%28a%2Cb%29"
 
 
-def test_or_(filter_request_builder):
+def test_or_(filter_request_builder) -> None:
     builder = filter_request_builder.or_("x.eq.1")
 
     assert str(builder.request.params) == "or=%28x.eq.1%29"
 
 
-def test_not_or_(filter_request_builder):
+def test_not_or_(filter_request_builder) -> None:
     builder = filter_request_builder.not_.or_("x.eq.1")
 
     assert str(builder.request.params) == "not.or=%28x.eq.1%29"
@@ -405,7 +409,7 @@ def test_not_or_(filter_request_builder):
     )
 
 
-def test_or_in_contain(filter_request_builder):
+def test_or_in_contain(filter_request_builder) -> None:
     builder = filter_request_builder.or_("id.in.(5,6,7), arraycol.cs.{'a','b'}")
 
     assert (
@@ -414,13 +418,13 @@ def test_or_in_contain(filter_request_builder):
     )
 
 
-def test_max_affected(filter_request_builder):
+def test_max_affected(filter_request_builder) -> None:
     builder = filter_request_builder.max_affected(5)
 
     assert builder.request.headers["prefer"] == "handling=strict,max-affected=5"
 
 
-def test_max_affected_with_existing_prefer_header(filter_request_builder):
+def test_max_affected_with_existing_prefer_header(filter_request_builder) -> None:
     # Set an existing prefer header
     filter_request_builder.request.headers["prefer"] = "return=representation"
     builder = filter_request_builder.max_affected(10)
@@ -431,7 +435,7 @@ def test_max_affected_with_existing_prefer_header(filter_request_builder):
     )
 
 
-def test_max_affected_with_existing_handling_strict(filter_request_builder):
+def test_max_affected_with_existing_handling_strict(filter_request_builder) -> None:
     # Set an existing prefer header with handling=strict
     filter_request_builder.request.headers["prefer"] = "handling=strict,return=minimal"
     builder = filter_request_builder.max_affected(3)
@@ -442,7 +446,7 @@ def test_max_affected_with_existing_handling_strict(filter_request_builder):
     )
 
 
-def test_max_affected_returns_self(filter_request_builder):
+def test_max_affected_returns_self(filter_request_builder) -> None:
     builder = filter_request_builder.max_affected(1)
 
     assert builder is filter_request_builder

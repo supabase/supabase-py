@@ -1,5 +1,5 @@
 import re
-from typing import Any
+from typing import Any, Iterator
 from unittest.mock import patch
 
 import pytest
@@ -28,13 +28,15 @@ from ..credentials import (
 
 
 @pytest.fixture
-def postgrest_client():
+def postgrest_client() -> Iterator[SyncPostgrestClient]:
     with SyncPostgrestClient("https://example.com") as client:
         yield client
 
 
 class TestXClientInfo:
-    def test_structured_metadata_format(self, postgrest_client: SyncPostgrestClient):
+    def test_structured_metadata_format(
+        self, postgrest_client: SyncPostgrestClient
+    ) -> None:
         x_client_info = postgrest_client.session.headers.get("X-Client-Info")
         assert x_client_info is not None
         assert re.match(
@@ -44,7 +46,7 @@ class TestXClientInfo:
 
 
 class TestConstructor:
-    def test_simple(self, postgrest_client: SyncPostgrestClient):
+    def test_simple(self, postgrest_client: SyncPostgrestClient) -> None:
         session = postgrest_client.session
 
         assert session.base_url == "https://example.com"
@@ -65,7 +67,7 @@ class TestConstructor:
                 timeout=DEFAULT_POSTGREST_CLIENT_TIMEOUT
             )
 
-    def test_custom_headers(self):
+    def test_custom_headers(self) -> None:
         with SyncPostgrestClient(
             "https://example.com", schema="pub", headers={"Custom-Header": "value"}
         ) as client:
@@ -81,12 +83,12 @@ class TestConstructor:
             )
             assert session.headers.items() >= headers.items()
 
-    def test_invalid_base_url_raises(self):
+    def test_invalid_base_url_raises(self) -> None:
         with pytest.raises(ValueError, match="base_url must be a valid HTTP URL"):
             SyncPostgrestClient("ftp://example.com")
 
     @pytest.mark.parametrize("url", ["http://example.com", "https://example.com"])
-    def test_valid_http_base_url_constructs(self, url: str):
+    def test_valid_http_base_url_constructs(self, url: str) -> None:
         client = SyncPostgrestClient(url)
         assert str(client.base_url) == url
 
@@ -115,18 +117,18 @@ class TestHttpxClientConstructor:
 
 
 class TestAuth:
-    def test_auth_token(self, postgrest_client: SyncPostgrestClient):
+    def test_auth_token(self, postgrest_client: SyncPostgrestClient) -> None:
         postgrest_client.auth(TOKEN)
         assert postgrest_client.headers["Authorization"] == BEARER_AUTHORIZATION
 
-    def test_auth_basic(self, postgrest_client: SyncPostgrestClient):
+    def test_auth_basic(self, postgrest_client: SyncPostgrestClient) -> None:
         postgrest_client.auth(None, username=USERNAME, password=PASSWORD)
 
         assert isinstance(postgrest_client.basic_auth, BasicAuth)
         assert postgrest_client.basic_auth._auth_header == BASIC_AUTHORIZATION
 
 
-def test_schema(postgrest_client: SyncPostgrestClient):
+def test_schema(postgrest_client: SyncPostgrestClient) -> None:
     client = postgrest_client.schema("private")
     subheaders = {
         "accept-profile": "private",
@@ -144,7 +146,9 @@ def test_schema(postgrest_client: SyncPostgrestClient):
 #     assert len(postgrest_client.session.params) == 0
 
 
-def test_response_status_code_outside_ok(postgrest_client: SyncPostgrestClient):
+def test_response_status_code_outside_ok(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
     with patch(
         "postgrest._sync.request_builder.SyncSelectRequestBuilder.execute",
         side_effect=APIError(
@@ -176,7 +180,7 @@ def test_response_status_code_outside_ok(postgrest_client: SyncPostgrestClient):
 
 def test_response_client_invalid_response_but_valid_json(
     postgrest_client: SyncPostgrestClient,
-):
+) -> None:
     with patch(
         "httpx._client.Client.request",
         return_value=Response(
@@ -212,7 +216,7 @@ def test_response_client_invalid_response_but_valid_json(
 )
 def test_response_error_json_missing_or_non_string_fields(
     postgrest_client: SyncPostgrestClient, body, message, details
-):
+) -> None:
     with patch(
         "httpx._client.Client.request",
         return_value=Response(
@@ -230,7 +234,7 @@ def test_response_error_json_missing_or_non_string_fields(
 @pytest.mark.parametrize("head", [False, True])
 def test_rpc_query_params_send_lists_as_array_literals(
     postgrest_client: SyncPostgrestClient, head: bool
-):
+) -> None:
     params: Any = {"ids": [1, 2, 3], "name": "x"}
     builder = postgrest_client.rpc("sum_ids", params, head=head, get=not head)
 
@@ -241,7 +245,7 @@ def test_rpc_query_params_send_lists_as_array_literals(
 @pytest.mark.parametrize("head", [False, True])
 def test_rpc_query_params_quote_array_elements(
     postgrest_client: SyncPostgrestClient, head: bool
-):
+) -> None:
     params: Any = {"tags": ["a,b", "c d", "", 'say "hi"', "x}", "null", None]}
     builder = postgrest_client.rpc("tag_fn", params, head=head, get=not head)
 

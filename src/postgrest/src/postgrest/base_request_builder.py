@@ -11,11 +11,9 @@ from typing import (
     Generic,
     Iterable,
     List,
-    Literal,
     NamedTuple,
     Optional,
     Tuple,
-    Type,
     TypeVar,
     Union,
     overload,
@@ -31,14 +29,6 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-try:
-    # >= 2.0.0
-    from pydantic import field_validator
-except ImportError:
-    # < 2.0.0
-    from pydantic import validator as field_validator  # type: ignore
-
-from .base_client import BasePostgrestClient
 from .types import (
     JSON,
     CountMethod,
@@ -123,7 +113,7 @@ class RequestConfig(Generic[C]):
         return response.status_code == 503 or response.status_code == 520
 
 
-def _unique_columns(json: List[Dict[str, JSON]]):
+def _unique_columns(json: List[Dict[str, JSON]]) -> str:
     unique_keys = {key for row in json for key in row.keys()}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
@@ -550,34 +540,44 @@ class BaseFilterRequestBuilder(Generic[C]):
             return self.filter(column, Filters.OV, sanitize_array_param(value))
         return self.filter(column, Filters.OV, json.dumps(value))
 
-    def sl(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def sl(self: Self, column: str, range: Tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.SL, f"({range[0]},{range[1]})")
 
-    def sr(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def sr(self: Self, column: str, range: Tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.SR, f"({range[0]},{range[1]})")
 
-    def nxl(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def nxl(self: Self, column: str, range: Tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.NXL, f"({range[0]},{range[1]})")
 
-    def nxr(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def nxr(self: Self, column: str, range: Tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.NXR, f"({range[0]},{range[1]})")
 
-    def adj(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def adj(self: Self, column: str, range: Tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.ADJ, f"({range[0]},{range[1]})")
 
-    def range_gt(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_gt(
+        self: Self, column: str, range: Tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.sr(column, range)
 
-    def range_gte(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_gte(
+        self: Self, column: str, range: Tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.nxl(column, range)
 
-    def range_lt(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_lt(
+        self: Self, column: str, range: Tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.sl(column, range)
 
-    def range_lte(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_lte(
+        self: Self, column: str, range: Tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.nxr(column, range)
 
-    def range_adjacent(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_adjacent(
+        self: Self, column: str, range: Tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.adj(column, range)
 
     def overlaps(self: Self, column: str, values: Iterable[FilterValue]) -> Self:

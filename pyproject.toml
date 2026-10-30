@@ -36,7 +36,22 @@ select = [
   # "SIM",
   # isort
   "I",
-  "ANN2"
+  "ANN2",
+  # pylint errors and warnings
+  "PLE",
+  "PLW",
+  # flake8-pie
+  "PIE",
+  # flake8-logging
+  "LOG",
+  # flynt
+  "FLY",
+  # flake8-2020
+  "YTT",
+  # duplicate pytest.mark.parametrize cases
+  "PT014",
+  # unused noqa directives
+  "RUF100",
 ]
 ignore = ["F403", "E501", "E402", "UP006", "UP035"]
 

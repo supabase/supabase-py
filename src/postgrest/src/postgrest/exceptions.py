@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional
 
+from httpx import Response
 from pydantic import BaseModel
 
 
@@ -59,7 +60,7 @@ class APIError(Exception):
         return self._raw_error
 
 
-def generate_default_error_message(r):
+def generate_default_error_message(r: Response) -> Dict[str, Any]:
     return {
         "message": "JSON could not be generated",
         "code": r.status_code,

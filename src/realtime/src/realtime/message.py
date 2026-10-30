@@ -1,12 +1,11 @@
 from typing import Any, List, Literal, Mapping, Optional, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
-from typing_extensions import TypeAlias, TypedDict
+from typing_extensions import TypeAlias
 
 from .types import (
     BroadcastPayload,
     ChannelEvents,
-    PostgresChangesData,
     PostgresChangesPayload,
     RawPresenceDiff,
     RawPresenceState,

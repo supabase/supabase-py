@@ -1,5 +1,5 @@
 import re
-from typing import Any
+from typing import Any, AsyncIterator
 from unittest.mock import patch
 
 import pytest
@@ -28,13 +28,15 @@ from ..credentials import (
 
 
 @pytest.fixture
-async def postgrest_client():
+async def postgrest_client() -> AsyncIterator[AsyncPostgrestClient]:
     async with AsyncPostgrestClient("https://example.com") as client:
         yield client
 
 
 class TestXClientInfo:
-    def test_structured_metadata_format(self, postgrest_client: AsyncPostgrestClient):
+    def test_structured_metadata_format(
+        self, postgrest_client: AsyncPostgrestClient
+    ) -> None:
         x_client_info = postgrest_client.session.headers.get("X-Client-Info")
         assert x_client_info is not None
         assert re.match(
@@ -44,7 +46,7 @@ class TestXClientInfo:
 
 
 class TestConstructor:
-    def test_simple(self, postgrest_client: AsyncPostgrestClient):
+    def test_simple(self, postgrest_client: AsyncPostgrestClient) -> None:
         session = postgrest_client.session
 
         assert session.base_url == "https://example.com"
@@ -67,7 +69,7 @@ class TestConstructor:
             )
 
     @pytest.mark.asyncio
-    async def test_custom_headers(self):
+    async def test_custom_headers(self) -> None:
         async with AsyncPostgrestClient(
             "https://example.com", schema="pub", headers={"Custom-Header": "value"}
         ) as client:
@@ -83,12 +85,12 @@ class TestConstructor:
             )
             assert session.headers.items() >= headers.items()
 
-    def test_invalid_base_url_raises(self):
+    def test_invalid_base_url_raises(self) -> None:
         with pytest.raises(ValueError, match="base_url must be a valid HTTP URL"):
             AsyncPostgrestClient("ftp://example.com")
 
     @pytest.mark.parametrize("url", ["http://example.com", "https://example.com"])
-    def test_valid_http_base_url_constructs(self, url: str):
+    def test_valid_http_base_url_constructs(self, url: str) -> None:
         client = AsyncPostgrestClient(url)
         assert str(client.base_url) == url
 
@@ -118,18 +120,18 @@ class TestHttpxClientConstructor:
 
 
 class TestAuth:
-    def test_auth_token(self, postgrest_client: AsyncPostgrestClient):
+    def test_auth_token(self, postgrest_client: AsyncPostgrestClient) -> None:
         postgrest_client.auth(TOKEN)
         assert postgrest_client.headers["Authorization"] == BEARER_AUTHORIZATION
 
-    def test_auth_basic(self, postgrest_client: AsyncPostgrestClient):
+    def test_auth_basic(self, postgrest_client: AsyncPostgrestClient) -> None:
         postgrest_client.auth(None, username=USERNAME, password=PASSWORD)
 
         assert isinstance(postgrest_client.basic_auth, BasicAuth)
         assert postgrest_client.basic_auth._auth_header == BASIC_AUTHORIZATION
 
 
-def test_schema(postgrest_client: AsyncPostgrestClient):
+def test_schema(postgrest_client: AsyncPostgrestClient) -> None:
     client = postgrest_client.schema("private")
     subheaders = {
         "accept-profile": "private",
@@ -148,7 +150,9 @@ def test_schema(postgrest_client: AsyncPostgrestClient):
 
 
 @pytest.mark.asyncio
-async def test_response_status_code_outside_ok(postgrest_client: AsyncPostgrestClient):
+async def test_response_status_code_outside_ok(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
     with patch(
         "postgrest._async.request_builder.AsyncSelectRequestBuilder.execute",
         side_effect=APIError(
@@ -179,7 +183,7 @@ async def test_response_status_code_outside_ok(postgrest_client: AsyncPostgrestC
 @pytest.mark.asyncio
 async def test_response_client_invalid_response_but_valid_json(
     postgrest_client: AsyncPostgrestClient,
-):
+) -> None:
     with patch(
         "httpx._client.AsyncClient.request",
         return_value=Response(
@@ -216,7 +220,7 @@ async def test_response_client_invalid_response_but_valid_json(
 )
 async def test_response_error_json_missing_or_non_string_fields(
     postgrest_client: AsyncPostgrestClient, body, message, details
-):
+) -> None:
     with patch(
         "httpx._client.AsyncClient.request",
         return_value=Response(
@@ -234,7 +238,7 @@ async def test_response_error_json_missing_or_non_string_fields(
 @pytest.mark.parametrize("head", [False, True])
 def test_rpc_query_params_send_lists_as_array_literals(
     postgrest_client: AsyncPostgrestClient, head: bool
-):
+) -> None:
     params: Any = {"ids": [1, 2, 3], "name": "x"}
     builder = postgrest_client.rpc("sum_ids", params, head=head, get=not head)
 
@@ -245,7 +249,7 @@ def test_rpc_query_params_send_lists_as_array_literals(
 @pytest.mark.parametrize("head", [False, True])
 def test_rpc_query_params_quote_array_elements(
     postgrest_client: AsyncPostgrestClient, head: bool
-):
+) -> None:
     params: Any = {"tags": ["a,b", "c d", "", 'say "hi"', "x}", "null", None]}
     builder = postgrest_client.rpc("tag_fn", params, head=head, get=not head)
 

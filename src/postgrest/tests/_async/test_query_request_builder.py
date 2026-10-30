@@ -17,7 +17,7 @@ async def query_request_builder() -> AsyncIterable[AsyncQueryRequestBuilder]:
         yield AsyncQueryRequestBuilder(request)
 
 
-def test_constructor(query_request_builder: AsyncQueryRequestBuilder):
+def test_constructor(query_request_builder: AsyncQueryRequestBuilder) -> None:
     builder = query_request_builder
 
     assert str(builder.request.path) == "/example_table"

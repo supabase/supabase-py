@@ -25,7 +25,7 @@ def socket() -> AsyncRealtimeClient:
 
 
 @pytest.mark.asyncio
-async def test_presence(socket: AsyncRealtimeClient):
+async def test_presence(socket: AsyncRealtimeClient) -> None:
     await socket.connect()
 
     channel: AsyncRealtimeChannel = socket.channel("room")
@@ -35,15 +35,17 @@ async def test_presence(socket: AsyncRealtimeClient):
 
     sync_event = asyncio.Event()
 
-    def on_sync():
+    def on_sync() -> None:
         sync_event.set()
 
-    def on_join(key: str, current_presences: List[Dict], new_presences: List[Presence]):
+    def on_join(
+        key: str, current_presences: List[Dict], new_presences: List[Presence]
+    ) -> None:
         join_events.append((key, current_presences, new_presences))
 
     def on_leave(
         key: str, current_presences: List[Dict], left_presences: List[Presence]
-    ):
+    ) -> None:
         leave_events.append((key, current_presences, left_presences))
 
     await (
@@ -87,7 +89,7 @@ async def test_presence(socket: AsyncRealtimeClient):
     sync_event.clear()
 
     # Assert both users are in the presence state
-    for key, value in channel.presence.state.items():
+    for value in channel.presence.state.values():
         assert len(value) == 1
         assert value[0]["user_id"] in ["1", "2"]  # type: ignore
         assert "online_at" in value[0]
@@ -176,7 +178,7 @@ def test_transform_state_additional_fields() -> None:
     assert result == expected_output
 
 
-def test_presence_has_callback_attached():
+def test_presence_has_callback_attached() -> None:
     """Test that _has_callback_attached property correctly detects presence callbacks."""
     presence = AsyncRealtimePresence()
 
@@ -205,12 +207,12 @@ def test_presence_config_includes_enabled_field() -> None:
     # Test creating presence config with enabled field
     config: RealtimeChannelPresenceConfig = {"key": "user123", "enabled": True}
     assert config["key"] == "user123"
-    assert config["enabled"] == True
+    assert config["enabled"] is True
 
     # Test with enabled False
     config_disabled: RealtimeChannelPresenceConfig = {"key": "", "enabled": False}
     assert config_disabled["key"] == ""
-    assert config_disabled["enabled"] == False
+    assert config_disabled["enabled"] is False
 
 
 @pytest.mark.asyncio
@@ -246,7 +248,7 @@ async def test_presence_enabled_when_callbacks_attached() -> None:
     payload = call_args[0][0]
 
     # Verify presence.enabled is True because callback is attached
-    assert payload["config"]["presence"]["enabled"] == True
+    assert payload["config"]["presence"]["enabled"] is True
 
 
 @pytest.mark.asyncio

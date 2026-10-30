@@ -1,5 +1,5 @@
 from deprecation import deprecated
-from httpx import AsyncClient as AsyncClient  # noqa: F401
+from httpx import AsyncClient as AsyncClient
 from httpx import Client
 
 from .version import __version__

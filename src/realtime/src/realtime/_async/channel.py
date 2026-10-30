@@ -3,22 +3,19 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 from typing_extensions import assert_never
 
 from realtime.types import (
     BroadcastCallback,
     BroadcastPayload,
-    Callback,
     ChannelEvents,
     ChannelStates,
     PostgresChangesCallback,
-    PostgresChangesData,
     PresenceOnJoinCallback,
     PresenceOnLeaveCallback,
     RealtimeAcknowledgementStatus,
-    RealtimeChannelBroadcastConfig,
     RealtimeChannelConfig,
     RealtimeChannelOptions,
     RealtimeChannelPresenceConfig,
@@ -41,7 +38,6 @@ from ..message import (
     ReplyMessage,
     ReplyPostgresChanges,
     ServerMessage,
-    SuccessReplyMessage,
     SuccessSystemPayload,
     SystemMessage,
 )
@@ -114,14 +110,14 @@ class AsyncRealtimeChannel:
 
         self.broadcast_endpoint_url = self._broadcast_endpoint_url()
 
-        def on_join_push_ok(payload: ReplyPostgresChanges):
+        def on_join_push_ok(payload: ReplyPostgresChanges) -> None:
             self.state = ChannelStates.JOINED
             self.rejoin_timer.reset()
             for push in self._push_buffer:
                 asyncio.create_task(push.send())
             self._push_buffer = []
 
-        def on_join_push_timeout():
+        def on_join_push_timeout() -> None:
             if not self.is_joining:
                 return
 
@@ -133,7 +129,7 @@ class AsyncRealtimeChannel:
             RealtimeAcknowledgementStatus.Ok, on_join_push_ok
         ).receive(RealtimeAcknowledgementStatus.Timeout, on_join_push_timeout)
 
-    def on_close(self):
+    def on_close(self) -> None:
         logger.info(f"channel {self.topic} closed")
         self.rejoin_timer.reset()
         self.state = ChannelStates.CLOSED
@@ -141,7 +137,7 @@ class AsyncRealtimeChannel:
         if self.subscribe_callback:
             self.subscribe_callback(RealtimeSubscribeStates.CLOSED, None)
 
-    def on_error(self, payload: dict[str, Any]):
+    def on_error(self, payload: dict[str, Any]) -> None:
         if self.is_leaving or self.is_closed:
             return
 
@@ -155,23 +151,23 @@ class AsyncRealtimeChannel:
 
     # Properties
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         return self.state == ChannelStates.CLOSED
 
     @property
-    def is_joining(self):
+    def is_joining(self) -> bool:
         return self.state == ChannelStates.JOINING
 
     @property
-    def is_leaving(self):
+    def is_leaving(self) -> bool:
         return self.state == ChannelStates.LEAVING
 
     @property
-    def is_errored(self):
+    def is_errored(self) -> bool:
         return self.state == ChannelStates.ERRORED
 
     @property
-    def is_joined(self):
+    def is_joined(self) -> bool:
         return self.state == ChannelStates.JOINED
 
     # Core channel methods
@@ -227,7 +223,7 @@ class AsyncRealtimeChannel:
             self.join_push.update_payload(config_payload)
             self._joined_once = True
 
-            def on_join_push_ok(payload: ReplyPostgresChanges):
+            def on_join_push_ok(payload: ReplyPostgresChanges) -> None:
                 server_postgres_changes = payload.postgres_changes
 
                 new_postgres_bindings = []
@@ -265,13 +261,13 @@ class AsyncRealtimeChannel:
                 self.postgres_changes_callbacks = new_postgres_bindings
                 callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
 
-            def on_join_push_error(payload: Dict[str, Any]):
+            def on_join_push_error(payload: Dict[str, Any]) -> None:
                 callback and callback(
                     RealtimeSubscribeStates.CHANNEL_ERROR,
                     Exception(json.dumps(payload)),
                 )
 
-            def on_join_push_timeout(*args):
+            def on_join_push_timeout(*args) -> None:
                 callback and callback(RealtimeSubscribeStates.TIMED_OUT, None)
 
             self.join_push.receive(
@@ -525,7 +521,7 @@ class AsyncRealtimeChannel:
         await self.unsubscribe()
         await self.subscribe()
 
-    def _broadcast_endpoint_url(self):
+    def _broadcast_endpoint_url(self) -> str:
         return f"{http_endpoint_url(self.socket.http_endpoint)}/api/broadcast"
 
     async def _rejoin(self) -> None:
@@ -535,13 +531,13 @@ class AsyncRealtimeChannel:
         self.state = ChannelStates.JOINING
         await self.join_push.resend()
 
-    def _can_push(self):
+    def _can_push(self) -> bool:
         return self.socket.is_connected and self._joined_once
 
     async def send_presence(self, event: str, data: Any) -> None:
         await self.push(ChannelEvents.presence, {"event": event, "payload": data})
 
-    def _handle_message(self, message: ServerMessage):
+    def _handle_message(self, message: ServerMessage) -> None:
         logger.debug(f"{self.topic} : {message!r}")
         if isinstance(message, SystemMessage):
             if isinstance(message.payload, SuccessSystemPayload):
@@ -583,7 +579,7 @@ class AsyncRealtimeChannel:
         else:
             assert_never(message)
 
-    async def _rejoin_until_connected(self):
+    async def _rejoin_until_connected(self) -> None:
         self.rejoin_timer.schedule_timeout()
         if self.socket.is_connected:
             await self._rejoin()
