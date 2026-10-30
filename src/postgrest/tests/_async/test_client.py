@@ -1,5 +1,6 @@
 import re
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 from unittest.mock import patch
 
 import pytest

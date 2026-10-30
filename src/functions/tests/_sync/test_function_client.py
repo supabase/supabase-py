@@ -1,5 +1,4 @@
 import re
-from typing import Dict, List
 from unittest.mock import Mock, patch
 
 import pytest
@@ -18,19 +17,19 @@ def valid_url() -> str:
 
 
 @pytest.fixture
-def default_headers() -> Dict[str, str]:
+def default_headers() -> dict[str, str]:
     return {"Authorization": "Bearer valid.jwt.token"}
 
 
 @pytest.fixture
-def client(valid_url: str, default_headers: Dict[str, str]) -> SyncFunctionsClient:
+def client(valid_url: str, default_headers: dict[str, str]) -> SyncFunctionsClient:
     return SyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
     )
 
 
 def test_init_with_valid_params(
-    valid_url: str, default_headers: Dict[str, str]
+    valid_url: str, default_headers: dict[str, str]
 ) -> None:
     client = SyncFunctionsClient(
         url=valid_url, headers=default_headers, timeout=10, verify=True
@@ -46,7 +45,7 @@ def test_init_with_valid_params(
 
 @pytest.mark.parametrize("invalid_url", ["not-a-url", "ftp://invalid.com", "", None])
 def test_init_with_invalid_url(
-    invalid_url: str, default_headers: Dict[str, str]
+    invalid_url: str, default_headers: dict[str, str]
 ) -> None:
     with pytest.raises(ValueError, match="url must be a valid HTTP URL string"):
         SyncFunctionsClient(url=invalid_url, headers=default_headers, timeout=10)
@@ -405,7 +404,7 @@ def test_invoke_http_error_with_empty_body(client: SyncFunctionsClient) -> None:
             client.invoke("test-function")
 
 
-def _recording_client(seen: List[Request]) -> SyncFunctionsClient:
+def _recording_client(seen: list[Request]) -> SyncFunctionsClient:
     def handler(request: Request) -> Response:
         seen.append(request)
         return Response(200, content=b"ok")
@@ -419,7 +418,7 @@ def _recording_client(seen: List[Request]) -> SyncFunctionsClient:
 
 @pytest.mark.parametrize("function_name", ["hello?name=bob", "hello?name=bob#top"])
 def test_invoke_keeps_query_string_in_function_name(function_name: str) -> None:
-    seen: List[Request] = []
+    seen: list[Request] = []
     client = _recording_client(seen)
 
     client.invoke(function_name, {"region": FunctionRegion.UsEast1})
@@ -433,7 +432,7 @@ def test_invoke_keeps_query_string_in_function_name(function_name: str) -> None:
 
 
 def test_invoke_plain_function_name_has_no_query() -> None:
-    seen: List[Request] = []
+    seen: list[Request] = []
     client = _recording_client(seen)
 
     client.invoke("hello")
@@ -445,7 +444,7 @@ def test_invoke_plain_function_name_has_no_query() -> None:
 
 @pytest.mark.parametrize("function_name", ["?name=bob", "#top", " ?a=1"])
 def test_invoke_rejects_name_without_path(function_name: str) -> None:
-    seen: List[Request] = []
+    seen: list[Request] = []
     client = _recording_client(seen)
 
     with pytest.raises(ValueError):
@@ -455,7 +454,7 @@ def test_invoke_rejects_name_without_path(function_name: str) -> None:
 
 
 def test_invoke_query_string_keeps_repeated_and_encoded_values() -> None:
-    seen: List[Request] = []
+    seen: list[Request] = []
     client = _recording_client(seen)
 
     client.invoke("dir/fn?a=1&a=2&q=a%20b&p=x%2By")

@@ -1,4 +1,4 @@
-from typing import AsyncIterable
+from collections.abc import AsyncIterable
 
 import pytest
 from httpx import AsyncClient, Headers, QueryParams

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from time import time
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, with_config
 
@@ -127,11 +127,11 @@ class LinkIdentityResponse(BaseModel):
 
 
 class IdentitiesResponse(BaseModel):
-    identities: List[UserIdentity]
+    identities: list[UserIdentity]
 
 
 class UserList(BaseModel):
-    users: List[User]
+    users: list[User]
 
 
 class UserResponse(BaseModel):
@@ -179,7 +179,7 @@ class UserIdentity(BaseModel):
     id: str
     identity_id: str
     user_id: str
-    identity_data: Dict[str, Any]
+    identity_data: dict[str, Any]
     provider: str
     created_at: datetime
     last_sign_in_at: Optional[datetime] = None
@@ -218,8 +218,8 @@ class Factor(BaseModel):
 
 class User(BaseModel):
     id: str
-    app_metadata: Dict[str, Any]
-    user_metadata: Dict[str, Any]
+    app_metadata: dict[str, Any]
+    user_metadata: dict[str, Any]
     aud: str
     confirmation_sent_at: Optional[datetime] = None
     recovery_sent_at: Optional[datetime] = None
@@ -237,10 +237,10 @@ class User(BaseModel):
     last_sign_in_at: Optional[datetime] = None
     role: Optional[str] = None
     updated_at: Optional[datetime] = None
-    identities: Optional[List[UserIdentity]] = None
+    identities: Optional[list[UserIdentity]] = None
     is_anonymous: bool = False
     is_sso_user: bool = False
-    factors: Optional[List[Factor]] = None
+    factors: Optional[list[Factor]] = None
     deleted_at: Optional[str] = None
     banned_until: Optional[str] = None
 
@@ -431,7 +431,7 @@ ResendCredentials = Union[ResendEmailCredentials, ResendPhoneCredentials]
 class SignInWithOAuthCredentialsOptions(TypedDict):
     redirect_to: NotRequired[str]
     scopes: NotRequired[str]
-    query_params: NotRequired[Dict[str, str]]
+    query_params: NotRequired[dict[str, str]]
 
 
 class SignInWithOAuthCredentials(TypedDict):
@@ -712,15 +712,15 @@ class AuthMFAChallengeResponse(BaseModel):
 
 
 class AuthMFAListFactorsResponse(BaseModel):
-    all: List[Factor]
+    all: list[Factor]
     """
     All available factors (verified and unverified).
     """
-    totp: List[Factor]
+    totp: list[Factor]
     """
     Only verified TOTP factors. (A subset of `all`.)
     """
-    phone: List[Factor]
+    phone: list[Factor]
     """
     Only verified Phone factors. (A subset of `all`.)
     """
@@ -739,7 +739,7 @@ class AuthMFAGetAuthenticatorAssuranceLevelResponse(BaseModel):
     Next possible AAL level for the session. If the next level is higher
     than the current one, the user should go through MFA.
     """
-    current_authentication_methods: List[AMREntry]
+    current_authentication_methods: list[AMREntry]
     """
     A list of all authentication methods attached to this session. Use
     the information here to detect the last time a user verified a
@@ -765,7 +765,7 @@ class AuthMFAAdminDeleteFactorParams(TypedDict):
     """
 
 
-AuthMFAAdminListFactorsResponse = List[Factor]
+AuthMFAAdminListFactorsResponse = list[Factor]
 
 AuthMFAAdminListFactorsResponseParser: TypeAdapter[AuthMFAAdminListFactorsResponse] = (
     TypeAdapter(AuthMFAAdminListFactorsResponse)
@@ -818,7 +818,7 @@ class GenerateLinkResponse(BaseModel):
 class DecodedJWTDict(TypedDict):
     exp: NotRequired[int]
     aal: NotRequired[Optional[AuthenticatorAssuranceLevels]]
-    amr: NotRequired[Optional[List[AMREntry]]]
+    amr: NotRequired[Optional[list[AMREntry]]]
 
 
 SignOutScope = Literal["global", "local", "others"]
@@ -841,7 +841,7 @@ class JWTHeader(TypedDict):
 class RequiredClaims(TypedDict):
     iss: str
     sub: str
-    auth: Union[str, List[str]]
+    auth: Union[str, list[str]]
     exp: int
     iat: int
     role: str
@@ -855,13 +855,13 @@ class RequiredClaims(TypedDict):
 class JWTPayload(TypedDict, total=False):
     iss: str
     sub: str
-    auth: Union[str, List[str]]
+    auth: Union[str, list[str]]
     exp: int
     iat: int
     role: str
     aal: AuthenticatorAssuranceLevels
     session_id: str
-    amr: NotRequired[List[AMREntryDict]]
+    amr: NotRequired[list[AMREntryDict]]
 
 
 class ClaimsResponse(TypedDict):
@@ -875,13 +875,13 @@ class ClaimsResponse(TypedDict):
 )  # pydantic <2.7.0 with_config does not accept kwargs
 class JWK(TypedDict, total=False):
     kty: Literal["RSA", "EC", "oct"]
-    key_ops: List[str]
+    key_ops: list[str]
     alg: Optional[str]
     kid: Optional[str]
 
 
 class JWKSet(TypedDict):
-    keys: List[JWK]
+    keys: list[JWK]
 
 
 OAuthClientGrantType = Literal["authorization_code", "refresh_token"]
@@ -939,11 +939,11 @@ class OAuthClient(BaseModel):
     """URL of the client application's homepage"""
     logo_uri: Optional[str] = None
     """URL of the client application's logo"""
-    redirect_uris: List[str]
+    redirect_uris: list[str]
     """Array of redirect URIs used by the client"""
-    grant_types: List[OAuthClientGrantType]
+    grant_types: list[OAuthClientGrantType]
     """OAuth grant types the client is authorized to use"""
-    response_types: List[OAuthClientResponseType]
+    response_types: list[OAuthClientResponseType]
     """OAuth response types the client can use"""
     scope: Optional[str] = None
     """Space-separated list of scope values"""
@@ -965,11 +965,11 @@ class CreateOAuthClientParams(BaseModel):
     """URL of the client application's homepage"""
     logo_uri: Optional[str] = None
     """URL of the client application's logo"""
-    redirect_uris: List[str]
+    redirect_uris: list[str]
     """Array of redirect URIs used by the client"""
-    grant_types: Optional[List[OAuthClientGrantType]] = None
+    grant_types: Optional[list[OAuthClientGrantType]] = None
     """OAuth grant types the client is authorized to use (optional, defaults to authorization_code and refresh_token)"""
-    response_types: Optional[List[OAuthClientResponseType]] = None
+    response_types: Optional[list[OAuthClientResponseType]] = None
     """OAuth response types the client can use (optional, defaults to code)"""
     scope: Optional[str] = None
     """Space-separated list of scope values"""
@@ -987,9 +987,9 @@ class UpdateOAuthClientParams(BaseModel):
     """URI of the OAuth client"""
     logo_uri: Optional[str] = None
     """URI of the OAuth client's logo"""
-    redirect_uris: Optional[List[str]] = None
+    redirect_uris: Optional[list[str]] = None
     """Array of allowed redirect URIs"""
-    grant_types: Optional[List[OAuthClientGrantType]] = None
+    grant_types: Optional[list[OAuthClientGrantType]] = None
     """Array of allowed grant types"""
 
 
@@ -1018,7 +1018,7 @@ class OAuthClientListResponse(BaseModel):
     Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
     """
 
-    clients: List[OAuthClient] = Field(default_factory=list)
+    clients: list[OAuthClient] = Field(default_factory=list)
     aud: Optional[str] = None
     next_page: Optional[int] = None
     last_page: int = 0

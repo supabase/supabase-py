@@ -1,5 +1,6 @@
 import re
-from typing import Any, Dict, Mapping
+from collections.abc import Mapping
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -18,7 +19,7 @@ def valid_url() -> str:
 
 
 @pytest.fixture
-def valid_headers() -> Dict[str, str]:
+def valid_headers() -> dict[str, str]:
     return {"Authorization": "Bearer test_token", "apikey": "test_api_key"}
 
 
@@ -453,7 +454,7 @@ async def test_async_bucket_proxy_exists_reraises_other_errors(
     assert str(exc_info.value.status) == str(status_code)
 
 
-def _analytics_list_handler(captured: Dict[str, Any]) -> Any:
+def _analytics_list_handler(captured: dict[str, Any]) -> Any:
     def handler(request: Request) -> Response:
         captured["url"] = request.url
         return Response(200, json=[])
@@ -467,7 +468,7 @@ async def test_async_analytics_list_sends_camel_case_sort_params(
 ) -> None:
     from httpx import MockTransport
 
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
     client = AsyncStorageClient(
         url=valid_url + "/",
         headers=valid_headers,
@@ -495,7 +496,7 @@ def test_sync_analytics_list_sends_camel_case_sort_params(
 ) -> None:
     from httpx import MockTransport
 
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
     client = SyncStorageClient(
         url=valid_url + "/",
         headers=valid_headers,
@@ -516,7 +517,7 @@ def test_sync_analytics_list_sends_camel_case_sort_params(
     }
 
 
-def _list_indexes_transport(captured: Dict[str, Any]) -> Any:
+def _list_indexes_transport(captured: dict[str, Any]) -> Any:
     """A transport that records the ListIndexes request body and replies with one page."""
     import json as _json
 
@@ -534,7 +535,7 @@ async def test_async_list_indexes_sends_camel_case_pagination(
 ) -> None:
     from httpx import MockTransport
 
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
     client = AsyncStorageClient(
         url=valid_url + "/",
         headers=valid_headers,
@@ -563,7 +564,7 @@ def test_sync_list_indexes_sends_camel_case_pagination(
 ) -> None:
     from httpx import MockTransport
 
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
     client = SyncStorageClient(
         url=valid_url + "/",
         headers=valid_headers,
@@ -596,7 +597,7 @@ async def test_async_list_merges_partial_sort_by_with_default(
 ) -> None:
     from httpx import MockTransport
 
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
     client = AsyncStorageClient(
         url=valid_url + "/",
         headers=valid_headers,
@@ -622,7 +623,7 @@ def test_sync_list_merges_partial_sort_by_with_default(
 ) -> None:
     from httpx import MockTransport
 
-    captured: Dict[str, Any] = {}
+    captured: dict[str, Any] = {}
     client = SyncStorageClient(
         url=valid_url + "/",
         headers=valid_headers,

@@ -1,5 +1,5 @@
 import json
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
@@ -12,7 +12,7 @@ from supabase_auth.timer import Timer
 async def test_auto_refresh_tick_sends_one_refresh_request(
     monkeypatch: pytest.MonkeyPatch, persist_session: bool
 ) -> None:
-    ticks: List[Callable[[], Any]] = []
+    ticks: list[Callable[[], Any]] = []
 
     def schedule(timer: Any) -> None:
         ticks.append(timer._function)
@@ -20,7 +20,7 @@ async def test_auto_refresh_tick_sends_one_refresh_request(
     # Run each tick by hand instead of waiting for the real timer.
     monkeypatch.setattr(Timer, "start", schedule)
 
-    refresh_tokens: List[str] = []
+    refresh_tokens: list[str] = []
 
     def handler(request: Request) -> Response:
         if request.url.params["grant_type"] == "refresh_token":

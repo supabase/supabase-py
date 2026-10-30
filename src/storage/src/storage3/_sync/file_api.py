@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import builtins
 import json
 import urllib.parse
 from dataclasses import dataclass, field
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union, cast
+from typing import Any, Literal, Optional, Union, cast
 
 from httpx import Client, Headers, HTTPStatusError, Response
 from yarl import URL
@@ -249,10 +250,10 @@ class SyncBucketActionsMixin:
 
     def create_signed_urls(
         self,
-        paths: List[str],
+        paths: builtins.list[str],
         expires_in: int,
         options: Optional[CreateSignedURLsOptions] = None,
-    ) -> List[CreateSignedUrlResponse]:
+    ) -> builtins.list[CreateSignedUrlResponse]:
         """
         Parameters
         ----------
@@ -476,7 +477,7 @@ class SyncBucketActionsMixin:
         self,
         path: str,
         options: Optional[DownloadOptions] = None,
-        query_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[dict[str, str]] = None,
     ) -> bytes:
         """
         Downloads a file.

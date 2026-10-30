@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import List, Optional
+import builtins
+from typing import Optional
 
 from httpx import Client, Headers
 from yarl import URL
@@ -100,7 +101,7 @@ class SyncVectorIndexScope:
             **data,
         )
 
-    def put(self, vectors: List[VectorObject]) -> None:
+    def put(self, vectors: builtins.list[VectorObject]) -> None:
         body = self.with_metadata(
             vectors=[v.model_dump(exclude_none=True) for v in vectors]
         )
@@ -153,7 +154,7 @@ class SyncVectorIndexScope:
         data = self._request.send(http_method="POST", path=["QueryVectors"], body=body)
         return QueryVectorsResponse.model_validate_json(data.content)
 
-    def delete(self, keys: List[str]) -> None:
+    def delete(self, keys: builtins.list[str]) -> None:
         if len(keys) < 1 or len(keys) > 500:
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
         body = self.with_metadata(keys=keys)
