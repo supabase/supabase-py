@@ -4,7 +4,11 @@ from httpx import AsyncClient, Headers, HTTPStatusError, QueryParams, Response
 from pydantic import ValidationError
 from yarl import URL
 
-from ..exceptions import StorageApiError, VectorBucketErrorMessage
+from ..exceptions import (
+    AnalyticsBucketErrorMessage,
+    StorageApiError,
+    VectorBucketErrorMessage,
+)
 from ..types import JSON, RequestMethod
 
 
@@ -38,6 +42,17 @@ class AsyncRequestBuilder:
                     message=error.message,
                     code=error.code or "400",
                     status=error.statusCode,
+                ) from exc
+            except ValidationError:
+                pass
+            try:
+                analytics_error = AnalyticsBucketErrorMessage.model_validate_json(
+                    response.content
+                )
+                raise StorageApiError(
+                    message=analytics_error.error.message,
+                    code=analytics_error.error.type,
+                    status=response.status_code,
                 ) from exc
             except ValidationError as exc:
                 raise StorageApiError(
