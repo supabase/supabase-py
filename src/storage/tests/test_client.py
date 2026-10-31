@@ -578,6 +578,76 @@ def test_sync_analytics_raises_server_error(
     assert exc_info.value.status == 404
 
 
+_VECTOR_ERRORS = [
+    (
+        404,
+        {
+            "json": {
+                "statusCode": "404",
+                "error": "Not Found",
+                "message": "Vector bucket not found",
+                "code": "NoSuchBucket",
+            }
+        },
+        "Vector bucket not found",
+        "NoSuchBucket",
+        "404",
+    ),
+    (
+        502,
+        {"text": "Bad Gateway"},
+        "The request failed, but could not parse error message response:'Bad Gateway'",
+        "LibraryError",
+        502,
+    ),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status, body, message, code, error_status", _VECTOR_ERRORS)
+async def test_async_vector_errors_keep_their_mapping(
+    valid_url, valid_headers, status, body, message, code, error_status
+) -> None:
+    from httpx import MockTransport
+
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(
+            transport=MockTransport(lambda request: Response(status, **body))
+        ),
+    )
+
+    with pytest.raises(StorageApiError) as exc_info:
+        await client.vectors().create_bucket("catalog")
+
+    assert exc_info.value.message == message
+    assert exc_info.value.code == code
+    assert exc_info.value.status == error_status
+
+
+@pytest.mark.parametrize("status, body, message, code, error_status", _VECTOR_ERRORS)
+def test_sync_vector_errors_keep_their_mapping(
+    valid_url, valid_headers, status, body, message, code, error_status
+) -> None:
+    from httpx import MockTransport
+
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(
+            transport=MockTransport(lambda request: Response(status, **body))
+        ),
+    )
+
+    with pytest.raises(StorageApiError) as exc_info:
+        client.vectors().create_bucket("catalog")
+
+    assert exc_info.value.message == message
+    assert exc_info.value.code == code
+    assert exc_info.value.status == error_status
+
+
 def _list_indexes_transport(captured: dict[str, Any]) -> Any:
     """A transport that records the ListIndexes request body and replies with one page."""
     import json as _json
