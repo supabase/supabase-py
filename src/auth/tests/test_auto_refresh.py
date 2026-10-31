@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+import warnings
 from typing import Optional
 
 import pytest
@@ -122,3 +123,25 @@ async def test_timer_cancel_stops_callback_from_another_task() -> None:
         assert not completed
     finally:
         timer.cancel()
+
+
+async def test_timer_start_does_not_warn() -> None:
+    # asyncio.iscoroutinefunction is deprecated since Python 3.14.
+    async def async_callback() -> None:
+        pass
+
+    def sync_callback() -> None:
+        pass
+
+    async_timer = Timer(60_000, async_callback)
+    sync_timer = Timer(60_000, sync_callback)
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            async_timer.start()
+            sync_timer.start()
+        assert async_timer._task is not None
+        assert sync_timer._timer is not None
+    finally:
+        async_timer.cancel()
+        sync_timer.cancel()
