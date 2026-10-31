@@ -4,7 +4,11 @@ from httpx import AsyncClient, Headers, HTTPStatusError, QueryParams, Response
 from pydantic import ValidationError
 from yarl import URL
 
-from ..exceptions import StorageApiError, VectorBucketErrorMessage
+from ..exceptions import (
+    IcebergErrorMessage,
+    StorageApiError,
+    VectorBucketErrorMessage,
+)
 from ..types import JSON, RequestMethod
 
 
@@ -38,6 +42,18 @@ class AsyncRequestBuilder:
                     message=error.message,
                     code=error.code or "400",
                     status=error.statusCode,
+                ) from exc
+            except ValidationError:
+                pass
+            try:
+                # The analytics bucket routes nest the error in an `error` object.
+                iceberg_error = IcebergErrorMessage.model_validate_json(
+                    response.content
+                ).error
+                raise StorageApiError(
+                    message=iceberg_error.message,
+                    code=iceberg_error.type or str(response.status_code),
+                    status=response.status_code,
                 ) from exc
             except ValidationError as exc:
                 raise StorageApiError(

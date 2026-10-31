@@ -17,6 +17,16 @@ class VectorBucketErrorMessage(BaseModel):
     code: Optional[str] = None
 
 
+class IcebergErrorDetail(BaseModel):
+    message: str
+    type: Optional[str] = None
+    code: Optional[int] = None
+
+
+class IcebergErrorMessage(BaseModel):
+    error: IcebergErrorDetail
+
+
 class StorageApiErrorDict(TypedDict):
     name: str
     message: str
