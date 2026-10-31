@@ -229,3 +229,42 @@ def test_rpc_query_params_quote_array_elements(
     assert builder.request.params.get_list("tags") == [
         '{"a,b","c d","","say \\"hi\\"","x}","null",NULL}'
     ]
+
+
+@pytest.mark.parametrize("head", [False, True])
+def test_rpc_query_params_send_dicts_as_json(
+    postgrest_client: AsyncPostgrestClient, head: bool
+):
+    params: Any = {"options": {"enabled": True}, "count": 1}
+    builder = postgrest_client.rpc("custom_fn", params, head=head, get=not head)
+
+    assert builder.request.params.get("options") == '{"enabled":true}'
+    assert builder.request.params.get("count") == "1"
+
+
+def test_rpc_post_sends_dict_in_body(postgrest_client: AsyncPostgrestClient):
+    params: Any = {"options": {"enabled": True}, "count": 1}
+    builder = postgrest_client.rpc("custom_fn", params)
+
+    assert builder.request.http_method == "POST"
+    assert builder.request.json == params
+    assert len(builder.request.params) == 0
+
+
+@pytest.mark.parametrize("head", [False, True])
+async def test_rpc_query_params_mock_transport_decodes_json(head: bool):
+    from httpx import AsyncClient, MockTransport, Response
+
+    seen_params = []
+
+    def handler(request):
+        seen_params.append(dict(request.url.params))
+        return Response(200, json=[])
+
+    async with AsyncClient(transport=MockTransport(handler)) as http:
+        client = AsyncPostgrestClient("https://example.com", http_client=http)
+        await client.rpc(
+            "example", {"options": {"enabled": True}}, head=head, get=not head
+        ).execute()
+
+    assert seen_params == [{"options": '{"enabled":true}'}]
