@@ -437,26 +437,39 @@ def test_link_identity_does_not_mutate_query_params() -> None:
 
     client = auth_client()
     shared_params = {"prompt": "consent"}
-    options = {
-        "redirect_to": "http://localhost/callback",
-        "query_params": shared_params,
-    }
 
-    with (
-        patch.object(
-            client, "get_session", return_value=MagicMock(access_token="token")
-        ),
-        patch.object(
+    with patch.object(
+        client, "get_session", return_value=MagicMock(access_token="token")
+    ):
+        with patch.object(
             client,
             "_request",
             return_value=Response(
                 content=b'{"url":"http://example.com/authorize"}', status_code=200
             ),
-        ),
-    ):
-        client.link_identity({"provider": "github", "options": options})
+        ) as mock_request:
+            client.link_identity(
+                {
+                    "provider": "github",
+                    "options": {
+                        "redirect_to": "http://localhost/callback",
+                        "query_params": shared_params,
+                    },
+                }
+            )
+            client.link_identity(
+                {"provider": "github", "options": {"query_params": shared_params}}
+            )
 
     assert shared_params == {"prompt": "consent"}
+    first_query = mock_request.call_args_list[0].kwargs["query"]
+    second_query = mock_request.call_args_list[1].kwargs["query"]
+    assert first_query["prompt"] == "consent"
+    assert first_query["redirect_to"] == "http://localhost/callback"
+    assert first_query["skip_http_redirect"] == "true"
+    assert second_query["prompt"] == "consent"
+    assert "redirect_to" not in second_query
+    assert second_query["skip_http_redirect"] == "true"
 
 
 def test_get_user_identities() -> None:
