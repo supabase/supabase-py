@@ -69,3 +69,18 @@ async def test_on_close_still_removes_current_channel():
     channel.on_close()
 
     assert channel.topic not in socket.channels
+
+
+@pytest.mark.asyncio
+async def test_remove_channel_ignores_replaced_channel() -> None:
+    socket = AsyncRealtimeClient(URL, "token", timeout=0.1)  # type: ignore[arg-type]
+    old = socket.channel("replaced-remove")
+    old.state = ChannelStates.LEAVING
+    new = socket.channel("replaced-remove")
+    new_unsubscribe = AsyncMock()
+    new.unsubscribe = new_unsubscribe  # type: ignore[method-assign]
+
+    await socket.remove_channel(old)
+
+    new_unsubscribe.assert_not_awaited()
+    assert socket.channels.get(new.topic) is new
