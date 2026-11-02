@@ -306,7 +306,8 @@ class AsyncRealtimeClient:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: AsyncRealtimeChannel) -> None:
-        del self.channels[channel.topic]
+        if self.channels.get(channel.topic) is channel:
+            del self.channels[channel.topic]
 
     async def remove_channel(self, channel: AsyncRealtimeChannel) -> None:
         """
@@ -314,8 +315,8 @@ class AsyncRealtimeClient:
         :param channel: Channel to remove
         :return: None
         """
-        if channel.topic in self.channels:
-            await self.channels[channel.topic].unsubscribe()
+        if self.channels.get(channel.topic) is channel:
+            await channel.unsubscribe()
             self._remove_channel(channel)
 
         if len(self.channels) == 0:

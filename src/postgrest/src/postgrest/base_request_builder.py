@@ -249,7 +249,9 @@ class APIResponse(BaseModel):
         content_range_header: str,
     ) -> Optional[int]:
         content_range = content_range_header.split("/")
-        return None if len(content_range) < 2 else int(content_range[1])
+        if len(content_range) < 2 or content_range[1] == "*":
+            return None
+        return int(content_range[1])
 
     @staticmethod
     def _is_count_in_prefer_header(prefer_header: str) -> bool:
