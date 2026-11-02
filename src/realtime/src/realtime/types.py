@@ -137,6 +137,10 @@ class PostgresChangesCallback:
     select: Optional[list[str]] = None
     id: Optional[int] = None
 
+    def __post_init__(self) -> None:
+        if not self.schema:
+            self.schema = "public"
+
     def __call__(self, payload: PostgresChangesPayload) -> None:
         event_matches = (
             self.event == payload["data"]["type"]
@@ -147,9 +151,7 @@ class PostgresChangesCallback:
 
     @property
     def binding_filter(self) -> dict[str, Any]:
-        binding: dict[str, Any] = {"event": self.event}
-        if self.schema:
-            binding["schema"] = self.schema
+        binding: dict[str, Any] = {"event": self.event, "schema": self.schema}
         if self.table:
             binding["table"] = self.table
         if self.filter:

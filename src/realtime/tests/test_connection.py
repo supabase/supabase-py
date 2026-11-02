@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+from typing import Optional
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs, urlparse
 
@@ -15,8 +16,13 @@ from realtime import (
     RealtimePostgresChangesListenEvent,
     RealtimeSubscribeStates,
 )
-from realtime.message import Message
-from realtime.types import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_TIMEOUT, ChannelEvents
+from realtime.message import Message, ReplyPostgresChanges
+from realtime.types import (
+    DEFAULT_HEARTBEAT_INTERVAL,
+    DEFAULT_TIMEOUT,
+    ChannelEvents,
+    RealtimeAcknowledgementStatus,
+)
 
 load_dotenv()
 
@@ -725,6 +731,7 @@ def test_postgres_changes_callback_binding_filter_includes_select() -> None:
     )
     assert with_select.binding_filter == {
         "event": RealtimePostgresChangesListenEvent.Insert,
+        "schema": "public",
         "table": "todos",
         "filter": "id=eq.1",
         "select": ["id", "name"],
@@ -783,6 +790,77 @@ async def test_subscribe_forwards_select_in_postgres_changes(
             "select": ["id", "description"],
         }
     ]
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_subscribe_defaults_postgres_changes_schema_to_public(
+    socket: AsyncRealtimeClient,
+) -> None:
+    import json
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    channel: AsyncRealtimeChannel = socket.channel("test-default-schema")
+    channel.on_postgres_changes(RealtimePostgresChangesListenEvent.All, lambda _: None)
+    channel.on_postgres_changes(
+        RealtimePostgresChangesListenEvent.Insert,
+        lambda _: None,
+        table="todos",
+        filter="id=eq.1",
+    )
+
+    await channel.subscribe(lambda state, error: None)
+
+    message_data = json.loads(mock_ws.send.call_args[0][0])
+    assert message_data["payload"]["config"]["postgres_changes"] == [
+        {"event": RealtimePostgresChangesListenEvent.All, "schema": "public"},
+        {
+            "event": RealtimePostgresChangesListenEvent.Insert,
+            "schema": "public",
+            "table": "todos",
+            "filter": "id=eq.1",
+        },
+    ]
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_subscribe_accepts_server_echo_of_default_schema(
+    socket: AsyncRealtimeClient,
+) -> None:
+    socket._ws_connection = AsyncMock()
+    await socket.connect()
+
+    statuses: list[tuple[RealtimeSubscribeStates, Optional[Exception]]] = []
+    channel: AsyncRealtimeChannel = socket.channel("test-default-schema-reply")
+    channel.on_postgres_changes(
+        RealtimePostgresChangesListenEvent.Insert, lambda _: None, table="todos"
+    )
+    await channel.subscribe(lambda state, error: statuses.append((state, error)))
+
+    channel.join_push.trigger(
+        RealtimeAcknowledgementStatus.Ok,
+        ReplyPostgresChanges.model_validate(
+            {
+                "postgres_changes": [
+                    {
+                        "id": 42,
+                        "event": RealtimePostgresChangesListenEvent.Insert,
+                        "schema": "public",
+                        "table": "todos",
+                    }
+                ]
+            }
+        ),
+    )
+
+    assert statuses == [(RealtimeSubscribeStates.SUBSCRIBED, None)]
+    assert channel.postgres_changes_callbacks[0].id == 42
 
     await socket.close()
 
