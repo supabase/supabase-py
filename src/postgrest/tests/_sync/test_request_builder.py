@@ -657,6 +657,15 @@ class TestApiResponse:
             is None
         )
 
+    @pytest.mark.parametrize("content_range_header", ["*/*", "0-0/*"])
+    def test_get_count_from_content_range_header_with_unknown_count(
+        self, content_range_header: str
+    ) -> None:
+        assert (
+            APIResponse._get_count_from_content_range_header(content_range_header)
+            is None
+        )
+
     def test_is_count_in_prefer_header_true(
         self, prefer_header_with_count: str
     ) -> None:
