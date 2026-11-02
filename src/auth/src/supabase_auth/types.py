@@ -825,9 +825,7 @@ class SignOutOptions(TypedDict):
     scope: NotRequired[SignOutScope]
 
 
-@with_config(
-    ConfigDict(extra="allow")
-)  # pydantic <2.11 with_config does not accept kwargs
+@with_config(ConfigDict(extra="allow"))
 class JWTHeader(TypedDict):
     alg: Literal["RS256", "ES256", "HS256"]
     typ: NotRequired[str]
@@ -846,9 +844,7 @@ class RequiredClaims(TypedDict):
     session_id: str
 
 
-@with_config(
-    ConfigDict(extra="allow")
-)  # pydantic <2.11 with_config does not accept kwargs
+@with_config(ConfigDict(extra="allow"))
 class JWTPayload(TypedDict, total=False):
     iss: str
     sub: str
@@ -867,9 +863,7 @@ class ClaimsResponse(TypedDict):
     signature: bytes
 
 
-@with_config(
-    ConfigDict(extra="allow")
-)  # pydantic <2.11 with_config does not accept kwargs
+@with_config(ConfigDict(extra="allow"))
 class JWK(TypedDict, total=False):
     kty: Literal["RSA", "EC", "oct"]
     key_ops: list[str]
