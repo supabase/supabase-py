@@ -1,3 +1,4 @@
+import json
 import re
 from collections.abc import AsyncIterator
 from typing import Any
@@ -10,6 +11,7 @@ from httpx import (
     BasicAuth,
     Headers,
     Limits,
+    MockTransport,
     Request,
     Response,
     Timeout,
@@ -257,3 +259,49 @@ def test_rpc_query_params_quote_array_elements(
     assert builder.request.params.get_list("tags") == [
         '{"a,b","c d","","say \\"hi\\"","x}","null",NULL}'
     ]
+
+
+@pytest.mark.parametrize("method", ["GET", "HEAD", "POST"])
+@pytest.mark.parametrize(
+    ("options", "encoded"),
+    [
+        ({"enabled": True}, '{"enabled":true}'),
+        (
+            {"nested": {"items": [1, None, "a&b"]}},
+            '{"nested":{"items":[1,null,"a&b"]}}',
+        ),
+        ({}, "{}"),
+    ],
+)
+async def test_rpc_serializes_dictionary_arguments(
+    method: str, options: dict, encoded: str
+) -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json=[])
+
+    params: Any = {
+        "options": options,
+        "raw": '{"preserved": true}',
+        "ids": [1, 2],
+        "text": "keep",
+    }
+    async with AsyncClient(transport=MockTransport(handler)) as http:
+        client = AsyncPostgrestClient("https://example.com", http_client=http)
+        await client.rpc(
+            "example", params, get=method == "GET", head=method == "HEAD"
+        ).execute()
+
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.method == method
+    if method == "POST":
+        assert json.loads(request.content) == params
+        assert "options" not in request.url.params
+    else:
+        assert request.url.params.get_list("options") == [encoded]
+        assert request.url.params["raw"] == params["raw"]
+        assert request.url.params["ids"] == "{1,2}"
+        assert request.url.params["text"] == "keep"
