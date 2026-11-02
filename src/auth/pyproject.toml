@@ -18,7 +18,7 @@ classifiers = [
 requires-python = ">=3.9"
 dependencies = [
   "httpx[http2] >=0.26,<0.29",
-  "pydantic >=1.10,<3",
+  "pydantic >=2.7,<3",
   "pyjwt[crypto] >=2.15.1",
 ]
 

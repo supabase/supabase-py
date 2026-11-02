@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing_extensions import Literal, Self
 
 from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS_2024_01_01_NAME
-from ..helpers import handle_exception, model_dump
+from ..helpers import handle_exception
 
 
 class AsyncGoTrueBaseAPI:
@@ -71,7 +71,7 @@ class AsyncGoTrueBaseAPI:
                 url,
                 headers=headers,
                 params=query,
-                json=model_dump(body) if isinstance(body, BaseModel) else body,
+                json=body.model_dump() if isinstance(body, BaseModel) else body,
             )
 
             response.raise_for_status()

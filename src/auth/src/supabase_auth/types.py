@@ -4,19 +4,14 @@ from datetime import datetime
 from time import time
 from typing import Any, Callable, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, with_config
-
-try:
-    # > 2
-    from pydantic import model_validator
-
-    model_validator_v1_v2_compat = model_validator(mode="before")
-except ImportError:
-    # < 2
-    from pydantic import root_validator
-
-    model_validator_v1_v2_compat = root_validator  # type: ignore[assignment]
-
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    TypeAdapter,
+    model_validator,
+    with_config,
+)
 from typing_extensions import Literal, NotRequired, TypedDict
 
 Provider = Literal[
@@ -167,7 +162,8 @@ class Session(BaseModel):
     token_type: str
     user: User
 
-    @model_validator_v1_v2_compat
+    @model_validator(mode="before")
+    @classmethod
     def validator(cls, values: dict) -> dict:
         expires_in = values.get("expires_in")
         if expires_in and not values.get("expires_at"):
@@ -680,7 +676,8 @@ class AuthMFAEnrollResponse(BaseModel):
     Phone number of the MFA factor in E.164 format. Used to send messages
     """
 
-    @model_validator_v1_v2_compat
+    @model_validator(mode="before")
+    @classmethod
     def validate_phone_required_for_phone_type(cls, values: dict) -> dict:
         if values.get("type") == "phone" and not values.get("phone"):
             raise ValueError("phone is required when type is 'phone'")
@@ -830,7 +827,7 @@ class SignOutOptions(TypedDict):
 
 @with_config(
     ConfigDict(extra="allow")
-)  # pydantic <2.7.0 with_config does not accept kwargs
+)  # pydantic <2.11 with_config does not accept kwargs
 class JWTHeader(TypedDict):
     alg: Literal["RS256", "ES256", "HS256"]
     typ: NotRequired[str]
@@ -851,7 +848,7 @@ class RequiredClaims(TypedDict):
 
 @with_config(
     ConfigDict(extra="allow")
-)  # pydantic <2.7.0 with_config does not accept kwargs
+)  # pydantic <2.11 with_config does not accept kwargs
 class JWTPayload(TypedDict, total=False):
     iss: str
     sub: str
@@ -872,7 +869,7 @@ class ClaimsResponse(TypedDict):
 
 @with_config(
     ConfigDict(extra="allow")
-)  # pydantic <2.7.0 with_config does not accept kwargs
+)  # pydantic <2.11 with_config does not accept kwargs
 class JWK(TypedDict, total=False):
     kty: Literal["RSA", "EC", "oct"]
     key_ops: list[str]
