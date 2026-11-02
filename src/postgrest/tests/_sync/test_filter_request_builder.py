@@ -356,7 +356,7 @@ def test_ilike_all_of(filter_request_builder) -> None:
 def test_ilike_any_of(filter_request_builder) -> None:
     builder = filter_request_builder.ilike_any_of("x", "A*,*b")
 
-    assert str(builder.request.params) == "x=ilike%28any%29.%7Ba%2A%2C%2Ab%7D"
+    assert str(builder.request.params) == "x=ilike%28any%29.%7BA%2A%2C%2Ab%7D"
 
 
 def test_is_(filter_request_builder) -> None:

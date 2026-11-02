@@ -179,7 +179,9 @@ def pre_insert(
     # Adding 'columns' query parameters
     query_params = {}
     if isinstance(json, list):
-        query_params = {"columns": _unique_columns(json)}
+        columns = _unique_columns(json)
+        if columns:
+            query_params = {"columns": columns}
     return QueryArgs(RequestMethod.POST, QueryParams(query_params), headers, json)
 
 
@@ -205,7 +207,9 @@ def pre_upsert(
         query_params["on_conflict"] = on_conflict
     # Adding 'columns' query parameters
     if isinstance(json, list):
-        query_params["columns"] = _unique_columns(json)
+        columns = _unique_columns(json)
+        if columns:
+            query_params["columns"] = columns
     return QueryArgs(RequestMethod.POST, QueryParams(query_params), headers, json)
 
 
