@@ -50,7 +50,25 @@ async def test_unsubscribe_closes_channel_when_leave_times_out() -> None:
 
 
 @pytest.mark.asyncio
-async def test_late_leave_callback_keeps_replacement_channel():
+async def test_late_leave_timeout_keeps_replacement_channel() -> None:
+    socket = await connected_socket(timeout=0.1)
+    old = socket.channel("late-leave")
+    await old.subscribe(lambda state, error: None)
+    old.join_push.destroy()
+
+    await old.unsubscribe()
+    new = socket.channel("late-leave")
+    await asyncio.sleep(0.3)
+
+    assert old.state == ChannelStates.CLOSED
+    assert new is not old
+    assert socket.channels.get(new.topic) is new
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_late_leave_callback_keeps_replacement_channel() -> None:
     socket = AsyncRealtimeClient(URL, "token", timeout=0.1)  # type: ignore[arg-type]
     old = socket.channel("late-leave")
     old.state = ChannelStates.LEAVING
@@ -59,16 +77,6 @@ async def test_late_leave_callback_keeps_replacement_channel():
     old.on_close()
 
     assert socket.channels.get(new.topic) is new
-
-
-@pytest.mark.asyncio
-async def test_on_close_still_removes_current_channel():
-    socket = AsyncRealtimeClient(URL, "token", timeout=0.1)  # type: ignore[arg-type]
-    channel = socket.channel("current-close")
-
-    channel.on_close()
-
-    assert channel.topic not in socket.channels
 
 
 @pytest.mark.asyncio
@@ -84,3 +92,13 @@ async def test_remove_channel_ignores_replaced_channel() -> None:
 
     new_unsubscribe.assert_not_awaited()
     assert socket.channels.get(new.topic) is new
+
+
+@pytest.mark.asyncio
+async def test_on_close_still_removes_current_channel() -> None:
+    socket = AsyncRealtimeClient(URL, "token", timeout=0.1)  # type: ignore[arg-type]
+    channel = socket.channel("current-close")
+
+    channel.on_close()
+
+    assert channel.topic not in socket.channels
