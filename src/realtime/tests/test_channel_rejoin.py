@@ -163,7 +163,7 @@ async def test_reconnect_rejoins_joined_channels_without_delay() -> None:
         ),
         patch.object(channel, "_rejoin", new=AsyncMock()) as rejoin,
     ):
-        await socket._reconnect()
+        await socket._reconnect(ConnectionError())
 
     rejoin.assert_awaited_once()
     assert channel.rejoin_timer.timer is None
@@ -184,7 +184,7 @@ async def test_reconnect_rejoins_channel_that_a_stale_reply_marked_joined() -> N
         patch("realtime._async.client.connect", new=stale_join_reply),
         patch.object(channel, "_rejoin", new=AsyncMock()) as rejoin,
     ):
-        await socket._reconnect()
+        await socket._reconnect(ConnectionError())
 
     rejoin.assert_awaited_once()
     assert socket._channels_to_rejoin == []
@@ -202,7 +202,7 @@ async def test_reconnect_rejoins_once_after_a_failed_reconnect() -> None:
         patch("realtime._async.client.asyncio.sleep", new=AsyncMock()),
         pytest.raises(ConnectionError),
     ):
-        await socket._reconnect()
+        await socket._reconnect(ConnectionError())
 
     channel.state = ChannelStates.JOINED
 
@@ -213,7 +213,7 @@ async def test_reconnect_rejoins_once_after_a_failed_reconnect() -> None:
         ),
         patch.object(channel, "_rejoin", new=AsyncMock()) as rejoin,
     ):
-        await socket._reconnect()
+        await socket._reconnect(ConnectionError())
 
     rejoin.assert_awaited_once()
     await socket.close()

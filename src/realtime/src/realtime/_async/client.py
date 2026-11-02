@@ -21,6 +21,7 @@ from ..types import (
     VSN,
     ChannelEvents,
     ChannelStates,
+    RealtimeSubscribeStates,
 )
 from ..utils import is_ws_url
 from .channel import AsyncRealtimeChannel, RealtimeChannelOptions
@@ -124,18 +125,26 @@ class AsyncRealtimeClient:
                 f"WebSocket connection closed by server with code: {ws_connection.close_code}"
             )
             if self.auto_reconnect:
-                await self._reconnect()
+                await self._reconnect(ws_connection.protocol.close_exc)
             else:
                 self._ws_connection = None
+                self._set_channels_errored(ws_connection.protocol.close_exc)
 
-    async def _reconnect(self) -> None:
-        self._ws_connection = None
-
+    def _set_channels_errored(self, error: Exception) -> None:
         for channel in self.channels.values():
             if channel.is_joined or channel.is_joining:
                 channel.state = ChannelStates.ERRORED
                 if channel not in self._channels_to_rejoin:
                     self._channels_to_rejoin.append(channel)
+                if channel.subscribe_callback:
+                    channel.subscribe_callback(
+                        RealtimeSubscribeStates.CHANNEL_ERROR, error
+                    )
+
+    async def _reconnect(self, error: Exception) -> None:
+        self._ws_connection = None
+
+        self._set_channels_errored(error)
 
         await self.connect()
 
@@ -246,10 +255,11 @@ class AsyncRealtimeClient:
 
         if self.auto_reconnect:
             logger.debug("Initiating auto-reconnect sequence...")
-            await self._reconnect()
+            await self._reconnect(e)
         else:
             logger.error("Auto-reconnect disabled, terminating connection")
             self._ws_connection = None
+            self._set_channels_errored(e)
 
     async def _flush_send_buffer(self) -> None:
         if self.is_connected and len(self.send_buffer) > 0:
