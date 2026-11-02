@@ -1273,7 +1273,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         jwk: Optional[JWK] = None
 
         # try fetching from the suplied keys.
-        jwk = next((jwk for jwk in jwks["keys"] if jwk["kid"] == kid), None)
+        jwk = next((jwk for jwk in jwks["keys"] if jwk.get("kid") == kid), None)
 
         if jwk:
             return jwk
@@ -1283,7 +1283,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         ):
             # try fetching from the cache.
             jwk = next(
-                (jwk for jwk in self._jwks["keys"] if jwk["kid"] == kid),
+                (jwk for jwk in self._jwks["keys"] if jwk.get("kid") == kid),
                 None,
             )
             if jwk:
@@ -1297,7 +1297,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             self._jwks_cached_at = time.time()
 
             # find the signing key
-            jwk = next((jwk for jwk in jwks["keys"] if jwk["kid"] == kid), None)
+            jwk = next((jwk for jwk in jwks["keys"] if jwk.get("kid") == kid), None)
             if not jwk:
                 raise AuthInvalidJwtError("No matching signing key found in JWKS")
 
