@@ -14,7 +14,6 @@ RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 JSON = TypeAliasType(
     "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
 )
-JSONAdapter: TypeAdapter = TypeAdapter(JSON)
 
 
 class BaseBucket(BaseModel, extra="ignore"):
