@@ -797,9 +797,8 @@ async def test_subscribe_forwards_select_in_postgres_changes(
 @pytest.mark.asyncio
 async def test_subscribe_defaults_postgres_changes_schema_to_public(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     import json
-    from unittest.mock import AsyncMock
 
     mock_ws = AsyncMock()
     socket._ws_connection = mock_ws
