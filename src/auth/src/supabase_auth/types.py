@@ -15,7 +15,7 @@ except ImportError:
     # < 2
     from pydantic import root_validator
 
-    model_validator_v1_v2_compat = root_validator  # type: ignore
+    model_validator_v1_v2_compat = root_validator  # type: ignore[assignment]
 
 from typing_extensions import Literal, NotRequired, TypedDict
 

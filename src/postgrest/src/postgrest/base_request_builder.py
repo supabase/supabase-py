@@ -286,7 +286,7 @@ class APIResponse(BaseModel):
 
 
 class SingleAPIResponse(APIResponse):
-    data: JSON  # type: ignore
+    data: JSON  # type: ignore[assignment]
     """The data returned by the query."""
 
     @staticmethod

@@ -497,7 +497,7 @@ async def test_sign_in_with_password() -> None:
 
     # Test error case: missing credentials
     try:
-        await test_client.sign_in_with_password({})  # type: ignore
+        await test_client.sign_in_with_password({})  # type: ignore[arg-type]
         raise AssertionError(
             "Expected AuthInvalidCredentialsError for missing credentials"
         )
@@ -596,7 +596,7 @@ async def test_sign_in_with_otp() -> None:
     from supabase_auth.errors import AuthInvalidCredentialsError
 
     try:
-        await client.sign_in_with_otp({})  # type: ignore
+        await client.sign_in_with_otp({})  # type: ignore[arg-type]
         raise AssertionError("Expected AuthInvalidCredentialsError")
     except AuthInvalidCredentialsError:
         pass
