@@ -56,6 +56,9 @@ class ClientOptions:
     )
     """Timeout passed to the SyncPostgrestClient instance."""
 
+    postgrest_client_retry: bool = True
+    """Automatically retry transient PostgREST errors. Passed to the SyncPostgrestClient instance."""
+
     storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT
     """Timeout passed to the SyncStorageClient instance"""
 
@@ -84,6 +87,7 @@ class AsyncClientOptions(ClientOptions):
         realtime: Optional[RealtimeClientOptions] = None,
         httpx_client: Optional[AsyncHttpxClient] = None,
         postgrest_client_timeout: Optional[Union[int, float, Timeout]] = None,
+        postgrest_client_retry: Optional[bool] = None,
         storage_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
         function_client_timeout: Optional[int] = None,
@@ -107,6 +111,11 @@ class AsyncClientOptions(ClientOptions):
             postgrest_client_timeout
             if postgrest_client_timeout is not None
             else self.postgrest_client_timeout
+        )
+        client_options.postgrest_client_retry = (
+            postgrest_client_retry
+            if postgrest_client_retry is not None
+            else self.postgrest_client_retry
         )
         client_options.storage_client_timeout = (
             storage_client_timeout
@@ -139,6 +148,7 @@ class SyncClientOptions(ClientOptions):
         realtime: Optional[RealtimeClientOptions] = None,
         httpx_client: Optional[SyncHttpxClient] = None,
         postgrest_client_timeout: Optional[Union[int, float, Timeout]] = None,
+        postgrest_client_retry: Optional[bool] = None,
         storage_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
         function_client_timeout: Optional[int] = None,
@@ -162,6 +172,11 @@ class SyncClientOptions(ClientOptions):
             postgrest_client_timeout
             if postgrest_client_timeout is not None
             else self.postgrest_client_timeout
+        )
+        client_options.postgrest_client_retry = (
+            postgrest_client_retry
+            if postgrest_client_retry is not None
+            else self.postgrest_client_retry
         )
         client_options.storage_client_timeout = (
             storage_client_timeout

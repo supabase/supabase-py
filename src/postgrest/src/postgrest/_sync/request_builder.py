@@ -293,12 +293,18 @@ class SyncSelectRequestBuilder(
 
 class SyncRequestBuilder:  #
     def __init__(
-        self, session: Client, path: URL, headers: Headers, auth: BasicAuth | None
+        self,
+        session: Client,
+        path: URL,
+        headers: Headers,
+        auth: BasicAuth | None,
+        retry_enabled: bool = True,
     ) -> None:
         self.session = session
         self.path = path
         self.headers = headers
         self.auth = auth
+        self.retry_enabled = retry_enabled
 
     def select(
         self,
@@ -324,6 +330,7 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
         return SyncSelectRequestBuilder(request)
 
@@ -365,6 +372,7 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
         return SyncSelectRequestBuilder(request)
 
@@ -410,6 +418,7 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
         return SyncSelectRequestBuilder(request)
 
@@ -443,6 +452,7 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
         return SyncSelectRequestBuilder(request)
 
@@ -473,5 +483,6 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
         return SyncSelectRequestBuilder(request)
