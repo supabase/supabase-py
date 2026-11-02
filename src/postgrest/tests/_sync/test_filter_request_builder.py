@@ -391,6 +391,18 @@ def test_in_(filter_request_builder) -> None:
     assert str(builder.request.params) == "x=in.%28a%2Cb%29"
 
 
+def test_in_serializes_none_as_null(filter_request_builder) -> None:
+    builder = filter_request_builder.in_("x", [None, "a"])
+
+    assert str(builder.request.params) == "x=in.%28null%2Ca%29"
+
+
+def test_in_serializes_booleans(filter_request_builder) -> None:
+    builder = filter_request_builder.in_("x", [True, False])
+
+    assert str(builder.request.params) == "x=in.%28true%2Cfalse%29"
+
+
 def test_or_(filter_request_builder) -> None:
     builder = filter_request_builder.or_("x.eq.1")
 

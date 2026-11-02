@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response
 
@@ -19,10 +21,14 @@ from postgrest import AsyncPostgrestClient, SyncPostgrestClient
             ["normal", "a,b", "a:b", "a(b)", "table.column"],
             'in.(normal,"a,b","a:b","a(b)",table.column)',
         ),
+        (
+            [None, True, False, "a,b", 1, 1.5],
+            'in.(null,true,false,"a,b",1,1.5)',
+        ),
     ],
 )
 async def test_in_filter_escapes_quoted_values(
-    use_async: bool, values: list[str], expected: str
+    use_async: bool, values: list[Any], expected: str
 ) -> None:
     def handler(request: Request) -> Response:
         assert request.url.params["name"] == expected
