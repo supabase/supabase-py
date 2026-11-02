@@ -45,6 +45,19 @@ async def test_postgrest_client() -> None:
     assert client.postgrest.schema("new_schema")
 
 
+async def test_postgrest_client_retry_option() -> None:
+    url = os.environ["SUPABASE_TEST_URL"]
+    key = os.environ["SUPABASE_TEST_KEY"]
+
+    client = await create_async_client(url, key)
+    assert client.postgrest.retry_enabled is True
+
+    options = AsyncClientOptions(postgrest_client_retry=False)
+    client = await create_async_client(url, key, options)
+    assert client.postgrest.retry_enabled is False
+    assert client.table("sample").select("*").request.retry_enabled is False
+
+
 async def test_rpc_client() -> None:
     url = os.environ["SUPABASE_TEST_URL"]
     key = os.environ["SUPABASE_TEST_KEY"]
@@ -284,6 +297,17 @@ async def test_replace_preserves_and_overrides_postgrest_and_storage_timeouts() 
     overridden = updated.replace(postgrest_client_timeout=9, storage_client_timeout=11)
     assert overridden.postgrest_client_timeout == 9
     assert overridden.storage_client_timeout == 11
+
+
+async def test_replace_preserves_and_overrides_postgrest_retry() -> None:
+    options = AsyncClientOptions(postgrest_client_retry=False)
+
+    updated = options.replace(schema="private")
+    assert updated.postgrest_client_retry is False
+
+    overridden = updated.replace(postgrest_client_retry=True)
+    assert overridden.postgrest_client_retry is True
+    assert AsyncClientOptions().replace(schema="private").postgrest_client_retry
 
 
 async def test_custom_headers_immutable() -> None:
