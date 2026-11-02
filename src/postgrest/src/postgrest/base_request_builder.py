@@ -486,14 +486,9 @@ class BaseFilterRequestBuilder(Generic[C]):
         return self.filter(column, Filters.WFTS, query)
 
     def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
-        def _serialize_in_value(value: FilterValue) -> str:
-            if value is None:
-                return "null"
-            if isinstance(value, bool):
-                return "true" if value else "false"
-            return sanitize_param(value)
-
-        stringified_values = ",".join(_serialize_in_value(value) for value in values)
+        stringified_values = ",".join(
+            sanitize_param(_serialize_filter_value(value)) for value in values
+        )
         return self.filter(column, Filters.IN, f"({stringified_values})")
 
     def cs(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
