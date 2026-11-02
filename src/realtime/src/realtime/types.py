@@ -93,7 +93,7 @@ class PostgresChangesData(TypedDict):
     table: str
     commit_timestamp: str
     type: RealtimePostgresChangesListenEvent
-    errors: str | None
+    errors: str | list[str] | None
     columns: list[PostgresChangesColumn]
     record: NotRequired[dict[str, Any] | None]
     old_record: NotRequired[dict[str, Any]]  # todo: improve this
