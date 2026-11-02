@@ -2073,7 +2073,7 @@ test = [
 requires-dist = [
     { name = "deprecation", specifier = ">=2.1.0" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
-    { name = "pydantic", specifier = ">=1.9,<3.0" },
+    { name = "pydantic", specifier = ">=2.11.7,<3" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.9" },
     { name = "yarl", specifier = ">=1.20.1" },
 ]
@@ -3813,7 +3813,7 @@ tests = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
-    { name = "pydantic", specifier = ">=1.10,<3" },
+    { name = "pydantic", specifier = ">=2.11.7,<3" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.15.1" },
 ]
 

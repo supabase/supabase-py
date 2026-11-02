@@ -31,8 +31,6 @@ from ..helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    model_dump_json,
-    model_validate,
     parse_auth_otp_response,
     parse_auth_response,
     parse_jwks,
@@ -883,7 +881,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             body=body,
             jwt=session.access_token,
         )
-        auth_response = model_validate(AuthMFAEnrollResponse, response.content)
+        auth_response = AuthMFAEnrollResponse.model_validate_json(response.content)
         if params["factor_type"] == "totp" and auth_response.totp:
             auth_response.totp.qr_code = (
                 f"data:image/svg+xml;utf-8,{auth_response.totp.qr_code}"
@@ -900,7 +898,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             body={"channel": params.get("channel")},
             jwt=session.access_token,
         )
-        return model_validate(AuthMFAChallengeResponse, response.content)
+        return AuthMFAChallengeResponse.model_validate_json(response.content)
 
     def _challenge_and_verify(
         self,
@@ -929,8 +927,8 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             body=params,
             jwt=session.access_token,
         )
-        auth_response = model_validate(AuthMFAVerifyResponse, response.content)
-        session = model_validate(Session, response.content)
+        auth_response = AuthMFAVerifyResponse.model_validate_json(response.content)
+        session = Session.model_validate_json(response.content)
         self._save_session(session)
         self._notify_all_subscribers("MFA_CHALLENGE_VERIFIED", session)
         return auth_response
@@ -944,7 +942,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             f"factors/{params.get('factor_id')}",
             jwt=session.access_token,
         )
-        return model_validate(AuthMFAUnenrollResponse, response.content)
+        return AuthMFAUnenrollResponse.model_validate_json(response.content)
 
     def _list_factors(self) -> AuthMFAListFactorsResponse:
         response = self.get_user()
@@ -1123,7 +1121,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             value = (expire_in - refresh_duration_before_expires) * 1000
             self._start_auto_refresh_token(value)
         if self._persist_session and session.expires_at:
-            self._storage.set_item(self._storage_key, model_dump_json(session))
+            self._storage.set_item(self._storage_key, session.model_dump_json())
 
     def _start_auto_refresh_token(self, value: float) -> None:
         if self._refresh_token_timer:
@@ -1167,7 +1165,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         if not raw_session:
             return None
         try:
-            session = model_validate(Session, raw_session)
+            session = Session.model_validate_json(raw_session)
             if session.expires_at is None:
                 return None
             return session

@@ -24,7 +24,6 @@ from ..base_request_builder import (
 )
 from ..exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from ..types import JSON, ReturnMethod
-from ..utils import model_validate_json
 
 ReqConfig = RequestConfig[AsyncClient]
 QueryBuilderT = TypeVar("QueryBuilderT", bound="AsyncQueryRequestBuilder")
@@ -92,7 +91,7 @@ class AsyncQueryRequestBuilder:
             if r.is_success:
                 return APIResponse.from_http_request_response(r)
             else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                json_obj = APIErrorFromJSON.model_validate_json(r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
             raise APIError(generate_default_error_message(r)) from e
@@ -125,7 +124,7 @@ class AsyncSingleRequestBuilder:
             ):  # Response.ok from JS (https://developer.mozilla.org/en-US/docs/Web/API/Response/ok)
                 return SingleAPIResponse.from_http_request_response(r)
             else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                json_obj = APIErrorFromJSON.model_validate_json(r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
             raise APIError(generate_default_error_message(r)) from e
@@ -145,7 +144,7 @@ class AsyncExplainRequestBuilder:
             if r.is_success:
                 return r.text
             else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                json_obj = APIErrorFromJSON.model_validate_json(r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
             raise APIError(generate_default_error_message(r)) from e
@@ -178,7 +177,7 @@ class AsyncMaybeSingleRequestBuilder:
                         }
                     )
             else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                json_obj = APIErrorFromJSON.model_validate_json(r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
             raise APIError(generate_default_error_message(r)) from e

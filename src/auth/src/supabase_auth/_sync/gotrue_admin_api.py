@@ -5,7 +5,6 @@ from typing import Optional
 from httpx import Client, QueryParams
 
 from ..helpers import (
-    model_validate,
     parse_link_response,
     parse_user_response,
     validate_uuid,
@@ -145,7 +144,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "admin/users",
             query=QueryParams(page=page, per_page=per_page),
         )
-        return model_validate(UserList, response.content).users
+        return UserList.model_validate_json(response.content).users
 
     def get_user_by_id(self, uid: str) -> UserResponse:
         """
@@ -213,7 +212,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "DELETE",
             f"admin/users/{params.get('user_id')}/factors/{params.get('id')}",
         )
-        return model_validate(AuthMFAAdminDeleteFactorResponse, response.content)
+        return AuthMFAAdminDeleteFactorResponse.model_validate_json(response.content)
 
     def _list_oauth_clients(
         self,
@@ -237,7 +236,7 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             no_resolve_json=True,
         )
 
-        result = model_validate(OAuthClientListResponse, response.content)
+        result = OAuthClientListResponse.model_validate_json(response.content)
 
         # Parse pagination headers
         total = response.headers.get("x-total-count")
@@ -277,7 +276,9 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             body=params,
         )
 
-        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
+        return OAuthClientResponse(
+            client=OAuthClient.model_validate_json(response.content)
+        )
 
     def _get_oauth_client(
         self,
@@ -295,7 +296,9 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "GET",
             f"admin/oauth/clients/{client_id}",
         )
-        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
+        return OAuthClientResponse(
+            client=OAuthClient.model_validate_json(response.content)
+        )
 
     def _update_oauth_client(
         self,
@@ -315,7 +318,9 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             f"admin/oauth/clients/{client_id}",
             body=params,
         )
-        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
+        return OAuthClientResponse(
+            client=OAuthClient.model_validate_json(response.content)
+        )
 
     def _delete_oauth_client(
         self,
@@ -350,4 +355,6 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "POST",
             f"admin/oauth/clients/{client_id}/regenerate_secret",
         )
-        return OAuthClientResponse(client=model_validate(OAuthClient, response.content))
+        return OAuthClientResponse(
+            client=OAuthClient.model_validate_json(response.content)
+        )

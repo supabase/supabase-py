@@ -7,7 +7,6 @@ import httpx
 import pytest
 import respx
 from httpx import Headers, HTTPStatusError, Response
-from pydantic import BaseModel
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
 )
@@ -23,9 +22,6 @@ from supabase_auth.helpers import (
     generate_pkce_challenge,
     generate_pkce_verifier,
     handle_exception,
-    model_dump,
-    model_dump_json,
-    model_validate,
     parse_link_identity_response,
     parse_response_api_version,
     validate_exp,
@@ -194,51 +190,6 @@ def test_parse_response_api_version_invalid_date() -> None:
 
     result = parse_response_api_version(mock_response)
     assert result is None
-
-
-# Test for pydantic v1 compatibility in model_validate
-def test_model_validate_pydantic_v1() -> None:
-    # Mock the behavior of the try block to raise AttributeError
-    mock_model = MagicMock()
-    mock_model.model_validate_json.side_effect = AttributeError
-    mock_model.parse_raw.return_value = "parsed_obj_result"
-
-    # Use the patched model in the actual function
-    result = model_validate(mock_model, {"test": "data"})  # type: ignore[arg-type, var-annotated]
-
-    # Check that parse_obj was called
-    mock_model.parse_raw.assert_called_once_with({"test": "data"})
-    assert result == "parsed_obj_result"
-
-
-# Test for pydantic v1 compatibility in model_dump
-def test_model_dump_pydantic_v1() -> None:
-    # Create a mock model with necessary behavior
-    mock_model = MagicMock(spec=BaseModel)
-    mock_model.model_dump.side_effect = AttributeError
-    mock_model.dict.return_value = {"test": "data"}
-
-    # Call the function
-    result = model_dump(mock_model)
-
-    # Check the results
-    assert result == {"test": "data"}
-    mock_model.dict.assert_called_once()
-
-
-# Test for pydantic v1 compatibility in model_dump_json
-def test_model_dump_json_pydantic_v1() -> None:
-    # Create a mock model with necessary behavior
-    mock_model = MagicMock(spec=BaseModel)
-    mock_model.model_dump_json.side_effect = AttributeError
-    mock_model.json.return_value = '{"test": "data"}'
-
-    # Call the function
-    result = model_dump_json(mock_model)
-
-    # Check the results
-    assert result == '{"test": "data"}'
-    mock_model.json.assert_called_once()
 
 
 def _network_error(response: Response) -> HTTPStatusError:
