@@ -4,7 +4,6 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import Union
 
-from pydantic import TypeAdapter
 from typing_extensions import TypeAliasType
 
 if sys.version_info >= (3, 11):
@@ -16,7 +15,6 @@ else:
 JSON = TypeAliasType(
     "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
 )
-JSONAdapter: TypeAdapter = TypeAdapter(JSON)
 
 # A scalar value accepted by PostgREST filter operators. Used instead of ``Any``
 # so the accepted types are explicit; values are still coerced to ``str`` when

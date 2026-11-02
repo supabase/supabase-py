@@ -2073,7 +2073,7 @@ test = [
 requires-dist = [
     { name = "deprecation", specifier = ">=2.1.0" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
-    { name = "pydantic", specifier = ">=1.9,<3.0" },
+    { name = "pydantic", specifier = ">=2.0,<3.0" },
     { name = "strenum", marker = "python_full_version < '3.11'", specifier = ">=0.4.9" },
     { name = "yarl", specifier = ">=1.20.1" },
 ]

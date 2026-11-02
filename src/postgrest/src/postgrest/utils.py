@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from typing import Any, TypeVar
+from typing import Any
 
 from deprecation import deprecated
 from httpx import AsyncClient  # noqa: F401
 from httpx import Client as BaseClient
-from pydantic import BaseModel
 from yarl import URL
 
 from .version import __version__
@@ -91,17 +90,3 @@ def rpc_query_param(value: Any) -> Any:
 
 def is_http_url(url: URL) -> bool:
     return url.scheme in {"https", "http"}
-
-
-TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
-
-
-def model_validate_json(model: type[TBaseModel], contents) -> TBaseModel:
-    """Compatibility layer between pydantic 1 and 2 for parsing an instance
-    of a BaseModel from varied"""
-    try:
-        # pydantic > 2
-        return model.model_validate_json(contents)
-    except AttributeError:
-        # pydantic < 2
-        return model.parse_raw(contents)
