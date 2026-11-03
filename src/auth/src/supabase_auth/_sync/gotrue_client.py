@@ -25,6 +25,7 @@ from ..errors import (
     UserDoesntExist,
 )
 from ..helpers import (
+    _parse_url_params,
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
@@ -33,7 +34,6 @@ from ..helpers import (
     parse_jwks,
     parse_link_identity_response,
     parse_sso_response,
-    parse_url_params,
     parse_user_response,
     validate_exp,
 )
@@ -1056,7 +1056,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
     ) -> tuple[Session, str | None]:
         if not self._is_implicit_grant_flow(url):
             raise AuthImplicitGrantRedirectError("Not a valid implicit grant flow url.")
-        params = parse_url_params(url)
+        params = _parse_url_params(url)
         error_description = self._get_param(params, "error_description")
         if error_description:
             error_code = self._get_param(params, "error_code")
@@ -1228,7 +1228,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         return query_params[name][0] if name in query_params else None
 
     def _is_implicit_grant_flow(self, url: str) -> bool:
-        params = parse_url_params(url)
+        params = _parse_url_params(url)
         return "access_token" in params or "error_description" in params
 
     def _get_url_for_provider(

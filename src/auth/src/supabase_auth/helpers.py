@@ -82,7 +82,7 @@ def parse_sso_response(response: Response) -> SSOResponse:
 JWKSetParser: TypeAdapter[JWKSet] = TypeAdapter(JWKSet)
 
 
-def parse_url_params(url: str) -> dict[str, list[str]]:
+def _parse_url_params(url: str) -> dict[str, list[str]]:
     result = urlparse(url)
     return {**parse_qs(result.fragment), **parse_qs(result.query)}
 
