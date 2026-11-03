@@ -75,7 +75,6 @@ filterwarnings = [
 ]
 
 [tool.mypy]
-python_version = "3.9"
 follow_untyped_imports = true # for deprecation module that does not have stubs
 check_untyped_defs = true
 allow_redefinition = true
