@@ -102,11 +102,12 @@ class AsyncRealtimeClient:
         :return: None
         """
 
-        if not self._ws_connection:
+        ws_connection = self._ws_connection
+        if not ws_connection:
             raise NotConnectedError("_listen")
 
         try:
-            async for msg in self._ws_connection:
+            async for msg in ws_connection:
                 logger.debug(f"receive: {msg!r}")
 
                 try:
@@ -119,6 +120,19 @@ class AsyncRealtimeClient:
                     channel._handle_message(message)
         except websockets.exceptions.ConnectionClosedError as e:
             await self._on_connect_error(e)
+        else:
+            # websockets ends the iteration without raising when the server closes
+            # with 1000 or 1001. close() clears _ws_connection before closing, so a
+            # connection that is still current here was closed by the server.
+            if self._ws_connection is not ws_connection:
+                return
+            logger.debug(
+                f"WebSocket connection closed by server with code: {ws_connection.close_code}"
+            )
+            if self.auto_reconnect:
+                await self._reconnect()
+            else:
+                self._ws_connection = None
 
     async def _reconnect(self) -> None:
         self._ws_connection = None
@@ -203,12 +217,16 @@ class AsyncRealtimeClient:
         pass
 
     async def _on_connect(self) -> None:
+        current_task = asyncio.current_task()
+
         if self._listen_task:
-            self._listen_task.cancel()
+            if self._listen_task is not current_task:
+                self._listen_task.cancel()
             self._listen_task = None
 
         if self._heartbeat_task:
-            self._heartbeat_task.cancel()
+            if self._heartbeat_task is not current_task:
+                self._heartbeat_task.cancel()
             self._heartbeat_task = None
 
         self._listen_task = asyncio.create_task(self._listen())
@@ -227,6 +245,7 @@ class AsyncRealtimeClient:
             await self._reconnect()
         else:
             logger.error("Auto-reconnect disabled, terminating connection")
+            self._ws_connection = None
 
     async def _flush_send_buffer(self) -> None:
         if self.is_connected and len(self.send_buffer) > 0:
@@ -245,10 +264,11 @@ class AsyncRealtimeClient:
             NotConnectedError: If the connection is not established when this method is called.
         """
 
-        if self._ws_connection:
-            await self._ws_connection.close()
-
+        ws_connection = self._ws_connection
         self._ws_connection = None
+
+        if ws_connection:
+            await ws_connection.close()
 
         if self._listen_task:
             self._listen_task.cancel()
@@ -275,8 +295,9 @@ class AsyncRealtimeClient:
 
             except websockets.exceptions.ConnectionClosedError as e:
                 await self._on_connect_error(e)
+                return
             except websockets.exceptions.ConnectionClosedOK:
-                pass
+                return
 
     def channel(
         self, topic: str, params: Optional[RealtimeChannelOptions] = None
