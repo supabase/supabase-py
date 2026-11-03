@@ -160,12 +160,6 @@ class PostgresChangesCallback:
         return binding
 
 
-class _Hook:
-    def __init__(self, status: str, callback: Callback[[dict[str, Any]], None]) -> None:
-        self.status = status
-        self.callback = callback
-
-
 @with_config(ConfigDict(extra="allow"))
 class Presence(TypedDict):
     presence_ref: str

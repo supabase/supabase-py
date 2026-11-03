@@ -73,7 +73,6 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
             "logout",
             query=QueryParams(scope=scope),
             jwt=jwt,
-            no_resolve_json=True,
         )
 
     async def invite_user_by_email(
@@ -231,7 +230,6 @@ class AsyncGoTrueAdminAPI(AsyncGoTrueBaseAPI):
             "GET",
             "admin/oauth/clients",
             query=query,
-            no_resolve_json=True,
         )
 
         result = OAuthClientListResponse.model_validate_json(response.content)

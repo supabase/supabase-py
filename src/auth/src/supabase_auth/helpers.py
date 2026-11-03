@@ -180,13 +180,6 @@ def handle_exception(
         return AuthUnknownError(get_error_message(error), e)
 
 
-def str_from_base64url(base64url: str) -> str:
-    # Addding padding otherwise the following error happens:
-    # binascii.Error: Incorrect padding
-    base64url_with_padding = base64url + "=" * (-len(base64url) % 4)
-    return urlsafe_b64decode(base64url_with_padding).decode("utf-8")
-
-
 def base64url_to_bytes(base64url: str) -> bytes:
     # Addding padding otherwise the following error happens:
     # binascii.Error: Incorrect padding

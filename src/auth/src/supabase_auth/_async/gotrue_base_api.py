@@ -51,7 +51,6 @@ class AsyncGoTrueBaseAPI:
         headers: dict[str, str] | None = None,
         query: QueryParams | None = None,
         body: Any | None = None,
-        no_resolve_json: bool = False,
     ) -> Response:
         url = f"{self._url}/{path}"
         headers = {**self._headers, **(headers or {})}

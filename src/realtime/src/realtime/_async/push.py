@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Literal, assert_never, overload
 
 from ..message import Message, ReplyPostgresChanges
-from ..types import DEFAULT_TIMEOUT, Callback, RealtimeAcknowledgementStatus, _Hook
+from ..types import DEFAULT_TIMEOUT, Callback, RealtimeAcknowledgementStatus
 
 if TYPE_CHECKING:
     from .channel import AsyncRealtimeChannel
@@ -26,7 +26,6 @@ class AsyncPush:
         self.event = event
         self.payload = payload or {}
         self.timeout = timeout
-        self.rec_hooks: list[_Hook] = []
         self.ref: str | None = None
         self.received_resp: (
             tuple[RealtimeAcknowledgementStatus, dict[str, Any]] | None
