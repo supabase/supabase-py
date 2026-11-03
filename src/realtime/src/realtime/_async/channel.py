@@ -523,7 +523,8 @@ class AsyncRealtimeChannel:
         self,
         event: str,
         payload: Any,
-        timeout: Optional[int] = None,
+        *,
+        timeout: Optional[float] = None,
     ) -> dict[str, bool]:
         """
         Send a broadcast message through the REST API.
@@ -535,7 +536,7 @@ class AsyncRealtimeChannel:
 
         :param event: The name of the broadcast event
         :param payload: The payload to broadcast (required)
-        :param timeout: Optional timeout in milliseconds, defaults to the client timeout
+        :param timeout: Optional timeout in seconds, defaults to the client timeout
         :return: ``{"success": True}`` once the server accepts the message
         :raises ValueError: If the payload is None
         :raises Exception: If the request times out or the server rejects it
@@ -564,7 +565,7 @@ class AsyncRealtimeChannel:
 
         content = bytes(payload) if is_binary else json.dumps(payload)
 
-        timeout_seconds = (timeout or self.timeout) / 1000.0
+        timeout_seconds = timeout or self.timeout
         try:
             async with httpx.AsyncClient(timeout=timeout_seconds) as client:
                 response = await client.post(

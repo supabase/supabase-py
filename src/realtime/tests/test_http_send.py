@@ -66,7 +66,9 @@ async def test_uses_updated_access_token_and_omits_missing_one() -> None:
 
 @pytest.mark.asyncio
 async def test_private_channel_sets_query_param() -> None:
-    channel = make_client().channel("t", {"config": {"private": True}})
+    channel = make_client().channel(
+        "t", {"config": {"broadcast": None, "presence": None, "private": True}}
+    )
     with mock_post(response(202)) as post:
         await channel.http_send("e", {})
     assert post.call_args.kwargs["params"] == {"private": "true"}
@@ -135,7 +137,7 @@ async def test_timeout_error() -> None:
 
 @pytest.mark.asyncio
 async def test_timeout_defaults_to_client_timeout_and_can_be_overridden() -> None:
-    channel = make_client(timeout=5000).channel("t")
+    channel = make_client(timeout=5).channel("t")
     timeouts = []
     real_init = httpx.AsyncClient.__init__
 
@@ -146,5 +148,5 @@ async def test_timeout_defaults_to_client_timeout_and_can_be_overridden() -> Non
     with mock_post(response(202)):
         with patch.object(httpx.AsyncClient, "__init__", spy_init):
             await channel.http_send("e", {})
-            await channel.http_send("e", {}, timeout=3000)
-    assert timeouts == [5.0, 3.0]
+            await channel.http_send("e", {}, timeout=3)
+    assert timeouts == [5, 3]
