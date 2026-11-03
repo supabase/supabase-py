@@ -629,6 +629,13 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             },
             redirect_to=params.get("options", {}).get("redirect_to"),
         )
+        if params["type"] == "email_change":
+            try:
+                data = response.json()
+            except ValueError:
+                data = None
+            if isinstance(data, dict) and data.get("code") == "200":
+                return AuthResponse()
         auth_response = parse_auth_response(response)
         if auth_response.session:
             self._save_session(auth_response.session)
