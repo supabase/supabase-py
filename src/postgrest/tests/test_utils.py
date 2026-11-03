@@ -57,6 +57,7 @@ def test_encode_json_body_generated_types() -> None:
         "day": date(2024, 5, 1),
         "starts_at": time(9, 15),
         "payload": b"\x00\xffab",
+        "view": memoryview(b"ab"),
         "nested": [{"at": date(2020, 1, 2)}],
     }
 
@@ -68,6 +69,7 @@ def test_encode_json_body_generated_types() -> None:
         "day": "2024-05-01",
         "starts_at": "09:15:00",
         "payload": "\\x00ff6162",
+        "view": "\\x6162",
         "nested": [{"at": "2020-01-02"}],
     }
 

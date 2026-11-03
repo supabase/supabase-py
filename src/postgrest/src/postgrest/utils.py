@@ -89,7 +89,9 @@ def rpc_query_param(value: Any) -> Any:
 def _encode_json_value(value: object) -> object:
     if isinstance(value, Mapping):
         return dict(value)
-    if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+    if isinstance(value, Sequence) and not isinstance(
+        value, (bytes, bytearray, memoryview)
+    ):
         return list(value)
     if isinstance(value, (date, time)):
         return value.isoformat()
