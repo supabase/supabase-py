@@ -161,7 +161,10 @@ def _is_row_list(body: object) -> TypeGuard[Sequence[Mapping[str, object]]]:
 
 def _unique_columns(json: Sequence[Mapping[str, object]]) -> str:
     unique_keys = {key for row in json for key in row.keys()}
-    columns = ",".join([f'"{k}"' for k in unique_keys])
+    columns = ",".join(
+        '"' + str(key).replace("\\", "\\\\").replace('"', '\\"') + '"'
+        for key in unique_keys
+    )
     return columns
 
 
