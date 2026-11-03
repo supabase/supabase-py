@@ -61,7 +61,9 @@ async def test_remove_all_channels_forgets_every_channel() -> None:
     await socket.remove_all_channels()
 
     assert socket.get_channels() == []
-    assert sorted(connection.leaves()) == sorted(f"realtime:{t}" for t in TOPICS)
+    assert sorted(connection.leaves()) == sorted(
+        f"realtime:{topic}" for topic in TOPICS
+    )
     connection.close.assert_awaited_once()
     assert not socket.is_connected
 
@@ -88,5 +90,24 @@ async def test_remove_all_channels_survives_leave_replies_during_removal() -> No
     await socket.remove_all_channels()
 
     assert socket.get_channels() == []
-    assert sorted(connection.leaves()) == sorted(f"realtime:{t}" for t in TOPICS)
+    assert sorted(connection.leaves()) == sorted(
+        f"realtime:{topic}" for topic in TOPICS
+    )
     connection.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_remove_all_channels_closes_socket_when_unsubscribe_fails() -> None:
+    connection = RecordingConnection()
+    socket = await connected_socket(connection)
+    failing = socket.get_channels()[0]
+
+    with (
+        patch.object(failing, "unsubscribe", side_effect=ConnectionError),
+        pytest.raises(ConnectionError),
+    ):
+        await socket.remove_all_channels()
+
+    assert failing not in socket.get_channels()
+    connection.close.assert_awaited_once()
+    assert not socket.is_connected
