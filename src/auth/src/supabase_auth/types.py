@@ -162,13 +162,11 @@ class Session(BaseModel):
     token_type: str
     user: User
 
-    @model_validator(mode="before")
-    @classmethod
-    def validator(cls, values: dict) -> dict:
-        expires_in = values.get("expires_in")
-        if expires_in and not values.get("expires_at"):
-            values["expires_at"] = round(time()) + expires_in
-        return values
+    @model_validator(mode="after")
+    def validator(self) -> Session:
+        if self.expires_in and not self.expires_at:
+            self.expires_at = round(time()) + self.expires_in
+        return self
 
 
 class UserIdentity(BaseModel):
@@ -676,12 +674,11 @@ class AuthMFAEnrollResponse(BaseModel):
     Phone number of the MFA factor in E.164 format. Used to send messages
     """
 
-    @model_validator(mode="before")
-    @classmethod
-    def validate_phone_required_for_phone_type(cls, values: dict) -> dict:
-        if values.get("type") == "phone" and not values.get("phone"):
+    @model_validator(mode="after")
+    def validate_phone_required_for_phone_type(self) -> AuthMFAEnrollResponse:
+        if self.type == "phone" and not self.phone:
             raise ValueError("phone is required when type is 'phone'")
-        return values
+        return self
 
 
 class AuthMFAUnenrollResponse(BaseModel):
