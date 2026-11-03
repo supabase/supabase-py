@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Realtime Rule Engine{% endblock %}</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 16px; }
+    nav a { margin-right: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin: 8px 0; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .badge-in_progress { background: #dbeafe; color: #1e40af; }
+    .badge-done { background: #d1fae5; color: #065f46; }
+    form { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+    input { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; background: #3b82f6; color: white; }
+    button.danger { background: #ef4444; }
+    #events-feed .card { border-left: 4px solid #8b5cf6; }
+    #presence-list { color: #6b7280; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/">Tasks</a>
+    <a href="/rules-page">Rules</a>
+    <a href="/signin">Sign out</a>
+  </nav>
+  <hr>
+  {% block content %}{% endblock %}
+  <script>
+    // Initialize once so all pages share the same client instance
+    const _supabase = supabase.createClient('{{ supabase_url }}', '{{ supabase_anon_key }}');
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
