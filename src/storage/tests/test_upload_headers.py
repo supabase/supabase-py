@@ -97,3 +97,14 @@ async def test_upload_without_headers_sends_client_headers(
 
     assert request.headers.get_list("authorization") == ["Bearer client-jwt"]
     assert request.headers["apikey"] == "client-key"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
+@pytest.mark.parametrize("method", list(UPLOAD_CALLS))
+async def test_upload_keeps_http_client_only_headers(
+    use_async: bool, method: str
+) -> None:
+    request = await _sent_request(use_async, method, None, {"X-Tenant-Id": "tenant-1"})
+
+    assert request.headers["x-tenant-id"] == "tenant-1"
