@@ -130,7 +130,15 @@ class TestInsert:
     @pytest.mark.parametrize("method", ["insert", "upsert"])
     @pytest.mark.parametrize(
         "rows, columns",
-        [([], None), ([{}], None), ([{"key1": "val1"}], '"key1"')],
+        [
+            ([], None),
+            ([{}], None),
+            ([{"key1": "val1"}], '"key1"'),
+            ([{"a,b": "val1"}], '"a,b"'),
+            ([{'a"b': "val1"}], r'"a\"b"'),
+            ([{r"c\d": "val1"}], r'"c\\d"'),
+            ([{r"a\"b": "val1"}], r'"a\\\"b"'),
+        ],
     )
     def test_bulk_write_columns(
         self,
