@@ -79,6 +79,7 @@ class AsyncRealtimeClient:
         self._ws_connection: ClientConnection | None = None
         self._connect_lock = asyncio.Lock()
         self._connect_lock_loop: asyncio.AbstractEventLoop | None = None
+        self._close_generation = 0
         self.ref = 0
         self.auto_reconnect = auto_reconnect
         self.channels: dict[str, AsyncRealtimeChannel] = {}
@@ -177,6 +178,7 @@ class AsyncRealtimeClient:
             self._connect_lock = asyncio.Lock()
             self._connect_lock_loop = loop
 
+        generation = self._close_generation
         retries = 0
         endpoint_url = self.endpoint_url()
         parsed_url = urlparse(endpoint_url)
@@ -193,9 +195,13 @@ class AsyncRealtimeClient:
         while retries < self.max_retries:
             try:
                 async with self._connect_lock:
-                    if self.is_connected:
+                    if self.is_connected or generation != self._close_generation:
                         return
                     ws = await connect(endpoint_url, open_timeout=self.timeout)
+                    if generation != self._close_generation:
+                        logger.debug("Client closed during handshake, dropping socket")
+                        await ws.close()
+                        return
                     self._ws_connection = ws
                 logger.debug("WebSocket connection established successfully")
                 return await self._on_connect()
@@ -288,6 +294,7 @@ class AsyncRealtimeClient:
             NotConnectedError: If the connection is not established when this method is called.
         """
 
+        self._close_generation += 1
         ws_connection = self._ws_connection
         self._ws_connection = None
 

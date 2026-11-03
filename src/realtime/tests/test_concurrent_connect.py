@@ -207,3 +207,52 @@ def test_contended_connect_works_across_event_loops() -> None:
 
     asyncio.run(contend())
     asyncio.run(contend())
+
+
+@pytest.mark.asyncio
+async def test_close_during_handshake_drops_new_socket() -> None:
+    opening = asyncio.Event()
+    release = asyncio.Event()
+    transport = AsyncMock()
+    client = AsyncRealtimeClient("ws://localhost", auto_reconnect=False)
+
+    async def open_connection(url: str, **kwargs: object) -> AsyncMock:
+        opening.set()
+        await release.wait()
+        return transport
+
+    with (
+        patch(
+            "realtime._async.client.connect",
+            new_callable=AsyncMock,
+            side_effect=open_connection,
+        ) as connect,
+        patch.object(client, "_on_connect", new_callable=AsyncMock) as on_connect,
+    ):
+        owner = asyncio.create_task(client.connect())
+        waiter = None
+        try:
+            await asyncio.wait_for(opening.wait(), 2)
+            waiter = asyncio.create_task(client.connect())
+            await asyncio.sleep(0)
+            await client.close()
+            release.set()
+            await asyncio.wait_for(asyncio.gather(owner, waiter), 2)
+            assert not client.is_connected
+            assert connect.await_count == 1
+            transport.close.assert_awaited_once()
+            on_connect.assert_not_awaited()
+
+            await asyncio.wait_for(client.connect(), 2)
+            assert client.is_connected
+            assert connect.await_count == 2
+        finally:
+            release.set()
+            owner.cancel()
+            if waiter is not None:
+                waiter.cancel()
+            await asyncio.gather(
+                *[task for task in [owner, waiter] if task is not None],
+                return_exceptions=True,
+            )
+            await client.close()
