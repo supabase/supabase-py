@@ -1,5 +1,7 @@
+import sys
 import time
 from collections.abc import Callable
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
@@ -128,6 +130,12 @@ async def test_initialize_from_storage_keeps_session_within_expiry_margin_withou
         assert requests == []
         assert await stored_access_token(client) == "old-access"
 
+        session = await client.get_session()
+
+        assert session is not None
+        assert session.access_token == "new-access"
+        assert len(requests) == 1
+
 
 async def test_get_session_raises_when_kept_session_refresh_is_rejected() -> None:
     requests: list[Request] = []
@@ -203,15 +211,28 @@ async def test_initialize_from_storage_keeps_session_and_retries_on_retryable_er
     None
 ):
     requests: list[Request] = []
-    transport = recording_transport(unavailable_response, requests)
+
+    def unavailable_then_refreshed(request: Request) -> Response:
+        if len(requests) == 1:
+            return unavailable_response(request)
+        return refreshed_session_response(request)
+
+    transport = recording_transport(unavailable_then_refreshed, requests)
     async with AsyncClient(transport=transport) as http_client:
         client = await client_with_stored_session(
             http_client, True, int(time.time()) - 60
         )
 
-        await client.initialize_from_storage()
+        with patch.object(sys.modules[AsyncGoTrueClient.__module__], "Timer") as timer:
+            await client.initialize_from_storage()
 
-        assert len(requests) == 1
-        assert await stored_access_token(client) == "old-access"
-        assert client._refresh_token_timer is not None
+            assert len(requests) == 1
+            assert await stored_access_token(client) == "old-access"
+            timer.assert_called_once()
+            timer.return_value.start.assert_called_once()
+
+            await timer.call_args.args[1]()
+
+        assert len(requests) == 2
+        assert await stored_access_token(client) == "new-access"
         await client._remove_session()

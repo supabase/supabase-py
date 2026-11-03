@@ -1,5 +1,7 @@
+import sys
 import time
 from collections.abc import Callable
+from unittest.mock import patch
 
 import pytest
 from httpx import Client, MockTransport, Request, Response
@@ -122,6 +124,12 @@ def test_initialize_from_storage_keeps_session_within_expiry_margin_without_auto
         assert requests == []
         assert stored_access_token(client) == "old-access"
 
+        session = client.get_session()
+
+        assert session is not None
+        assert session.access_token == "new-access"
+        assert len(requests) == 1
+
 
 def test_get_session_raises_when_kept_session_refresh_is_rejected() -> None:
     requests: list[Request] = []
@@ -185,13 +193,26 @@ def test_initialize_from_storage_removes_session_when_auto_refresh_fails() -> No
 
 def test_initialize_from_storage_keeps_session_and_retries_on_retryable_error() -> None:
     requests: list[Request] = []
-    transport = recording_transport(unavailable_response, requests)
+
+    def unavailable_then_refreshed(request: Request) -> Response:
+        if len(requests) == 1:
+            return unavailable_response(request)
+        return refreshed_session_response(request)
+
+    transport = recording_transport(unavailable_then_refreshed, requests)
     with Client(transport=transport) as http_client:
         client = client_with_stored_session(http_client, True, int(time.time()) - 60)
 
-        client.initialize_from_storage()
+        with patch.object(sys.modules[SyncGoTrueClient.__module__], "Timer") as timer:
+            client.initialize_from_storage()
 
-        assert len(requests) == 1
-        assert stored_access_token(client) == "old-access"
-        assert client._refresh_token_timer is not None
+            assert len(requests) == 1
+            assert stored_access_token(client) == "old-access"
+            timer.assert_called_once()
+            timer.return_value.start.assert_called_once()
+
+            timer.call_args.args[1]()
+
+        assert len(requests) == 2
+        assert stored_access_token(client) == "new-access"
         client._remove_session()
