@@ -159,3 +159,20 @@ async def test_verify_otp_rejects_unrelated_malformed_responses(
 
         with pytest.raises(ValidationError):
             await client.verify_otp(params)
+
+
+async def test_verify_otp_rejects_non_json_email_change_response() -> None:
+    async with AsyncClient(
+        transport=MockTransport(lambda request: Response(200, text="not json"))
+    ) as http_client:
+        client = AsyncGoTrueClient(
+            url="https://example.supabase.co/auth/v1",
+            http_client=http_client,
+            auto_refresh_token=False,
+            persist_session=False,
+        )
+
+        with pytest.raises(ValidationError):
+            await client.verify_otp(
+                {"token_hash": "token-hash", "type": "email_change"}
+            )
