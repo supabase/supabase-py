@@ -18,7 +18,8 @@ import asyncio
 from typing import Optional
 
 _POLL_INTERVAL = 0.5
-_TIMEOUT = 30
+_TIMEOUT = 45
+_RETRIGGER_INTERVAL = 5
 
 
 async def _wait_for_rule_event(
@@ -65,11 +66,20 @@ async def test_engine_creates_rule_event_on_status_change(
     assert task_r.status_code == 200
     task_id = task_r.json()["id"]
 
-    # Trigger the Postgres Changes event by updating the status.
-    patch_r = await client_a.patch(f"/tasks/{task_id}", json={"status": "done"})
-    assert patch_r.status_code == 200
+    # The engine subscribes in the background, so /health can return before the
+    # Postgres Changes subscription is live. Re-trigger the UPDATE until the
+    # engine reacts instead of assuming the first one is delivered.
+    event = None
+    deadline = asyncio.get_running_loop().time() + _TIMEOUT
+    status = "done"
+    while event is None and asyncio.get_running_loop().time() < deadline:
+        patch_r = await client_a.patch(f"/tasks/{task_id}", json={"status": status})
+        assert patch_r.status_code == 200
+        event = await _wait_for_rule_event(
+            service_client, rule_id, task_id, timeout=_RETRIGGER_INTERVAL
+        )
+        status = "pending" if status == "done" else "done"
 
-    event = await _wait_for_rule_event(service_client, rule_id, task_id)
     assert event is not None, (
         f"Engine did not write a rule_event for rule={rule_id}, task={task_id} "
         f"within {_TIMEOUT}s. Check that the Realtime engine started successfully "
