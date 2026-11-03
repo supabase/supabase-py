@@ -69,10 +69,6 @@ def _sanitize_array_param(values: Iterable[Any]) -> str:
     return f"{{{','.join(_sanitize_array_element(value) for value in values)}}}"
 
 
-def sanitize_pattern_param(pattern: str) -> str:
-    return sanitize_param(pattern.replace("%", "*"))
-
-
 def _rpc_query_param(value: Any) -> Any:
     """Format an RPC argument sent in the query string, as in GET or HEAD calls.
 
@@ -97,7 +93,7 @@ def is_http_url(url: URL) -> bool:
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def model_validate_json(model: Type[TBaseModel], contents) -> TBaseModel:
+def _model_validate_json(model: Type[TBaseModel], contents) -> TBaseModel:
     """Compatibility layer between pydantic 1 and 2 for parsing an instance
     of a BaseModel from varied"""
     try:

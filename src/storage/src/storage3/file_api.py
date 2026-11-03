@@ -25,7 +25,7 @@ from supabase_utils.http.request import (
 from supabase_utils.types import JSONParser
 from yarl import URL
 
-from .exceptions import parse_api_error, validate_adapter, validate_model
+from .exceptions import _validate_adapter, _validate_model, parse_api_error
 from .types import (
     CreateSignedUrlBody,
     CreateSignedUrlResponse,
@@ -57,7 +57,7 @@ def relative_path_to_parts(path: str) -> Tuple[str, ...]:
     return url.parts
 
 
-def maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:
+def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:
     if isinstance(file, (BufferedReader, FileIO)):
         # bytes or byte-stream-like object received
         return file.read()
@@ -170,7 +170,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         file_field = FileField(
             name="file",
             filename=path_parts[-1],
-            data=maybe_read_file(file),
+            data=_maybe_read_file(file),
             content_type=content_type,
         )
         fields.append(file_field)
@@ -182,7 +182,7 @@ class StorageFileApiClient(Generic[HttpIO]):
             query=query_params,
         )
 
-        return validate_model(response, UploadResponse)
+        return _validate_model(response, UploadResponse)
 
     def _make_signed_url(self, signed_url: str, download_query: URLQuery) -> str:
         url = URL(signed_url[1:])  # ignore starting slash
@@ -341,7 +341,7 @@ class StorageFileApiClient(Generic[HttpIO]):
                 "destinationKey": to_path,
             },
         )
-        return validate_model(response, MessageResponse)
+        return _validate_model(response, MessageResponse)
 
     @handle_http_io
     def copy(self, from_path: str, to_path: str) -> HttpMethod[UploadResponse]:
@@ -365,7 +365,7 @@ class StorageFileApiClient(Generic[HttpIO]):
             },
         )
 
-        return validate_model(response, UploadResponse)
+        return _validate_model(response, UploadResponse)
 
     @handle_http_io
     def remove(self, paths: list[str]) -> HttpMethod[list[FileObject]]:
@@ -382,7 +382,7 @@ class StorageFileApiClient(Generic[HttpIO]):
             path=["object", self.id],
             body={"prefixes": paths},
         )
-        return validate_adapter(response, FileObjectsAdapter)
+        return _validate_adapter(response, FileObjectsAdapter)
 
     @handle_http_io
     def info(
@@ -402,7 +402,7 @@ class StorageFileApiClient(Generic[HttpIO]):
             method="GET",
             path=["object", "info", self.id, *path_parts],
         )
-        return validate_model(response, FileObject)
+        return _validate_model(response, FileObject)
 
     @handle_http_io
     def exists(
@@ -460,7 +460,7 @@ class StorageFileApiClient(Generic[HttpIO]):
             path=["object", "list", self.id],
             body=body,
         )
-        return validate_adapter(response, ListFileObjectsAdapter)
+        return _validate_adapter(response, ListFileObjectsAdapter)
 
     @handle_http_io
     def list_v2(
@@ -484,7 +484,7 @@ class StorageFileApiClient(Generic[HttpIO]):
             body=body,
             exclude_none=True,
         )
-        return validate_model(response, SearchV2Result)
+        return _validate_model(response, SearchV2Result)
 
     @handle_http_io
     def download(
@@ -567,7 +567,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         file_field = FileField(
             name="file",
             filename=path[-1],
-            data=maybe_read_file(file),
+            data=_maybe_read_file(file),
             content_type=content_type,
         )
         fields.append(file_field)
@@ -578,7 +578,7 @@ class StorageFileApiClient(Generic[HttpIO]):
             headers=http_headers,
         )
 
-        return validate_model(response, UploadResponse)
+        return _validate_model(response, UploadResponse)
 
     @handle_http_io
     def upload(

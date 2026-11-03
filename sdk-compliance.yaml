@@ -181,9 +181,7 @@ features:
   auth.session.auto_refresh:
     status: implemented
     note: "Token refresh runs automatically as an internal background task controlled by the auto_refresh_token constructor option."
-    symbols:
-      - AsyncSessionManager.start_auto_refresh_token
-      - SyncSessionManager.start_auto_refresh_token
+    no_public_symbols: true
   auth.session.sign_out_reason: not_implemented
 
   auth.identities.link_identity:
@@ -752,6 +750,8 @@ features:
     status: implemented
     symbols:
       - BaseRequestClient.retry
+    supporting_symbols:
+      - BaseRequestClient
   database.configuration.request_timeout:
     status: implemented
     note: "No timeout parameter. Configure the timeout on the httpx client passed in through http_session, or wrap async calls in asyncio.wait_for (asyncio.timeout on Python 3.11+)."
@@ -1004,6 +1004,7 @@ features:
       - StorageClient.create_bucket
     supporting_symbols:
       - CreateOrUpdateBucketBody
+      - BucketName
   storage.file_buckets.get_bucket:
     status: implemented
     symbols:
@@ -1198,6 +1199,7 @@ features:
       - StorageVectorsClient
       - VectorBucketScope
       - VectorIndexScope
+      - StorageVectorsClient.get_bucket
   storage.vector_buckets.create_index:
     status: implemented
     symbols:
@@ -1423,3 +1425,4 @@ supporting_symbols:
   - SystemMessage
   - ChannelErrorMessage
   - ChannelCloseMessage
+  - ChannelLeaveMessage

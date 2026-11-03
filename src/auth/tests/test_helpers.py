@@ -17,10 +17,10 @@ from supabase_auth.errors import (
     AuthWeakPasswordError,
 )
 from supabase_auth.helpers import (
+    _handle_error_response,
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    handle_error_response,
     parse_link_identity_response,
     parse_response_api_version,
     validate_exp,
@@ -146,7 +146,7 @@ def error_response(status: int, body: Any) -> Response:
 
 
 def test_handle_error_response_legacy_weak_password_without_error_code() -> None:
-    result = handle_error_response(
+    result = _handle_error_response(
         error_response(
             422,
             {
@@ -175,7 +175,7 @@ def test_handle_error_response_legacy_weak_password_without_error_code() -> None
 def test_handle_error_response_legacy_weak_password_ignores_malformed_reasons(
     weak_password: Any,
 ) -> None:
-    result = handle_error_response(
+    result = _handle_error_response(
         error_response(
             422,
             {"message": "Password too weak", "weak_password": weak_password},
@@ -189,7 +189,7 @@ def test_handle_error_response_legacy_weak_password_ignores_malformed_reasons(
 
 
 def test_handle_error_response_weak_password_with_error_code() -> None:
-    result = handle_error_response(
+    result = _handle_error_response(
         error_response(
             422,
             {

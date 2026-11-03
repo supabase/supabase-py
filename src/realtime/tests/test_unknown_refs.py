@@ -89,7 +89,7 @@ async def test_orphan_reply_is_not_forwarded_to_the_channel(server: FakeServer):
     async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
         channel = client.channel("room")
         await channel.subscribe()
-        await channel.socket.send_no_wait(
+        await channel.socket._send_no_wait(
             Message(topic=channel.topic, event=ChannelEvents.leave, payload={}, ref="x")
         )
         await asyncio.sleep(0.1)
