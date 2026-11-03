@@ -232,7 +232,6 @@ async def test_presence_enabled_when_callbacks_attached() -> None:
     # Mock socket connection by setting _ws_connection
     mock_ws = Mock()
     socket._ws_connection = mock_ws
-    socket._leave_open_topic = AsyncMock()  # type: ignore[method-assign]
 
     # Add presence callback before subscription
     channel.on_presence_sync(lambda: None)
