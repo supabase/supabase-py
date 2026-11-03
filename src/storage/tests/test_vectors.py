@@ -327,6 +327,22 @@ async def test_query_vectors_sends_query_and_parses_distance(use_async: bool) ->
 
 
 @parametrize_clients
+async def test_query_vectors_requires_top_k(use_async: bool) -> None:
+    recorder = Recorder()
+    with pytest.raises(TypeError, match="topK"):
+        await run(
+            use_async,
+            recorder,
+            lambda c: c.vectors()
+            .from_("embeddings")
+            .index("docs")
+            .query(VectorData(float32=[0.1, 0.2])),
+        )
+
+    assert recorder.requests == []
+
+
+@parametrize_clients
 async def test_put_vectors_omits_missing_metadata(use_async: bool) -> None:
     recorder = Recorder()
     vector = VectorObject(key="a", data=VectorData(float32=[1.0]))

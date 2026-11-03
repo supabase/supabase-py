@@ -139,7 +139,7 @@ class SyncVectorIndexScope:
     def query(
         self,
         query_vector: VectorData,
-        topK: int | None = None,
+        topK: int,
         filter: VectorFilter | None = None,
         return_distance: bool = True,
         return_metadata: bool = True,
