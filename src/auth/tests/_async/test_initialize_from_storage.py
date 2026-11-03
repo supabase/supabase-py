@@ -73,8 +73,10 @@ def recording_transport(handler: Handler, requests: list[Request]) -> MockTransp
 def assert_refresh_requests(requests: list[Request], count: int) -> None:
     assert len(requests) == count
     for request in requests:
+        assert request.method == "POST"
         assert request.url.path == "/token"
         assert request.url.params["grant_type"] == "refresh_token"
+        assert json.loads(request.content) == {"refresh_token": "old-refresh"}
 
 
 async def client_with_stored_session(
@@ -120,7 +122,6 @@ async def test_initialize_from_storage_keeps_expired_session_without_auto_refres
         assert session is not None
         assert session.access_token == "new-access"
         assert_refresh_requests(requests, 1)
-        assert json.loads(requests[0].content) == {"refresh_token": "old-refresh"}
         assert await stored_access_token(client) == "new-access"
 
 
@@ -142,7 +143,6 @@ async def test_initialize_from_storage_keeps_session_within_expiry_margin_withou
         assert session is not None
         assert session.access_token == "new-access"
         assert_refresh_requests(requests, 1)
-        assert json.loads(requests[0].content) == {"refresh_token": "old-refresh"}
 
 
 async def test_get_session_raises_when_kept_session_refresh_is_rejected() -> None:
