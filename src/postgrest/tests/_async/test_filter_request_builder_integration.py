@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from postgrest import CountMethod
@@ -6,7 +8,7 @@ from postgrest.exceptions import APIError
 from .client import rest_client, rest_client_httpx
 
 
-async def test_multivalued_param_httpx():
+async def test_multivalued_param_httpx() -> None:
     res = (
         await rest_client_httpx()
         .from_("countries")
@@ -23,7 +25,7 @@ async def test_multivalued_param_httpx():
     ]
 
 
-async def test_multivalued_param():
+async def test_multivalued_param() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -40,7 +42,7 @@ async def test_multivalued_param():
     ]
 
 
-async def test_match():
+async def test_match() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -53,7 +55,7 @@ async def test_match():
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_match_maybe_single():
+async def test_match_maybe_single() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -63,10 +65,11 @@ async def test_match_maybe_single():
         .execute()
     )
 
+    assert res is not None
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_no_match_maybe_single():
+async def test_no_match_maybe_single() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -79,7 +82,7 @@ async def test_no_match_maybe_single():
     assert res is None
 
 
-async def test_maybe_single_multiple_rows():
+async def test_maybe_single_multiple_rows() -> None:
     with pytest.raises(APIError) as exc_info:
         await (
             rest_client()
@@ -96,7 +99,7 @@ async def test_maybe_single_multiple_rows():
     assert exc_info.value.details == "The result contains more than one row."
 
 
-async def test_head_query_error():
+async def test_head_query_error() -> None:
     with pytest.raises(APIError) as exc_info:
         await (
             rest_client()
@@ -110,7 +113,7 @@ async def test_head_query_error():
     assert exc_info.value.message == "Bad Request"
 
 
-async def test_equals():
+async def test_equals() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -123,7 +126,7 @@ async def test_equals():
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_not_equal():
+async def test_not_equal() -> None:
     res = (
         await rest_client()
         .from_("users")
@@ -136,7 +139,7 @@ async def test_not_equal():
     assert res.data == {"id": 1, "name": "Michael"}
 
 
-async def test_greater_than():
+async def test_greater_than() -> None:
     res = (
         await rest_client()
         .from_("users")
@@ -149,13 +152,13 @@ async def test_greater_than():
     assert res.data == {"id": 2, "name": "Jane"}
 
 
-async def test_greater_than_or_equals_to():
+async def test_greater_than_or_equals_to() -> None:
     res = await rest_client().from_("users").select("id, name").gte("id", 1).execute()
 
     assert res.data == [{"id": 1, "name": "Michael"}, {"id": 2, "name": "Jane"}]
 
 
-async def test_contains_dictionary():
+async def test_contains_dictionary() -> None:
     res = (
         await rest_client()
         .from_("users")
@@ -168,7 +171,7 @@ async def test_contains_dictionary():
     assert res.data == {"name": "Michael"}
 
 
-async def test_contains_any_item():
+async def test_contains_any_item() -> None:
     res = (
         await rest_client()
         .from_("issues")
@@ -180,7 +183,7 @@ async def test_contains_any_item():
     assert res.data == [{"title": "Cache invalidation is not working"}]
 
 
-async def test_contains_on_range():
+async def test_contains_on_range() -> None:
     res = (
         await rest_client()
         .from_("reservations")
@@ -192,7 +195,7 @@ async def test_contains_on_range():
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_contained_by_mixed_items():
+async def test_contained_by_mixed_items() -> None:
     res = (
         await rest_client()
         .from_("reservations")
@@ -204,67 +207,67 @@ async def test_contained_by_mixed_items():
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_range_greater_than():
+async def test_range_greater_than() -> None:
     res = (
         await rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_gt("during", ["2000-01-02 08:00", "2000-01-02 09:00"])
+        .range_gt("during", ("2000-01-02 08:00", "2000-01-02 09:00"))
         .execute()
     )
 
     assert res.data == [{"id": 2, "room_name": "Topaz"}]
 
 
-async def test_range_greater_than_or_equal_to():
+async def test_range_greater_than_or_equal_to() -> None:
     res = (
         await rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_gte("during", ["2000-01-02 08:30", "2000-01-02 09:30"])
+        .range_gte("during", ("2000-01-02 08:30", "2000-01-02 09:30"))
         .execute()
     )
 
     assert res.data == [{"id": 2, "room_name": "Topaz"}]
 
 
-async def test_range_less_than():
+async def test_range_less_than() -> None:
     res = (
         await rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_lt("during", ["2000-01-01 15:00", "2000-01-02 16:00"])
+        .range_lt("during", ("2000-01-01 15:00", "2000-01-02 16:00"))
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_range_less_than_or_equal_to():
+async def test_range_less_than_or_equal_to() -> None:
     res = (
         await rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_lte("during", ["2000-01-01 14:00", "2000-01-01 16:00"])
+        .range_lte("during", ("2000-01-01 14:00", "2000-01-01 16:00"))
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_range_adjacent():
+async def test_range_adjacent() -> None:
     res = (
         await rest_client()
         .from_("reservations")
         .select("id, room_name")
-        .range_adjacent("during", ["2000-01-01 12:00", "2000-01-01 13:00"])
+        .range_adjacent("during", ("2000-01-01 12:00", "2000-01-01 13:00"))
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_overlaps():
+async def test_overlaps() -> None:
     res = (
         await rest_client()
         .from_("issues")
@@ -279,7 +282,7 @@ async def test_overlaps():
     ]
 
 
-async def test_overlaps_with_timestamp_range():
+async def test_overlaps_with_timestamp_range() -> None:
     res = (
         await rest_client()
         .from_("reservations")
@@ -293,7 +296,7 @@ async def test_overlaps_with_timestamp_range():
     ]
 
 
-async def test_like():
+async def test_like() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -305,7 +308,7 @@ async def test_like():
     assert res.data == [{"country_name": "ALBANIA", "iso": "AL"}]
 
 
-async def test_ilike():
+async def test_ilike() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -317,7 +320,7 @@ async def test_ilike():
     assert res.data == [{"country_name": "ALBANIA", "iso": "AL"}]
 
 
-async def test_like_all_of():
+async def test_like_all_of() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -329,7 +332,7 @@ async def test_like_all_of():
     assert res.data == [{"iso": "AF", "nicename": "Afghanistan"}]
 
 
-async def test_like_any_of():
+async def test_like_any_of() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -344,7 +347,7 @@ async def test_like_any_of():
     ]
 
 
-async def test_ilike_all_of():
+async def test_ilike_all_of() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -356,7 +359,7 @@ async def test_ilike_all_of():
     assert res.data == [{"iso": "AF", "nicename": "Afghanistan"}]
 
 
-async def test_ilike_any_of():
+async def test_ilike_any_of() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -371,7 +374,7 @@ async def test_ilike_any_of():
     ]
 
 
-async def test_is_():
+async def test_is_() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -385,7 +388,7 @@ async def test_is_():
     assert res.data == [{"country_name": "ANTARCTICA", "iso": "AQ"}]
 
 
-async def test_is_not():
+async def test_is_not() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -399,7 +402,7 @@ async def test_is_not():
     assert res.data == [{"country_name": "AFGHANISTAN", "iso": "AF"}]
 
 
-async def test_in_():
+async def test_in_() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -414,7 +417,7 @@ async def test_in_():
     ]
 
 
-async def test_or_():
+async def test_or_() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -429,7 +432,7 @@ async def test_or_():
     ]
 
 
-async def test_or_with_and():
+async def test_or_with_and() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -444,7 +447,7 @@ async def test_or_with_and():
     ]
 
 
-async def test_or_in():
+async def test_or_in() -> None:
     res = (
         await rest_client()
         .from_("issues")
@@ -460,7 +463,7 @@ async def test_or_in():
     ]
 
 
-async def test_or_on_reference_table():
+async def test_or_on_reference_table() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -482,7 +485,7 @@ async def test_or_on_reference_table():
     ]
 
 
-async def test_explain_json():
+async def test_explain_json() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -491,10 +494,11 @@ async def test_explain_json():
         .explain(format="json", analyze=True)
         .execute()
     )
-    assert res.data[0]["Plan"]["Node Type"] == "Aggregate"
+    data: Any = res.data
+    assert data[0]["Plan"]["Node Type"] == "Aggregate"
 
 
-async def test_csv():
+async def test_csv() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -503,10 +507,11 @@ async def test_csv():
         .csv()
         .execute()
     )
+    assert isinstance(res.data, str)
     assert "ALBANIA,AL\nALGERIA,DZ" in res.data
 
 
-async def test_explain_text():
+async def test_explain_text() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -521,7 +526,7 @@ async def test_explain_text():
     )
 
 
-async def test_rpc_with_single():
+async def test_rpc_with_single() -> None:
     res = (
         await rest_client()
         .rpc("list_stored_countries", {})
@@ -534,7 +539,7 @@ async def test_rpc_with_single():
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_rpc_with_maybe_single():
+async def test_rpc_with_maybe_single() -> None:
     res = (
         await rest_client()
         .rpc("list_stored_countries", {})
@@ -544,10 +549,11 @@ async def test_rpc_with_maybe_single():
         .execute()
     )
 
+    assert res is not None
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_rpc_with_maybe_single_no_match():
+async def test_rpc_with_maybe_single_no_match() -> None:
     res = (
         await rest_client()
         .rpc("list_stored_countries", {})
@@ -560,7 +566,7 @@ async def test_rpc_with_maybe_single_no_match():
     assert res is None
 
 
-async def test_rpc_with_maybe_single_multiple_rows():
+async def test_rpc_with_maybe_single_multiple_rows() -> None:
     with pytest.raises(APIError) as exc_info:
         await (
             rest_client()
@@ -575,7 +581,7 @@ async def test_rpc_with_maybe_single_multiple_rows():
     assert exc_info.value.details == "The result contains more than one row."
 
 
-async def test_rpc_with_limit():
+async def test_rpc_with_limit() -> None:
     res = (
         await rest_client()
         .rpc("list_stored_countries", {})
@@ -588,7 +594,7 @@ async def test_rpc_with_limit():
     assert res.data == [{"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}]
 
 
-async def test_rpc_with_range():
+async def test_rpc_with_range() -> None:
     res = (
         await rest_client()
         .rpc("list_stored_countries", {})
@@ -603,7 +609,7 @@ async def test_rpc_with_range():
     ]
 
 
-async def test_rpc_post_with_args():
+async def test_rpc_post_with_args() -> None:
     res = (
         await rest_client()
         .rpc("search_countries_by_name", {"search_name": "Alban"})
@@ -613,7 +619,7 @@ async def test_rpc_post_with_args():
     assert res.data == [{"nicename": "Albania", "iso": "AL"}]
 
 
-async def test_rpc_get_with_args():
+async def test_rpc_get_with_args() -> None:
     res = (
         await rest_client()
         .rpc("search_countries_by_name", {"search_name": "Alger"}, get=True)
@@ -623,7 +629,7 @@ async def test_rpc_get_with_args():
     assert res.data == [{"nicename": "Algeria", "iso": "DZ"}]
 
 
-async def test_rpc_get_with_count():
+async def test_rpc_get_with_count() -> None:
     res = (
         await rest_client()
         .rpc(
@@ -639,7 +645,7 @@ async def test_rpc_get_with_count():
     assert res.data == [{"nicename": "Albania"}, {"nicename": "Algeria"}]
 
 
-async def test_rpc_head_count():
+async def test_rpc_head_count() -> None:
     res = (
         await rest_client()
         .rpc(
@@ -655,7 +661,7 @@ async def test_rpc_head_count():
     assert res.data == []
 
 
-async def test_order():
+async def test_order() -> None:
     res = (
         await rest_client()
         .from_("countries")
@@ -672,7 +678,7 @@ async def test_order():
     ]
 
 
-async def test_order_on_foreign_table():
+async def test_order_on_foreign_table() -> None:
     res = (
         await rest_client()
         .from_("orchestral_sections")
@@ -694,7 +700,7 @@ async def test_get_retry_503() -> None:
     client = rest_client()
     original_send = client.session.send
 
-    async def fake_send(request: Request, **kwargs):
+    async def fake_send(request: Request, **kwargs: Any) -> Response:
         nonlocal retry_count
         if retry_count > 0:
             assert request.headers["X-Retry-Count"] == str(retry_count)
@@ -703,9 +709,9 @@ async def test_get_retry_503() -> None:
             return Response(503)
         return await original_send(request)
 
-    from unittest.mock import Mock, patch
+    from unittest.mock import patch
 
-    with patch.object(client.session, "send", wraps=fake_send) as mock_send:
+    with patch.object(client.session, "send", wraps=fake_send):
         query = (
             client.from_("orchestral_sections")
             .select("name, instruments(name)")
@@ -727,7 +733,7 @@ async def test_get_retry_503_does_not_retry_when_disabled() -> None:
     client = rest_client()
     original_send = client.session.send
 
-    async def fake_send(request: Request, **kwargs):
+    async def fake_send(request: Request, **kwargs: Any) -> Response:
         nonlocal retry_count
         if retry_count > 0:
             assert request.headers["X-Retry-Count"] == str(retry_count)
@@ -736,13 +742,13 @@ async def test_get_retry_503_does_not_retry_when_disabled() -> None:
             return Response(503)
         return await original_send(request)
 
-    from unittest.mock import Mock, patch
+    from unittest.mock import patch
 
     import pytest
 
     from postgrest.exceptions import APIError
 
-    with patch.object(client.session, "send", wraps=fake_send) as mock_send:
+    with patch.object(client.session, "send", wraps=fake_send):
         query = (
             client.from_("orchestral_sections")
             .select("name, instruments(name)")
@@ -762,7 +768,7 @@ async def test_order_retry_400_doesnt_retry() -> None:
     client = rest_client()
     original_send = client.session.send
 
-    async def fake_send(request: Request, **kwargs):
+    async def fake_send(request: Request, **kwargs: Any) -> Response:
         nonlocal retry_count
         if retry_count < 3:
             retry_count += 1
@@ -772,13 +778,13 @@ async def test_order_retry_400_doesnt_retry() -> None:
             )
         return await original_send(request)
 
-    from unittest.mock import Mock, patch
+    from unittest.mock import patch
 
     import pytest
 
     from postgrest.exceptions import APIError
 
-    with patch.object(client.session, "send", wraps=fake_send) as mock_send:
+    with patch.object(client.session, "send", wraps=fake_send):
         query = (
             client.from_("orchestral_sections")
             .select("name, instruments(name)")

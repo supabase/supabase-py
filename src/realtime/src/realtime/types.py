@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Literal, Optional, TypeVar
+from typing import Any, Callable, Literal, Optional, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, with_config
+from pydantic import ConfigDict, with_config
 from typing_extensions import (
-    Generic,
     NotRequired,
     ParamSpec,
-    Required,
     TypeAlias,
     TypedDict,
 )
@@ -35,7 +33,7 @@ class ChannelEvents(str, Enum):
 
     close = "phx_close"
     error = "phx_error"
-    join = "phx_join"  # type: ignore
+    join = "phx_join"  # type: ignore[assignment]
     reply = "phx_reply"
     leave = "phx_leave"
     heartbeat = "heartbeat"
@@ -97,14 +95,14 @@ class PostgresChangesData(TypedDict):
     commit_timestamp: str
     type: RealtimePostgresChangesListenEvent
     errors: Optional[str]
-    columns: List[PostgresChangesColumn]
+    columns: list[PostgresChangesColumn]
     record: NotRequired[Optional[dict[str, Any]]]
     old_record: NotRequired[dict[str, Any]]  # todo: improve this
 
 
 class PostgresChangesPayload(TypedDict):
     data: PostgresChangesData
-    ids: List[int]
+    ids: list[int]
 
 
 class BroadcastMeta(TypedDict, total=False):
@@ -136,8 +134,12 @@ class PostgresChangesCallback:
     table: Optional[str]
     schema: Optional[str]
     filter: Optional[str]
-    select: Optional[List[str]] = None
+    select: Optional[list[str]] = None
     id: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        if not self.schema:
+            self.schema = "public"
 
     def __call__(self, payload: PostgresChangesPayload) -> None:
         event_matches = (
@@ -149,9 +151,7 @@ class PostgresChangesCallback:
 
     @property
     def binding_filter(self) -> dict[str, Any]:
-        binding: dict[str, Any] = {"event": self.event}
-        if self.schema:
-            binding["schema"] = self.schema
+        binding: dict[str, Any] = {"event": self.event, "schema": self.schema}
         if self.table:
             binding["table"] = self.table
         if self.filter:
@@ -162,7 +162,7 @@ class PostgresChangesCallback:
 
 
 class _Hook:
-    def __init__(self, status: str, callback: Callback[[Dict[str, Any]], None]):
+    def __init__(self, status: str, callback: Callback[[dict[str, Any]], None]) -> None:
         self.status = status
         self.callback = callback
 
@@ -173,13 +173,13 @@ class Presence(TypedDict):
 
 
 class PresenceEvents:
-    def __init__(self, state: str, diff: str):
+    def __init__(self, state: str, diff: str) -> None:
         self.state = state
         self.diff = diff
 
 
 class PresenceOpts:
-    def __init__(self, events: PresenceEvents):
+    def __init__(self, events: PresenceEvents) -> None:
         self.events = events
 
 
@@ -218,14 +218,14 @@ class PresenceMeta(TypedDict):
 
 
 class RawPresenceStateEntry(TypedDict):
-    metas: List[PresenceMeta]
+    metas: list[PresenceMeta]
 
 
 # Custom types
-PresenceOnJoinCallback = Callable[[str, List[Any], List[Presence]], None]
-PresenceOnLeaveCallback = Callable[[str, List[Any], List[Presence]], None]
-RealtimePresenceState = Dict[str, List[Presence]]
-RawPresenceState = Dict[str, RawPresenceStateEntry]
+PresenceOnJoinCallback = Callable[[str, list[Any], list[Presence]], None]
+PresenceOnLeaveCallback = Callable[[str, list[Any], list[Presence]], None]
+RealtimePresenceState = dict[str, list[Presence]]
+RawPresenceState = dict[str, RawPresenceStateEntry]
 
 
 class RawPresenceDiff(TypedDict):
@@ -242,12 +242,12 @@ class PresenceDiff(TypedDict):
 class RealtimePresenceJoinPayload(TypedDict):
     event: Literal[RealtimePresenceListenEvents.JOIN]
     key: str
-    current_presences: List[Presence]
-    new_presences: List[Presence]
+    current_presences: list[Presence]
+    new_presences: list[Presence]
 
 
 class RealtimePresenceLeavePayload(TypedDict):
     event: Literal[RealtimePresenceListenEvents.LEAVE]
     key: str
-    current_presences: List[Presence]
-    left_presences: List[Presence]
+    current_presences: list[Presence]
+    left_presences: list[Presence]

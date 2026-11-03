@@ -4,14 +4,13 @@ import platform
 import sys
 import time
 from contextlib import suppress
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Optional, cast
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 from warnings import warn
 
 from httpx import AsyncClient, QueryParams, Response
 from jwt import get_algorithm_by_name
-from typing_extensions import cast
 
 from ..constants import (
     EXPIRY_MARGIN,
@@ -32,8 +31,6 @@ from ..helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    model_dump_json,
-    model_validate,
     parse_auth_otp_response,
     parse_auth_response,
     parse_jwks,
@@ -102,7 +99,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         self,
         *,
         url: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         storage_key: Optional[str] = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
@@ -151,7 +148,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         self._in_memory_session: Optional[Session] = None
         self._refresh_token_timer: Optional[Timer] = None
         self._network_retries = 0
-        self._state_change_emitters: Dict[str, Subscription] = {}
+        self._state_change_emitters: dict[str, Subscription] = {}
         self._flow_type = flow_type
 
         self.admin = AsyncGoTrueAdminAPI(
@@ -161,15 +158,15 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         )
         # TODO(@o-santi): why is it like this?
         self.mfa = AsyncGoTrueMFAAPI()
-        self.mfa.challenge = self._challenge  # type: ignore
-        self.mfa.challenge_and_verify = self._challenge_and_verify  # type: ignore
-        self.mfa.enroll = self._enroll  # type: ignore
-        self.mfa.get_authenticator_assurance_level = (  # type: ignore
+        self.mfa.challenge = self._challenge  # type: ignore[method-assign]
+        self.mfa.challenge_and_verify = self._challenge_and_verify  # type: ignore[method-assign]
+        self.mfa.enroll = self._enroll  # type: ignore[method-assign]
+        self.mfa.get_authenticator_assurance_level = (  # type: ignore[method-assign]
             self._get_authenticator_assurance_level
         )
-        self.mfa.list_factors = self._list_factors  # type: ignore
-        self.mfa.unenroll = self._unenroll  # type: ignore
-        self.mfa.verify = self._verify  # type: ignore
+        self.mfa.list_factors = self._list_factors  # type: ignore[method-assign]
+        self.mfa.unenroll = self._unenroll  # type: ignore[method-assign]
+        self.mfa.verify = self._verify  # type: ignore[method-assign]
 
     # Initializations
 
@@ -473,7 +470,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
         scopes = options.get("scopes")
-        params = options.get("query_params", {})
+        params = {**options.get("query_params", {})}
         if redirect_to:
             params["redirect_to"] = redirect_to
         if scopes:
@@ -597,9 +594,9 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         phone = credentials.get("phone")
         type = credentials.get("type")
         options = credentials.get("options", {})
-        email_redirect_to: Optional[str] = options.get("email_redirect_to")  # type: ignore
+        email_redirect_to: Optional[str] = options.get("email_redirect_to")  # type: ignore[assignment]
         captcha_token = options.get("captcha_token")
-        body: Dict[str, object] = {  # improve later
+        body: dict[str, object] = {  # improve later
             "type": type,
             "gotrue_meta_security": {
                 "captcha_token": captcha_token,
@@ -890,7 +887,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             body=body,
             jwt=session.access_token,
         )
-        auth_response = model_validate(AuthMFAEnrollResponse, response.content)
+        auth_response = AuthMFAEnrollResponse.model_validate_json(response.content)
         if params["factor_type"] == "totp" and auth_response.totp:
             auth_response.totp.qr_code = (
                 f"data:image/svg+xml;utf-8,{auth_response.totp.qr_code}"
@@ -907,7 +904,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             body={"channel": params.get("channel")},
             jwt=session.access_token,
         )
-        return model_validate(AuthMFAChallengeResponse, response.content)
+        return AuthMFAChallengeResponse.model_validate_json(response.content)
 
     async def _challenge_and_verify(
         self,
@@ -936,8 +933,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             body=params,
             jwt=session.access_token,
         )
-        auth_response = model_validate(AuthMFAVerifyResponse, response.content)
-        session = model_validate(Session, response.content)
+        auth_response = AuthMFAVerifyResponse.model_validate_json(response.content)
+        session = Session.model_validate_json(response.content)
         await self._save_session(session)
         self._notify_all_subscribers("MFA_CHALLENGE_VERIFIED", session)
         return auth_response
@@ -951,7 +948,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             f"factors/{params.get('factor_id')}",
             jwt=session.access_token,
         )
-        return model_validate(AuthMFAUnenrollResponse, response.content)
+        return AuthMFAUnenrollResponse.model_validate_json(response.content)
 
     async def _list_factors(self) -> AuthMFAListFactorsResponse:
         response = await self.get_user()
@@ -1013,7 +1010,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
     async def _get_session_from_url(
         self,
         url: str,
-    ) -> Tuple[Session, Optional[str]]:
+    ) -> tuple[Session, Optional[str]]:
         if not self._is_implicit_grant_flow(url):
             raise AuthImplicitGrantRedirectError("Not a valid implicit grant flow url.")
         result = urlparse(url)
@@ -1130,7 +1127,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             value = (expire_in - refresh_duration_before_expires) * 1000
             await self._start_auto_refresh_token(value)
         if self._persist_session and session.expires_at:
-            await self._storage.set_item(self._storage_key, model_dump_json(session))
+            await self._storage.set_item(self._storage_key, session.model_dump_json())
 
     async def _start_auto_refresh_token(self, value: float) -> None:
         if self._refresh_token_timer:
@@ -1174,7 +1171,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         if not raw_session:
             return None
         try:
-            session = model_validate(Session, raw_session)
+            session = Session.model_validate_json(raw_session)
             if session.expires_at is None:
                 return None
             return session
@@ -1183,7 +1180,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
     def _get_param(
         self,
-        query_params: Dict[str, List[str]],
+        query_params: dict[str, list[str]],
         name: str,
     ) -> Optional[str]:
         return query_params[name][0] if name in query_params else None
@@ -1197,8 +1194,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         self,
         url: str,
         provider: Provider,
-        params: Dict[str, str],
-    ) -> Tuple[str, QueryParams]:
+        params: dict[str, str],
+    ) -> tuple[str, QueryParams]:
         query = QueryParams(params)
         prepared = await self._prepare_pkce_challenge()
         if prepared:
@@ -1211,7 +1208,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
     async def _prepare_pkce_challenge(
         self, *, password_recovery: bool = False
-    ) -> Optional[Tuple[str, str]]:
+    ) -> Optional[tuple[str, str]]:
         if self._flow_type != "pkce":
             return None
         code_verifier = generate_pkce_verifier()
@@ -1226,8 +1223,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         return code_challenge, code_challenge_method
 
     async def _with_pkce_challenge(
-        self, body: Dict, *, password_recovery: bool = False
-    ) -> Dict:
+        self, body: dict, *, password_recovery: bool = False
+    ) -> dict:
         prepared = await self._prepare_pkce_challenge(
             password_recovery=password_recovery
         )
@@ -1274,7 +1271,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         jwk: Optional[JWK] = None
 
         # try fetching from the suplied keys.
-        jwk = next((jwk for jwk in jwks["keys"] if jwk["kid"] == kid), None)
+        jwk = next((jwk for jwk in jwks["keys"] if jwk.get("kid") == kid), None)
 
         if jwk:
             return jwk
@@ -1284,7 +1281,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         ):
             # try fetching from the cache.
             jwk = next(
-                (jwk for jwk in self._jwks["keys"] if jwk["kid"] == kid),
+                (jwk for jwk in self._jwks["keys"] if jwk.get("kid") == kid),
                 None,
             )
             if jwk:
@@ -1298,7 +1295,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             self._jwks_cached_at = time.time()
 
             # find the signing key
-            jwk = next((jwk for jwk in jwks["keys"] if jwk["kid"] == kid), None)
+            jwk = next((jwk for jwk in jwks["keys"] if jwk.get("kid") == kid), None)
             if not jwk:
                 raise AuthInvalidJwtError("No matching signing key found in JWKS")
 
@@ -1338,7 +1335,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
         algorithm = get_algorithm_by_name(header["alg"])
         jwk_set = await self._fetch_jwks(header["kid"], jwks or {"keys": []})
-        signing_key = algorithm.from_jwk(cast(Dict[str, str], jwk_set))
+        signing_key = algorithm.from_jwk(cast(dict[str, str], jwk_set))
 
         # verify the signature
         is_valid = algorithm.verify(

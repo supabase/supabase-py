@@ -30,7 +30,7 @@ TRANSPORT_PASSWORD = "transport-password"
 )
 def test_injected_client_auth(
     endpoint: str, sdk_auth: str | None, expected_authorization: str
-):
+) -> None:
     requests = []
 
     def handle_request(request: Request) -> Response:

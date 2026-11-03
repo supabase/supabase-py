@@ -254,7 +254,7 @@ async def test_generate_link_supports_sign_up_with_generate_confirmation_signup_
 
 async def test_generate_link_supports_updating_emails_with_generate_email_change_links() -> (
     None
-):  # noqa: E501
+):
     credentials = mock_user_credentials()
     user = await create_new_user_with_email(email=credentials.email)
     assert user.email

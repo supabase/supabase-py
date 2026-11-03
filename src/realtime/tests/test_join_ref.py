@@ -28,7 +28,9 @@ async def subscribe(channel: AsyncRealtimeChannel) -> None:
 
 
 @pytest.mark.asyncio
-async def test_join_carries_join_ref_equal_to_its_own_ref(socket: AsyncRealtimeClient):
+async def test_join_carries_join_ref_equal_to_its_own_ref(
+    socket: AsyncRealtimeClient,
+) -> None:
     mock_ws = AsyncMock()
     socket._ws_connection = mock_ws
     await socket.connect()
@@ -45,7 +47,9 @@ async def test_join_carries_join_ref_equal_to_its_own_ref(socket: AsyncRealtimeC
 
 
 @pytest.mark.asyncio
-async def test_broadcast_push_carries_channel_join_ref(socket: AsyncRealtimeClient):
+async def test_broadcast_push_carries_channel_join_ref(
+    socket: AsyncRealtimeClient,
+) -> None:
     mock_ws = AsyncMock()
     socket._ws_connection = mock_ws
     await socket.connect()
@@ -76,7 +80,7 @@ async def test_broadcast_push_carries_channel_join_ref(socket: AsyncRealtimeClie
 @pytest.mark.asyncio
 async def test_presence_track_and_untrack_carry_channel_join_ref(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     mock_ws = AsyncMock()
     socket._ws_connection = mock_ws
     await socket.connect()
@@ -108,7 +112,7 @@ async def test_presence_track_and_untrack_carry_channel_join_ref(
 
 
 @pytest.mark.asyncio
-async def test_leave_push_carries_channel_join_ref(socket: AsyncRealtimeClient):
+async def test_leave_push_carries_channel_join_ref(socket: AsyncRealtimeClient) -> None:
     mock_ws = AsyncMock()
     socket._ws_connection = mock_ws
     await socket.connect()
@@ -128,7 +132,7 @@ async def test_leave_push_carries_channel_join_ref(socket: AsyncRealtimeClient):
 
 
 @pytest.mark.asyncio
-async def test_rejoin_sends_fresh_join_ref(socket: AsyncRealtimeClient):
+async def test_rejoin_sends_fresh_join_ref(socket: AsyncRealtimeClient) -> None:
     mock_ws = AsyncMock()
     socket._ws_connection = mock_ws
     await socket.connect()

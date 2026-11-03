@@ -1,6 +1,6 @@
 import platform
 import sys
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 from warnings import warn
 
 from httpx import AsyncClient, Headers, HTTPError, QueryParams, Response
@@ -21,7 +21,7 @@ class AsyncFunctionsClient:
     def __init__(
         self,
         url: str,
-        headers: Dict,
+        headers: dict,
         timeout: Optional[int] = None,
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,
@@ -84,7 +84,7 @@ class AsyncFunctionsClient:
         method: HTTPMethod,
         path: list[str],
         headers: Headers,
-        json: Optional[Union[Dict[Any, Any], str, bytes]] = None,
+        json: Optional[Union[dict[Any, Any], str, bytes]] = None,
         params: Optional[QueryParams] = None,
     ) -> Response:
         url = self.url.joinpath(*path)
@@ -127,8 +127,8 @@ class AsyncFunctionsClient:
         self.headers["Authorization"] = f"Bearer {token}"
 
     async def invoke(
-        self, function_name: str, invoke_options: Optional[Dict] = None
-    ) -> Union[Dict, bytes]:
+        self, function_name: str, invoke_options: Optional[dict] = None
+    ) -> Union[dict, bytes]:
         """Invokes a function
 
         Parameters

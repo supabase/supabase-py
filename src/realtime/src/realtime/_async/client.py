@@ -1,10 +1,9 @@
 import asyncio
-import json
 import logging
 import re
 import sys
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from warnings import warn
 
@@ -30,7 +29,7 @@ from .channel import AsyncRealtimeChannel, RealtimeChannelOptions
 
 def deprecated(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         logger.warning(f"Warning: {func.__name__} is deprecated.")
         return func(*args, **kwargs)
 
@@ -46,7 +45,7 @@ class AsyncRealtimeClient:
         url: str,
         token: Optional[str] = None,
         auto_reconnect: bool = True,
-        params: Optional[Dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
         hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
         max_retries: int = 5,
         initial_backoff: float = 1.0,
@@ -81,12 +80,12 @@ class AsyncRealtimeClient:
         self.params = params or {}
         self.apikey = token
         self.access_token = token
-        self.send_buffer: List[Callable] = []
+        self.send_buffer: list[Callable] = []
         self.hb_interval = hb_interval
         self._ws_connection: Optional[ClientConnection] = None
         self.ref = 0
         self.auto_reconnect = auto_reconnect
-        self.channels: Dict[str, AsyncRealtimeChannel] = {}
+        self.channels: dict[str, AsyncRealtimeChannel] = {}
         self.max_retries = max_retries
         self.initial_backoff = initial_backoff
         self.timeout = timeout
@@ -200,7 +199,7 @@ class AsyncRealtimeClient:
         )
 
     @deprecated
-    async def listen(self):
+    async def listen(self) -> None:
         pass
 
     async def _on_connect(self) -> None:
@@ -229,7 +228,7 @@ class AsyncRealtimeClient:
         else:
             logger.error("Auto-reconnect disabled, terminating connection")
 
-    async def _flush_send_buffer(self):
+    async def _flush_send_buffer(self) -> None:
         if self.is_connected and len(self.send_buffer) > 0:
             for callback in self.send_buffer:
                 await callback()
@@ -276,7 +275,7 @@ class AsyncRealtimeClient:
 
             except websockets.exceptions.ConnectionClosedError as e:
                 await self._on_connect_error(e)
-            except websockets.exceptions.ConnectionClosedOK as e:
+            except websockets.exceptions.ConnectionClosedOK:
                 pass
 
     def channel(
@@ -303,11 +302,12 @@ class AsyncRealtimeClient:
 
         return chan
 
-    def get_channels(self) -> List[AsyncRealtimeChannel]:
+    def get_channels(self) -> list[AsyncRealtimeChannel]:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: AsyncRealtimeChannel) -> None:
-        del self.channels[channel.topic]
+        if self.channels.get(channel.topic) is channel:
+            del self.channels[channel.topic]
 
     async def remove_channel(self, channel: AsyncRealtimeChannel) -> None:
         """
@@ -315,8 +315,8 @@ class AsyncRealtimeClient:
         :param channel: Channel to remove
         :return: None
         """
-        if channel.topic in self.channels:
-            await self.channels[channel.topic].unsubscribe()
+        if self.channels.get(channel.topic) is channel:
+            await channel.unsubscribe()
             self._remove_channel(channel)
 
         if len(self.channels) == 0:
@@ -357,7 +357,7 @@ class AsyncRealtimeClient:
         self.ref += 1
         return f"{self.ref}"
 
-    async def send(self, message: Union[Message, Dict[str, Any]]) -> None:
+    async def send(self, message: Union[Message, dict[str, Any]]) -> None:
         """
         Send a message through the WebSocket connection.
 
@@ -389,7 +389,7 @@ class AsyncRealtimeClient:
                 f"send: {msg.model_copy(update={'payload': redacted}).model_dump_json()}"
             )
 
-        async def send_message():
+        async def send_message() -> None:
             if not self._ws_connection:
                 raise NotConnectedError("_send")
 
@@ -405,7 +405,7 @@ class AsyncRealtimeClient:
         else:
             self.send_buffer.append(send_message)
 
-    async def _leave_open_topic(self, topic: str):
+    async def _leave_open_topic(self, topic: str) -> None:
         dup_channels = [
             ch
             for ch in self.channels.values()

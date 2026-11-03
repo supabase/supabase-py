@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from httpx import Response
 from pydantic import BaseModel
@@ -25,7 +25,7 @@ class APIError(Exception):
     Base exception for all API errors.
     """
 
-    _raw_error: Dict[str, Any]
+    _raw_error: dict[str, Any]
     message: Optional[str]
     """The error message."""
     code: Optional[str]
@@ -35,7 +35,7 @@ class APIError(Exception):
     details: Optional[Any]
     """The error details."""
 
-    def __init__(self, error: Dict[str, Any]) -> None:
+    def __init__(self, error: dict[str, Any]) -> None:
         self._raw_error = error
         self.message = error.get("message")
         self.code = error.get("code")
@@ -51,7 +51,7 @@ class APIError(Exception):
         complete_error_text = f"{error_text}{message_text}{hint_text}{details_text}"
         return complete_error_text or "Empty error"
 
-    def json(self) -> Dict[str, Any]:
+    def json(self) -> dict[str, Any]:
         """Convert the error into a dictionary.
 
         Returns:
@@ -69,7 +69,7 @@ def _proxy_status_error_code(r: Response) -> Optional[str]:
     return None
 
 
-def generate_default_error_message(r):
+def generate_default_error_message(r: Response) -> dict[str, Any]:
     if not r.content:
         # HEAD responses have no body, so PostgREST reports the error code
         # in the Proxy-Status header instead.

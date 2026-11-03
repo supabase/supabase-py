@@ -1,5 +1,7 @@
+import json
 import re
-from typing import Any, Dict, Union
+from collections.abc import AsyncIterator
+from typing import Any, Union
 from unittest.mock import patch
 
 import pytest
@@ -9,12 +11,14 @@ from httpx import (
     BasicAuth,
     Headers,
     Limits,
+    MockTransport,
     Request,
     Response,
     Timeout,
 )
 
 from postgrest import AsyncPostgrestClient
+from postgrest.base_request_builder import MAX_RETRIES
 from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
 from postgrest.exceptions import APIError
 
@@ -28,13 +32,15 @@ from ..credentials import (
 
 
 @pytest.fixture
-async def postgrest_client():
+async def postgrest_client() -> AsyncIterator[AsyncPostgrestClient]:
     async with AsyncPostgrestClient("https://example.com") as client:
         yield client
 
 
 class TestXClientInfo:
-    def test_structured_metadata_format(self, postgrest_client: AsyncPostgrestClient):
+    def test_structured_metadata_format(
+        self, postgrest_client: AsyncPostgrestClient
+    ) -> None:
         x_client_info = postgrest_client.session.headers.get("X-Client-Info")
         assert x_client_info is not None
         assert re.match(
@@ -44,7 +50,7 @@ class TestXClientInfo:
 
 
 class TestConstructor:
-    def test_simple(self, postgrest_client: AsyncPostgrestClient):
+    def test_simple(self, postgrest_client: AsyncPostgrestClient) -> None:
         session = postgrest_client.session
 
         assert session.base_url == "https://example.com"
@@ -67,7 +73,7 @@ class TestConstructor:
             )
 
     @pytest.mark.asyncio
-    async def test_custom_headers(self):
+    async def test_custom_headers(self) -> None:
         async with AsyncPostgrestClient(
             "https://example.com", schema="pub", headers={"Custom-Header": "value"}
         ) as client:
@@ -82,6 +88,15 @@ class TestConstructor:
                 }
             )
             assert session.headers.items() >= headers.items()
+
+    def test_invalid_base_url_raises(self) -> None:
+        with pytest.raises(ValueError, match="base_url must be a valid HTTP URL"):
+            AsyncPostgrestClient("ftp://example.com")
+
+    @pytest.mark.parametrize("url", ["http://example.com", "https://example.com"])
+    def test_valid_http_base_url_constructs(self, url: str) -> None:
+        client = AsyncPostgrestClient(url)
+        assert str(client.base_url) == url
 
 
 class TestHttpxClientConstructor:
@@ -109,18 +124,18 @@ class TestHttpxClientConstructor:
 
 
 class TestAuth:
-    def test_auth_token(self, postgrest_client: AsyncPostgrestClient):
+    def test_auth_token(self, postgrest_client: AsyncPostgrestClient) -> None:
         postgrest_client.auth(TOKEN)
         assert postgrest_client.headers["Authorization"] == BEARER_AUTHORIZATION
 
-    def test_auth_basic(self, postgrest_client: AsyncPostgrestClient):
+    def test_auth_basic(self, postgrest_client: AsyncPostgrestClient) -> None:
         postgrest_client.auth(None, username=USERNAME, password=PASSWORD)
 
         assert isinstance(postgrest_client.basic_auth, BasicAuth)
         assert postgrest_client.basic_auth._auth_header == BASIC_AUTHORIZATION
 
 
-def test_schema(postgrest_client: AsyncPostgrestClient):
+def test_schema(postgrest_client: AsyncPostgrestClient) -> None:
     client = postgrest_client.schema("private")
     subheaders = {
         "accept-profile": "private",
@@ -139,7 +154,9 @@ def test_schema(postgrest_client: AsyncPostgrestClient):
 
 
 @pytest.mark.asyncio
-async def test_response_status_code_outside_ok(postgrest_client: AsyncPostgrestClient):
+async def test_response_status_code_outside_ok(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
     with patch(
         "postgrest._async.request_builder.AsyncSelectRequestBuilder.execute",
         side_effect=APIError(
@@ -170,7 +187,7 @@ async def test_response_status_code_outside_ok(postgrest_client: AsyncPostgrestC
 @pytest.mark.asyncio
 async def test_response_client_invalid_response_but_valid_json(
     postgrest_client: AsyncPostgrestClient,
-):
+) -> None:
     with patch(
         "httpx._client.AsyncClient.request",
         return_value=Response(
@@ -205,9 +222,9 @@ async def test_response_client_invalid_response_but_valid_json(
 )
 async def test_response_client_empty_error_body(
     postgrest_client: AsyncPostgrestClient,
-    headers: Dict[str, str],
+    headers: dict[str, str],
     code: Union[str, int],
-):
+) -> None:
     with patch(
         "httpx._client.AsyncClient.request",
         return_value=Response(
@@ -238,7 +255,7 @@ async def test_response_client_empty_error_body(
 )
 async def test_response_error_json_missing_or_non_string_fields(
     postgrest_client: AsyncPostgrestClient, body, message, details
-):
+) -> None:
     with patch(
         "httpx._client.AsyncClient.request",
         return_value=Response(
@@ -256,7 +273,7 @@ async def test_response_error_json_missing_or_non_string_fields(
 @pytest.mark.parametrize("head", [False, True])
 def test_rpc_query_params_send_lists_as_array_literals(
     postgrest_client: AsyncPostgrestClient, head: bool
-):
+) -> None:
     params: Any = {"ids": [1, 2, 3], "name": "x"}
     builder = postgrest_client.rpc("sum_ids", params, head=head, get=not head)
 
@@ -267,10 +284,138 @@ def test_rpc_query_params_send_lists_as_array_literals(
 @pytest.mark.parametrize("head", [False, True])
 def test_rpc_query_params_quote_array_elements(
     postgrest_client: AsyncPostgrestClient, head: bool
-):
+) -> None:
     params: Any = {"tags": ["a,b", "c d", "", 'say "hi"', "x}", "null", None]}
     builder = postgrest_client.rpc("tag_fn", params, head=head, get=not head)
 
     assert builder.request.params.get_list("tags") == [
         '{"a,b","c d","","say \\"hi\\"","x}","null",NULL}'
     ]
+
+
+@pytest.mark.parametrize("method", ["GET", "HEAD", "POST"])
+@pytest.mark.parametrize(
+    ("options", "encoded"),
+    [
+        ({"enabled": True}, '{"enabled":true}'),
+        (
+            {"nested": {"items": [1, None, "a&b"]}},
+            '{"nested":{"items":[1,null,"a&b"]}}',
+        ),
+        ({}, "{}"),
+    ],
+)
+async def test_rpc_serializes_dictionary_arguments(
+    method: str, options: dict, encoded: str
+) -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json=[])
+
+    params: Any = {
+        "options": options,
+        "raw": '{"preserved": true}',
+        "ids": [1, 2],
+        "text": "keep",
+    }
+    async with AsyncClient(transport=MockTransport(handler)) as http:
+        client = AsyncPostgrestClient("https://example.com", http_client=http)
+        await client.rpc(
+            "example", params, get=method == "GET", head=method == "HEAD"
+        ).execute()
+
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.method == method
+    if method == "POST":
+        assert json.loads(request.content) == params
+        assert "options" not in request.url.params
+    else:
+        assert request.url.params.get_list("options") == [encoded]
+        assert request.url.params["raw"] == params["raw"]
+        assert request.url.params["ids"] == "{1,2}"
+        assert request.url.params["text"] == "keep"
+
+
+class TestRetryEnabled:
+    def test_default_enabled(self, postgrest_client: AsyncPostgrestClient) -> None:
+        assert postgrest_client.retry_enabled is True
+        assert postgrest_client.from_("test").select("*").request.retry_enabled is True
+
+    async def test_client_level_disable_propagates(self) -> None:
+        async with AsyncPostgrestClient(
+            "https://example.com", retry_enabled=False
+        ) as client:
+            assert client.from_("test").select("*").request.retry_enabled is False
+            assert client.rpc("test_fn", {}).request.retry_enabled is False
+            assert client.schema("other").retry_enabled is False
+
+    async def test_request_level_override(self) -> None:
+        async with AsyncPostgrestClient(
+            "https://example.com", retry_enabled=False
+        ) as client:
+            builder = client.from_("test").select("*").retry(True)
+            assert builder.request.retry_enabled is True
+
+    async def test_client_level_disable_does_not_retry_on_503(self) -> None:
+        calls = 0
+
+        async def fake_send(request: Request, **kwargs: Any) -> Response:
+            nonlocal calls
+            calls += 1
+            return Response(503)
+
+        async with AsyncPostgrestClient(
+            "https://example.com", retry_enabled=False
+        ) as client:
+            with patch.object(client.session, "send", wraps=fake_send):
+                with pytest.raises(APIError):
+                    await client.from_("test").select("*").execute()
+
+        assert calls == 1
+
+    async def test_client_level_disable_request_override_retries(self) -> None:
+        calls = 0
+
+        async def fake_send(request: Request, **kwargs: Any) -> Response:
+            nonlocal calls
+            if calls > 0:
+                assert request.headers["X-Retry-Count"] == str(calls)
+            calls += 1
+            return Response(503)
+
+        async with AsyncPostgrestClient(
+            "https://example.com", retry_enabled=False
+        ) as client:
+            with (
+                patch.object(client.session, "send", wraps=fake_send),
+                patch(
+                    "postgrest._async.request_builder.get_retry_delay", return_value=0
+                ),
+            ):
+                with pytest.raises(APIError):
+                    await client.from_("test").select("*").retry(True).execute()
+
+        assert calls == 1 + MAX_RETRIES
+
+    async def test_default_retries_on_503(self) -> None:
+        calls = 0
+
+        async def fake_send(request: Request, **kwargs: Any) -> Response:
+            nonlocal calls
+            calls += 1
+            return Response(503)
+
+        async with AsyncPostgrestClient("https://example.com") as client:
+            with (
+                patch.object(client.session, "send", wraps=fake_send),
+                patch(
+                    "postgrest._async.request_builder.get_retry_delay", return_value=0
+                ),
+            ):
+                with pytest.raises(APIError):
+                    await client.from_("test").select("*").execute()
+
+        assert calls == 1 + MAX_RETRIES

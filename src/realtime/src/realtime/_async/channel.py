@@ -3,22 +3,20 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Mapping, Optional
+from collections.abc import Coroutine
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from typing_extensions import assert_never
 
 from realtime.types import (
     BroadcastCallback,
     BroadcastPayload,
-    Callback,
     ChannelEvents,
     ChannelStates,
     PostgresChangesCallback,
-    PostgresChangesData,
     PresenceOnJoinCallback,
     PresenceOnLeaveCallback,
     RealtimeAcknowledgementStatus,
-    RealtimeChannelBroadcastConfig,
     RealtimeChannelConfig,
     RealtimeChannelOptions,
     RealtimeChannelPresenceConfig,
@@ -41,7 +39,6 @@ from ..message import (
     ReplyMessage,
     ReplyPostgresChanges,
     ServerMessage,
-    SuccessReplyMessage,
     SuccessSystemPayload,
     SystemMessage,
 )
@@ -95,6 +92,7 @@ class AsyncRealtimeChannel:
         self.presence: AsyncRealtimePresence = AsyncRealtimePresence()
         self.state = ChannelStates.CLOSED
         self._push_buffer: list[AsyncPush] = []
+        self._background_tasks: set[asyncio.Task[None]] = set()
         self.timeout = self.socket.timeout
 
         self.join_push: AsyncPush = AsyncPush(
@@ -114,14 +112,14 @@ class AsyncRealtimeChannel:
 
         self.broadcast_endpoint_url = self._broadcast_endpoint_url()
 
-        def on_join_push_ok(payload: ReplyPostgresChanges):
+        def on_join_push_ok(payload: ReplyPostgresChanges) -> None:
             self.state = ChannelStates.JOINED
             self.rejoin_timer.reset()
             for push in self._push_buffer:
-                asyncio.create_task(push.send())
+                self._run_in_background(push.send())
             self._push_buffer = []
 
-        def on_join_push_timeout():
+        def on_join_push_timeout() -> None:
             if not self.is_joining:
                 return
 
@@ -133,7 +131,7 @@ class AsyncRealtimeChannel:
             RealtimeAcknowledgementStatus.Ok, on_join_push_ok
         ).receive(RealtimeAcknowledgementStatus.Timeout, on_join_push_timeout)
 
-    def on_close(self):
+    def on_close(self) -> None:
         logger.info(f"channel {self.topic} closed")
         self.rejoin_timer.reset()
         self.state = ChannelStates.CLOSED
@@ -141,7 +139,7 @@ class AsyncRealtimeChannel:
         if self.subscribe_callback:
             self.subscribe_callback(RealtimeSubscribeStates.CLOSED, None)
 
-    def on_error(self, payload: dict[str, Any]):
+    def on_error(self, payload: dict[str, Any]) -> None:
         if self.is_leaving or self.is_closed:
             return
 
@@ -155,23 +153,23 @@ class AsyncRealtimeChannel:
 
     # Properties
     @property
-    def is_closed(self):
+    def is_closed(self) -> bool:
         return self.state == ChannelStates.CLOSED
 
     @property
-    def is_joining(self):
+    def is_joining(self) -> bool:
         return self.state == ChannelStates.JOINING
 
     @property
-    def is_leaving(self):
+    def is_leaving(self) -> bool:
         return self.state == ChannelStates.LEAVING
 
     @property
-    def is_errored(self):
+    def is_errored(self) -> bool:
         return self.state == ChannelStates.ERRORED
 
     @property
-    def is_joined(self):
+    def is_joined(self) -> bool:
         return self.state == ChannelStates.JOINED
 
     # Core channel methods
@@ -210,7 +208,7 @@ class AsyncRealtimeChannel:
             )
             presence["enabled"] = presence_enabled
 
-            config_payload: Dict[str, Any] = {
+            config_payload: dict[str, Any] = {
                 "config": {
                     "broadcast": broadcast,
                     "presence": presence,
@@ -227,7 +225,7 @@ class AsyncRealtimeChannel:
             self.join_push.update_payload(config_payload)
             self._joined_once = True
 
-            def on_join_push_ok(payload: ReplyPostgresChanges):
+            def on_join_push_ok(payload: ReplyPostgresChanges) -> None:
                 server_postgres_changes = payload.postgres_changes
 
                 new_postgres_bindings = []
@@ -253,7 +251,7 @@ class AsyncRealtimeChannel:
                             postgres_callback.id = server_binding.id
                             new_postgres_bindings.append(postgres_callback)
                         else:
-                            asyncio.create_task(self.unsubscribe())
+                            self._run_in_background(self.unsubscribe())
                             callback and callback(
                                 RealtimeSubscribeStates.CHANNEL_ERROR,
                                 Exception(
@@ -265,13 +263,13 @@ class AsyncRealtimeChannel:
                 self.postgres_changes_callbacks = new_postgres_bindings
                 callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
 
-            def on_join_push_error(payload: Dict[str, Any]):
+            def on_join_push_error(payload: dict[str, Any]) -> None:
                 callback and callback(
                     RealtimeSubscribeStates.CHANNEL_ERROR,
                     Exception(json.dumps(payload)),
                 )
 
-            def on_join_push_timeout(*args):
+            def on_join_push_timeout(*args) -> None:
                 callback and callback(RealtimeSubscribeStates.TIMED_OUT, None)
 
             self.join_push.receive(
@@ -305,7 +303,7 @@ class AsyncRealtimeChannel:
         await leave_push.send()
 
     async def push(
-        self, event: str, payload: Dict[str, Any], timeout: Optional[int] = None
+        self, event: str, payload: dict[str, Any], timeout: Optional[int] = None
     ) -> AsyncPush:
         """
         Push a message to the channel.
@@ -344,7 +342,7 @@ class AsyncRealtimeChannel:
         presence = config.get("presence")
         private = config.get("private", False)
 
-        config_payload: Dict[str, Any] = {
+        config_payload: dict[str, Any] = {
             "config": {
                 "broadcast": broadcast,
                 "presence": presence,
@@ -385,7 +383,7 @@ class AsyncRealtimeChannel:
         table: Optional[str] = None,
         schema: Optional[str] = None,
         filter: Optional[str] = None,
-        select: Optional[List[str]] = None,
+        select: Optional[list[str]] = None,
     ) -> AsyncRealtimeChannel:
         """
         Set up a listener for Postgres database changes.
@@ -432,7 +430,7 @@ class AsyncRealtimeChannel:
         return self
 
     # Presence methods
-    async def track(self, user_status: Dict[str, Any]) -> None:
+    async def track(self, user_status: dict[str, Any]) -> None:
         """
         Track presence status for the current user.
 
@@ -467,7 +465,7 @@ class AsyncRealtimeChannel:
             logger.info(
                 f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel"
             )
-            asyncio.create_task(self._resubscribe())
+            self._run_in_background(self._resubscribe())
 
         return self
 
@@ -485,7 +483,7 @@ class AsyncRealtimeChannel:
             logger.info(
                 f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel"
             )
-            asyncio.create_task(self._resubscribe())
+            self._run_in_background(self._resubscribe())
 
         return self
 
@@ -503,7 +501,7 @@ class AsyncRealtimeChannel:
             logger.info(
                 f"channel {self.topic} resubscribe due to change in presence callbacks on joined channel"
             )
-            asyncio.create_task(self._resubscribe())
+            self._run_in_background(self._resubscribe())
         return self
 
     # Broadcast methods
@@ -521,11 +519,16 @@ class AsyncRealtimeChannel:
 
     # Internal methods
 
+    def _run_in_background(self, coroutine: Coroutine[Any, Any, None]) -> None:
+        task = asyncio.create_task(coroutine)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+
     async def _resubscribe(self) -> None:
         await self.unsubscribe()
         await self.subscribe()
 
-    def _broadcast_endpoint_url(self):
+    def _broadcast_endpoint_url(self) -> str:
         return f"{http_endpoint_url(self.socket.http_endpoint)}/api/broadcast"
 
     async def _rejoin(self) -> None:
@@ -535,13 +538,13 @@ class AsyncRealtimeChannel:
         self.state = ChannelStates.JOINING
         await self.join_push.resend()
 
-    def _can_push(self):
+    def _can_push(self) -> bool:
         return self.socket.is_connected and self._joined_once
 
     async def send_presence(self, event: str, data: Any) -> None:
         await self.push(ChannelEvents.presence, {"event": event, "payload": data})
 
-    def _handle_message(self, message: ServerMessage):
+    def _handle_message(self, message: ServerMessage) -> None:
         logger.debug(f"{self.topic} : {message!r}")
         if isinstance(message, SystemMessage):
             if isinstance(message.payload, SuccessSystemPayload):
@@ -583,7 +586,7 @@ class AsyncRealtimeChannel:
         else:
             assert_never(message)
 
-    async def _rejoin_until_connected(self):
+    async def _rejoin_until_connected(self) -> None:
         self.rejoin_timer.schedule_timeout()
         if self.socket.is_connected:
             await self._rejoin()

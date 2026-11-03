@@ -1,6 +1,6 @@
 import platform
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import Client as SyncHttpxClient
@@ -39,7 +39,7 @@ class ClientOptions:
     Must be on the list of exposed schemas in Supabase. Defaults to 'public'.
     """
 
-    headers: Dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
+    headers: dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
     """Optional headers for initializing the client."""
 
     auto_refresh_token: bool = True
@@ -55,6 +55,9 @@ class ClientOptions:
         DEFAULT_POSTGREST_CLIENT_TIMEOUT
     )
     """Timeout passed to the SyncPostgrestClient instance."""
+
+    postgrest_client_retry: bool = True
+    """Automatically retry transient PostgREST errors. Passed to the SyncPostgrestClient instance."""
 
     storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT
     """Timeout passed to the SyncStorageClient instance"""
@@ -77,13 +80,14 @@ class AsyncClientOptions(ClientOptions):
     def replace(
         self,
         schema: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
         storage: Optional[AsyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
         httpx_client: Optional[AsyncHttpxClient] = None,
         postgrest_client_timeout: Optional[Union[int, float, Timeout]] = None,
+        postgrest_client_retry: Optional[bool] = None,
         storage_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
         function_client_timeout: Optional[int] = None,
@@ -107,6 +111,11 @@ class AsyncClientOptions(ClientOptions):
             postgrest_client_timeout
             if postgrest_client_timeout is not None
             else self.postgrest_client_timeout
+        )
+        client_options.postgrest_client_retry = (
+            postgrest_client_retry
+            if postgrest_client_retry is not None
+            else self.postgrest_client_retry
         )
         client_options.storage_client_timeout = (
             storage_client_timeout
@@ -132,13 +141,14 @@ class SyncClientOptions(ClientOptions):
     def replace(
         self,
         schema: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         auto_refresh_token: Optional[bool] = None,
         persist_session: Optional[bool] = None,
         storage: Optional[SyncSupportedStorage] = None,
         realtime: Optional[RealtimeClientOptions] = None,
         httpx_client: Optional[SyncHttpxClient] = None,
         postgrest_client_timeout: Optional[Union[int, float, Timeout]] = None,
+        postgrest_client_retry: Optional[bool] = None,
         storage_client_timeout: Optional[int] = None,
         flow_type: Optional[AuthFlowType] = None,
         function_client_timeout: Optional[int] = None,
@@ -162,6 +172,11 @@ class SyncClientOptions(ClientOptions):
             postgrest_client_timeout
             if postgrest_client_timeout is not None
             else self.postgrest_client_timeout
+        )
+        client_options.postgrest_client_retry = (
+            postgrest_client_retry
+            if postgrest_client_retry is not None
+            else self.postgrest_client_retry
         )
         client_options.storage_client_timeout = (
             storage_client_timeout

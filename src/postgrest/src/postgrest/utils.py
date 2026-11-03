@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Type, TypeVar, cast, get_origin
-from urllib.parse import urlparse
+import json
+from collections.abc import Iterable
+from typing import Any
 
 from deprecation import deprecated
 from httpx import AsyncClient  # noqa: F401
-from httpx import Client as BaseClient  # noqa: F401
-from pydantic import BaseModel
+from httpx import Client as BaseClient
 from yarl import URL
 
 from .version import __version__
@@ -78,26 +78,15 @@ def rpc_query_param(value: Any) -> Any:
     """Format an RPC argument sent in the query string, as in GET or HEAD calls.
 
     Lists and tuples become PostgreSQL array literals, since PostgREST keeps only
-    one value when a non-variadic argument is repeated.
+    one value when a non-variadic argument is repeated. Dictionaries become JSON
+    for named json/jsonb arguments.
     """
     if isinstance(value, (list, tuple)):
         return sanitize_array_param(value)
+    if isinstance(value, dict):
+        return json.dumps(value, separators=(",", ":"))
     return value
 
 
 def is_http_url(url: URL) -> bool:
     return url.scheme in {"https", "http"}
-
-
-TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
-
-
-def model_validate_json(model: Type[TBaseModel], contents) -> TBaseModel:
-    """Compatibility layer between pydantic 1 and 2 for parsing an instance
-    of a BaseModel from varied"""
-    try:
-        # pydantic > 2
-        return model.model_validate_json(contents)
-    except AttributeError:
-        # pydantic < 2
-        return model.parse_raw(contents)

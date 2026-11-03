@@ -5,7 +5,7 @@ from postgrest import SyncPostgrestClient
 REST_URL = "http://127.0.0.1:3000"
 
 
-def rest_client():
+def rest_client() -> SyncPostgrestClient:
     return SyncPostgrestClient(
         base_url=REST_URL,
     )

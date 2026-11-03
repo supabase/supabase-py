@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response
@@ -14,7 +14,7 @@ from .credentials import (
 )
 
 
-def recording_transport(requests: List[Request]) -> MockTransport:
+def recording_transport(requests: list[Request]) -> MockTransport:
     def respond(request: Request) -> Response:
         requests.append(request)
         return Response(200, json=[])
@@ -26,7 +26,7 @@ def recording_transport(requests: List[Request]) -> MockTransport:
     "username", [None, "bob"], ids=["token-only", "token-preferred"]
 )
 def test_sync_auth_switches_from_basic_to_bearer(username: Optional[str]) -> None:
-    requests: List[Request] = []
+    requests: list[Request] = []
     with Client(transport=recording_transport(requests)) as http_client:
         with SyncPostgrestClient(
             "https://example.com", http_client=http_client
@@ -54,7 +54,7 @@ def test_sync_auth_switches_from_basic_to_bearer(username: Optional[str]) -> Non
 async def test_async_auth_switches_from_basic_to_bearer(
     username: Optional[str],
 ) -> None:
-    requests: List[Request] = []
+    requests: list[Request] = []
     async with AsyncClient(transport=recording_transport(requests)) as http_client:
         async with AsyncPostgrestClient(
             "https://example.com", http_client=http_client
