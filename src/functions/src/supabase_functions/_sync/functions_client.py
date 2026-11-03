@@ -3,7 +3,8 @@ import sys
 from typing import Any, Literal, Optional, Union
 from warnings import warn
 
-from httpx import Client, Headers, HTTPError, QueryParams, Response
+from httpx import URL as HttpxURL
+from httpx import Client, Headers, HTTPError, QueryParams, Request, Response
 from yarl import URL
 
 from ..errors import FunctionsHttpError, FunctionsRelayError, _error_message_from
@@ -15,6 +16,42 @@ from ..utils import (
 from ..version import __version__
 
 HTTPMethod = Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
+
+
+def _port_or_default(url: HttpxURL) -> Optional[int]:
+    if url.port is not None:
+        return url.port
+    return {"http": 80, "https": 443}.get(url.scheme)
+
+
+def _keeps_credentials(source: HttpxURL, target: HttpxURL) -> bool:
+    if source.host != target.host:
+        return False
+    if source.scheme == target.scheme:
+        return _port_or_default(source) == _port_or_default(target)
+    return (
+        source.scheme == "http"
+        and _port_or_default(source) == 80
+        and target.scheme == "https"
+        and _port_or_default(target) == 443
+    )
+
+
+class _RedirectGuardClient(Client):
+    """Drops the ``apiKey`` header on redirects that leave the origin.
+
+    httpx only strips ``Authorization`` on such redirects, so the project key
+    (the ``service_role`` key in server side usage) would otherwise be sent to
+    whatever host an invoked edge function redirects to.
+    """
+
+    def _redirect_headers(
+        self, request: Request, url: HttpxURL, method: str
+    ) -> Headers:
+        headers = super()._redirect_headers(request, url, method)
+        if not _keeps_credentials(request.url, url):
+            headers.pop("apiKey", None)
+        return headers
 
 
 class SyncFunctionsClient:
@@ -71,7 +108,7 @@ class SyncFunctionsClient:
 
         self.verify = bool(verify) if verify is not None else True
         self.timeout = int(abs(timeout)) if timeout is not None else 60
-        self._client = http_client or Client(
+        self._client = http_client or _RedirectGuardClient(
             verify=self.verify,
             timeout=self.timeout,
             proxy=proxy,
