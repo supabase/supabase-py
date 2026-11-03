@@ -15,18 +15,43 @@ from supabase import (
     create_client,
 )
 
+VALID_URL = "https://example.supabase.co"
+VALID_KEY = "valid-key"
 
-@pytest.mark.xfail(
-    reason="None of these values should be able to instantiate a client object"
+
+@pytest.mark.parametrize(
+    ("url", "key", "message"),
+    [
+        ("", VALID_KEY, "supabase_url is required"),
+        (None, VALID_KEY, "supabase_url is required"),
+        ("not-a-url", VALID_KEY, "Invalid URL"),
+        ("ftp://example.supabase.co", VALID_KEY, "Invalid URL"),
+        ("https://", VALID_KEY, "Invalid URL"),
+        ({}, VALID_KEY, "supabase_url must be a string, got dict"),
+        ([], VALID_KEY, "supabase_url must be a string, got list"),
+        (139, VALID_KEY, "supabase_url must be a string, got int"),
+        (VALID_URL, "", "supabase_key is required"),
+        (VALID_URL, None, "supabase_key is required"),
+        (VALID_URL, {}, "supabase_key must be a string, got dict"),
+        (VALID_URL, [], "supabase_key must be a string, got list"),
+        (VALID_URL, 139, "supabase_key must be a string, got int"),
+        (None, 139, "supabase_url is required"),
+        (139, None, "supabase_url must be a string, got int"),
+    ],
 )
-@pytest.mark.parametrize("url", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
-@pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
-def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
-    """Ensure we can't instantiate client with invalid values."""
-    try:
-        _: Client = create_client(url, key)
-    except SyncSupabaseException:
-        pass
+def test_incorrect_values_dont_instantiate_client(
+    url: Any, key: Any, message: str
+) -> None:
+    with pytest.raises(SyncSupabaseException) as exc_info:
+        create_client(url, key)
+    assert exc_info.value.message == message
+
+
+def test_valid_url_and_key_instantiate_client() -> None:
+    client = create_client(VALID_URL, VALID_KEY)
+    assert isinstance(client, Client)
+    assert client.supabase_key == VALID_KEY
+    assert str(client.supabase_url) == f"{VALID_URL}/"
 
 
 def test_supabase_exception() -> None:
