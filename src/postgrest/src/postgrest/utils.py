@@ -29,7 +29,7 @@ class SyncClient(BaseClient):
         self.close()
 
 
-def quote(value: Any) -> str:
+def _quote(value: Any) -> str:
     escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
 
@@ -38,7 +38,7 @@ def sanitize_param(param: Any) -> str:
     param_str = str(param)
     reserved_chars = ',:()"\\'
     if any(char in param_str for char in reserved_chars):
-        return quote(param_str)
+        return _quote(param_str)
     return param_str
 
 
@@ -63,7 +63,7 @@ def sanitize_array_element(element: Any) -> str:
     )
     if not needs_quoting:
         return element_str
-    return quote(element_str)
+    return _quote(element_str)
 
 
 def sanitize_array_param(values: Iterable[Any]) -> str:

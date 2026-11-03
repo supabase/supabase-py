@@ -1,7 +1,7 @@
 import pytest
 from deprecation import fail_if_not_removed
 
-from postgrest.utils import SyncClient, quote, sanitize_param
+from postgrest.utils import SyncClient, _quote, sanitize_param
 
 
 @fail_if_not_removed
@@ -39,4 +39,4 @@ def test_sanitize_params(value, expected) -> None:
     ],
 )
 def test_quote(value, expected) -> None:
-    assert quote(value) == expected
+    assert _quote(value) == expected

@@ -30,7 +30,7 @@ from .types import (
     RequestMethod,
     ReturnMethod,
 )
-from .utils import quote, sanitize_array_param, sanitize_param
+from .utils import _quote, sanitize_array_param, sanitize_param
 
 
 class QueryArgs(NamedTuple):
@@ -161,7 +161,7 @@ def _is_row_list(body: object) -> TypeGuard[Sequence[Mapping[str, object]]]:
 
 def _unique_columns(json: Sequence[Mapping[str, object]]) -> str:
     unique_keys = {key for row in json for key in row.keys()}
-    return ",".join(quote(key) for key in unique_keys)
+    return ",".join(_quote(key) for key in unique_keys)
 
 
 def _serialize_filter_value(value: Any) -> str:
