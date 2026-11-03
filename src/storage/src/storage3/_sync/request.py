@@ -1,7 +1,7 @@
 from httpx import Client, Headers, HTTPStatusError, QueryParams, Response
 from yarl import URL
 
-from ..exceptions import parse_storage_api_error
+from ..exceptions import _parse_storage_api_error
 from ..types import JSON, RequestMethod
 
 
@@ -29,4 +29,4 @@ class SyncRequestBuilder:
             response.raise_for_status()
             return response
         except HTTPStatusError as exc:
-            raise parse_storage_api_error(response) from exc
+            raise _parse_storage_api_error(response) from exc

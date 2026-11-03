@@ -18,13 +18,13 @@ class VectorBucketErrorMessage(BaseModel):
     code: str | None = None
 
 
-class AnalyticsBucketErrorDetail(BaseModel):
+class _AnalyticsBucketErrorDetail(BaseModel):
     message: str
     type: str
 
 
-class AnalyticsBucketErrorMessage(BaseModel):
-    error: AnalyticsBucketErrorDetail
+class _AnalyticsBucketErrorMessage(BaseModel):
+    error: _AnalyticsBucketErrorDetail
 
 
 class StorageApiErrorDict(TypedDict):
@@ -56,7 +56,7 @@ class StorageApiError(StorageException):
         }
 
 
-def parse_storage_api_error(response: Response) -> StorageApiError:
+def _parse_storage_api_error(response: Response) -> StorageApiError:
     try:
         error = VectorBucketErrorMessage.model_validate_json(response.content)
         return StorageApiError(
@@ -67,7 +67,7 @@ def parse_storage_api_error(response: Response) -> StorageApiError:
     except ValidationError:
         pass
     try:
-        analytics_error = AnalyticsBucketErrorMessage.model_validate_json(
+        analytics_error = _AnalyticsBucketErrorMessage.model_validate_json(
             response.content
         )
         return StorageApiError(
