@@ -296,6 +296,8 @@ class AsyncRealtimeClient:
         self._close_generation += 1
         ws_connection = self._ws_connection
         self._ws_connection = None
+        for channel in self.channels.values():
+            channel._release_subscribe_waiter()
 
         if ws_connection:
             await ws_connection.close()
@@ -395,6 +397,7 @@ class AsyncRealtimeClient:
                     channel.rejoin_timer.reset()
                     channel.join_push.destroy()
                     channel.state = ChannelStates.CLOSED
+                    channel._release_subscribe_waiter()
                     self._remove_channel(channel)
             await self.close()
 

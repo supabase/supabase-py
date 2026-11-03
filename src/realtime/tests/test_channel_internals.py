@@ -1,12 +1,13 @@
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import websockets
+from subscribe_helpers import start_subscribe
 
 from realtime import AsyncRealtimeClient
 from realtime._async.channel import AsyncRealtimeChannel
@@ -82,16 +83,6 @@ def reply(
             }
         )
     )
-
-
-async def start_subscribe(
-    channel: AsyncRealtimeChannel,
-    callback: Callable[[RealtimeSubscribeStates, Exception | None], None] | None = None,
-) -> asyncio.Task[AsyncRealtimeChannel]:
-    task = asyncio.create_task(channel.subscribe(callback))
-    await asyncio.sleep(0)
-    assert channel.join_push.sent
-    return task
 
 
 async def subscribe_with_postgres_changes(

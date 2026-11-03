@@ -3,6 +3,7 @@ import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from websockets.asyncio.server import ServerConnection, serve
@@ -164,15 +165,22 @@ async def test_unsubscribe_during_join_releases_subscribe() -> None:
         pass
 
     statuses: Statuses = []
+    closed = asyncio.Event()
+
+    def on_status(status: RealtimeSubscribeStates, error: Exception | None) -> None:
+        statuses.append((status, error))
+        closed.set()
+
     join_received = asyncio.Event()
     async with realtime_server(on_join, join_received) as client:
         channel = client.channel("room")
-        task = asyncio.create_task(channel.subscribe(recorder(statuses)))
+        task = asyncio.create_task(channel.subscribe(on_status))
         await asyncio.wait_for(join_received.wait(), 2)
 
         await channel.unsubscribe()
 
         assert await asyncio.wait_for(task, 2) is channel
+        await asyncio.wait_for(closed.wait(), 2)
         assert statuses == [(RealtimeSubscribeStates.CLOSED, None)]
         assert channel.state == ChannelStates.CLOSED
 
@@ -191,3 +199,81 @@ async def test_socket_closed_during_join_releases_subscribe() -> None:
             RealtimeSubscribeStates.CHANNEL_ERROR
         ]
         assert channel.is_errored
+
+
+async def never_reply(connection: ServerConnection, message: dict[str, Any]) -> None:
+    pass
+
+
+@pytest.mark.asyncio
+async def test_client_close_during_join_releases_subscribe() -> None:
+    join_received = asyncio.Event()
+    async with realtime_server(never_reply, join_received) as client:
+        channel = client.channel("room")
+        task = asyncio.create_task(channel.subscribe())
+        await asyncio.wait_for(join_received.wait(), 2)
+
+        await client.close()
+
+        assert await asyncio.wait_for(task, 2) is channel
+
+
+@pytest.mark.asyncio
+async def test_remove_channel_during_join_releases_subscribe() -> None:
+    join_received = asyncio.Event()
+    async with realtime_server(never_reply, join_received) as client:
+        channel = client.channel("room")
+        task = asyncio.create_task(channel.subscribe())
+        await asyncio.wait_for(join_received.wait(), 2)
+
+        await client.remove_channel(channel)
+
+        assert await asyncio.wait_for(task, 2) is channel
+
+
+@pytest.mark.asyncio
+async def test_cancelled_remove_all_channels_releases_remaining_subscribes() -> None:
+    join_received = asyncio.Event()
+    async with realtime_server(never_reply, join_received) as client:
+        first = client.channel("first")
+        second = client.channel("second")
+        first_task = asyncio.create_task(first.subscribe())
+        await asyncio.wait_for(join_received.wait(), 2)
+        join_received.clear()
+        second_task = asyncio.create_task(second.subscribe())
+        await asyncio.wait_for(join_received.wait(), 2)
+
+        with (
+            patch.object(first, "unsubscribe", side_effect=asyncio.CancelledError),
+            pytest.raises(asyncio.CancelledError),
+        ):
+            await client.remove_all_channels()
+
+        assert await asyncio.wait_for(second_task, 2) is second
+        assert second.is_closed
+        first_task.cancel()
+
+
+@pytest.mark.asyncio
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+async def test_join_waits_for_pending_subscribe() -> None:
+    release = asyncio.Event()
+
+    async def on_join(connection: ServerConnection, message: dict[str, Any]) -> None:
+        await release.wait()
+        await reply(connection, message, "ok", {"postgres_changes": []})
+
+    join_received = asyncio.Event()
+    async with realtime_server(on_join, join_received) as client:
+        channel = client.channel("room")
+        subscribe_task = asyncio.create_task(channel.subscribe())
+        await asyncio.wait_for(join_received.wait(), 2)
+        join_task = asyncio.create_task(channel.join())
+        await asyncio.sleep(0.1)
+        assert not join_task.done()
+
+        release.set()
+
+        assert await asyncio.wait_for(join_task, 2) is channel
+        assert await subscribe_task is channel
+        assert channel.is_joined

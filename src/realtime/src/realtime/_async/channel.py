@@ -193,9 +193,12 @@ class AsyncRealtimeChannel:
             if self.subscribe_callback:
                 self.subscribe_callback(status, error)
         finally:
-            waiter = self._subscribe_waiter
-            if waiter is not None and not waiter.done():
-                waiter.set_result(None)
+            self._release_subscribe_waiter()
+
+    def _release_subscribe_waiter(self) -> None:
+        waiter = self._subscribe_waiter
+        if waiter is not None and not waiter.done():
+            waiter.set_result(None)
 
     # Properties
     @property
@@ -229,8 +232,10 @@ class AsyncRealtimeChannel:
 
         Waits until the server replies to the join, the join times out, or the
         channel errors or closes, so the callback has been called with the
-        resulting state by the time this returns. Cancelling the awaiting task
-        stops the wait but not the join, which keeps running in the background.
+        resulting state by the time this returns. Unsubscribing or closing the
+        client while the join is pending also ends the wait. Cancelling the
+        awaiting task stops the wait but not the join, which keeps running in
+        the background.
 
         :param callback: Optional callback function that receives subscription state updates
                         and any errors that occur during subscription
@@ -359,6 +364,7 @@ class AsyncRealtimeChannel:
 
     async def _leave(self) -> AsyncPush:
         self.state = ChannelStates.LEAVING
+        self._release_subscribe_waiter()
 
         self.rejoin_timer.reset()
         self.join_push.destroy()
@@ -407,8 +413,8 @@ class AsyncRealtimeChannel:
         """
         Deprecated: use `subscribe()` instead.
 
-        Joins the channel through `subscribe()`. Does nothing if the channel
-        has already been joined or subscribed.
+        Joins the channel through `subscribe()`. If the channel has already
+        been subscribed, waits for a pending join to settle and returns.
 
         :return: The Channel instance for method chaining
         """
@@ -419,6 +425,8 @@ class AsyncRealtimeChannel:
             stacklevel=2,
         )
         if self._joined_once:
+            if self._subscribe_waiter is not None:
+                await asyncio.shield(self._subscribe_waiter)
             return self
         return await self.subscribe()
 

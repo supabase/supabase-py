@@ -6,9 +6,9 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from subscribe_helpers import start_subscribe
 
 from realtime import AsyncRealtimeClient
-from realtime._async.channel import AsyncRealtimeChannel
 from realtime._async.presence import AsyncRealtimePresence
 from realtime.message import Message
 from realtime.types import (
@@ -55,15 +55,6 @@ async def connected_socket(
     with patch("realtime._async.client.connect", new=fake_connect):
         await socket.connect()
     return socket, connection
-
-
-async def start_subscribe(
-    channel: AsyncRealtimeChannel,
-) -> asyncio.Task[AsyncRealtimeChannel]:
-    task = asyncio.create_task(channel.subscribe())
-    await asyncio.sleep(0)
-    assert channel.join_push.sent
-    return task
 
 
 async def subscribed_channel(socket: AsyncRealtimeClient, topic: str) -> Any:

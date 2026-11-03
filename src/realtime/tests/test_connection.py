@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import json
 import os
-from collections.abc import Callable
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs, urlparse
 
@@ -10,6 +9,7 @@ import aiohttp
 import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from subscribe_helpers import start_subscribe
 from websockets import connect
 from websockets.asyncio.server import ServerConnection, serve
 
@@ -35,16 +35,6 @@ PUBLISHABLE_KEY = (
     os.getenv("SUPABASE_PUBLISHABLE_KEY")
     or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 )
-
-
-async def start_subscribe(
-    channel: AsyncRealtimeChannel,
-    callback: Callable[[RealtimeSubscribeStates, Exception | None], None],
-) -> asyncio.Task[AsyncRealtimeChannel]:
-    task = asyncio.create_task(channel.subscribe(callback))
-    await asyncio.sleep(0)
-    assert channel.join_push.sent
-    return task
 
 
 @pytest.fixture

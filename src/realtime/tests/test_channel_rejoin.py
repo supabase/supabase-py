@@ -2,6 +2,7 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from subscribe_helpers import start_subscribe
 
 from realtime import AsyncRealtimeClient
 from realtime._async.channel import AsyncRealtimeChannel
@@ -28,15 +29,6 @@ async def connected_socket() -> AsyncRealtimeClient:
     socket._ws_connection = AsyncMock()
     await socket.connect()
     return socket
-
-
-async def start_subscribe(
-    channel: AsyncRealtimeChannel,
-) -> asyncio.Task[AsyncRealtimeChannel]:
-    task = asyncio.create_task(channel.subscribe())
-    await asyncio.sleep(0)
-    assert channel.join_push.sent
-    return task
 
 
 async def joining_channel(socket: AsyncRealtimeClient) -> AsyncRealtimeChannel:

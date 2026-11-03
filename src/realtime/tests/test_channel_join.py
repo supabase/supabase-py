@@ -1,12 +1,11 @@
 import asyncio
 import json
-from collections.abc import Awaitable
 from unittest.mock import patch
 
 import pytest
+from subscribe_helpers import start_join
 
 from realtime import AsyncRealtimeClient
-from realtime._async.channel import AsyncRealtimeChannel
 from realtime.message import ReplyPostgresChanges
 from realtime.types import ChannelStates, RealtimeAcknowledgementStatus
 
@@ -60,15 +59,6 @@ async def connected_socket(connection: RecordingConnection) -> AsyncRealtimeClie
     return socket
 
 
-async def start_joining(
-    channel: AsyncRealtimeChannel, join: Awaitable[AsyncRealtimeChannel]
-) -> asyncio.Task[AsyncRealtimeChannel]:
-    task = asyncio.ensure_future(join)
-    await asyncio.sleep(0)
-    assert channel.join_push.sent
-    return task
-
-
 def join_messages(connection: RecordingConnection) -> list[dict]:
     return [message for message in connection.sent if message["event"] == "phx_join"]
 
@@ -90,7 +80,7 @@ async def test_join_sends_single_level_config_with_access_token() -> None:
     )
 
     with patch.object(channel.join_push, "start_timeout"):
-        task = await start_joining(channel, channel.join())
+        task = await start_join(channel, channel.join())
 
     assert not task.done()
     [message] = join_messages(connection)
@@ -112,7 +102,7 @@ async def test_join_omits_access_token_when_socket_has_none() -> None:
     channel = socket.channel("room")
 
     with patch.object(channel.join_push, "start_timeout"):
-        await start_joining(channel, channel.join())
+        await start_join(channel, channel.join())
 
     [message] = join_messages(connection)
     assert "access_token" not in message["payload"]
@@ -128,7 +118,7 @@ async def test_join_goes_through_join_push() -> None:
     channel = socket.channel("room")
 
     with patch.object(channel.join_push, "start_timeout") as start_timeout:
-        task = await start_joining(channel, channel.join())
+        task = await start_join(channel, channel.join())
 
     start_timeout.assert_called_once()
     assert channel.is_joining
@@ -157,8 +147,16 @@ async def test_join_after_subscribe_does_not_raise_or_rejoin() -> None:
     channel = socket.channel("room")
 
     with patch.object(channel.join_push, "start_timeout"):
-        await start_joining(channel, channel.subscribe())
-        assert await channel.join() is channel
+        subscribe = await start_join(channel, channel.subscribe())
+        join = asyncio.create_task(channel.join())
+        await asyncio.sleep(0)
+        assert not join.done()
+
+        channel.join_push.trigger(
+            RealtimeAcknowledgementStatus.Ok, ReplyPostgresChanges(postgres_changes=[])
+        )
+        assert await join is channel
+        assert await subscribe is channel
 
     assert len(join_messages(connection)) == 1
 
@@ -172,7 +170,7 @@ async def test_join_timeout_reports_errored_state() -> None:
     channel = socket.channel("room")
 
     with patch.object(channel.join_push, "start_timeout"):
-        task = await start_joining(channel, channel.join())
+        task = await start_join(channel, channel.join())
 
     with patch.object(channel.rejoin_timer, "schedule_timeout") as schedule:
         channel.join_push.trigger(RealtimeAcknowledgementStatus.Timeout, {})
@@ -227,7 +225,7 @@ async def test_join_connects_socket_when_disconnected() -> None:
         patch("realtime._async.client.connect", side_effect=fake_connect),
         patch.object(channel.join_push, "start_timeout"),
     ):
-        task = await start_joining(channel, channel.join())
+        task = await start_join(channel, channel.join())
 
     assert socket.is_connected
     assert len(join_messages(connection)) == 1

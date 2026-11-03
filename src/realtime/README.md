@@ -83,6 +83,7 @@ async def main():
 - `REALTIME_URL` is `ws://localhost:4000/socket` when developing locally and `wss://<project_ref>.supabase.co/realtime/v1` when connecting to your Supabase project.
 - `API_KEY` is a JWT whose claims must contain `exp` and `role` (existing database role).
 - Channel name can be any `string`.
+- `await channel.subscribe()` returns once the join has settled, so the callback has already been called with `SUBSCRIBED`, `CHANNEL_ERROR`, `TIMED_OUT` or `CLOSED` and `channel.state` reflects the result. When the server does not reply, it returns after the client `timeout` (10 seconds by default). To join several channels at once, use `asyncio.gather`.
 
 ## Broadcast
 
@@ -185,7 +186,7 @@ channel.on_postgres_changes(
     ),
 )
 
-channel.subscribe(
+await channel.subscribe(
     lambda status, err: status == RealtimeSubscribeStates.SUBSCRIBED
     and print("Ready to receive database changes!")
 )
@@ -254,7 +255,7 @@ It is highly recommended that you clean up your channels after you're done with 
 
 channel = client.channel('some-channel-to-remove')
 
-channel.subscribe()
+await channel.subscribe()
 
 await client.remove_channel(channel)
 ```
@@ -267,8 +268,7 @@ await client.remove_channel(channel)
 channel1 = client.channel('a-channel-to-remove')
 channel2 = client.channel('another-channel-to-remove')
 
-await channel1.subscribe()
-await channel2.subscribe()
+await asyncio.gather(channel1.subscribe(), channel2.subscribe())
 
 await client.remove_all_channels()
 ```
