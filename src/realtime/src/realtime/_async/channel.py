@@ -276,7 +276,7 @@ class AsyncRealtimeChannel:
                 callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
                 return
 
-            new_postgres_bindings = []
+            server_ids = []
 
             for i, postgres_callback in enumerate(self.postgres_changes_callbacks):
                 server_binding: PostgresRowChange | None = (
@@ -293,8 +293,7 @@ class AsyncRealtimeChannel:
                     and server_binding.table == postgres_callback.table
                     and server_binding.filter == postgres_callback.filter
                 ):
-                    postgres_callback.id = server_binding.id
-                    new_postgres_bindings.append(postgres_callback)
+                    server_ids.append(server_binding.id)
                 else:
                     self._run_in_background(self.unsubscribe())
                     self.state = ChannelStates.ERRORED
@@ -306,7 +305,10 @@ class AsyncRealtimeChannel:
                     )
                     return
 
-            self.postgres_changes_callbacks = new_postgres_bindings
+            for postgres_callback, server_id in zip(
+                self.postgres_changes_callbacks, server_ids, strict=True
+            ):
+                postgres_callback.id = server_id
             callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
 
         def on_join_push_error(payload: dict[str, Any]) -> None:

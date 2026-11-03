@@ -227,3 +227,48 @@ async def test_null_and_missing_filter_are_equal(
 
     assert statuses == [(RealtimeSubscribeStates.SUBSCRIBED, None)]
     assert [c.id for c in channel.postgres_changes_callbacks] == [11]
+
+
+@pytest.mark.asyncio
+async def test_empty_server_bindings_without_client_bindings_subscribe(
+    socket: AsyncRealtimeClient, connection: RecordingConnection
+) -> None:
+    channel = socket.channel("join-reply")
+    statuses: Statuses = []
+    await subscribe(channel, statuses)
+
+    reply_to_join(channel, connection, {"postgres_changes": []})
+    await let_background_tasks_run()
+
+    assert statuses == [(RealtimeSubscribeStates.SUBSCRIBED, None)]
+    assert channel.is_joined
+    assert "phx_leave" not in connection.events()
+
+
+@pytest.mark.asyncio
+async def test_partial_mismatch_leaves_binding_ids_untouched(
+    socket: AsyncRealtimeClient, connection: RecordingConnection
+) -> None:
+    channel = socket.channel("join-reply")
+    channel.on_postgres_changes(
+        RealtimePostgresChangesListenEvent.All, noop, table="todos"
+    )
+    channel.on_postgres_changes(
+        RealtimePostgresChangesListenEvent.All, noop, table="notes"
+    )
+    statuses: Statuses = []
+    await subscribe(channel, statuses)
+
+    reply_to_join(
+        channel,
+        connection,
+        {
+            "postgres_changes": [
+                server_binding(11, table="todos"),
+                server_binding(22, table="other"),
+            ]
+        },
+    )
+
+    assert [status for status, _ in statuses] == [RealtimeSubscribeStates.CHANNEL_ERROR]
+    assert [c.id for c in channel.postgres_changes_callbacks] == [None, None]
