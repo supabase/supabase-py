@@ -208,6 +208,63 @@ def test_response_client_invalid_response_but_valid_json(
 
 
 @pytest.mark.parametrize(
+    "headers, code",
+    [
+        ([("Proxy-Status", "PostgREST; error=PGRST108")], "PGRST108"),
+        ([("Proxy-Status", 'PostgREST; error="42703"')], "42703"),
+        ([("Proxy-Status", 'PostgREST; error="a\\"b"')], 'a"b'),
+        (
+            [
+                (
+                    "Proxy-Status",
+                    "PostgREST; error=PGRST108, cdn; error=http_request_error",
+                )
+            ],
+            "PGRST108",
+        ),
+        (
+            [("Proxy-Status", "cdn; error=connection_timeout, PostgREST; error=57014")],
+            "57014",
+        ),
+        (
+            [
+                ("Proxy-Status", "cdn; error=connection_timeout"),
+                ("Proxy-Status", "PostgREST; error=PGRST301"),
+            ],
+            "PGRST301",
+        ),
+        (
+            [("Proxy-Status", 'PostgREST; details="a; b, error=x"; error=PGRST116')],
+            "PGRST116",
+        ),
+        ([("Proxy-Status", "cdn; error=connection_timeout")], "400"),
+        ([("Proxy-Status", "PostgREST; error=")], "400"),
+        ([("Proxy-Status", "PostgREST")], "400"),
+        ([], "400"),
+    ],
+)
+def test_response_client_empty_error_body(
+    postgrest_client: SyncPostgrestClient,
+    headers: list[tuple[str, str]],
+    code: str,
+) -> None:
+    with patch(
+        "httpx._client.Client.request",
+        return_value=Response(
+            status_code=400,
+            headers=headers,
+            request=Request(method="HEAD", url="http://example.com"),
+        ),
+    ):
+        client = postgrest_client.from_("test").select("*", head=True)
+        with pytest.raises(APIError) as exc_info:
+            client.execute()
+        assert exc_info.value.code == code
+        assert exc_info.value.message == "Bad Request"
+        assert exc_info.value.details is None
+
+
+@pytest.mark.parametrize(
     "body, message, details",
     [
         (b'{"message": "JWT expired"}', "JWT expired", None),
