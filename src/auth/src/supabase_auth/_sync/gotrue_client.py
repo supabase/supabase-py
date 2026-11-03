@@ -617,7 +617,6 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         """
         Log in a user given a User supplied OTP received via mobile.
         """
-        self._remove_session()
         response = self._request(
             "POST",
             "verify",
