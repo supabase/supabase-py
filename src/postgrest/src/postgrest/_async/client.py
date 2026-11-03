@@ -100,7 +100,12 @@ class AsyncPostgrestClient(BasePostgrestClient):
         )
 
     def schema(self, schema: str) -> AsyncPostgrestClient:
-        """Switch to another schema."""
+        """Switch to another schema.
+
+        The returned client shares this client's HTTP session. Closing it does
+        not close the session, and it cannot send requests after this client
+        is closed.
+        """
         client = AsyncPostgrestClient(
             base_url=str(self.base_url),
             schema=schema,
