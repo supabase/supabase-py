@@ -375,7 +375,11 @@ class AsyncRealtimeClient:
                     self._remove_channel(channel)
         finally:
             for channel in channels:
-                self._remove_channel(channel)
+                if self.channels.get(channel.topic) is channel:
+                    channel.rejoin_timer.reset()
+                    channel.join_push.destroy()
+                    channel.state = ChannelStates.CLOSED
+                    self._remove_channel(channel)
             await self.close()
 
         if first_error is not None:

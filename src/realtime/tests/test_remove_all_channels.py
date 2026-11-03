@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from realtime import AsyncRealtimeClient
-from realtime.types import ChannelEvents
+from realtime.types import ChannelEvents, ChannelStates
 
 URL = "ws://localhost/realtime/v1"
 TOPICS = ["first", "second", "third"]
@@ -118,7 +118,9 @@ async def test_remove_all_channels_continues_when_unsubscribe_fails() -> None:
 async def test_remove_all_channels_forgets_every_channel_when_cancelled() -> None:
     connection = RecordingConnection()
     socket = await connected_socket(connection)
-    cancelled = socket.get_channels()[0]
+    cancelled, errored, _ = socket.get_channels()
+    errored.state = ChannelStates.ERRORED
+    errored.rejoin_timer.schedule_timeout()
 
     with (
         patch.object(cancelled, "unsubscribe", side_effect=asyncio.CancelledError),
@@ -127,4 +129,6 @@ async def test_remove_all_channels_forgets_every_channel_when_cancelled() -> Non
         await socket.remove_all_channels()
 
     assert socket.get_channels() == []
+    assert errored.rejoin_timer.timer is None
+    assert errored.is_closed
     connection.close.assert_awaited_once()
