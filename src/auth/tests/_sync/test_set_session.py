@@ -78,6 +78,8 @@ def test_set_session_with_expired_token_notifies_token_refreshed() -> None:
         "a.b.c.d",
         "a.b.c",
         "\u00e9.\u00e9.\u00e9",
+        "abc.",
+        "header..signature",
     ],
     ids=[
         "not-a-jwt",
@@ -85,6 +87,8 @@ def test_set_session_with_expired_token_notifies_token_refreshed() -> None:
         "four-segments",
         "undecodable-base64",
         "non-ascii",
+        "trailing-dot",
+        "empty-payload",
     ],
 )
 def test_set_session_with_malformed_token_raises_invalid_jwt(
