@@ -79,7 +79,7 @@ def parse_sso_response(response: Response) -> SSOResponse:
     return SSOResponse.model_validate_json(response.content)
 
 
-JWKSetParser = TypeAdapter(JWKSet)
+JWKSetParser: TypeAdapter[JWKSet] = TypeAdapter(JWKSet)
 
 
 def parse_jwks(response: Response) -> JWKSet:
@@ -197,8 +197,8 @@ class DecodedJWT(TypedDict):
     raw: dict[str, str]
 
 
-JWTHeaderParser = TypeAdapter(JWTHeader)
-JWTPayloadParser = TypeAdapter(JWTPayload)
+JWTHeaderParser: TypeAdapter[JWTHeader] = TypeAdapter(JWTHeader)
+JWTPayloadParser: TypeAdapter[JWTPayload] = TypeAdapter(JWTPayload)
 
 
 def decode_jwt(token: str) -> DecodedJWT:
