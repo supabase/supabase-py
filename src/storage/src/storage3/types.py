@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Literal, TypeAlias, TypedDict
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import AliasChoices, BaseModel, Field, TypeAdapter
 from typing_extensions import ReadOnly, TypeAliasType
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
@@ -197,7 +197,11 @@ DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
 
 class MetadataConfiguration(BaseModel, extra="ignore"):
     non_filterable_metadata_keys: list[str] | None = Field(
-        alias="nonFilterableMetadataKeys"
+        default=None,
+        validation_alias=AliasChoices(
+            "non_filterable_metadata_keys", "nonFilterableMetadataKeys"
+        ),
+        serialization_alias="nonFilterableMetadataKeys",
     )
 
 

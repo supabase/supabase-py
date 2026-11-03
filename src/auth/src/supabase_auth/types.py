@@ -557,15 +557,15 @@ class MFAUnenrollParams(TypedDict):
 
 
 class CodeExchangeParams(TypedDict):
-    code_verifier: str
+    code_verifier: NotRequired[str]
     """
-    Randomly generated string
+    Randomly generated string. Defaults to the verifier stored by the PKCE flow.
     """
     auth_code: str
     """
     Code returned after completing one of the authorization flows
     """
-    redirect_to: str
+    redirect_to: NotRequired[str]
     """
     The URL to route to after a session is successfully obtained
     """

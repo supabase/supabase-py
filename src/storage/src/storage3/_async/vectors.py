@@ -46,14 +46,15 @@ class AsyncVectorBucketScope:
         data_type: str,
         metadata: MetadataConfiguration | None = None,
     ) -> None:
+        metadata_configuration = (
+            metadata.model_dump(by_alias=True, exclude_none=True) if metadata else None
+        )
         body = self.with_metadata(
             indexName=index_name,
             dimension=dimension,
             distanceMetric=distance_metric,
             dataType=data_type,
-            metadataConfiguration=metadata.model_dump(by_alias=True)
-            if metadata
-            else None,
+            metadataConfiguration=metadata_configuration or None,
         )
         await self._request.send(http_method="POST", path=["CreateIndex"], body=body)
 

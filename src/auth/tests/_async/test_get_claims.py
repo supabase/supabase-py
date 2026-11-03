@@ -35,6 +35,16 @@ async def test_get_claims_raises_auth_error_for_malformed_header() -> None:
         await _client().get_claims(jwt=token)
 
 
+@pytest.mark.parametrize(
+    "token",
+    ["opaque-token", "a.b.c", "\u00e9.\u00e9.\u00e9"],
+    ids=["not-a-jwt", "undecodable-base64", "non-ascii"],
+)
+async def test_get_claims_raises_auth_error_for_undecodable_token(token: str) -> None:
+    with pytest.raises(AuthInvalidJwtError):
+        await _client().get_claims(jwt=token)
+
+
 async def test_fetch_jwks_skips_keys_without_kid() -> None:
     jwks: JWKSet = {"keys": [{"kty": "RSA"}, {"kty": "RSA", "kid": "signing-key"}]}
 
