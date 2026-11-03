@@ -1,6 +1,6 @@
 import time
 from datetime import datetime, timezone
-from typing import Any, List, Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 import pytest
@@ -848,8 +848,8 @@ def test_sign_out_when_logout_request_fails(
 ) -> None:
     from httpx import Request, Response
 
-    events: List[str] = []
-    events_at_request: List[List[str]] = []
+    events: list[str] = []
+    events_at_request: list[list[str]] = []
 
     def handler(request: Request) -> Response:
         assert request.url.path.endswith("/logout")
@@ -877,35 +877,80 @@ def test_sign_out_when_logout_request_fails(
 
 
 @pytest.mark.parametrize(
-    ("scope", "cleared"), [("global", False), ("local", True), ("others", False)]
+    ("scope", "response", "raises", "cleared"),
+    [
+        ("global", (503, {"msg": "unavailable"}), AuthRetryableError, False),
+        ("local", (503, {"msg": "unavailable"}), AuthRetryableError, True),
+        ("others", (503, {"msg": "unavailable"}), AuthRetryableError, False),
+        ("global", (500, "not json"), AuthUnknownError, False),
+        ("local", (500, "not json"), AuthUnknownError, True),
+        ("others", (500, "not json"), AuthUnknownError, False),
+        ("global", (400, {"msg": "invalid refresh token"}), None, True),
+        ("local", (400, {"msg": "invalid refresh token"}), None, True),
+        ("others", (400, {"msg": "invalid refresh token"}), AuthApiError, False),
+    ],
 )
-def test_sign_out_when_refresh_fails(scope: SignOutScope, cleared: bool) -> None:
+def test_sign_out_when_refresh_fails(
+    scope: SignOutScope,
+    response: Any,
+    raises: Optional[type],
+    cleared: bool,
+) -> None:
     # The access token has expired and the refresh fails, so there is no token
     # to send the logout request with.
     from httpx import Request, Response
 
-    paths: List[str] = []
+    paths: list[str] = []
 
     def handler(request: Request) -> Response:
         paths.append(request.url.path)
-        return Response(503, json={"msg": "unavailable"})
+        status, body = response
+        if isinstance(body, str):
+            return Response(status, text=body)
+        return Response(status, json=body)
 
     client = _signed_in_client(handler, int(time.time()) - 60)
-    events: List[str] = []
+    events: list[str] = []
     client.on_auth_state_change(lambda event, _: events.append(event))
 
-    with pytest.raises(AuthRetryableError):
+    if raises is None:
         client.sign_out({"scope": scope})
+    else:
+        with pytest.raises(raises):
+            client.sign_out({"scope": scope})
 
     assert not any(path.endswith("/logout") for path in paths)
     assert (client._load_session() is None) == cleared
     assert events == (["SIGNED_OUT"] if cleared else [])
 
 
+@pytest.mark.parametrize(
+    ("scope", "cleared"), [("global", True), ("local", True), ("others", False)]
+)
+def test_sign_out_without_refresh_token(scope: SignOutScope, cleared: bool) -> None:
+    from httpx import Request, Response
+
+    paths: list[str] = []
+
+    def handler(request: Request) -> Response:
+        paths.append(request.url.path)
+        return Response(204)
+
+    client = _signed_in_client(handler, int(time.time()) - 60)
+    session = client._load_session()
+    assert session is not None
+    client._save_session(session.model_copy(update={"refresh_token": ""}))
+
+    client.sign_out({"scope": scope})
+
+    assert paths == []
+    assert (client._load_session() is None) == cleared
+
+
 def test_local_sign_out_sends_request_when_subscriber_raises() -> None:
     from httpx import Request, Response
 
-    paths: List[str] = []
+    paths: list[str] = []
 
     def handler(request: Request) -> Response:
         paths.append(request.url.path)

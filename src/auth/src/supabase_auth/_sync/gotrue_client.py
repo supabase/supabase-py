@@ -818,10 +818,15 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         scope = (options or {}).get("scope", "global")
         try:
             session = self.get_session()
+        except AuthSessionMissingError:
+            session = None
         except AuthApiError:
             # The refresh was rejected, so there is no session left to revoke.
+            # The other sessions could not be revoked either.
+            if scope == "others":
+                raise
             session = None
-        except AuthRetryableError:
+        except Exception:
             # The access token expired and could not be refreshed, so there is
             # nothing to revoke with. `local` still signs out this device.
             if scope == "local":
