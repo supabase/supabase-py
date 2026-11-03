@@ -125,6 +125,7 @@ class AsyncRealtimeChannel:
         self.subscribe_callback: (
             Callable[[RealtimeSubscribeStates, Exception | None], None] | None
         ) = None
+        self._subscribe_waiter: asyncio.Future[None] | None = None
 
         self.rejoin_timer = AsyncTimer(self._rejoin_if_connected, _rejoin_delay)
 
@@ -172,8 +173,7 @@ class AsyncRealtimeChannel:
         self.rejoin_timer.reset()
         self.state = ChannelStates.CLOSED
         self.socket._remove_channel(self)
-        if self.subscribe_callback:
-            self.subscribe_callback(RealtimeSubscribeStates.CLOSED, None)
+        self._notify_subscribe_state(RealtimeSubscribeStates.CLOSED, None)
 
     def on_error(self, payload: dict[str, Any]) -> None:
         if self.is_leaving or self.is_closed:
@@ -182,10 +182,20 @@ class AsyncRealtimeChannel:
         logger.info(f"channel {self.topic} error: {payload}")
         self.state = ChannelStates.ERRORED
         self.rejoin_timer.schedule_timeout()
-        if self.subscribe_callback:
-            self.subscribe_callback(
-                RealtimeSubscribeStates.CHANNEL_ERROR, Exception(json.dumps(payload))
-            )
+        self._notify_subscribe_state(
+            RealtimeSubscribeStates.CHANNEL_ERROR, Exception(json.dumps(payload))
+        )
+
+    def _notify_subscribe_state(
+        self, status: RealtimeSubscribeStates, error: Exception | None
+    ) -> None:
+        try:
+            if self.subscribe_callback:
+                self.subscribe_callback(status, error)
+        finally:
+            waiter = self._subscribe_waiter
+            if waiter is not None and not waiter.done():
+                waiter.set_result(None)
 
     # Properties
     @property
@@ -217,6 +227,11 @@ class AsyncRealtimeChannel:
         """
         Subscribe to the channel. Can only be called once per channel instance.
 
+        Waits until the server replies to the join, the join times out, or the
+        channel errors or closes, so the callback has been called with the
+        resulting state by the time this returns. Cancelling the awaiting task
+        stops the wait but not the join, which keeps running in the background.
+
         :param callback: Optional callback function that receives subscription state updates
                         and any errors that occur during subscription
         :return: The Channel instance for method chaining
@@ -231,7 +246,15 @@ class AsyncRealtimeChannel:
             )
 
         self._prepare_join(callback)
-        await self._rejoin()
+        waiter: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        self._subscribe_waiter = waiter
+        try:
+            await self._rejoin()
+            if not self.is_leaving:
+                await waiter
+        finally:
+            if self._subscribe_waiter is waiter:
+                self._subscribe_waiter = None
         return self
 
     def _prepare_join(
@@ -273,7 +296,7 @@ class AsyncRealtimeChannel:
             server_postgres_changes = payload.postgres_changes
 
             if server_postgres_changes is None:
-                callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
+                self._notify_subscribe_state(RealtimeSubscribeStates.SUBSCRIBED, None)
                 return
 
             server_ids = []
@@ -297,7 +320,7 @@ class AsyncRealtimeChannel:
                 else:
                     self._run_in_background(self.unsubscribe())
                     self.state = ChannelStates.ERRORED
-                    callback and callback(
+                    self._notify_subscribe_state(
                         RealtimeSubscribeStates.CHANNEL_ERROR,
                         Exception(
                             "mismatch between server and client bindings for postgres changes"
@@ -309,16 +332,16 @@ class AsyncRealtimeChannel:
                 self.postgres_changes_callbacks, server_ids, strict=True
             ):
                 postgres_callback.id = server_id
-            callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
+            self._notify_subscribe_state(RealtimeSubscribeStates.SUBSCRIBED, None)
 
         def on_join_push_error(payload: dict[str, Any]) -> None:
-            callback and callback(
+            self._notify_subscribe_state(
                 RealtimeSubscribeStates.CHANNEL_ERROR,
                 Exception(json.dumps(payload)),
             )
 
         def on_join_push_timeout(*args) -> None:
-            callback and callback(RealtimeSubscribeStates.TIMED_OUT, None)
+            self._notify_subscribe_state(RealtimeSubscribeStates.TIMED_OUT, None)
 
         self.join_push.receive(
             RealtimeAcknowledgementStatus.Ok, on_join_push_ok

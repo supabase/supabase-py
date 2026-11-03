@@ -30,10 +30,19 @@ async def connected_socket() -> AsyncRealtimeClient:
     return socket
 
 
+async def start_subscribe(
+    channel: AsyncRealtimeChannel,
+) -> asyncio.Task[AsyncRealtimeChannel]:
+    task = asyncio.create_task(channel.subscribe())
+    await asyncio.sleep(0)
+    assert channel.join_push.sent
+    return task
+
+
 async def joining_channel(socket: AsyncRealtimeClient) -> AsyncRealtimeChannel:
     channel = socket.channel("rejoin")
     with patch.object(channel.join_push, "start_timeout"):
-        await channel.subscribe()
+        await start_subscribe(channel)
     assert channel.is_joining
     return channel
 

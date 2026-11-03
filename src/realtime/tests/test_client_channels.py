@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from realtime import AsyncRealtimeClient
+from realtime._async.channel import AsyncRealtimeChannel
 from realtime._async.presence import AsyncRealtimePresence
 from realtime.message import Message
 from realtime.types import (
@@ -56,10 +57,19 @@ async def connected_socket(
     return socket, connection
 
 
+async def start_subscribe(
+    channel: AsyncRealtimeChannel,
+) -> asyncio.Task[AsyncRealtimeChannel]:
+    task = asyncio.create_task(channel.subscribe())
+    await asyncio.sleep(0)
+    assert channel.join_push.sent
+    return task
+
+
 async def subscribed_channel(socket: AsyncRealtimeClient, topic: str) -> Any:
     channel = socket.channel(topic)
     with patch.object(channel.join_push, "start_timeout"):
-        await channel.subscribe()
+        await start_subscribe(channel)
     channel.state = ChannelStates.JOINED
     return channel
 
@@ -237,7 +247,7 @@ async def test_set_auth_pushes_token_to_joined_channels_only() -> None:
     joined = await subscribed_channel(socket, "joined")
     joining = socket.channel("joining")
     with patch.object(joining.join_push, "start_timeout"):
-        await joining.subscribe()
+        await start_subscribe(joining)
 
     await socket.set_auth("new-token")
 

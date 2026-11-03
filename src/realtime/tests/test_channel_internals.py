@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -84,6 +84,16 @@ def reply(
     )
 
 
+async def start_subscribe(
+    channel: AsyncRealtimeChannel,
+    callback: Callable[[RealtimeSubscribeStates, Exception | None], None] | None = None,
+) -> asyncio.Task[AsyncRealtimeChannel]:
+    task = asyncio.create_task(channel.subscribe(callback))
+    await asyncio.sleep(0)
+    assert channel.join_push.sent
+    return task
+
+
 async def subscribe_with_postgres_changes(
     socket: AsyncRealtimeClient,
     connection: FakeConnection,
@@ -100,7 +110,9 @@ async def subscribe_with_postgres_changes(
     )
     states: list[tuple[RealtimeSubscribeStates, Any]] = []
     with patch.object(channel.join_push, "start_timeout"):
-        await channel.subscribe(lambda state, error: states.append((state, error)))
+        await start_subscribe(
+            channel, lambda state, error: states.append((state, error))
+        )
     join = connection.sent[-1]
     assert join["event"] == ChannelEvents.join
     return channel, states, join["ref"]
@@ -215,7 +227,8 @@ async def test_join_sends_channel_config() -> None:
         },
     )
 
-    await channel.join()
+    with patch.object(channel.join_push, "start_timeout"):
+        await start_subscribe(channel)
     await socket.close()
 
     payload = connection.sent[-1]["payload"]

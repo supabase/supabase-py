@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from unittest.mock import AsyncMock
@@ -5,8 +6,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from realtime import AsyncRealtimeChannel, AsyncRealtimeClient
-from realtime.message import ServerMessageAdapter
-from realtime.types import BroadcastPayload
+from realtime.message import ReplyPostgresChanges, ServerMessageAdapter
+from realtime.types import BroadcastPayload, RealtimeAcknowledgementStatus
 
 URL = os.getenv("SUPABASE_URL") or "http://127.0.0.1:54321"
 PUBLISHABLE_KEY = (
@@ -27,8 +28,13 @@ async def subscribed_channel(socket: AsyncRealtimeClient) -> AsyncRealtimeChanne
     socket._ws_connection = AsyncMock()
     await socket.connect()
     channel = socket.channel("test-broadcast-callback")
-    await channel.subscribe(lambda state, error: None)
-    return channel
+    task = asyncio.create_task(channel.subscribe(lambda state, error: None))
+    await asyncio.sleep(0)
+    assert channel.join_push.sent
+    channel.join_push.trigger(
+        RealtimeAcknowledgementStatus.Ok, ReplyPostgresChanges(postgres_changes=[])
+    )
+    return await task
 
 
 def receive_broadcast(channel: AsyncRealtimeChannel, payload: dict) -> None:

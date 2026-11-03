@@ -61,8 +61,15 @@ def noop(payload: Any) -> None:
     return None
 
 
-async def subscribe(channel: AsyncRealtimeChannel, statuses: Statuses) -> None:
-    await channel.subscribe(lambda status, error: statuses.append((status, error)))
+async def subscribe(
+    channel: AsyncRealtimeChannel, statuses: Statuses
+) -> asyncio.Task[AsyncRealtimeChannel]:
+    task = asyncio.create_task(
+        channel.subscribe(lambda status, error: statuses.append((status, error)))
+    )
+    await asyncio.sleep(0)
+    assert channel.join_push.sent
+    return task
 
 
 def reply_to_join(

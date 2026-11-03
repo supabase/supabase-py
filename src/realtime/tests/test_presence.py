@@ -236,7 +236,9 @@ async def test_presence_enabled_when_callbacks_attached() -> None:
     # Add presence callback before subscription
     channel.on_presence_sync(lambda: None)
 
-    await channel.subscribe()
+    subscribe = asyncio.create_task(channel.subscribe())
+    await asyncio.sleep(0)
+    subscribe.cancel()
 
     # Verify that update_payload was called
     assert mock_join_push.update_payload.called

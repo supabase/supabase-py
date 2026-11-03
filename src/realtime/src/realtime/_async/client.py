@@ -139,10 +139,9 @@ class AsyncRealtimeClient:
                 channel.state = ChannelStates.ERRORED
                 if channel not in self._channels_to_rejoin:
                     self._channels_to_rejoin.append(channel)
-                if channel.subscribe_callback:
-                    channel.subscribe_callback(
-                        RealtimeSubscribeStates.CHANNEL_ERROR, error
-                    )
+                channel._notify_subscribe_state(
+                    RealtimeSubscribeStates.CHANNEL_ERROR, error
+                )
 
     async def _reconnect(self, error: Exception) -> None:
         self._ws_connection = None
