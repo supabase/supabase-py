@@ -362,14 +362,21 @@ class AsyncRealtimeClient:
         Unsubscribes and removes all channels from the socket
         :return: None
         """
+        first_error: Exception | None = None
         try:
             for channel in list(self.channels.values()):
                 try:
                     await channel.unsubscribe()
+                except Exception as error:
+                    if first_error is None:
+                        first_error = error
                 finally:
                     self._remove_channel(channel)
         finally:
             await self.close()
+
+        if first_error is not None:
+            raise first_error
 
     async def set_auth(self, token: str | None) -> None:
         """

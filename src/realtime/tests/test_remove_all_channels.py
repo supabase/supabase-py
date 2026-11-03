@@ -97,7 +97,7 @@ async def test_remove_all_channels_survives_leave_replies_during_removal() -> No
 
 
 @pytest.mark.asyncio
-async def test_remove_all_channels_closes_socket_when_unsubscribe_fails() -> None:
+async def test_remove_all_channels_continues_when_unsubscribe_fails() -> None:
     connection = RecordingConnection()
     socket = await connected_socket(connection)
     failing = socket.get_channels()[0]
@@ -108,6 +108,7 @@ async def test_remove_all_channels_closes_socket_when_unsubscribe_fails() -> Non
     ):
         await socket.remove_all_channels()
 
-    assert failing not in socket.get_channels()
+    assert socket.get_channels() == []
+    assert sorted(connection.leaves()) == ["realtime:second", "realtime:third"]
     connection.close.assert_awaited_once()
     assert not socket.is_connected
