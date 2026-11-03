@@ -59,6 +59,15 @@ async def connected_socket(
     return socket, conn
 
 
+async def stop_background_tasks(socket: AsyncRealtimeClient) -> None:
+    for task in (socket._heartbeat_task, socket._listen_task):
+        if task:
+            task.cancel()
+    await asyncio.sleep(0)
+    socket._heartbeat_task = None
+    socket._listen_task = None
+
+
 def reply(
     channel: AsyncRealtimeChannel, ref: str, status: str, response: dict[str, Any]
 ) -> None:
@@ -343,6 +352,7 @@ async def test_connect_with_zero_retries_raises_without_attempting() -> None:
 @pytest.mark.asyncio
 async def test_send_swallows_clean_close() -> None:
     socket, connection = await connected_socket()
+    await stop_background_tasks(socket)
     connection.send = AsyncMock(  # type: ignore[method-assign]
         side_effect=websockets.exceptions.ConnectionClosedOK(None, None)
     )
@@ -356,6 +366,7 @@ async def test_send_swallows_clean_close() -> None:
 @pytest.mark.asyncio
 async def test_send_on_abnormal_close_triggers_connect_error_handling() -> None:
     socket, connection = await connected_socket(auto_reconnect=False)
+    await stop_background_tasks(socket)
     connection.send = AsyncMock(  # type: ignore[method-assign]
         side_effect=websockets.exceptions.ConnectionClosedError(None, None)
     )
@@ -371,6 +382,7 @@ async def test_send_on_abnormal_close_triggers_connect_error_handling() -> None:
 @pytest.mark.asyncio
 async def test_heartbeat_stops_on_clean_close() -> None:
     socket, connection = await connected_socket()
+    await stop_background_tasks(socket)
     connection.send = AsyncMock(  # type: ignore[method-assign]
         side_effect=websockets.exceptions.ConnectionClosedOK(None, None)
     )
@@ -384,6 +396,7 @@ async def test_heartbeat_stops_on_clean_close() -> None:
 @pytest.mark.asyncio
 async def test_heartbeat_reports_abnormal_close() -> None:
     socket, _ = await connected_socket(auto_reconnect=False)
+    await stop_background_tasks(socket)
     error = websockets.exceptions.ConnectionClosedError(None, None)
 
     with patch.object(socket, "send", new=AsyncMock(side_effect=error)):
