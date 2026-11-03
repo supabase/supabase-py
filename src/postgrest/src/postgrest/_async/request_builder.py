@@ -44,8 +44,9 @@ async def send_with_retry(req: ReqConfig) -> Response:
     """
     Retries idempotent requests that failed due to a transient error.
     Request method must be either "GET" or "HEAD", and the request must either
-    get a 503 or 520 response, or fail at the network level (connection reset
-    or closed by the server, e.g. an HTTP/2 GOAWAY).
+    get a 503 or 520 response, or fail at the network level (connection failed,
+    reset or closed by the server, e.g. an HTTP/2 GOAWAY). Timeouts are not
+    retried.
     """
     attempt_count = 0
     while True:
