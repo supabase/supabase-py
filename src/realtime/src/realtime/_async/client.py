@@ -362,9 +362,12 @@ class AsyncRealtimeClient:
         Unsubscribes and removes all channels from the socket
         :return: None
         """
-        for _, channel in self.channels.items():
-            await channel.unsubscribe()
 
+        async def remove(channel: AsyncRealtimeChannel) -> None:
+            await channel.unsubscribe()
+            self._remove_channel(channel)
+
+        await asyncio.gather(*(remove(c) for c in list(self.channels.values())))
         await self.close()
 
     async def set_auth(self, token: str | None) -> None:
