@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from collections.abc import Awaitable, Iterable
 from json import JSONDecodeError
 from re import search
@@ -10,6 +9,7 @@ from typing import (
     Generic,
     NamedTuple,
     Optional,
+    Self,
     TypeVar,
     Union,
     overload,
@@ -19,11 +19,6 @@ from httpx import AsyncClient, Auth, BasicAuth, Client, Headers, QueryParams
 from httpx import Response as RequestResponse
 from pydantic import BaseModel
 from yarl import URL
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
 
 from .types import (
     JSON,

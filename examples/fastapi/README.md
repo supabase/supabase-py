@@ -16,7 +16,7 @@ JS client and shows a live event feed.
 - A Supabase project (create one free at supabase.com)
 - uv installed (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - Supabase CLI installed (`brew install supabase/tap/supabase`)
-- Python 3.10+
+- Python 3.11+
 
 ## Setup
 

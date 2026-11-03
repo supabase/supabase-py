@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import platform
-import sys
 import time
 from typing import Callable, Optional, cast
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
-from warnings import warn
 
 from httpx import AsyncClient, QueryParams, Response
 from jwt import get_algorithm_by_name
@@ -127,13 +125,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         }
         if headers:
             extra_headers.update(headers)
-
-        if sys.version_info < (3, 10):
-            warn(
-                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         AsyncGoTrueBaseAPI.__init__(
             self,
