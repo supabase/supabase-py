@@ -1,11 +1,11 @@
 import os
 from typing import Any
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from httpx import Client as SyncHttpxClient
 from httpx import HTTPTransport, Limits, Timeout
-from supabase_auth import SyncMemoryStorage
+from supabase_auth import SyncGoTrueClient, SyncMemoryStorage
 from supabase_auth.types import AuthChangeEvent
 
 from supabase import (
@@ -52,6 +52,27 @@ def test_valid_url_and_key_instantiate_client() -> None:
     assert isinstance(client, Client)
     assert client.supabase_key == VALID_KEY
     assert str(client.supabase_url) == f"{VALID_URL}/"
+
+
+def test_falls_back_to_the_key_when_reading_the_session_fails() -> None:
+    with patch.object(
+        SyncGoTrueClient, "get_session", side_effect=RuntimeError("storage")
+    ):
+        client = create_client(VALID_URL, VALID_KEY)
+
+    assert client.options.headers.get("Authorization") == f"Bearer {VALID_KEY}"
+
+
+def test_channel_helpers_delegate_to_realtime() -> None:
+    client = create_client(VALID_URL, VALID_KEY)
+    client.realtime = MagicMock()
+
+    channel = client.channel("room")
+    channels = client.get_channels()
+
+    client.realtime.channel.assert_called_once_with("room", {})
+    assert channel is client.realtime.channel.return_value
+    assert channels is client.realtime.get_channels.return_value
 
 
 def test_supabase_exception() -> None:

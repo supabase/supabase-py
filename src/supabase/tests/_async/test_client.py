@@ -1,11 +1,11 @@
 import os
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import AsyncHTTPTransport, Limits, Timeout
-from supabase_auth import AsyncMemoryStorage
+from supabase_auth import AsyncGoTrueClient, AsyncMemoryStorage
 from supabase_auth.types import AuthChangeEvent
 
 from supabase import (
@@ -52,6 +52,27 @@ async def test_valid_url_and_key_instantiate_client() -> None:
     assert isinstance(client, AsyncClient)
     assert client.supabase_key == VALID_KEY
     assert str(client.supabase_url) == f"{VALID_URL}/"
+
+
+async def test_falls_back_to_the_key_when_reading_the_session_fails() -> None:
+    with patch.object(
+        AsyncGoTrueClient, "get_session", side_effect=RuntimeError("storage")
+    ):
+        client = await create_async_client(VALID_URL, VALID_KEY)
+
+    assert client.options.headers.get("Authorization") == f"Bearer {VALID_KEY}"
+
+
+async def test_channel_helpers_delegate_to_realtime() -> None:
+    client = await create_async_client(VALID_URL, VALID_KEY)
+    client.realtime = MagicMock()
+
+    channel = client.channel("room")
+    channels = client.get_channels()
+
+    client.realtime.channel.assert_called_once_with("room", {})
+    assert channel is client.realtime.channel.return_value
+    assert channels is client.realtime.get_channels.return_value
 
 
 async def test_supabase_exception() -> None:
