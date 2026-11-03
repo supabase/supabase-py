@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -7,6 +8,19 @@ from realtime._async.channel import AsyncRealtimeChannel
 from realtime.types import ChannelStates, RealtimeAcknowledgementStatus
 
 URL = "ws://localhost/realtime/v1"
+
+
+class OpenConnection:
+    def __init__(self) -> None:
+        self.send = AsyncMock()
+        self.close = AsyncMock()
+
+    def __aiter__(self) -> "OpenConnection":
+        return self
+
+    async def __anext__(self) -> str:
+        await asyncio.Event().wait()
+        raise StopAsyncIteration
 
 
 async def connected_socket() -> AsyncRealtimeClient:
@@ -143,7 +157,10 @@ async def test_reconnect_rejoins_joined_channels_without_delay() -> None:
     channel.state = ChannelStates.JOINED
 
     with (
-        patch("realtime._async.client.connect", new=AsyncMock()),
+        patch(
+            "realtime._async.client.connect",
+            new=AsyncMock(return_value=OpenConnection()),
+        ),
         patch.object(channel, "_rejoin", new=AsyncMock()) as rejoin,
     ):
         await socket._reconnect()
@@ -159,9 +176,9 @@ async def test_reconnect_rejoins_channel_that_a_stale_reply_marked_joined() -> N
     channel = await joining_channel(socket)
     channel.state = ChannelStates.JOINED
 
-    async def stale_join_reply(*args: object, **kwargs: object) -> AsyncMock:
+    async def stale_join_reply(*args: object, **kwargs: object) -> OpenConnection:
         channel.state = ChannelStates.JOINED
-        return AsyncMock()
+        return OpenConnection()
 
     with (
         patch("realtime._async.client.connect", new=stale_join_reply),

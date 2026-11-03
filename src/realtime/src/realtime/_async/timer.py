@@ -21,7 +21,7 @@ class AsyncTimer:
                 "AsyncTimer has been reset and any scheduler tasks have been cancelled"
             )
 
-    def schedule_timeout(self, delay: Optional[float] = None) -> None:
+    def schedule_timeout(self, delay: float | None = None) -> None:
         if self.timer:
             self.timer.cancel()
 
