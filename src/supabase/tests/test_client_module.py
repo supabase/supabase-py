@@ -13,3 +13,11 @@ def test_client_module_keeps_legacy_aliases() -> None:
 
     assert supabase.client.AsyncSupabaseAuthClient is AsyncSupabaseAuthClient
     assert supabase.client.AsyncSupabaseStorageClient is AsyncStorageClient
+
+
+def test_client_module_star_import_matches_all() -> None:
+    namespace: dict[str, object] = {}
+    exec("from supabase.client import *", namespace)
+    exported = {name for name in namespace if name != "__builtins__"}
+    assert exported == set(supabase.client.__all__)
+    assert set(supabase.__all__) <= exported
