@@ -694,7 +694,12 @@ features:
     status: implemented
     symbols:
       - AsyncRealtimeChannel.send_broadcast
-  realtime.channel.broadcast_http: not_implemented
+  realtime.channel.broadcast_http:
+    status: implemented
+    note: "POST /api/broadcast/{topic}/events/{event}; requires Realtime server v2.97.0+. Accepts bytes payloads as application/octet-stream. The persist option is not supported."
+    symbols:
+      - AsyncRealtimeChannel.http_send
+      - RealtimeHTTPError
 
   realtime.subscriptions.broadcast:
     status: implemented
