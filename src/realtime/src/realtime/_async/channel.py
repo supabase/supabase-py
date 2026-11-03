@@ -5,7 +5,9 @@ import json
 import logging
 from collections.abc import Coroutine
 from typing import TYPE_CHECKING, Any, Callable, Optional
+from urllib.parse import quote
 
+import httpx
 from typing_extensions import assert_never
 
 from realtime.types import (
@@ -516,6 +518,80 @@ class AsyncRealtimeChannel:
             ChannelEvents.broadcast,
             {"type": "broadcast", "event": event, "payload": data},
         )
+
+    async def http_send(
+        self,
+        event: str,
+        payload: Any,
+        timeout: Optional[int] = None,
+    ) -> dict[str, bool]:
+        """
+        Send a broadcast message through the REST API.
+
+        This always uses the HTTP endpoint, whatever the state of the websocket
+        connection, and does not require the channel to be subscribed.
+        ``bytes`` payloads are sent as ``application/octet-stream``; any other
+        payload is JSON-encoded. Requires Realtime server v2.97.0 or newer.
+
+        :param event: The name of the broadcast event
+        :param payload: The payload to broadcast (required)
+        :param timeout: Optional timeout in milliseconds, defaults to the client timeout
+        :return: ``{"success": True}`` once the server accepts the message
+        :raises ValueError: If the payload is None
+        :raises Exception: If the request times out or the server rejects it
+        """
+        if payload is None:
+            raise ValueError("Payload is required for http_send()")
+
+        is_binary = isinstance(payload, (bytes, bytearray, memoryview))
+        headers = {
+            "apikey": self.socket.apikey or "",
+            "Content-Type": "application/octet-stream"
+            if is_binary
+            else "application/json",
+        }
+        if self.socket.access_token:
+            headers["Authorization"] = f"Bearer {self.socket.access_token}"
+
+        sub_topic = self.topic
+        if sub_topic.startswith("realtime:"):
+            sub_topic = sub_topic[len("realtime:") :]
+        url = (
+            f"{self.broadcast_endpoint_url}/{quote(sub_topic, safe='')}"
+            f"/events/{quote(event, safe='')}"
+        )
+        params = {"private": "true"} if self.params["config"].get("private") else None
+
+        content = bytes(payload) if is_binary else json.dumps(payload)
+
+        timeout_seconds = (timeout or self.timeout) / 1000.0
+        try:
+            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                response = await client.post(
+                    url, headers=headers, params=params, content=content
+                )
+        except httpx.TimeoutException as e:
+            raise Exception(f"Request timeout: {e}") from e
+
+        if response.status_code == 202:
+            return {"success": True}
+
+        if response.status_code == 404:
+            raise Exception(
+                "http_send() requires Realtime server v2.97.0 or newer; the endpoint "
+                "returned 404. Update your Supabase CLI to a recent version, or "
+                "upgrade the Realtime server in your self-hosted setup."
+            )
+
+        error_message = response.reason_phrase
+        try:
+            error_body = response.json()
+            error_message = (
+                error_body.get("error") or error_body.get("message") or error_message
+            )
+        except Exception:
+            pass
+        raise Exception(error_message)
 
     # Internal methods
 

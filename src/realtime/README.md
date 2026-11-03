@@ -99,6 +99,12 @@ await channel.on_broadcast("some-event", lambda payload: print(payload)).subscri
 await channel.send_broadcast("some-event", {"hello": "world"})
 ```
 
+To send a broadcast over the REST API instead of the websocket, use `http_send`. It does not need a subscribed channel and requires Realtime server v2.97.0 or newer:
+
+```python
+await channel.http_send("some-event", {"hello": "world"})
+```
+
 ### Notes:
 
 - Setting `ack` to `true` means that the `channel.send` promise will resolve once server replies with acknowledgement that it received the broadcast message request.

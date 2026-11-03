@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.9"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -2972,6 +2972,7 @@ name = "realtime"
 version = "2.33.0"
 source = { editable = "src/realtime" }
 dependencies = [
+    { name = "httpx", extra = ["http2"] },
     { name = "pydantic" },
     { name = "typing-extensions" },
     { name = "websockets" },
@@ -3007,6 +3008,7 @@ tests = [
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx", extras = ["http2"], specifier = ">=0.26,<0.29" },
     { name = "pydantic", specifier = ">=2.11.7,<3.0.0" },
     { name = "typing-extensions", specifier = ">=4.14.0" },
     { name = "websockets", specifier = ">=11,<16" },
