@@ -9,9 +9,13 @@ from httpx import (
     AsyncClient,
     AsyncHTTPTransport,
     BasicAuth,
+    ConnectError,
     Headers,
     Limits,
     MockTransport,
+    ReadError,
+    ReadTimeout,
+    RemoteProtocolError,
     Request,
     Response,
     Timeout,
@@ -523,3 +527,122 @@ class TestRetryEnabled:
                     await client.from_("test").select("*").execute()
 
         assert calls == 1 + MAX_RETRIES
+
+
+class TestRetryOnNetworkError:
+    @pytest.mark.parametrize(
+        "error",
+        [
+            RemoteProtocolError("Server disconnected without sending a response."),
+            ReadError("Connection reset by peer"),
+            ConnectError("Connection refused"),
+        ],
+    )
+    async def test_select_is_retried_after_a_dropped_connection(
+        self, error: Exception
+    ) -> None:
+        methods: list[str] = []
+
+        async def fake_send(request: Request, **kwargs: Any) -> Response:
+            methods.append(request.method)
+            if len(methods) == 1:
+                raise error
+            assert request.headers["X-Retry-Count"] == "1"
+            return Response(200, json=[], request=request)
+
+        async with AsyncPostgrestClient("https://example.com") as client:
+            with (
+                patch.object(client.session, "send", wraps=fake_send),
+                patch(
+                    "postgrest._async.request_builder.get_retry_delay", return_value=0
+                ),
+            ):
+                response = await client.from_("test").select("*").execute()
+
+        assert response.data == []
+        assert methods == ["GET", "GET"]
+
+    async def test_head_is_retried_after_a_dropped_connection(self) -> None:
+        methods: list[str] = []
+
+        async def fake_send(request: Request, **kwargs: Any) -> Response:
+            methods.append(request.method)
+            if len(methods) == 1:
+                raise RemoteProtocolError("Server disconnected")
+            return Response(200, headers={"Content-Range": "*/0"}, request=request)
+
+        async with AsyncPostgrestClient("https://example.com") as client:
+            with (
+                patch.object(client.session, "send", wraps=fake_send),
+                patch(
+                    "postgrest._async.request_builder.get_retry_delay", return_value=0
+                ),
+            ):
+                await client.from_("test").select("*", head=True).execute()
+
+        assert methods == ["HEAD", "HEAD"]
+
+    async def test_gives_up_after_max_retries(self) -> None:
+        calls = 0
+
+        async def fake_send(request: Request, **kwargs: Any) -> Response:
+            nonlocal calls
+            calls += 1
+            raise RemoteProtocolError("Server disconnected")
+
+        async with AsyncPostgrestClient("https://example.com") as client:
+            with (
+                patch.object(client.session, "send", wraps=fake_send),
+                patch(
+                    "postgrest._async.request_builder.get_retry_delay", return_value=0
+                ),
+            ):
+                with pytest.raises(RemoteProtocolError):
+                    await client.from_("test").select("*").execute()
+
+        assert calls == 1 + MAX_RETRIES
+
+    async def test_write_is_not_retried(self) -> None:
+        calls = 0
+
+        async def fake_send(request: Request, **kwargs: Any) -> Response:
+            nonlocal calls
+            calls += 1
+            raise RemoteProtocolError("Server disconnected")
+
+        async with AsyncPostgrestClient("https://example.com") as client:
+            with patch.object(client.session, "send", wraps=fake_send):
+                with pytest.raises(RemoteProtocolError):
+                    await client.from_("test").insert({"a": 1}).execute()
+
+        assert calls == 1
+
+    async def test_retry_disabled(self) -> None:
+        calls = 0
+
+        async def fake_send(request: Request, **kwargs: Any) -> Response:
+            nonlocal calls
+            calls += 1
+            raise RemoteProtocolError("Server disconnected")
+
+        async with AsyncPostgrestClient("https://example.com") as client:
+            with patch.object(client.session, "send", wraps=fake_send):
+                with pytest.raises(RemoteProtocolError):
+                    await client.from_("test").select("*").retry(False).execute()
+
+        assert calls == 1
+
+    async def test_timeout_is_not_retried(self) -> None:
+        calls = 0
+
+        async def fake_send(request: Request, **kwargs: Any) -> Response:
+            nonlocal calls
+            calls += 1
+            raise ReadTimeout("timed out")
+
+        async with AsyncPostgrestClient("https://example.com") as client:
+            with patch.object(client.session, "send", wraps=fake_send):
+                with pytest.raises(ReadTimeout):
+                    await client.from_("test").select("*").execute()
+
+        assert calls == 1

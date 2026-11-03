@@ -98,10 +98,13 @@ class RequestConfig(Generic[C]):
             auth=auth,
         )
 
-    def should_retry(self, response: RequestResponse, attempt_count: int) -> bool:
+    def _can_retry(self, attempt_count: int) -> bool:
         if not self.retry_enabled or attempt_count >= MAX_RETRIES:
             return False
-        if not (self.http_method == "GET" or self.http_method == "HEAD"):
+        return self.http_method == "GET" or self.http_method == "HEAD"
+
+    def should_retry(self, response: RequestResponse, attempt_count: int) -> bool:
+        if not self._can_retry(attempt_count):
             return False
         return response.status_code == 503 or response.status_code == 520
 
