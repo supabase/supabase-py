@@ -53,6 +53,14 @@ class Client:
             `DEFAULT_OPTIONS` dict.
         """
 
+        if supabase_url is not None and not isinstance(supabase_url, str):
+            raise SupabaseException(
+                f"supabase_url must be a string, got {type(supabase_url).__name__}"
+            )
+        if supabase_key is not None and not isinstance(supabase_key, str):
+            raise SupabaseException(
+                f"supabase_key must be a string, got {type(supabase_key).__name__}"
+            )
         if not supabase_url:
             raise SupabaseException("supabase_url is required")
         if not supabase_key:

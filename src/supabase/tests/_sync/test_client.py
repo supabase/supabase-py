@@ -15,18 +15,38 @@ from supabase import (
     create_client,
 )
 
+VALID_URL = "https://example.supabase.co"
+VALID_KEY = "valid-key"
 
-@pytest.mark.xfail(
-    reason="None of these values should be able to instantiate a client object"
+
+@pytest.mark.parametrize(
+    ("url", "key"),
+    [
+        ("", VALID_KEY),
+        (None, VALID_KEY),
+        ("not-a-url", VALID_KEY),
+        ("ftp://example.supabase.co", VALID_KEY),
+        ("https://", VALID_KEY),
+        ({}, VALID_KEY),
+        ([], VALID_KEY),
+        (139, VALID_KEY),
+        (VALID_URL, ""),
+        (VALID_URL, None),
+        (VALID_URL, {}),
+        (VALID_URL, []),
+        (VALID_URL, 139),
+    ],
 )
-@pytest.mark.parametrize("url", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
-@pytest.mark.parametrize("key", ["", None, "valeefgpoqwjgpj", 139, -1, {}, []])
 def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
-    """Ensure we can't instantiate client with invalid values."""
-    try:
-        _: Client = create_client(url, key)
-    except SyncSupabaseException:
-        pass
+    with pytest.raises(SyncSupabaseException):
+        create_client(url, key)
+
+
+def test_valid_url_and_key_instantiate_client() -> None:
+    client = create_client(VALID_URL, VALID_KEY)
+    assert isinstance(client, Client)
+    assert client.supabase_key == VALID_KEY
+    assert str(client.supabase_url) == f"{VALID_URL}/"
 
 
 def test_supabase_exception() -> None:
