@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Callable, Optional
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +9,7 @@ class AsyncTimer:
     def __init__(self, callback: Callable, timer_calc: Callable[[int], float]) -> None:
         self.callback = callback
         self.timer_calc = timer_calc
-        self.timer: Optional[asyncio.Task] = None
+        self.timer: asyncio.Task | None = None
         self.tries: int = 0
 
     def reset(self) -> None:

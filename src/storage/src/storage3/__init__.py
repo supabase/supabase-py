@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Union, overload
+from typing import Literal, overload
 
 from storage3._async import AsyncStorageClient
 from storage3._async.bucket import AsyncStorageBucketAPI
@@ -37,7 +37,7 @@ def create_client(
 
 def create_client(
     url: str, headers: dict[str, str], *, is_async: bool, timeout: int = DEFAULT_TIMEOUT
-) -> Union[AsyncStorageClient, SyncStorageClient]:
+) -> AsyncStorageClient | SyncStorageClient:
     if is_async:
         return AsyncStorageClient(url, headers, timeout)
     else:

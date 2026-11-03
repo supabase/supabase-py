@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import platform
-from typing import Optional, Union
 from warnings import warn
 
 from deprecation import deprecated
@@ -32,10 +31,10 @@ class AsyncPostgrestClient(BasePostgrestClient):
         *,
         schema: str = "public",
         headers: dict[str, str] = DEFAULT_POSTGREST_CLIENT_HEADERS,
-        timeout: Union[int, float, Timeout, None] = None,
-        verify: Optional[bool] = None,
-        proxy: Optional[str] = None,
-        http_client: Optional[AsyncClient] = None,
+        timeout: int | float | Timeout | None = None,
+        verify: bool | None = None,
+        proxy: str | None = None,
+        http_client: AsyncClient | None = None,
         retry_enabled: bool = True,
     ) -> None:
         headers = {
@@ -150,7 +149,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
         self,
         func: str,
         params: dict[str, str],
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         head: bool = False,
         get: bool = False,
     ) -> AsyncRPCFilterRequestBuilder:

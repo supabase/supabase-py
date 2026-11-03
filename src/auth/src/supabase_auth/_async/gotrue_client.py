@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import platform
 import time
-from typing import Callable, Optional, cast
+from collections.abc import Callable
+from typing import cast
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
@@ -103,16 +104,16 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
     def __init__(
         self,
         *,
-        url: Optional[str] = None,
-        headers: Optional[dict[str, str]] = None,
-        storage_key: Optional[str] = None,
+        url: str | None = None,
+        headers: dict[str, str] | None = None,
+        storage_key: str | None = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
-        storage: Optional[AsyncSupportedStorage] = None,
-        http_client: Optional[AsyncClient] = None,
+        storage: AsyncSupportedStorage | None = None,
+        http_client: AsyncClient | None = None,
         flow_type: AuthFlowType = "implicit",
         verify: bool = True,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
     ) -> None:
         extra_headers = {
             "X-Client-Info": (
@@ -137,14 +138,14 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
         self._jwks: JWKSet = {"keys": []}
         self._jwks_ttl: float = 600  # 10 minutes
-        self._jwks_cached_at: Optional[float] = None
+        self._jwks_cached_at: float | None = None
 
         self._storage_key = storage_key or STORAGE_KEY
         self._auto_refresh_token = auto_refresh_token
         self._persist_session = persist_session
         self._storage = storage or AsyncMemoryStorage()
-        self._in_memory_session: Optional[Session] = None
-        self._refresh_token_timer: Optional[Timer] = None
+        self._in_memory_session: Session | None = None
+        self._refresh_token_timer: Timer | None = None
         self._network_retries = 0
         self._state_change_emitters: dict[str, Subscription] = {}
         self._flow_type = flow_type
@@ -168,7 +169,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
     # Initializations
 
-    async def initialize(self, *, url: Optional[str] = None) -> None:
+    async def initialize(self, *, url: str | None = None) -> None:
         if url and self._is_implicit_grant_flow(url):
             await self.initialize_from_url(url)
         else:
@@ -192,7 +193,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
     # Public methods
 
     async def sign_in_anonymously(
-        self, credentials: Optional[SignInAnonymouslyCredentials] = None
+        self, credentials: SignInAnonymouslyCredentials | None = None
     ) -> AuthResponse:
         """
         Creates a new anonymous user.
@@ -592,7 +593,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         phone = credentials.get("phone")
         type = credentials.get("type")
         options = credentials.get("options", {})
-        email_redirect_to: Optional[str] = options.get("email_redirect_to")  # type: ignore[assignment]
+        email_redirect_to: str | None = options.get("email_redirect_to")  # type: ignore[assignment]
         captcha_token = options.get("captcha_token")
         body: dict[str, object] = {  # improve later
             "type": type,
@@ -653,7 +654,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         )
         return AuthResponse(user=None, session=None)
 
-    async def get_session(self) -> Optional[Session]:
+    async def get_session(self) -> Session | None:
         """
         Returns the session, refreshing it if necessary.
 
@@ -675,7 +676,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             else current_session
         )
 
-    async def get_user(self, jwt: Optional[str] = None) -> Optional[UserResponse]:
+    async def get_user(self, jwt: str | None = None) -> UserResponse | None:
         """
         Gets the current user details if there is an existing session.
 
@@ -694,7 +695,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         return parse_user_response(await self._request("GET", "user", jwt=jwt))
 
     async def update_user(
-        self, attributes: UserAttributes, options: Optional[UpdateUserOptions] = None
+        self, attributes: UserAttributes, options: UpdateUserOptions | None = None
     ) -> UserResponse:
         """
         Updates user data, if there is a logged in user.
@@ -737,7 +738,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         time_now = round(time.time())
         expires_at = time_now
         has_expired = True
-        session: Optional[Session] = None
+        session: Session | None = None
         if access_token and access_token.split(".")[1]:
             payload = decode_jwt(access_token)["payload"]
             exp = payload.get("exp")
@@ -769,9 +770,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         self._notify_all_subscribers(event, session)
         return AuthResponse(session=session, user=session.user)
 
-    async def refresh_session(
-        self, refresh_token: Optional[str] = None
-    ) -> AuthResponse:
+    async def refresh_session(self, refresh_token: str | None = None) -> AuthResponse:
         """
         Returns a new session, regardless of expiry status.
 
@@ -788,7 +787,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         session = await self._call_refresh_token(refresh_token)
         return AuthResponse(session=session, user=session.user)
 
-    async def sign_out(self, options: Optional[SignOutOptions] = None) -> None:
+    async def sign_out(self, options: SignOutOptions | None = None) -> None:
         """
         `sign_out` will remove the logged in user from the
         current session and log them out - removing all items from storage and then trigger a `"SIGNED_OUT"` event.
@@ -832,7 +831,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             raise
         access_token = session.access_token if session else None
 
-        teardown_error: Optional[Exception] = None
+        teardown_error: Exception | None = None
         if scope == "local":
             # A failing `"SIGNED_OUT"` subscriber must not skip the request, so
             # its error is raised once the request has been sent.
@@ -842,7 +841,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             except Exception as e:
                 teardown_error = e
 
-        error: Optional[Exception] = None
+        error: Exception | None = None
         if access_token:
             try:
                 await self.admin.sign_out(access_token, scope)
@@ -861,7 +860,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
     def on_auth_state_change(
         self,
-        callback: Callable[[AuthChangeEvent, Optional[Session]], None],
+        callback: Callable[[AuthChangeEvent, Session | None], None],
     ) -> Subscription:
         """
         Receive a notification every time an auth event happens.
@@ -880,7 +879,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         return subscription
 
     async def reset_password_for_email(
-        self, email: str, options: Optional[Options] = None
+        self, email: str, options: Options | None = None
     ) -> None:
         """
         Sends a password reset request to an email address.
@@ -904,7 +903,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
     async def reset_password_email(
         self,
         email: str,
-        options: Optional[Options] = None,
+        options: Options | None = None,
     ) -> None:
         """
         Sends a password reset request to an email address.
@@ -1037,7 +1036,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
     # Private methods
 
-    async def _load_session(self) -> Optional[Session]:
+    async def _load_session(self) -> Session | None:
         if not self._persist_session:
             return self._in_memory_session
         maybe_session = await self._storage.get_item(self._storage_key)
@@ -1058,7 +1057,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
     async def _get_session_from_url(
         self,
         url: str,
-    ) -> tuple[Session, Optional[str]]:
+    ) -> tuple[Session, str | None]:
         if not self._is_implicit_grant_flow(url):
             raise AuthImplicitGrantRedirectError("Not a valid implicit grant flow url.")
         result = urlparse(url)
@@ -1207,15 +1206,15 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
     def _notify_all_subscribers(
         self,
         event: AuthChangeEvent,
-        session: Optional[Session],
+        session: Session | None,
     ) -> None:
         for subscription in list(self._state_change_emitters.values()):
             subscription.callback(event, session)
 
     def _get_valid_session(
         self,
-        raw_session: Optional[str],
-    ) -> Optional[Session]:
+        raw_session: str | None,
+    ) -> Session | None:
         if not raw_session:
             return None
         try:
@@ -1230,7 +1229,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         self,
         query_params: dict[str, list[str]],
         name: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         return query_params[name][0] if name in query_params else None
 
     def _is_implicit_grant_flow(self, url: str) -> bool:
@@ -1256,7 +1255,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
 
     async def _prepare_pkce_challenge(
         self, *, password_recovery: bool = False
-    ) -> Optional[tuple[str, str]]:
+    ) -> tuple[str, str] | None:
         if self._flow_type != "pkce":
             return None
         code_verifier = generate_pkce_verifier()
@@ -1282,9 +1281,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             body["code_challenge_method"] = code_challenge_method
         return body
 
-    async def _code_verifier_for_exchange(
-        self, explicit: Optional[str]
-    ) -> Optional[str]:
+    async def _code_verifier_for_exchange(self, explicit: str | None) -> str | None:
         if explicit:
             return explicit
         stored = await self._storage.get_item(f"{self._storage_key}-code-verifier")
@@ -1316,7 +1313,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         return auth_response
 
     async def _fetch_jwks(self, kid: str, jwks: JWKSet) -> JWK:
-        jwk: Optional[JWK] = None
+        jwk: JWK | None = None
 
         # try fetching from the suplied keys.
         jwk = next((jwk for jwk in jwks["keys"] if jwk.get("kid") == kid), None)
@@ -1352,8 +1349,8 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         raise AuthInvalidJwtError("JWT has no valid kid")
 
     async def get_claims(
-        self, jwt: Optional[str] = None, jwks: Optional[JWKSet] = None
-    ) -> Optional[ClaimsResponse]:
+        self, jwt: str | None = None, jwks: JWKSet | None = None
+    ) -> ClaimsResponse | None:
         token = jwt
         if not token:
             session = await self.get_session()

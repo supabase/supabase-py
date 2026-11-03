@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 from httpx import Client, Headers, Request, Response
@@ -137,7 +137,7 @@ class TestInsert:
         request_builder: SyncRequestBuilder,
         method: str,
         rows: list[dict[str, JSON]],
-        columns: Optional[str],
+        columns: str | None,
     ) -> None:
         builder = getattr(request_builder, method)(rows)
 

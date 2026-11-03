@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 from random import random
 from time import time
-from typing import Optional
+from typing import NotRequired
 from uuid import uuid4
 
 from faker import Faker
 from jwt import encode
 from supabase_auth import AsyncGoTrueAdminAPI, AsyncGoTrueClient
 from supabase_auth.types import User
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import TypedDict
 
 
 def mock_access_token() -> str:
@@ -22,9 +22,9 @@ def mock_access_token() -> str:
 
 
 class OptionalCredentials(TypedDict):
-    email: NotRequired[Optional[str]]
-    phone: NotRequired[Optional[str]]
-    password: NotRequired[Optional[str]]
+    email: NotRequired[str | None]
+    phone: NotRequired[str | None]
+    password: NotRequired[str | None]
 
 
 @dataclass
@@ -35,7 +35,7 @@ class Credentials:
 
 
 def mock_user_credentials(
-    options: Optional[OptionalCredentials] = None,
+    options: OptionalCredentials | None = None,
 ) -> Credentials:
     fake = Faker()
     user_options = options or {}
@@ -74,8 +74,8 @@ def mock_app_metadata() -> AppMetadata:
 
 async def create_new_user_with_email(
     *,
-    email: Optional[str] = None,
-    password: Optional[str] = None,
+    email: str | None = None,
+    password: str | None = None,
 ) -> User:
     credentials = mock_user_credentials(
         {

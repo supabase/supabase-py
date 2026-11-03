@@ -8,10 +8,8 @@ from typing import (
     Any,
     Generic,
     NamedTuple,
-    Optional,
     Self,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -144,8 +142,8 @@ def _cleaned_columns(columns: tuple[str, ...]) -> str:
 
 def pre_select(
     *columns: str,
-    count: Optional[CountMethod] = None,
-    head: Optional[bool] = None,
+    count: CountMethod | None = None,
+    head: bool | None = None,
 ) -> QueryArgs:
     method = RequestMethod.HEAD if head else RequestMethod.GET
     cleaned_columns = _cleaned_columns(columns or ("*",))
@@ -158,7 +156,7 @@ def pre_select(
 def pre_insert(
     json: JSON,
     *,
-    count: Optional[CountMethod],
+    count: CountMethod | None,
     returning: ReturnMethod,
     upsert: bool,
     default_to_null: bool = True,
@@ -183,7 +181,7 @@ def pre_insert(
 def pre_upsert(
     json: JSON,
     *,
-    count: Optional[CountMethod],
+    count: CountMethod | None,
     returning: ReturnMethod,
     ignore_duplicates: bool,
     on_conflict: str = "",
@@ -211,7 +209,7 @@ def pre_upsert(
 def pre_update(
     json: JSON,
     *,
-    count: Optional[CountMethod],
+    count: CountMethod | None,
     returning: ReturnMethod,
 ) -> QueryArgs:
     prefer_headers = [f"return={returning}"]
@@ -223,7 +221,7 @@ def pre_update(
 
 def pre_delete(
     *,
-    count: Optional[CountMethod],
+    count: CountMethod | None,
     returning: ReturnMethod,
 ) -> QueryArgs:
     prefer_headers = [f"return={returning}"]
@@ -236,13 +234,13 @@ def pre_delete(
 class APIResponse(BaseModel):
     data: list[JSON]
     """The data returned by the query."""
-    count: Optional[int] = None
+    count: int | None = None
     """The number of rows returned."""
 
     @staticmethod
     def _get_count_from_content_range_header(
         content_range_header: str,
-    ) -> Optional[int]:
+    ) -> int | None:
         content_range = content_range_header.split("/")
         if len(content_range) < 2 or content_range[1] == "*":
             return None
@@ -256,16 +254,14 @@ class APIResponse(BaseModel):
     @staticmethod
     def _get_count_from_http_request_response(
         request_response: RequestResponse,
-    ) -> Optional[int]:
-        prefer_header: Optional[str] = request_response.request.headers.get("prefer")
+    ) -> int | None:
+        prefer_header: str | None = request_response.request.headers.get("prefer")
         if not prefer_header:
             return None
         is_count_in_prefer_header = APIResponse._is_count_in_prefer_header(
             prefer_header
         )
-        content_range_header: Optional[str] = request_response.headers.get(
-            "content-range"
-        )
+        content_range_header: str | None = request_response.headers.get("content-range")
         if is_count_in_prefer_header and content_range_header:
             return APIResponse._get_count_from_content_range_header(
                 content_range_header
@@ -451,7 +447,7 @@ class BaseFilterRequestBuilder(Generic[C]):
         """
         return self.filter(column, Filters.ILIKE, pattern)
 
-    def or_(self: Self, filters: str, reference_table: Optional[str] = None) -> Self:
+    def or_(self: Self, filters: str, reference_table: str | None = None) -> Self:
         """An 'or' filter
 
         Args:
@@ -497,7 +493,7 @@ class BaseFilterRequestBuilder(Generic[C]):
     def contains(
         self: Self,
         column: str,
-        value: Union[Iterable[FilterValue], str, dict[str, JSON]],
+        value: Iterable[FilterValue] | str | dict[str, JSON],
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -512,7 +508,7 @@ class BaseFilterRequestBuilder(Generic[C]):
     def contained_by(
         self: Self,
         column: str,
-        value: Union[Iterable[FilterValue], str, dict[str, JSON]],
+        value: Iterable[FilterValue] | str | dict[str, JSON],
     ) -> Self:
         if isinstance(value, str):
             # range
@@ -524,7 +520,7 @@ class BaseFilterRequestBuilder(Generic[C]):
     def ov(
         self: Self,
         column: str,
-        value: Union[Iterable[FilterValue], str, dict[str, JSON]],
+        value: Iterable[FilterValue] | str | dict[str, JSON],
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -621,8 +617,8 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
         column: str,
         *,
         desc: bool = False,
-        nullsfirst: Optional[bool] = None,
-        foreign_table: Optional[str] = None,
+        nullsfirst: bool | None = None,
+        foreign_table: str | None = None,
     ) -> Self:
         """Sort the returned rows in some specific order.
 
@@ -649,7 +645,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
         )
         return self
 
-    def limit(self: Self, size: int, *, foreign_table: Optional[str] = None) -> Self:
+    def limit(self: Self, size: int, *, foreign_table: str | None = None) -> Self:
         """Limit the number of rows returned by a query.
 
         Args:
@@ -676,7 +672,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder[C]):
         return self
 
     def range(
-        self: Self, start: int, end: int, foreign_table: Optional[str] = None
+        self: Self, start: int, end: int, foreign_table: str | None = None
     ) -> Self:
         self.request.params = self.request.params.add(
             f"{foreign_table}.offset" if foreign_table else "offset", start

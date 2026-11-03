@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from realtime.types import RealtimeChannelOptions
 
@@ -19,7 +19,7 @@ class SyncRealtimeChannel:
         self,
         socket: SyncRealtimeClient,
         topic: str,
-        params: Optional[RealtimeChannelOptions] = None,
+        params: RealtimeChannelOptions | None = None,
     ) -> None:
         """
         Initialize the Channel object.

@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import patch
 
 import httpx
@@ -10,12 +10,12 @@ URL = "http://127.0.0.1:54321/realtime/v1"
 KEY = "anon-key"
 
 
-def make_client(token: Optional[str] = KEY, **kwargs: Any) -> AsyncRealtimeClient:
+def make_client(token: str | None = KEY, **kwargs: Any) -> AsyncRealtimeClient:
     return AsyncRealtimeClient(URL, token, **kwargs)
 
 
 def response(
-    status: int, body: Any = None, reason: Optional[str] = None
+    status: int, body: Any = None, reason: str | None = None
 ) -> httpx.Response:
     return httpx.Response(
         status, json=body, extensions={"reason_phrase": (reason or "").encode()}

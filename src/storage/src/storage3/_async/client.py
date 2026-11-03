@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import platform
-from typing import Optional
 from warnings import warn
 
 from httpx import AsyncClient, Headers
@@ -27,10 +26,10 @@ class AsyncStorageClient(AsyncStorageBucketAPI):
         self,
         url: str,
         headers: dict[str, str],
-        timeout: Optional[int] = None,
-        verify: Optional[bool] = None,
-        proxy: Optional[str] = None,
-        http_client: Optional[AsyncClient] = None,
+        timeout: int | None = None,
+        verify: bool | None = None,
+        proxy: str | None = None,
+        http_client: AsyncClient | None = None,
     ) -> None:
         headers = {
             "X-Client-Info": (

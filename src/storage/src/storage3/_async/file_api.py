@@ -6,7 +6,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Literal, Optional, Union, cast
+from typing import Any, Literal, cast
 
 from httpx import AsyncClient, Headers, HTTPStatusError, Response
 from yarl import URL
@@ -59,10 +59,10 @@ class AsyncBucketActionsMixin:
         self,
         method: RequestMethod,
         path: list[str],
-        headers: Optional[dict[str, Any]] = None,
-        json: Optional[dict[Any, Any]] = None,
-        files: Optional[Any] = None,
-        query_params: Optional[dict[str, str]] = None,
+        headers: dict[str, Any] | None = None,
+        json: dict[Any, Any] | None = None,
+        files: Any | None = None,
+        query_params: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> Response:
         try:
@@ -95,7 +95,7 @@ class AsyncBucketActionsMixin:
     async def create_signed_upload_url(
         self,
         path: str,
-        options: Optional[CreateSignedUploadUrlOptions] = None,
+        options: CreateSignedUploadUrlOptions | None = None,
     ) -> SignedUploadURL:
         """
         Creates a signed upload URL.
@@ -133,8 +133,8 @@ class AsyncBucketActionsMixin:
         self,
         path: str,
         token: str,
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[UploadSignedUrlFileOptions] = None,
+        file: BufferedReader | bytes | FileIO | str | Path,
+        file_options: UploadSignedUrlFileOptions | None = None,
     ) -> UploadResponse:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
@@ -208,7 +208,7 @@ class AsyncBucketActionsMixin:
         return UploadResponse(path=path, Key=data["Key"])
 
     def _make_signed_url(
-        self, signed_url: Optional[str], download_query: dict[str, str]
+        self, signed_url: str | None, download_query: dict[str, str]
     ) -> SignedUrlResponse:
         if signed_url is None:
             return {"signedURL": None, "signedUrl": None}
@@ -217,7 +217,7 @@ class AsyncBucketActionsMixin:
         return {"signedURL": str(signedURL), "signedUrl": str(signedURL)}
 
     async def create_signed_url(
-        self, path: str, expires_in: int, options: Optional[URLOptions] = None
+        self, path: str, expires_in: int, options: URLOptions | None = None
     ) -> SignedUrlResponse:
         """
         Parameters
@@ -252,7 +252,7 @@ class AsyncBucketActionsMixin:
         self,
         paths: builtins.list[str],
         expires_in: int,
-        options: Optional[CreateSignedURLsOptions] = None,
+        options: CreateSignedURLsOptions | None = None,
     ) -> builtins.list[CreateSignedUrlResponse]:
         """
         Parameters
@@ -293,9 +293,7 @@ class AsyncBucketActionsMixin:
             signed_urls.append(signed_item)
         return signed_urls
 
-    async def get_public_url(
-        self, path: str, options: Optional[URLOptions] = None
-    ) -> str:
+    async def get_public_url(self, path: str, options: URLOptions | None = None) -> str:
         """
         Parameters
         ----------
@@ -431,8 +429,8 @@ class AsyncBucketActionsMixin:
 
     async def list(
         self,
-        path: Optional[str] = None,
-        options: Optional[ListBucketFilesOptions] = None,
+        path: str | None = None,
+        options: ListBucketFilesOptions | None = None,
     ) -> list[dict[str, Any]]:
         """
         Lists all the files within a bucket.
@@ -465,7 +463,7 @@ class AsyncBucketActionsMixin:
 
     async def list_v2(
         self,
-        options: Optional[SearchV2Options] = None,
+        options: SearchV2Options | None = None,
     ) -> SearchV2Result:
         body = {**options} if options else {}
         response = await self._request(
@@ -478,8 +476,8 @@ class AsyncBucketActionsMixin:
     async def download(
         self,
         path: str,
-        options: Optional[DownloadOptions] = None,
-        query_params: Optional[dict[str, str]] = None,
+        options: DownloadOptions | None = None,
+        query_params: dict[str, str] | None = None,
     ) -> bytes:
         """
         Downloads a file.
@@ -513,8 +511,8 @@ class AsyncBucketActionsMixin:
         self,
         method: Literal["POST", "PUT"],
         path: tuple[str, ...],
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[FileOptions] = None,
+        file: BufferedReader | bytes | FileIO | str | Path,
+        file_options: FileOptions | None = None,
     ) -> UploadResponse:
         """
         Uploads a file to an existing bucket.
@@ -594,8 +592,8 @@ class AsyncBucketActionsMixin:
     async def upload(
         self,
         path: str,
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[FileOptions] = None,
+        file: BufferedReader | bytes | FileIO | str | Path,
+        file_options: FileOptions | None = None,
     ) -> UploadResponse:
         """
         Uploads a file to an existing bucket.
@@ -616,8 +614,8 @@ class AsyncBucketActionsMixin:
     async def update(
         self,
         path: str,
-        file: Union[BufferedReader, bytes, FileIO, str, Path],
-        file_options: Optional[FileOptions] = None,
+        file: BufferedReader | bytes | FileIO | str | Path,
+        file_options: FileOptions | None = None,
     ) -> UploadResponse:
         path_parts = relative_path_to_parts(path)
         return await self._upload_or_update("PUT", path_parts, file, file_options)

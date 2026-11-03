@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from httpx import QueryParams
 
@@ -26,11 +26,11 @@ class SyncStorageAnalyticsClient:
 
     def list(
         self,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        sort_column: Optional[SortColumn] = None,
-        sort_order: Optional[SortOrder] = None,
-        search: Optional[str] = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        sort_column: SortColumn | None = None,
+        sort_order: SortOrder | None = None,
+        search: str | None = None,
     ) -> list[AnalyticsBucket]:
         params = dict(
             limit=limit,

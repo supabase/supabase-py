@@ -1,6 +1,5 @@
 import asyncio
 import json
-from typing import Optional
 
 import pytest
 from websockets.asyncio.server import ServerConnection, serve
@@ -28,9 +27,9 @@ async def test_subscription_callback_receives_channel_status(
     joined = asyncio.Event()
     advance = asyncio.Event()
     processed = asyncio.Event()
-    received: list[tuple[RealtimeSubscribeStates, Optional[Exception]]] = []
+    received: list[tuple[RealtimeSubscribeStates, Exception | None]] = []
 
-    def on_status(status: RealtimeSubscribeStates, error: Optional[Exception]) -> None:
+    def on_status(status: RealtimeSubscribeStates, error: Exception | None) -> None:
         received.append((status, error))
 
     async def barrier(connection: ServerConnection, name: str) -> None:

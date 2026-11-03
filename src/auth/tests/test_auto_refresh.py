@@ -2,7 +2,6 @@ import asyncio
 import json
 import time
 import warnings
-from typing import Optional
 
 import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
@@ -25,7 +24,7 @@ async def test_auto_refresh_persists_rotated_session_with_async_storage(
 
     tick = asyncio.Event()
     refresh_started = asyncio.Event()
-    refresh_task: Optional[asyncio.Task] = None
+    refresh_task: asyncio.Task | None = None
     sleeps = 0
 
     async def timer_sleep(delay: float) -> None:
@@ -102,7 +101,7 @@ async def test_auto_refresh_persists_rotated_session_with_async_storage(
 
 async def test_timer_cancel_stops_callback_from_another_task() -> None:
     started = asyncio.Event()
-    task: Optional[asyncio.Task] = None
+    task: asyncio.Task | None = None
     completed = False
 
     async def callback() -> None:

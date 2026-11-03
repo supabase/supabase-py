@@ -1,5 +1,4 @@
 from collections.abc import AsyncIterator
-from typing import Union
 
 import pytest
 
@@ -9,7 +8,7 @@ from postgrest import AsyncPostgrestClient, SyncPostgrestClient
 @pytest.fixture(params=["sync", "async"])
 async def client(
     request,
-) -> AsyncIterator[Union[SyncPostgrestClient, AsyncPostgrestClient]]:
+) -> AsyncIterator[SyncPostgrestClient | AsyncPostgrestClient]:
     headers = {"Prefer": "count=exact"}
     if request.param == "sync":
         with SyncPostgrestClient("https://example.com", headers=headers) as client:

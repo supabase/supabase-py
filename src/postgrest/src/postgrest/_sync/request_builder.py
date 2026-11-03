@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Literal, Optional, TypeVar, overload
+from typing import Any, Literal, Self, TypeVar, overload
 
 from httpx import BasicAuth, Client, Headers, Response
 from pydantic import ValidationError
-from typing_extensions import Self
 from yarl import URL
 
 from ..base_request_builder import (
@@ -158,7 +157,7 @@ class SyncMaybeSingleRequestBuilder:
         self.request.retry_enabled = enabled
         return self
 
-    def execute(self) -> Optional[SingleAPIResponse]:
+    def execute(self) -> SingleAPIResponse | None:
         r = send_with_retry(self.request)
         try:
             if r.is_success:
@@ -222,7 +221,7 @@ class SyncSelectRequestBuilder(
         return SyncMaybeSingleRequestBuilder(self.request)
 
     def text_search(
-        self, column: str, query: str, options: Optional[dict[str, Any]] = None
+        self, column: str, query: str, options: dict[str, Any] | None = None
     ) -> Self:
         options = options or {}
         type_ = options.get("type")
@@ -308,8 +307,8 @@ class SyncRequestBuilder:  #
     def select(
         self,
         *columns: str,
-        count: Optional[CountMethod] = None,
-        head: Optional[bool] = None,
+        count: CountMethod | None = None,
+        head: bool | None = None,
     ) -> SyncSelectRequestBuilder:
         """Run a SELECT query.
 
@@ -337,7 +336,7 @@ class SyncRequestBuilder:  #
         self,
         json: JSON,
         *,
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
         upsert: bool = False,
         default_to_null: bool = True,
@@ -379,7 +378,7 @@ class SyncRequestBuilder:  #
         self,
         json: JSON,
         *,
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
         ignore_duplicates: bool = False,
         on_conflict: str = "",
@@ -425,7 +424,7 @@ class SyncRequestBuilder:  #
         self,
         json: JSON,
         *,
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
     ) -> SyncSelectRequestBuilder:
         """Run an UPDATE query.
@@ -458,7 +457,7 @@ class SyncRequestBuilder:  #
     def delete(
         self,
         *,
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
     ) -> SyncSelectRequestBuilder:
         """Run a DELETE query.

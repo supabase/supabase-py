@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 from httpx import Response
 from supabase_functions.errors import (
@@ -119,5 +117,5 @@ def test_error_message_types() -> None:
         (Response(500), None),
     ],
 )
-def test_error_message_from(response: Response, expected: Optional[str]) -> None:
+def test_error_message_from(response: Response, expected: str | None) -> None:
     assert _error_message_from(response) == expected

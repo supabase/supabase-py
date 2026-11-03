@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response
@@ -36,4 +36,4 @@ async def test_get_index_preserves_creation_time(use_async: bool) -> None:
             result = sync_client.vectors().from_("catalog").get_index("products")
 
     assert result is not None
-    assert result.index.creation_time == datetime(2025, 1, 1, tzinfo=timezone.utc)
+    assert result.index.creation_time == datetime(2025, 1, 1, tzinfo=UTC)

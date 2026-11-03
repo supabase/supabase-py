@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Literal, Optional, TypeVar
+from typing import Any, Literal, NotRequired, TypeAlias, TypeVar
 
 from pydantic import ConfigDict, with_config
 from typing_extensions import (
-    NotRequired,
     ParamSpec,
-    TypeAlias,
     TypedDict,
 )
 
@@ -94,9 +93,9 @@ class PostgresChangesData(TypedDict):
     table: str
     commit_timestamp: str
     type: RealtimePostgresChangesListenEvent
-    errors: Optional[str]
+    errors: str | None
     columns: list[PostgresChangesColumn]
-    record: NotRequired[Optional[dict[str, Any]]]
+    record: NotRequired[dict[str, Any] | None]
     old_record: NotRequired[dict[str, Any]]  # todo: improve this
 
 
@@ -131,11 +130,11 @@ class BroadcastCallback:
 class PostgresChangesCallback:
     callback: Callable[[PostgresChangesPayload], None]
     event: RealtimePostgresChangesListenEvent
-    table: Optional[str]
-    schema: Optional[str]
-    filter: Optional[str]
-    select: Optional[list[str]] = None
-    id: Optional[int] = None
+    table: str | None
+    schema: str | None
+    filter: str | None
+    select: list[str] | None = None
+    id: int | None = None
 
     def __post_init__(self) -> None:
         if not self.schema:
@@ -202,8 +201,8 @@ class RealtimeChannelPresenceConfig(TypedDict):
 
 
 class RealtimeChannelConfig(TypedDict):
-    broadcast: Optional[RealtimeChannelBroadcastConfig]
-    presence: Optional[RealtimeChannelPresenceConfig]
+    broadcast: RealtimeChannelBroadcastConfig | None
+    presence: RealtimeChannelPresenceConfig | None
     private: bool
 
 

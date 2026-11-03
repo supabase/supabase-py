@@ -3,16 +3,16 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import Any, Literal, TypeAlias, TypedDict
 
 from pydantic import BaseModel, Field, TypeAdapter
-from typing_extensions import ReadOnly, TypeAlias, TypeAliasType
+from typing_extensions import ReadOnly, TypeAliasType
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 
 # https://docs.pydantic.dev/2.11/concepts/types/#named-recursive-types
 JSON = TypeAliasType(
-    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
+    "JSON", "None | bool | str | int | float | Sequence[JSON] | Mapping[str, JSON]"
 )
 
 
@@ -25,9 +25,9 @@ class BaseBucket(BaseModel, extra="ignore"):
     public: bool
     created_at: datetime
     updated_at: datetime
-    file_size_limit: Optional[int]
-    allowed_mime_types: Optional[list[str]]
-    type: Optional[str] = None
+    file_size_limit: int | None
+    allowed_mime_types: list[str] | None
+    type: str | None = None
 
 
 # used in bucket.list method's option parameter
@@ -69,12 +69,12 @@ def transform_to_dict(t: TransformOptions) -> dict[str, str]:
 
 
 class URLOptions(TypedDict, total=False):
-    download: Union[str, bool]
+    download: str | bool
     transform: TransformOptions
 
 
 class CreateSignedURLsOptions(TypedDict, total=False):
-    download: Union[str, bool]
+    download: str | bool
 
 
 class SortByV2(TypedDict, total=False):
@@ -95,22 +95,22 @@ class SearchV2Object(BaseModel):
     name: str
     updated_at: datetime
     created_at: datetime
-    metadata: Optional[dict[str, Any]]
-    key: Optional[str] = None
+    metadata: dict[str, Any] | None
+    key: str | None = None
 
 
 class SearchV2Folder(BaseModel):
-    key: Optional[str] = None
+    key: str | None = None
     name: str
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class SearchV2Result(BaseModel):
     hasNext: bool
     folders: list[SearchV2Folder]
     objects: list[SearchV2Object]
-    nextCursor: Optional[str] = None
+    nextCursor: str | None = None
 
 
 class DownloadOptions(TypedDict, total=False):
@@ -151,15 +151,15 @@ class UploadResponse:
 
 
 class SignedUrlResponse(TypedDict):
-    signedURL: Optional[str]
-    signedUrl: Optional[str]
+    signedURL: str | None
+    signedUrl: str | None
 
 
 class CreateSignedUrlResponse(TypedDict):
-    error: Optional[str]
+    error: str | None
     path: str
-    signedURL: Optional[str]
-    signedUrl: Optional[str]
+    signedURL: str | None
+    signedUrl: str | None
 
 
 class SignedUrlJsonResponse(BaseModel, extra="ignore"):
@@ -167,9 +167,9 @@ class SignedUrlJsonResponse(BaseModel, extra="ignore"):
 
 
 class SignedUrlsJsonItem(BaseModel, extra="ignore"):
-    error: Optional[str]
+    error: str | None
     path: str
-    signedURL: Optional[str]
+    signedURL: str | None
 
 
 SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
@@ -194,15 +194,15 @@ DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
 
 
 class MetadataConfiguration(BaseModel, extra="ignore"):
-    non_filterable_metadata_keys: Optional[list[str]] = Field(
+    non_filterable_metadata_keys: list[str] | None = Field(
         alias="nonFilterableMetadataKeys"
     )
 
 
 class ListIndexesOptions(BaseModel, extra="ignore"):
-    nextToken: Optional[str] = None
-    maxResults: Optional[int] = None
-    prefix: Optional[str] = None
+    nextToken: str | None = None
+    maxResults: int | None = None
+    prefix: str | None = None
 
 
 class ListIndexesResponseItem(BaseModel, extra="ignore"):
@@ -211,7 +211,7 @@ class ListIndexesResponseItem(BaseModel, extra="ignore"):
 
 class ListVectorIndexesResponse(BaseModel, extra="ignore"):
     indexes: list[ListIndexesResponseItem]
-    nextToken: Optional[str] = None
+    nextToken: str | None = None
 
 
 class VectorIndex(BaseModel, extra="ignore"):
@@ -220,10 +220,10 @@ class VectorIndex(BaseModel, extra="ignore"):
     data_type: str = Field(alias="dataType")
     dimension: int
     distance_metric: DistanceMetric = Field(alias="distanceMetric")
-    metadata: Optional[MetadataConfiguration] = Field(
+    metadata: MetadataConfiguration | None = Field(
         alias="metadataConfiguration", default=None
     )
-    creation_time: Optional[datetime] = Field(alias="creationTime", default=None)
+    creation_time: datetime | None = Field(alias="creationTime", default=None)
 
 
 class GetVectorIndexResponse(BaseModel, extra="ignore"):
@@ -240,14 +240,14 @@ class VectorData(BaseModel, extra="ignore"):
 class VectorObject(BaseModel, extra="ignore"):
     key: str
     data: VectorData
-    metadata: Optional[dict[str, JSON]] = None
+    metadata: dict[str, JSON] | None = None
 
 
 class VectorMatch(BaseModel, extra="ignore"):
     key: str
-    data: Optional[VectorData] = None
-    distance: Optional[float] = None
-    metadata: Optional[dict[str, Any]] = None
+    data: VectorData | None = None
+    distance: float | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class GetVectorsResponse(BaseModel, extra="ignore"):
@@ -256,7 +256,7 @@ class GetVectorsResponse(BaseModel, extra="ignore"):
 
 class ListVectorsResponse(BaseModel, extra="ignore"):
     vectors: list[VectorMatch]
-    nextToken: Optional[str] = None
+    nextToken: str | None = None
 
 
 class QueryVectorsResponse(BaseModel, extra="ignore"):
@@ -265,8 +265,8 @@ class QueryVectorsResponse(BaseModel, extra="ignore"):
 
 class AnalyticsBucket(BaseModel, extra="ignore"):
     name: str
-    type: Optional[Literal["ANALYTICS"]] = None
-    format: Optional[str] = None
+    type: Literal["ANALYTICS"] | None = None
+    format: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -282,14 +282,14 @@ class AnalyticsBucketDeleteResponse(BaseModel, extra="ignore"):
 
 
 class VectorBucketEncryptionConfiguration(BaseModel, extra="ignore"):
-    kmsKeyArn: Optional[str] = None
-    sseType: Optional[str] = None
+    kmsKeyArn: str | None = None
+    sseType: str | None = None
 
 
 class VectorBucket(BaseModel, extra="ignore"):
     vectorBucketName: str
-    creationTime: Optional[datetime] = None
-    encryptionConfiguration: Optional[VectorBucketEncryptionConfiguration] = None
+    creationTime: datetime | None = None
+    encryptionConfiguration: VectorBucketEncryptionConfiguration | None = None
 
 
 class GetVectorBucketResponse(BaseModel, extra="ignore"):
@@ -302,4 +302,4 @@ class ListVectorBucketsItem(BaseModel, extra="ignore"):
 
 class ListVectorBucketsResponse(BaseModel, extra="ignore"):
     vectorBuckets: list[ListVectorBucketsItem]
-    nextToken: Optional[str] = None
+    nextToken: str | None = None

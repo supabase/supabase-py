@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Union, overload
+from typing import Literal, overload
 
 from ._async.functions_client import AsyncFunctionsClient
 from ._sync.functions_client import SyncFunctionsClient
@@ -40,7 +40,7 @@ def create_client(
     *,
     is_async: bool,
     verify: bool = True,
-) -> Union[AsyncFunctionsClient, SyncFunctionsClient]:
+) -> AsyncFunctionsClient | SyncFunctionsClient:
     if is_async:
         return AsyncFunctionsClient(url, headers, verify=verify)
     else:

@@ -1,5 +1,3 @@
-from typing import Optional
-
 from httpx import AsyncClient, Headers, HTTPStatusError, QueryParams, Response
 from pydantic import ValidationError
 from yarl import URL
@@ -19,7 +17,7 @@ class AsyncRequestBuilder:
         http_method: RequestMethod,
         path: list[str],
         body: JSON = None,
-        query_params: Optional[QueryParams] = None,
+        query_params: QueryParams | None = None,
     ) -> Response:
         response = await self._session.request(
             method=http_method,
