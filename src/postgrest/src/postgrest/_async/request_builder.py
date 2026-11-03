@@ -239,6 +239,7 @@ class AsyncSelectRequestBuilder(
 
     def csv(self) -> AsyncSingleRequestBuilder:
         """Specify that the query must retrieve data as a single CSV string."""
+        self.request._reject_strip_nulls("csv")
         self.request.headers["Accept"] = "text/csv"
         return AsyncSingleRequestBuilder(self.request)
 
@@ -274,6 +275,7 @@ class AsyncSelectRequestBuilder(
         wal: bool = False,
         format: Literal["text", "json"] = "text",
     ) -> AsyncExplainRequestBuilder | AsyncSingleRequestBuilder:
+        self.request._reject_strip_nulls("explain")
         options = [
             key
             for key, value in locals().items()
