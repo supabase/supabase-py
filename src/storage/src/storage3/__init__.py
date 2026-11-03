@@ -8,6 +8,7 @@ from storage3._async.file_api import AsyncBucket
 from storage3._sync import SyncStorageClient
 from storage3._sync.bucket import SyncStorageBucketAPI
 from storage3._sync.file_api import SyncBucket
+from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_TIMEOUT
 from storage3.version import __version__
 
 __all__ = [
