@@ -112,3 +112,19 @@ async def test_remove_all_channels_continues_when_unsubscribe_fails() -> None:
     assert sorted(connection.leaves()) == ["realtime:second", "realtime:third"]
     connection.close.assert_awaited_once()
     assert not socket.is_connected
+
+
+@pytest.mark.asyncio
+async def test_remove_all_channels_forgets_every_channel_when_cancelled() -> None:
+    connection = RecordingConnection()
+    socket = await connected_socket(connection)
+    cancelled = socket.get_channels()[0]
+
+    with (
+        patch.object(cancelled, "unsubscribe", side_effect=asyncio.CancelledError),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        await socket.remove_all_channels()
+
+    assert socket.get_channels() == []
+    connection.close.assert_awaited_once()

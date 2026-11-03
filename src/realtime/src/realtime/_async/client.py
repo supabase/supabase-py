@@ -363,8 +363,9 @@ class AsyncRealtimeClient:
         :return: None
         """
         first_error: Exception | None = None
+        channels = list(self.channels.values())
         try:
-            for channel in list(self.channels.values()):
+            for channel in channels:
                 try:
                     await channel.unsubscribe()
                 except Exception as error:
@@ -373,6 +374,8 @@ class AsyncRealtimeClient:
                 finally:
                     self._remove_channel(channel)
         finally:
+            for channel in channels:
+                self._remove_channel(channel)
             await self.close()
 
         if first_error is not None:
