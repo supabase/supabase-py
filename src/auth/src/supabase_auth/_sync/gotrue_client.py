@@ -735,7 +735,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         expires_at = time_now
         has_expired = True
         session: Session | None = None
-        if access_token and access_token.split(".")[1]:
+        if access_token:
             payload = decode_jwt(access_token)["payload"]
             exp = payload.get("exp")
             if exp:
