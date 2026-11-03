@@ -70,8 +70,16 @@ def recording_transport(handler: Handler, requests: list[Request]) -> MockTransp
     return MockTransport(record)
 
 
+def assert_refresh_requests(requests: list[Request], count: int) -> None:
+    assert len(requests) == count
+    for request in requests:
+        assert request.url.path == "/token"
+        assert request.url.params["grant_type"] == "refresh_token"
+
+
 def client_with_stored_session(
-    http_client: Client,
+    handler: Handler,
+    requests: list[Request],
     auto_refresh_token: bool,
     expires_at: int,
     refresh_token: str = "old-refresh",
@@ -79,7 +87,7 @@ def client_with_stored_session(
     client = SyncGoTrueClient(
         url="http://auth.test",
         auto_refresh_token=auto_refresh_token,
-        http_client=http_client,
+        http_client=Client(transport=recording_transport(handler, requests)),
     )
     client._storage.set_item(
         client._storage_key,
@@ -96,10 +104,10 @@ def stored_access_token(client: SyncGoTrueClient) -> str | None:
 
 def test_initialize_from_storage_keeps_expired_session_without_auto_refresh() -> None:
     requests: list[Request] = []
-    transport = recording_transport(refreshed_session_response, requests)
-    with Client(transport=transport) as http_client:
-        client = client_with_stored_session(http_client, False, int(time.time()) - 60)
-
+    client = client_with_stored_session(
+        refreshed_session_response, requests, False, int(time.time()) - 60
+    )
+    with client:
         client.initialize_from_storage()
 
         assert requests == []
@@ -109,7 +117,7 @@ def test_initialize_from_storage_keeps_expired_session_without_auto_refresh() ->
 
         assert session is not None
         assert session.access_token == "new-access"
-        assert len(requests) == 1
+        assert_refresh_requests(requests, 1)
         assert json.loads(requests[0].content) == {"refresh_token": "old-refresh"}
         assert stored_access_token(client) == "new-access"
 
@@ -118,10 +126,10 @@ def test_initialize_from_storage_keeps_session_within_expiry_margin_without_auto
     None
 ):
     requests: list[Request] = []
-    transport = recording_transport(refreshed_session_response, requests)
-    with Client(transport=transport) as http_client:
-        client = client_with_stored_session(http_client, False, int(time.time()) + 5)
-
+    client = client_with_stored_session(
+        refreshed_session_response, requests, False, int(time.time()) + 5
+    )
+    with client:
         client.initialize_from_storage()
 
         assert requests == []
@@ -131,35 +139,37 @@ def test_initialize_from_storage_keeps_session_within_expiry_margin_without_auto
 
         assert session is not None
         assert session.access_token == "new-access"
-        assert len(requests) == 1
+        assert_refresh_requests(requests, 1)
         assert json.loads(requests[0].content) == {"refresh_token": "old-refresh"}
 
 
 def test_get_session_raises_when_kept_session_refresh_is_rejected() -> None:
     requests: list[Request] = []
-    transport = recording_transport(failed_refresh_response, requests)
-    with Client(transport=transport) as http_client:
-        client = client_with_stored_session(http_client, False, int(time.time()) - 60)
-
+    client = client_with_stored_session(
+        failed_refresh_response, requests, False, int(time.time()) - 60
+    )
+    with client:
         client.initialize_from_storage()
         assert stored_access_token(client) == "old-access"
 
         with pytest.raises(AuthApiError):
             client.get_session()
 
-        assert len(requests) == 1
+        assert_refresh_requests(requests, 1)
 
 
 def test_initialize_from_storage_removes_expired_session_without_refresh_token() -> (
     None
 ):
     requests: list[Request] = []
-    transport = recording_transport(refreshed_session_response, requests)
-    with Client(transport=transport) as http_client:
-        client = client_with_stored_session(
-            http_client, False, int(time.time()) - 60, refresh_token=""
-        )
-
+    client = client_with_stored_session(
+        refreshed_session_response,
+        requests,
+        False,
+        int(time.time()) - 60,
+        refresh_token="",
+    )
+    with client:
         client.initialize_from_storage()
 
         assert requests == []
@@ -168,30 +178,30 @@ def test_initialize_from_storage_removes_expired_session_without_refresh_token()
 
 def test_initialize_from_storage_refreshes_expired_session_with_auto_refresh() -> None:
     requests: list[Request] = []
-    transport = recording_transport(refreshed_session_response, requests)
-    with Client(transport=transport) as http_client:
-        client = client_with_stored_session(http_client, True, int(time.time()) - 60)
-
+    client = client_with_stored_session(
+        refreshed_session_response, requests, True, int(time.time()) - 60
+    )
+    with client:
         client.initialize_from_storage()
 
-        assert len(requests) == 1
+        assert_refresh_requests(requests, 1)
         assert stored_access_token(client) == "new-access"
         session = client.get_session()
         assert session is not None
         assert session.access_token == "new-access"
-        assert len(requests) == 1
+        assert_refresh_requests(requests, 1)
         client._remove_session()
 
 
 def test_initialize_from_storage_removes_session_when_auto_refresh_fails() -> None:
     requests: list[Request] = []
-    transport = recording_transport(failed_refresh_response, requests)
-    with Client(transport=transport) as http_client:
-        client = client_with_stored_session(http_client, True, int(time.time()) - 60)
-
+    client = client_with_stored_session(
+        failed_refresh_response, requests, True, int(time.time()) - 60
+    )
+    with client:
         client.initialize_from_storage()
 
-        assert len(requests) == 1
+        assert_refresh_requests(requests, 1)
         assert client._storage.get_item(client._storage_key) is None
 
 
@@ -203,37 +213,37 @@ def test_initialize_from_storage_keeps_session_and_retries_on_retryable_error() 
             return unavailable_response(request)
         return refreshed_session_response(request)
 
-    transport = recording_transport(unavailable_then_refreshed, requests)
-    with Client(transport=transport) as http_client:
-        client = client_with_stored_session(http_client, True, int(time.time()) - 60)
-
+    client = client_with_stored_session(
+        unavailable_then_refreshed, requests, True, int(time.time()) - 60
+    )
+    with client:
         with patch.object(sys.modules[SyncGoTrueClient.__module__], "Timer") as timer:
             client.initialize_from_storage()
 
-            assert len(requests) == 1
+            assert_refresh_requests(requests, 1)
             assert stored_access_token(client) == "old-access"
             timer.assert_called_once()
             timer.return_value.start.assert_called_once()
 
             timer.call_args.args[1]()
 
-        assert len(requests) == 2
+        assert_refresh_requests(requests, 2)
         assert stored_access_token(client) == "new-access"
         client._remove_session()
 
 
 def test_initialize_from_storage_removes_session_after_retry_limit() -> None:
     requests: list[Request] = []
-    transport = recording_transport(unavailable_response, requests)
-    with Client(transport=transport) as http_client:
-        client = client_with_stored_session(http_client, True, int(time.time()) - 60)
-
+    client = client_with_stored_session(
+        unavailable_response, requests, True, int(time.time()) - 60
+    )
+    with client:
         with patch.object(sys.modules[SyncGoTrueClient.__module__], "Timer") as timer:
             client.initialize_from_storage()
             for _ in range(MAX_RETRIES - 1):
                 assert stored_access_token(client) == "old-access"
                 timer.call_args.args[1]()
 
-        assert len(requests) == MAX_RETRIES
+        assert_refresh_requests(requests, MAX_RETRIES)
         assert timer.call_count == MAX_RETRIES - 1
         assert client._storage.get_item(client._storage_key) is None
