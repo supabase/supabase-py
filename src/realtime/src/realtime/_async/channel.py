@@ -32,7 +32,6 @@ from ..message import (
     ChannelCloseMessage,
     ChannelErrorMessage,
     HeartbeatMessage,
-    Message,
     PostgresChangesMessage,
     PostgresChangesPayload,
     PostgresRowChange,
@@ -376,33 +375,16 @@ class AsyncRealtimeChannel:
 
     async def join(self) -> AsyncRealtimeChannel:
         """
-        Coroutine that attempts to join Phoenix Realtime server via a certain topic.
+        Deprecated: use `subscribe()` instead.
 
-        :return: Channel
+        Joins the channel through `subscribe()`.
+
+        :return: The Channel instance for method chaining
         """
-        config = self.params["config"]
-        broadcast = config.get("broadcast")
-        presence = config.get("presence")
-        private = config.get("private", False)
-
-        config_payload: dict[str, Any] = {
-            "config": {
-                "broadcast": broadcast,
-                "presence": presence,
-                "private": private,
-                "postgres_changes": [
-                    c.binding_filter for c in self.postgres_changes_callbacks
-                ],
-            }
-        }
-        message = Message(
-            topic=self.topic,
-            event=ChannelEvents.join,
-            payload={"config": config_payload},
-            ref=self.socket._make_ref(),
+        logger.warning(
+            "Warning: AsyncRealtimeChannel.join is deprecated and will be removed in a future major version. Use AsyncRealtimeChannel.subscribe instead."
         )
-        await self.socket.send(message)
-        return self
+        return await self.subscribe()
 
     def on_broadcast(
         self, event: str, callback: Callable[[BroadcastPayload], None]
