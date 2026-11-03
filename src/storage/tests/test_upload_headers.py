@@ -16,7 +16,12 @@ UPLOAD_CALLS = {
 }
 
 
-async def _sent_request(use_async: bool, method: str, options: Any) -> Request:
+async def _sent_request(
+    use_async: bool,
+    method: str,
+    options: Any,
+    http_client_headers: dict[str, str] | None = None,
+) -> Request:
     sent: list[Request] = []
 
     def handler(request: Request) -> Response:
@@ -26,11 +31,13 @@ async def _sent_request(use_async: bool, method: str, options: Any) -> Request:
     transport = MockTransport(handler)
     call = UPLOAD_CALLS[method]
     if use_async:
-        async with AsyncClient(transport=transport) as http:
+        async with AsyncClient(
+            transport=transport, headers=http_client_headers
+        ) as http:
             client = AsyncStorageClient(URL, CLIENT_HEADERS, http_client=http)
             await call(client.from_("bucket"), options)
     else:
-        with Client(transport=transport) as sync_http:
+        with Client(transport=transport, headers=http_client_headers) as sync_http:
             sync_client = SyncStorageClient(URL, CLIENT_HEADERS, http_client=sync_http)
             call(sync_client.from_("bucket"), options)
 
@@ -51,6 +58,33 @@ async def test_upload_headers_override_client_headers(
 
     assert request.headers.get_list("authorization") == ["Bearer user-jwt"]
     assert request.headers["apikey"] == "client-key"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
+@pytest.mark.parametrize("method", list(UPLOAD_CALLS))
+async def test_upload_headers_override_non_authorization_client_header(
+    use_async: bool, method: str
+) -> None:
+    options = {"headers": {"apikey": "user-key"}}
+
+    request = await _sent_request(use_async, method, options)
+
+    assert request.headers.get_list("apikey") == ["user-key"]
+    assert request.headers.get_list("authorization") == ["Bearer client-jwt"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
+@pytest.mark.parametrize("method", list(UPLOAD_CALLS))
+async def test_upload_client_headers_override_http_client_headers(
+    use_async: bool, method: str
+) -> None:
+    request = await _sent_request(
+        use_async, method, None, {"Authorization": "Bearer http-client-jwt"}
+    )
+
+    assert request.headers.get_list("authorization") == ["Bearer client-jwt"]
 
 
 @pytest.mark.asyncio

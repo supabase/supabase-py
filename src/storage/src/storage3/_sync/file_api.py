@@ -67,7 +67,6 @@ class SyncBucketActionsMixin:
     ) -> Response:
         try:
             url_path = self._base_url.joinpath(*path).with_query(query_params)
-            # Per-call headers override the client's, whatever their casing.
             request_headers = Headers(self._headers)
             for name, value in (headers or {}).items():
                 request_headers[name] = value
@@ -170,10 +169,7 @@ class SyncBucketActionsMixin:
         if metadata is not None:
             _data["metadata"] = json.dumps(metadata)
 
-        headers = {
-            **self._client.headers,
-            **options,
-        }
+        headers = dict(options)
         if file_opts_headers:
             headers.update(file_opts_headers)
 
@@ -544,10 +540,7 @@ class SyncBucketActionsMixin:
         metadata = options.pop("metadata", None)
         file_opts_headers = options.pop("headers", None)
 
-        headers = {
-            **self._client.headers,
-            **options,
-        }
+        headers = dict(options)
 
         if metadata is not None:
             metadata_str = json.dumps(metadata)
