@@ -1,14 +1,35 @@
-import asyncio
-import json
+from typing import Any
 
 import pytest
-from websockets.asyncio.server import ServerConnection, serve
 
 from realtime import AsyncRealtimeClient
+from realtime.message import PostgresChangesMessage, ServerMessageAdapter
 from realtime.types import PostgresChangesPayload, RealtimePostgresChangesListenEvent
 
 
-@pytest.mark.asyncio
+def postgres_changes_message(
+    event: RealtimePostgresChangesListenEvent, errors: Any
+) -> dict[str, Any]:
+    row_field = "old_record" if event == "DELETE" else "record"
+    return {
+        "event": "postgres_changes",
+        "topic": "realtime:changes",
+        "ref": None,
+        "payload": {
+            "ids": [1],
+            "data": {
+                "schema": "public",
+                "table": "notes",
+                "commit_timestamp": "2026-11-02T00:00:00Z",
+                "type": event,
+                "columns": [{"name": "id", "type": "int4"}],
+                "errors": errors,
+                row_field: {"id": 1},
+            },
+        },
+    }
+
+
 @pytest.mark.parametrize(
     "event",
     [
@@ -17,106 +38,25 @@ from realtime.types import PostgresChangesPayload, RealtimePostgresChangesListen
         RealtimePostgresChangesListenEvent.Delete,
     ],
 )
-async def test_postgres_changes_preserves_errors(
-    event: RealtimePostgresChangesListenEvent,
+@pytest.mark.parametrize(
+    "errors",
+    [["Error 413: Payload Too Large"], [], "legacy-diagnostic", None],
+)
+def test_postgres_changes_preserves_errors(
+    event: RealtimePostgresChangesListenEvent, errors: Any
 ) -> None:
-    processed = asyncio.Event()
     received: list[PostgresChangesPayload] = []
+    channel = AsyncRealtimeClient("ws://localhost/realtime/v1").channel("changes")
+    channel.on_postgres_changes(event, received.append, schema="public", table="notes")
+    channel.postgres_changes_callbacks[0].id = 1
 
-    def on_change(payload: PostgresChangesPayload) -> None:
-        received.append(payload)
-        if payload["data"]["errors"] is None:
-            processed.set()
+    message = ServerMessageAdapter.validate_python(
+        postgres_changes_message(event, errors)
+    )
+    assert isinstance(message, PostgresChangesMessage)
+    channel._handle_message(message)
 
-    async def handler(connection: ServerConnection) -> None:
-        async for raw in connection:
-            message = json.loads(raw)
-            if message["event"] != "phx_join":
-                continue
-
-            await connection.send(
-                json.dumps(
-                    {
-                        "event": "phx_reply",
-                        "topic": message["topic"],
-                        "ref": message["ref"],
-                        "payload": {
-                            "status": "ok",
-                            "response": {
-                                "postgres_changes": [
-                                    {
-                                        "id": 1,
-                                        "event": event,
-                                        "schema": "public",
-                                        "table": "notes",
-                                    }
-                                ]
-                            },
-                        },
-                    }
-                )
-            )
-            for errors in (
-                ["Error 413: Payload Too Large"],
-                [],
-                "legacy-diagnostic",
-                None,
-            ):
-                data: dict[str, object] = {
-                    "schema": "public",
-                    "table": "notes",
-                    "commit_timestamp": "2026-11-02T00:00:00Z",
-                    "type": event,
-                    "columns": [{"name": "id", "type": "int4"}],
-                    "errors": errors,
-                }
-                row_field = "old_record" if event == "DELETE" else "record"
-                data[row_field] = {"id": 1}
-                await connection.send(
-                    json.dumps(
-                        {
-                            "event": "postgres_changes",
-                            "topic": message["topic"],
-                            "ref": None,
-                            "payload": {"ids": [1], "data": data},
-                        }
-                    )
-                )
-
-    async with serve(handler, "127.0.0.1", 0) as server:
-        port = next(iter(server.sockets)).getsockname()[1]
-        client = AsyncRealtimeClient(
-            f"ws://127.0.0.1:{port}/realtime/v1", auto_reconnect=False
-        )
-        channel = client.channel("changes").on_postgres_changes(
-            event, on_change, schema="public", table="notes"
-        )
-        try:
-            await channel.subscribe()
-            await asyncio.wait_for(processed.wait(), 2)
-
-            assert [payload["data"]["errors"] for payload in received] == [
-                ["Error 413: Payload Too Large"],
-                [],
-                "legacy-diagnostic",
-                None,
-            ]
-            row_field = "old_record" if event == "DELETE" else "record"
-            assert [payload["data"].get(row_field) for payload in received] == [
-                {"id": 1}
-            ] * 4
-        finally:
-            tasks = [
-                task
-                for task in (
-                    channel.rejoin_timer.timer,
-                    channel.join_push.timeout_task,
-                    client._listen_task,
-                    client._heartbeat_task,
-                )
-                if task is not None
-            ]
-            channel.rejoin_timer.reset()
-            channel.join_push.destroy()
-            await client.close()
-            await asyncio.gather(*tasks, return_exceptions=True)
+    [payload] = received
+    assert payload["data"]["errors"] == errors
+    row_field = "old_record" if event == "DELETE" else "record"
+    assert payload["data"].get(row_field) == {"id": 1}
