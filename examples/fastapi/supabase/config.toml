@@ -30,7 +30,7 @@ enabled = true
 port = 54343
 api_url = "http://127.0.0.1"
 
-[inbucket]
+[local_smtp]
 enabled = true
 port = 54344
 
