@@ -20,6 +20,8 @@ class FakeServer:
     def __init__(self, socket: AsyncRealtimeClient) -> None:
         self.socket = socket
         self.sent: list[dict[str, Any]] = []
+        self.hold_leave = False
+        self.held: list[Any] = []
 
     async def send(self, raw: str) -> None:
         message = json.loads(raw)
@@ -34,6 +36,9 @@ class FakeServer:
                 "payload": {"status": "ok", "response": {}},
             }
         )
+        if self.hold_leave and message["event"] == "phx_leave":
+            self.held.append(reply)
+            return
         channel = self.socket.channels.get(message["topic"])
         if channel is not None:
             asyncio.get_running_loop().call_soon(channel._handle_message, reply)
@@ -137,4 +142,45 @@ async def test_unsubscribe_during_resubscribe_does_not_rejoin(
 
     assert events(socket) == ["phx_join", "phx_leave", "phx_leave"]
     assert channel.is_closed
+    assert "realtime:room" not in socket.channels
+
+
+@pytest.mark.asyncio
+async def test_unsubscribe_before_resubscribe_starts_does_not_rejoin(
+    socket: AsyncRealtimeClient,
+) -> None:
+    channel = socket.channel("room")
+    await channel.subscribe(lambda state, error: None)
+    await settle(channel)
+
+    channel.on_presence_sync(lambda: None)
+    await channel.unsubscribe()
+    for _ in range(20):
+        await asyncio.sleep(0.01)
+
+    assert events(socket) == ["phx_join", "phx_leave"]
+    assert channel.is_closed
+    assert "realtime:room" not in socket.channels
+
+
+@pytest.mark.asyncio
+async def test_client_close_during_resubscribe_does_not_rejoin(
+    socket: AsyncRealtimeClient,
+) -> None:
+    channel = socket.channel("room")
+    await channel.subscribe(lambda state, error: None)
+    await settle(channel)
+
+    socket.server.hold_leave = True  # type: ignore[attr-defined]
+    channel.on_presence_sync(lambda: None)
+    for _ in range(5):
+        await asyncio.sleep(0.01)
+    await socket.close()
+    for reply in socket.server.held:  # type: ignore[attr-defined]
+        channel._handle_message(reply)
+    for _ in range(20):
+        await asyncio.sleep(0.01)
+
+    assert events(socket) == ["phx_join", "phx_leave"]
+    assert not socket.is_connected
     assert "realtime:room" not in socket.channels

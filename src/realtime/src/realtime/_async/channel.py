@@ -637,7 +637,7 @@ class AsyncRealtimeChannel:
         self._run_in_background(self._resubscribe())
 
     async def _resubscribe(self) -> None:
-        if self._resubscribing:
+        if self._resubscribing or not self.is_joined:
             return
         self._resubscribing = True
         try:
@@ -656,6 +656,7 @@ class AsyncRealtimeChannel:
 
             if (
                 not self._resubscribing
+                or not self.socket.is_connected
                 or self.socket.channels.get(self.topic, self) is not self
             ):
                 return
