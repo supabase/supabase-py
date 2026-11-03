@@ -2,12 +2,8 @@ import json
 from io import BytesIO
 from unittest.mock import patch
 
-import pytest
-from storage3 import AsyncStorageClient
-
-pytest.importorskip("pyiceberg")
-
 from requests import Response
+from storage3 import AsyncStorageClient
 
 
 async def test_catalog_load_table() -> None:
