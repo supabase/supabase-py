@@ -272,35 +272,39 @@ class AsyncRealtimeChannel:
         def on_join_push_ok(payload: ReplyPostgresChanges) -> None:
             server_postgres_changes = payload.postgres_changes
 
+            if server_postgres_changes is None:
+                callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
+                return
+
             new_postgres_bindings = []
 
-            if server_postgres_changes:
-                for i, postgres_callback in enumerate(self.postgres_changes_callbacks):
-                    server_binding: PostgresRowChange | None = (
-                        server_postgres_changes[i]
-                        if i < len(server_postgres_changes)
-                        else None
-                    )
-                    logger.debug(f"{server_binding}, {postgres_callback}")
+            for i, postgres_callback in enumerate(self.postgres_changes_callbacks):
+                server_binding: PostgresRowChange | None = (
+                    server_postgres_changes[i]
+                    if i < len(server_postgres_changes)
+                    else None
+                )
+                logger.debug(f"{server_binding}, {postgres_callback}")
 
-                    if (
-                        server_binding
-                        and server_binding.event == postgres_callback.event
-                        and server_binding.schema_ == postgres_callback.schema
-                        and server_binding.table == postgres_callback.table
-                        and server_binding.filter == postgres_callback.filter
-                    ):
-                        postgres_callback.id = server_binding.id
-                        new_postgres_bindings.append(postgres_callback)
-                    else:
-                        self._run_in_background(self.unsubscribe())
-                        callback and callback(
-                            RealtimeSubscribeStates.CHANNEL_ERROR,
-                            Exception(
-                                "mismatch between server and client bindings for postgres changes"
-                            ),
-                        )
-                        return
+                if (
+                    server_binding
+                    and server_binding.event == postgres_callback.event
+                    and server_binding.schema_ == postgres_callback.schema
+                    and server_binding.table == postgres_callback.table
+                    and server_binding.filter == postgres_callback.filter
+                ):
+                    postgres_callback.id = server_binding.id
+                    new_postgres_bindings.append(postgres_callback)
+                else:
+                    self._run_in_background(self.unsubscribe())
+                    self.state = ChannelStates.ERRORED
+                    callback and callback(
+                        RealtimeSubscribeStates.CHANNEL_ERROR,
+                        Exception(
+                            "mismatch between server and client bindings for postgres changes"
+                        ),
+                    )
+                    return
 
             self.postgres_changes_callbacks = new_postgres_bindings
             callback and callback(RealtimeSubscribeStates.SUBSCRIBED, None)
