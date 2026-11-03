@@ -1114,25 +1114,29 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         expires_at = current_session.expires_at
         if expires_at and expires_at < time_now + EXPIRY_MARGIN:
             refresh_token = current_session.refresh_token
-            if self._auto_refresh_token and refresh_token:
-                self._network_retries += 1
-                try:
-                    await self._call_refresh_token(refresh_token)
-                    self._network_retries = 0
+            if not refresh_token:
+                await self._remove_session()
+                return
+            if not self._auto_refresh_token:
+                return
+            self._network_retries += 1
+            try:
+                await self._call_refresh_token(refresh_token)
+                self._network_retries = 0
+                return
+            except Exception as e:
+                if (
+                    isinstance(e, AuthRetryableError)
+                    and self._network_retries < MAX_RETRIES
+                ):
+                    if self._refresh_token_timer:
+                        self._refresh_token_timer.cancel()
+                    self._refresh_token_timer = Timer(
+                        (200 * (2 ** (self._network_retries - 1))),
+                        self._recover_and_refresh,
+                    )
+                    self._refresh_token_timer.start()
                     return
-                except Exception as e:
-                    if (
-                        isinstance(e, AuthRetryableError)
-                        and self._network_retries < MAX_RETRIES
-                    ):
-                        if self._refresh_token_timer:
-                            self._refresh_token_timer.cancel()
-                        self._refresh_token_timer = Timer(
-                            (200 * (2 ** (self._network_retries - 1))),
-                            self._recover_and_refresh,
-                        )
-                        self._refresh_token_timer.start()
-                        return
             await self._remove_session()
             return
         if self._persist_session:
