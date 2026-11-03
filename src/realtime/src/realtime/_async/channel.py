@@ -56,6 +56,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# The channel rejoin backoff grows as 2**tries. Cap it, at the same ceiling the
+# socket level reconnect backoff uses (see AsyncRealtimeClient.connect), so a
+# channel that keeps failing to rejoin keeps retrying on a bounded interval
+# instead of eventually waiting hours between attempts.
+MAX_REJOIN_BACKOFF_SECONDS = 60
+
 
 class AsyncRealtimeChannel:
     """
@@ -109,7 +115,8 @@ class AsyncRealtimeChannel:
         ) = None
 
         self.rejoin_timer = AsyncTimer(
-            self._rejoin_until_connected, lambda tries: 2**tries
+            self._rejoin_until_connected,
+            lambda tries: min(2**tries, MAX_REJOIN_BACKOFF_SECONDS),
         )
 
         self.broadcast_endpoint_url = self._broadcast_endpoint_url()
