@@ -3,7 +3,7 @@ name: Validate SDK Compliance
 on:
   push:
     branches:
-      - main
+      - v2
   pull_request:
 
 permissions:
