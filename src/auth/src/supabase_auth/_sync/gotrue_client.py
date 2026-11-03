@@ -1109,8 +1109,10 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         time_now = round(time.time())
         expires_at = current_session.expires_at
         if expires_at and expires_at < time_now + EXPIRY_MARGIN:
+            if not self._auto_refresh_token:
+                return
             refresh_token = current_session.refresh_token
-            if self._auto_refresh_token and refresh_token:
+            if refresh_token:
                 self._network_retries += 1
                 try:
                     self._call_refresh_token(refresh_token)

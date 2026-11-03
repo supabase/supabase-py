@@ -8,7 +8,7 @@ from httpx import AsyncClient, MockTransport, Request, Response
 from supabase_auth import AsyncGoTrueClient
 from supabase_auth._async.storage import AsyncMemoryStorage
 from supabase_auth.timer import Timer
-from supabase_auth.types import Session
+from supabase_auth.types import Session, User
 
 
 async def test_auto_refresh_persists_rotated_session_with_async_storage(
@@ -144,3 +144,115 @@ async def test_timer_start_does_not_warn() -> None:
     finally:
         async_timer.cancel()
         sync_timer.cancel()
+
+
+async def test_initialize_from_storage_preserves_expired_session_when_auto_refresh_disabled_async() -> (
+    None
+):
+    user_payload = {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "aud": "authenticated",
+        "app_metadata": {},
+        "user_metadata": {},
+        "created_at": "2024-01-01T00:00:00Z",
+    }
+
+    def handler(request: Request) -> Response:
+        assert request.url.path == "/token"
+        assert request.url.params["grant_type"] == "refresh_token"
+        return Response(
+            200,
+            json={
+                "access_token": "new-access",
+                "refresh_token": "new-refresh",
+                "token_type": "bearer",
+                "expires_in": 3600,
+                "expires_at": round(time.time()) + 3600,
+                "user": user_payload,
+            },
+        )
+
+    storage = AsyncMemoryStorage()
+    expired_session = Session(
+        access_token="old-access",
+        refresh_token="old-refresh",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) - 60,
+        user=User.model_validate(user_payload),
+    )
+    await storage.set_item("test-session", expired_session.model_dump_json())
+
+    async with AsyncGoTrueClient(
+        url="http://auth.test",
+        auto_refresh_token=False,
+        storage=storage,
+        storage_key="test-session",
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    ) as client:
+        await client.initialize_from_storage()
+        stored = await storage.get_item("test-session")
+        assert stored is not None
+
+        session = await client.get_session()
+        assert session is not None
+        assert session.access_token == "new-access"
+        assert session.refresh_token == "new-refresh"
+
+
+def test_initialize_from_storage_preserves_expired_session_when_auto_refresh_disabled_sync() -> (
+    None
+):
+    from httpx import Client
+    from supabase_auth import SyncGoTrueClient
+    from supabase_auth._sync.storage import SyncMemoryStorage
+
+    user_payload = {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "aud": "authenticated",
+        "app_metadata": {},
+        "user_metadata": {},
+        "created_at": "2024-01-01T00:00:00Z",
+    }
+
+    def handler(request: Request) -> Response:
+        assert request.url.path == "/token"
+        assert request.url.params["grant_type"] == "refresh_token"
+        return Response(
+            200,
+            json={
+                "access_token": "new-access",
+                "refresh_token": "new-refresh",
+                "token_type": "bearer",
+                "expires_in": 3600,
+                "expires_at": round(time.time()) + 3600,
+                "user": user_payload,
+            },
+        )
+
+    storage = SyncMemoryStorage()
+    expired_session = Session(
+        access_token="old-access",
+        refresh_token="old-refresh",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) - 60,
+        user=User.model_validate(user_payload),
+    )
+    storage.set_item("test-session", expired_session.model_dump_json())
+
+    with SyncGoTrueClient(
+        url="http://auth.test",
+        auto_refresh_token=False,
+        storage=storage,
+        storage_key="test-session",
+        http_client=Client(transport=MockTransport(handler)),
+    ) as client:
+        client.initialize_from_storage()
+        stored = storage.get_item("test-session")
+        assert stored is not None
+
+        session = client.get_session()
+        assert session is not None
+        assert session.access_token == "new-access"
+        assert session.refresh_token == "new-refresh"
