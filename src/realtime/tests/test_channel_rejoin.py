@@ -151,3 +151,24 @@ async def test_reconnect_rejoins_joined_channels_without_delay() -> None:
     rejoin.assert_awaited_once()
     assert channel.rejoin_timer.timer is None
     await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_reconnect_rejoins_channel_that_a_stale_reply_marked_joined() -> None:
+    socket = await connected_socket()
+    channel = await joining_channel(socket)
+    channel.state = ChannelStates.JOINED
+
+    async def stale_join_reply(*args: object, **kwargs: object) -> AsyncMock:
+        channel.state = ChannelStates.JOINED
+        return AsyncMock()
+
+    with (
+        patch("realtime._async.client.connect", new=stale_join_reply),
+        patch.object(channel, "_rejoin", new=AsyncMock()) as rejoin,
+    ):
+        await socket._reconnect()
+
+    rejoin.assert_awaited_once()
+    assert socket._channels_to_rejoin == []
+    await socket.close()

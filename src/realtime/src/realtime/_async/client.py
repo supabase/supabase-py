@@ -84,6 +84,7 @@ class AsyncRealtimeClient:
         self.timeout = timeout
         self._listen_task: asyncio.Task | None = None
         self._heartbeat_task: asyncio.Task | None = None
+        self._channels_to_rejoin: list[AsyncRealtimeChannel] = []
 
     @property
     def is_connected(self) -> bool:
@@ -133,6 +134,7 @@ class AsyncRealtimeClient:
         for channel in self.channels.values():
             if channel.is_joined or channel.is_joining:
                 channel.state = ChannelStates.ERRORED
+                self._channels_to_rejoin.append(channel)
 
         await self.connect()
 
@@ -220,13 +222,19 @@ class AsyncRealtimeClient:
         await self._rejoin_errored_channels()
 
     async def _rejoin_errored_channels(self) -> None:
-        errored = []
+        to_rejoin = self._channels_to_rejoin
+        self._channels_to_rejoin = []
         for channel in list(self.channels.values()):
             channel.rejoin_timer.reset()
-            if channel.is_errored:
-                errored.append(channel)
-        if errored:
-            await asyncio.gather(*(channel._rejoin() for channel in errored))
+            if channel.is_errored and channel not in to_rejoin:
+                to_rejoin.append(channel)
+        to_rejoin = [
+            channel
+            for channel in to_rejoin
+            if self.channels.get(channel.topic) is channel and not channel.is_leaving
+        ]
+        if to_rejoin:
+            await asyncio.gather(*(channel._rejoin() for channel in to_rejoin))
 
     async def _on_connect_error(
         self, e: websockets.exceptions.ConnectionClosedError
