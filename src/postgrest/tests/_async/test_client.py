@@ -554,6 +554,34 @@ class TestGeneratedTypedDictBodies:
             "name": "renamed",
         }
 
+    async def test_bulk_insert_with_tuple_sends_columns(
+        self, captured: tuple[AsyncPostgrestClient, list[Request]]
+    ) -> None:
+        client, requests = captured
+        rows: tuple[PublicEventsInsert, ...] = (
+            {"name": "a"},
+            {"name": "b", "id": EVENT_ID},
+        )
+        await client.from_("events").insert(rows).execute()
+
+        assert json.loads(requests[0].content) == [
+            {"name": "a"},
+            {"name": "b", "id": str(EVENT_ID)},
+        ]
+        assert set(requests[0].url.params["columns"].split(",")) == {'"name"', '"id"'}
+
+    async def test_rpc_encodes_generated_types(
+        self, captured: tuple[AsyncPostgrestClient, list[Request]]
+    ) -> None:
+        client, requests = captured
+        params: Any = {"event_id": EVENT_ID, "day": datetime.date(2024, 5, 1)}
+        await client.rpc("events_on", params).execute()
+
+        assert json.loads(requests[0].content) == {
+            "event_id": str(EVENT_ID),
+            "day": "2024-05-01",
+        }
+
     async def test_custom_content_type_is_kept(
         self, captured: tuple[AsyncPostgrestClient, list[Request]]
     ) -> None:

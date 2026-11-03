@@ -27,7 +27,12 @@ from .types import (
     RequestMethod,
     ReturnMethod,
 )
-from .utils import encode_json_body, sanitize_array_param, sanitize_param
+from .utils import (
+    encode_json_body,
+    is_row_list,
+    sanitize_array_param,
+    sanitize_param,
+)
 
 
 class QueryArgs(NamedTuple):
@@ -184,7 +189,7 @@ def pre_insert(
     headers = Headers({"Prefer": ",".join(prefer_headers)})
     # Adding 'columns' query parameters
     query_params = {}
-    if isinstance(json, list):
+    if is_row_list(json):
         columns = _unique_columns(json)
         if columns:
             query_params = {"columns": columns}
@@ -212,7 +217,7 @@ def pre_upsert(
     if on_conflict:
         query_params["on_conflict"] = on_conflict
     # Adding 'columns' query parameters
-    if isinstance(json, list):
+    if is_row_list(json):
         columns = _unique_columns(json)
         if columns:
             query_params["columns"] = columns

@@ -1,12 +1,19 @@
 import json
+from collections import UserDict, deque
 from datetime import UTC, date, datetime, time, timedelta, timezone
 from decimal import Decimal
+from types import MappingProxyType
 from uuid import UUID
 
 import pytest
 from deprecation import fail_if_not_removed
 
-from postgrest.utils import SyncClient, encode_json_body, sanitize_param
+from postgrest.utils import (
+    SyncClient,
+    encode_json_body,
+    is_row_list,
+    sanitize_param,
+)
 
 
 @fail_if_not_removed
@@ -74,3 +81,25 @@ def test_encode_json_body_rejects_unsupported_types(value: object) -> None:
 def test_encode_json_body_rejects_nan() -> None:
     with pytest.raises(ValueError, match="Out of range float values"):
         encode_json_body({"value": float("nan")})
+
+
+def test_encode_json_body_other_mappings_and_sequences() -> None:
+    body = deque([MappingProxyType({"a": (1, 2)}), UserDict({"b": deque([3])})])
+
+    assert json.loads(encode_json_body(body)) == [{"a": [1, 2]}, {"b": [3]}]
+
+
+@pytest.mark.parametrize(
+    "body, expected",
+    [
+        ([{"a": 1}], True),
+        (({"a": 1},), True),
+        (deque([{"a": 1}]), True),
+        ({"a": 1}, False),
+        ("abc", False),
+        (b"abc", False),
+        (None, False),
+    ],
+)
+def test_is_row_list(body: object, expected: bool) -> None:
+    assert is_row_list(body) is expected

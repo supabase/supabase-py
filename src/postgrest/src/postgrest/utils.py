@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, time
-from typing import Any
+from typing import Any, TypeGuard
 from uuid import UUID
 
 from deprecation import deprecated
@@ -86,7 +86,11 @@ def rpc_query_param(value: Any) -> Any:
     return value
 
 
-def _encode_json_value(value: object) -> str:
+def _encode_json_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        return dict(value)
+    if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        return list(value)
     if isinstance(value, (date, time)):
         return value.isoformat()
     if isinstance(value, UUID):
@@ -111,6 +115,10 @@ def encode_json_body(body: object) -> bytes:
         separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
+
+
+def is_row_list(body: object) -> TypeGuard[Sequence[Mapping[str, object]]]:
+    return isinstance(body, Sequence) and not isinstance(body, (str, bytes, bytearray))
 
 
 def is_http_url(url: URL) -> bool:
