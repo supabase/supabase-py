@@ -1,3 +1,4 @@
+import json
 import sys
 import time
 from collections.abc import Callable
@@ -6,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
 from supabase_auth import AsyncGoTrueClient
+from supabase_auth.constants import MAX_RETRIES
 from supabase_auth.errors import AuthApiError
 from supabase_auth.types import Session, User
 
@@ -112,6 +114,7 @@ async def test_initialize_from_storage_keeps_expired_session_without_auto_refres
         assert session is not None
         assert session.access_token == "new-access"
         assert len(requests) == 1
+        assert json.loads(requests[0].content) == {"refresh_token": "old-refresh"}
         assert await stored_access_token(client) == "new-access"
 
 
@@ -135,6 +138,7 @@ async def test_initialize_from_storage_keeps_session_within_expiry_margin_withou
         assert session is not None
         assert session.access_token == "new-access"
         assert len(requests) == 1
+        assert json.loads(requests[0].content) == {"refresh_token": "old-refresh"}
 
 
 async def test_get_session_raises_when_kept_session_refresh_is_rejected() -> None:
@@ -236,3 +240,22 @@ async def test_initialize_from_storage_keeps_session_and_retries_on_retryable_er
         assert len(requests) == 2
         assert await stored_access_token(client) == "new-access"
         await client._remove_session()
+
+
+async def test_initialize_from_storage_removes_session_after_retry_limit() -> None:
+    requests: list[Request] = []
+    transport = recording_transport(unavailable_response, requests)
+    async with AsyncClient(transport=transport) as http_client:
+        client = await client_with_stored_session(
+            http_client, True, int(time.time()) - 60
+        )
+
+        with patch.object(sys.modules[AsyncGoTrueClient.__module__], "Timer") as timer:
+            await client.initialize_from_storage()
+            for _ in range(MAX_RETRIES - 1):
+                assert await stored_access_token(client) == "old-access"
+                await timer.call_args.args[1]()
+
+        assert len(requests) == MAX_RETRIES
+        assert timer.call_count == MAX_RETRIES - 1
+        assert await client._storage.get_item(client._storage_key) is None

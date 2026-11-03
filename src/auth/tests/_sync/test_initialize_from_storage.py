@@ -1,3 +1,4 @@
+import json
 import sys
 import time
 from collections.abc import Callable
@@ -6,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from httpx import Client, MockTransport, Request, Response
 from supabase_auth import SyncGoTrueClient
+from supabase_auth.constants import MAX_RETRIES
 from supabase_auth.errors import AuthApiError
 from supabase_auth.types import Session, User
 
@@ -108,6 +110,7 @@ def test_initialize_from_storage_keeps_expired_session_without_auto_refresh() ->
         assert session is not None
         assert session.access_token == "new-access"
         assert len(requests) == 1
+        assert json.loads(requests[0].content) == {"refresh_token": "old-refresh"}
         assert stored_access_token(client) == "new-access"
 
 
@@ -129,6 +132,7 @@ def test_initialize_from_storage_keeps_session_within_expiry_margin_without_auto
         assert session is not None
         assert session.access_token == "new-access"
         assert len(requests) == 1
+        assert json.loads(requests[0].content) == {"refresh_token": "old-refresh"}
 
 
 def test_get_session_raises_when_kept_session_refresh_is_rejected() -> None:
@@ -216,3 +220,20 @@ def test_initialize_from_storage_keeps_session_and_retries_on_retryable_error() 
         assert len(requests) == 2
         assert stored_access_token(client) == "new-access"
         client._remove_session()
+
+
+def test_initialize_from_storage_removes_session_after_retry_limit() -> None:
+    requests: list[Request] = []
+    transport = recording_transport(unavailable_response, requests)
+    with Client(transport=transport) as http_client:
+        client = client_with_stored_session(http_client, True, int(time.time()) - 60)
+
+        with patch.object(sys.modules[SyncGoTrueClient.__module__], "Timer") as timer:
+            client.initialize_from_storage()
+            for _ in range(MAX_RETRIES - 1):
+                assert stored_access_token(client) == "old-access"
+                timer.call_args.args[1]()
+
+        assert len(requests) == MAX_RETRIES
+        assert timer.call_count == MAX_RETRIES - 1
+        assert client._storage.get_item(client._storage_key) is None
