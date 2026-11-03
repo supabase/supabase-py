@@ -109,7 +109,7 @@ def test_head_query_error() -> None:
             .execute()
         )
 
-    assert exc_info.value.code == 400
+    assert exc_info.value.code == "400"
     assert exc_info.value.message == "Bad Request"
 
 

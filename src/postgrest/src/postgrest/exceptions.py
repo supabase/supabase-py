@@ -109,7 +109,7 @@ def generate_default_error_message(r: Response) -> dict[str, Any]:
         # in the Proxy-Status header instead.
         return {
             "message": r.reason_phrase or f"Request failed with status {r.status_code}",
-            "code": _proxy_status_error_code(r) or r.status_code,
+            "code": _proxy_status_error_code(r) or str(r.status_code),
             "hint": None,
             "details": None,
         }

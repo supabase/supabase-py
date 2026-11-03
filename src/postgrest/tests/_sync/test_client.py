@@ -1,7 +1,7 @@
 import json
 import re
 from collections.abc import Iterator
-from typing import Any, Union
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -237,16 +237,16 @@ def test_response_client_invalid_response_but_valid_json(
             [("Proxy-Status", 'PostgREST; details="a; b, error=x"; error=PGRST116')],
             "PGRST116",
         ),
-        ([("Proxy-Status", "cdn; error=connection_timeout")], 400),
-        ([("Proxy-Status", "PostgREST; error=")], 400),
-        ([("Proxy-Status", "PostgREST")], 400),
-        ([], 400),
+        ([("Proxy-Status", "cdn; error=connection_timeout")], "400"),
+        ([("Proxy-Status", "PostgREST; error=")], "400"),
+        ([("Proxy-Status", "PostgREST")], "400"),
+        ([], "400"),
     ],
 )
 def test_response_client_empty_error_body(
     postgrest_client: SyncPostgrestClient,
     headers: list[tuple[str, str]],
-    code: Union[str, int],
+    code: str,
 ) -> None:
     with patch(
         "httpx._client.Client.request",
