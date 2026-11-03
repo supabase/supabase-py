@@ -4,7 +4,15 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, Client, Headers, Request, Response, Timeout
+from httpx import (
+    AsyncClient,
+    Client,
+    Headers,
+    HTTPStatusError,
+    Request,
+    Response,
+    Timeout,
+)
 from storage3 import AsyncStorageClient, SyncStorageClient
 from storage3._async.file_api import AsyncBucketProxy
 from storage3._sync.file_api import SyncBucketProxy
@@ -624,6 +632,7 @@ async def test_async_vector_errors_keep_their_mapping(
     assert exc_info.value.message == message
     assert exc_info.value.code == code
     assert exc_info.value.status == error_status
+    assert isinstance(exc_info.value.__cause__, HTTPStatusError)
 
 
 @pytest.mark.parametrize("status, body, message, code, error_status", _VECTOR_ERRORS)
@@ -646,6 +655,7 @@ def test_sync_vector_errors_keep_their_mapping(
     assert exc_info.value.message == message
     assert exc_info.value.code == code
     assert exc_info.value.status == error_status
+    assert isinstance(exc_info.value.__cause__, HTTPStatusError)
 
 
 def _list_indexes_transport(captured: dict[str, Any]) -> Any:
