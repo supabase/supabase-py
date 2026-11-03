@@ -1,11 +1,8 @@
+import dataclasses
 import platform
 from dataclasses import dataclass, field
+from typing import Any, Dict, TypeVar
 
-from httpx import AsyncClient as AsyncHttpxClient
-from httpx import Client as SyncHttpxClient
-from httpx import Timeout
-from postgrest.constants import DEFAULT_POSTGREST_CLIENT_TIMEOUT
-from storage3.constants import DEFAULT_TIMEOUT as DEFAULT_STORAGE_CLIENT_TIMEOUT
 from supabase_auth import (
     AsyncMemoryStorage,
     AsyncSupportedStorage,
@@ -13,7 +10,6 @@ from supabase_auth import (
     SyncMemoryStorage,
     SyncSupportedStorage,
 )
-from supabase_functions.utils import DEFAULT_FUNCTION_CLIENT_TIMEOUT
 
 from supabase.types import RealtimeClientOptions
 
@@ -30,6 +26,9 @@ DEFAULT_HEADERS = {
 }
 
 
+_ClientOptions = TypeVar("_ClientOptions", bound="ClientOptions")
+
+
 @dataclass
 class ClientOptions:
     schema: str = "public"
@@ -38,7 +37,7 @@ class ClientOptions:
     Must be on the list of exposed schemas in Supabase. Defaults to 'public'.
     """
 
-    headers: dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
+    headers: Dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
     """Optional headers for initializing the client."""
 
     auto_refresh_token: bool = True
@@ -50,20 +49,13 @@ class ClientOptions:
     realtime: RealtimeClientOptions | None = None
     """Options passed to the realtime-py instance"""
 
-    postgrest_client_timeout: int | float | Timeout = DEFAULT_POSTGREST_CLIENT_TIMEOUT
-    """Timeout passed to the SyncPostgrestClient instance."""
-
-    postgrest_client_retry: bool = True
-    """Automatically retry transient PostgREST errors. Passed to the SyncPostgrestClient instance."""
-
-    storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT
-    """Timeout passed to the SyncStorageClient instance"""
-
-    function_client_timeout: int = DEFAULT_FUNCTION_CLIENT_TIMEOUT
-    """Timeout passed to the SyncFunctionsClient instance."""
-
     flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""
+
+    def _replace(self: _ClientOptions, **changes: Any) -> _ClientOptions:
+        return dataclasses.replace(
+            self, **{key: value for key, value in changes.items() if value is not None}
+        )
 
 
 @dataclass
@@ -71,119 +63,52 @@ class AsyncClientOptions(ClientOptions):
     storage: AsyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
 
-    httpx_client: AsyncHttpxClient | None = None
-    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
-
     def replace(
         self,
+        *,
         schema: str | None = None,
-        headers: dict[str, str] | None = None,
+        headers: Dict[str, str] | None = None,
         auto_refresh_token: bool | None = None,
         persist_session: bool | None = None,
         storage: AsyncSupportedStorage | None = None,
         realtime: RealtimeClientOptions | None = None,
-        httpx_client: AsyncHttpxClient | None = None,
-        postgrest_client_timeout: int | float | Timeout | None = None,
-        postgrest_client_retry: bool | None = None,
-        storage_client_timeout: int | None = None,
         flow_type: AuthFlowType | None = None,
-        function_client_timeout: int | None = None,
     ) -> "AsyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
-        client_options = AsyncClientOptions()
-        client_options.schema = schema or self.schema
-        client_options.headers = headers or self.headers
-        client_options.auto_refresh_token = (
-            auto_refresh_token
-            if auto_refresh_token is not None
-            else self.auto_refresh_token
+        return self._replace(
+            schema=schema,
+            headers=headers,
+            auto_refresh_token=auto_refresh_token,
+            persist_session=persist_session,
+            storage=storage,
+            realtime=realtime,
+            flow_type=flow_type,
         )
-        client_options.persist_session = (
-            persist_session if persist_session is not None else self.persist_session
-        )
-        client_options.storage = storage or self.storage
-        client_options.realtime = realtime or self.realtime
-        client_options.httpx_client = httpx_client or self.httpx_client
-        client_options.postgrest_client_timeout = (
-            postgrest_client_timeout
-            if postgrest_client_timeout is not None
-            else self.postgrest_client_timeout
-        )
-        client_options.postgrest_client_retry = (
-            postgrest_client_retry
-            if postgrest_client_retry is not None
-            else self.postgrest_client_retry
-        )
-        client_options.storage_client_timeout = (
-            storage_client_timeout
-            if storage_client_timeout is not None
-            else self.storage_client_timeout
-        )
-        client_options.flow_type = flow_type or self.flow_type
-        client_options.function_client_timeout = (
-            function_client_timeout
-            if function_client_timeout is not None
-            else self.function_client_timeout
-        )
-        return client_options
 
 
 @dataclass
 class SyncClientOptions(ClientOptions):
     storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
-    httpx_client: SyncHttpxClient | None = None
-    """httpx client instance to be used by the PostgREST, functions, auth and storage clients."""
 
     def replace(
         self,
+        *,
         schema: str | None = None,
-        headers: dict[str, str] | None = None,
+        headers: Dict[str, str] | None = None,
         auto_refresh_token: bool | None = None,
         persist_session: bool | None = None,
         storage: SyncSupportedStorage | None = None,
         realtime: RealtimeClientOptions | None = None,
-        httpx_client: SyncHttpxClient | None = None,
-        postgrest_client_timeout: int | float | Timeout | None = None,
-        postgrest_client_retry: bool | None = None,
-        storage_client_timeout: int | None = None,
         flow_type: AuthFlowType | None = None,
-        function_client_timeout: int | None = None,
     ) -> "SyncClientOptions":
         """Create a new SupabaseClientOptions with changes"""
-        client_options = SyncClientOptions()
-        client_options.schema = schema or self.schema
-        client_options.headers = headers or self.headers
-        client_options.auto_refresh_token = (
-            auto_refresh_token
-            if auto_refresh_token is not None
-            else self.auto_refresh_token
+        return self._replace(
+            schema=schema,
+            headers=headers,
+            auto_refresh_token=auto_refresh_token,
+            persist_session=persist_session,
+            storage=storage,
+            realtime=realtime,
+            flow_type=flow_type,
         )
-        client_options.persist_session = (
-            persist_session if persist_session is not None else self.persist_session
-        )
-        client_options.storage = storage or self.storage
-        client_options.realtime = realtime or self.realtime
-        client_options.httpx_client = httpx_client or self.httpx_client
-        client_options.postgrest_client_timeout = (
-            postgrest_client_timeout
-            if postgrest_client_timeout is not None
-            else self.postgrest_client_timeout
-        )
-        client_options.postgrest_client_retry = (
-            postgrest_client_retry
-            if postgrest_client_retry is not None
-            else self.postgrest_client_retry
-        )
-        client_options.storage_client_timeout = (
-            storage_client_timeout
-            if storage_client_timeout is not None
-            else self.storage_client_timeout
-        )
-        client_options.flow_type = flow_type or self.flow_type
-        client_options.function_client_timeout = (
-            function_client_timeout
-            if function_client_timeout is not None
-            else self.function_client_timeout
-        )
-        return client_options

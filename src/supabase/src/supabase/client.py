@@ -1,12 +1,60 @@
-import supabase as _package
-
-from . import *
-from ._async.auth_client import AsyncSupabaseAuthClient as AsyncSupabaseAuthClient
-from ._async.client import AsyncStorageClient as _AsyncStorageClient
-
-AsyncSupabaseStorageClient = _AsyncStorageClient
-
-__all__ = _package.__all__ + (
-    "AsyncSupabaseAuthClient",
-    "AsyncSupabaseStorageClient",
+from postgrest import APIError as PostgrestAPIError
+from postgrest import APIResponse as PostgrestAPIResponse
+from realtime import AuthorizationError, NotConnectedError
+from storage3.exceptions import StorageException
+from supabase_auth.errors import (
+    AuthApiError,
+    AuthError,
+    AuthImplicitGrantRedirectError,
+    AuthInvalidCredentialsError,
+    AuthRetryableError,
+    AuthSessionMissingError,
+    AuthUnknownError,
+    AuthWeakPasswordError,
 )
+from supabase_functions.errors import (
+    FunctionsError,
+    FunctionsHttpError,
+    FunctionsRelayError,
+)
+
+# Async Client
+from ._async.client import AsyncClient
+from ._async.client import AsyncStorageClient as AsyncSupabaseStorageClient
+
+# Sync Client
+from ._sync.client import SyncStorageClient as SupabaseStorageClient
+
+# Lib
+from .lib.client_options import AsyncClientOptions
+from .lib.client_options import AsyncClientOptions as AClientOptions
+from .lib.client_options import SyncClientOptions as ClientOptions
+
+# Version
+from .version import __version__
+
+__all__ = [
+    "AClientOptions",
+    "AsyncClient",
+    "AsyncClientOptions",
+    "AsyncSupabaseStorageClient",
+    "ClientOptions",
+    "SupabaseStorageClient",
+    "PostgrestAPIError",
+    "PostgrestAPIResponse",
+    "StorageException",
+    "__version__",
+    "AuthApiError",
+    "AuthError",
+    "AuthImplicitGrantRedirectError",
+    "AuthInvalidCredentialsError",
+    "AuthRetryableError",
+    "AuthSessionMissingError",
+    "AuthWeakPasswordError",
+    "AuthUnknownError",
+    "FunctionsHttpError",
+    "FunctionsRelayError",
+    "FunctionsError",
+    "AuthorizationError",
+    "NotConnectedError",
+]

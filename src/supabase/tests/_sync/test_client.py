@@ -1,306 +1,132 @@
 import os
-from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock
 
-import pytest
-from httpx import Client as SyncHttpxClient
-from httpx import HTTPTransport, Limits, Timeout
-from supabase_auth import SyncGoTrueClient, SyncMemoryStorage
-from supabase_auth.types import AuthChangeEvent
+from supabase_auth import SyncMemoryStorage
 
 from supabase import (
-    Client,
     ClientOptions,
-    SyncSupabaseException,
-    create_client,
 )
 
-VALID_URL = "https://example.supabase.co"
-VALID_KEY = "valid-key"
+from .conftest import SyncClientCallable
+
+url = os.environ["SUPABASE_TEST_URL"]
+key = os.environ["SUPABASE_TEST_KEY"]
 
 
-@pytest.mark.parametrize(
-    ("url", "key", "message"),
-    [
-        ("", VALID_KEY, "supabase_url is required"),
-        (None, VALID_KEY, "supabase_url is required"),
-        ("not-a-url", VALID_KEY, "Invalid URL"),
-        ("ftp://example.supabase.co", VALID_KEY, "Invalid URL"),
-        ("https://", VALID_KEY, "Invalid URL"),
-        ({}, VALID_KEY, "supabase_url must be a string, got dict"),
-        ([], VALID_KEY, "supabase_url must be a string, got list"),
-        (139, VALID_KEY, "supabase_url must be a string, got int"),
-        (VALID_URL, "", "supabase_key is required"),
-        (VALID_URL, None, "supabase_key is required"),
-        (VALID_URL, {}, "supabase_key must be a string, got dict"),
-        (VALID_URL, [], "supabase_key must be a string, got list"),
-        (VALID_URL, 139, "supabase_key must be a string, got int"),
-        (None, 139, "supabase_url is required"),
-        (139, None, "supabase_url must be a string, got int"),
-    ],
-)
-def test_incorrect_values_dont_instantiate_client(
-    url: Any, key: Any, message: str
+def test_postgrest_client(create_client: SyncClientCallable) -> None:
+    with create_client(url, key) as client:
+        assert client.table("sample")
+        assert client.postgrest.schema("new_schema")
+
+
+def test_rpc_client(create_client: SyncClientCallable) -> None:
+    with create_client(url, key) as client:
+        assert client.rpc("test_fn")
+
+
+def test_function_initialization(create_client: SyncClientCallable) -> None:
+    with create_client(url, key) as client:
+        assert client.functions
+
+
+def test_uses_key_as_authorization_header_by_default(
+    create_client: SyncClientCallable,
 ) -> None:
-    with pytest.raises(SyncSupabaseException) as exc_info:
-        create_client(url, key)
-    assert exc_info.value.message == message
+    with create_client(url, key) as client:
+        assert client.options.headers.get("apiKey") == key
+        assert client.options.headers.get("Authorization") == f"Bearer {key}"
+
+        assert client.postgrest.default_headers.get("apiKey") == key
+        assert client.postgrest.default_headers.get("Authorization") == f"Bearer {key}"
+
+        assert client.auth.default_headers.get("apiKey") == key
+        assert client.auth.default_headers.get("Authorization") == f"Bearer {key}"
+
+        assert client.storage.default_headers.get("apiKey") == key
+        assert client.storage.default_headers.get("Authorization") == f"Bearer {key}"
 
 
-def test_valid_url_and_key_instantiate_client() -> None:
-    client = create_client(VALID_URL, VALID_KEY)
-    assert isinstance(client, Client)
-    assert client.supabase_key == VALID_KEY
-    assert str(client.supabase_url) == f"{VALID_URL}/"
+def test_schema_update(create_client: SyncClientCallable) -> None:
+    with create_client(url, key) as client:
+        assert client.postgrest
+        assert client.schema("new_schema")
 
 
-def test_falls_back_to_the_key_when_reading_the_session_fails() -> None:
-    with patch.object(
-        SyncGoTrueClient, "get_session", side_effect=RuntimeError("storage")
-    ):
-        client = create_client(VALID_URL, VALID_KEY)
-
-    assert client.options.headers.get("Authorization") == f"Bearer {VALID_KEY}"
-
-
-def test_channel_helpers_delegate_to_realtime() -> None:
-    client = create_client(VALID_URL, VALID_KEY)
-    client.realtime = MagicMock()
-
-    channel = client.channel("room")
-    channels = client.get_channels()
-
-    client.realtime.channel.assert_called_once_with("room", {})
-    assert channel is client.realtime.channel.return_value
-    assert channels is client.realtime.get_channels.return_value
-
-
-def test_supabase_exception() -> None:
-    try:
-        raise SyncSupabaseException("err")
-    except SyncSupabaseException:
-        pass
-
-
-def test_postgrest_client() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
-    client = create_client(url, key)
-    assert client.table("sample")
-    assert client.postgrest.schema("new_schema")
-
-
-def test_postgrest_client_retry_option() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
-    client = create_client(url, key)
-    assert client.postgrest.retry_enabled is True
-
-    options = ClientOptions(postgrest_client_retry=False)
-    client = create_client(url, key, options)
-    assert client.postgrest.retry_enabled is False
-    assert client.table("sample").select("*").request.retry_enabled is False
-
-
-def test_rpc_client() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
-    client = create_client(url, key)
-    assert client.rpc("test_fn")
-
-
-def test_function_initialization() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
-    client = create_client(url, key)
-    assert client.functions
-
-
-def test_uses_key_as_authorization_header_by_default() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
-    client = create_client(url, key)
-
-    assert client.options.headers.get("apiKey") == key
-    assert client.options.headers.get("Authorization") == f"Bearer {key}"
-
-    assert client.postgrest.session.headers.get("apiKey") == key
-    assert client.postgrest.session.headers.get("Authorization") == f"Bearer {key}"
-
-    assert client.auth._headers.get("apiKey") == key
-    assert client.auth._headers.get("Authorization") == f"Bearer {key}"
-
-    assert client.storage.session.headers.get("apiKey") == key
-    assert client.storage.session.headers.get("Authorization") == f"Bearer {key}"
-
-
-def test_schema_update() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
-    client = create_client(url, key)
-    assert client.postgrest
-    assert client.schema("new_schema")
-
-
-@pytest.mark.parametrize(
-    "event",
-    [
-        "SIGNED_IN",
-        "TOKEN_REFRESHED",
-        "USER_UPDATED",
-        "MFA_CHALLENGE_VERIFIED",
-        "PASSWORD_RECOVERY",
-    ],
-)
 def test_updates_the_authorization_header_on_auth_events(
-    event: AuthChangeEvent,
+    create_client: SyncClientCallable,
 ) -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
+    with create_client(url, key) as client:
+        assert client.options.headers.get("apiKey") == key
+        assert client.options.headers.get("Authorization") == f"Bearer {key}"
 
-    client = create_client(url, key)
+        mock_session = MagicMock(access_token="secretuserjwt")
 
-    assert client.options.headers.get("apiKey") == key
-    assert client.options.headers.get("Authorization") == f"Bearer {key}"
-    assert client.postgrest
+        client._listen_to_auth_events("SIGNED_IN", mock_session)
 
-    mock_session = MagicMock(access_token="secretuserjwt")
-    realtime_mock = Mock()
-    client.realtime = realtime_mock
+        updated_authorization = f"Bearer {mock_session.access_token}"
 
-    client._listen_to_auth_events(event, mock_session)
+        assert client.options.headers.get("apiKey") == key
+        assert client.options.headers.get("Authorization") == updated_authorization
 
-    updated_authorization = f"Bearer {mock_session.access_token}"
+        assert client.postgrest.default_headers.get("apiKey") == key
+        assert (
+            client.postgrest.default_headers.get("Authorization")
+            == updated_authorization
+        )
 
-    assert client.options.headers.get("apiKey") == key
-    assert client.options.headers.get("Authorization") == updated_authorization
+        assert client.auth.default_headers.get("apiKey") == key
+        assert client.auth.default_headers.get("Authorization") == updated_authorization
 
-    assert client.postgrest.session.headers.get("apiKey") == key
-    assert (
-        client.postgrest.session.headers.get("Authorization") == updated_authorization
-    )
-
-    assert client.auth._headers.get("apiKey") == key
-    assert client.auth._headers.get("Authorization") == updated_authorization
-
-    assert client.storage.session.headers.get("apiKey") == key
-    assert client.storage.session.headers.get("Authorization") == updated_authorization
-
-    assert client.functions.headers.get("Authorization") == updated_authorization
+        assert client.storage.default_headers.get("apiKey") == key
+        assert (
+            client.storage.default_headers.get("Authorization") == updated_authorization
+        )
 
 
-def test_falls_back_to_the_anon_key_on_sign_out() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
-    client = create_client(url, key)
-    client.realtime = Mock()
-
-    client._listen_to_auth_events("SIGNED_IN", MagicMock(access_token="secretuserjwt"))
-    client._listen_to_auth_events("SIGNED_OUT", None)
-
-    anon_authorization = f"Bearer {key}"
-
-    assert client.options.headers.get("Authorization") == anon_authorization
-    assert client.auth._headers.get("Authorization") == anon_authorization
-    assert client.postgrest.session.headers.get("Authorization") == anon_authorization
-    assert client.storage.session.headers.get("Authorization") == anon_authorization
-    assert client.functions.headers.get("Authorization") == anon_authorization
-
-
-def test_supports_setting_a_global_authorization_header() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
+def test_supports_setting_a_global_authorization_header(
+    create_client: SyncClientCallable,
+) -> None:
     authorization = "Bearer secretuserjwt"
 
     options = ClientOptions(headers={"Authorization": authorization})
 
-    client = create_client(url, key, options)
+    with create_client(url, key, options) as client:
+        assert client.options.headers.get("apiKey") == key
+        assert client.options.headers.get("Authorization") == authorization
 
-    assert client.options.headers.get("apiKey") == key
-    assert client.options.headers.get("Authorization") == authorization
+        assert client.postgrest.default_headers.get("apiKey") == key
+        assert client.postgrest.default_headers.get("Authorization") == authorization
 
-    assert client.postgrest.session.headers.get("apiKey") == key
-    assert client.postgrest.session.headers.get("Authorization") == authorization
+        assert client.auth.default_headers.get("apiKey") == key
+        assert client.auth.default_headers.get("Authorization") == authorization
 
-    assert client.auth._headers.get("apiKey") == key
-    assert client.auth._headers.get("Authorization") == authorization
-
-    assert client.storage.session.headers.get("apiKey") == key
-    assert client.storage.session.headers.get("Authorization") == authorization
+        assert client.storage.default_headers.get("apiKey") == key
+        assert client.storage.default_headers.get("Authorization") == authorization
 
 
-def test_mutable_headers_issue() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
+def test_mutable_headers_issue(create_client: SyncClientCallable) -> None:
     shared_options = ClientOptions(
         storage=SyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
     )
 
-    client1 = create_client(url, key, shared_options)
-    client2 = create_client(url, key, shared_options)
+    with (
+        create_client(url, key, shared_options) as client1,
+        create_client(url, key, shared_options) as client2,
+    ):
+        client1.options.headers["Authorization"] = "Bearer modified-token"
+        assert client2.options.headers["Authorization"] == "Bearer initial-token"
+        assert client1.options.headers["Authorization"] == "Bearer modified-token"
 
-    client1.options.headers["Authorization"] = "Bearer modified-token"
 
-    assert client2.options.headers["Authorization"] == "Bearer initial-token"
-    assert client1.options.headers["Authorization"] == "Bearer modified-token"
-
-
-def test_global_authorization_header_issue() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
+def test_global_authorization_header_issue(create_client: SyncClientCallable) -> None:
     authorization = "Bearer secretuserjwt"
     options = ClientOptions(headers={"Authorization": authorization})
 
-    client = create_client(url, key, options)
-
-    assert client.options.headers.get("apiKey") == key
-
-
-def test_httpx_client() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
-    transport = HTTPTransport(
-        retries=10,
-        verify=False,
-        limits=Limits(
-            max_connections=1,
-        ),
-    )
-
-    headers = {"x-user-agent": "my-app/0.0.1"}
-    with SyncHttpxClient(
-        transport=transport, headers=headers, timeout=Timeout(2.0)
-    ) as http_client:
-        # Create a client with the custom httpx client
-        options = ClientOptions(httpx_client=http_client)
-
-        client = create_client(url, key, options)
-
-        assert client.postgrest.session.headers.get("x-user-agent") == "my-app/0.0.1"
-        assert client.auth._http_client.headers.get("x-user-agent") == "my-app/0.0.1"
-        assert client.storage.session.headers.get("x-user-agent") == "my-app/0.0.1"
-        assert client.functions._client.headers.get("x-user-agent") == "my-app/0.0.1"
-        assert client.postgrest.session.timeout == Timeout(2.0)
-        assert client.auth._http_client.timeout == Timeout(2.0)
-        assert client.storage.session.timeout == Timeout(2.0)
-        assert client.functions._client.timeout == Timeout(2.0)
+    with create_client(url, key, options) as client:
+        assert client.options.headers.get("apiKey") == key
 
 
-def test_custom_headers() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
+def test_custom_headers(create_client: SyncClientCallable) -> None:
     options = ClientOptions(
         headers={
             "x-app-name": "apple",
@@ -308,56 +134,12 @@ def test_custom_headers() -> None:
         }
     )
 
-    client = create_client(url, key, options)
-
-    assert client.options.headers.get("x-app-name") == "apple"
-    assert client.options.headers.get("x-version") == "1.0"
-
-
-def test_replace_preserves_and_overrides_function_timeout() -> None:
-    options = ClientOptions(function_client_timeout=30, persist_session=False)
-
-    updated = options.replace(schema="private")
-    assert updated.function_client_timeout == 30
-    assert updated.schema == "private"
-    assert updated.persist_session is False
-
-    overridden = updated.replace(function_client_timeout=45)
-    assert overridden.function_client_timeout == 45
-    assert ClientOptions().replace(schema="private").function_client_timeout == 5
-
-    client = create_client("https://example.supabase.co", "test-key", updated)
-    assert client.functions._client.timeout == Timeout(30)
+    with create_client(url, key, options) as client:
+        assert client.options.headers.get("x-app-name") == "apple"
+        assert client.options.headers.get("x-version") == "1.0"
 
 
-def test_replace_preserves_and_overrides_postgrest_and_storage_timeouts() -> None:
-    options = ClientOptions(postgrest_client_timeout=5, storage_client_timeout=7)
-
-    updated = options.replace(schema="private")
-    assert updated.postgrest_client_timeout == 5
-    assert updated.storage_client_timeout == 7
-    assert updated.schema == "private"
-
-    overridden = updated.replace(postgrest_client_timeout=9, storage_client_timeout=11)
-    assert overridden.postgrest_client_timeout == 9
-    assert overridden.storage_client_timeout == 11
-
-
-def test_replace_preserves_and_overrides_postgrest_retry() -> None:
-    options = ClientOptions(postgrest_client_retry=False)
-
-    updated = options.replace(schema="private")
-    assert updated.postgrest_client_retry is False
-
-    overridden = updated.replace(postgrest_client_retry=True)
-    assert overridden.postgrest_client_retry is True
-    assert ClientOptions().replace(schema="private").postgrest_client_retry
-
-
-def test_custom_headers_immutable() -> None:
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
+def test_custom_headers_immutable(create_client: SyncClientCallable) -> None:
     options = ClientOptions(
         headers={
             "x-app-name": "apple",
@@ -365,54 +147,49 @@ def test_custom_headers_immutable() -> None:
         }
     )
 
-    client1 = create_client(url, key, options)
-    client2 = create_client(url, key, options)
+    with (
+        create_client(url, key, options) as client1,
+        create_client(url, key, options) as client2,
+    ):
+        client1.options.headers["x-app-name"] = "grapes"
 
-    client1.options.headers["x-app-name"] = "grapes"
-
-    assert client1.options.headers.get("x-app-name") == "grapes"
-    assert client1.options.headers.get("x-version") == "1.0"
-    assert client2.options.headers.get("x-app-name") == "apple"
+        assert client1.options.headers.get("x-app-name") == "grapes"
+        assert client1.options.headers.get("x-version") == "1.0"
+        assert client2.options.headers.get("x-app-name") == "apple"
 
 
-def test_httpx_client_base_url_isolation() -> None:
+def test_httpx_client_base_url_isolation(create_client: SyncClientCallable) -> None:
     """Test that shared httpx_client doesn't cause base_url mutation between services.
     This test reproduces the issue where accessing PostgREST after Storage causes
     Storage requests to hit the wrong endpoint (404 errors).
     See: https://github.com/supabase/supabase-py/issues/1244
     """
-    url = os.environ["SUPABASE_TEST_URL"]
-    key = os.environ["SUPABASE_TEST_KEY"]
-
     # Create client with shared httpx instance
-    timeout = Timeout(10.0, read=60.0)
-    httpx_client = SyncHttpxClient(timeout=timeout)
-    options = ClientOptions(httpx_client=httpx_client)
-    client = create_client(url, key, options)
+    options = ClientOptions()
+    with create_client(url, key, options) as client:
+        # Access storage and capture its base_url
+        storage = client.storage
+        storage_base_url = str(storage.base_url).rstrip("/")
+        assert storage_base_url.endswith("/storage/v1"), (
+            f"Expected storage base_url to end with '/storage/v1', got {storage_base_url}"
+        )
 
-    # Access storage and capture its base_url
-    storage = client.storage
-    storage_base_url = str(storage._base_url).rstrip("/")
-    assert storage_base_url.endswith("/storage/v1"), (
-        f"Expected storage base_url to end with '/storage/v1', got {storage_base_url}"
-    )
+        # Access postgrest (this should NOT mutate storage's base_url)
+        postgrest = client.postgrest
+        postgrest_base_url = str(postgrest.base_url).rstrip("/")
+        assert postgrest_base_url.endswith("/rest/v1"), (
+            f"Expected postgrest base_url to end with '/rest/v1', got {postgrest_base_url}"
+        )
 
-    # Access postgrest (this should NOT mutate storage's base_url)
-    postgrest = client.postgrest
-    postgrest_base_url = str(postgrest.base_url).rstrip("/")
-    assert postgrest_base_url.endswith("/rest/v1"), (
-        f"Expected postgrest base_url to end with '/rest/v1', got {postgrest_base_url}"
-    )
+        # Verify storage still has the correct base_url
+        storage_base_url_after = str(storage.base_url).rstrip("/")
+        assert storage_base_url_after.endswith("/storage/v1"), (
+            f"Storage base_url was mutated! Expected '/storage/v1', got {storage_base_url_after}"
+        )
 
-    # Verify storage still has the correct base_url
-    storage_base_url_after = str(storage._base_url).rstrip("/")
-    assert storage_base_url_after.endswith("/storage/v1"), (
-        f"Storage base_url was mutated! Expected '/storage/v1', got {storage_base_url_after}"
-    )
-
-    assert str(storage._base_url).rstrip("/").endswith("/storage/v1"), (
-        "Storage base_url was mutated after accessing functions"
-    )
-    assert str(postgrest.base_url).rstrip("/").endswith("/rest/v1"), (
-        "PostgREST base_url was mutated after accessing functions"
-    )
+        assert str(storage.base_url).rstrip("/").endswith("/storage/v1"), (
+            "Storage base_url was mutated after accessing functions"
+        )
+        assert str(postgrest.base_url).rstrip("/").endswith("/rest/v1"), (
+            "PostgREST base_url was mutated after accessing functions"
+        )

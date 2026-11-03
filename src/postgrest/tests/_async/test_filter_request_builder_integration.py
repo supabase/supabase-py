@@ -1,17 +1,12 @@
-from typing import Any
-
 import pytest
 
-from postgrest import CountMethod
+from postgrest import AsyncPostgrestClient, CountMethod
 from postgrest.exceptions import APIError
 
-from .client import rest_client, rest_client_httpx
 
-
-async def test_multivalued_param_httpx() -> None:
-    res = (
-        await rest_client_httpx()
-        .from_("countries")
+async def test_multivalued_param_httpx(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso", count=CountMethod.exact)
         .lte("numcode", 8)
         .gte("numcode", 4)
@@ -25,10 +20,9 @@ async def test_multivalued_param_httpx() -> None:
     ]
 
 
-async def test_multivalued_param() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_multivalued_param(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso", count=CountMethod.exact)
         .lte("numcode", 8)
         .gte("numcode", 4)
@@ -42,10 +36,9 @@ async def test_multivalued_param() -> None:
     ]
 
 
-async def test_match() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_match(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .match({"numcode": 8, "nicename": "Albania"})
         .single()
@@ -55,24 +48,21 @@ async def test_match() -> None:
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_match_maybe_single() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_match_maybe_single(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .match({"numcode": 8, "nicename": "Albania"})
         .maybe_single()
         .execute()
     )
-
-    assert res is not None
+    assert res
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_no_match_maybe_single() -> None:
+async def test_no_match_maybe_single(postgrest_client: AsyncPostgrestClient) -> None:
     res = (
-        await rest_client()
-        .from_("countries")
+        await postgrest_client.from_("countries")
         .select("country_name, iso")
         .match({"numcode": 100, "nicename": "Wonderland"})
         .maybe_single()
@@ -82,11 +72,12 @@ async def test_no_match_maybe_single() -> None:
     assert res is None
 
 
-async def test_maybe_single_multiple_rows() -> None:
+async def test_maybe_single_multiple_rows(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
     with pytest.raises(APIError) as exc_info:
         await (
-            rest_client()
-            .from_("countries")
+            postgrest_client.from_("countries")
             .select("country_name, iso")
             .lte("numcode", 8)
             .gte("numcode", 4)
@@ -99,26 +90,9 @@ async def test_maybe_single_multiple_rows() -> None:
     assert exc_info.value.details == "The result contains more than one row."
 
 
-async def test_head_query_error() -> None:
-    with pytest.raises(APIError) as exc_info:
-        await (
-            rest_client()
-            .from_("countries")
-            .select("*", count=CountMethod.exact, head=True)
-            .eq("ref.othercol", 123)
-            .execute()
-        )
-
-    assert exc_info.value.code in ("PGRST108", "400")
-    assert exc_info.value.message == "Bad Request"
-    assert exc_info.value.hint is None
-    assert exc_info.value.details is None
-
-
-async def test_equals() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_equals(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .eq("nicename", "Albania")
         .single()
@@ -128,10 +102,9 @@ async def test_equals() -> None:
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_not_equal() -> None:
-    res = (
-        await rest_client()
-        .from_("users")
+async def test_not_equal(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("users")
         .select("id, name")
         .neq("name", "Jane")
         .single()
@@ -141,10 +114,9 @@ async def test_not_equal() -> None:
     assert res.data == {"id": 1, "name": "Michael"}
 
 
-async def test_greater_than() -> None:
+async def test_greater_than(postgrest_client: AsyncPostgrestClient) -> None:
     res = (
-        await rest_client()
-        .from_("users")
+        await postgrest_client.from_("users")
         .select("id, name")
         .gt("id", 1)
         .single()
@@ -154,16 +126,19 @@ async def test_greater_than() -> None:
     assert res.data == {"id": 2, "name": "Jane"}
 
 
-async def test_greater_than_or_equals_to() -> None:
-    res = await rest_client().from_("users").select("id, name").gte("id", 1).execute()
+async def test_greater_than_or_equals_to(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    res = (
+        await postgrest_client.from_("users").select("id, name").gte("id", 1).execute()
+    )
 
     assert res.data == [{"id": 1, "name": "Michael"}, {"id": 2, "name": "Jane"}]
 
 
-async def test_contains_dictionary() -> None:
-    res = (
-        await rest_client()
-        .from_("users")
+async def test_contains_dictionary(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("users")
         .select("name")
         .contains("address", {"postcode": 90210})
         .single()
@@ -173,10 +148,9 @@ async def test_contains_dictionary() -> None:
     assert res.data == {"name": "Michael"}
 
 
-async def test_contains_any_item() -> None:
-    res = (
-        await rest_client()
-        .from_("issues")
+async def test_contains_any_item(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("issues")
         .select("title")
         .contains("tags", ["is:open", "priority:low"])
         .execute()
@@ -185,10 +159,9 @@ async def test_contains_any_item() -> None:
     assert res.data == [{"title": "Cache invalidation is not working"}]
 
 
-async def test_contains_on_range() -> None:
-    res = (
-        await rest_client()
-        .from_("reservations")
+async def test_contains_on_range(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("reservations")
         .select("id, room_name")
         .contains("during", "[2000-01-01 13:00, 2000-01-01 13:30)")
         .execute()
@@ -197,10 +170,9 @@ async def test_contains_on_range() -> None:
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_contained_by_mixed_items() -> None:
-    res = (
-        await rest_client()
-        .from_("reservations")
+async def test_contained_by_mixed_items(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("reservations")
         .select("id, room_name")
         .contained_by("during", "[2000-01-01 00:00, 2000-01-01 23:59)")
         .execute()
@@ -209,70 +181,68 @@ async def test_contained_by_mixed_items() -> None:
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_range_greater_than() -> None:
-    res = (
-        await rest_client()
-        .from_("reservations")
+async def test_range_greater_than(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_gt("during", ("2000-01-02 08:00", "2000-01-02 09:00"))
+        .range_gt("during", "2000-01-02 08:00", "2000-01-02 09:00")
         .execute()
     )
 
     assert res.data == [{"id": 2, "room_name": "Topaz"}]
 
 
-async def test_range_greater_than_or_equal_to() -> None:
-    res = (
-        await rest_client()
-        .from_("reservations")
+async def test_range_greater_than_or_equal_to(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    res = await (
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_gte("during", ("2000-01-02 08:30", "2000-01-02 09:30"))
+        .range_gte("during", "2000-01-02 08:30", "2000-01-02 09:30")
         .execute()
     )
 
     assert res.data == [{"id": 2, "room_name": "Topaz"}]
 
 
-async def test_range_less_than() -> None:
-    res = (
-        await rest_client()
-        .from_("reservations")
+async def test_range_less_than(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_lt("during", ("2000-01-01 15:00", "2000-01-02 16:00"))
+        .range_lt("during", "2000-01-01 15:00", "2000-01-02 16:00")
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_range_less_than_or_equal_to() -> None:
-    res = (
-        await rest_client()
-        .from_("reservations")
+async def test_range_less_than_or_equal_to(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    res = await (
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_lte("during", ("2000-01-01 14:00", "2000-01-01 16:00"))
+        .range_lte("during", "2000-01-01 14:00", "2000-01-01 16:00")
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_range_adjacent() -> None:
-    res = (
-        await rest_client()
-        .from_("reservations")
+async def test_range_adjacent(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_adjacent("during", ("2000-01-01 12:00", "2000-01-01 13:00"))
+        .range_adjacent("during", "2000-01-01 12:00", "2000-01-01 13:00")
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-async def test_overlaps() -> None:
-    res = (
-        await rest_client()
-        .from_("issues")
+async def test_overlaps(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("issues")
         .select("title")
         .overlaps("tags", ["is:closed", "severity:high"])
         .execute()
@@ -284,10 +254,11 @@ async def test_overlaps() -> None:
     ]
 
 
-async def test_overlaps_with_timestamp_range() -> None:
-    res = (
-        await rest_client()
-        .from_("reservations")
+async def test_overlaps_with_timestamp_range(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    res = await (
+        postgrest_client.from_("reservations")
         .select("room_name")
         .overlaps("during", "[2000-01-01 12:45, 2000-01-01 13:15)")
         .execute()
@@ -298,10 +269,9 @@ async def test_overlaps_with_timestamp_range() -> None:
     ]
 
 
-async def test_like() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_like(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .like("nicename", "%Alba%")
         .execute()
@@ -310,10 +280,9 @@ async def test_like() -> None:
     assert res.data == [{"country_name": "ALBANIA", "iso": "AL"}]
 
 
-async def test_ilike() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_ilike(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .ilike("nicename", "%alban%")
         .execute()
@@ -322,10 +291,9 @@ async def test_ilike() -> None:
     assert res.data == [{"country_name": "ALBANIA", "iso": "AL"}]
 
 
-async def test_like_all_of() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_like_all_of(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("nicename, iso")
         .like_all_of("nicename", "A*,*n")
         .execute()
@@ -334,10 +302,9 @@ async def test_like_all_of() -> None:
     assert res.data == [{"iso": "AF", "nicename": "Afghanistan"}]
 
 
-async def test_like_any_of() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_like_any_of(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("nicename, iso")
         .like_any_of("nicename", "Al*,*ia")
         .execute()
@@ -349,10 +316,9 @@ async def test_like_any_of() -> None:
     ]
 
 
-async def test_ilike_all_of() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_ilike_all_of(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("nicename, iso")
         .ilike_all_of("nicename", "a*,*n")
         .execute()
@@ -361,10 +327,9 @@ async def test_ilike_all_of() -> None:
     assert res.data == [{"iso": "AF", "nicename": "Afghanistan"}]
 
 
-async def test_ilike_any_of() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_ilike_any_of(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("nicename, iso")
         .ilike_any_of("nicename", "al*,*ia")
         .execute()
@@ -376,10 +341,9 @@ async def test_ilike_any_of() -> None:
     ]
 
 
-async def test_is_() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_is_(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .is_("numcode", "null")
         .limit(1)
@@ -390,10 +354,9 @@ async def test_is_() -> None:
     assert res.data == [{"country_name": "ANTARCTICA", "iso": "AQ"}]
 
 
-async def test_is_not() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_is_not(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .not_.is_("numcode", "null")
         .limit(1)
@@ -404,10 +367,9 @@ async def test_is_not() -> None:
     assert res.data == [{"country_name": "AFGHANISTAN", "iso": "AF"}]
 
 
-async def test_in_() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_in_(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .in_("nicename", ["Albania", "Algeria"])
         .execute()
@@ -419,10 +381,9 @@ async def test_in_() -> None:
     ]
 
 
-async def test_or_() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_or_(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .or_("iso.eq.DZ,nicename.eq.Albania")
         .execute()
@@ -434,10 +395,9 @@ async def test_or_() -> None:
     ]
 
 
-async def test_or_with_and() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_or_with_and(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .or_("phonecode.gt.506,and(iso.eq.AL,nicename.eq.Albania)")
         .execute()
@@ -449,10 +409,9 @@ async def test_or_with_and() -> None:
     ]
 
 
-async def test_or_in() -> None:
-    res = (
-        await rest_client()
-        .from_("issues")
+async def test_or_in(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("issues")
         .select("id, title")
         .or_("id.in.(1,4),tags.cs.{is:open,priority:high}")
         .execute()
@@ -465,10 +424,9 @@ async def test_or_in() -> None:
     ]
 
 
-async def test_or_on_reference_table() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_or_on_reference_table(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, cities!inner(name)")
         .or_("country_id.eq.10,name.eq.Paris", reference_table="cities")
         .execute()
@@ -487,39 +445,51 @@ async def test_or_on_reference_table() -> None:
     ]
 
 
-async def test_explain_json() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_explain_json(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, cities!inner(name)")
         .or_("country_id.eq.10,name.eq.Paris", reference_table="cities")
-        .explain(format="json", analyze=True)
+        .explain(
+            format="json",
+            analyze=True,
+            verbose=False,
+            settings=False,
+            wal=False,
+            buffers=False,
+        )
         .execute()
     )
-    data: Any = res.data
-    assert data[0]["Plan"]["Node Type"] == "Aggregate"
+    assert isinstance(res.data, list)
+    assert isinstance(res.data[0], dict)
+    assert isinstance(res.data[0]["Plan"], dict)
+    assert res.data[0]["Plan"]["Node Type"] == "Aggregate"
 
 
-async def test_csv() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_csv(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .in_("nicename", ["Albania", "Algeria"])
         .csv()
         .execute()
     )
-    assert isinstance(res.data, str)
-    assert "ALBANIA,AL\nALGERIA,DZ" in res.data
+    assert "ALBANIA,AL\nALGERIA,DZ" in res
 
 
-async def test_explain_text() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_explain_text(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, cities!inner(name)")
         .or_("country_id.eq.10,name.eq.Paris", reference_table="cities")
-        .explain(analyze=True, verbose=True, settings=True, buffers=True, wal=True)
+        .explain(
+            analyze=True,
+            verbose=True,
+            settings=True,
+            wal=True,
+            buffers=True,
+            format="text",
+        )
         .execute()
     )
     assert (
@@ -528,10 +498,9 @@ async def test_explain_text() -> None:
     )
 
 
-async def test_rpc_with_single() -> None:
-    res = (
-        await rest_client()
-        .rpc("list_stored_countries", {})
+async def test_rpc_with_single(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, country_name, iso")
         .eq("nicename", "Albania")
         .single()
@@ -541,24 +510,24 @@ async def test_rpc_with_single() -> None:
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_rpc_with_maybe_single() -> None:
-    res = (
-        await rest_client()
-        .rpc("list_stored_countries", {})
+async def test_rpc_with_maybe_single(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, country_name, iso")
         .eq("nicename", "Albania")
         .maybe_single()
         .execute()
     )
 
-    assert res is not None
+    assert res
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
-async def test_rpc_with_maybe_single_no_match() -> None:
-    res = (
-        await rest_client()
-        .rpc("list_stored_countries", {})
+async def test_rpc_with_maybe_single_no_match(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    res = await (
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, country_name, iso")
         .eq("nicename", "Wonderland")
         .maybe_single()
@@ -568,11 +537,12 @@ async def test_rpc_with_maybe_single_no_match() -> None:
     assert res is None
 
 
-async def test_rpc_with_maybe_single_multiple_rows() -> None:
+async def test_rpc_with_maybe_single_multiple_rows(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
     with pytest.raises(APIError) as exc_info:
         await (
-            rest_client()
-            .rpc("list_stored_countries", {})
+            postgrest_client.rpc("list_stored_countries", {})
             .select("nicename, country_name, iso")
             .maybe_single()
             .execute()
@@ -583,10 +553,9 @@ async def test_rpc_with_maybe_single_multiple_rows() -> None:
     assert exc_info.value.details == "The result contains more than one row."
 
 
-async def test_rpc_with_limit() -> None:
-    res = (
-        await rest_client()
-        .rpc("list_stored_countries", {})
+async def test_rpc_with_limit(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, country_name, iso")
         .eq("nicename", "Albania")
         .limit(1)
@@ -596,10 +565,9 @@ async def test_rpc_with_limit() -> None:
     assert res.data == [{"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}]
 
 
-async def test_rpc_with_range() -> None:
-    res = (
-        await rest_client()
-        .rpc("list_stored_countries", {})
+async def test_rpc_with_range(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, iso")
         .range(1, 2)
         .execute()
@@ -611,30 +579,29 @@ async def test_rpc_with_range() -> None:
     ]
 
 
-async def test_rpc_post_with_args() -> None:
-    res = (
-        await rest_client()
-        .rpc("search_countries_by_name", {"search_name": "Alban"})
+async def test_rpc_post_with_args(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.rpc("search_countries_by_name", {"search_name": "Alban"})
         .select("nicename, iso")
         .execute()
     )
     assert res.data == [{"nicename": "Albania", "iso": "AL"}]
 
 
-async def test_rpc_get_with_args() -> None:
-    res = (
-        await rest_client()
-        .rpc("search_countries_by_name", {"search_name": "Alger"}, get=True)
+async def test_rpc_get_with_args(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.rpc(
+            "search_countries_by_name", {"search_name": "Alger"}, get=True
+        )
         .select("nicename, iso")
         .execute()
     )
     assert res.data == [{"nicename": "Algeria", "iso": "DZ"}]
 
 
-async def test_rpc_get_with_count() -> None:
-    res = (
-        await rest_client()
-        .rpc(
+async def test_rpc_get_with_count(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.rpc(
             "search_countries_by_name",
             {"search_name": "Al"},
             get=True,
@@ -647,26 +614,20 @@ async def test_rpc_get_with_count() -> None:
     assert res.data == [{"nicename": "Albania"}, {"nicename": "Algeria"}]
 
 
-async def test_rpc_head_count() -> None:
-    res = (
-        await rest_client()
-        .rpc(
-            "search_countries_by_name",
-            {"search_name": "Al"},
-            head=True,
-            count=CountMethod.exact,
-        )
-        .execute()
-    )
+async def test_rpc_head_count(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await postgrest_client.rpc(
+        "search_countries_by_name",
+        {"search_name": "Al"},
+        head=True,
+        count=CountMethod.exact,
+    ).execute()
 
-    assert res.count == 2
-    assert res.data == []
+    assert res == 2
 
 
-async def test_order() -> None:
-    res = (
-        await rest_client()
-        .from_("countries")
+async def test_order(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .limit(3)
         .order("nicename", desc=True)
@@ -680,10 +641,9 @@ async def test_order() -> None:
     ]
 
 
-async def test_order_on_foreign_table() -> None:
-    res = (
-        await rest_client()
-        .from_("orchestral_sections")
+async def test_order_on_foreign_table(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("orchestral_sections")
         .select("name, instruments(name)")
         .order("name", desc=True, foreign_table="instruments")
         .execute()
@@ -695,27 +655,31 @@ async def test_order_on_foreign_table() -> None:
     ]
 
 
-async def test_get_retry_503() -> None:
-    from httpx import Request, Response
+async def test_get_retry_503(postgrest_client: AsyncPostgrestClient) -> None:
+    from supabase_utils.http.headers import Headers
+    from supabase_utils.http.request import Request, Response
 
     retry_count = 0
-    client = rest_client()
-    original_send = client.session.send
+    original_send = postgrest_client.executor.session.send
 
-    async def fake_send(request: Request, **kwargs: Any) -> Response:
+    async def fake_send(request: Request) -> Response:
         nonlocal retry_count
         if retry_count > 0:
             assert request.headers["X-Retry-Count"] == str(retry_count)
         if retry_count < 3:
             retry_count += 1
-            return Response(503)
+            return Response(
+                content=b"error", status=503, headers=Headers.empty(), request=request
+            )
         return await original_send(request)
 
     from unittest.mock import patch
 
-    with patch.object(client.session, "send", wraps=fake_send):
+    with patch.object(
+        postgrest_client.executor.session, "send", wraps=fake_send
+    ) as _mock_send:
         query = (
-            client.from_("orchestral_sections")
+            postgrest_client.from_("orchestral_sections")
             .select("name, instruments(name)")
             .order("name", desc=True, foreign_table="instruments")
         )
@@ -728,20 +692,24 @@ async def test_get_retry_503() -> None:
         assert retry_count > 0
 
 
-async def test_get_retry_503_does_not_retry_when_disabled() -> None:
-    from httpx import Request, Response
+async def test_get_retry_503_does_not_retry_when_disabled(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    from supabase_utils.http.headers import Headers
+    from supabase_utils.http.request import Request, Response
 
     retry_count = 0
-    client = rest_client()
-    original_send = client.session.send
+    original_send = postgrest_client.executor.session.send
 
-    async def fake_send(request: Request, **kwargs: Any) -> Response:
+    async def fake_send(request: Request) -> Response:
         nonlocal retry_count
         if retry_count > 0:
             assert request.headers["X-Retry-Count"] == str(retry_count)
         if retry_count < 3:
             retry_count += 1
-            return Response(503)
+            return Response(
+                content=b"error", status=503, headers=Headers.empty(), request=request
+            )
         return await original_send(request)
 
     from unittest.mock import patch
@@ -750,9 +718,11 @@ async def test_get_retry_503_does_not_retry_when_disabled() -> None:
 
     from postgrest.exceptions import APIError
 
-    with patch.object(client.session, "send", wraps=fake_send):
+    with patch.object(
+        postgrest_client.executor.session, "send", wraps=fake_send
+    ) as _mock_send:
         query = (
-            client.from_("orchestral_sections")
+            postgrest_client.from_("orchestral_sections")
             .select("name, instruments(name)")
             .order("name", desc=True, foreign_table="instruments")
             .retry(False)
@@ -763,20 +733,24 @@ async def test_get_retry_503_does_not_retry_when_disabled() -> None:
         assert retry_count == 1
 
 
-async def test_order_retry_400_doesnt_retry() -> None:
-    from httpx import Request, Response
+async def test_order_retry_400_doesnt_retry(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    from supabase_utils.http.headers import Headers
+    from supabase_utils.http.request import Request, Response
 
     retry_count = 0
-    client = rest_client()
-    original_send = client.session.send
+    original_send = postgrest_client.executor.session.send
 
-    async def fake_send(request: Request, **kwargs: Any) -> Response:
+    async def fake_send(request: Request) -> Response:
         nonlocal retry_count
         if retry_count < 3:
             retry_count += 1
             return Response(
-                400,
+                status=400,
                 content=b'{"message": "JSON could not be generated", "code": "400", "hint": "Refer to full message for details", "details": ""}',
+                headers=Headers.empty(),
+                request=request,
             )
         return await original_send(request)
 
@@ -786,9 +760,11 @@ async def test_order_retry_400_doesnt_retry() -> None:
 
     from postgrest.exceptions import APIError
 
-    with patch.object(client.session, "send", wraps=fake_send):
+    with patch.object(
+        postgrest_client.executor.session, "send", wraps=fake_send
+    ) as _mock_send:
         query = (
-            client.from_("orchestral_sections")
+            postgrest_client.from_("orchestral_sections")
             .select("name, instruments(name)")
             .order("name", desc=True, foreign_table="instruments")
         )

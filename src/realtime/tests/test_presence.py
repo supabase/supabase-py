@@ -1,11 +1,20 @@
 import asyncio
 import datetime
 import os
+from typing import AsyncIterator, Dict, List, Tuple
 
 import pytest
 from dotenv import load_dotenv
 
-from realtime import AsyncRealtimeChannel, AsyncRealtimeClient, AsyncRealtimePresence
+from realtime import RealtimeChannel, RealtimeClient
+from realtime.client import connect_once
+from realtime.message import PresenceDiffMessage, ServerMessage
+from realtime.presence import (
+    PresenceJoin,
+    PresenceLeave,
+    RealtimePresence,
+    _transform_state,
+)
 from realtime.types import ChannelStates, Presence, RawPresenceState
 
 load_dotenv()
@@ -17,107 +26,67 @@ PUBLISHABLE_KEY = (
 )
 
 
+async def get_token() -> str:
+    return PUBLISHABLE_KEY
+
+
 @pytest.fixture
-def socket() -> AsyncRealtimeClient:
+async def socket() -> AsyncIterator[RealtimeClient]:
     url = f"{URL}/realtime/v1"
-    return AsyncRealtimeClient(url, PUBLISHABLE_KEY)
+    async with connect_once(url, get_token) as client:
+        yield client
 
 
 @pytest.mark.asyncio
-async def test_presence(socket: AsyncRealtimeClient) -> None:
-    await socket.connect()
-
-    channel: AsyncRealtimeChannel = socket.channel("room")
-
-    join_events: list[tuple[str, list[dict], list[Presence]]] = []
-    leave_events: list[tuple[str, list[dict], list[Presence]]] = []
-
-    sync_event = asyncio.Event()
-
-    def on_sync() -> None:
-        sync_event.set()
-
-    def on_join(
-        key: str, current_presences: list[dict], new_presences: list[Presence]
-    ) -> None:
-        join_events.append((key, current_presences, new_presences))
-
-    def on_leave(
-        key: str, current_presences: list[dict], left_presences: list[Presence]
-    ) -> None:
-        leave_events.append((key, current_presences, left_presences))
-
-    await (
-        channel.on_presence_sync(on_sync)
-        .on_presence_join(on_join)
-        .on_presence_leave(on_leave)
-        .subscribe()
-    )
-
-    # Wait for the first sync event, which should be immediate
-    await asyncio.wait_for(sync_event.wait(), 5)
-    sync_event.clear()
-
-    # Track first user
+async def test_presence(socket: RealtimeClient):
     user1 = {"user_id": "1", "online_at": datetime.datetime.now().isoformat()}
-    await channel.track(user1)
-
-    await asyncio.wait_for(sync_event.wait(), 5)
-    sync_event.clear()
-
-    # Assert first user is in the presence state
-    presences = [(state, value) for state, value in channel.presence.state.items()]
-
-    assert len(presences) == 1
-    assert len(presences[0][1]) == 1
-    assert presences[0][1][0]["user_id"] == user1["user_id"]  # type: ignore[typeddict-item]
-    assert presences[0][1][0]["online_at"] == user1["online_at"]  # type: ignore[typeddict-item]
-    assert "presence_ref" in presences[0][1][0]
-
-    assert len(join_events) == 1
-    assert len(join_events[0][2]) == 1
-    assert join_events[0][2][0]["user_id"] == user1["user_id"]  # type: ignore[typeddict-item]
-    assert join_events[0][2][0]["online_at"] == user1["online_at"]  # type: ignore[typeddict-item]
-    assert "presence_ref" in join_events[0][2][0]
-
-    # Track second user
     user2 = {"user_id": "2", "online_at": datetime.datetime.now().isoformat()}
-    await channel.track(user2)
 
-    await asyncio.wait_for(sync_event.wait(), 5)
-    sync_event.clear()
+    async with socket.channel("room") as chan:
+        res = await chan.track(user1)
+        messages_stream = chan.messages
+        fst_join = await messages_stream.__anext__()
+        if not isinstance(fst_join, PresenceJoin):
+            raise Exception("unexpected message")
 
-    # Assert both users are in the presence state
-    for value in channel.presence.state.values():
-        assert len(value) == 1
-        assert value[0]["user_id"] in ["1", "2"]  # type: ignore[typeddict-item]
-        assert "online_at" in value[0]
-        assert "presence_ref" in value[0]
-    assert len(join_events) == 2
-    assert len(join_events[1][2]) == 1
-    assert join_events[1][2][0]["user_id"] == user2["user_id"]  # type: ignore[typeddict-item]
-    assert join_events[1][2][0]["online_at"] == user2["online_at"]  # type: ignore[typeddict-item]
-    assert "presence_ref" in join_events[1][2][0]
+        presences = list(chan.presence.state.items())
 
-    # Untrack all users
-    await channel.untrack()
+        assert len(presences) == 1
+        assert len(presences[0][1]) == 1
+        assert presences[0][1][0].get("user_id", "") == user1["user_id"]
+        assert presences[0][1][0].get("online_at", "") == user1["online_at"]
+        assert "presence_ref" in presences[0][1][0]
 
-    await asyncio.wait_for(sync_event.wait(), 5)
+        assert fst_join.new_presences[0].get("user_id", "") == user1["user_id"]
+        assert fst_join.new_presences[0].get("online_at", "") == user1["online_at"]
+        assert "presence_ref" in fst_join.new_presences[0]
 
-    # Assert presence state is empty and leave events were triggered
-    assert channel.presence.state == {}
-    assert len(leave_events) == 2
-    assert leave_events[0] != leave_events[1]
+        await chan.track(user2)
+        snd_join = await messages_stream.__anext__()
+        if not isinstance(snd_join, PresenceJoin):
+            raise Exception("unexpected message")
 
-    await socket.close()
+        assert snd_join.new_presences[0].get("user_id", "") == user2["user_id"]
+        assert snd_join.new_presences[0].get("online_at", "") == user2["online_at"]
+        assert "presence_ref" in snd_join.new_presences[0]
+
+        await chan.untrack()
+        fst_leave = await messages_stream.__anext__()
+        if not isinstance(fst_leave, PresenceLeave):
+            raise Exception("unexpected message")
+        snd_leave = await messages_stream.__anext__()
+        if not isinstance(snd_leave, PresenceLeave):
+            raise Exception("unexpected message")
+        assert chan.presence.state == {}
+        assert fst_leave != snd_leave
 
 
 def test_transform_state_raw_presence_state() -> None:
     raw_state: RawPresenceState = {
         "user1": {
             "metas": [
-                {"phx_ref": "ABC123", "user_id": "user1", "status": "online"},  # type: ignore[typeddict-unknown-key]
-                {  # type: ignore[typeddict-unknown-key]
+                {"phx_ref": "ABC123", "user_id": "user1", "status": "online"},  # type: ignore
+                {  # type: ignore
                     "phx_ref": "DEF456",
                     "phx_ref_prev": "ABC123",
                     "user_id": "user1",
@@ -126,7 +95,7 @@ def test_transform_state_raw_presence_state() -> None:
             ]
         },
         "user2": {
-            "metas": [{"phx_ref": "GHI789", "user_id": "user2", "status": "offline"}]  # type: ignore[typeddict-unknown-key]
+            "metas": [{"phx_ref": "GHI789", "user_id": "user2", "status": "offline"}]  # type: ignore
         },
     }
 
@@ -138,13 +107,13 @@ def test_transform_state_raw_presence_state() -> None:
         "user2": [{"presence_ref": "GHI789", "user_id": "user2", "status": "offline"}],
     }
 
-    result = AsyncRealtimePresence._transform_state(raw_state)
+    result = _transform_state(raw_state)
     assert result == expected_output
 
 
 def test_transform_state_empty_input() -> None:
     empty_state: RawPresenceState = {}
-    result = AsyncRealtimePresence._transform_state(empty_state)
+    result = _transform_state(empty_state)
     assert result == {}
 
 
@@ -152,7 +121,7 @@ def test_transform_state_additional_fields() -> None:
     state_with_additional_fields: RawPresenceState = {
         "user1": {
             "metas": [
-                {  # type: ignore[typeddict-unknown-key]
+                {  # type: ignore
                     "phx_ref": "ABC123",
                     "user_id": "user1",
                     "status": "online",
@@ -173,134 +142,82 @@ def test_transform_state_additional_fields() -> None:
         ]
     }
 
-    result = AsyncRealtimePresence._transform_state(state_with_additional_fields)
+    result = _transform_state(state_with_additional_fields)
     assert result == expected_output
-
-
-def test_presence_has_callback_attached() -> None:
-    """Test that _has_callback_attached property correctly detects presence callbacks."""
-    presence = AsyncRealtimePresence()
-
-    # Initially no callbacks should be attached
-    assert not presence._has_callback_attached
-
-    # After setting sync callback
-    presence.on_sync(lambda: None)
-    assert presence._has_callback_attached
-
-    # Reset and test with join callback
-    presence = AsyncRealtimePresence()
-    presence.on_join(lambda key, current, new: None)
-    assert presence._has_callback_attached
-
-    # Reset and test with leave callback
-    presence = AsyncRealtimePresence()
-    presence.on_leave(lambda key, current, left: None)
-    assert presence._has_callback_attached
-
-
-def test_presence_config_includes_enabled_field() -> None:
-    """Test that presence config correctly includes enabled flag."""
-    from realtime.types import RealtimeChannelPresenceConfig
-
-    # Test creating presence config with enabled field
-    config: RealtimeChannelPresenceConfig = {"key": "user123", "enabled": True}
-    assert config["key"] == "user123"
-    assert config["enabled"] is True
-
-    # Test with enabled False
-    config_disabled: RealtimeChannelPresenceConfig = {"key": "", "enabled": False}
-    assert config_disabled["key"] == ""
-    assert config_disabled["enabled"] is False
-
-
-@pytest.mark.asyncio
-async def test_presence_enabled_when_callbacks_attached() -> None:
-    """Test that presence.enabled is set correctly based on callback attachment."""
-    from unittest.mock import AsyncMock, Mock
-
-    socket = AsyncRealtimeClient(f"{URL}/realtime/v1", PUBLISHABLE_KEY)
-    channel = socket.channel("test")
-
-    # Mock the join_push to capture the payload
-    mock_join_push = Mock()
-    mock_join_push.receive = Mock(return_value=mock_join_push)
-    mock_join_push.update_payload = Mock()
-    mock_join_push.resend = AsyncMock()
-    channel.join_push = mock_join_push
-
-    # Mock socket connection by setting _ws_connection
-    mock_ws = Mock()
-    socket._ws_connection = mock_ws
-
-    # Add presence callback before subscription
-    channel.on_presence_sync(lambda: None)
-
-    subscribe = asyncio.create_task(channel.subscribe())
-    await asyncio.sleep(0)
-    subscribe.cancel()
-
-    # Verify that update_payload was called
-    assert mock_join_push.update_payload.called
-
-    # Get the payload that was passed to update_payload
-    call_args = mock_join_push.update_payload.call_args
-    payload = call_args[0][0]
-
-    # Verify presence.enabled is True because callback is attached
-    assert payload["config"]["presence"]["enabled"] is True
-
-
-@pytest.mark.asyncio
-async def test_resubscribe_on_presence_callback_addition() -> None:
-    """Test that channel resubscribes when presence callbacks are added after joining."""
-    import asyncio
-    from unittest.mock import AsyncMock
-
-    socket = AsyncRealtimeClient(f"{URL}/realtime/v1", PUBLISHABLE_KEY)
-    channel = socket.channel("test")
-
-    # Mock the channel as joined
-    channel.state = ChannelStates.JOINED
-    channel._joined_once = True
-
-    # Mock resubscribe method
-    channel._resubscribe = AsyncMock()  # type: ignore[method-assign]
-
-    # Add presence callbacks after joining
-    channel.on_presence_sync(lambda: None)
-
-    # Wait a bit for async tasks to complete
-    await asyncio.sleep(0.1)
-
-    # Verify resubscribe was called
-    assert channel._resubscribe.call_count == 1
 
 
 def test_sync_diff_processes_every_leave_key() -> None:
     """Leaves for a key the client never tracked must not skip the remaining keys."""
-    presence = AsyncRealtimePresence()
-    leave_events: list[tuple[str, list[dict], list[Presence]]] = []
-    presence.on_leave(
-        lambda key, current, left: leave_events.append((key, current, left))
-    )
+    presence = RealtimePresence()
 
     state: RawPresenceState = {
         "bob": {"metas": [{"phx_ref": "ref-bob"}]},
     }
-    presence._on_state_event(state)
+    list(presence._on_state_event(state))
     assert list(presence.state) == ["bob"]
 
-    # The server reports both an untracked key and a tracked one leaving.
-    presence._on_diff_event(
-        {
-            "joins": {},
-            "leaves": {
-                "alice": {"metas": [{"phx_ref": "ref-alice"}]},
-                "bob": {"metas": [{"phx_ref": "ref-bob"}]},
-            },
-        }
+    events = list(
+        presence._on_diff_event(
+            {
+                "joins": {},
+                "leaves": {
+                    "alice": {"metas": [{"phx_ref": "ref-alice"}]},
+                    "bob": {"metas": [{"phx_ref": "ref-bob"}]},
+                },
+            }
+        )
     )
 
     assert presence.state == {}
-    assert [key for key, _, _ in leave_events] == ["bob"]
+    assert [event.key for event in events if isinstance(event, PresenceLeave)] == [
+        "bob"
+    ]
+
+
+def test_diff_join_for_known_presence_is_not_reported_twice() -> None:
+    presence = RealtimePresence()
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}  # type: ignore
+    assert len(list(presence._on_state_event(state))) == 1
+
+    diff_joins: RawPresenceState = {
+        "k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}  # type: ignore
+    }
+    events = list(presence._on_diff_event({"joins": diff_joins, "leaves": {}}))
+
+    assert events == []
+    assert presence.state == {"k": [{"presence_ref": "A", "user_id": "1"}]}
+
+
+def test_diff_leave_for_presence_already_gone_is_not_reported() -> None:
+    presence = RealtimePresence()
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "B"}]}}
+    list(presence._on_state_event(state))
+
+    leaves: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
+    events = list(presence._on_diff_event({"joins": {}, "leaves": leaves}))
+
+    assert events == []
+    assert presence.state == {"k": [{"presence_ref": "B"}]}
+
+
+def test_diff_join_reports_only_new_presences_for_a_key() -> None:
+    presence = RealtimePresence()
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
+    list(presence._on_state_event(state))
+
+    joins: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}, {"phx_ref": "B"}]}}
+    events = list(presence._on_diff_event({"joins": joins, "leaves": {}}))
+
+    assert events == [
+        PresenceJoin("k", [{"presence_ref": "A"}], [{"presence_ref": "B"}])
+    ]
+    assert presence.state == {"k": [{"presence_ref": "A"}, {"presence_ref": "B"}]}
+
+
+def test_unchanged_state_resync_reports_nothing() -> None:
+    presence = RealtimePresence()
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
+    list(presence._on_state_event(state))
+
+    resync: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
+    assert list(presence._on_state_event(resync)) == []

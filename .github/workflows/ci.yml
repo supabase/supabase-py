@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - '.devcontainer/**'
       - 'CHANGELOG.md'
+      - 'MAINTAINERS.md'
     branches:
       - main
   pull_request:
@@ -19,38 +20,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Clone Repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        with:
-          version: "0.13.3"
-          python-version: "3.11"
-
-      - name: Check lint
-        run: uv run --frozen ruff check --output-format=github
-
-      - name: Check formatting
-        run: uv run --frozen ruff format --check
-
-      - name: Check _sync is generated from _async
-        run: |
-          make build-sync
-          uv run --frozen ruff check --fix --quiet
-          uv run --frozen ruff format --quiet
-          if [ -n "$(git status --porcelain -- src)" ]; then
-            git status --short -- src
-            git diff -- src
-            echo "::error::_sync is out of date. Edit _async, then run 'make build-sync' and 'make ruff'."
-            exit 1
-          fi
-
   test:
     name: py${{ matrix.python-version }} | ${{ matrix.package }} @ ${{ matrix.os }}
     strategy:
@@ -58,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -67,14 +36,14 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install supabase cli latest
-        uses: supabase/setup-cli@d239d1052f6f024a8d746d7e5aeddead63b9cb53 # v3.1.0
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
         with:
           version: "latest"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
-          version: "0.13.3"
+          version: "0.8.2"
           python-version: ${{ matrix.python-version }}
 
       # The supabase cli publishes host ports inside the ephemeral range, and
@@ -177,9 +146,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
-          version: "0.13.3"
+          version: "0.8.2"
           python-version: "3.11"
 
       - name: Build all packages and publish

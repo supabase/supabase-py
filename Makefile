@@ -1,6 +1,6 @@
 .PHONY: ci, default, clean, start-infra, stop-infra
 
-PACKAGES := functions realtime storage auth postgrest supabase
+PACKAGES := utils functions realtime storage auth postgrest supabase
 FORALL_PKGS = $(foreach pkg, $(PACKAGES), $(pkg).$(1))
 
 help::
@@ -34,10 +34,6 @@ mypy: $(call FORALL_PKGS,mypy)
 help::
 	@echo "  mypy           -- Run mypy on all files"
 
-build-sync: functions.build-sync storage.build-sync auth.build-sync postgrest.build-sync supabase.build-sync
-help::
-	@echo "  build-sync     -- Generate _sync from _async for every package that has one."
-
 ruff:
 	@uv run ruff check --fix
 	@uv run ruff format
@@ -62,6 +58,9 @@ help::
 realtime.%:
 	@$(MAKE) -C src/realtime $*
 
+utils.%:
+	@$(MAKE) -C src/utils $*
+
 functions.%:
 	@$(MAKE) -C src/functions $*
 
@@ -77,12 +76,8 @@ postgrest.%:
 supabase.%:
 	@$(MAKE) -C src/supabase $*
 
-fastapi.%:
-	@$(MAKE) -C examples/fastapi $*
-
 help::
 	@echo
 	@echo "Package specific commands can be ran by prefixing the command with the package name. Examples:"
-	@echo "  realtime.mypy   -- runs realtime's mypy target"
-	@echo "  supabase.build  -- runs supabase's build target"
-	@echo "  fastapi.e2e     -- run FastAPI example E2E tests (requires Supabase running)"
+	@echo "  realtime.mypy  -- runs relatime's mypy target"
+	@echo "  supabase.build -- runs supabase's build target"

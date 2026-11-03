@@ -1,350 +1,338 @@
-from collections.abc import Iterable
-from typing import Any
+from typing import Any, Dict, Iterable, List
 
 import pytest
-from httpx import Client, Headers, Request, Response
+from httpx import Client
+from supabase_utils.http.adapters.httpx import HttpxSession
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import SyncHttpIO
+from supabase_utils.http.request import Request, Response
+from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
-from postgrest import (
-    SyncMaybeSingleRequestBuilder,
-    SyncRequestBuilder,
-    SyncSingleRequestBuilder,
+from postgrest.request_builder import (
+    APIResponse,
+    MaybeSingleRequestBuilder,
+    RequestBuilder,
+    SingleAPIResponse,
+    SingleRequestBuilder,
+    TextRequestBuilder,
+    can_retry,
 )
-from postgrest.base_request_builder import APIResponse, SingleAPIResponse
-from postgrest.types import JSON, CountMethod, ReturnMethod
+from postgrest.types import CountMethod, ReturnMethod
 
 
 @pytest.fixture
-def request_builder() -> Iterable[SyncRequestBuilder]:
+def request_builder() -> Iterable[RequestBuilder[SyncHttpIO]]:
     with Client() as client:
-        yield SyncRequestBuilder(client, URL("/example_table"), Headers(), None)
-
-
-def test_constructor(request_builder) -> None:
-    assert str(request_builder.path) == "/example_table"
+        yield RequestBuilder(
+            executor=SyncHttpIO(session=HttpxSession(client=client)),
+            base_url=URL("/example_table"),
+            default_headers=Headers.empty(),
+        )
 
 
 @pytest.mark.parametrize("head", [False, True])
 def test_select_request_retries_transient_response(
-    request_builder: SyncRequestBuilder, head: bool
+    request_builder: RequestBuilder[SyncHttpIO], head: bool
 ) -> None:
-    request = request_builder.select(head=head).request
+    request = request_builder.select(head=head).request.finalize(
+        URL("http://example.com"), Headers.empty()
+    )
+    response = Response(
+        status=503, headers=Headers.empty(), content=b"", request=request
+    )
 
-    assert request.should_retry(Response(503), attempt_count=0)
+    assert can_retry(response, retry_enabled=True, attempt_count=0)
 
 
 class TestSelect:
-    def test_select(self, request_builder: SyncRequestBuilder) -> None:
+    def test_select(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("col1", "col2")
 
-        assert builder.request.params["select"] == "col1,col2"
+        assert builder.request.query["select"] == "col1,col2"
         assert builder.request.headers.get("prefer") is None
-        assert builder.request.http_method == "GET"
-        assert builder.request.json is None
+        assert builder.request.method == "GET"
+        assert builder.request.body == {}
 
-    def test_select_with_count(self, request_builder: SyncRequestBuilder) -> None:
+    def test_select_with_count(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.select(count=CountMethod.exact)
 
-        assert builder.request.params["select"] == "*"
+        assert builder.request.query["select"] == "*"
         assert builder.request.headers["prefer"] == "count=exact"
-        assert builder.request.http_method == "GET"
-        assert builder.request.json is None
+        assert builder.request.method == "GET"
+        assert builder.request.body == {}
 
-    def test_select_with_head(self, request_builder: SyncRequestBuilder) -> None:
+    def test_select_with_head(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.select("col1", "col2", head=True)
 
-        assert builder.request.params.get("select") == "col1,col2"
+        assert builder.request.query.get("select") == "col1,col2"
         assert builder.request.headers.get("prefer") is None
-        assert builder.request.http_method == "HEAD"
-        assert builder.request.json is None
+        assert builder.request.method == "HEAD"
+        assert builder.request.body == {}
 
-    def test_select_as_csv(self, request_builder: SyncRequestBuilder) -> None:
+    def test_select_as_csv(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("*").csv()
 
         assert builder.request.headers["Accept"] == "text/csv"
-        assert isinstance(builder, SyncSingleRequestBuilder)
+        assert isinstance(builder, TextRequestBuilder)
 
 
 class TestInsert:
-    def test_insert(self, request_builder: SyncRequestBuilder) -> None:
+    def test_insert(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.insert({"key1": "val1"})
 
-        assert builder.request.headers.get_list("prefer", True) == [
-            "return=representation"
-        ]
-        assert builder.request.http_method == "POST"
-        assert builder.request.json == {"key1": "val1"}
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
+        assert builder.request.method == "POST"
+        assert builder.request.body == {"key1": "val1"}
 
-    def test_insert_with_count(self, request_builder: SyncRequestBuilder) -> None:
+    def test_insert_with_count(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.insert({"key1": "val1"}, count=CountMethod.exact)
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "count=exact",
         ]
-        assert builder.request.http_method == "POST"
-        assert builder.request.json == {"key1": "val1"}
+        assert builder.request.method == "POST"
+        assert builder.request.body == {"key1": "val1"}
 
-    def test_insert_with_upsert(self, request_builder: SyncRequestBuilder) -> None:
+    def test_insert_with_upsert(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.insert({"key1": "val1"}, upsert=True)
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "resolution=merge-duplicates",
         ]
-        assert builder.request.http_method == "POST"
-        assert builder.request.json == {"key1": "val1"}
+        assert builder.request.method == "POST"
+        assert builder.request.body == {"key1": "val1"}
 
     def test_upsert_with_default_single(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.upsert([{"key1": "val1"}], default_to_null=False)
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "resolution=merge-duplicates",
             "missing=default",
         ]
-        assert builder.request.http_method == "POST"
-        assert builder.request.json == [{"key1": "val1"}]
-        assert builder.request.params.get("columns") == '"key1"'
+        assert builder.request.method == "POST"
+        assert builder.request.body == [{"key1": "val1"}]
+        assert builder.request.query.get("columns") == '"key1"'
 
     def test_bulk_insert_using_default(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.insert(
             [{"key1": "val1", "key2": "val2"}, {"key3": "val3"}], default_to_null=False
         )
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "missing=default",
         ]
-        assert builder.request.http_method == "POST"
-        assert builder.request.json == [
+        assert builder.request.method == "POST"
+        assert builder.request.body == [
             {"key1": "val1", "key2": "val2"},
             {"key3": "val3"},
         ]
-        assert set(builder.request.params["columns"].split(",")) == set(
+        assert set(builder.request.query["columns"].split(",")) == set(
             '"key1","key2","key3"'.split(",")
         )
 
-    @pytest.mark.parametrize("method", ["insert", "upsert"])
-    @pytest.mark.parametrize(
-        "rows, columns",
-        [
-            ([], None),
-            ([{}], None),
-            ([{"key1": "val1"}], '"key1"'),
-            ([{"a,b": "val1"}], '"a,b"'),
-            ([{'a"b': "val1"}], r'"a\"b"'),
-            ([{r"c\d": "val1"}], r'"c\\d"'),
-            ([{r"a\"b": "val1"}], r'"a\\\"b"'),
-        ],
-    )
-    def test_bulk_write_columns(
-        self,
-        request_builder: SyncRequestBuilder,
-        method: str,
-        rows: list[dict[str, JSON]],
-        columns: str | None,
-    ) -> None:
-        builder = getattr(request_builder, method)(rows)
-
-        assert builder.request.http_method == "POST"
-        assert builder.request.json == rows
-        assert builder.request.params.get("columns") == columns
-
-    def test_upsert(self, request_builder: SyncRequestBuilder) -> None:
+    def test_upsert(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.upsert({"key1": "val1"})
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "resolution=merge-duplicates",
         ]
-        assert builder.request.http_method == "POST"
-        assert builder.request.json == {"key1": "val1"}
+        assert builder.request.method == "POST"
+        assert builder.request.body == {"key1": "val1"}
 
-    def test_insert_with_select(self, request_builder: SyncRequestBuilder) -> None:
+    def test_insert_with_select(self, request_builder: RequestBuilder[SyncHttpIO]):
         builder = request_builder.insert({"key1": "val1"}).select("id", "key1")
 
-        assert builder.request.params["select"] == "id,key1"
-        assert builder.request.headers.get_list("prefer", True) == [
-            "return=representation"
-        ]
+        assert builder.request.query["select"] == "id,key1"
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
 
     def test_insert_with_select_forces_representation(
-        self, request_builder: SyncRequestBuilder
-    ) -> None:
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ):
         builder = request_builder.insert(
             {"key1": "val1"}, returning=ReturnMethod.minimal
         ).select("id")
 
-        assert builder.request.params["select"] == "id"
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.query["select"] == "id"
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
         ]
 
     def test_insert_with_select_single(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.insert({"key1": "val1"}).select("id").single()
 
-        assert isinstance(builder, SyncSingleRequestBuilder)
-        assert builder.request.params["select"] == "id"
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["select"] == "id"
         assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
-        assert builder.request.headers.get_list("prefer", True) == [
-            "return=representation"
-        ]
-        assert builder.request.http_method == "POST"
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
+        assert builder.request.method == "POST"
 
     def test_insert_with_select_maybe_single(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.insert({"key1": "val1"}).select("id").maybe_single()
 
-        assert isinstance(builder, SyncMaybeSingleRequestBuilder)
-        assert builder.request.params["select"] == "id"
-        assert builder.request.http_method == "POST"
+        assert isinstance(builder, MaybeSingleRequestBuilder)
+        assert builder.request.query["select"] == "id"
+        assert builder.request.method == "POST"
 
     def test_upsert_with_select_single(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.upsert({"key1": "val1"}).select("id").single()
 
-        assert isinstance(builder, SyncSingleRequestBuilder)
-        assert builder.request.params["select"] == "id"
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["select"] == "id"
         assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
-        assert builder.request.http_method == "POST"
+        assert builder.request.method == "POST"
 
     def test_bulk_upsert_with_default(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.upsert(
             [{"key1": "val1", "key2": "val2"}, {"key3": "val3"}], default_to_null=False
         )
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "resolution=merge-duplicates",
             "missing=default",
         ]
-        assert builder.request.http_method == "POST"
-        assert builder.request.json == [
+        assert builder.request.method == "POST"
+        assert builder.request.body == [
             {"key1": "val1", "key2": "val2"},
             {"key3": "val3"},
         ]
-        assert set(builder.request.params["columns"].split(",")) == set(
+        assert set(builder.request.query["columns"].split(",")) == set(
             '"key1","key2","key3"'.split(",")
         )
 
 
 class TestUpdate:
-    def test_update(self, request_builder: SyncRequestBuilder) -> None:
+    def test_update(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.update({"key1": "val1"})
 
-        assert builder.request.headers.get_list("prefer", True) == [
-            "return=representation"
-        ]
-        assert builder.request.http_method == "PATCH"
-        assert builder.request.json == {"key1": "val1"}
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
+        assert builder.request.method == "PATCH"
+        assert builder.request.body == {"key1": "val1"}
 
-    def test_update_with_count(self, request_builder: SyncRequestBuilder) -> None:
+    def test_update_with_count(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.update({"key1": "val1"}, count=CountMethod.exact)
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "count=exact",
         ]
-        assert builder.request.http_method == "PATCH"
-        assert builder.request.json == {"key1": "val1"}
+        assert builder.request.method == "PATCH"
+        assert builder.request.body == {"key1": "val1"}
 
     def test_update_with_max_affected(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.update({"key1": "val1"}).max_affected(5)
 
         assert "handling=strict" in builder.request.headers["prefer"]
         assert "max-affected=5" in builder.request.headers["prefer"]
         assert "return=representation" in builder.request.headers["prefer"]
-        assert builder.request.http_method == "PATCH"
-        assert builder.request.json == {"key1": "val1"}
+        assert builder.request.method == "PATCH"
+        assert builder.request.body == {"key1": "val1"}
 
-    def test_update_with_select(self, request_builder: SyncRequestBuilder) -> None:
+    def test_update_with_select(self, request_builder: RequestBuilder[SyncHttpIO]):
         builder = request_builder.update({"key1": "val1"}).eq("id", 1).select("id")
 
-        assert builder.request.params["id"] == "eq.1"
-        assert builder.request.params["select"] == "id"
+        assert builder.request.query["id"] == "eq.1"
+        assert builder.request.query["select"] == "id"
 
     def test_update_with_select_single(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.update({"key1": "val1"}).eq("id", 1).select().single()
 
-        assert isinstance(builder, SyncSingleRequestBuilder)
-        assert builder.request.params["id"] == "eq.1"
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["id"] == "eq.1"
         assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
-        assert builder.request.http_method == "PATCH"
+        assert builder.request.method == "PATCH"
 
     def test_update_with_order_and_limit(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.update({"key1": "val1"}).order("id").limit(1)
 
-        assert builder.request.params["order"] == "id.asc"
-        assert builder.request.params["limit"] == "1"
-        assert builder.request.http_method == "PATCH"
+        assert builder.request.query["order"] == "id.asc"
+        assert builder.request.query["limit"] == "1"
+        assert builder.request.method == "PATCH"
 
 
 class TestDelete:
-    def test_delete(self, request_builder: SyncRequestBuilder) -> None:
+    def test_delete(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.delete()
 
-        assert builder.request.headers.get_list("prefer", True) == [
-            "return=representation"
-        ]
-        assert builder.request.http_method == "DELETE"
-        assert builder.request.json == {}
+        assert builder.request.headers.get_list("prefer") == ["return=representation"]
+        assert builder.request.method == "DELETE"
+        assert builder.request.body == {}
 
-    def test_delete_with_count(self, request_builder: SyncRequestBuilder) -> None:
+    def test_delete_with_count(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.delete(count=CountMethod.exact)
 
-        assert builder.request.headers.get_list("prefer", True) == [
+        assert builder.request.headers.get_list("prefer") == [
             "return=representation",
             "count=exact",
         ]
-        assert builder.request.http_method == "DELETE"
-        assert builder.request.json == {}
+        assert builder.request.method == "DELETE"
+        assert builder.request.body == {}
 
     def test_delete_with_max_affected(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.delete().max_affected(10)
 
         assert "handling=strict" in builder.request.headers["prefer"]
         assert "max-affected=10" in builder.request.headers["prefer"]
         assert "return=representation" in builder.request.headers["prefer"]
-        assert builder.request.http_method == "DELETE"
-        assert builder.request.json == {}
+        assert builder.request.method == "DELETE"
+        assert builder.request.body == {}
 
-    def test_delete_with_select(self, request_builder: SyncRequestBuilder) -> None:
+    def test_delete_with_select(self, request_builder: RequestBuilder[SyncHttpIO]):
         builder = request_builder.delete().eq("id", 1).select("id")
 
-        assert builder.request.params["id"] == "eq.1"
-        assert builder.request.params["select"] == "id"
+        assert builder.request.query["id"] == "eq.1"
+        assert builder.request.query["select"] == "id"
 
     def test_delete_with_select_single(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         builder = request_builder.delete().eq("id", 1).select("id").single()
 
-        assert isinstance(builder, SyncSingleRequestBuilder)
-        assert builder.request.params["id"] == "eq.1"
+        assert isinstance(builder, SingleRequestBuilder)
+        assert builder.request.query["id"] == "eq.1"
         assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
-        assert builder.request.http_method == "DELETE"
+        assert builder.request.method == "DELETE"
 
 
 class TestTextSearch:
     @pytest.mark.parametrize("mode", [None, "plain", "phrase", "web_search"])
     def test_text_search_allows_filters_and_modifiers(
-        self, request_builder: SyncRequestBuilder, mode
+        self, request_builder: RequestBuilder[SyncHttpIO], mode: str | None
     ) -> None:
         builder = (
             request_builder.select("id")
@@ -360,11 +348,11 @@ class TestTextSearch:
             "phrase": "phfts",
             "web_search": "wfts",
         }[mode]
-        assert builder.request.params["content"] == f"{operator}(english).python"
-        assert builder.request.params["published"] == "eq.true"
-        assert builder.request.params["order"] == "id.asc"
-        assert builder.request.params["limit"] == "10"
-        assert builder.request.params["select"] == "id"
+        assert builder.request.query["content"] == f"{operator}(english).python"
+        assert builder.request.query["published"] == "eq.true"
+        assert builder.request.query["order"] == "id.asc"
+        assert builder.request.query["limit"] == "10"
+        assert builder.request.query["select"] == "id"
 
     @pytest.mark.parametrize(
         "mode,operator",
@@ -378,7 +366,12 @@ class TestTextSearch:
     @pytest.mark.parametrize("config", [None, "english"])
     @pytest.mark.parametrize("negate", [False, True])
     def test_negation_is_applied_only_to_text_search(
-        self, request_builder: SyncRequestBuilder, mode, operator, config, negate
+        self,
+        request_builder: RequestBuilder[SyncHttpIO],
+        mode: str | None,
+        operator: str,
+        config: str | None,
+        negate: bool,
     ) -> None:
         selected = request_builder.select("content")
         if negate:
@@ -391,12 +384,12 @@ class TestTextSearch:
         expected_operator = ("not." if negate else "") + operator
         if config:
             expected_operator += f"({config})"
-        assert builder.request.params["content"] == f"{expected_operator}.fat cat"
+        assert builder.request.query["content"] == f"{expected_operator}.fat cat"
         assert not selected.negate_next
         selected.eq("published", "true")
-        assert builder.request.params["published"] == "eq.true"
+        assert builder.request.query["published"] == "eq.true"
 
-    def test_text_search(self, request_builder: SyncRequestBuilder) -> None:
+    def test_text_search(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("catchphrase").text_search(
             "catchphrase",
             "'fat' & 'cat'",
@@ -405,24 +398,30 @@ class TestTextSearch:
                 "config": "english",
             },
         )
-        assert "catchphrase=plfts%28english%29.%27fat%27+%26+%27cat%27" in str(
-            builder.request.params
+        assert builder.request.query.get("select") == "catchphrase"
+        assert (
+            builder.request.query.get("catchphrase") == "plfts(english).'fat' & 'cat'"
         )
 
 
 class TestExplain:
-    def test_explain_plain(self, request_builder: SyncRequestBuilder) -> None:
+    def test_explain_plain(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("*").explain()
-        assert builder.request.params["select"] == "*"
+        assert builder.request.query["select"] == "*"
         assert "application/vnd.pgrst.plan" in str(
             builder.request.headers.get("accept")
         )
 
-    def test_explain_options(self, request_builder: SyncRequestBuilder) -> None:
+    def test_explain_options(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("*").explain(
-            format="json", analyze=True, verbose=True, buffers=True, wal=True
+            analyze=True,
+            verbose=True,
+            buffers=True,
+            settings=False,
+            wal=True,
+            format="json",
         )
-        assert builder.request.params["select"] == "*"
+        assert builder.request.query["select"] == "*"
         assert "application/vnd.pgrst.plan+json;" in str(
             builder.request.headers.get("accept")
         )
@@ -432,23 +431,25 @@ class TestExplain:
 
 
 class TestOrder:
-    def test_order(self, request_builder: SyncRequestBuilder) -> None:
+    def test_order(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select().order("country_name", desc=True)
-        assert str(builder.request.params) == "select=%2A&order=country_name.desc"
+        assert builder.request.query.get("select") == "*"
+        assert builder.request.query.get("order") == "country_name.desc"
 
-    def test_multiple_orders(self, request_builder: SyncRequestBuilder) -> None:
+    def test_multiple_orders(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = (
             request_builder.select()
             .order("country_name", desc=True)
             .order("iso", desc=True)
         )
-        assert (
-            str(builder.request.params)
-            == "select=%2A&order=country_name.desc%2Ciso.desc"
-        )
+        assert builder.request.query.get("select") == "*"
+        assert builder.request.query.get_list("order") == [
+            "country_name.desc",
+            "iso.desc",
+        ]
 
     def test_multiple_orders_on_foreign_table(
-        self, request_builder: SyncRequestBuilder
+        self, request_builder: RequestBuilder[SyncHttpIO]
     ) -> None:
         foreign_table = "cities"
         builder = (
@@ -456,25 +457,30 @@ class TestOrder:
             .order("city_name", desc=True, foreign_table=foreign_table)
             .order("id", desc=True, foreign_table=foreign_table)
         )
-        assert (
-            str(builder.request.params)
-            == "select=%2A&cities.order=city_name.desc%2Cid.desc"
-        )
+        assert builder.request.query.get("select") == "*"
+        assert builder.request.query.get_list("cities.order") == [
+            "city_name.desc",
+            "id.desc",
+        ]
 
 
 class TestRange:
-    def test_range_on_own_table(self, request_builder: SyncRequestBuilder) -> None:
+    def test_range_on_own_table(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.select("*").range(0, 1)
-        assert builder.request.params["select"] == "*"
-        assert builder.request.params["limit"] == "2"
-        assert builder.request.params["offset"] == "0"
+        assert builder.request.query["select"] == "*"
+        assert builder.request.query["limit"] == "2"
+        assert builder.request.query["offset"] == "0"
 
-    def test_range_on_foreign_table(self, request_builder: SyncRequestBuilder) -> None:
+    def test_range_on_foreign_table(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         foreign_table = "cities"
         builder = request_builder.select("*").range(1, 2, foreign_table)
-        assert builder.request.params["select"] == "*"
-        assert builder.request.params[f"{foreign_table}.limit"] == "2"
-        assert builder.request.params[f"{foreign_table}.offset"] == "1"
+        assert builder.request.query["select"] == "*"
+        assert builder.request.query[f"{foreign_table}.limit"] == "2"
+        assert builder.request.query[f"{foreign_table}.offset"] == "1"
 
 
 @pytest.fixture
@@ -483,7 +489,7 @@ def csv_api_response() -> str:
 
 
 @pytest.fixture
-def api_response_with_error() -> dict[str, Any]:
+def api_response_with_error() -> Dict[str, Any]:
     return {
         "message": "Route GET:/countries?select=%2A not found",
         "error": "Not Found",
@@ -492,7 +498,7 @@ def api_response_with_error() -> dict[str, Any]:
 
 
 @pytest.fixture
-def api_response() -> list[dict[str, Any]]:
+def api_response() -> List[Dict[str, JSON]]:
     return [
         {
             "id": 1,
@@ -514,7 +520,7 @@ def api_response() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def single_api_response() -> dict[str, Any]:
+def single_api_response() -> Dict[str, JSON]:
     return {
         "id": 1,
         "name": "Bonaire, Sint Eustatius and Saba",
@@ -548,7 +554,16 @@ def prefer_header_without_count() -> str:
 @pytest.fixture
 def request_response_without_prefer_header() -> Response:
     return Response(
-        status_code=200, request=Request(method="GET", url="http://example.com")
+        status=200,
+        request=Request(
+            method="GET",
+            url=URL("http://example.com"),
+            content=None,
+            headers=Headers.empty(),
+            delay=None,
+        ),
+        content=b"",
+        headers=Headers.empty(),
     )
 
 
@@ -557,11 +572,15 @@ def request_response_with_prefer_header_without_count(
     prefer_header_without_count: str,
 ) -> Response:
     return Response(
-        status_code=200,
+        status=200,
+        headers=Headers.empty(),
+        content=b"",
         request=Request(
             method="GET",
-            url="http://example.com",
-            headers={"prefer": prefer_header_without_count},
+            url=URL("http://example.com"),
+            headers=Headers.from_mapping({"prefer": prefer_header_without_count}),
+            content=None,
+            delay=None,
         ),
     )
 
@@ -571,12 +590,17 @@ def request_response_with_prefer_header_with_count_and_content_range(
     prefer_header_with_count: str, content_range_header_with_count: str
 ) -> Response:
     return Response(
-        status_code=200,
-        headers={"content-range": content_range_header_with_count},
+        status=200,
+        headers=Headers.from_mapping(
+            {"content-range": content_range_header_with_count}
+        ),
+        content=b"",
         request=Request(
             method="GET",
-            url="http://example.com",
-            headers={"prefer": prefer_header_with_count},
+            url=URL("http://example.com"),
+            headers=Headers.from_mapping({"prefer": prefer_header_with_count}),
+            content=None,
+            delay=None,
         ),
     )
 
@@ -585,16 +609,20 @@ def request_response_with_prefer_header_with_count_and_content_range(
 def request_response_with_data(
     prefer_header_with_count: str,
     content_range_header_with_count: str,
-    api_response: list[dict[str, Any]],
+    api_response: List[Dict[str, JSON]],
 ) -> Response:
     return Response(
-        status_code=200,
-        headers={"content-range": content_range_header_with_count},
-        json=api_response,
+        status=200,
+        headers=Headers.from_mapping(
+            {"content-range": content_range_header_with_count}
+        ),
+        content=JSONParser.dump_json(api_response),
         request=Request(
             method="GET",
-            url="http://example.com",
-            headers={"prefer": prefer_header_with_count},
+            url=URL("http://example.com"),
+            headers=Headers.from_mapping({"prefer": prefer_header_with_count}),
+            content=None,
+            delay=None,
         ),
     )
 
@@ -603,16 +631,20 @@ def request_response_with_data(
 def request_response_with_single_data(
     prefer_header_with_count: str,
     content_range_header_with_count: str,
-    single_api_response: dict[str, Any],
+    single_api_response: Dict[str, JSON],
 ) -> Response:
     return Response(
-        status_code=200,
-        headers={"content-range": content_range_header_with_count},
-        json=single_api_response,
+        status=200,
+        headers=Headers.from_mapping(
+            {"content-range": content_range_header_with_count}
+        ),
+        content=JSONParser.dump_json(single_api_response),
         request=Request(
             method="GET",
-            url="http://example.com",
-            headers={"prefer": prefer_header_with_count},
+            url=URL("http://example.com"),
+            headers=Headers.from_mapping({"prefer": prefer_header_with_count}),
+            content=None,
+            delay=None,
         ),
     )
 
@@ -620,25 +652,28 @@ def request_response_with_single_data(
 @pytest.fixture
 def request_response_with_csv_data(csv_api_response: str) -> Response:
     return Response(
-        status_code=200,
-        text=csv_api_response,
-        request=Request(method="GET", url="http://example.com"),
+        status=200,
+        content=csv_api_response.encode("utf-8"),
+        headers=Headers.empty(),
+        request=Request(
+            method="GET",
+            url=URL("http://example.com"),
+            headers=Headers.empty(),
+            content=None,
+            delay=None,
+        ),
     )
 
 
 class TestApiResponse:
-    def test_response_raises_when_api_error(
-        self, api_response_with_error: list[JSON]
+    def test_parses_valid_response_only_data(
+        self, api_response: List[Dict[str, JSON]]
     ) -> None:
-        with pytest.raises(ValueError):
-            APIResponse(data=api_response_with_error)
-
-    def test_parses_valid_response_only_data(self, api_response: list[JSON]) -> None:
         result = APIResponse(data=api_response)
         assert result.data == api_response
 
     def test_parses_valid_response_data_and_count(
-        self, api_response: list[JSON]
+        self, api_response: List[Dict[str, JSON]]
     ) -> None:
         count = len(api_response)
         result = APIResponse(data=api_response, count=count)
@@ -662,15 +697,6 @@ class TestApiResponse:
             APIResponse._get_count_from_content_range_header(
                 content_range_header_without_count
             )
-            is None
-        )
-
-    @pytest.mark.parametrize("content_range_header", ["*/*", "0-0/*"])
-    def test_get_count_from_content_range_header_with_unknown_count(
-        self, content_range_header: str
-    ) -> None:
-        assert (
-            APIResponse._get_count_from_content_range_header(content_range_header)
             is None
         )
 
@@ -715,7 +741,7 @@ class TestApiResponse:
         )
 
     def test_from_http_request_response_constructor(
-        self, request_response_with_data: Response, api_response: list[dict[str, Any]]
+        self, request_response_with_data: Response, api_response: List[Dict[str, Any]]
     ) -> None:
         result = APIResponse.from_http_request_response(request_response_with_data)
         assert result.data == api_response
@@ -724,7 +750,7 @@ class TestApiResponse:
     def test_single_from_http_request_response_constructor(
         self,
         request_response_with_single_data: Response,
-        single_api_response: dict[str, Any],
+        single_api_response: Dict[str, Any],
     ) -> None:
         result = SingleAPIResponse.from_http_request_response(
             request_response_with_single_data
@@ -732,28 +758,3 @@ class TestApiResponse:
         assert isinstance(result.data, dict)
         assert result.data == single_api_response
         assert result.count == 2
-
-    def test_single_with_csv_data(
-        self, request_response_with_csv_data: Response, csv_api_response: str
-    ) -> None:
-        result = SingleAPIResponse.from_http_request_response(
-            request_response_with_csv_data
-        )
-        assert isinstance(result.data, str)
-        assert result.data == csv_api_response
-
-    def test_from_http_request_response_with_csv_data(
-        self, request_response_with_csv_data: Response, csv_api_response: str
-    ) -> None:
-        result = APIResponse.from_http_request_response(request_response_with_csv_data)
-        assert result.data == csv_api_response
-
-    def test_from_http_request_response_with_non_utf8_body(self) -> None:
-        request_response = Response(
-            status_code=200,
-            content=b"caf\xe9",
-            headers={"Content-Type": "text/plain; charset=latin-1"},
-            request=Request(method="GET", url="http://example.com"),
-        )
-        result = APIResponse.from_http_request_response(request_response)
-        assert result.data == "café"

@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import re
 import secrets
 import string
 import uuid
 from base64 import urlsafe_b64decode
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, TypedDict
-from urllib.parse import parse_qs, urlparse
+from typing import Any, Dict, Type, TypeVar
+from urllib.parse import urlparse
 
-from httpx import HTTPStatusError, RequestError, Response
-from pydantic import TypeAdapter, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import Response
 
 from .constants import (
     API_VERSION_HEADER_NAME,
@@ -25,6 +28,8 @@ from .errors import (
     AuthRetryableError,
     AuthUnknownError,
     AuthWeakPasswordError,
+    ErrorCodeAdapter,
+    RawApiError,
 )
 from .types import (
     AuthOtpResponse,
@@ -41,143 +46,165 @@ from .types import (
     UserResponse,
 )
 
+TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
+
+
+def model_validate(model: Type[TBaseModel], contents: str | bytes) -> TBaseModel:
+    """Compatibility layer between pydantic 1 and 2 for parsing an instance
+    of a BaseModel from varied"""
+    try:
+        # pydantic > 2
+        return model.model_validate_json(contents)
+    except AttributeError:
+        # pydantic < 2
+        return model.parse_raw(contents)
+
+
+def model_dump(model: BaseModel) -> Dict[str, Any]:
+    """Compatibility layer between pydantic 1 and 2 for dumping a model's contents as a dict"""
+    try:
+        # pydantic > 2
+        return model.model_dump()
+    except AttributeError:
+        # pydantic < 2
+        return model.dict()
+
+
+def model_dump_json(model: BaseModel) -> str:
+    """Compatibility layer between pydantic 1 and 2 for dumping a model's contents as json"""
+    try:
+        # pydantic > 2
+        return model.model_dump_json()
+    except AttributeError:
+        # pydantic < 2
+        return model.json()
+
 
 def parse_auth_response(response: Response) -> AuthResponse:
     try:
-        session = Session.model_validate_json(response.content)
+        session = validate_model(response, Session)
         user = session.user
     except ValidationError:
         session = None
-        user = User.model_validate_json(response.content)
+        user = validate_model(response, User)
     return AuthResponse(user=user, session=session)
 
 
 def parse_auth_otp_response(response: Response) -> AuthOtpResponse:
-    return AuthOtpResponse.model_validate_json(response.content)
+    return validate_model(response, AuthOtpResponse)
 
 
 def parse_link_identity_response(response: Response) -> LinkIdentityResponse:
-    return LinkIdentityResponse.model_validate_json(response.content)
+    return validate_model(response, LinkIdentityResponse)
 
 
 def parse_link_response(response: Response) -> GenerateLinkResponse:
-    properties = GenerateLinkProperties.model_validate_json(response.content)
-    user = User.model_validate_json(response.content)
+    properties = validate_model(response, GenerateLinkProperties)
+    user = validate_model(response, User)
     return GenerateLinkResponse(properties=properties, user=user)
 
 
-UserParser: TypeAdapter = TypeAdapter(UserResponse | User)
+UserParser: TypeAdapter[UserResponse | User] = TypeAdapter(UserResponse | User)
 
 
 def parse_user_response(response: Response) -> UserResponse:
-    parsed = UserParser.validate_json(response.content)
-    return UserResponse(user=parsed) if isinstance(parsed, User) else parsed
+    if response.is_success:
+        parsed = UserParser.validate_json(response.content)
+        return UserResponse(user=parsed) if isinstance(parsed, User) else parsed
+    else:
+        raise handle_error_response(response)
 
 
 def parse_sso_response(response: Response) -> SSOResponse:
-    return SSOResponse.model_validate_json(response.content)
+    return model_validate(SSOResponse, response.content)
 
 
-JWKSetParser: TypeAdapter[JWKSet] = TypeAdapter(JWKSet)
-
-
-def _parse_url_params(url: str) -> dict[str, list[str]]:
-    result = urlparse(url)
-    return {**parse_qs(result.fragment), **parse_qs(result.query)}
+JWKSetParser = TypeAdapter(JWKSet)
 
 
 def parse_jwks(response: Response) -> JWKSet:
     jwk = JWKSetParser.validate_json(response.content)
-    if len(jwk["keys"]) == 0:
+    if len(jwk.keys) == 0:
         raise AuthInvalidJwtError("JWKS is empty")
 
     return jwk
 
 
-def get_error_message(error: Any) -> str:
-    props = ["msg", "message", "error_description", "error"]
-
-    def filter(prop) -> bool:
-        return prop in error if isinstance(error, dict) else hasattr(error, prop)
-
-    return next((error[prop] for prop in props if filter(prop)), str(error))
+Model = TypeVar("Model", bound=BaseModel)
 
 
-def handle_exception(
-    error: HTTPStatusError | RequestError | RuntimeError,
-) -> AuthError:
-    if not isinstance(error, HTTPStatusError):
-        return AuthRetryableError(get_error_message(error), 0)
+def validate_model(response: Response, model: type[Model]) -> Model:
+    if response.is_success:
+        return model.model_validate_json(response.content)
+    else:
+        raise handle_error_response(response)
+
+
+Inner = TypeVar("Inner")
+
+
+def validate_adapter(response: Response, adapter: TypeAdapter[Inner]) -> Inner:
+    if response.is_success:
+        return adapter.validate_json(response.content)
+    else:
+        raise handle_error_response(response)
+
+
+def handle_error_response(response: Response) -> AuthError:
     try:
-        network_error_codes = [502, 503, 504, 520, 521, 522, 523, 524, 530]
-        status = error.response.status_code
-        try:
-            data = error.response.json()
-        except Exception:
-            if status in network_error_codes:
-                # The reason phrase is empty when the server sends none and
-                # the status is non-standard (e.g. Cloudflare's 520-530).
-                return AuthRetryableError(
-                    error.response.reason_phrase or f"HTTP {status}", status
-                )
-            raise
-        if status in network_error_codes:
-            return AuthRetryableError(get_error_message(data), status)
-
-        error_code = None
-        response_api_version = parse_response_api_version(error.response)
-
-        if (
-            response_api_version
-            and (
-                datetime.timestamp(response_api_version)
-                >= API_VERSIONS_2024_01_01_TIMESTAMP
-            )
-            and isinstance(data, dict)
-            and data
-            and isinstance(data.get("code"), str)
-        ):
-            error_code = data.get("code")
-        elif (
-            isinstance(data, dict) and data and isinstance(data.get("error_code"), str)
-        ):
-            error_code = data.get("error_code")
-
-        if error_code is None:
-            # Legacy support for weak password errors, from before error codes
-            # existed: the reasons are only carried by the `weak_password` object.
-            weak_password = (
-                data.get("weak_password") if isinstance(data, dict) else None
-            )
-            reasons = (
-                weak_password.get("reasons")
-                if isinstance(weak_password, dict)
-                else None
-            )
-            if (
-                isinstance(reasons, list)
-                and reasons
-                and all(isinstance(reason, str) for reason in reasons)
-            ):
-                return AuthWeakPasswordError(
-                    get_error_message(data),
-                    error.response.status_code,
-                    reasons,
-                )
-        elif error_code == "weak_password":
-            return AuthWeakPasswordError(
-                get_error_message(data),
-                error.response.status_code,
-                data["weak_password"].get("reasons", {}),
-            )
-
-        return AuthApiError(
-            get_error_message(data),
-            error.response.status_code or 500,
-            error_code,
+        raw_error = RawApiError.model_validate_json(response.content)
+    except ValidationError:
+        return AuthUnknownError(
+            message="Unexpected error: Unable to parse API error",
+            code="unexpected_failure",
+            status=response.status,
+            data=response.content,
         )
-    except Exception as e:
-        return AuthUnknownError(get_error_message(error), e)
+    if not response.is_error:
+        return AuthRetryableError(raw_error.get_error_message(), response.status)
+    if response.status in {502, 503, 504, 520, 521, 522, 523, 524, 530}:
+        return AuthRetryableError(raw_error.get_error_message(), response.status)
+    error_code = None
+    response_api_version = parse_response_api_version(response)
+
+    if (
+        response_api_version
+        and datetime.timestamp(response_api_version)
+        >= API_VERSIONS_2024_01_01_TIMESTAMP
+    ):
+        error_code = ErrorCodeAdapter.validate_python(raw_error.error_code)
+    else:
+        error_code = raw_error.error_code
+
+    if (
+        error_code is None
+        and raw_error.weak_password
+        and raw_error.weak_password.reasons
+    ):
+        return AuthWeakPasswordError(
+            message=raw_error.get_error_message(),
+            status=response.status,
+            reasons=raw_error.weak_password.reasons,
+        )
+    elif error_code == "weak_password":
+        return AuthWeakPasswordError(
+            raw_error.get_error_message(),
+            status=response.status,
+            reasons=raw_error.weak_password.reasons if raw_error.weak_password else [],
+        )
+
+    return AuthApiError(
+        raw_error.get_error_message(),
+        status=response.status or 500,
+        code=error_code,
+    )
+
+
+def str_from_base64url(base64url: str) -> str:
+    # Addding padding otherwise the following error happens:
+    # binascii.Error: Incorrect padding
+    base64url_with_padding = base64url + "=" * (-len(base64url) % 4)
+    return urlsafe_b64decode(base64url_with_padding).decode("utf-8")
 
 
 def base64url_to_bytes(base64url: str) -> bytes:
@@ -187,15 +214,13 @@ def base64url_to_bytes(base64url: str) -> bytes:
     return urlsafe_b64decode(base64url_with_padding)
 
 
-class DecodedJWT(TypedDict):
+@dataclass
+class DecodedJWT:
     header: JWTHeader
     payload: JWTPayload
     signature: bytes
-    raw: dict[str, str]
-
-
-JWTHeaderParser: TypeAdapter[JWTHeader] = TypeAdapter(JWTHeader)
-JWTPayloadParser: TypeAdapter[JWTPayload] = TypeAdapter(JWTPayload)
+    raw_header: str
+    raw_payload: str
 
 
 def decode_jwt(token: str) -> DecodedJWT:
@@ -204,24 +229,22 @@ def decode_jwt(token: str) -> DecodedJWT:
         raise AuthInvalidJwtError("Invalid JWT structure")
 
     try:
-        header = JWTHeaderParser.validate_json(base64url_to_bytes(parts[0]))
-        payload = JWTPayloadParser.validate_json(base64url_to_bytes(parts[1]))
+        header = base64url_to_bytes(parts[0])
+        payload = base64url_to_bytes(parts[1])
         signature = base64url_to_bytes(parts[2])
-    except ValueError as e:
+    except binascii.Error as e:
         raise AuthInvalidJwtError("Invalid JWT structure") from e
 
     return DecodedJWT(
-        header=header,
-        payload=payload,
+        header=JWTHeader.model_validate_json(header),
+        payload=JWTPayload.model_validate_json(payload),
         signature=signature,
-        raw={
-            "header": parts[0],
-            "payload": parts[1],
-        },
+        raw_header=parts[0],
+        raw_payload=parts[1],
     )
 
 
-def generate_pkce_verifier(length=64) -> str:
+def generate_pkce_verifier(length: int = 64) -> str:
     """Generate a random PKCE verifier of the specified length."""
     if length < 43 or length > 128:
         raise ValueError("PKCE verifier length must be between 43 and 128 characters")
@@ -232,7 +255,7 @@ def generate_pkce_verifier(length=64) -> str:
     return "".join(secrets.choice(charset) for _ in range(length))
 
 
-def generate_pkce_challenge(code_verifier) -> str:
+def generate_pkce_challenge(code_verifier: str) -> str:
     """Generate a code challenge from a PKCE verifier."""
     # Hash the verifier using SHA-256
     verifier_bytes = code_verifier.encode("utf-8")
@@ -286,3 +309,9 @@ def validate_uuid(id: str | None) -> None:
         raise ValueError("Invalid id, id is None")
     if not is_valid_uuid(id):
         raise ValueError(f"Invalid id, '{id}' is not a valid uuid")
+
+
+def redirect_to_as_query(redirect_to: str | None) -> URLQuery:
+    if redirect_to:
+        return URLQuery.from_mapping({"redirect_to": redirect_to})
+    return URLQuery.empty()

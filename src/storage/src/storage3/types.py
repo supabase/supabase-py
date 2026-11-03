@@ -1,22 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Literal, TypeAlias, TypedDict
+from typing import Any, Dict, List, Literal
 
-from pydantic import AliasChoices, BaseModel, Field, TypeAdapter
-from typing_extensions import ReadOnly, TypeAliasType
+from pydantic import BaseModel, Field, TypeAdapter
+from pydantic.dataclasses import dataclass
+from supabase_utils.types import JSON
+from typing_extensions import TypeAlias, TypedDict
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 
-# https://docs.pydantic.dev/2.11/concepts/types/#named-recursive-types
-JSON = TypeAliasType(
-    "JSON", "None | bool | str | int | float | Sequence[JSON] | Mapping[str, JSON]"
-)
 
-
-class BaseBucket(BaseModel, extra="ignore"):
+class Bucket(BaseModel, extra="ignore"):
     """Represents a file storage bucket."""
 
     id: str
@@ -27,54 +22,88 @@ class BaseBucket(BaseModel, extra="ignore"):
     updated_at: datetime
     file_size_limit: int | None
     allowed_mime_types: list[str] | None
-    type: str | None = None
+    type: Literal["STANDARD", "ANALYTICS"] | None = None
+
+
+class BucketName(BaseModel, extra="ignore"):
+    name: str
 
 
 # used in bucket.list method's option parameter
-class _sortByType(TypedDict, total=False):
-    column: str
-    order: Literal["asc", "desc"]
+@dataclass
+class SortByType:
+    column: str = "name"
+    order: Literal["asc", "desc"] = "asc"
 
 
-class SignedUploadURL(TypedDict):
-    signed_url: str
-    signedUrl: str
-    token: str
-    path: str
-
-
-class CreateOrUpdateBucketOptions(TypedDict, total=False):
-    public: bool
-    file_size_limit: int
-    allowed_mime_types: list[str]
-
-
-class ListBucketFilesOptions(TypedDict, total=False):
+class ListBody(BaseModel):
+    prefix: str
     limit: int
     offset: int
-    sortBy: _sortByType
-    search: str
+    search: str | None
+    sortBy: SortByType
 
 
-class TransformOptions(TypedDict, total=False):
-    height: ReadOnly[int]
-    width: ReadOnly[int]
-    resize: ReadOnly[Literal["cover", "contain", "fill"]]
-    format: ReadOnly[Literal["origin", "avif"]]
-    quality: ReadOnly[int]
+class SignedUploadUrlResponse(BaseModel):
+    url: str
+    token: str
+
+
+@dataclass
+class SignedUploadURL:
+    signed_url: str
+    token: str
+
+
+@dataclass
+class TransformOptions:
+    height: int | None = None
+    width: int | None = None
+    resize: Literal["cover", "contain", "fill"] | None = None
+    format: Literal["origin", "avif"] | None = None
+    quality: int | None = None
+
+
+class CreateSignedUrlBody(BaseModel):
+    expiresIn: int
+    download: str | bool | None
+    transform: TransformOptions | None
+
+
+class CreateSignedUrlsBody(BaseModel):
+    paths: List[str]
+    expiresIn: int
+    download: str | bool | None
 
 
 def transform_to_dict(t: TransformOptions) -> dict[str, str]:
-    return {key: str(val) for key, val in t.items()}
+    return {key: str(val) for key, val in t.__dict__.items() if val}
 
 
-class URLOptions(TypedDict, total=False):
-    download: str | bool
-    transform: TransformOptions
+class CreateOrUpdateBucketBody(BaseModel):
+    id: str
+    name: str | None
+    public: bool | None
+    file_size_limit: int | None
+    allowed_mime_types: list[str] | None
 
 
-class CreateSignedURLsOptions(TypedDict, total=False):
-    download: str | bool
+class MessageResponse(BaseModel):
+    message: str
+
+
+class FileObject(BaseModel):
+    id: str
+    version: str
+    name: str
+    bucket_id: str
+    created_at: datetime
+    metadata: Dict[str, Any]
+    last_modified: datetime | None = None
+    size: int | None = None
+    cache_control: str | None = None
+    content_type: str | None = None
+    etag: str | None = None
 
 
 class SortByV2(TypedDict, total=False):
@@ -95,7 +124,7 @@ class SearchV2Object(BaseModel):
     name: str
     updated_at: datetime
     created_at: datetime
-    metadata: dict[str, Any] | None
+    metadata: Dict[str, Any] | None
     key: str | None = None
 
 
@@ -106,29 +135,30 @@ class SearchV2Folder(BaseModel):
     updated_at: datetime | None = None
 
 
+class SearchV2Body(BaseModel):
+    limit: int | None = None
+    prefix: str | None = None
+    cursor: str | None = None
+    with_delimiter: bool | None = None
+    sortBy: SortByV2 | None = None
+
+
 class SearchV2Result(BaseModel):
     hasNext: bool
-    folders: list[SearchV2Folder]
-    objects: list[SearchV2Object]
+    folders: List[SearchV2Folder]
+    objects: List[SearchV2Object]
     nextCursor: str | None = None
 
 
-class DownloadOptions(TypedDict, total=False):
-    transform: TransformOptions
-
-
-FileOptions = TypedDict(
-    "FileOptions",
-    {
-        "cache-control": str,
-        "content-type": str,
-        "x-upsert": str,
-        "upsert": str,
-        "metadata": dict[str, Any],
-        "headers": dict[str, str],
-    },
-    total=False,
-)
+class ListFileObject(BaseModel):
+    id: str
+    name: str
+    owner: str | None = None
+    bucket_id: str | None = None
+    updated_at: datetime
+    created_at: datetime
+    metadata: Dict[str, Any]
+    buckets: Bucket | None = None
 
 
 class UploadData(TypedDict, total=False):
@@ -136,30 +166,15 @@ class UploadData(TypedDict, total=False):
     Key: str
 
 
+class UploadResponse(BaseModel):
+    Key: str
+
+
 @dataclass
-class UploadResponse:
-    path: str
-    full_path: str
-    fullPath: str
-
-    def __init__(self, path: str, Key: str) -> None:
-        self.path = path
-        self.full_path = Key
-        self.fullPath = Key
-
-    dict = asdict
-
-
-class SignedUrlResponse(TypedDict):
-    signedURL: str | None
-    signedUrl: str | None
-
-
-class CreateSignedUrlResponse(TypedDict):
+class CreateSignedUrlResponse:
     error: str | None
     path: str
-    signedURL: str | None
-    signedUrl: str | None
+    signed_url: str | None
 
 
 class SignedUrlJsonResponse(BaseModel, extra="ignore"):
@@ -172,43 +187,15 @@ class SignedUrlsJsonItem(BaseModel, extra="ignore"):
     signedURL: str | None
 
 
-SignedUrlsJsonResponse: TypeAdapter[list[SignedUrlsJsonItem]] = TypeAdapter(
-    list[SignedUrlsJsonItem]
-)
-
-
-class CreateSignedUploadUrlOptions(BaseModel, extra="ignore"):
-    upsert: str
-
-
-UploadSignedUrlFileOptions = TypedDict(
-    "UploadSignedUrlFileOptions",
-    {
-        "cache-control": str,
-        "content-type": str,
-        "metadata": dict[str, Any],
-        "headers": dict[str, str],
-    },
-    total=False,
-)
+SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
 
 DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
 
 
 class MetadataConfiguration(BaseModel, extra="ignore"):
-    non_filterable_metadata_keys: list[str] | None = Field(
-        default=None,
-        validation_alias=AliasChoices(
-            "non_filterable_metadata_keys", "nonFilterableMetadataKeys"
-        ),
-        serialization_alias="nonFilterableMetadataKeys",
+    non_filterable_metadata_keys: List[str] | None = Field(
+        alias="nonFilterableMetadataKeys"
     )
-
-
-class ListIndexesOptions(BaseModel, extra="ignore"):
-    nextToken: str | None = None
-    maxResults: int | None = None
-    prefix: str | None = None
 
 
 class ListIndexesResponseItem(BaseModel, extra="ignore"):
@@ -216,7 +203,7 @@ class ListIndexesResponseItem(BaseModel, extra="ignore"):
 
 
 class ListVectorIndexesResponse(BaseModel, extra="ignore"):
-    indexes: list[ListIndexesResponseItem]
+    indexes: List[ListIndexesResponseItem]
     nextToken: str | None = None
 
 
@@ -236,11 +223,11 @@ class GetVectorIndexResponse(BaseModel, extra="ignore"):
     index: VectorIndex
 
 
-VectorFilter = dict[str, Any]
+VectorFilter = Dict[str, Any]
 
 
 class VectorData(BaseModel, extra="ignore"):
-    float32: list[float]
+    float32: List[float]
 
 
 class VectorObject(BaseModel, extra="ignore"):
@@ -253,20 +240,20 @@ class VectorMatch(BaseModel, extra="ignore"):
     key: str
     data: VectorData | None = None
     distance: float | None = None
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, JSON] | None = None
 
 
 class GetVectorsResponse(BaseModel, extra="ignore"):
-    vectors: list[VectorMatch]
+    vectors: List[VectorMatch]
 
 
 class ListVectorsResponse(BaseModel, extra="ignore"):
-    vectors: list[VectorMatch]
+    vectors: List[VectorMatch]
     nextToken: str | None = None
 
 
 class QueryVectorsResponse(BaseModel, extra="ignore"):
-    vectors: list[VectorMatch]
+    vectors: List[VectorMatch]
 
 
 class AnalyticsBucket(BaseModel, extra="ignore"):
@@ -280,9 +267,7 @@ class AnalyticsBucket(BaseModel, extra="ignore"):
 SortColumn = Literal["id", "name", "created_at", "updated_at"]
 SortOrder = Literal["asc", "desc"]
 
-AnalyticsBucketsParser: TypeAdapter[list[AnalyticsBucket]] = TypeAdapter(
-    list[AnalyticsBucket]
-)
+AnalyticsBucketsParser = TypeAdapter(List[AnalyticsBucket])
 
 
 class AnalyticsBucketDeleteResponse(BaseModel, extra="ignore"):
@@ -309,5 +294,5 @@ class ListVectorBucketsItem(BaseModel, extra="ignore"):
 
 
 class ListVectorBucketsResponse(BaseModel, extra="ignore"):
-    vectorBuckets: list[ListVectorBucketsItem]
+    vectorBuckets: List[ListVectorBucketsItem]
     nextToken: str | None = None

@@ -1,13 +1,15 @@
 import json
 
-import pytest
-from httpx import AsyncClient, Client, MockTransport, Request, Response
-from storage3 import AsyncStorageClient, SyncStorageClient
-from storage3.types import JSON, VectorData, VectorObject
+from httpx import Request, Response
+from supabase_utils.types import JSON
+
+from storage3.types import VectorData, VectorObject
+
+from .utils import call_with_client, use_async
 
 
-@pytest.mark.parametrize("asynchronous", [False, True])
-async def test_put_vectors_preserves_array_metadata(asynchronous: bool) -> None:
+@use_async
+async def test_put_vectors_preserves_array_metadata(use_async: bool) -> None:
     metadata: dict[str, JSON] = {
         "category": "electronics",
         "price": 299.99,
@@ -28,19 +30,14 @@ async def test_put_vectors_preserves_array_metadata(asynchronous: bool) -> None:
         requests.append(request)
         return Response(200, json={})
 
-    transport = MockTransport(handle_request)
-    if asynchronous:
-        async with AsyncClient(transport=transport) as http_client:
-            client = AsyncStorageClient(
-                "https://example.com/storage/v1/", {}, http_client=http_client
-            )
-            await client.vectors().from_("catalog").index("products").put([vector])
-    else:
-        with Client(transport=transport) as sync_http_client:
-            sync_client = SyncStorageClient(
-                "https://example.com/storage/v1/", {}, http_client=sync_http_client
-            )
-            sync_client.vectors().from_("catalog").index("products").put([vector])
+    await call_with_client(
+        use_async,
+        handle_request,
+        lambda client: client.vectors()
+        .from_("catalog")
+        .index("products")
+        .put([vector]),
+    )
 
     assert len(requests) == 1
     assert requests[0].url.path.endswith("/PutVectors")

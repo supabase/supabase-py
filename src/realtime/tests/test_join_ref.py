@@ -1,154 +1,132 @@
-import json
-import os
-from unittest.mock import AsyncMock
+from typing import AsyncIterator
 
 import pytest
-from subscribe_helpers import subscribe_with_ok_reply
+from pydantic import TypeAdapter
+from websockets.asyncio.server import ServerConnection, serve
 
-from realtime import AsyncRealtimeChannel, AsyncRealtimeClient
-
-URL = os.getenv("SUPABASE_URL") or "http://127.0.0.1:54321"
-PUBLISHABLE_KEY = (
-    os.getenv("SUPABASE_PUBLISHABLE_KEY")
-    or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+from realtime.channel import RealtimeChannelOptions
+from realtime.client import connect_once
+from realtime.message import (
+    ClientMessage,
+    Message,
+    ReplyMessage,
+    ReplyPostgresChanges,
+    SuccessReplyMessage,
 )
+from realtime.types import ChannelEvents
+
+# SDK-1526: the Realtime protocol requires every client-sent event (join, leave,
+# broadcast, presence track/untrack) to carry the channel's current `join_ref` so
+# the server can detect stale messages after a rejoin.
+# See: https://supabase.com/docs/guides/realtime/protocol#client-sent-events
+
+PORT = 55565
+URL = "localhost"
+PUBLISHABLE_KEY = "my-publishable-key"
+MessageParser: TypeAdapter[ClientMessage] = TypeAdapter(ClientMessage)
+
+
+async def get_token() -> str:
+    return PUBLISHABLE_KEY
+
+
+def reply_ack(topic: str, ref: str) -> str:
+    reply_msg = ReplyMessage(
+        event=ChannelEvents.reply,
+        topic=topic,
+        ref=ref,
+        payload=SuccessReplyMessage(
+            status="ok", response=ReplyPostgresChanges(postgres_changes=[])
+        ),
+    )
+    return reply_msg.model_dump_json()
+
+
+class RecordingServer:
+    """A local websocket server that acks every ref'd message and records what it received."""
+
+    def __init__(self, url: str, port: int):
+        self.url = url
+        self.port = port
+        self.received: list[Message] = []
+
+    async def start(self) -> None:
+        self.ws_server = await serve(self.handler, self.url, self.port)
+        await self.ws_server.start_serving()
+
+    async def __aenter__(self) -> "RecordingServer":
+        await self.start()
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        self.ws_server.close()
+        await self.ws_server.wait_closed()
+
+    async def handler(self, connection: ServerConnection) -> None:
+        while True:
+            raw = await connection.recv(decode=False)
+            message = Message.model_validate_json(raw)
+            self.received.append(message)
+            if message.ref is not None:
+                await connection.send(reply_ack(message.topic, message.ref))
+
+    def events(self, event: str) -> list[Message]:
+        return [m for m in self.received if m.event == event]
 
 
 @pytest.fixture
-def socket() -> AsyncRealtimeClient:
-    url = f"{URL}/realtime/v1"
-    return AsyncRealtimeClient(url, PUBLISHABLE_KEY)
-
-
-def sent_messages(mock_ws: AsyncMock) -> list[dict]:
-    return [json.loads(call.args[0]) for call in mock_ws.send.call_args_list]
-
-
-async def subscribe(channel: AsyncRealtimeChannel) -> None:
-    await subscribe_with_ok_reply(channel, lambda state, error: None)
+async def server() -> AsyncIterator[RecordingServer]:
+    async with RecordingServer(URL, PORT) as server:
+        yield server
 
 
 @pytest.mark.asyncio
-async def test_join_carries_join_ref_equal_to_its_own_ref(
-    socket: AsyncRealtimeClient,
-) -> None:
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
-
-    channel = socket.channel("test-join-ref")
-    await subscribe(channel)
-
-    [join_message] = sent_messages(mock_ws)
-    assert join_message["event"] == "phx_join"
-    assert join_message["join_ref"] == join_message["ref"]
-    assert join_message["join_ref"] == channel.join_push.ref
-
-    await socket.close()
+async def test_join_carries_join_ref_equal_to_its_own_ref(server: RecordingServer):
+    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+        async with client.channel("test-join-ref") as channel:
+            [join_message] = server.events("phx_join")
+            assert join_message.join_ref == join_message.ref
+            assert join_message.join_ref == channel.join_ref
 
 
 @pytest.mark.asyncio
-async def test_broadcast_push_carries_channel_join_ref(
-    socket: AsyncRealtimeClient,
-) -> None:
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
+async def test_broadcast_push_carries_channel_join_ref(server: RecordingServer):
+    options = RealtimeChannelOptions().broadcast(ack=True)
+    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+        async with client.channel("test-join-ref-broadcast", params=options) as channel:
+            await channel.send_broadcast("cursor", {"x": 1})
 
-    channel = socket.channel(
-        "test-join-ref-broadcast",
-        params={
-            "config": {
-                "broadcast": {"ack": True, "self": False},
-                "presence": {"key": "", "enabled": False},
-                "private": False,
-            }
-        },
-    )
-    await subscribe(channel)
-    mock_ws.send.reset_mock()
-
-    await channel.send_broadcast("cursor", {"x": 1})
-
-    [broadcast_message] = sent_messages(mock_ws)
-    assert broadcast_message["event"] == "broadcast"
-    assert broadcast_message["join_ref"] == channel.join_push.ref
-    assert broadcast_message["join_ref"] is not None
-
-    await socket.close()
+            [join_message] = server.events("phx_join")
+            [broadcast_message] = server.events("broadcast")
+            assert broadcast_message.join_ref == join_message.ref
+            assert broadcast_message.join_ref is not None
 
 
 @pytest.mark.asyncio
 async def test_presence_track_and_untrack_carry_channel_join_ref(
-    socket: AsyncRealtimeClient,
-) -> None:
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
+    server: RecordingServer,
+):
+    options = RealtimeChannelOptions().presence(enabled=True)
+    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+        async with client.channel("test-join-ref-presence", params=options) as channel:
+            await channel.track({"id": 123})
+            await channel.untrack()
 
-    channel = socket.channel(
-        "test-join-ref-presence",
-        params={
-            "config": {
-                "broadcast": {"ack": False, "self": False},
-                "presence": {"key": "", "enabled": True},
-                "private": False,
-            }
-        },
-    )
-    await subscribe(channel)
-    mock_ws.send.reset_mock()
+            [join_message] = server.events("phx_join")
+            track_message, untrack_message = server.events("presence")
+            assert track_message.payload["event"] == "track"
+            assert track_message.join_ref == join_message.ref
 
-    await channel.track({"id": 123})
-    await channel.untrack()
-
-    track_message, untrack_message = sent_messages(mock_ws)
-    assert track_message["payload"]["event"] == "track"
-    assert track_message["join_ref"] == channel.join_push.ref
-
-    assert untrack_message["payload"]["event"] == "untrack"
-    assert untrack_message["join_ref"] == channel.join_push.ref
-
-    await socket.close()
+            assert untrack_message.payload["event"] == "untrack"
+            assert untrack_message.join_ref == join_message.ref
 
 
 @pytest.mark.asyncio
-async def test_leave_push_carries_channel_join_ref(socket: AsyncRealtimeClient) -> None:
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
+async def test_leave_push_carries_channel_join_ref(server: RecordingServer):
+    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+        async with client.channel("test-join-ref-leave"):
+            pass
 
-    channel = socket.channel("test-join-ref-leave")
-    await subscribe(channel)
-    join_ref = channel.join_push.ref
-    mock_ws.send.reset_mock()
-
-    await channel.unsubscribe()
-
-    [leave_message] = sent_messages(mock_ws)
-    assert leave_message["event"] == "phx_leave"
-    assert leave_message["join_ref"] == join_ref
-
-    await socket.close()
-
-
-@pytest.mark.asyncio
-async def test_rejoin_sends_fresh_join_ref(socket: AsyncRealtimeClient) -> None:
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
-
-    channel = socket.channel("test-join-ref-rejoin")
-    await subscribe(channel)
-    original_join_ref = channel.join_push.ref
-    mock_ws.send.reset_mock()
-
-    await channel._rejoin()
-
-    [rejoin_message] = sent_messages(mock_ws)
-    new_join_ref = channel.join_push.ref
-    assert new_join_ref != original_join_ref
-    assert rejoin_message["join_ref"] == new_join_ref
-    assert rejoin_message["ref"] == new_join_ref
-
-    await socket.close()
+        [join_message] = server.events("phx_join")
+        [leave_message] = server.events("phx_leave")
+        assert leave_message.join_ref == join_message.ref

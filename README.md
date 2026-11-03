@@ -20,37 +20,6 @@ Relevant links:
   - [GitHub OAuth in your Python Flask app](https://supabase.com/blog/oauth2-login-python-flask-apps)
   - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
 
-## Support Policy
-
-### Python
-
-We support every Python version that has not yet reached end of life, as listed in the [Python version status page](https://devguide.python.org/versions/). The currently supported versions are the ones tested in [CI](.github/workflows/ci.yml).
-
-Once a Python version reaches end of life, support for it may be dropped in a **minor release**, and **this won't be considered a breaking change**. For instance, Python 3.9 reached end of life in October 2025, so it can be removed in a minor update.
-
-### Platforms
-
-The libraries are pure Python and are tested on Linux. They are expected to work on any platform supported by CPython, such as macOS and Windows.
-
-> [!IMPORTANT]
-> Only CPython is officially supported. Alternative Python implementations, such as PyPy, may work but aren't tested, and may stop working in future versions of the library.
-
-## Supabase Service Compatibility
-
-`supabase-py` only guarantees compatibility with the latest release of each Supabase service, unless a minimum supported version is explicitly listed below.
-
-Older service releases are supported on a best-effort basis, but compatibility is not guaranteed.
-
-If you self-host Supabase, we recommend upgrading your services to their latest releases when upgrading the SDK.
-
-| Service   | SDK package                           | Server releases                                                            | Lowest supported version |
-| --------- | ------------------------------------- | -------------------------------------------------------------------------- | ------------------------ |
-| Auth      | [`supabase_auth`](src/auth)           | [supabase/auth](https://github.com/supabase/auth/releases)                 | Latest release           |
-| Storage   | [`storage3`](src/storage)             | [supabase/storage](https://github.com/supabase/storage/releases)           | Latest release           |
-| Functions | [`supabase_functions`](src/functions) | [supabase/edge-runtime](https://github.com/supabase/edge-runtime/releases) | Latest release           |
-| PostgREST | [`postgrest`](src/postgrest)          | [PostgREST/postgrest](https://github.com/PostgREST/postgrest/releases)     | Latest release           |
-| Realtime  | [`realtime`](src/realtime)            | [supabase/realtime](https://github.com/supabase/realtime/releases)         | Latest release           |
-
 ## Local Development
 
 ### Clone the Repository

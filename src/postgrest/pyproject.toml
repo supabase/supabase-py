@@ -1,6 +1,6 @@
 [project]
 name = "postgrest"
-version = "2.34.0" # {x-release-please-version}
+version = "3.0.0a1" # {x-release-please-version}
 description = "PostgREST client for Python. This library provides an ORM interface to PostgREST."
 authors = [
   { name = "Lương Quang Mạnh", email = "luongquangmanh85@gmail.com"},
@@ -19,12 +19,13 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent"
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
-  "httpx[http2] >=0.26,<0.29",
   "deprecation >=2.1.0",
-  "pydantic >=2.11.7,<3",
+  "pydantic >=1.9,<3.0",
+  "strenum >=0.4.9; python_version < \"3.11\"",
   "yarl>=1.20.1",
+  "supabase_utils==3.0.0a1", # x-release-please-version
 ]
 
 [project.urls]
@@ -40,6 +41,7 @@ test = [
   "pytest-depends >=1.0.1",
   "pytest-asyncio >=1.0.0",
   "unasync >= 0.6.0",
+  "supabase_utils[all] == 3.0.0a1",
 ]
 lints = [
   "ruff >=0.12.1",
@@ -56,14 +58,32 @@ dev = [ { include-group = "lints" }, { include-group="test" }]
 [tool.uv]
 default-groups = [ "dev" ]
 
+[tool.ruff.lint]
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  # "B",
+  # flake8-simplify
+  # "SIM",
+  # isort
+  "I",
+]
+ignore = ["E712", "E501", "E402", "UP006", "UP035"]
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning", # ignore deprecation warnings globally
 ]
-
-[tool.ruff]
-extend = "../../pyproject.toml"
 
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]

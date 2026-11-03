@@ -1,17 +1,12 @@
-from typing import Any
-
 import pytest
 
-from postgrest import CountMethod
+from postgrest import CountMethod, SyncPostgrestClient
 from postgrest.exceptions import APIError
 
-from .client import rest_client, rest_client_httpx
 
-
-def test_multivalued_param_httpx() -> None:
+def test_multivalued_param_httpx(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client_httpx()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso", count=CountMethod.exact)
         .lte("numcode", 8)
         .gte("numcode", 4)
@@ -25,10 +20,9 @@ def test_multivalued_param_httpx() -> None:
     ]
 
 
-def test_multivalued_param() -> None:
+def test_multivalued_param(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso", count=CountMethod.exact)
         .lte("numcode", 8)
         .gte("numcode", 4)
@@ -42,10 +36,9 @@ def test_multivalued_param() -> None:
     ]
 
 
-def test_match() -> None:
+def test_match(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .match({"numcode": 8, "nicename": "Albania"})
         .single()
@@ -55,24 +48,21 @@ def test_match() -> None:
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-def test_match_maybe_single() -> None:
+def test_match_maybe_single(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .match({"numcode": 8, "nicename": "Albania"})
         .maybe_single()
         .execute()
     )
-
-    assert res is not None
+    assert res
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-def test_no_match_maybe_single() -> None:
+def test_no_match_maybe_single(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .match({"numcode": 100, "nicename": "Wonderland"})
         .maybe_single()
@@ -82,11 +72,12 @@ def test_no_match_maybe_single() -> None:
     assert res is None
 
 
-def test_maybe_single_multiple_rows() -> None:
+def test_maybe_single_multiple_rows(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
     with pytest.raises(APIError) as exc_info:
         (
-            rest_client()
-            .from_("countries")
+            postgrest_client.from_("countries")
             .select("country_name, iso")
             .lte("numcode", 8)
             .gte("numcode", 4)
@@ -99,26 +90,9 @@ def test_maybe_single_multiple_rows() -> None:
     assert exc_info.value.details == "The result contains more than one row."
 
 
-def test_head_query_error() -> None:
-    with pytest.raises(APIError) as exc_info:
-        (
-            rest_client()
-            .from_("countries")
-            .select("*", count=CountMethod.exact, head=True)
-            .eq("ref.othercol", 123)
-            .execute()
-        )
-
-    assert exc_info.value.code in ("PGRST108", "400")
-    assert exc_info.value.message == "Bad Request"
-    assert exc_info.value.hint is None
-    assert exc_info.value.details is None
-
-
-def test_equals() -> None:
+def test_equals(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .eq("nicename", "Albania")
         .single()
@@ -128,10 +102,9 @@ def test_equals() -> None:
     assert res.data == {"country_name": "ALBANIA", "iso": "AL"}
 
 
-def test_not_equal() -> None:
+def test_not_equal(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("users")
+        postgrest_client.from_("users")
         .select("id, name")
         .neq("name", "Jane")
         .single()
@@ -141,22 +114,29 @@ def test_not_equal() -> None:
     assert res.data == {"id": 1, "name": "Michael"}
 
 
-def test_greater_than() -> None:
-    res = rest_client().from_("users").select("id, name").gt("id", 1).single().execute()
+def test_greater_than(postgrest_client: SyncPostgrestClient) -> None:
+    res = (
+        postgrest_client.from_("users")
+        .select("id, name")
+        .gt("id", 1)
+        .single()
+        .execute()
+    )
 
     assert res.data == {"id": 2, "name": "Jane"}
 
 
-def test_greater_than_or_equals_to() -> None:
-    res = rest_client().from_("users").select("id, name").gte("id", 1).execute()
+def test_greater_than_or_equals_to(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
+    res = postgrest_client.from_("users").select("id, name").gte("id", 1).execute()
 
     assert res.data == [{"id": 1, "name": "Michael"}, {"id": 2, "name": "Jane"}]
 
 
-def test_contains_dictionary() -> None:
+def test_contains_dictionary(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("users")
+        postgrest_client.from_("users")
         .select("name")
         .contains("address", {"postcode": 90210})
         .single()
@@ -166,10 +146,9 @@ def test_contains_dictionary() -> None:
     assert res.data == {"name": "Michael"}
 
 
-def test_contains_any_item() -> None:
+def test_contains_any_item(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("issues")
+        postgrest_client.from_("issues")
         .select("title")
         .contains("tags", ["is:open", "priority:low"])
         .execute()
@@ -178,10 +157,9 @@ def test_contains_any_item() -> None:
     assert res.data == [{"title": "Cache invalidation is not working"}]
 
 
-def test_contains_on_range() -> None:
+def test_contains_on_range(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("reservations")
+        postgrest_client.from_("reservations")
         .select("id, room_name")
         .contains("during", "[2000-01-01 13:00, 2000-01-01 13:30)")
         .execute()
@@ -190,10 +168,9 @@ def test_contains_on_range() -> None:
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_contained_by_mixed_items() -> None:
+def test_contained_by_mixed_items(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("reservations")
+        postgrest_client.from_("reservations")
         .select("id, room_name")
         .contained_by("during", "[2000-01-01 00:00, 2000-01-01 23:59)")
         .execute()
@@ -202,70 +179,68 @@ def test_contained_by_mixed_items() -> None:
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_range_greater_than() -> None:
+def test_range_greater_than(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("reservations")
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_gt("during", ("2000-01-02 08:00", "2000-01-02 09:00"))
+        .range_gt("during", "2000-01-02 08:00", "2000-01-02 09:00")
         .execute()
     )
 
     assert res.data == [{"id": 2, "room_name": "Topaz"}]
 
 
-def test_range_greater_than_or_equal_to() -> None:
+def test_range_greater_than_or_equal_to(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
     res = (
-        rest_client()
-        .from_("reservations")
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_gte("during", ("2000-01-02 08:30", "2000-01-02 09:30"))
+        .range_gte("during", "2000-01-02 08:30", "2000-01-02 09:30")
         .execute()
     )
 
     assert res.data == [{"id": 2, "room_name": "Topaz"}]
 
 
-def test_range_less_than() -> None:
+def test_range_less_than(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("reservations")
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_lt("during", ("2000-01-01 15:00", "2000-01-02 16:00"))
+        .range_lt("during", "2000-01-01 15:00", "2000-01-02 16:00")
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_range_less_than_or_equal_to() -> None:
+def test_range_less_than_or_equal_to(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
     res = (
-        rest_client()
-        .from_("reservations")
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_lte("during", ("2000-01-01 14:00", "2000-01-01 16:00"))
+        .range_lte("during", "2000-01-01 14:00", "2000-01-01 16:00")
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_range_adjacent() -> None:
+def test_range_adjacent(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("reservations")
+        postgrest_client.from_("reservations")
         .select("id, room_name")
-        .range_adjacent("during", ("2000-01-01 12:00", "2000-01-01 13:00"))
+        .range_adjacent("during", "2000-01-01 12:00", "2000-01-01 13:00")
         .execute()
     )
 
     assert res.data == [{"id": 1, "room_name": "Emerald"}]
 
 
-def test_overlaps() -> None:
+def test_overlaps(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("issues")
+        postgrest_client.from_("issues")
         .select("title")
         .overlaps("tags", ["is:closed", "severity:high"])
         .execute()
@@ -277,10 +252,11 @@ def test_overlaps() -> None:
     ]
 
 
-def test_overlaps_with_timestamp_range() -> None:
+def test_overlaps_with_timestamp_range(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
     res = (
-        rest_client()
-        .from_("reservations")
+        postgrest_client.from_("reservations")
         .select("room_name")
         .overlaps("during", "[2000-01-01 12:45, 2000-01-01 13:15)")
         .execute()
@@ -291,10 +267,9 @@ def test_overlaps_with_timestamp_range() -> None:
     ]
 
 
-def test_like() -> None:
+def test_like(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .like("nicename", "%Alba%")
         .execute()
@@ -303,10 +278,9 @@ def test_like() -> None:
     assert res.data == [{"country_name": "ALBANIA", "iso": "AL"}]
 
 
-def test_ilike() -> None:
+def test_ilike(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .ilike("nicename", "%alban%")
         .execute()
@@ -315,10 +289,9 @@ def test_ilike() -> None:
     assert res.data == [{"country_name": "ALBANIA", "iso": "AL"}]
 
 
-def test_like_all_of() -> None:
+def test_like_all_of(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("nicename, iso")
         .like_all_of("nicename", "A*,*n")
         .execute()
@@ -327,10 +300,9 @@ def test_like_all_of() -> None:
     assert res.data == [{"iso": "AF", "nicename": "Afghanistan"}]
 
 
-def test_like_any_of() -> None:
+def test_like_any_of(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("nicename, iso")
         .like_any_of("nicename", "Al*,*ia")
         .execute()
@@ -342,10 +314,9 @@ def test_like_any_of() -> None:
     ]
 
 
-def test_ilike_all_of() -> None:
+def test_ilike_all_of(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("nicename, iso")
         .ilike_all_of("nicename", "a*,*n")
         .execute()
@@ -354,10 +325,9 @@ def test_ilike_all_of() -> None:
     assert res.data == [{"iso": "AF", "nicename": "Afghanistan"}]
 
 
-def test_ilike_any_of() -> None:
+def test_ilike_any_of(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("nicename, iso")
         .ilike_any_of("nicename", "al*,*ia")
         .execute()
@@ -369,10 +339,9 @@ def test_ilike_any_of() -> None:
     ]
 
 
-def test_is_() -> None:
+def test_is_(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .is_("numcode", "null")
         .limit(1)
@@ -383,10 +352,9 @@ def test_is_() -> None:
     assert res.data == [{"country_name": "ANTARCTICA", "iso": "AQ"}]
 
 
-def test_is_not() -> None:
+def test_is_not(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .not_.is_("numcode", "null")
         .limit(1)
@@ -397,10 +365,9 @@ def test_is_not() -> None:
     assert res.data == [{"country_name": "AFGHANISTAN", "iso": "AF"}]
 
 
-def test_in_() -> None:
+def test_in_(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .in_("nicename", ["Albania", "Algeria"])
         .execute()
@@ -412,10 +379,9 @@ def test_in_() -> None:
     ]
 
 
-def test_or_() -> None:
+def test_or_(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .or_("iso.eq.DZ,nicename.eq.Albania")
         .execute()
@@ -427,10 +393,9 @@ def test_or_() -> None:
     ]
 
 
-def test_or_with_and() -> None:
+def test_or_with_and(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .or_("phonecode.gt.506,and(iso.eq.AL,nicename.eq.Albania)")
         .execute()
@@ -442,10 +407,9 @@ def test_or_with_and() -> None:
     ]
 
 
-def test_or_in() -> None:
+def test_or_in(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("issues")
+        postgrest_client.from_("issues")
         .select("id, title")
         .or_("id.in.(1,4),tags.cs.{is:open,priority:high}")
         .execute()
@@ -458,10 +422,9 @@ def test_or_in() -> None:
     ]
 
 
-def test_or_on_reference_table() -> None:
+def test_or_on_reference_table(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, cities!inner(name)")
         .or_("country_id.eq.10,name.eq.Paris", reference_table="cities")
         .execute()
@@ -480,39 +443,51 @@ def test_or_on_reference_table() -> None:
     ]
 
 
-def test_explain_json() -> None:
+def test_explain_json(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, cities!inner(name)")
         .or_("country_id.eq.10,name.eq.Paris", reference_table="cities")
-        .explain(format="json", analyze=True)
+        .explain(
+            format="json",
+            analyze=True,
+            verbose=False,
+            settings=False,
+            wal=False,
+            buffers=False,
+        )
         .execute()
     )
-    data: Any = res.data
-    assert data[0]["Plan"]["Node Type"] == "Aggregate"
+    assert isinstance(res.data, list)
+    assert isinstance(res.data[0], dict)
+    assert isinstance(res.data[0]["Plan"], dict)
+    assert res.data[0]["Plan"]["Node Type"] == "Aggregate"
 
 
-def test_csv() -> None:
+def test_csv(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .in_("nicename", ["Albania", "Algeria"])
         .csv()
         .execute()
     )
-    assert isinstance(res.data, str)
-    assert "ALBANIA,AL\nALGERIA,DZ" in res.data
+    assert "ALBANIA,AL\nALGERIA,DZ" in res
 
 
-def test_explain_text() -> None:
+def test_explain_text(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, cities!inner(name)")
         .or_("country_id.eq.10,name.eq.Paris", reference_table="cities")
-        .explain(analyze=True, verbose=True, settings=True, buffers=True, wal=True)
+        .explain(
+            analyze=True,
+            verbose=True,
+            settings=True,
+            wal=True,
+            buffers=True,
+            format="text",
+        )
         .execute()
     )
     assert (
@@ -521,10 +496,9 @@ def test_explain_text() -> None:
     )
 
 
-def test_rpc_with_single() -> None:
+def test_rpc_with_single(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .rpc("list_stored_countries", {})
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, country_name, iso")
         .eq("nicename", "Albania")
         .single()
@@ -534,24 +508,24 @@ def test_rpc_with_single() -> None:
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
-def test_rpc_with_maybe_single() -> None:
+def test_rpc_with_maybe_single(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .rpc("list_stored_countries", {})
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, country_name, iso")
         .eq("nicename", "Albania")
         .maybe_single()
         .execute()
     )
 
-    assert res is not None
+    assert res
     assert res.data == {"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}
 
 
-def test_rpc_with_maybe_single_no_match() -> None:
+def test_rpc_with_maybe_single_no_match(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
     res = (
-        rest_client()
-        .rpc("list_stored_countries", {})
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, country_name, iso")
         .eq("nicename", "Wonderland")
         .maybe_single()
@@ -561,11 +535,12 @@ def test_rpc_with_maybe_single_no_match() -> None:
     assert res is None
 
 
-def test_rpc_with_maybe_single_multiple_rows() -> None:
+def test_rpc_with_maybe_single_multiple_rows(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
     with pytest.raises(APIError) as exc_info:
         (
-            rest_client()
-            .rpc("list_stored_countries", {})
+            postgrest_client.rpc("list_stored_countries", {})
             .select("nicename, country_name, iso")
             .maybe_single()
             .execute()
@@ -576,10 +551,9 @@ def test_rpc_with_maybe_single_multiple_rows() -> None:
     assert exc_info.value.details == "The result contains more than one row."
 
 
-def test_rpc_with_limit() -> None:
+def test_rpc_with_limit(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .rpc("list_stored_countries", {})
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, country_name, iso")
         .eq("nicename", "Albania")
         .limit(1)
@@ -589,10 +563,9 @@ def test_rpc_with_limit() -> None:
     assert res.data == [{"nicename": "Albania", "country_name": "ALBANIA", "iso": "AL"}]
 
 
-def test_rpc_with_range() -> None:
+def test_rpc_with_range(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .rpc("list_stored_countries", {})
+        postgrest_client.rpc("list_stored_countries", {})
         .select("nicename, iso")
         .range(1, 2)
         .execute()
@@ -604,30 +577,29 @@ def test_rpc_with_range() -> None:
     ]
 
 
-def test_rpc_post_with_args() -> None:
+def test_rpc_post_with_args(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .rpc("search_countries_by_name", {"search_name": "Alban"})
+        postgrest_client.rpc("search_countries_by_name", {"search_name": "Alban"})
         .select("nicename, iso")
         .execute()
     )
     assert res.data == [{"nicename": "Albania", "iso": "AL"}]
 
 
-def test_rpc_get_with_args() -> None:
+def test_rpc_get_with_args(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .rpc("search_countries_by_name", {"search_name": "Alger"}, get=True)
+        postgrest_client.rpc(
+            "search_countries_by_name", {"search_name": "Alger"}, get=True
+        )
         .select("nicename, iso")
         .execute()
     )
     assert res.data == [{"nicename": "Algeria", "iso": "DZ"}]
 
 
-def test_rpc_get_with_count() -> None:
+def test_rpc_get_with_count(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .rpc(
+        postgrest_client.rpc(
             "search_countries_by_name",
             {"search_name": "Al"},
             get=True,
@@ -640,26 +612,20 @@ def test_rpc_get_with_count() -> None:
     assert res.data == [{"nicename": "Albania"}, {"nicename": "Algeria"}]
 
 
-def test_rpc_head_count() -> None:
+def test_rpc_head_count(postgrest_client: SyncPostgrestClient) -> None:
+    res = postgrest_client.rpc(
+        "search_countries_by_name",
+        {"search_name": "Al"},
+        head=True,
+        count=CountMethod.exact,
+    ).execute()
+
+    assert res == 2
+
+
+def test_order(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .rpc(
-            "search_countries_by_name",
-            {"search_name": "Al"},
-            head=True,
-            count=CountMethod.exact,
-        )
-        .execute()
-    )
-
-    assert res.count == 2
-    assert res.data == []
-
-
-def test_order() -> None:
-    res = (
-        rest_client()
-        .from_("countries")
+        postgrest_client.from_("countries")
         .select("country_name, iso")
         .limit(3)
         .order("nicename", desc=True)
@@ -673,10 +639,9 @@ def test_order() -> None:
     ]
 
 
-def test_order_on_foreign_table() -> None:
+def test_order_on_foreign_table(postgrest_client: SyncPostgrestClient) -> None:
     res = (
-        rest_client()
-        .from_("orchestral_sections")
+        postgrest_client.from_("orchestral_sections")
         .select("name, instruments(name)")
         .order("name", desc=True, foreign_table="instruments")
         .execute()
@@ -688,27 +653,31 @@ def test_order_on_foreign_table() -> None:
     ]
 
 
-def test_get_retry_503() -> None:
-    from httpx import Request, Response
+def test_get_retry_503(postgrest_client: SyncPostgrestClient) -> None:
+    from supabase_utils.http.headers import Headers
+    from supabase_utils.http.request import Request, Response
 
     retry_count = 0
-    client = rest_client()
-    original_send = client.session.send
+    original_send = postgrest_client.executor.session.send
 
-    def fake_send(request: Request, **kwargs: Any) -> Response:
+    def fake_send(request: Request, **kwargs):
         nonlocal retry_count
         if retry_count > 0:
             assert request.headers["X-Retry-Count"] == str(retry_count)
         if retry_count < 3:
             retry_count += 1
-            return Response(503)
+            return Response(
+                content=b"error", status=503, headers=Headers.empty(), request=request
+            )
         return original_send(request)
 
     from unittest.mock import patch
 
-    with patch.object(client.session, "send", wraps=fake_send):
+    with patch.object(
+        postgrest_client.executor.session, "send", wraps=fake_send
+    ) as _mock_send:
         query = (
-            client.from_("orchestral_sections")
+            postgrest_client.from_("orchestral_sections")
             .select("name, instruments(name)")
             .order("name", desc=True, foreign_table="instruments")
         )
@@ -721,20 +690,24 @@ def test_get_retry_503() -> None:
         assert retry_count > 0
 
 
-def test_get_retry_503_does_not_retry_when_disabled() -> None:
-    from httpx import Request, Response
+def test_get_retry_503_does_not_retry_when_disabled(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
+    from supabase_utils.http.headers import Headers
+    from supabase_utils.http.request import Request, Response
 
     retry_count = 0
-    client = rest_client()
-    original_send = client.session.send
+    original_send = postgrest_client.executor.session.send
 
-    def fake_send(request: Request, **kwargs: Any) -> Response:
+    def fake_send(request: Request, **kwargs):
         nonlocal retry_count
         if retry_count > 0:
             assert request.headers["X-Retry-Count"] == str(retry_count)
         if retry_count < 3:
             retry_count += 1
-            return Response(503)
+            return Response(
+                content=b"error", status=503, headers=Headers.empty(), request=request
+            )
         return original_send(request)
 
     from unittest.mock import patch
@@ -743,9 +716,11 @@ def test_get_retry_503_does_not_retry_when_disabled() -> None:
 
     from postgrest.exceptions import APIError
 
-    with patch.object(client.session, "send", wraps=fake_send):
+    with patch.object(
+        postgrest_client.executor.session, "send", wraps=fake_send
+    ) as _mock_send:
         query = (
-            client.from_("orchestral_sections")
+            postgrest_client.from_("orchestral_sections")
             .select("name, instruments(name)")
             .order("name", desc=True, foreign_table="instruments")
             .retry(False)
@@ -756,20 +731,22 @@ def test_get_retry_503_does_not_retry_when_disabled() -> None:
         assert retry_count == 1
 
 
-def test_order_retry_400_doesnt_retry() -> None:
-    from httpx import Request, Response
+def test_order_retry_400_doesnt_retry(postgrest_client: SyncPostgrestClient) -> None:
+    from supabase_utils.http.headers import Headers
+    from supabase_utils.http.request import Request, Response
 
     retry_count = 0
-    client = rest_client()
-    original_send = client.session.send
+    original_send = postgrest_client.executor.session.send
 
-    def fake_send(request: Request, **kwargs: Any) -> Response:
+    def fake_send(request: Request, **kwargs):
         nonlocal retry_count
         if retry_count < 3:
             retry_count += 1
             return Response(
-                400,
+                status=400,
                 content=b'{"message": "JSON could not be generated", "code": "400", "hint": "Refer to full message for details", "details": ""}',
+                headers=Headers.empty(),
+                request=request,
             )
         return original_send(request)
 
@@ -779,9 +756,11 @@ def test_order_retry_400_doesnt_retry() -> None:
 
     from postgrest.exceptions import APIError
 
-    with patch.object(client.session, "send", wraps=fake_send):
+    with patch.object(
+        postgrest_client.executor.session, "send", wraps=fake_send
+    ) as _mock_send:
         query = (
-            client.from_("orchestral_sections")
+            postgrest_client.from_("orchestral_sections")
             .select("name, instruments(name)")
             .order("name", desc=True, foreign_table="instruments")
         )

@@ -1,84 +1,77 @@
-from typing import TypedDict
+from typing import TypeVar
 
-from httpx import Response
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic.dataclasses import dataclass
+from supabase_utils.http.request import Response
 
-from .utils import StorageException
+
+class StorageException(Exception):
+    """Error raised when an operation on the storage API fails."""
 
 
-class VectorBucketException(Exception):
+class VectorBucketException(StorageException):
     def __init__(self, msg: str) -> None:
         self.msg = msg
 
 
-class VectorBucketErrorMessage(BaseModel):
+class StorageApiErrorMessage(BaseModel):
+    """Wire format of a storage API error body."""
+
     statusCode: str | int
     error: str
     message: str
     code: str | None = None
 
 
-class _AnalyticsBucketErrorDetail(BaseModel):
-    message: str
-    type: str
+# Kept as an alias: the vector endpoints return the same error body.
+VectorBucketErrorMessage = StorageApiErrorMessage
 
 
-class _AnalyticsBucketErrorMessage(BaseModel):
-    error: _AnalyticsBucketErrorDetail
-
-
-class StorageApiErrorDict(TypedDict):
-    name: str
+@dataclass
+class StorageApiError(StorageException):
     message: str
     code: str
     status: int | str
 
+    def __repr__(self) -> str:
+        return str(self)
 
-class StorageApiError(StorageException):
-    """Error raised when an operation on the storage API fails."""
-
-    def __init__(self, message: str, code: str, status: int | str) -> None:
-        error_message = (
-            f"{{'statusCode': {status}, 'error': {code}, 'message': {message}}}"
-        )
-        super().__init__(error_message)
-        self.name = "StorageApiError"
-        self.message = message
-        self.code = code
-        self.status = status
-
-    def to_dict(self) -> StorageApiErrorDict:
-        return {
-            "name": self.name,
-            "code": self.code,
-            "message": self.message,
-            "status": self.status,
-        }
+    def __str__(self) -> str:
+        return f"StorageApiError(message='{self.message}', code={self.code}, status='{self.status}')"
 
 
-def _parse_storage_api_error(response: Response) -> StorageApiError:
+StorageApiErrorParser = TypeAdapter(StorageApiErrorMessage)
+
+
+def parse_api_error(response: Response) -> StorageApiError:
     try:
-        error = VectorBucketErrorMessage.model_validate_json(response.content)
-        return StorageApiError(
-            message=error.message,
-            code=error.code or "400",
-            status=error.statusCode,
-        )
+        parsed = StorageApiErrorParser.validate_json(response.content)
     except ValidationError:
-        pass
-    try:
-        analytics_error = _AnalyticsBucketErrorMessage.model_validate_json(
-            response.content
-        )
+        body = response.content.decode("utf-8", errors="replace")
+        message = f"Unable to parse error message: {body}"
         return StorageApiError(
-            message=analytics_error.error.message,
-            code=analytics_error.error.type,
-            status=response.status_code,
+            message=message, code="InternalError", status=response.status
         )
-    except ValidationError:
-        pass
     return StorageApiError(
-        message=f"The request failed, but could not parse error message response:'{response.text}'",
-        code="LibraryError",
-        status=response.status_code,
+        message=parsed.message,
+        code=parsed.code or parsed.error,
+        status=response.status,
     )
+
+
+Inner = TypeVar("Inner")
+
+
+def validate_adapter(response: Response, type_adapter: TypeAdapter[Inner]) -> Inner:
+    if response.is_success:
+        return type_adapter.validate_json(response.content)
+    raise parse_api_error(response)
+
+
+Model = TypeVar("Model", bound=BaseModel)
+
+
+def validate_model(response: Response, model: type[Model]) -> Model:
+    if response.is_success:
+        return model.model_validate_json(response.content)
+    raise parse_api_error(response)

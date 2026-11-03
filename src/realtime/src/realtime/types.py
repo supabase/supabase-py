@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Literal, NotRequired, TypeAlias, TypeVar
+from typing import Any, Callable, Dict, List, Literal, Optional, TypeVar
 
-from pydantic import ConfigDict, with_config
+from pydantic import BaseModel, ConfigDict, Field, with_config
 from typing_extensions import (
+    Generic,
+    NotRequired,
     ParamSpec,
+    Required,
+    TypeAlias,
     TypedDict,
 )
 
@@ -32,7 +35,7 @@ class ChannelEvents(str, Enum):
 
     close = "phx_close"
     error = "phx_error"
-    join = "phx_join"  # type: ignore[assignment]
+    join = "phx_join"  # type: ignore
     reply = "phx_reply"
     leave = "phx_leave"
     heartbeat = "heartbeat"
@@ -93,15 +96,46 @@ class PostgresChangesData(TypedDict):
     table: str
     commit_timestamp: str
     type: RealtimePostgresChangesListenEvent
-    errors: str | list[str] | None
-    columns: list[PostgresChangesColumn]
+    errors: str | None
+    columns: List[PostgresChangesColumn]
     record: NotRequired[dict[str, Any] | None]
     old_record: NotRequired[dict[str, Any]]  # todo: improve this
 
 
+class PostgresChangesBindingDict(TypedDict):
+    event: RealtimePostgresChangesListenEvent
+    table: NotRequired[str]
+    schema: NotRequired[str]
+    filter: NotRequired[str]
+    select: NotRequired[List[str]]
+    id: NotRequired[int]
+
+
+@dataclass
+class PostgresChangesBinding:
+    event: RealtimePostgresChangesListenEvent
+    table: str | None
+    schema: str | None
+    filter: str | None
+    select: List[str] | None = None
+    id: int | None = None
+
+    def as_dict(self) -> PostgresChangesBindingDict:
+        binding: PostgresChangesBindingDict = {"event": self.event}
+        if self.schema is not None:
+            binding["schema"] = self.schema
+        if self.table is not None:
+            binding["table"] = self.table
+        if self.filter is not None:
+            binding["filter"] = self.filter
+        if self.select is not None:
+            binding["select"] = self.select
+        return binding
+
+
 class PostgresChangesPayload(TypedDict):
     data: PostgresChangesData
-    ids: list[int]
+    ids: List[int]
 
 
 class BroadcastMeta(TypedDict, total=False):
@@ -112,52 +146,8 @@ class BroadcastMeta(TypedDict, total=False):
 class BroadcastPayload(TypedDict):
     event: str
     payload: dict[str, Any]
+    type: NotRequired[str]
     meta: NotRequired[BroadcastMeta]
-
-
-@dataclass(frozen=True)
-class BroadcastCallback:
-    callback: Callable[[BroadcastPayload], None]
-    event: str
-
-    def __call__(self, payload: BroadcastPayload) -> None:
-        event = self.event.lower()
-        if event == "*" or event == payload["event"].lower():
-            return self.callback(payload)
-
-
-@dataclass
-class PostgresChangesCallback:
-    callback: Callable[[PostgresChangesPayload], None]
-    event: RealtimePostgresChangesListenEvent
-    table: str | None
-    schema: str | None
-    filter: str | None
-    select: list[str] | None = None
-    id: int | None = None
-
-    def __post_init__(self) -> None:
-        if not self.schema:
-            self.schema = "public"
-
-    def __call__(self, payload: PostgresChangesPayload) -> None:
-        event_matches = (
-            self.event == payload["data"]["type"]
-            or self.event == RealtimePostgresChangesListenEvent.All
-        )
-        if self.id and self.id in payload["ids"] and event_matches:
-            return self.callback(payload)
-
-    @property
-    def binding_filter(self) -> dict[str, Any]:
-        binding: dict[str, Any] = {"event": self.event, "schema": self.schema}
-        if self.table:
-            binding["table"] = self.table
-        if self.filter:
-            binding["filter"] = self.filter
-        if self.select:
-            binding["select"] = self.select
-        return binding
 
 
 @with_config(ConfigDict(extra="allow"))
@@ -166,42 +156,44 @@ class Presence(TypedDict):
 
 
 class PresenceEvents:
-    def __init__(self, state: str, diff: str) -> None:
+    def __init__(self, state: str, diff: str):
         self.state = state
         self.diff = diff
 
 
 class PresenceOpts:
-    def __init__(self, events: PresenceEvents) -> None:
+    def __init__(self, events: PresenceEvents):
         self.events = events
 
 
 # TypedDicts
-class ReplayOption(TypedDict, total=False):
+class ReplayOption(BaseModel):
     since: int
-    limit: int
+    limit: int | None
 
 
-class RealtimeChannelBroadcastConfig(TypedDict, total=False):
+class RealtimeChannelBroadcastConfig(BaseModel):
     ack: bool
     self: bool
-    replay: ReplayOption
-    replication_ready: bool
+    replay: ReplayOption | None = None
+    replication_ready: bool | None = None
 
 
-class RealtimeChannelPresenceConfig(TypedDict):
+class RealtimeChannelPresenceConfig(BaseModel):
     key: str
     enabled: bool
 
 
-class RealtimeChannelConfig(TypedDict):
-    broadcast: RealtimeChannelBroadcastConfig | None
-    presence: RealtimeChannelPresenceConfig | None
+class RealtimeChannelConfig(BaseModel):
+    broadcast: RealtimeChannelBroadcastConfig
+    presence: RealtimeChannelPresenceConfig
+    postgres_changes: list[PostgresChangesBindingDict]
     private: bool
 
 
-class RealtimeChannelOptions(TypedDict):
-    config: NotRequired[RealtimeChannelConfig]
+class RealtimeChannelOptionsPayload(BaseModel):
+    config: RealtimeChannelConfig
+    access_token: str | None = None
 
 
 @with_config(ConfigDict(extra="allow"))
@@ -211,14 +203,11 @@ class PresenceMeta(TypedDict):
 
 
 class RawPresenceStateEntry(TypedDict):
-    metas: list[PresenceMeta]
+    metas: List[PresenceMeta]
 
 
-# Custom types
-PresenceOnJoinCallback = Callable[[str, list[Any], list[Presence]], None]
-PresenceOnLeaveCallback = Callable[[str, list[Any], list[Presence]], None]
-RealtimePresenceState = dict[str, list[Presence]]
-RawPresenceState = dict[str, RawPresenceStateEntry]
+RealtimePresenceState = Dict[str, List[Presence]]
+RawPresenceState = Dict[str, RawPresenceStateEntry]
 
 
 class RawPresenceDiff(TypedDict):
@@ -235,12 +224,12 @@ class PresenceDiff(TypedDict):
 class RealtimePresenceJoinPayload(TypedDict):
     event: Literal[RealtimePresenceListenEvents.JOIN]
     key: str
-    current_presences: list[Presence]
-    new_presences: list[Presence]
+    current_presences: List[Presence]
+    new_presences: List[Presence]
 
 
 class RealtimePresenceLeavePayload(TypedDict):
     event: Literal[RealtimePresenceListenEvents.LEAVE]
     key: str
-    current_presences: list[Presence]
-    left_presences: list[Presence]
+    current_presences: List[Presence]
+    left_presences: List[Presence]

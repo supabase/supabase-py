@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import datetime
 from time import time
-from typing import Any, Literal, NotRequired
+from typing import Callable, List, Mapping
 
 from pydantic import (
     BaseModel,
@@ -11,9 +10,23 @@ from pydantic import (
     Field,
     TypeAdapter,
     model_validator,
-    with_config,
 )
-from typing_extensions import TypedDict
+from pydantic.dataclasses import dataclass
+from supabase_utils.http.headers import Headers
+from supabase_utils.types import JSON
+
+try:
+    # > 2
+    from pydantic import model_validator
+
+    model_validator_v1_v2_compat = model_validator(mode="before")
+except ImportError:
+    # < 2
+    from pydantic import root_validator
+
+    model_validator_v1_v2_compat = root_validator  # type: ignore
+
+from typing_extensions import Literal, TypedDict
 
 Provider = Literal[
     "apple",
@@ -82,20 +95,6 @@ class AMREntry(BaseModel):
 class AMREntryDict(TypedDict):
     timestamp: int
     method: Literal["password", "otp", "oauth", "mfa/totp"] | str
-
-
-class Options(TypedDict):
-    redirect_to: NotRequired[str]
-    captcha_token: NotRequired[str]
-
-
-class UpdateUserOptions(TypedDict):
-    email_redirect_to: NotRequired[str]
-
-
-class InviteUserByEmailOptions(TypedDict):
-    redirect_to: NotRequired[str]
-    data: NotRequired[Any]
 
 
 class AuthResponse(BaseModel):
@@ -169,12 +168,15 @@ class Session(BaseModel):
             self.expires_at = round(time()) + self.expires_in
         return self
 
+    def encode_access_token(self) -> Headers:
+        return Headers.from_mapping({"Authorization": f"Bearer {self.access_token}"})
+
 
 class UserIdentity(BaseModel):
     id: str
     identity_id: str
     user_id: str
-    identity_data: dict[str, Any]
+    identity_data: dict[str, JSON]
     provider: str
     created_at: datetime
     last_sign_in_at: datetime | None = None
@@ -194,10 +196,6 @@ class Factor(BaseModel):
     """
     Friendly name of the factor, useful to disambiguate between multiple factors.
     """
-    phone: str | None = None
-    """
-    Phone number associated with a phone factor.
-    """
     factor_type: Literal["totp", "phone"] | str
     """
     Type of factor. Only `totp` supported with this version but may change in
@@ -213,8 +211,8 @@ class Factor(BaseModel):
 
 class User(BaseModel):
     id: str
-    app_metadata: dict[str, Any]
-    user_metadata: dict[str, Any]
+    user_metadata: Mapping[str, JSON]
+    app_metadata: Mapping[str, JSON]
     aud: str
     confirmation_sent_at: datetime | None = None
     recovery_sent_at: datetime | None = None
@@ -240,22 +238,22 @@ class User(BaseModel):
     banned_until: str | None = None
 
 
-class UserAttributes(TypedDict):
-    email: NotRequired[str]
-    phone: NotRequired[str]
-    password: NotRequired[str]
-    data: NotRequired[Any]
-    nonce: NotRequired[str]
-    current_password: NotRequired[str]
+class UserAttributes(BaseModel):
+    email: str | None = None
+    phone: str | None = None
+    password: str | None = None
+    data: JSON = None
+    nonce: str | None = None
+    current_password: str | None = None
 
 
-class AdminUserAttributes(UserAttributes, TypedDict):
-    user_metadata: NotRequired[Any]
-    app_metadata: NotRequired[Any]
-    email_confirm: NotRequired[bool]
-    phone_confirm: NotRequired[bool]
-    ban_duration: NotRequired[str | Literal["none"]]
-    role: NotRequired[str]
+class AdminUserAttributes(UserAttributes):
+    user_metadata: Mapping[str, JSON] | None = None
+    app_metadata: Mapping[str, JSON] | None = None
+    email_confirm: bool | None = None
+    phone_confirm: bool | None = None
+    ban_duration: str | None = None
+    role: str | None = None
     """
     The `role` claim set in the user's access token JWT.
 
@@ -263,7 +261,7 @@ class AdminUserAttributes(UserAttributes, TypedDict):
 
     Setting this role to `service_role` is not recommended as it grants the user admin privileges.
     """
-    password_hash: NotRequired[str]
+    password_hash: str | None = None
     """
     The `password_hash` for the user's password.
 
@@ -271,7 +269,7 @@ class AdminUserAttributes(UserAttributes, TypedDict):
 
     Supports bcrypt and argon2 password hashes.
     """
-    id: NotRequired[str]
+    id: str | None = None
     """
     The `id` for the user.
 
@@ -294,34 +292,71 @@ class Subscription(BaseModel):
     """
 
 
-class UpdatableFactorAttributes(TypedDict):
-    friendly_name: str
+class CaptchaToken(BaseModel):
+    captcha_token: str | None
 
 
-class SignUpWithEmailAndPasswordCredentialsOptions(
-    TypedDict,
-):
-    email_redirect_to: NotRequired[str]
-    data: NotRequired[Any]
-    captcha_token: NotRequired[str]
+class WithCaptchaToken(BaseModel):
+    gotrue_meta_security: CaptchaToken
 
 
-class SignUpWithEmailAndPasswordCredentials(TypedDict):
+class SignUpWithEmailAndPasswordBody(WithCaptchaToken):
     email: str
     password: str
-    options: NotRequired[SignUpWithEmailAndPasswordCredentialsOptions]
+    data: JSON | None = None
 
 
-class SignUpWithPhoneAndPasswordCredentialsOptions(TypedDict):
-    data: NotRequired[Any]
-    captcha_token: NotRequired[str]
-    channel: NotRequired[Literal["sms", "whatsapp"]]
+@dataclass
+class SignUpWithEmailAndPasswordCredentials:
+    body: SignUpWithEmailAndPasswordBody
+    redirect_to: str | None = None
 
 
-class SignUpWithPhoneAndPasswordCredentials(TypedDict):
+class SignUpWithPhoneAndPasswordBody(WithCaptchaToken):
     phone: str
     password: str
-    options: NotRequired[SignUpWithPhoneAndPasswordCredentialsOptions]
+    data: JSON | None = None
+    channel: Literal["sms", "whatsapp"] = "sms"
+
+
+@dataclass
+class SignUpWithPhoneAndPasswordCredentials:
+    body: SignUpWithPhoneAndPasswordBody
+
+
+class SignUpWithPassword:
+    @staticmethod
+    def phone(
+        phone: str,
+        password: str,
+        data: JSON | None = None,
+        channel: Literal["sms", "whatsapp"] = "sms",
+        captcha_token: str | None = None,
+    ) -> SignUpWithPhoneAndPasswordCredentials:
+        body = SignUpWithPhoneAndPasswordBody(
+            phone=phone,
+            password=password,
+            data=data,
+            channel=channel,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+        )
+        return SignUpWithPhoneAndPasswordCredentials(body=body)
+
+    @staticmethod
+    def email(
+        email: str,
+        password: str,
+        data: JSON | None = None,
+        redirect_to: str | None = None,
+        captcha_token: str | None = None,
+    ) -> SignUpWithEmailAndPasswordCredentials:
+        body = SignUpWithEmailAndPasswordBody(
+            email=email,
+            password=password,
+            data=data,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+        )
+        return SignUpWithEmailAndPasswordCredentials(body=body, redirect_to=redirect_to)
 
 
 SignUpWithPasswordCredentials = (
@@ -329,21 +364,14 @@ SignUpWithPasswordCredentials = (
 )
 
 
-class SignInWithPasswordCredentialsOptions(TypedDict):
-    data: NotRequired[Any]
-    captcha_token: NotRequired[str]
-
-
-class SignInWithEmailAndPasswordCredentials(TypedDict):
+class SignInWithEmailAndPasswordCredentials(WithCaptchaToken):
     email: str
     password: str
-    options: NotRequired[SignInWithPasswordCredentialsOptions]
 
 
-class SignInWithPhoneAndPasswordCredentials(TypedDict):
+class SignInWithPhoneAndPasswordCredentials(WithCaptchaToken):
     phone: str
     password: str
-    options: NotRequired[SignInWithPasswordCredentialsOptions]
 
 
 SignInWithPasswordCredentials = (
@@ -351,44 +379,50 @@ SignInWithPasswordCredentials = (
 )
 
 
-class SignInWithIdTokenCredentials(TypedDict):
-    """
-    Provider name or OIDC `iss` value identifying which provider should be used to verify the provided token. Supported names: `google`, `apple`, `azure`, `facebook`, `kakao`, `keycloak` (deprecated).
-    """
+class SignInWithPassword:
+    @staticmethod
+    def phone(
+        phone: str, password: str, captcha_token: str | None = None
+    ) -> SignInWithPhoneAndPasswordCredentials:
+        return SignInWithPhoneAndPasswordCredentials(
+            phone=phone,
+            password=password,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+        )
 
-    provider: Literal["google", "apple", "azure", "facebook", "kakao"]
-    token: str
-    access_token: NotRequired[str]
-    nonce: NotRequired[str]
-    options: NotRequired[SignInWithIdTokenCredentialsOptions]
+    @staticmethod
+    def email(
+        email: str, password: str, captcha_token: str | None = None
+    ) -> SignInWithEmailAndPasswordCredentials:
+        return SignInWithEmailAndPasswordCredentials(
+            email=email,
+            password=password,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+        )
 
 
-class SignInWithIdTokenCredentialsOptions(TypedDict):
-    captcha_token: NotRequired[str]
-
-
-class SignInWithEmailAndPasswordlessCredentialsOptions(TypedDict):
-    email_redirect_to: NotRequired[str]
-    should_create_user: NotRequired[bool]
-    data: NotRequired[Any]
-    captcha_token: NotRequired[str]
-
-
-class SignInWithEmailAndPasswordlessCredentials(TypedDict):
+class SignInWithEmailAndPasswordlessBody(WithCaptchaToken):
     email: str
-    options: NotRequired[SignInWithEmailAndPasswordlessCredentialsOptions]
+    data: JSON = None
+    create_user: bool = True
 
 
-class SignInWithPhoneAndPasswordlessCredentialsOptions(TypedDict):
-    should_create_user: NotRequired[bool]
-    data: NotRequired[Any]
-    captcha_token: NotRequired[str]
-    channel: NotRequired[Literal["sms", "whatsapp"]]
-
-
-class SignInWithPhoneAndPasswordlessCredentials(TypedDict):
+class SignInWithPhoneAndPasswordlessBody(WithCaptchaToken):
     phone: str
-    options: NotRequired[SignInWithPhoneAndPasswordlessCredentialsOptions]
+    data: JSON = None
+    create_user: bool = True
+    channel: Literal["sms", "whatsapp"] = "sms"
+
+
+@dataclass
+class SignInWithEmailAndPasswordlessCredentials:
+    body: SignInWithEmailAndPasswordlessBody
+    email_redirect_to: str | None = None
+
+
+@dataclass
+class SignInWithPhoneAndPasswordlessCredentials:
+    body: SignInWithPhoneAndPasswordlessBody
 
 
 SignInWithPasswordlessCredentials = (
@@ -397,132 +431,225 @@ SignInWithPasswordlessCredentials = (
 )
 
 
-class ResendEmailCredentialsOptions(TypedDict):
-    email_redirect_to: NotRequired[str]
-    captcha_token: NotRequired[str]
+class SignInWithPasswordless:
+    @staticmethod
+    def email(
+        email: str,
+        data: JSON = None,
+        should_create_user: bool = True,
+        email_redirect_to: str | None = None,
+        captcha_token: str | None = None,
+    ) -> SignInWithPasswordlessCredentials:
+        body = SignInWithEmailAndPasswordlessBody(
+            email=email,
+            data=data,
+            create_user=should_create_user,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+        )
+        return SignInWithEmailAndPasswordlessCredentials(
+            body=body, email_redirect_to=email_redirect_to
+        )
+
+    @staticmethod
+    def phone(
+        phone: str,
+        data: JSON = None,
+        should_create_user: bool = True,
+        channel: Literal["sms", "whatsapp"] = "sms",
+        captcha_token: str | None = None,
+    ) -> SignInWithPasswordlessCredentials:
+        body = SignInWithPhoneAndPasswordlessBody(
+            phone=phone,
+            data=data,
+            create_user=should_create_user,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+            channel=channel,
+        )
+        return SignInWithPhoneAndPasswordlessCredentials(body=body)
 
 
-class ResendEmailCredentials(TypedDict):
+class ResendEmailBody(WithCaptchaToken):
     type: Literal["signup", "email_change"]
     email: str
-    options: NotRequired[ResendEmailCredentialsOptions]
 
 
-class ResendPhoneCredentialsOptions(TypedDict):
-    captcha_token: NotRequired[str]
+@dataclass
+class ResendEmailCredentials:
+    body: ResendEmailBody
+    email_redirect_to: str | None = None
 
 
-class ResendPhoneCredentials(TypedDict):
+class ResendPhoneBody(WithCaptchaToken):
     type: Literal["sms", "phone_change"]
     phone: str
-    options: NotRequired[ResendPhoneCredentialsOptions]
+
+
+@dataclass
+class ResendPhoneCredentials:
+    body: ResendPhoneBody
 
 
 ResendCredentials = ResendEmailCredentials | ResendPhoneCredentials
 
 
-class SignInWithOAuthCredentialsOptions(TypedDict):
-    redirect_to: NotRequired[str]
-    scopes: NotRequired[str]
-    query_params: NotRequired[dict[str, str]]
+class Resend:
+    @staticmethod
+    def email(
+        email: str,
+        type: Literal["signup", "email_change"],
+        email_redirect_to: str | None = None,
+        captcha_token: str | None = None,
+    ) -> ResendCredentials:
+        return ResendEmailCredentials(
+            body=ResendEmailBody(
+                email=email,
+                type=type,
+                gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+            ),
+            email_redirect_to=email_redirect_to,
+        )
+
+    @staticmethod
+    def phone(
+        phone: str,
+        type: Literal["sms", "phone_change"],
+        captcha_token: str | None = None,
+    ) -> ResendCredentials:
+        return ResendPhoneCredentials(
+            body=ResendPhoneBody(
+                phone=phone,
+                type=type,
+                gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+            ),
+        )
 
 
-class SignInWithOAuthCredentials(TypedDict):
-    provider: Provider
-    options: NotRequired[SignInWithOAuthCredentialsOptions]
+class SignInWithSSOProvider(WithCaptchaToken):
+    provider_id: str
+    redirect_to: str | None = None
+    skip_http_redirect: bool = True
 
 
-class SignInWithSSOCredentials(TypedDict):
-    provider_id: NotRequired[str]
-    domain: NotRequired[str]
-    options: NotRequired[SignInWithSSOOptions]
+class SignInWithSSODomain(WithCaptchaToken):
+    domain: str
+    redirect_to: str | None = None
+    skip_http_redirect: bool = True
 
 
-class SignInWithSSOOptions(TypedDict):
-    redirect_to: NotRequired[str]
-    skip_http_redirect: NotRequired[bool]
+SignInWithSSOCredentials = SignInWithSSODomain | SignInWithSSOProvider
 
 
-class SignInAnonymouslyCredentials(TypedDict):
-    options: NotRequired[SignInAnonymouslyCredentialsOptions]
+class SignInWithSSO:
+    @staticmethod
+    def domain(
+        domain: str,
+        redirect_to: str | None = None,
+        skip_http_redirect: bool = True,
+        captcha_token: str | None = None,
+    ) -> SignInWithSSOCredentials:
+        return SignInWithSSODomain(
+            domain=domain,
+            redirect_to=redirect_to,
+            skip_http_redirect=skip_http_redirect,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+        )
+
+    @staticmethod
+    def provider_id(
+        provider_id: str,
+        redirect_to: str | None = None,
+        skip_http_redirect: bool = True,
+        captcha_token: str | None = None,
+    ) -> SignInWithSSOCredentials:
+        return SignInWithSSOProvider(
+            provider_id=provider_id,
+            redirect_to=redirect_to,
+            skip_http_redirect=skip_http_redirect,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+        )
 
 
-class SignInAnonymouslyCredentialsOptions(TypedDict):
-    data: NotRequired[Any]
-    captcha_token: NotRequired[str]
-
-
-class VerifyOtpParamsOptions(TypedDict):
-    redirect_to: NotRequired[str]
-    captcha_token: NotRequired[str]
-
-
-class VerifyEmailOtpParams(TypedDict):
+class VerifyEmailOtpBody(WithCaptchaToken):
     email: str
     token: str
     type: EmailOtpType
-    options: NotRequired[VerifyOtpParamsOptions]
 
 
-class VerifyMobileOtpParams(TypedDict):
+@dataclass
+class VerifyEmailOtpParams:
+    body: VerifyEmailOtpBody
+    redirect_to: str | None = None
+
+
+class VerifyMobileOtpBody(WithCaptchaToken):
     phone: str
     token: str
     type: Literal[
         "sms",
         "phone_change",
     ]
-    options: NotRequired[VerifyOtpParamsOptions]
 
 
-class VerifyTokenHashParams(TypedDict):
+@dataclass
+class VerifyMobileOtpParams:
+    body: VerifyMobileOtpBody
+    redirect_to: str | None = None
+
+
+class VerifyTokenHashBody(BaseModel):
     token_hash: str
     type: EmailOtpType
-    options: NotRequired[VerifyOtpParamsOptions]
+
+
+@dataclass
+class VerifyTokenHashParams:
+    body: VerifyTokenHashBody
 
 
 VerifyOtpParams = VerifyEmailOtpParams | VerifyMobileOtpParams | VerifyTokenHashParams
 
 
-class GenerateLinkParamsOptions(TypedDict):
-    redirect_to: NotRequired[str]
+class VerifyOtp:
+    @staticmethod
+    def email(
+        email: str,
+        token: str,
+        type: EmailOtpType,
+        redirect_to: str | None = None,
+        captcha_token: str | None = None,
+    ) -> VerifyOtpParams:
+        body = VerifyEmailOtpBody(
+            email=email,
+            token=token,
+            type=type,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+        )
+        return VerifyEmailOtpParams(body=body, redirect_to=redirect_to)
 
+    @staticmethod
+    def mobile(
+        phone: str,
+        token: str,
+        type: Literal["sms", "phone_change"],
+        redirect_to: str | None = None,
+        captcha_token: str | None = None,
+    ) -> VerifyOtpParams:
+        body = VerifyMobileOtpBody(
+            phone=phone,
+            token=token,
+            type=type,
+            gotrue_meta_security=CaptchaToken(captcha_token=captcha_token),
+        )
+        return VerifyMobileOtpParams(body=body, redirect_to=redirect_to)
 
-class GenerateLinkParamsWithDataOptions(GenerateLinkParamsOptions, TypedDict):
-    data: NotRequired[Any]
+    @staticmethod
+    def token_hash(token_hash: str, type: EmailOtpType) -> VerifyOtpParams:
+        body = VerifyTokenHashBody(
+            token_hash=token_hash,
+            type=type,
+        )
+        return VerifyTokenHashParams(body=body)
 
-
-class GenerateSignupLinkParams(TypedDict):
-    type: Literal["signup"]
-    email: str
-    password: str
-    options: NotRequired[GenerateLinkParamsWithDataOptions]
-
-
-class GenerateInviteOrMagiclinkParams(TypedDict):
-    type: Literal["invite", "magiclink"]
-    email: str
-    options: NotRequired[GenerateLinkParamsWithDataOptions]
-
-
-class GenerateRecoveryLinkParams(TypedDict):
-    type: Literal["recovery"]
-    email: str
-    options: NotRequired[GenerateLinkParamsOptions]
-
-
-class GenerateEmailChangeLinkParams(TypedDict):
-    type: Literal["email_change_current", "email_change_new"]
-    email: str
-    new_email: str
-    options: NotRequired[GenerateLinkParamsOptions]
-
-
-GenerateLinkParams = (
-    GenerateSignupLinkParams
-    | GenerateInviteOrMagiclinkParams
-    | GenerateRecoveryLinkParams
-    | GenerateEmailChangeLinkParams
-)
 
 GenerateLinkType = Literal[
     "signup",
@@ -534,75 +661,128 @@ GenerateLinkType = Literal[
 ]
 
 
-class MFAEnrollTOTPParams(TypedDict):
+class GenerateLinkBody(BaseModel):
+    type: GenerateLinkType
+    email: str
+    password: str | None = None
+    new_email: str | None = None
+    data: JSON = None
+
+
+class GenerateLinkParams(BaseModel):
+    body: GenerateLinkBody
+    redirect_to: str | None = None
+
+    @staticmethod
+    def sign_up(
+        email: str, password: str, data: JSON = None, redirect_to: str | None = None
+    ) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="signup",
+                email=email,
+                password=password,
+                data=data,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def invite(
+        email: str, data: JSON = None, redirect_to: str | None = None
+    ) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="invite",
+                email=email,
+                data=data,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def magiclink(
+        email: str, data: JSON = None, redirect_to: str | None = None
+    ) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="magiclink",
+                email=email,
+                data=data,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def recovery(email: str, redirect_to: str | None = None) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="recovery",
+                email=email,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def email_change_current(
+        email: str, new_email: str, redirect_to: str | None = None
+    ) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="email_change_current",
+                email=email,
+                new_email=new_email,
+            ),
+            redirect_to=redirect_to,
+        )
+
+    @staticmethod
+    def email_change_new(
+        email: str, new_email: str, redirect_to: str | None = None
+    ) -> GenerateLinkParams:
+        return GenerateLinkParams(
+            body=GenerateLinkBody(
+                type="email_change_new",
+                email=email,
+                new_email=new_email,
+            ),
+            redirect_to=redirect_to,
+        )
+
+
+class MFAEnrollTOTPParams(BaseModel):
     factor_type: Literal["totp"]
-    issuer: NotRequired[str]
-    friendly_name: NotRequired[str]
+    issuer: str | None = None
+    friendly_name: str | None = None
 
 
-class MFAEnrollPhoneParams(TypedDict):
+class MFAEnrollPhoneParams(BaseModel):
     factor_type: Literal["phone"]
-    friendly_name: NotRequired[str]
     phone: str
+    friendly_name: str | None = None
 
 
-MFAEnrollParams = MFAEnrollTOTPParams | MFAEnrollPhoneParams
+class MFAEnroll:
+    @staticmethod
+    def totp(
+        issuer: str | None = None, friendly_name: str | None = None
+    ) -> MFAEnrollParams:
+        return MFAEnrollTOTPParams(
+            factor_type="totp",
+            issuer=issuer,
+            friendly_name=friendly_name,
+        )
+
+    @staticmethod
+    def phone(phone: str, friendly_name: str | None = None) -> MFAEnrollParams:
+        return MFAEnrollPhoneParams(
+            factor_type="phone",
+            phone=phone,
+            friendly_name=friendly_name,
+        )
 
 
-class MFAUnenrollParams(TypedDict):
-    factor_id: str
-    """
-    ID of the factor being unenrolled.
-    """
-
-
-class CodeExchangeParams(TypedDict):
-    code_verifier: NotRequired[str]
-    """
-    Randomly generated string. Defaults to the verifier stored by the PKCE flow.
-    """
-    auth_code: str
-    """
-    Code returned after completing one of the authorization flows
-    """
-    redirect_to: NotRequired[str]
-    """
-    The URL to route to after a session is successfully obtained
-    """
-
-
-class MFAVerifyParams(TypedDict):
-    factor_id: str
-    """
-    ID of the factor being verified.
-    """
-    challenge_id: str
-    """
-    ID of the challenge being verified.
-    """
-    code: str
-    """
-    Verification code provided by the user.
-    """
-
-
-class MFAChallengeParams(TypedDict):
-    factor_id: str
-    """
-    ID of the factor to be challenged.
-    """
-    channel: NotRequired[Literal["sms", "whatsapp"]]
-
-
-class MFAChallengeAndVerifyParams(TypedDict):
-    factor_id: str
-    """
-    ID of the factor being verified.
-    """
-    code: str
-    """
-    Verification code provided by the user.
-    """
+MFAEnrollParams = MFAEnrollPhoneParams | MFAEnrollTOTPParams
 
 
 class AuthMFAVerifyResponse(BaseModel):
@@ -745,29 +925,11 @@ class AuthMFAAdminDeleteFactorResponse(BaseModel):
     """
 
 
-class AuthMFAAdminDeleteFactorParams(TypedDict):
-    id: str
-    """
-    ID of the MFA factor to delete.
-    """
-    user_id: str
-    """
-    ID of the user whose factor is being deleted.
-    """
-
-
-AuthMFAAdminListFactorsResponse = list[Factor]
+AuthMFAAdminListFactorsResponse = List[Factor]
 
 AuthMFAAdminListFactorsResponseParser: TypeAdapter[AuthMFAAdminListFactorsResponse] = (
     TypeAdapter(AuthMFAAdminListFactorsResponse)
 )
-
-
-class AuthMFAAdminListFactorsParams(TypedDict):
-    user_id: str
-    """
-    ID of the user for which to list all MFA factors.
-    """
 
 
 class GenerateLinkProperties(BaseModel):
@@ -806,66 +968,42 @@ class GenerateLinkResponse(BaseModel):
     user: User
 
 
-class DecodedJWTDict(TypedDict):
-    exp: NotRequired[int]
-    aal: NotRequired[AuthenticatorAssuranceLevels | None]
-    amr: NotRequired[list[AMREntry] | None]
-
-
 SignOutScope = Literal["global", "local", "others"]
 
 
-class SignOutOptions(TypedDict):
-    scope: NotRequired[SignOutScope]
-
-
-@with_config(ConfigDict(extra="allow"))
-class JWTHeader(TypedDict):
+class JWTHeader(BaseModel, extra="allow"):
     alg: Literal["RS256", "ES256", "HS256"]
-    typ: NotRequired[str]
-    kid: NotRequired[str]
+    typ: str
+    kid: str | None = None
 
 
-# TODO: useless, only kept for backwards compatibility
-class RequiredClaims(TypedDict):
-    iss: str
-    sub: str
-    auth: str | list[str]
-    exp: int
-    iat: int
-    role: str
-    aal: AuthenticatorAssuranceLevels
-    session_id: str
+class JWTPayload(BaseModel, extra="allow"):
+    iss: str | None = None
+    sub: str | None = None
+    auth: str | list[str] | None = None
+    exp: int | None = None
+    iat: int | None = None
+    role: str | None = None
+    aal: AuthenticatorAssuranceLevels | None = None
+    session_id: str | None = None
+    amr: list[AMREntryDict] | None = None
 
 
-@with_config(ConfigDict(extra="allow"))
-class JWTPayload(TypedDict, total=False):
-    iss: str
-    sub: str
-    auth: str | list[str]
-    exp: int
-    iat: int
-    role: str
-    aal: AuthenticatorAssuranceLevels
-    session_id: str
-    amr: NotRequired[list[AMREntryDict]]
-
-
-class ClaimsResponse(TypedDict):
+@dataclass
+class ClaimsResponse:
     claims: JWTPayload
     headers: JWTHeader
     signature: bytes
 
 
-@with_config(ConfigDict(extra="allow"))
-class JWK(TypedDict, total=False):
+class JWK(BaseModel, extra="allow"):
     kty: Literal["RSA", "EC", "oct"]
     key_ops: list[str]
-    alg: str | None
-    kid: str | None
+    alg: str | None = None
+    kid: str | None = None
 
 
-class JWKSet(TypedDict):
+class JWKSet(BaseModel):
     keys: list[JWK]
 
 
@@ -910,7 +1048,7 @@ class OAuthClient(BaseModel):
 
     client_id: str
     """Unique client identifier"""
-    client_name: str | None = None
+    client_name: str
     """Human-readable name of the client application"""
     client_secret: str | None = None
     """Client secret for confidential clients (only returned on registration/regeneration)"""
@@ -1008,14 +1146,3 @@ class OAuthClientListResponse(BaseModel):
     next_page: int | None = None
     last_page: int = 0
     total: int = 0
-
-
-class PageParams(BaseModel):
-    """
-    Pagination parameters.
-    """
-
-    page: int | None = None
-    """Page number"""
-    per_page: int | None = None
-    """Number of items per page"""

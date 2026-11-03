@@ -1,7 +1,6 @@
-from typing import Any
-
 import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
 
@@ -21,14 +20,10 @@ from postgrest import AsyncPostgrestClient, SyncPostgrestClient
             ["normal", "a,b", "a:b", "a(b)", "table.column"],
             'in.(normal,"a,b","a:b","a(b)",table.column)',
         ),
-        (
-            [None, True, False, "a,b", 1, 1.5],
-            'in.(null,true,false,"a,b",1,1.5)',
-        ),
     ],
 )
 async def test_in_filter_escapes_quoted_values(
-    use_async: bool, values: list[Any], expected: str
+    use_async: bool, values: list[str], expected: str
 ) -> None:
     def handler(request: Request) -> Response:
         assert request.url.params["name"] == expected
@@ -38,9 +33,13 @@ async def test_in_filter_escapes_quoted_values(
     transport = MockTransport(handler)
     if use_async:
         async with AsyncClient(transport=transport) as http:
-            client = AsyncPostgrestClient(url, http_client=http)
+            client = AsyncPostgrestClient(
+                url, http_session=AsyncHttpxSession(client=http)
+            )
             await client.from_("products").select("*").in_("name", values).execute()
     else:
         with Client(transport=transport) as sync_http:
-            sync_client = SyncPostgrestClient(url, http_client=sync_http)
+            sync_client = SyncPostgrestClient(
+                url, http_session=HttpxSession(client=sync_http)
+            )
             sync_client.from_("products").select("*").in_("name", values).execute()

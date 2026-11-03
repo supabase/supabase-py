@@ -1,20 +1,31 @@
+from typing import Any
+
 import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
-from supabase_auth import AsyncGoTrueAdminAPI
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession
+
+from supabase_auth import AsyncSupabaseAuthAdmin
 
 
-@pytest.mark.parametrize("body", [{}, {"clients": []}])
-async def test_list_oauth_clients_when_none_are_registered(body: dict) -> None:
+def admin_client(body: dict[str, Any]) -> AsyncSupabaseAuthAdmin:
     def handler(request: Request) -> Response:
         assert request.method == "GET"
         assert request.url.path == "/auth/v1/admin/oauth/clients"
         return Response(200, json=body)
 
-    async with AsyncClient(transport=MockTransport(handler)) as http_client:
-        admin = AsyncGoTrueAdminAPI(
-            url="https://example.supabase.co/auth/v1", http_client=http_client
-        )
-        response = await admin.oauth.list_clients()
+    return AsyncSupabaseAuthAdmin(
+        url="https://example.supabase.co/auth/v1",
+        http_session=AsyncHttpxSession(
+            client=AsyncClient(transport=MockTransport(handler))
+        ),
+    )
+
+
+@pytest.mark.parametrize("body", [{}, {"clients": []}])
+async def test_list_oauth_clients_when_none_are_registered(
+    body: dict[str, Any],
+) -> None:
+    response = await admin_client(body).oauth.list_clients()
 
     assert response.clients == []
     assert response.next_page is None
@@ -36,68 +47,8 @@ async def test_list_oauth_clients_preserves_registered_clients() -> None:
         "updated_at": "2026-01-01T00:00:00Z",
     }
 
-    def handler(request: Request) -> Response:
-        return Response(200, json={"clients": [client]})
-
-    async with AsyncClient(transport=MockTransport(handler)) as http_client:
-        admin = AsyncGoTrueAdminAPI(
-            url="https://example.supabase.co/auth/v1", http_client=http_client
-        )
-        response = await admin.oauth.list_clients()
+    response = await admin_client({"clients": [client]}).oauth.list_clients()
 
     assert len(response.clients) == 1
     assert response.clients[0].client_id == client["client_id"]
     assert response.clients[0].client_name == client["client_name"]
-
-
-@pytest.fixture
-def unnamed_client() -> dict:
-    return {
-        "client_id": "5473f521-21e6-443f-9edf-f4668832d87f",
-        "client_type": "public",
-        "token_endpoint_auth_method": "none",
-        "registration_type": "dynamic",
-        "redirect_uris": ["https://example.com/callback"],
-        "grant_types": ["authorization_code", "refresh_token"],
-        "response_types": ["code"],
-        "created_at": "2026-01-01T00:00:00Z",
-        "updated_at": "2026-01-01T00:00:00Z",
-    }
-
-
-async def test_get_oauth_client_without_name(unnamed_client: dict) -> None:
-    def handler(request: Request) -> Response:
-        assert request.method == "GET"
-        assert request.url.path == (
-            f"/auth/v1/admin/oauth/clients/{unnamed_client['client_id']}"
-        )
-        return Response(200, json=unnamed_client)
-
-    async with AsyncClient(transport=MockTransport(handler)) as http_client:
-        admin = AsyncGoTrueAdminAPI(
-            url="https://example.supabase.co/auth/v1", http_client=http_client
-        )
-        response = await admin.oauth.get_client(unnamed_client["client_id"])
-
-    assert response.client is not None
-    assert response.client.client_id == unnamed_client["client_id"]
-    assert response.client.client_name is None
-    assert response.client.registration_type == "dynamic"
-
-
-async def test_list_oauth_clients_without_name(unnamed_client: dict) -> None:
-    def handler(request: Request) -> Response:
-        assert request.method == "GET"
-        assert request.url.path == "/auth/v1/admin/oauth/clients"
-        return Response(200, json={"clients": [unnamed_client]})
-
-    async with AsyncClient(transport=MockTransport(handler)) as http_client:
-        admin = AsyncGoTrueAdminAPI(
-            url="https://example.supabase.co/auth/v1", http_client=http_client
-        )
-        response = await admin.oauth.list_clients()
-
-    assert len(response.clients) == 1
-    assert response.clients[0].client_id == unnamed_client["client_id"]
-    assert response.clients[0].client_name is None
-    assert response.clients[0].registration_type == "dynamic"

@@ -1,11 +1,11 @@
 import pytest
 from deprecation import fail_if_not_removed
 
-from postgrest.utils import SyncClient, _quote, sanitize_param
+from postgrest.utils import SyncClient, sanitize_param
 
 
 @fail_if_not_removed
-def test_sync_client() -> None:
+def test_sync_client():
     client = SyncClient()
     # Verify that aclose method exists and calls close
     assert hasattr(client, "aclose")
@@ -20,23 +20,10 @@ def test_sync_client() -> None:
         ("param:name", '"param:name"'),
         ("param(name", '"param(name"'),
         ("param)name", '"param)name"'),
+        ("param,name", '"param,name"'),
         ("table.column", "table.column"),
         ("table_column", "table_column"),
     ],
 )
-def test_sanitize_params(value, expected) -> None:
+def test_sanitize_params(value, expected):
     assert sanitize_param(value) == expected
-
-
-@pytest.mark.parametrize(
-    "value, expected",
-    [
-        ("plain", '"plain"'),
-        ("a,b", '"a,b"'),
-        ('a"b', r'"a\"b"'),
-        (r"c\d", r'"c\\d"'),
-        (r"a\"b", r'"a\\\"b"'),
-    ],
-)
-def test_quote(value, expected) -> None:
-    assert _quote(value) == expected

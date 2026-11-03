@@ -2,46 +2,52 @@ import asyncio
 import datetime
 import json
 import os
-from unittest.mock import AsyncMock, patch
-from urllib.parse import parse_qs, urlparse
+from typing import AsyncIterator
+from unittest.mock import AsyncMock
 
 import aiohttp
 import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from subscribe_helpers import start_subscribe
-from websockets import connect
-from websockets.asyncio.server import ServerConnection, serve
+from websockets import broadcast
+from yarl import URL
 
 from realtime import (
-    AsyncRealtimeChannel,
-    AsyncRealtimeClient,
+    RealtimeChannel,
+    RealtimeClient,
     RealtimePostgresChangesListenEvent,
     RealtimeSubscribeStates,
 )
-from realtime.message import Message, ReplyPostgresChanges
-from realtime.types import (
-    DEFAULT_HEARTBEAT_INTERVAL,
-    DEFAULT_TIMEOUT,
-    ChannelEvents,
-    RealtimeAcknowledgementStatus,
+from realtime.channel import RealtimeChannelOptions
+from realtime.client import connect_once, exponential_delay, normalize_url
+from realtime.message import (
+    BroadcastMessage,
+    ChannelCloseMessage,
+    Message,
+    PostgresChangesMessage,
+    SystemMessage,
 )
+from realtime.types import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_TIMEOUT, ChannelEvents
 
 load_dotenv()
 
 
-URL = os.getenv("SUPABASE_URL") or "http://127.0.0.1:54321"
+SUPABASE_URL = os.getenv("SUPABASE_URL") or "http://127.0.0.1:54321"
 PUBLISHABLE_KEY = (
     os.getenv("SUPABASE_PUBLISHABLE_KEY")
     or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 )
 
 
+async def get_token() -> str:
+    return PUBLISHABLE_KEY
+
+
 @pytest.fixture
-def socket() -> AsyncRealtimeClient:
-    url = f"{URL}/realtime/v1"
-    key = PUBLISHABLE_KEY
-    return AsyncRealtimeClient(url, key)
+async def socket() -> AsyncIterator[RealtimeClient]:
+    url = f"{SUPABASE_URL}/realtime/v1"
+    async with connect_once(url, get_token) as client:
+        yield client
 
 
 class SignupMessageResponse(BaseModel):
@@ -53,7 +59,7 @@ class SignupMessageResponse(BaseModel):
 
 
 async def access_token() -> str:
-    url = f"{URL}/auth/v1/signup"
+    url = f"{SUPABASE_URL}/auth/v1/signup"
     headers = {"apikey": PUBLISHABLE_KEY, "Content-Type": "application/json"}
     data = {
         "email": os.getenv("SUPABASE_TEST_EMAIL")
@@ -75,274 +81,153 @@ async def access_token() -> str:
                 )
 
 
-def test_init_client() -> None:
-    client = AsyncRealtimeClient(URL, PUBLISHABLE_KEY)
-
-    assert client is not None
-    assert client.url.startswith("ws://") or client.url.startswith("wss://")
-    assert "/websocket" in client.url
-    assert client.url.split("apikey=")[1] == PUBLISHABLE_KEY
-    assert client.auto_reconnect is True
-    assert client.params == {}
-    assert client.hb_interval == DEFAULT_HEARTBEAT_INTERVAL
-    assert client.max_retries == 5
-    assert client.initial_backoff == 1.0
-    assert client.timeout == DEFAULT_TIMEOUT
-
-
-@pytest.mark.asyncio
-async def test_connect_includes_connection_params() -> None:
-    client = AsyncRealtimeClient(
-        "https://project.supabase.co/realtime/v1",
-        "publishable-key",
-        params={"log_level": "info"},
-    )
-
-    with (
-        patch("realtime._async.client.connect", new_callable=AsyncMock) as connect,
-        patch.object(client, "_on_connect", new_callable=AsyncMock),
-    ):
-        await client.connect()
-
-    assert connect.await_args is not None
-    websocket_url = urlparse(connect.await_args.args[0])
-    assert parse_qs(websocket_url.query) == {
-        "apikey": ["publishable-key"],
-        "log_level": ["info"],
-        "vsn": ["1.0.0"],
-    }
-
-
-@pytest.mark.asyncio
-async def test_broadcast_events(socket: AsyncRealtimeClient) -> None:
-    await socket.connect()
-
-    channel = socket.channel(
-        "test-broadcast",
-        params={
-            "config": {
-                "broadcast": {"self": True, "ack": True},
-                "presence": {"enabled": True, "key": ""},
-                "private": False,
-            }
-        },
-    )
-    received_events = []
-
-    semaphore = asyncio.Semaphore(0)
-
-    def broadcast_callback(payload) -> None:
-        received_events.append(payload)
-        semaphore.release()
-
-    subscribe_event = asyncio.Event()
-    await channel.on_broadcast("test-event", broadcast_callback).subscribe(
-        lambda state, _: (
-            subscribe_event.set()
-            if state == RealtimeSubscribeStates.SUBSCRIBED
-            else None
-        )
-    )
-
-    await asyncio.wait_for(subscribe_event.wait(), 5)
-
-    # Send 3 broadcast events
-    for i in range(3):
-        await channel.send_broadcast("test-event", {"message": f"Event {i + 1}"})
-        await asyncio.wait_for(semaphore.acquire(), 5)
-
-    assert len(received_events) == 3
-    assert received_events[0]["payload"]["message"] == "Event 1"
-    assert received_events[1]["payload"]["message"] == "Event 2"
-    assert received_events[2]["payload"]["message"] == "Event 3"
-
-    await socket.close()
-
-
-@pytest.mark.asyncio
-async def test_postgrest_changes(socket: AsyncRealtimeClient) -> None:
-    token = await access_token()
-
-    await socket.connect()
-
-    await socket.set_auth(token)
-
-    channel: AsyncRealtimeChannel = socket.channel("test-postgres-changes")
-    received_events: dict[str, list[dict]] = {
-        "all": [],
-        "insert": [],
-        "update": [],
-        "delete": [],
-    }
-
-    def all_changes_callback(payload) -> None:
-        received_events["all"].append(payload)
-
-    insert_event = asyncio.Event()
-
-    def insert_callback(payload) -> None:
-        received_events["insert"].append(payload)
-        insert_event.set()
-
-    update_event = asyncio.Event()
-
-    def update_callback(payload) -> None:
-        received_events["update"].append(payload)
-        update_event.set()
-
-    delete_event = asyncio.Event()
-
-    def delete_callback(payload) -> None:
-        received_events["delete"].append(payload)
-        delete_event.set()
-
-    subscribed_event = asyncio.Event()
-    system_event = asyncio.Event()
-
-    await (
-        channel.on_postgres_changes(
-            RealtimePostgresChangesListenEvent.All, all_changes_callback, table="todos"
-        )
-        .on_postgres_changes(
-            RealtimePostgresChangesListenEvent.Insert, insert_callback, table="todos"
-        )
-        .on_postgres_changes(
-            RealtimePostgresChangesListenEvent.Update, update_callback, table="todos"
-        )
-        .on_postgres_changes(
-            RealtimePostgresChangesListenEvent.Delete, delete_callback, table="todos"
-        )
-        .on_system(lambda _: system_event.set())
-        .subscribe(
-            lambda state, _: (
-                subscribed_event.set()
-                if state == RealtimeSubscribeStates.SUBSCRIBED
-                else None
-            )
-        )
-    )
-
-    await asyncio.wait_for(system_event.wait(), 10)
-
-    # Wait for the channel to be subscribed
-    await asyncio.wait_for(subscribed_event.wait(), 10)
-
-    created_todo_id = await create_todo(
-        token, {"description": "Test todo", "is_completed": False}
-    )
-    await asyncio.wait_for(insert_event.wait(), 10)
-
-    await update_todo(
-        token, created_todo_id, {"description": "Updated todo", "is_completed": True}
-    )
-    await asyncio.wait_for(update_event.wait(), 10)
-
-    await delete_todo(token, created_todo_id)
-    await asyncio.wait_for(delete_event.wait(), 10)
-
-    assert len(received_events["all"]) == 3
-
-    insert = received_events["all"][0]
-    update = received_events["all"][1]
-    delete = received_events["all"][2]
-
-    assert insert["data"]["record"]["id"] == created_todo_id
-    assert insert["data"]["record"]["description"] == "Test todo"
-    assert not insert["data"]["record"]["is_completed"]
-
-    assert update["data"]["record"]["id"] == created_todo_id
-    assert update["data"]["record"]["description"] == "Updated todo"
-    assert update["data"]["record"]["is_completed"]
-
-    assert delete["data"]["old_record"]["id"] == created_todo_id
-
-    assert received_events["insert"] == [insert]
-    assert received_events["update"] == [update]
-    assert received_events["delete"] == [delete]
-
-    await socket.close()
-
-
-@pytest.mark.asyncio
-async def test_postgrest_changes_on_different_tables(
-    socket: AsyncRealtimeClient,
+async def realtime_send(
+    token: str, topic: str, event: str, payload: dict[str, str]
 ) -> None:
-    token = await access_token()
+    """
+    Trigger a `realtime.send` through PostgREST's rpc endpoint.
+    This is done through a public function created in the migration,
+    `send_realtime`, that internally calls the unexposed counterpart.
+    """
+    url = f"{SUPABASE_URL}/rest/v1/rpc/send_realtime"
+    headers = {
+        "apikey": PUBLISHABLE_KEY,
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    data = {
+        "payload": payload,
+        "topic": topic,
+        "event": event,
+        "private": True,
+    }
 
-    await socket.connect()
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=data) as response:
+            response.raise_for_status()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_events(socket: RealtimeClient):
+    channel_options = (
+        RealtimeChannelOptions()
+        .broadcast(listen_self=True, ack=True)
+        .presence(enabled=True)
+    )
+    async with socket.channel(
+        "test-broadcast",
+        params=channel_options,
+    ) as chan:
+        # Send 3 broadcast events
+        for i in range(3):
+            await chan.send_broadcast("test-event", {"message": f"Event {i + 1}"})
+
+        message_stream = chan.messages
+        msg1 = await message_stream.__anext__()
+        assert isinstance(msg1, BroadcastMessage)
+        msg2 = await message_stream.__anext__()
+        assert isinstance(msg2, BroadcastMessage)
+        msg3 = await message_stream.__anext__()
+        assert isinstance(msg3, BroadcastMessage)
+        assert msg1.payload["event"] == "test-event"
+        assert msg2.payload["event"] == "test-event"
+        assert msg3.payload["event"] == "test-event"
+        assert msg1.payload["payload"]["message"] == "Event 1"
+        assert msg2.payload["payload"]["message"] == "Event 2"
+        assert msg3.payload["payload"]["message"] == "Event 3"
+
+
+@pytest.mark.asyncio
+async def test_postgrest_changes(socket: RealtimeClient):
+    token = await access_token()
+    await socket.set_auth(token)
+
+    channel_options = (
+        RealtimeChannelOptions()
+        .postgres_changes(RealtimePostgresChangesListenEvent.All, table="todos")
+        .postgres_changes(RealtimePostgresChangesListenEvent.Insert, table="todos")
+        .postgres_changes(RealtimePostgresChangesListenEvent.Update, table="todos")
+        .postgres_changes(RealtimePostgresChangesListenEvent.Delete, table="todos")
+    )
+
+    async with socket.channel("test-postgres-changes", channel_options) as chan:
+        message_stream = chan.messages
+        system_msg = await message_stream.__anext__()
+        assert isinstance(system_msg, SystemMessage)
+        assert system_msg.payload.status == "ok"
+        print("received system message")
+        created_todo_id = await create_todo(
+            token, {"description": "Test todo", "is_completed": False}
+        )
+        print("created todo")
+        insert = await message_stream.__anext__()
+        assert isinstance(insert, PostgresChangesMessage)
+        print("received insert")
+        await update_todo(
+            token,
+            created_todo_id,
+            {"description": "Updated todo", "is_completed": True},
+        )
+        update = await message_stream.__anext__()
+        assert isinstance(update, PostgresChangesMessage)
+
+        await delete_todo(token, created_todo_id)
+        delete = await message_stream.__anext__()
+        assert isinstance(delete, PostgresChangesMessage)
+
+    assert insert.payload["data"]["record"] is not None
+    assert insert.payload["data"]["record"]["id"] == created_todo_id
+    assert insert.payload["data"]["record"]["description"] == "Test todo"
+    assert not insert.payload["data"]["record"]["is_completed"]
+
+    assert update.payload["data"]["record"] is not None
+    assert update.payload["data"]["record"]["id"] == created_todo_id
+    assert update.payload["data"]["record"]["description"] == "Updated todo"
+    assert update.payload["data"]["record"]["is_completed"]
+
+    assert delete.payload["data"]["old_record"]["id"] == created_todo_id
+
+
+@pytest.mark.asyncio
+async def test_postgrest_changes_on_different_tables(socket: RealtimeClient):
+    token = await access_token()
 
     await socket.set_auth(token)
 
-    channel: AsyncRealtimeChannel = socket.channel("test-postgres-changes")
-    received_events: dict[str, list[dict]] = {"all": [], "insert": []}
-
-    def all_changes_callback(payload) -> None:
-        received_events["all"].append(payload)
-
-    insert_event = asyncio.Event()
-
-    def insert_callback(payload) -> None:
-        received_events["insert"].append(payload)
-        insert_event.set()
-
-    subscribed_event = asyncio.Event()
-    system_event = asyncio.Event()
-
-    await (
-        channel.on_postgres_changes(
-            RealtimePostgresChangesListenEvent.All, all_changes_callback, table="todos"
-        )
-        .on_postgres_changes(
-            RealtimePostgresChangesListenEvent.Insert, insert_callback, table="todos"
-        )
-        .on_postgres_changes(
-            RealtimePostgresChangesListenEvent.Insert, insert_callback, table="messages"
-        )
-        .on_system(lambda _: system_event.set())
-        .subscribe(
-            lambda state, _: (
-                subscribed_event.set()
-                if state == RealtimeSubscribeStates.SUBSCRIBED
-                else None
-            )
-        )
+    channel_options = (
+        RealtimeChannelOptions()
+        .postgres_changes(RealtimePostgresChangesListenEvent.Insert, table="todos")
+        .postgres_changes(RealtimePostgresChangesListenEvent.Insert, table="messages")
     )
+    async with socket.channel(
+        "test-postgres-changes", params=channel_options
+    ) as channel:
+        message_stream = channel.messages
+        system_msg = await message_stream.__anext__()
+        assert isinstance(system_msg, SystemMessage)
+        assert system_msg.payload.status == "ok"
+        created_todo_id = await create_todo(
+            token, {"description": "Test todo", "is_completed": False}
+        )
+        insert_todo = await message_stream.__anext__()
+        assert isinstance(insert_todo, PostgresChangesMessage)
+        created_message_id = await create_message(
+            token, {"title": "Test message", "message": "This is a test message"}
+        )
+        insert_message = await message_stream.__anext__()
+        assert isinstance(insert_message, PostgresChangesMessage)
 
-    await asyncio.wait_for(system_event.wait(), 10)
+    assert insert_todo.payload["data"]["record"] is not None
+    assert insert_todo.payload["data"]["record"]["id"] == created_todo_id
+    assert insert_todo.payload["data"]["record"]["description"] == "Test todo"
+    assert insert_todo.payload["data"]["record"]["is_completed"] is False
 
-    # Wait for the channel to be subscribed
-    await asyncio.wait_for(subscribed_event.wait(), 10)
-
-    created_todo_id = await create_todo(
-        token, {"description": "Test todo", "is_completed": False}
+    assert insert_message.payload["data"]["record"] is not None
+    assert insert_message.payload["data"]["record"]["id"] == created_message_id
+    assert insert_message.payload["data"]["record"]["title"] == "Test message"
+    assert (
+        insert_message.payload["data"]["record"]["message"] == "This is a test message"
     )
-    await asyncio.wait_for(insert_event.wait(), 10)
-    insert_event.clear()
-
-    created_message_id = await create_message(
-        token, {"title": "Test message", "message": "This is a test message"}
-    )
-
-    await asyncio.wait_for(insert_event.wait(), 10)
-
-    assert len(received_events["all"]) == 1
-    assert len(received_events["insert"]) == 2
-
-    insert = received_events["all"][0]
-    message_insert = received_events["insert"][1]
-
-    assert insert["data"]["record"]["id"] == created_todo_id
-    assert insert["data"]["record"]["description"] == "Test todo"
-    assert insert["data"]["record"]["is_completed"] is False
-
-    assert received_events["insert"] == [insert, message_insert]
-
-    assert message_insert["data"]["record"]["id"] == created_message_id
-    assert message_insert["data"]["record"]["title"] == "Test message"
-    assert message_insert["data"]["record"]["message"] == "This is a test message"
-
-    assert received_events["insert"] == [insert, message_insert]
-    await socket.close()
 
 
 class CreateTodoResponse(BaseModel):
@@ -350,7 +235,7 @@ class CreateTodoResponse(BaseModel):
 
 
 async def create_todo(access_token: str, todo: dict) -> str:
-    url = f"{URL}/rest/v1/todos?select=id"
+    url = f"{SUPABASE_URL}/rest/v1/todos?select=id"
     headers = {
         "apikey": PUBLISHABLE_KEY,
         "Authorization": f"Bearer {access_token}",
@@ -371,8 +256,8 @@ async def create_todo(access_token: str, todo: dict) -> str:
                 raise Exception(f"Failed to create todo. Status: {response.status}")
 
 
-async def update_todo(access_token: str, id: str, todo: dict) -> None:
-    url = f"{URL}/rest/v1/todos?id=eq.{id}"
+async def update_todo(access_token: str, id: str, todo: dict):
+    url = f"{SUPABASE_URL}/rest/v1/todos?id=eq.{id}"
     headers = {
         "apikey": PUBLISHABLE_KEY,
         "Authorization": f"Bearer {access_token}",
@@ -390,7 +275,7 @@ class CreateMsgResponse(BaseModel):
 
 
 async def create_message(access_token: str, message: dict) -> int:
-    url = f"{URL}/rest/v1/messages?select=id"
+    url = f"{SUPABASE_URL}/rest/v1/messages?select=id"
     headers = {
         "apikey": PUBLISHABLE_KEY,
         "Authorization": f"Bearer {access_token}",
@@ -411,8 +296,8 @@ async def create_message(access_token: str, message: dict) -> int:
                 raise Exception(f"Failed to create message. Status: {response.status}")
 
 
-async def delete_todo(access_token: str, id: str) -> None:
-    url = f"{URL}/rest/v1/todos?id=eq.{id}"
+async def delete_todo(access_token: str, id: str):
+    url = f"{SUPABASE_URL}/rest/v1/todos?id=eq.{id}"
     headers = {
         "apikey": PUBLISHABLE_KEY,
         "Authorization": f"Bearer {access_token}",
@@ -426,659 +311,245 @@ async def delete_todo(access_token: str, id: str) -> None:
 
 
 @pytest.mark.asyncio
-async def test_multiple_connect_attempts(socket: AsyncRealtimeClient) -> None:
-    # First connection should succeed
-    await socket.connect()
-    assert socket.is_connected
-    initial_ws = socket._ws_connection
-
-    # Second connection attempt should be a no-op since we're already connected
-    await socket.connect()
-    assert socket.is_connected
-    assert socket._ws_connection == initial_ws  # Should be the same connection object
-
-    await socket.close()
-    assert not socket.is_connected
-
-    # Test connection failure and retry behavior
-    # Temporarily modify the URL to force a connection failure
-    original_url = socket.url
-    socket.url = "ws://invalid-url-that-will-fail:12345/websocket"
-    socket.max_retries = 2  # Reduce retries for faster test
-    socket.initial_backoff = 0.1  # Reduce backoff for faster test
-
-    start_time = datetime.datetime.now()
-
-    with pytest.raises(Exception) as exc_info:
-        await socket.connect()
-
-    end_time = datetime.datetime.now()
-    duration = (end_time - start_time).total_seconds()
-
-    # Should have tried to connect max_retries times with exponential backoff
-    # First attempt: immediate
-    # Second attempt: after 0.1s
-    # Total time should be at least the sum of backoff times but not much more
-    assert duration >= 0.1, "Should have waited for backoff between retries"
-    assert duration < 1.0, "Should not have waited longer than necessary"
-
-    # The error message can vary depending on the system and Python version
-    # Common messages include DNS resolution errors or connection refused
-    error_msg = str(exc_info.value)
-    assert any(
-        msg in error_msg.lower()
-        for msg in [
-            "temporary failure in name resolution",
-            "nodename nor servname provided",
-            "name or service not known",
-            "connection refused",
-            "failed to establish",
-        ]
-    ), f"Unexpected error message: {error_msg}"
-
-    # Restore original URL and verify we can connect again
-    socket.url = original_url
-    await socket.connect()
-    assert socket.is_connected
-
-    await socket.close()
-
-
-@pytest.mark.asyncio
-async def test_send_message_reconnection(socket: AsyncRealtimeClient) -> None:
-    # First establish a connection
-    await socket.connect()
-    assert socket.is_connected
-
-    # Create a channel and subscribe to it
-    channel = socket.channel("test-channel")
-    subscribe_event = asyncio.Event()
-    await channel.subscribe(
-        lambda state, _: (
-            subscribe_event.set()
-            if state == RealtimeSubscribeStates.SUBSCRIBED
-            else None
-        )
-    )
-    await asyncio.wait_for(subscribe_event.wait(), 5)
-
-    # Simulate a connection failure by closing the WebSocket
-    if socket._ws_connection:
-        await socket._ws_connection.close()
-
-    # Try to send a message - this should trigger reconnection
-    message = Message(
-        topic="test-channel",
-        event=ChannelEvents.broadcast,
-        payload={"test": "data"},
-    )
-    await socket.send(message)
-
-    # Wait for reconnection to complete
-    await asyncio.sleep(1)  # Give some time for reconnection
-
-    # Verify we're connected again
-    assert socket.is_connected
-
-    # Try sending another message to verify the connection is working
-    await socket.send(message)
-
-    await socket.close()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("close_code", [1000, 1001])
-async def test_reconnects_and_rejoins_after_server_closes_normally(
-    close_code: int,
-) -> None:
-    connections = 0
-    rejoined = asyncio.Event()
-
-    async def server_handler(ws: ServerConnection) -> None:
-        nonlocal connections
-        connections += 1
-        async for raw in ws:
-            if json.loads(raw)["event"] != ChannelEvents.join:
-                continue
-            if connections == 1:
-                await ws.close(code=close_code)
-            else:
-                rejoined.set()
-
-    async with serve(server_handler, "127.0.0.1", 0) as server:
-        port = next(iter(server.sockets)).getsockname()[1]
-        socket = AsyncRealtimeClient(f"ws://127.0.0.1:{port}", initial_backoff=0.1)
-        await socket.connect()
-        first_listen_task = socket._listen_task
-        assert first_listen_task is not None
-        await socket.channel("server-close").subscribe()
-
-        await asyncio.wait_for(rejoined.wait(), 5)
-        await asyncio.wait_for(first_listen_task, 5)
-        assert not first_listen_task.cancelled()
-        assert connections == 2
-        assert socket.is_connected
-
-        await socket.close()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("close_code", [1000, 1001])
-async def test_disconnects_after_server_closes_normally_without_auto_reconnect(
-    close_code: int,
-) -> None:
-    async def server_handler(ws: ServerConnection) -> None:
-        await ws.close(code=close_code)
-
-    async with serve(server_handler, "127.0.0.1", 0) as server:
-        port = next(iter(server.sockets)).getsockname()[1]
-        socket = AsyncRealtimeClient(
-            f"ws://127.0.0.1:{port}", auto_reconnect=False, initial_backoff=0.1
-        )
-        await socket.connect()
-        listen_task = socket._listen_task
-        assert listen_task is not None
-
-        await asyncio.wait_for(listen_task, 5)
-        assert not socket.is_connected
-
-        await socket.close()
-
-
-@pytest.mark.asyncio
-async def test_close_does_not_reconnect() -> None:
-    async def server_handler(ws: ServerConnection) -> None:
-        await ws.wait_closed()
-
-    async with serve(server_handler, "127.0.0.1", 0) as server:
-        port = next(iter(server.sockets)).getsockname()[1]
-        socket = AsyncRealtimeClient(f"ws://127.0.0.1:{port}", initial_backoff=0.1)
-        await socket.connect()
-
-        with patch("realtime._async.client.connect", wraps=connect) as connect_spy:
-            await socket.close()
-            await asyncio.sleep(0.5)
-
-        connect_spy.assert_not_called()
-        assert not socket.is_connected
-
-
-@pytest.mark.asyncio
 async def test_subscribe_to_private_channel_with_broadcast_replay(
-    socket: AsyncRealtimeClient,
-) -> None:
+    socket: RealtimeClient,
+):
     """Test that channel subscription sends correct payload with broadcast replay configuration."""
-    import json
-    from unittest.mock import AsyncMock
+    token = await access_token()
 
-    # Mock the websocket connection
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
+    await socket.set_auth(token)
 
-    # Connect the socket (this will use our mock)
-    await socket.connect()
+    messages = 10
+
+    topic = "test-channel"
+    event = "broadcast"
 
     # Calculate replay timestamp
     ten_mins_ago = datetime.datetime.now() - datetime.timedelta(minutes=10)
     ten_mins_ago_ms = int(ten_mins_ago.timestamp() * 1000)
 
-    # Create channel with broadcast replay configuration
-    channel: AsyncRealtimeChannel = socket.channel(
-        "test-private-channel",
-        params={
-            "config": {
-                "private": True,
-                "broadcast": {"replay": {"since": ten_mins_ago_ms, "limit": 100}},
-                "presence": {"enabled": True, "key": ""},
-            }
-        },
+    channel_options = (
+        RealtimeChannelOptions()
+        .private(True)
+        .broadcast(replay_since=ten_mins_ago_ms, replay_limit=messages)
     )
 
-    # Mock the subscription callback to be called immediately
-    callback_called = False
+    for i in range(messages):
+        await realtime_send(token, topic, event, {"i": str(i)})
 
-    def mock_callback(state, error) -> None:
-        nonlocal callback_called
-        callback_called = True
-
-    # Subscribe to the channel
-    await start_subscribe(channel, mock_callback)
-
-    # Verify that send was called with the correct payload
-    assert mock_ws.send.called, "WebSocket send should have been called"
-
-    # Get the sent message
-    sent_message = mock_ws.send.call_args[0][0]
-    message_data = json.loads(sent_message)
-
-    # Verify the message structure
-    assert message_data["topic"] == "realtime:test-private-channel"
-    assert message_data["event"] == "phx_join"
-    assert "ref" in message_data
-    assert "payload" in message_data
-
-    # Verify the payload contains the correct broadcast replay configuration
-    payload = message_data["payload"]
-    assert "config" in payload
-
-    config = payload["config"]
-    assert config["private"] is True
-    assert "broadcast" in config
-
-    broadcast_config = config["broadcast"]
-    assert "replay" in broadcast_config
-
-    replay_config = broadcast_config["replay"]
-    assert replay_config["since"] == ten_mins_ago_ms
-    assert replay_config["limit"] == 100
-
-    # Verify postgres_changes array is present (even if empty)
-    assert "postgres_changes" in config
-    assert isinstance(config["postgres_changes"], list)
-
-    await socket.close()
+    async with socket.channel(topic, params=channel_options) as chan:
+        message_stream = chan.messages
+        for i in range(messages):
+            broadcast = await message_stream.__anext__()
+            assert isinstance(broadcast, BroadcastMessage)
+            assert broadcast.payload["payload"]["i"] == str(i)
+            assert broadcast.payload["meta"]
+            assert broadcast.payload["meta"]["replayed"]
 
 
-@pytest.mark.asyncio
-async def test_subscribe_to_channel_with_empty_replay_config(
-    socket: AsyncRealtimeClient,
-) -> None:
-    """Test that channel subscription handles empty replay configuration correctly."""
-    import json
-    from unittest.mock import AsyncMock
-
-    # Mock the websocket connection
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-
-    # Connect the socket
-    await socket.connect()
-
-    # Create channel with empty replay configuration
-    channel: AsyncRealtimeChannel = socket.channel(
-        "test-empty-replay",
-        params={
-            "config": {
-                "private": False,
-                "broadcast": {"ack": True, "self": False, "replay": {}},
-                "presence": {"enabled": True, "key": ""},
-            }
-        },
+def test_normalize_url_includes_connection_params() -> None:
+    url = normalize_url(
+        URL("https://project.supabase.co/realtime/v1?log_level=info"),
+        "publishable-key",
     )
 
-    # Mock the subscription callback
-    callback_called = False
-
-    def mock_callback(state, error) -> None:
-        nonlocal callback_called
-        callback_called = True
-
-    # Subscribe to the channel
-    await start_subscribe(channel, mock_callback)
-
-    # Verify that send was called
-    assert mock_ws.send.called, "WebSocket send should have been called"
-
-    # Get the sent message
-    sent_message = mock_ws.send.call_args[0][0]
-    message_data = json.loads(sent_message)
-
-    # Verify the payload structure
-    payload = message_data["payload"]
-    config = payload["config"]
-
-    assert config["private"] is False
-    assert "broadcast" in config
-
-    broadcast_config = config["broadcast"]
-    assert broadcast_config["ack"] is True
-    assert broadcast_config["self"] is False
-    assert broadcast_config["replay"] == {}
-
-    await socket.close()
-
-
-@pytest.mark.asyncio
-async def test_subscribe_to_channel_without_replay_config(
-    socket: AsyncRealtimeClient,
-) -> None:
-    """Test that channel subscription works without replay configuration."""
-    import json
-    from unittest.mock import AsyncMock
-
-    # Mock the websocket connection
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-
-    # Connect the socket
-    await socket.connect()
-
-    # Create channel without replay configuration
-    channel: AsyncRealtimeChannel = socket.channel(
-        "test-no-replay",
-        params={
-            "config": {
-                "private": False,
-                "broadcast": {"ack": True, "self": True},
-                "presence": {"enabled": True, "key": ""},
-            }
-        },
-    )
-
-    # Mock the subscription callback
-    callback_called = False
-
-    def mock_callback(state, error) -> None:
-        nonlocal callback_called
-        callback_called = True
-
-    # Subscribe to the channel
-    await start_subscribe(channel, mock_callback)
-
-    # Verify that send was called
-    assert mock_ws.send.called, "WebSocket send should have been called"
-
-    # Get the sent message
-    sent_message = mock_ws.send.call_args[0][0]
-    message_data = json.loads(sent_message)
-
-    # Verify the payload structure
-    payload = message_data["payload"]
-    config = payload["config"]
-
-    assert config["private"] is False
-    assert "broadcast" in config
-
-    broadcast_config = config["broadcast"]
-    assert broadcast_config["ack"] is True
-    assert broadcast_config["self"] is True
-    assert "replay" not in broadcast_config
-
-    await socket.close()
-
-
-def test_postgres_changes_callback_binding_filter_includes_select() -> None:
-    """binding_filter should include filter and select only when they are set."""
-    from realtime.types import PostgresChangesCallback
-
-    with_select = PostgresChangesCallback(
-        callback=lambda _: None,
-        event=RealtimePostgresChangesListenEvent.Insert,
-        table="todos",
-        schema=None,
-        filter="id=eq.1",
-        select=["id", "name"],
-    )
-    assert with_select.binding_filter == {
-        "event": RealtimePostgresChangesListenEvent.Insert,
-        "schema": "public",
-        "table": "todos",
-        "filter": "id=eq.1",
-        "select": ["id", "name"],
+    assert url.scheme == "wss"
+    assert url.path == "/realtime/v1/websocket"
+    assert dict(url.query) == {
+        "apikey": "publishable-key",
+        "log_level": "info",
+        "vsn": "1.0.0",
     }
 
-    without_select = PostgresChangesCallback(
-        callback=lambda _: None,
-        event=RealtimePostgresChangesListenEvent.All,
-        table="todos",
-        schema="public",
-        filter=None,
-    )
-    assert without_select.binding_filter == {
-        "event": RealtimePostgresChangesListenEvent.All,
-        "schema": "public",
-        "table": "todos",
-    }
-    assert "select" not in without_select.binding_filter
-    assert "filter" not in without_select.binding_filter
 
-
-@pytest.mark.asyncio
-async def test_subscribe_forwards_select_in_postgres_changes(
-    socket: AsyncRealtimeClient,
-) -> None:
-    """on_postgres_changes(select=[...]) should be forwarded in the join payload."""
-    import json
-    from unittest.mock import AsyncMock
-
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
-
-    channel: AsyncRealtimeChannel = socket.channel("test-select")
-    channel.on_postgres_changes(
-        RealtimePostgresChangesListenEvent.Insert,
-        lambda _: None,
-        schema="public",
-        table="todos",
-        filter="id=eq.1",
-        select=["id", "description"],
+def test_postgres_changes_binding_includes_select_only_when_set() -> None:
+    options = (
+        RealtimeChannelOptions()
+        .postgres_changes(
+            RealtimePostgresChangesListenEvent.Insert,
+            table="todos",
+            schema="public",
+            filter="id=eq.1",
+            select=["id", "description"],
+        )
+        .postgres_changes(
+            RealtimePostgresChangesListenEvent.All, table="todos", schema="public"
+        )
     )
 
-    await start_subscribe(channel, lambda state, error: None)
+    payload = options.to_payload().model_dump(exclude_none=True)
 
-    assert mock_ws.send.called, "WebSocket send should have been called"
-    message_data = json.loads(mock_ws.send.call_args[0][0])
-    postgres_changes = message_data["payload"]["config"]["postgres_changes"]
-
-    assert postgres_changes == [
+    assert payload["config"]["postgres_changes"] == [
         {
             "event": RealtimePostgresChangesListenEvent.Insert,
             "schema": "public",
             "table": "todos",
             "filter": "id=eq.1",
             "select": ["id", "description"],
-        }
-    ]
-
-    await socket.close()
-
-
-@pytest.mark.asyncio
-async def test_subscribe_defaults_postgres_changes_schema_to_public(
-    socket: AsyncRealtimeClient,
-) -> None:
-    import json
-
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
-
-    channel: AsyncRealtimeChannel = socket.channel("test-default-schema")
-    channel.on_postgres_changes(RealtimePostgresChangesListenEvent.All, lambda _: None)
-    channel.on_postgres_changes(
-        RealtimePostgresChangesListenEvent.Insert,
-        lambda _: None,
-        table="todos",
-        filter="id=eq.1",
-    )
-
-    await start_subscribe(channel, lambda state, error: None)
-
-    message_data = json.loads(mock_ws.send.call_args[0][0])
-    assert message_data["payload"]["config"]["postgres_changes"] == [
-        {"event": RealtimePostgresChangesListenEvent.All, "schema": "public"},
+        },
         {
-            "event": RealtimePostgresChangesListenEvent.Insert,
+            "event": RealtimePostgresChangesListenEvent.All,
             "schema": "public",
             "table": "todos",
-            "filter": "id=eq.1",
         },
     ]
 
-    await socket.close()
+
+def test_broadcast_replication_ready_is_forwarded_only_when_set() -> None:
+    enabled = RealtimeChannelOptions().broadcast(replication_ready=True)
+    disabled = RealtimeChannelOptions().broadcast()
+
+    enabled_payload = enabled.to_payload().model_dump(exclude_none=True)
+    disabled_payload = disabled.to_payload().model_dump(exclude_none=True)
+
+    assert enabled_payload["config"]["broadcast"]["replication_ready"] is True
+    assert "replication_ready" not in disabled_payload["config"]["broadcast"]
 
 
-@pytest.mark.asyncio
-async def test_subscribe_accepts_server_echo_of_default_schema(
-    socket: AsyncRealtimeClient,
-) -> None:
-    socket._ws_connection = AsyncMock()
-    await socket.connect()
+def fake_client() -> tuple[RealtimeClient, list[Message]]:
+    """A client over a mocked websocket that acks every message carrying a ref.
 
-    statuses: list[tuple[RealtimeSubscribeStates, Exception | None]] = []
-    channel: AsyncRealtimeChannel = socket.channel("test-default-schema-reply")
-    channel.on_postgres_changes(
-        RealtimePostgresChangesListenEvent.Insert, lambda _: None, table="todos"
-    )
-    subscribe_task = await start_subscribe(
-        channel, lambda state, error: statuses.append((state, error))
-    )
+    Like the Realtime server, it does not reply to access_token messages.
+    """
+    sent: list[Message] = []
+    ws = AsyncMock()
+    client = RealtimeClient(URL("ws://localhost/realtime/v1"), ws)
 
-    channel.join_push.trigger(
-        RealtimeAcknowledgementStatus.Ok,
-        ReplyPostgresChanges.model_validate(
-            {
-                "postgres_changes": [
-                    {
-                        "id": 42,
-                        "event": RealtimePostgresChangesListenEvent.Insert,
-                        "schema": "public",
-                        "table": "todos",
-                    }
-                ]
-            }
-        ),
-    )
+    async def send(raw: str) -> None:
+        message = Message.model_validate_json(raw)
+        sent.append(message)
+        if message.ref is not None and message.event != ChannelEvents.access_token:
+            reply = Message(
+                topic=message.topic,
+                event=ChannelEvents.reply,
+                ref=message.ref,
+                payload={"status": "ok", "response": {"postgres_changes": []}},
+            )
+            client.message_refs[message.ref].set_result(reply)
 
-    assert statuses == [(RealtimeSubscribeStates.SUBSCRIBED, None)]
-    assert channel.postgres_changes_callbacks[0].id == 42
-    assert await subscribe_task is channel
-
-    await socket.close()
+    ws.send.side_effect = send
+    return client, sent
 
 
-@pytest.mark.asyncio
-async def test_subscribe_forwards_broadcast_replication_ready(
-    socket: AsyncRealtimeClient,
-) -> None:
-    """broadcast.replication_ready opt-in should be forwarded in the join payload."""
-    import json
-    from unittest.mock import AsyncMock
+async def test_channel_returns_existing_channel_for_same_topic() -> None:
+    client, _ = fake_client()
 
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
+    first = client.channel("room")
 
-    channel: AsyncRealtimeChannel = socket.channel(
-        "test-replication-ready",
-        params={
-            "config": {
-                "private": False,
-                "broadcast": {"replication_ready": True},
-                "presence": {"enabled": False, "key": ""},
-            }
-        },
-    )
-
-    await start_subscribe(channel, lambda state, error: None)
-
-    assert mock_ws.send.called, "WebSocket send should have been called"
-    message_data = json.loads(mock_ws.send.call_args[0][0])
-    broadcast_config = message_data["payload"]["config"]["broadcast"]
-
-    assert broadcast_config["replication_ready"] is True
-
-    await socket.close()
+    assert client.channel("room") is first
+    assert client.get_channels() == [first]
 
 
-def test_channel_returns_existing_channel_for_same_topic(
-    socket: AsyncRealtimeClient,
-) -> None:
-    first = socket.channel("room")
+async def test_second_channel_call_keeps_first_subscription_receiving() -> None:
+    client, _ = fake_client()
 
-    assert socket.channel("room") is first
-    assert socket.get_channels() == [first]
+    channel = client.channel("room")
+    await channel.subscribe()
 
-
-@pytest.mark.asyncio
-async def test_second_channel_call_keeps_first_subscription_receiving(
-    socket: AsyncRealtimeClient,
-) -> None:
-    """Calling channel() again for a subscribed topic must not orphan the
-    subscribed channel: incoming messages are routed by topic."""
-    import json
-    from unittest.mock import AsyncMock
-
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
-
-    received = []
-    channel = socket.channel("room").on_broadcast(
-        "ping", lambda payload: received.append(payload["payload"])
-    )
-    await start_subscribe(channel, lambda state, error: None)
-
-    socket.channel("room")
-
-    mock_ws.__aiter__.return_value = [
-        json.dumps(
-            {
-                "topic": "realtime:room",
-                "event": "broadcast",
-                "ref": None,
-                "payload": {"type": "broadcast", "event": "ping", "payload": {"n": 1}},
-            }
-        )
-    ]
-    await socket._listen()
-
-    assert received == [{"n": 1}]
-
-    await socket.close()
+    assert client.channel("room") is channel
+    assert client.channels["realtime:room"] is channel
 
 
-@pytest.mark.asyncio
-async def test_channel_after_unsubscribe_creates_new_channel(
-    socket: AsyncRealtimeClient,
-) -> None:
-    from unittest.mock import AsyncMock
+async def test_channel_after_unsubscribe_creates_new_channel() -> None:
+    client, _ = fake_client()
 
-    socket._ws_connection = AsyncMock()
-    await socket.connect()
-
-    first = socket.channel("room")
-    await start_subscribe(first, lambda state, error: None)
+    first = client.channel("room")
+    await first.subscribe()
     await first.unsubscribe()
 
-    second = socket.channel("room")
+    second = client.channel("room")
 
     assert second is not first
-    assert socket.get_channels() == [second]
-
-    await socket.close()
+    assert client.get_channels() == [second]
 
 
-@pytest.mark.asyncio
-async def test_set_auth_updates_join_payload_used_on_rejoin(
-    socket: AsyncRealtimeClient,
-) -> None:
-    """A token passed to set_auth must be sent when a joined channel rejoins."""
-    import json
-    from unittest.mock import AsyncMock
+async def test_set_auth_updates_join_payload_used_on_rejoin() -> None:
+    client, sent = fake_client()
 
-    from realtime.types import ChannelStates
+    channel = client.channel("test-set-auth-rejoin")
+    await channel.subscribe()
 
-    mock_ws = AsyncMock()
-    socket._ws_connection = mock_ws
-    await socket.connect()
+    await asyncio.wait_for(client.set_auth("refreshed-token"), timeout=1)
 
-    channel: AsyncRealtimeChannel = socket.channel("test-set-auth-rejoin")
-    await start_subscribe(channel, lambda state, error: None)
-    channel.state = ChannelStates.JOINED  # the server acknowledged the join
+    assert sent[-1].event == ChannelEvents.access_token
+    assert sent[-1].payload == {"access_token": "refreshed-token"}
 
-    await socket.set_auth("refreshed-token")
+    await channel.unsubscribe()
+    await client.channel("test-set-auth-rejoin").subscribe()
 
-    sent = [json.loads(call.args[0]) for call in mock_ws.send.call_args_list]
-    assert sent[-1]["event"] == ChannelEvents.access_token
-    assert sent[-1]["payload"] == {"access_token": "refreshed-token"}
+    assert sent[-1].event == ChannelEvents.join
+    assert sent[-1].payload["access_token"] == "refreshed-token"
 
-    # After a dropped connection, _reconnect() rejoins with the stored join push.
-    await channel._rejoin()
 
-    rejoin = json.loads(mock_ws.send.call_args[0][0])
-    assert rejoin["event"] == ChannelEvents.join
-    assert rejoin["payload"]["access_token"] == "refreshed-token"
+async def test_messages_receive_close_after_unsubscribe() -> None:
+    client, _ = fake_client()
 
-    await socket.close()
+    channel = client.channel("room")
+    await channel.subscribe()
+    await channel.unsubscribe()
+
+    message = await asyncio.wait_for(channel.messages.__anext__(), timeout=1)
+
+    assert isinstance(message, ChannelCloseMessage)
+
+
+async def test_channel_warns_when_options_for_existing_topic_differ() -> None:
+    client, _ = fake_client()
+    client.channel("room")
+
+    with pytest.warns(UserWarning):
+        client.channel("room", RealtimeChannelOptions().private(True))
+
+
+async def test_remove_channel_ignores_a_replaced_channel() -> None:
+    client, sent = fake_client()
+
+    first = client.channel("room")
+    await first.subscribe()
+    await first.unsubscribe()
+    second = client.channel("room")
+    await second.subscribe()
+
+    await client.remove_channel(first)
+
+    assert second.joined
+    assert client.get_channels() == [second]
+
+
+async def test_remove_all_channels_twice() -> None:
+    client, _ = fake_client()
+    await client.channel("room").subscribe()
+
+    await client.remove_all_channels()
+    await client.remove_all_channels()
+
+    assert client.get_channels() == []
+
+
+async def test_resubscribing_the_same_channel_keeps_receiving() -> None:
+    client, _ = fake_client()
+
+    channel = client.channel("room")
+    await channel.subscribe()
+    await channel.unsubscribe()
+    await channel.subscribe()
+
+    assert client.channels["realtime:room"] is channel
+    assert channel.message_stream.empty()
+
+
+async def test_subscribe_does_not_store_the_token_in_shared_options() -> None:
+    client, sent = fake_client()
+    client.last_token = "user-token"
+    options = RealtimeChannelOptions()
+
+    await client.channel("room", options).subscribe()
+
+    assert options.token is None
+    assert sent[-1].payload["access_token"] == "user-token"
+
+
+def test_exponential_delay_stops_once_retries_reach_the_limit() -> None:
+    assert exponential_delay(1, 1) is None
+    assert exponential_delay(1, 2) is None
+    assert exponential_delay(3, 1) == 2

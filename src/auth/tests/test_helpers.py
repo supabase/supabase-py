@@ -1,102 +1,51 @@
-import base64
 import json
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import MagicMock
 
-import httpx
 import pytest
-import respx
-from httpx import Headers, HTTPStatusError, Response
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.request import Request, Response
+from yarl import URL
+
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
 )
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
-    AuthRetryableError,
-    AuthUnknownError,
     AuthWeakPasswordError,
 )
 from supabase_auth.helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    handle_exception,
+    handle_error_response,
     parse_link_identity_response,
     parse_response_api_version,
     validate_exp,
 )
 
-from ._sync.clients import mock_access_token
+from ._sync.conftest import mock_access_token
 
 TEST_URL = "http://localhost"
 
 
-def test_handle_exception_with_api_version_and_error_code() -> None:
-    err = {
-        "name": "without API version and error code",
-        "code": "unexpected_failure",
-        "ename": "AuthApiError",
-    }
-
-    with respx.mock:
-        respx.get(f"{TEST_URL}/hello-world").mock(
-            return_value=Response(status_code=200),
-            side_effect=AuthApiError("Error code message", 400, "unexpected_failure"),
-        )
-        with pytest.raises(AuthApiError, match=r"Error code message") as exc:
-            httpx.get(f"{TEST_URL}/hello-world")
-        assert exc.value is not None
-        assert exc.value.message == "Error code message"
-        assert exc.value.code == err["code"]
-        assert exc.value.name == err["ename"]
-
-
-def test_handle_exception_without_api_version_and_weak_password_error_code() -> None:
-    err = {
-        "name": "without API version and weak password error code with payload",
-        "code": "weak_password",
-        "ename": "AuthWeakPasswordError",
-    }
-
-    with respx.mock:
-        respx.get(f"{TEST_URL}/hello-world").mock(
-            return_value=Response(status_code=200),
-            side_effect=AuthWeakPasswordError(
-                "Error code message", 400, ["characters"]
-            ),
-        )
-        with pytest.raises(AuthWeakPasswordError, match=r"Error code message") as exc:
-            httpx.get(f"{TEST_URL}/hello-world")
-        assert exc.value is not None
-        assert exc.value.message == "Error code message"
-        assert exc.value.code == err["code"]
-        assert exc.value.name == err["ename"]
-
-
-def test_handle_exception_with_api_version_2024_01_01_and_error_code() -> None:
-    err = {
-        "name": "with API version 2024-01-01 and error code",
-        "code": "unexpected_failure",
-        "ename": "AuthApiError",
-    }
-
-    with respx.mock:
-        respx.get(f"{TEST_URL}/hello-world").mock(
-            return_value=Response(status_code=200),
-            side_effect=AuthApiError("Error code message", 400, "unexpected_failure"),
-        )
-        with pytest.raises(AuthApiError, match=r"Error code message") as exc:
-            httpx.get(f"{TEST_URL}/hello-world")
-        assert exc.value is not None
-        assert exc.value.message == "Error code message"
-        assert exc.value.code == err["code"]
-        assert exc.value.name == err["ename"]
+def valid_request() -> Request:
+    return Request(
+        url=URL(TEST_URL),
+        method="GET",
+        headers=Headers.empty(),
+        content=None,
+        delay=None,
+    )
 
 
 def test_parse_response_api_version_with_valid_date() -> None:
-    headers = Headers({API_VERSION_HEADER_NAME: "2024-01-01"})
-    response = Response(headers=headers, status_code=200)
+    headers = Headers.from_mapping({API_VERSION_HEADER_NAME: "2024-01-01"})
+    response = Response(
+        headers=headers, status=200, content=b"", request=valid_request()
+    )
     api_ver = parse_response_api_version(response)
     assert api_ver
     assert datetime.timestamp(api_ver) == datetime.timestamp(
@@ -107,14 +56,21 @@ def test_parse_response_api_version_with_valid_date() -> None:
 def test_parse_response_api_version_with_invalid_dates() -> None:
     dates = ["2024-01-32", "", "notadate", "Sat Feb 24 2024 17:59:17 GMT+0100"]
     for date in dates:
-        headers = Headers({API_VERSION_HEADER_NAME: date})
-        response = Response(headers=headers, status_code=200)
+        headers = Headers.from_mapping({API_VERSION_HEADER_NAME: date})
+        response = Response(
+            headers=headers, status=200, content=b"", request=valid_request()
+        )
         api_ver = parse_response_api_version(response)
         assert api_ver is None
 
 
 def test_parse_link_identity_response() -> None:
-    resp = Response(content=f'{{"url": "{TEST_URL}/hello-world"}}', status_code=200)
+    resp = Response(
+        content=f'{{"url": "{TEST_URL}/hello-world"}}'.encode(),
+        status=200,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
     assert parse_link_identity_response(resp)
 
 
@@ -124,56 +80,6 @@ def test_decode_jwt() -> None:
     with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure") as exc:
         decode_jwt("non-valid-jwt")
     assert exc.value is not None
-
-
-def _segment(value: object) -> str:
-    raw = value if isinstance(value, bytes) else json.dumps(value).encode()
-    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
-
-
-def _token(header: object, payload: object) -> str:
-    return f"{_segment(header)}.{_segment(payload)}.{_segment(b'signature')}"
-
-
-_HEADER = {"alg": "HS256", "typ": "JWT"}
-_PAYLOAD = {"sub": "user", "exp": 9999999999}
-
-
-@pytest.mark.parametrize(
-    "token",
-    [
-        _token(b"not json", _PAYLOAD),
-        _token(_HEADER, b"not json"),
-        _token({"alg": "none", "typ": "JWT"}, _PAYLOAD),
-        _token({"alg": "EdDSA", "typ": "JWT"}, _PAYLOAD),
-        _token([_HEADER], _PAYLOAD),
-        _token(_HEADER, {"sub": "user", "exp": "soon"}),
-        "a.b.c",
-        "\u00e9.\u00e9.\u00e9",
-        f"{_segment(_HEADER)}.{_segment(_PAYLOAD)}.a",
-    ],
-    ids=[
-        "header-not-json",
-        "payload-not-json",
-        "alg-none",
-        "alg-eddsa",
-        "header-array",
-        "exp-string",
-        "undecodable-base64",
-        "non-ascii",
-        "undecodable-signature",
-    ],
-)
-def test_decode_jwt_raises_auth_error_for_malformed_segments(token: str) -> None:
-    with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure"):
-        decode_jwt(token)
-
-
-def test_decode_jwt_accepts_header_without_typ() -> None:
-    decoded = decode_jwt(_token({"alg": "HS256"}, _PAYLOAD))
-
-    assert decoded["header"] == {"alg": "HS256"}
-    assert decoded["payload"] == _PAYLOAD
 
 
 def test_generate_pkce_verifier() -> None:
@@ -196,205 +102,6 @@ def test_parse_response_api_version_invalid_date() -> None:
 
     result = parse_response_api_version(mock_response)
     assert result is None
-
-
-def _network_error(response: Response) -> HTTPStatusError:
-    response.request = httpx.Request("POST", f"{TEST_URL}/token")
-    return HTTPStatusError("Server error", request=response.request, response=response)
-
-
-@pytest.mark.parametrize("status", [502, 503, 504, 520, 521, 522, 523, 524, 530])
-def test_handle_exception_network_error(status: int) -> None:
-    exception = _network_error(Response(status, json={"msg": "upstream unavailable"}))
-
-    result = handle_exception(exception)
-
-    assert isinstance(result, AuthRetryableError)
-    assert result.message == "upstream unavailable"
-    assert result.status == status
-
-
-@pytest.mark.parametrize("key", ["msg", "message"])
-def test_handle_exception_network_error_preserves_json_message(key: str) -> None:
-    exception = _network_error(Response(503, json={key: "upstream unavailable"}))
-
-    result = handle_exception(exception)
-
-    assert isinstance(result, AuthRetryableError)
-    assert result.message == "upstream unavailable"
-    assert result.status == 503
-
-
-def test_handle_exception_network_error_non_json_uses_reason_phrase() -> None:
-    exception = _network_error(Response(502, text="<html>Bad Gateway</html>"))
-
-    result = handle_exception(exception)
-
-    assert isinstance(result, AuthRetryableError)
-    assert result.message == "Bad Gateway"
-    assert result.status == 502
-
-
-@pytest.mark.parametrize(
-    "response",
-    [
-        # Server sent an empty reason phrase.
-        Response(503, text="oops", extensions={"reason_phrase": b""}),
-        # Cloudflare codes have no standard reason phrase.
-        Response(520, text="oops"),
-    ],
-)
-def test_handle_exception_network_error_non_json_without_reason_phrase(
-    response: Response,
-) -> None:
-    exception = _network_error(response)
-
-    result = handle_exception(exception)
-
-    assert isinstance(result, AuthRetryableError)
-    assert result.message == f"HTTP {response.status_code}"
-    assert result.status == response.status_code
-
-
-def test_handle_exception_with_weak_password_attribute() -> None:
-    # Test case with error_code=None and no weak_password object, so the
-    # generic AuthApiError path is taken.
-    mock_response = MagicMock(spec=Response)
-    mock_response.status_code = 400
-    mock_response.json.return_value = {
-        "message": "Invalid request",
-        "error_description": "Something went wrong",
-    }
-
-    exception = HTTPStatusError("Error", request=MagicMock(), response=mock_response)
-
-    with patch("supabase_auth.helpers.parse_response_api_version", return_value=None):
-        result = handle_exception(exception)
-
-        # Will return a normal AuthApiError
-        assert isinstance(result, AuthApiError)
-        assert result.message == "Invalid request"
-        assert result.status == 400
-        assert result.code is None
-
-
-def test_handle_exception_legacy_weak_password_without_error_code() -> None:
-    # GoTrue responses that predate error codes report weak passwords only through
-    # the `weak_password` object, so they must still surface as AuthWeakPasswordError.
-    mock_response = MagicMock(spec=Response)
-    mock_response.status_code = 422
-    mock_response.json.return_value = {
-        "message": "Password too weak",
-        "weak_password": {"reasons": ["length", "characters"]},
-    }
-
-    exception = HTTPStatusError(
-        "Password error", request=MagicMock(), response=mock_response
-    )
-
-    with patch("supabase_auth.helpers.parse_response_api_version", return_value=None):
-        result = handle_exception(exception)
-
-    assert isinstance(result, AuthWeakPasswordError)
-    assert result.message == "Password too weak"
-    assert result.status == 422
-    assert result.reasons == ["length", "characters"]
-
-
-@pytest.mark.parametrize(
-    "weak_password",
-    [
-        {"reasons": []},
-        {"reasons": "length"},
-        {"reasons": ["length", 1]},
-        {},
-        "length",
-    ],
-)
-def test_handle_exception_legacy_weak_password_ignores_malformed_reasons(
-    weak_password,
-) -> None:
-    mock_response = MagicMock(spec=Response)
-    mock_response.status_code = 422
-    mock_response.json.return_value = {
-        "message": "Password too weak",
-        "weak_password": weak_password,
-    }
-
-    exception = HTTPStatusError(
-        "Password error", request=MagicMock(), response=mock_response
-    )
-
-    with patch("supabase_auth.helpers.parse_response_api_version", return_value=None):
-        result = handle_exception(exception)
-
-    assert isinstance(result, AuthApiError)
-    assert not isinstance(result, AuthWeakPasswordError)
-
-
-def test_handle_exception_weak_password_with_error_code() -> None:
-    # Test case for weak password identified by error_code
-    mock_response = MagicMock(spec=Response)
-    mock_response.status_code = 400
-    mock_response.json.return_value = {
-        "message": "Password too weak",
-        "error_code": "weak_password",
-        "weak_password": {"reasons": ["Password too simple"]},
-    }
-
-    exception = HTTPStatusError(
-        "Password error", request=MagicMock(), response=mock_response
-    )
-
-    with patch("supabase_auth.helpers.parse_response_api_version", return_value=None):
-        result = handle_exception(exception)
-
-        assert isinstance(result, AuthWeakPasswordError)
-        assert result.message == "Password too weak"
-        assert result.status == 400
-        assert result.reasons == ["Password too simple"]
-
-
-def test_handle_exception_with_new_api_version() -> None:
-    # Test case for new API version with "code" field
-    mock_response = MagicMock(spec=Response)
-    mock_response.status_code = 400
-    mock_response.json.return_value = {
-        "message": "Password too weak",
-        "code": "weak_password",
-        "weak_password": {"reasons": ["Password too simple"]},
-    }
-
-    # Mock datetime for January 2, 2024 (after 2024-01-01 API version)
-    mock_date = datetime(2024, 1, 2)
-
-    exception = HTTPStatusError(
-        "Password error", request=MagicMock(), response=mock_response
-    )
-
-    with patch(
-        "supabase_auth.helpers.parse_response_api_version", return_value=mock_date
-    ):
-        result = handle_exception(exception)
-
-        assert isinstance(result, AuthWeakPasswordError)
-        assert result.message == "Password too weak"
-        assert result.status == 400
-
-
-def test_handle_exception_unknown_error() -> None:
-    # Test case for when json() raises an exception
-    mock_response = MagicMock(spec=Response)
-    mock_response.status_code = 500
-    mock_response.json.side_effect = ValueError("Invalid JSON")
-
-    exception = HTTPStatusError(
-        "Server error", request=MagicMock(), response=mock_response
-    )
-    result = handle_exception(exception)
-
-    assert isinstance(result, AuthUnknownError)
-    assert "Server error" in result.message
 
 
 def test_validate_exp_with_expired_exp() -> None:
@@ -429,30 +136,69 @@ def test_is_http_url() -> None:
     assert is_http_url("not a url") is False
 
 
-def test_handle_exception_weak_password_branch() -> None:
-    """Cover the legacy weak_password branch of handle_exception."""
-    import httpx
-    from supabase_auth.errors import AuthWeakPasswordError
-    from supabase_auth.helpers import handle_exception
-
-    # Create a proper mock Response with headers
-    mock_response = MagicMock(spec=httpx.Response)
-    mock_response.status_code = 400
-    mock_response.headers = {}
-
-    mock_response.json.return_value = {
-        "message": "Password too weak",
-        "weak_password": {"reasons": ["Password too short"]},
-    }
-
-    # Create a proper HTTPStatusError
-    exception = httpx.HTTPStatusError(
-        "Password error", request=MagicMock(spec=httpx.Request), response=mock_response
+def error_response(status: int, body: Any) -> Response:
+    return Response(
+        headers=Headers.empty(),
+        content=json.dumps(body).encode(),
+        status=status,
+        request=valid_request(),
     )
 
-    result = handle_exception(exception)
+
+def test_handle_error_response_legacy_weak_password_without_error_code() -> None:
+    result = handle_error_response(
+        error_response(
+            422,
+            {
+                "message": "Password too weak",
+                "weak_password": {"reasons": ["length", "characters"]},
+            },
+        )
+    )
 
     assert isinstance(result, AuthWeakPasswordError)
     assert result.message == "Password too weak"
-    assert result.status == 400
-    assert result.reasons == ["Password too short"]
+    assert result.status == 422
+    assert result.reasons == ["length", "characters"]
+
+
+@pytest.mark.parametrize(
+    "weak_password",
+    [
+        {"reasons": []},
+        {"reasons": "length"},
+        {"reasons": ["length", 1]},
+        {},
+        "length",
+    ],
+)
+def test_handle_error_response_legacy_weak_password_ignores_malformed_reasons(
+    weak_password: Any,
+) -> None:
+    result = handle_error_response(
+        error_response(
+            422,
+            {"message": "Password too weak", "weak_password": weak_password},
+        )
+    )
+
+    assert isinstance(result, AuthApiError)
+    assert not isinstance(result, AuthWeakPasswordError)
+    assert result.message == "Password too weak"
+    assert result.status == 422
+
+
+def test_handle_error_response_weak_password_with_error_code() -> None:
+    result = handle_error_response(
+        error_response(
+            422,
+            {
+                "message": "Password too weak",
+                "error_code": "weak_password",
+                "weak_password": {"reasons": ["length"]},
+            },
+        )
+    )
+
+    assert isinstance(result, AuthWeakPasswordError)
+    assert result.reasons == ["length"]

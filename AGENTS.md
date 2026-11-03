@@ -4,27 +4,24 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 
 ## Packages
 
-`<pkg>` is the directory under `src/`. Three import names differ from it: `auth` → `supabase_auth`, `storage` → `storage3`, `functions` → `supabase_functions`.
+`<pkg>` is the directory under `src/`. Four import names differ from it: `auth` → `supabase_auth`, `storage` → `storage3`, `functions` → `supabase_functions`, `utils` → `supabase_utils`.
 
-## Async is the source, sync is generated
+## Async and sync clients
 
-- Edit `_async/` (source and `tests/_async/`). Regenerate `_sync/` with `make <pkg>.build-sync`, then `make ruff`, and commit both trees.
-- `build-sync` needs GNU `sed` (`gsed` is used when present; `nix develop` provides it). A `_sync/` diff your `_async/` change does not explain is a generator bug: fix the `build-sync` recipe, not the generated file.
-- `realtime` has no `build-sync`: its `_sync/` is a stub and the package is async-only.
+- `functions`, `auth`, `postgrest` and `storage` define their `Async*` and `Sync*` clients side by side in the same modules, over the shared HTTP layer in `utils`. Change both when you change one.
+- `supabase` keeps hand-written `_async/` and `_sync/` clients. Edit both.
+- `auth` tests are the only generated code: edit `tests/_async/`, run `make auth.build-sync`, then `make ruff`, and commit both test trees.
+- `realtime` is async-only.
 
 ## Checks
 
 - `make <pkg>.tests` runs mypy and pytest. For `auth`, `postgrest`, `storage` and `realtime`, pytest first starts Docker / Supabase CLI infra; `make stop-infra` when done.
 - Fast loop for tests that need no infra: from `src/<pkg>`, `uv run --frozen --package <import name> pytest tests/<file>.py`.
-- Code must run on Python 3.11 — CI tests 3.11–3.15 ([ci.yml](.github/workflows/ci.yml)).
+- Code must run on Python 3.10 — CI tests 3.10–3.14 ([ci.yml](.github/workflows/ci.yml)).
 
 ## Public API
 
 Adding or renaming a public symbol means updating [sdk-compliance.yaml](sdk-compliance.yaml) with both the `Async*` and `Sync*` names. [validate-capabilities.yml](.github/workflows/validate-capabilities.yml) checks it against the [supabase/sdk](https://github.com/supabase/sdk) capability registry.
-
-## Service compatibility
-
-Update the "Supabase Service Compatibility" section of the READMEs if the supported version of a Supabase service changes. Any change that is not "Latest release" requires integration tests for the minimum supported version.
 
 ## Commits and releases
 

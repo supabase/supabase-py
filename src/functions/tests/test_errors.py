@@ -1,12 +1,35 @@
+from typing import Type
+
 import pytest
-from httpx import Response
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.request import Request, Response
+from yarl import URL
+
 from supabase_functions.errors import (
     FunctionsApiErrorDict,
     FunctionsError,
     FunctionsHttpError,
     FunctionsRelayError,
     _error_message_from,
+    on_error_response,
 )
+
+
+def make_response(
+    content: bytes, status: int = 500, headers: Headers | None = None
+) -> Response:
+    return Response(
+        headers=headers or Headers.empty(),
+        content=content,
+        status=status,
+        request=Request(
+            url=URL("https://example.com/test-function"),
+            method="POST",
+            headers=Headers.empty(),
+            content=None,
+            delay=None,
+        ),
+    )
 
 
 @pytest.mark.parametrize(
@@ -18,7 +41,7 @@ from supabase_functions.errors import (
     ],
 )
 def test_error_initialization(
-    error_class: type[FunctionsError], expected_name: str, expected_status: int
+    error_class: Type[FunctionsError], expected_name: str, expected_status: int
 ) -> None:
     test_message = "Test error message"
     if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
@@ -42,7 +65,7 @@ def test_error_initialization(
     ],
 )
 def test_error_to_dict(
-    error_class: type[FunctionsError], expected_name: str, expected_status: int
+    error_class: Type[FunctionsError], expected_name: str, expected_status: int
 ) -> None:
     test_message = "Test error message"
 
@@ -108,14 +131,45 @@ def test_error_message_types() -> None:
 
 
 @pytest.mark.parametrize(
-    "response,expected",
+    "content,expected",
     [
-        (Response(500, json={"error": "boom"}), "boom"),
-        (Response(500, json={"detail": "boom"}), None),
-        (Response(500, json=["boom"]), '["boom"]'),
-        (Response(500, text="plain boom"), "plain boom"),
-        (Response(500), None),
+        (b'{"error": "boom"}', "boom"),
+        (b'{"detail": "boom"}', '{"detail": "boom"}'),
+        (b'{"code": "NOT_FOUND", "message": "missing"}', "missing"),
+        (
+            b'{"error": {"message": "bad", "field": "email"}}',
+            '{"message":"bad","field":"email"}',
+        ),
+        (b'["boom"]', '["boom"]'),
+        (b"plain boom", "plain boom"),
+        (b"", None),
     ],
 )
-def test_error_message_from(response: Response, expected: str | None) -> None:
-    assert _error_message_from(response) == expected
+def test_error_message_from(content: bytes, expected: str | None) -> None:
+    assert _error_message_from(make_response(content)) == expected
+
+
+def test_on_error_response_http_error() -> None:
+    error = on_error_response(make_response(b'{"error": "boom"}', status=404))
+    assert isinstance(error, FunctionsHttpError)
+    assert error.message == "boom"
+    assert error.status == 404
+
+
+def test_on_error_response_http_error_fallback_message() -> None:
+    error = on_error_response(make_response(b"", status=500))
+    assert isinstance(error, FunctionsHttpError)
+    assert "https://example.com/test-function" in error.message
+
+
+def test_on_error_response_relay_error_keeps_raw_text() -> None:
+    error = on_error_response(
+        make_response(
+            b'{"error": "relay"}',
+            status=546,
+            headers=Headers.from_mapping({"x-relay-error": "true"}),
+        )
+    )
+    assert isinstance(error, FunctionsRelayError)
+    assert error.message == '{"error": "relay"}'
+    assert error.status == 546
