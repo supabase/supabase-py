@@ -1273,16 +1273,15 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             body["code_challenge_method"] = code_challenge_method
         return body
 
-    def _code_verifier_for_exchange(self, explicit: str | None) -> str | None:
-        if explicit:
-            return explicit
-        stored = self._storage.get_item(f"{self._storage_key}-code-verifier")
-        if not stored:
-            return None
-        return stored.split("/", 1)[0]
-
     def exchange_code_for_session(self, params: CodeExchangeParams) -> AuthResponse:
-        code_verifier = self._code_verifier_for_exchange(params.get("code_verifier"))
+        code_verifier = params.get("code_verifier") or None
+        event: AuthChangeEvent = "SIGNED_IN"
+        if not code_verifier:
+            stored = self._storage.get_item(f"{self._storage_key}-code-verifier")
+            if stored:
+                code_verifier, _, redirect_type = stored.partition("/")
+                if redirect_type == "PASSWORD_RECOVERY":
+                    event = "PASSWORD_RECOVERY"
         response = self._request(
             "POST",
             "token",
@@ -1297,7 +1296,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
         self._storage.remove_item(f"{self._storage_key}-code-verifier")
         if auth_response.session:
             self._save_session(auth_response.session)
-            self._notify_all_subscribers("SIGNED_IN", auth_response.session)
+            self._notify_all_subscribers(event, auth_response.session)
         return auth_response
 
     def _fetch_jwks(self, kid: str, jwks: JWKSet) -> JWK:
