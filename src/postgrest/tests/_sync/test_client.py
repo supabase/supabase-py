@@ -568,6 +568,15 @@ class TestGeneratedTypedDictBodies:
             "day": "2024-05-01",
         }
 
+    def test_insert_scalar_list_sends_no_columns(
+        self, captured: tuple[SyncPostgrestClient, list[Request]]
+    ) -> None:
+        client, requests = captured
+        client.from_("events").insert([1, 2]).execute()
+
+        assert json.loads(requests[0].content) == [1, 2]
+        assert "columns" not in requests[0].url.params
+
     def test_custom_content_type_is_kept(
         self, captured: tuple[SyncPostgrestClient, list[Request]]
     ) -> None:

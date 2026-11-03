@@ -152,7 +152,11 @@ def _encode_json_body(body: object) -> bytes:
 
 
 def _is_row_list(body: object) -> TypeGuard[Sequence[Mapping[str, object]]]:
-    return isinstance(body, Sequence) and not isinstance(body, (str, bytes, bytearray))
+    return (
+        isinstance(body, Sequence)
+        and not isinstance(body, (str, bytes, bytearray))
+        and all(isinstance(row, Mapping) for row in body)
+    )
 
 
 def _unique_columns(json: Sequence[Mapping[str, object]]) -> str:
