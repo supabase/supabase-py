@@ -198,7 +198,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         """
         Creates a new anonymous user.
         """
-        await self._remove_session()
         if credentials is None:
             credentials = {"options": {}}
         options = credentials.get("options", {})
@@ -227,7 +226,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         """
         Creates a new user.
         """
-        await self._remove_session()
         email = credentials.get("email")
         phone = credentials.get("phone")
         password = credentials.get("password")
@@ -296,7 +294,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         """
         Log in an existing user with an email or phone and password.
         """
-        await self._remove_session()
         email = credentials.get("email")
         phone = credentials.get("phone")
         password = credentials.get("password")
@@ -348,7 +345,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         """
         Allows signing in with an OIDC ID token. The authentication provider used should be enabled and configured.
         """
-        await self._remove_session()
         provider = credentials["provider"]
         token = credentials["token"]
         access_token = credentials.get("access_token")
@@ -392,7 +388,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         If you have built an organization-specific login page, you can use the
         organization's SSO Identity Provider UUID directly instead.
         """
-        await self._remove_session()
         provider_id = credentials.get("provider_id")
         domain = credentials.get("domain")
         options = credentials.get("options", {})
@@ -446,8 +441,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         """
         Log in an existing user via a third-party provider.
         """
-        await self._remove_session()
-
         provider = credentials["provider"]
         options = credentials.get("options", {})
         redirect_to = options.get("redirect_to")
@@ -524,7 +517,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         If you're using phone sign-ins, only an OTP will be sent.
         You won't be able to send a magiclink for phone sign-ins.
         """
-        await self._remove_session()
         email = credentials.get("email")
         phone = credentials.get("phone")
         # TODO(@o-santi): this is horrible, but it is the easiest way to satisfy mypy
