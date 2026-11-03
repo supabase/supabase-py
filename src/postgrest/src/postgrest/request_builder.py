@@ -39,7 +39,7 @@ from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .types import CountMethod, Filters, FilterValue, ReturnMethod
-from .utils import _sanitize_array_param, model_validate_json, sanitize_param
+from .utils import _model_validate_json, _sanitize_array_param, sanitize_param
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -669,13 +669,13 @@ class BaseRequestClient(Generic[HttpIO]):
 
 def _api_error(response: Response) -> APIError:
     try:
-        json_obj = model_validate_json(APIErrorFromJSON, response.content)
+        json_obj = _model_validate_json(APIErrorFromJSON, response.content)
     except ValidationError:
         return APIError(generate_default_error_message(response))
     return APIError(dict(json_obj))
 
 
-def can_retry(resp: Response, retry_enabled: bool, attempt_count: int) -> bool:
+def _can_retry(resp: Response, retry_enabled: bool, attempt_count: int) -> bool:
     if not retry_enabled or attempt_count >= MAX_RETRIES:
         return False
     if not (resp.request.method == "GET" or resp.request.method == "HEAD"):
@@ -688,7 +688,7 @@ def send_with_retry(req: PostgrestRequest) -> HttpMethod[Response]:
     attempt = req
     while True:
         resp = yield attempt
-        if resp.is_success or not can_retry(resp, req.retry, attempt_count):
+        if resp.is_success or not _can_retry(resp, req.retry, attempt_count):
             break
         attempt_count += 1
         attempt = copy.copy(req)

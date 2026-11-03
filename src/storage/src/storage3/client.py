@@ -19,7 +19,7 @@ from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
 from .analytics import StorageAnalyticsClient
-from .exceptions import validate_adapter, validate_model
+from .exceptions import _validate_adapter, _validate_model
 from .file_api import StorageFileApiClient
 from .types import Bucket, BucketName, CreateOrUpdateBucketBody, MessageResponse
 from .vectors import StorageVectorsClient
@@ -86,7 +86,7 @@ class StorageClient(Generic[HttpIO]):
             method="GET",
             path=["bucket"],
         )
-        return validate_adapter(response, ListBucketAdapter)
+        return _validate_adapter(response, ListBucketAdapter)
 
     @handle_http_io
     def get_bucket(self, id: str) -> HttpMethod[Bucket]:
@@ -101,7 +101,7 @@ class StorageClient(Generic[HttpIO]):
             method="GET",
             path=["bucket", id],
         )
-        return validate_model(response, Bucket)
+        return _validate_model(response, Bucket)
 
     @handle_http_io
     def create_bucket(
@@ -138,7 +138,7 @@ class StorageClient(Generic[HttpIO]):
             exclude_none=True,
         )
 
-        return validate_model(response, BucketName)
+        return _validate_model(response, BucketName)
 
     @handle_http_io
     def update_bucket(
@@ -171,7 +171,7 @@ class StorageClient(Generic[HttpIO]):
             body=body,
             exclude_none=True,
         )
-        return validate_model(response, MessageResponse)
+        return _validate_model(response, MessageResponse)
 
     @handle_http_io
     def empty_bucket(self, id: str) -> HttpMethod[MessageResponse]:
@@ -187,7 +187,7 @@ class StorageClient(Generic[HttpIO]):
             path=["bucket", id, "empty"],
         )
 
-        return validate_model(response, MessageResponse)
+        return _validate_model(response, MessageResponse)
 
     @handle_http_io
     def delete_bucket(self, id: str) -> HttpMethod[MessageResponse]:
@@ -203,7 +203,7 @@ class StorageClient(Generic[HttpIO]):
             method="DELETE",
             path=["bucket", id],
         )
-        return validate_model(response, MessageResponse)
+        return _validate_model(response, MessageResponse)
 
 
 class AsyncStorageClient(StorageClient[AsyncHttpIO]):

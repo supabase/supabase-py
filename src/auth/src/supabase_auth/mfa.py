@@ -16,10 +16,10 @@ from yarl import URL
 
 from .errors import AuthSessionMissingError
 from .helpers import (
+    _validate_model,
     decode_jwt,
-    validate_model,
 )
-from .session import AsyncSessionManager, SyncSessionManager
+from .session import _AsyncSessionManager, _SyncSessionManager
 from .types import (
     AMREntry,
     AuthMFAChallengeResponse,
@@ -54,7 +54,7 @@ class SupabaseAuthMFAHttpClient(Generic[HttpIO]):
             body=params,
             headers=session.encode_access_token(),
         )
-        auth_response = validate_model(response, AuthMFAEnrollResponse)
+        auth_response = _validate_model(response, AuthMFAEnrollResponse)
         if params.factor_type == "totp" and auth_response.totp:
             auth_response.totp.qr_code = (
                 f"data:image/svg+xml;utf-8,{auth_response.totp.qr_code}"
@@ -73,7 +73,7 @@ class SupabaseAuthMFAHttpClient(Generic[HttpIO]):
             body={"channel": channel},
             headers=session.encode_access_token(),
         )
-        return validate_model(response, AuthMFAChallengeResponse)
+        return _validate_model(response, AuthMFAChallengeResponse)
 
     @handle_http_io
     def _challenge(
@@ -97,8 +97,8 @@ class SupabaseAuthMFAHttpClient(Generic[HttpIO]):
             },
             headers=session.encode_access_token(),
         )
-        auth_response = validate_model(response, AuthMFAVerifyResponse)
-        session = validate_model(response, Session)
+        auth_response = _validate_model(response, AuthMFAVerifyResponse)
+        session = _validate_model(response, Session)
         return auth_response, session
 
     @handle_http_io
@@ -129,7 +129,7 @@ class SupabaseAuthMFAHttpClient(Generic[HttpIO]):
             path=["factors", factor_id],
             headers=session.encode_access_token(),
         )
-        return validate_model(response, AuthMFAUnenrollResponse)
+        return _validate_model(response, AuthMFAUnenrollResponse)
 
     def _list_factors(
         self, user_response: UserResponse | None
@@ -172,7 +172,7 @@ class SupabaseAuthMFAHttpClient(Generic[HttpIO]):
 
 @dataclass
 class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
-    session_manager: AsyncSessionManager
+    session_manager: _AsyncSessionManager
 
     async def enroll(self, params: MFAEnrollParams) -> AuthMFAEnrollResponse:
         """
@@ -271,7 +271,7 @@ class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
 
 @dataclass
 class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
-    session_manager: SyncSessionManager
+    session_manager: _SyncSessionManager
 
     def enroll(self, params: MFAEnrollParams) -> AuthMFAEnrollResponse:
         """

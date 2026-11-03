@@ -219,7 +219,7 @@ class RealtimeClient:
 
         await self._ws_connection.close()
 
-    async def get_message_or_raise(self, fut: asyncio.Future[Message]) -> Message:
+    async def _get_message_or_raise(self, fut: asyncio.Future[Message]) -> Message:
         done, pending = await asyncio.wait(
             (fut, self._connection_failure), return_when=asyncio.FIRST_COMPLETED
         )
@@ -240,7 +240,7 @@ class RealtimeClient:
                 )
                 logger.info("sending heartbeat")
                 res = await asyncio.wait_for(
-                    self.send(data), timeout=self.heartbeat_timeout
+                    self._send(data), timeout=self.heartbeat_timeout
                 )
                 logger.info(f"heartbeat response: {res!r}")
                 await self.set_auth()
@@ -334,7 +334,7 @@ class RealtimeClient:
 
         results = await asyncio.gather(
             *(
-                channel.send_event_no_wait(
+                channel._send_event_no_wait(
                     ChannelEvents.access_token, {"access_token": token}
                 )
                 for channel in list(self.channels.values())
@@ -351,7 +351,7 @@ class RealtimeClient:
         self.ref += 1
         return f"{self.ref}"
 
-    async def send(self, message: Message) -> ReplyMessage:
+    async def _send(self, message: Message) -> ReplyMessage:
         assert message.ref, "Cannot wait for reponse on a message without ref"
 
         message_str = message.model_dump_json()
@@ -362,13 +362,13 @@ class RealtimeClient:
         try:
             await self._ws_connection.send(message_str)
             logger.debug(f"waiting for ref='{message.ref}'")
-            response = await self.get_message_or_raise(receive)
+            response = await self._get_message_or_raise(receive)
         finally:
             del self.message_refs[message.ref]
 
         return ReplyMessage.model_validate(response)
 
-    async def send_no_wait(self, message: Message) -> None:
+    async def _send_no_wait(self, message: Message) -> None:
         message_str = message.model_dump_json()
         logger.debug(f"sending: {message_str}")
         await self._ws_connection.send(message_str)

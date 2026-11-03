@@ -30,28 +30,28 @@ from .errors import (
     UserDoesntExist,
 )
 from .helpers import (
+    _handle_error_response,
+    _redirect_to_as_query,
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    handle_error_response,
     parse_auth_otp_response,
     parse_auth_response,
     parse_jwks,
     parse_link_identity_response,
     parse_sso_response,
     parse_user_response,
-    redirect_to_as_query,
     validate_exp,
 )
 from .mfa import AsyncSupabaseAuthMFAClient, SyncSupabaseAuthMFAClient
 from .session import (
     AsyncMemoryStorage,
-    AsyncSessionManager,
     AsyncSupportedStorage,
-    SessionManagerCommon,
     SyncMemoryStorage,
-    SyncSessionManager,
     SyncSupportedStorage,
+    _AsyncSessionManager,
+    _SessionManagerCommon,
+    _SyncSessionManager,
 )
 from .types import (
     JWK,
@@ -85,7 +85,7 @@ from .types import (
 from .version import __version__
 
 
-def is_implicit_grant_flow(url: URL) -> bool:
+def _is_implicit_grant_flow(url: URL) -> bool:
     params = url.query
     return "access_token" in params or "error_description" in params
 
@@ -121,7 +121,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
     executor: HttpIO
     base_url: URL
     default_headers: Headers
-    session_manager: SessionManagerCommon[HttpIO]
+    session_manager: _SessionManagerCommon[HttpIO]
     _jwks: JWKSet
     flow_type: AuthFlowType = "implicit"
     _jwks_ttl: float = 600  # 10 minutes
@@ -172,7 +172,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         """
         body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, SignUpWithEmailAndPasswordCredentials):
-            query = redirect_to_as_query(credentials.redirect_to)
+            query = _redirect_to_as_query(credentials.redirect_to)
             body = _with_pkce_challenge(body, code_verifier)
         else:
             query = URLQuery.empty()
@@ -248,7 +248,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
             headers=session.encode_access_token(),
         )
         if not response.is_success:
-            raise handle_error_response(response)
+            raise _handle_error_response(response)
 
     def _sign_in_with_oauth(
         self,
@@ -310,7 +310,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
             headers=session.encode_access_token(),
         )
         if not response.is_success:
-            raise handle_error_response(response)
+            raise _handle_error_response(response)
         return response
 
     @handle_http_io
@@ -321,7 +321,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
     ) -> HttpMethod[AuthOtpResponse]:
         body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials):
-            query = redirect_to_as_query(credentials.email_redirect_to)
+            query = _redirect_to_as_query(credentials.email_redirect_to)
             body = _with_pkce_challenge(body, code_verifier)
         else:
             query = URLQuery.empty()
@@ -339,7 +339,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         credentials: ResendCredentials,
     ) -> HttpMethod[AuthOtpResponse]:
         if isinstance(credentials, ResendEmailCredentials):
-            query = redirect_to_as_query(credentials.email_redirect_to)
+            query = _redirect_to_as_query(credentials.email_redirect_to)
         else:
             query = URLQuery.empty()
         response = yield JSONRequest(
@@ -355,7 +355,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         if isinstance(params, VerifyTokenHashParams):
             query = URLQuery.empty()
         else:
-            query = redirect_to_as_query(params.redirect_to)
+            query = _redirect_to_as_query(params.redirect_to)
         response = yield JSONRequest(
             method="POST",
             path=["verify"],
@@ -373,7 +373,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
             headers=session.encode_access_token(),
         )
         if not response.is_success:
-            raise handle_error_response(response)
+            raise _handle_error_response(response)
         return AuthResponse(user=None, session=None)
 
     @handle_http_io
@@ -391,7 +391,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
             method="PUT",
             path=["user"],
             body=_with_pkce_challenge(attributes, code_verifier),
-            query=redirect_to_as_query(email_redirect_to),
+            query=_redirect_to_as_query(email_redirect_to),
             headers=session.encode_access_token(),
         )
         user_response = parse_user_response(response)
@@ -474,10 +474,10 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
                 },
                 code_verifier,
             ),
-            query=redirect_to_as_query(redirect_to),
+            query=_redirect_to_as_query(redirect_to),
         )
         if not response.is_success:
-            raise handle_error_response(response)
+            raise _handle_error_response(response)
 
     @handle_http_io
     def _get_session_from_url(
@@ -485,7 +485,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         url: str,
     ) -> HttpMethod[tuple[Session, str | None]]:
         result = URL(url)
-        if not is_implicit_grant_flow(result):
+        if not _is_implicit_grant_flow(result):
             raise AuthImplicitGrantRedirectError("Not a valid implicit grant flow url.")
         params = result.query
         error_description = params.get("error_description")
@@ -549,7 +549,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
     def _exchange_code_for_session(
         self, code_verifier: str | None, auth_code: str, redirect_to: str | None
     ) -> HttpMethod[AuthResponse]:
-        query = redirect_to_as_query(redirect_to).set("grant_type", "pkce")
+        query = _redirect_to_as_query(redirect_to).set("grant_type", "pkce")
         response = yield JSONRequest(
             method="POST",
             path=["token"],
@@ -653,7 +653,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         default_headers = supabase_headers.update(user_headers)
         executor = AsyncHttpIO(session=http_session)
-        self.session_manager: AsyncSessionManager = AsyncSessionManager(
+        self.session_manager: _AsyncSessionManager = _AsyncSessionManager(
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
@@ -694,7 +694,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
     # Initializations
 
     async def initialize(self, *, url: str | None = None) -> None:
-        if url and is_implicit_grant_flow(URL(url)):
+        if url and _is_implicit_grant_flow(URL(url)):
             await self.initialize_from_url(url)
         else:
             await self.initialize_from_storage()
@@ -704,7 +704,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
 
     async def initialize_from_url(self, url: str) -> None:
         try:
-            if is_implicit_grant_flow(URL(url)):
+            if _is_implicit_grant_flow(URL(url)):
                 session, redirect_type = await self._get_session_from_url(url)
                 await self.session_manager.save_session(session)
                 self.session_manager.notify_all_subscribers("SIGNED_IN", session)
@@ -716,7 +716,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             await self.session_manager.remove_session()
             raise e
 
-    async def save_session_and_sign_in(self, auth_response: AuthResponse) -> None:
+    async def _save_session_and_sign_in(self, auth_response: AuthResponse) -> None:
         await self.session_manager.remove_session()
         if auth_response.session:
             await self.session_manager.save_session(auth_response.session)
@@ -771,7 +771,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             await self.session_manager.storage.remove_item(
                 self._code_verifier_storage_key
             )
-        await self.save_session_and_sign_in(auth_response)
+        await self._save_session_and_sign_in(auth_response)
         return auth_response
 
     # Public methods
@@ -783,7 +783,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         Creates a new anonymous user.
         """
         auth_response = await self._sign_in_anonymously(data, captcha_token)
-        await self.save_session_and_sign_in(auth_response)
+        await self._save_session_and_sign_in(auth_response)
         return auth_response
 
     async def sign_up(
@@ -803,7 +803,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             await self.session_manager.storage.remove_item(
                 self._code_verifier_storage_key
             )
-        await self.save_session_and_sign_in(auth_response)
+        await self._save_session_and_sign_in(auth_response)
         return auth_response
 
     async def sign_in_with_password(
@@ -814,7 +814,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         Log in an existing user with an email or phone and password.
         """
         auth_response = await self._sign_in_with_password(credentials)
-        await self.save_session_and_sign_in(auth_response)
+        await self._save_session_and_sign_in(auth_response)
         return auth_response
 
     async def sign_in_with_id_token(
@@ -831,7 +831,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         auth_response = await self._sign_in_with_id_token(
             provider, token, access_token, nonce, captcha_token
         )
-        await self.save_session_and_sign_in(auth_response)
+        await self._save_session_and_sign_in(auth_response)
         return auth_response
 
     async def sign_in_with_oauth(
@@ -930,7 +930,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         Log in a user given a User supplied OTP received via mobile.
         """
         auth_response = await self._verify_otp(params)
-        await self.save_session_and_sign_in(auth_response)
+        await self._save_session_and_sign_in(auth_response)
         return auth_response
 
     async def reauthenticate(self) -> AuthResponse:
@@ -1092,7 +1092,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         default_headers = supabase_headers.update(user_headers)
         executor = SyncHttpIO(session=http_session)
-        self.session_manager: SyncSessionManager = SyncSessionManager(
+        self.session_manager: _SyncSessionManager = _SyncSessionManager(
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
@@ -1133,7 +1133,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
     # Initializations
 
     def initialize(self, *, url: str | None = None) -> None:
-        if url and is_implicit_grant_flow(URL(url)):
+        if url and _is_implicit_grant_flow(URL(url)):
             self.initialize_from_url(url)
         else:
             self.initialize_from_storage()
@@ -1143,7 +1143,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
 
     def initialize_from_url(self, url: str) -> None:
         try:
-            if is_implicit_grant_flow(URL(url)):
+            if _is_implicit_grant_flow(URL(url)):
                 session, redirect_type = self._get_session_from_url(url)
                 self.session_manager.save_session(session)
                 self.session_manager.notify_all_subscribers("SIGNED_IN", session)
@@ -1155,7 +1155,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
             self.session_manager.remove_session()
             raise e
 
-    def save_session_and_sign_in(self, auth_response: AuthResponse) -> None:
+    def _save_session_and_sign_in(self, auth_response: AuthResponse) -> None:
         self.session_manager.remove_session()
         if auth_response.session:
             self.session_manager.save_session(auth_response.session)
@@ -1204,7 +1204,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
             )
         finally:
             self.session_manager.storage.remove_item(self._code_verifier_storage_key)
-        self.save_session_and_sign_in(auth_response)
+        self._save_session_and_sign_in(auth_response)
         return auth_response
 
     # Public methods
@@ -1216,7 +1216,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         Creates a new anonymous user.
         """
         auth_response = self._sign_in_anonymously(data, captcha_token)
-        self.save_session_and_sign_in(auth_response)
+        self._save_session_and_sign_in(auth_response)
         return auth_response
 
     def sign_up(
@@ -1234,7 +1234,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         auth_response = self._sign_up(credentials, code_verifier)
         if code_verifier and auth_response.session:
             self.session_manager.storage.remove_item(self._code_verifier_storage_key)
-        self.save_session_and_sign_in(auth_response)
+        self._save_session_and_sign_in(auth_response)
         return auth_response
 
     def sign_in_with_password(
@@ -1245,7 +1245,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         Log in an existing user with an email or phone and password.
         """
         auth_response = self._sign_in_with_password(credentials)
-        self.save_session_and_sign_in(auth_response)
+        self._save_session_and_sign_in(auth_response)
         return auth_response
 
     def sign_in_with_id_token(
@@ -1262,7 +1262,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         auth_response = self._sign_in_with_id_token(
             provider, token, access_token, nonce, captcha_token
         )
-        self.save_session_and_sign_in(auth_response)
+        self._save_session_and_sign_in(auth_response)
         return auth_response
 
     def sign_in_with_oauth(
@@ -1357,7 +1357,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         Log in a user given a User supplied OTP received via mobile.
         """
         auth_response = self._verify_otp(params)
-        self.save_session_and_sign_in(auth_response)
+        self._save_session_and_sign_in(auth_response)
         return auth_response
 
     def reauthenticate(self) -> AuthResponse:

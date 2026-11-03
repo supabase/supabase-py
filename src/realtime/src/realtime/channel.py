@@ -255,7 +255,7 @@ class RealtimeChannel:
             ref=join_ref,
             join_ref=join_ref,
         )
-        msg = await self.socket.send(message)
+        msg = await self.socket._send(message)
         logger.info(f"Subscribe reply: {msg!r}")
         if msg.payload.status != "ok":
             raise Exception(
@@ -269,7 +269,7 @@ class RealtimeChannel:
     async def messages(self) -> AsyncIterator[ChannelMessage]:
         while True:
             get_task = asyncio.create_task(self.message_stream.get())
-            message = await self.socket.get_message_or_raise(get_task)
+            message = await self.socket._get_message_or_raise(get_task)
             server_message = ServerMessageAdapter.validate_python(message)
             if isinstance(server_message, PresenceStateMessage):
                 for presence_event in self.presence._on_state_event(
@@ -288,7 +288,7 @@ class RealtimeChannel:
         self.state = ChannelStates.LEAVING
         self.socket._remove_channel(self)
         try:
-            await self.send_event(ChannelEvents.leave, payload={})
+            await self._send_event(ChannelEvents.leave, payload={})
         finally:
             self.state = ChannelStates.CLOSED
             self.message_stream.put_nowait(
@@ -324,7 +324,7 @@ class RealtimeChannel:
         """
         return self.presence.state
 
-    async def send_event(
+    async def _send_event(
         self, event: ChannelEvents, payload: Mapping[str, JSON]
     ) -> ReplyMessage:
         message = Message(
@@ -334,9 +334,9 @@ class RealtimeChannel:
             join_ref=self.join_ref,
             payload=payload,
         )
-        return await self.socket.send(message)
+        return await self.socket._send(message)
 
-    async def send_event_no_wait(
+    async def _send_event_no_wait(
         self, event: ChannelEvents, payload: Mapping[str, JSON]
     ) -> None:
         message = Message(
@@ -346,7 +346,7 @@ class RealtimeChannel:
             join_ref=self.join_ref,
             payload=payload,
         )
-        return await self.socket.send_no_wait(message)
+        return await self.socket._send_no_wait(message)
 
     # Broadcast methods
     async def send_broadcast(self, event: str, data: JSON) -> ReplyMessage | None:
@@ -358,9 +358,9 @@ class RealtimeChannel:
         """
         payload = {"type": "broadcast", "event": event, "payload": data}
         if self.params.broadcast_ack:
-            return await self.send_event(ChannelEvents.broadcast, payload)
+            return await self._send_event(ChannelEvents.broadcast, payload)
         else:
-            await self.send_event_no_wait(ChannelEvents.broadcast, payload)
+            await self._send_event_no_wait(ChannelEvents.broadcast, payload)
             return None
 
     # Internal methods
@@ -369,6 +369,6 @@ class RealtimeChannel:
         return self.socket.http_endpoint.joinpath("api", "broadcast")
 
     async def send_presence(self, event: str, data: JSON) -> ReplyMessage:
-        return await self.send_event(
+        return await self._send_event(
             ChannelEvents.presence, {"event": event, "payload": data}
         )

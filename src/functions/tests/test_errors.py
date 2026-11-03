@@ -11,7 +11,7 @@ from supabase_functions.errors import (
     FunctionsHttpError,
     FunctionsRelayError,
     _error_message_from,
-    on_error_response,
+    _on_error_response,
 )
 
 
@@ -150,20 +150,20 @@ def test_error_message_from(content: bytes, expected: str | None) -> None:
 
 
 def test_on_error_response_http_error() -> None:
-    error = on_error_response(make_response(b'{"error": "boom"}', status=404))
+    error = _on_error_response(make_response(b'{"error": "boom"}', status=404))
     assert isinstance(error, FunctionsHttpError)
     assert error.message == "boom"
     assert error.status == 404
 
 
 def test_on_error_response_http_error_fallback_message() -> None:
-    error = on_error_response(make_response(b"", status=500))
+    error = _on_error_response(make_response(b"", status=500))
     assert isinstance(error, FunctionsHttpError)
     assert "https://example.com/test-function" in error.message
 
 
 def test_on_error_response_relay_error_keeps_raw_text() -> None:
-    error = on_error_response(
+    error = _on_error_response(
         make_response(
             b'{"error": "relay"}',
             status=546,

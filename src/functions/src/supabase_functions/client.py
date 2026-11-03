@@ -23,7 +23,7 @@ from supabase_utils.http.request import (
 from supabase_utils.types import JSON
 from yarl import URL
 
-from .errors import _is_relay_error, on_error_response
+from .errors import _is_relay_error, _on_error_response
 from .utils import (
     FunctionRegion,
     is_valid_str_arg,
@@ -136,7 +136,7 @@ class FunctionsClient(Generic[HttpIO]):
             function_name, body, region, headers, method
         )
         if _is_relay_error(response) or not response.is_success:
-            raise on_error_response(response)
+            raise _on_error_response(response)
         return response
 
 

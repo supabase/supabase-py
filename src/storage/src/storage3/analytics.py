@@ -16,7 +16,7 @@ from supabase_utils.http.request import (
 )
 from yarl import URL
 
-from .exceptions import validate_adapter, validate_model
+from .exceptions import _validate_adapter, _validate_model
 from .types import (
     AnalyticsBucket,
     AnalyticsBucketDeleteResponse,
@@ -43,7 +43,7 @@ class StorageAnalyticsClient(Generic[HttpIO]):
             path=["bucket"],
             body=body,
         )
-        return validate_model(response, AnalyticsBucket)
+        return _validate_model(response, AnalyticsBucket)
 
     @handle_http_io
     def list(
@@ -69,7 +69,7 @@ class StorageAnalyticsClient(Generic[HttpIO]):
             path=["bucket"],
             query=filtered_params,
         )
-        return validate_adapter(response, AnalyticsBucketsParser)
+        return _validate_adapter(response, AnalyticsBucketsParser)
 
     @handle_http_io
     def delete(self, bucket_name: str) -> HttpMethod[AnalyticsBucketDeleteResponse]:
@@ -77,7 +77,7 @@ class StorageAnalyticsClient(Generic[HttpIO]):
             method="DELETE",
             path=["bucket", bucket_name],
         )
-        return validate_model(response, AnalyticsBucketDeleteResponse)
+        return _validate_model(response, AnalyticsBucketDeleteResponse)
 
     def catalog(
         self, catalog_name: str, access_key_id: str, secret_access_key: str

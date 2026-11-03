@@ -13,7 +13,7 @@ from supabase_utils.http.request import JSONRequest
 from supabase_utils.types import JSON
 from yarl import URL
 
-from .exceptions import VectorBucketException, parse_api_error, validate_model
+from .exceptions import VectorBucketException, _validate_model, parse_api_error
 from .types import (
     DistanceMetric,
     GetVectorBucketResponse,
@@ -43,7 +43,7 @@ class VectorBucketScope(Generic[HttpIO]):
     bucket_name: str
     executor: HttpIO
 
-    def with_metadata(self, **data: JSON) -> JSON:
+    def _with_metadata(self, **data: JSON) -> JSON:
         return remove_none(vectorBucketName=self.bucket_name, **data)
 
     @handle_http_io
@@ -55,7 +55,7 @@ class VectorBucketScope(Generic[HttpIO]):
         data_type: str,
         metadata: MetadataConfiguration | None = None,
     ) -> HttpMethod[None]:
-        body = self.with_metadata(
+        body = self._with_metadata(
             indexName=index_name,
             dimension=dimension,
             distanceMetric=distance_metric,
@@ -74,7 +74,7 @@ class VectorBucketScope(Generic[HttpIO]):
 
     @handle_http_io
     def get_index(self, index_name: str) -> HttpMethod[GetVectorIndexResponse | None]:
-        body = self.with_metadata(indexName=index_name)
+        body = self._with_metadata(indexName=index_name)
         response = yield JSONRequest(
             method="POST",
             path=["GetIndex"],
@@ -94,7 +94,7 @@ class VectorBucketScope(Generic[HttpIO]):
         max_results: int | None = None,
         prefix: str | None = None,
     ) -> HttpMethod[ListVectorIndexesResponse]:
-        body = self.with_metadata(
+        body = self._with_metadata(
             nextToken=next_token, maxResults=max_results, prefix=prefix
         )
         response = yield JSONRequest(
@@ -102,11 +102,11 @@ class VectorBucketScope(Generic[HttpIO]):
             path=["ListIndexes"],
             body=body,
         )
-        return validate_model(response, ListVectorIndexesResponse)
+        return _validate_model(response, ListVectorIndexesResponse)
 
     @handle_http_io
     def delete_index(self, index_name: str) -> HttpMethod[None]:
-        body = self.with_metadata(indexName=index_name)
+        body = self._with_metadata(indexName=index_name)
         response = yield JSONRequest(method="POST", path=["DeleteIndex"], body=body)
         if not response.is_success:
             raise parse_api_error(response)
@@ -129,7 +129,7 @@ class VectorIndexScope(Generic[HttpIO]):
     default_headers: Headers
     base_url: URL
 
-    def with_metadata(self, **data: JSON) -> JSON:
+    def _with_metadata(self, **data: JSON) -> JSON:
         return remove_none(
             vectorBucketName=self.bucket_name,
             indexName=self.index_name,
@@ -138,7 +138,7 @@ class VectorIndexScope(Generic[HttpIO]):
 
     @handle_http_io
     def put(self, vectors: List[VectorObject]) -> HttpMethod[None]:
-        body = self.with_metadata(
+        body = self._with_metadata(
             vectors=[v.model_dump(exclude_none=True) for v in vectors]
         )
         response = yield JSONRequest(
@@ -153,7 +153,7 @@ class VectorIndexScope(Generic[HttpIO]):
     def get(
         self, *keys: str, return_data: bool = True, return_metadata: bool = True
     ) -> HttpMethod[GetVectorsResponse]:
-        body = self.with_metadata(
+        body = self._with_metadata(
             keys=keys,
             returnData=return_data,
             returnMetadata=return_metadata,
@@ -163,7 +163,7 @@ class VectorIndexScope(Generic[HttpIO]):
             path=["GetVectors"],
             body=body,
         )
-        return validate_model(response, GetVectorsResponse)
+        return _validate_model(response, GetVectorsResponse)
 
     @handle_http_io
     def list(
@@ -175,7 +175,7 @@ class VectorIndexScope(Generic[HttpIO]):
         segment_count: int | None = None,
         segment_index: int | None = None,
     ) -> HttpMethod[ListVectorsResponse]:
-        body = self.with_metadata(
+        body = self._with_metadata(
             maxResults=max_results,
             nextToken=next_token,
             returnData=return_data,
@@ -188,7 +188,7 @@ class VectorIndexScope(Generic[HttpIO]):
             path=["ListVectors"],
             body=body,
         )
-        return validate_model(response, ListVectorsResponse)
+        return _validate_model(response, ListVectorsResponse)
 
     @handle_http_io
     def query(
@@ -199,7 +199,7 @@ class VectorIndexScope(Generic[HttpIO]):
         return_distance: bool = True,
         return_metadata: bool = True,
     ) -> HttpMethod[QueryVectorsResponse]:
-        body = self.with_metadata(
+        body = self._with_metadata(
             queryVector=dict(query_vector),
             topK=topK,
             filter=filter,
@@ -211,13 +211,13 @@ class VectorIndexScope(Generic[HttpIO]):
             path=["QueryVectors"],
             body=body,
         )
-        return validate_model(response, QueryVectorsResponse)
+        return _validate_model(response, QueryVectorsResponse)
 
     @handle_http_io
     def delete(self, keys: List[str]) -> HttpMethod[None]:
         if len(keys) < 1 or len(keys) > 500:
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
-        body = self.with_metadata(keys=keys)
+        body = self._with_metadata(keys=keys)
         response = yield JSONRequest(
             method="POST",
             path=["DeleteVectors"],
@@ -283,7 +283,7 @@ class StorageVectorsClient(Generic[HttpIO]):
             body=body,
             exclude_none=True,
         )
-        return validate_model(response, ListVectorBucketsResponse)
+        return _validate_model(response, ListVectorBucketsResponse)
 
     @handle_http_io
     def delete_bucket(self, bucket_name: str) -> HttpMethod[None]:
