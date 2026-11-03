@@ -11,7 +11,12 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 
-from realtime import AsyncRealtimeChannel, AsyncRealtimeClient, RealtimeSubscribeStates
+from realtime import (
+    AsyncRealtimeChannel,
+    AsyncRealtimeClient,
+    RealtimeHTTPError,
+    RealtimeSubscribeStates,
+)
 from realtime.types import RealtimeChannelOptions
 
 load_dotenv()
@@ -140,8 +145,9 @@ async def test_http_send_private_channel_without_user_is_rejected(
     sender: AsyncRealtimeClient,
 ) -> None:
     channel = sender.channel(f"http-send-denied-{uuid.uuid4().hex}", private_options())
-    with pytest.raises(Exception, match="Unauthorized"):
+    with pytest.raises(RealtimeHTTPError, match="Unauthorized") as exc_info:
         await channel.http_send("evt", {"secret": 1})
+    assert exc_info.value.status == 403
 
 
 @pytest.mark.asyncio
@@ -161,6 +167,7 @@ async def test_http_send_default_timeout_is_not_too_short(
 @pytest.mark.asyncio
 async def test_http_send_with_invalid_api_key_raises() -> None:
     client = AsyncRealtimeClient(REALTIME_URL, "not-a-valid-key")
-    with pytest.raises(Exception, match="Unauthorized"):
+    with pytest.raises(RealtimeHTTPError, match="Unauthorized") as exc_info:
         await client.channel("http-send-bad-key").http_send("evt", {"a": 1})
+    assert exc_info.value.status in (401, 403)
     await client.close()

@@ -27,6 +27,7 @@ from realtime.types import (
     RealtimeSubscribeStates,
 )
 
+from ..exceptions import RealtimeHTTPError
 from ..message import (
     BroadcastMessage,
     ChannelCloseMessage,
@@ -539,7 +540,7 @@ class AsyncRealtimeChannel:
         :param timeout: Optional timeout in seconds, defaults to the client timeout
         :return: ``{"success": True}`` once the server accepts the message
         :raises ValueError: If the payload is None
-        :raises Exception: If the request times out or the server rejects it
+        :raises RealtimeHTTPError: If the request times out or the server rejects it
         """
         if payload is None:
             raise ValueError("Payload is required for http_send()")
@@ -572,16 +573,17 @@ class AsyncRealtimeChannel:
                     url, headers=headers, params=params, content=content
                 )
         except httpx.TimeoutException as e:
-            raise Exception(f"Request timeout: {e}") from e
+            raise RealtimeHTTPError(f"Request timeout: {e}") from e
 
         if response.status_code == 202:
             return {"success": True}
 
         if response.status_code == 404:
-            raise Exception(
+            raise RealtimeHTTPError(
                 "http_send() requires Realtime server v2.97.0 or newer; the endpoint "
                 "returned 404. Update your Supabase CLI to a recent version, or "
-                "upgrade the Realtime server in your self-hosted setup."
+                "upgrade the Realtime server in your self-hosted setup.",
+                status=404,
             )
 
         error_message = response.reason_phrase
@@ -592,7 +594,7 @@ class AsyncRealtimeChannel:
             )
         except Exception:
             pass
-        raise Exception(error_message)
+        raise RealtimeHTTPError(error_message, status=response.status_code)
 
     # Internal methods
 

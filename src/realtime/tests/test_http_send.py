@@ -4,7 +4,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from realtime import AsyncRealtimeClient
+from realtime import AsyncRealtimeClient, RealtimeHTTPError
 
 URL = "http://127.0.0.1:54321/realtime/v1"
 KEY = "anon-key"
@@ -115,24 +115,27 @@ async def test_accepts_falsy_payloads(payload) -> None:
 async def test_error_message_from_body_or_reason(body, expected) -> None:
     channel = make_client().channel("t")
     with mock_post(response(418, body, "Teapot")):
-        with pytest.raises(Exception, match=expected):
+        with pytest.raises(RealtimeHTTPError, match=expected) as exc_info:
             await channel.http_send("e", {})
+    assert exc_info.value.status == 418
 
 
 @pytest.mark.asyncio
 async def test_404_mentions_server_version() -> None:
     channel = make_client().channel("t")
     with mock_post(response(404, {"message": "Not Found"})):
-        with pytest.raises(Exception, match=r"v2\.97\.0"):
+        with pytest.raises(RealtimeHTTPError, match=r"v2\.97\.0") as exc_info:
             await channel.http_send("e", {})
+    assert exc_info.value.status == 404
 
 
 @pytest.mark.asyncio
 async def test_timeout_error() -> None:
     channel = make_client().channel("t")
     with patch("httpx.AsyncClient.post", side_effect=httpx.ReadTimeout("slow")):
-        with pytest.raises(Exception, match="Request timeout"):
+        with pytest.raises(RealtimeHTTPError, match="Request timeout") as exc_info:
             await channel.http_send("e", {})
+    assert exc_info.value.status is None
 
 
 @pytest.mark.asyncio
