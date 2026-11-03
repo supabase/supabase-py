@@ -234,8 +234,9 @@ class AsyncRealtimeChannel:
         Waits until the server replies to the join, the join times out, or the
         channel errors or is closed by the server, so the callback has been
         called with the resulting state by the time this returns. Unsubscribing
-        or closing the client while the join is pending also ends the wait, but
-        then this returns before the `CLOSED` callback runs. Cancelling the
+        or closing the client while the join is pending also ends the wait.
+        After unsubscribing, the `CLOSED` callback runs later. After closing
+        the client, the join timeout reports `TIMED_OUT` later. Cancelling the
         awaiting task stops the wait but not the join, which keeps running in
         the background.
 
