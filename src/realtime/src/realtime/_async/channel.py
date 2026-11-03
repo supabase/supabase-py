@@ -56,11 +56,23 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# The channel rejoin backoff grows as 2**tries. Cap it, at the same ceiling the
-# socket level reconnect backoff uses (see AsyncRealtimeClient.connect), so a
-# channel that keeps failing to rejoin keeps retrying on a bounded interval
-# instead of eventually waiting hours between attempts.
-MAX_REJOIN_BACKOFF_SECONDS = 60
+REJOIN_DELAYS_SECONDS = (1, 2, 5, 10)
+RATE_LIMITED_REJOIN_DELAY_SECONDS = 30
+RATE_LIMIT_ERROR_CODES = (
+    "ChannelRateLimitReached",
+    "ConnectionRateLimitReached",
+    "ClientJoinRateLimitReached",
+    "DatabaseConnectionRateLimitReached",
+)
+
+
+def _rejoin_delay(attempt: int) -> float:
+    return REJOIN_DELAYS_SECONDS[min(attempt, len(REJOIN_DELAYS_SECONDS)) - 1]
+
+
+def _is_rate_limit_error(payload: dict[str, Any]) -> bool:
+    reason = payload.get("reason")
+    return isinstance(reason, str) and reason.startswith(RATE_LIMIT_ERROR_CODES)
 
 
 class AsyncRealtimeChannel:
@@ -114,10 +126,7 @@ class AsyncRealtimeChannel:
             Callable[[RealtimeSubscribeStates, Exception | None], None] | None
         ) = None
 
-        self.rejoin_timer = AsyncTimer(
-            self._rejoin_until_connected,
-            lambda tries: min(2**tries, MAX_REJOIN_BACKOFF_SECONDS),
-        )
+        self.rejoin_timer = AsyncTimer(self._rejoin_if_connected, _rejoin_delay)
 
         self.broadcast_endpoint_url = self._broadcast_endpoint_url()
 
@@ -134,11 +143,27 @@ class AsyncRealtimeChannel:
 
             logger.error(f"join push timeout for channel {self.topic}")
             self.state = ChannelStates.ERRORED
-            self.rejoin_timer.schedule_timeout()
+            if self.socket.is_connected:
+                self.rejoin_timer.schedule_timeout()
+
+        def on_join_push_error(payload: dict[str, Any]) -> None:
+            if not self.is_joining:
+                return
+
+            logger.error(f"join push error for channel {self.topic}: {payload}")
+            self.state = ChannelStates.ERRORED
+            if self.socket.is_connected:
+                self.rejoin_timer.schedule_timeout(
+                    RATE_LIMITED_REJOIN_DELAY_SECONDS
+                    if _is_rate_limit_error(payload)
+                    else None
+                )
 
         self.join_push.receive(
             RealtimeAcknowledgementStatus.Ok, on_join_push_ok
-        ).receive(RealtimeAcknowledgementStatus.Timeout, on_join_push_timeout)
+        ).receive(RealtimeAcknowledgementStatus.Error, on_join_push_error).receive(
+            RealtimeAcknowledgementStatus.Timeout, on_join_push_timeout
+        )
 
     def on_close(self) -> None:
         logger.info(f"channel {self.topic} closed")
@@ -669,7 +694,6 @@ class AsyncRealtimeChannel:
         else:
             assert_never(message)
 
-    async def _rejoin_until_connected(self) -> None:
-        self.rejoin_timer.schedule_timeout()
+    async def _rejoin_if_connected(self) -> None:
         if self.socket.is_connected:
             await self._rejoin()

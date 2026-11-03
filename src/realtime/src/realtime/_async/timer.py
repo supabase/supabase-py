@@ -21,12 +21,13 @@ class AsyncTimer:
                 "AsyncTimer has been reset and any scheduler tasks have been cancelled"
             )
 
-    def schedule_timeout(self) -> None:
+    def schedule_timeout(self, delay: Optional[float] = None) -> None:
         if self.timer:
             self.timer.cancel()
 
         self.tries += 1
-        delay = self.timer_calc(self.tries + 1)
+        if delay is None:
+            delay = self.timer_calc(self.tries)
         logger.debug(f"Scheduling callback to run after {delay} seconds.")
         self.timer = asyncio.create_task(self._run_timer(delay))
 
