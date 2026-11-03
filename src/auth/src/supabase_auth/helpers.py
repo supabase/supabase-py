@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import binascii
 import hashlib
 import re
 import secrets
@@ -210,7 +209,7 @@ def decode_jwt(token: str) -> DecodedJWT:
         header = JWTHeaderParser.validate_json(base64url_to_bytes(parts[0]))
         payload = JWTPayloadParser.validate_json(base64url_to_bytes(parts[1]))
         signature = base64url_to_bytes(parts[2])
-    except (binascii.Error, ValidationError) as e:
+    except ValueError as e:
         raise AuthInvalidJwtError("Invalid JWT structure") from e
 
     return DecodedJWT(
