@@ -22,7 +22,7 @@ from yarl import URL
 from .constants import EXPIRY_MARGIN, MAX_RETRIES, RETRY_INTERVAL, STORAGE_KEY
 from .errors import AuthRetryableError, AuthSessionMissingError
 from .helpers import parse_auth_response, parse_user_response
-from .timer import AsyncTimer, SyncTimer
+from .timer import _AsyncTimer, _SyncTimer
 from .types import AuthChangeEvent, AuthResponse, Session, Subscription, UserResponse
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ class AsyncMemoryStorage(AsyncSupportedStorage):
 
 
 @dataclass
-class SessionManagerCommon(Generic[HttpIO]):
+class _SessionManagerCommon(Generic[HttpIO]):
     """
     Common methods shared between sync and async implementations
     of the session manager.
@@ -131,9 +131,9 @@ class SessionManagerCommon(Generic[HttpIO]):
 
 
 @dataclass
-class AsyncSessionManager(SessionManagerCommon[AsyncHttpIO]):
+class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
     storage: AsyncSupportedStorage
-    refresh_token_timer: AsyncTimer | None = None
+    refresh_token_timer: _AsyncTimer | None = None
 
     async def __aexit__(
         self,
@@ -144,7 +144,7 @@ class AsyncSessionManager(SessionManagerCommon[AsyncHttpIO]):
         if self.refresh_token_timer:
             self.refresh_token_timer.cancel()
 
-    async def __aenter__(self) -> AsyncSessionManager:
+    async def __aenter__(self) -> _AsyncSessionManager:
         return self
 
     async def remove_session(self) -> None:
@@ -239,7 +239,7 @@ class AsyncSessionManager(SessionManagerCommon[AsyncHttpIO]):
                     ):
                         if self.refresh_token_timer:
                             self.refresh_token_timer.cancel()
-                        self.refresh_token_timer = AsyncTimer(
+                        self.refresh_token_timer = _AsyncTimer(
                             (RETRY_INTERVAL ** (2 * (self.network_retries - 1))),
                             self.recover_and_refresh,
                         )
@@ -271,7 +271,7 @@ class AsyncSessionManager(SessionManagerCommon[AsyncHttpIO]):
         if value <= 0 or not self.auto_refresh_token:
             return
 
-        self.refresh_token_timer = AsyncTimer(value, self.refresh_token_function)
+        self.refresh_token_timer = _AsyncTimer(value, self.refresh_token_function)
         self.refresh_token_timer.start()
 
 
@@ -304,9 +304,9 @@ class SyncMemoryStorage(SyncSupportedStorage):
 
 
 @dataclass
-class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
+class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
     storage: SyncSupportedStorage
-    refresh_token_timer: SyncTimer | None = None
+    refresh_token_timer: _SyncTimer | None = None
 
     def __exit__(
         self,
@@ -317,7 +317,7 @@ class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
         if self.refresh_token_timer:
             self.refresh_token_timer.cancel()
 
-    def __enter__(self) -> SyncSessionManager:
+    def __enter__(self) -> _SyncSessionManager:
         return self
 
     def remove_session(self) -> None:
@@ -425,7 +425,7 @@ class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
                     ):
                         if self.refresh_token_timer:
                             self.refresh_token_timer.cancel()
-                        self.refresh_token_timer = SyncTimer(
+                        self.refresh_token_timer = _SyncTimer(
                             (RETRY_INTERVAL ** (2 * (self.network_retries - 1))),
                             self.recover_and_refresh,
                         )
@@ -444,5 +444,5 @@ class SyncSessionManager(SessionManagerCommon[SyncHttpIO]):
         if value <= 0 or not self.auto_refresh_token:
             return
 
-        self.refresh_token_timer = SyncTimer(value, self.refresh_token_function)
+        self.refresh_token_timer = _SyncTimer(value, self.refresh_token_function)
         self.refresh_token_timer.start()

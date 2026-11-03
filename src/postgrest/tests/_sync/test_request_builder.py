@@ -16,7 +16,7 @@ from postgrest.request_builder import (
     SingleAPIResponse,
     SingleRequestBuilder,
     TextRequestBuilder,
-    can_retry,
+    _can_retry,
 )
 from postgrest.types import CountMethod, ReturnMethod
 
@@ -42,7 +42,7 @@ def test_select_request_retries_transient_response(
         status=503, headers=Headers.empty(), content=b"", request=request
     )
 
-    assert can_retry(response, retry_enabled=True, attempt_count=0)
+    assert _can_retry(response, retry_enabled=True, attempt_count=0)
 
 
 class TestSelect:

@@ -55,7 +55,7 @@ def _error_message_from(response: Response) -> str | None:
     return response.content.decode("utf-8", errors="replace") or None
 
 
-def on_error_response(response: Response) -> FunctionsHttpError | FunctionsRelayError:
+def _on_error_response(response: Response) -> FunctionsHttpError | FunctionsRelayError:
     if _is_relay_error(response):
         return FunctionsRelayError(
             response.content.decode("utf-8", errors="replace"), code=response.status

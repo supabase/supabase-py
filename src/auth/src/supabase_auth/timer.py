@@ -3,7 +3,7 @@ from threading import Timer
 from typing import Awaitable, Callable
 
 
-class AsyncTimer:
+class _AsyncTimer:
     def __init__(
         self,
         seconds: float,
@@ -33,7 +33,7 @@ class AsyncTimer:
         return self._task is not None
 
 
-class SyncTimer:
+class _SyncTimer:
     def __init__(
         self,
         seconds: float,

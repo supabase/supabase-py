@@ -49,7 +49,7 @@ from .types import (
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def model_validate(model: Type[TBaseModel], contents: str | bytes) -> TBaseModel:
+def _model_validate(model: Type[TBaseModel], contents: str | bytes) -> TBaseModel:
     """Compatibility layer between pydantic 1 and 2 for parsing an instance
     of a BaseModel from varied"""
     try:
@@ -60,7 +60,7 @@ def model_validate(model: Type[TBaseModel], contents: str | bytes) -> TBaseModel
         return model.parse_raw(contents)
 
 
-def model_dump(model: BaseModel) -> Dict[str, Any]:
+def _model_dump(model: BaseModel) -> Dict[str, Any]:
     """Compatibility layer between pydantic 1 and 2 for dumping a model's contents as a dict"""
     try:
         # pydantic > 2
@@ -70,7 +70,7 @@ def model_dump(model: BaseModel) -> Dict[str, Any]:
         return model.dict()
 
 
-def model_dump_json(model: BaseModel) -> str:
+def _model_dump_json(model: BaseModel) -> str:
     """Compatibility layer between pydantic 1 and 2 for dumping a model's contents as json"""
     try:
         # pydantic > 2
@@ -82,25 +82,25 @@ def model_dump_json(model: BaseModel) -> str:
 
 def parse_auth_response(response: Response) -> AuthResponse:
     try:
-        session = validate_model(response, Session)
+        session = _validate_model(response, Session)
         user = session.user
     except ValidationError:
         session = None
-        user = validate_model(response, User)
+        user = _validate_model(response, User)
     return AuthResponse(user=user, session=session)
 
 
 def parse_auth_otp_response(response: Response) -> AuthOtpResponse:
-    return validate_model(response, AuthOtpResponse)
+    return _validate_model(response, AuthOtpResponse)
 
 
 def parse_link_identity_response(response: Response) -> LinkIdentityResponse:
-    return validate_model(response, LinkIdentityResponse)
+    return _validate_model(response, LinkIdentityResponse)
 
 
 def parse_link_response(response: Response) -> GenerateLinkResponse:
-    properties = validate_model(response, GenerateLinkProperties)
-    user = validate_model(response, User)
+    properties = _validate_model(response, GenerateLinkProperties)
+    user = _validate_model(response, User)
     return GenerateLinkResponse(properties=properties, user=user)
 
 
@@ -112,11 +112,11 @@ def parse_user_response(response: Response) -> UserResponse:
         parsed = UserParser.validate_json(response.content)
         return UserResponse(user=parsed) if isinstance(parsed, User) else parsed
     else:
-        raise handle_error_response(response)
+        raise _handle_error_response(response)
 
 
 def parse_sso_response(response: Response) -> SSOResponse:
-    return model_validate(SSOResponse, response.content)
+    return _model_validate(SSOResponse, response.content)
 
 
 JWKSetParser = TypeAdapter(JWKSet)
@@ -133,24 +133,24 @@ def parse_jwks(response: Response) -> JWKSet:
 Model = TypeVar("Model", bound=BaseModel)
 
 
-def validate_model(response: Response, model: type[Model]) -> Model:
+def _validate_model(response: Response, model: type[Model]) -> Model:
     if response.is_success:
         return model.model_validate_json(response.content)
     else:
-        raise handle_error_response(response)
+        raise _handle_error_response(response)
 
 
 Inner = TypeVar("Inner")
 
 
-def validate_adapter(response: Response, adapter: TypeAdapter[Inner]) -> Inner:
+def _validate_adapter(response: Response, adapter: TypeAdapter[Inner]) -> Inner:
     if response.is_success:
         return adapter.validate_json(response.content)
     else:
-        raise handle_error_response(response)
+        raise _handle_error_response(response)
 
 
-def handle_error_response(response: Response) -> AuthError:
+def _handle_error_response(response: Response) -> AuthError:
     try:
         raw_error = RawApiError.model_validate_json(response.content)
     except ValidationError:
@@ -200,7 +200,7 @@ def handle_error_response(response: Response) -> AuthError:
     )
 
 
-def str_from_base64url(base64url: str) -> str:
+def _str_from_base64url(base64url: str) -> str:
     # Addding padding otherwise the following error happens:
     # binascii.Error: Incorrect padding
     base64url_with_padding = base64url + "=" * (-len(base64url) % 4)
@@ -311,7 +311,7 @@ def validate_uuid(id: str | None) -> None:
         raise ValueError(f"Invalid id, '{id}' is not a valid uuid")
 
 
-def redirect_to_as_query(redirect_to: str | None) -> URLQuery:
+def _redirect_to_as_query(redirect_to: str | None) -> URLQuery:
     if redirect_to:
         return URLQuery.from_mapping({"redirect_to": redirect_to})
     return URLQuery.empty()

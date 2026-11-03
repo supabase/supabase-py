@@ -20,12 +20,12 @@ from supabase_utils.types import JSON
 from yarl import URL
 
 from .helpers import (
-    handle_error_response,
+    _handle_error_response,
+    _redirect_to_as_query,
+    _validate_adapter,
+    _validate_model,
     parse_link_response,
     parse_user_response,
-    redirect_to_as_query,
-    validate_adapter,
-    validate_model,
     validate_uuid,
 )
 from .types import (
@@ -74,7 +74,7 @@ class SupabaseAuthAdminMFA(Generic[HttpIO]):
             method="DELETE",
             path=["admin", "users", user_id, "factors", factor_id],
         )
-        return validate_model(response, AuthMFAAdminDeleteFactorResponse)
+        return _validate_model(response, AuthMFAAdminDeleteFactorResponse)
 
     @handle_http_io
     def list_factors(self, user_id: str) -> HttpMethod[AuthMFAAdminListFactorsResponse]:
@@ -86,7 +86,7 @@ class SupabaseAuthAdminMFA(Generic[HttpIO]):
             method="GET",
             path=["admin", "users", user_id, "factors"],
         )
-        return validate_adapter(response, AuthMFAAdminListFactorsResponseParser)
+        return _validate_adapter(response, AuthMFAAdminListFactorsResponseParser)
 
 
 @dataclass
@@ -125,7 +125,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             query=query,
         )
 
-        result = validate_model(response, OAuthClientListResponse)
+        result = _validate_model(response, OAuthClientListResponse)
 
         # Parse pagination headers
         total = response.headers.get("x-total-count")
@@ -166,7 +166,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             body=params,
         )
 
-        return OAuthClientResponse(client=validate_model(response, OAuthClient))
+        return OAuthClientResponse(client=_validate_model(response, OAuthClient))
 
     @handle_http_io
     def get_client(
@@ -185,7 +185,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             method="GET",
             path=["admin", "oauth", "clients", client_id],
         )
-        return OAuthClientResponse(client=validate_model(response, OAuthClient))
+        return OAuthClientResponse(client=_validate_model(response, OAuthClient))
 
     @handle_http_io
     def update_client(
@@ -206,7 +206,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             path=["admin", "oauth", "clients", client_id],
             body=params,
         )
-        return OAuthClientResponse(client=validate_model(response, OAuthClient))
+        return OAuthClientResponse(client=_validate_model(response, OAuthClient))
 
     @handle_http_io
     def delete_client(
@@ -226,7 +226,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             path=["admin", "oauth", "clients", client_id],
         )
         if not response.is_success:
-            raise handle_error_response(response)
+            raise _handle_error_response(response)
 
     @handle_http_io
     def regenerate_client_secret(
@@ -245,7 +245,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
             method="POST",
             path=["admin", "oauth", "clients", client_id, "regenerate_secret"],
         )
-        return OAuthClientResponse(client=validate_model(response, OAuthClient))
+        return OAuthClientResponse(client=_validate_model(response, OAuthClient))
 
 
 class SupabaseAuthAdmin(Generic[HttpIO]):
@@ -279,7 +279,7 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
             method="POST",
             path=["invite"],
             body={"email": email, "data": data},
-            query=redirect_to_as_query(redirect_to),
+            query=_redirect_to_as_query(redirect_to),
         )
         return parse_user_response(response)
 
@@ -294,7 +294,7 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
             method="POST",
             path=["admin", "generate_link"],
             body=params.body,
-            query=redirect_to_as_query(params.redirect_to),
+            query=_redirect_to_as_query(params.redirect_to),
         )
 
         return parse_link_response(response)
@@ -335,7 +335,7 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
             path=["admin", "users"],
             query=query,
         )
-        return validate_model(response, UserList).users
+        return _validate_model(response, UserList).users
 
     @handle_http_io
     def get_user_by_id(self, uid: str) -> HttpMethod[UserResponse]:
@@ -389,7 +389,7 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
             method="DELETE", path=["admin", "users", id], body=body
         )
         if not response.is_success:
-            raise handle_error_response(response)
+            raise _handle_error_response(response)
 
 
 class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
