@@ -1,7 +1,7 @@
 import pytest
 from deprecation import fail_if_not_removed
 
-from postgrest.utils import SyncClient, sanitize_param
+from postgrest.utils import SyncClient, quote, sanitize_param
 
 
 @fail_if_not_removed
@@ -26,3 +26,17 @@ def test_sync_client() -> None:
 )
 def test_sanitize_params(value, expected) -> None:
     assert sanitize_param(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("plain", '"plain"'),
+        ("a,b", '"a,b"'),
+        ('a"b', r'"a\"b"'),
+        (r"c\d", r'"c\\d"'),
+        (r"a\"b", r'"a\\\"b"'),
+    ],
+)
+def test_quote(value, expected) -> None:
+    assert quote(value) == expected
