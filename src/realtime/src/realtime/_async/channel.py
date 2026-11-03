@@ -197,6 +197,7 @@ class AsyncRealtimeChannel:
 
     def _release_subscribe_waiter(self) -> None:
         waiter = self._subscribe_waiter
+        self._subscribe_waiter = None
         if waiter is not None and not waiter.done():
             waiter.set_result(None)
 
@@ -231,9 +232,10 @@ class AsyncRealtimeChannel:
         Subscribe to the channel. Can only be called once per channel instance.
 
         Waits until the server replies to the join, the join times out, or the
-        channel errors or closes, so the callback has been called with the
-        resulting state by the time this returns. Unsubscribing or closing the
-        client while the join is pending also ends the wait. Cancelling the
+        channel errors or is closed by the server, so the callback has been
+        called with the resulting state by the time this returns. Unsubscribing
+        or closing the client while the join is pending also ends the wait, but
+        then this returns before the `CLOSED` callback runs. Cancelling the
         awaiting task stops the wait but not the join, which keeps running in
         the background.
 
@@ -255,11 +257,12 @@ class AsyncRealtimeChannel:
         self._subscribe_waiter = waiter
         try:
             await self._rejoin()
-            if not self.is_leaving:
-                await waiter
-        finally:
-            if self._subscribe_waiter is waiter:
-                self._subscribe_waiter = None
+            if self.is_leaving:
+                self._release_subscribe_waiter()
+            await asyncio.shield(waiter)
+        except Exception:
+            self._release_subscribe_waiter()
+            raise
         return self
 
     def _prepare_join(

@@ -83,7 +83,7 @@ async def main():
 - `REALTIME_URL` is `ws://localhost:4000/socket` when developing locally and `wss://<project_ref>.supabase.co/realtime/v1` when connecting to your Supabase project.
 - `API_KEY` is a JWT whose claims must contain `exp` and `role` (existing database role).
 - Channel name can be any `string`.
-- `await channel.subscribe()` returns once the join has settled, so the callback has already been called with `SUBSCRIBED`, `CHANNEL_ERROR`, `TIMED_OUT` or `CLOSED` and `channel.state` reflects the result. When the server does not reply, it returns after the client `timeout` (10 seconds by default). To join several channels at once, use `asyncio.gather`.
+- `await channel.subscribe()` returns once the join has settled, so the callback has already been called with `SUBSCRIBED`, `CHANNEL_ERROR`, `TIMED_OUT` or `CLOSED` (when the server closes the channel) and `channel.state` reflects the result. If you unsubscribe or close the client while the join is pending, it returns right away and the `CLOSED` callback follows later. When the server does not reply, it returns after the client `timeout` (10 seconds by default). To join several channels at once, use `asyncio.gather`.
 
 ## Broadcast
 

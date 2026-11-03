@@ -127,6 +127,7 @@ async def test_subscribe_returns_after_join_timeout() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 async def test_cancelled_subscribe_keeps_joining_in_background() -> None:
     release = asyncio.Event()
 
@@ -150,12 +151,16 @@ async def test_cancelled_subscribe_keeps_joining_in_background() -> None:
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-        assert channel._subscribe_waiter is None
         assert channel.is_joining
+        join = asyncio.create_task(channel.join())
+        await asyncio.sleep(0.1)
+        assert not join.done()
 
         release.set()
         await asyncio.wait_for(joined.wait(), 2)
+        assert await asyncio.wait_for(join, 2) is channel
         assert channel.is_joined
+        assert channel._subscribe_waiter is None
         assert statuses == [(RealtimeSubscribeStates.SUBSCRIBED, None)]
 
 
@@ -277,3 +282,58 @@ async def test_join_waits_for_pending_subscribe() -> None:
         assert await asyncio.wait_for(join_task, 2) is channel
         assert await subscribe_task is channel
         assert channel.is_joined
+
+
+@pytest.mark.asyncio
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+async def test_cancelling_subscribe_does_not_cancel_a_waiting_join() -> None:
+    release = asyncio.Event()
+
+    async def on_join(connection: ServerConnection, message: dict[str, Any]) -> None:
+        await release.wait()
+        await reply(connection, message, "ok", {"postgres_changes": []})
+
+    join_received = asyncio.Event()
+    async with realtime_server(on_join, join_received) as client:
+        channel = client.channel("room")
+        subscribe_task = asyncio.create_task(channel.subscribe())
+        await asyncio.wait_for(join_received.wait(), 2)
+        join_task = asyncio.create_task(channel.join())
+        await asyncio.sleep(0.1)
+
+        subscribe_task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await subscribe_task
+        await asyncio.sleep(0.1)
+        assert not join_task.done()
+
+        release.set()
+        assert await asyncio.wait_for(join_task, 2) is channel
+        assert channel.is_joined
+
+
+@pytest.mark.asyncio
+async def test_raising_callback_does_not_block_other_channels_on_socket_error() -> None:
+    def raising(status: RealtimeSubscribeStates, error: Exception | None) -> None:
+        raise RuntimeError("callback failed")
+
+    statuses: Statuses = []
+    join_received = asyncio.Event()
+    async with realtime_server(never_reply, join_received) as client:
+        first = client.channel("first")
+        second = client.channel("second")
+        first_task = asyncio.create_task(first.subscribe(raising))
+        await asyncio.wait_for(join_received.wait(), 2)
+        join_received.clear()
+        second_task = asyncio.create_task(second.subscribe(recorder(statuses)))
+        await asyncio.wait_for(join_received.wait(), 2)
+
+        client._set_channels_errored(Exception("dropped"))
+
+        assert await asyncio.wait_for(first_task, 2) is first
+        assert await asyncio.wait_for(second_task, 2) is second
+        assert [status for status, _ in statuses] == [
+            RealtimeSubscribeStates.CHANNEL_ERROR
+        ]
+        assert first.is_errored
+        assert second.is_errored
