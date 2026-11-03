@@ -181,9 +181,7 @@ features:
   auth.session.auto_refresh:
     status: implemented
     note: "Token refresh runs automatically as an internal background task controlled by the auto_refresh_token constructor option."
-    symbols:
-      - AsyncSessionManager.start_auto_refresh_token
-      - SyncSessionManager.start_auto_refresh_token
+    no_public_symbols: true
   auth.session.sign_out_reason: not_implemented
 
   auth.identities.link_identity:
