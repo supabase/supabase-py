@@ -1,12 +1,12 @@
 import platform
 import sys
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 from warnings import warn
 
-from httpx import Client, HTTPError, QueryParams, Response
+from httpx import Client, Headers, HTTPError, QueryParams, Response
 from yarl import URL
 
-from ..errors import FunctionsHttpError, FunctionsRelayError
+from ..errors import FunctionsHttpError, FunctionsRelayError, _error_message_from
 from ..utils import (
     FunctionRegion,
     is_http_url,
@@ -14,12 +14,14 @@ from ..utils import (
 )
 from ..version import __version__
 
+HTTPMethod = Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
+
 
 class SyncFunctionsClient:
     def __init__(
         self,
         url: str,
-        headers: Dict,
+        headers: dict,
         timeout: Optional[int] = None,
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,
@@ -28,16 +30,18 @@ class SyncFunctionsClient:
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
         self.url = URL(url)
-        self.headers = {
-            "X-Client-Info": (
-                f"supabase-py/supabase_functions v{__version__}"
-                f"; platform={platform.system()}"
-                f"; platform-version={platform.release()}"
-                f"; runtime=python"
-                f"; runtime-version={platform.python_version()}"
-            ),
-            **headers,
-        }
+        self.headers = Headers(
+            {
+                "X-Client-Info": (
+                    f"supabase-py/supabase_functions v{__version__}"
+                    f"; platform={platform.system()}"
+                    f"; platform-version={platform.release()}"
+                    f"; runtime=python"
+                    f"; runtime-version={platform.python_version()}"
+                )
+            }
+        )
+        self.headers.update(headers)
 
         if sys.version_info < (3, 10):
             warn(
@@ -77,24 +81,25 @@ class SyncFunctionsClient:
 
     def _request(
         self,
-        method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+        method: HTTPMethod,
         path: list[str],
-        headers: Optional[Dict[str, str]] = None,
-        json: Optional[Dict[Any, Any]] = None,
+        headers: Headers,
+        json: Optional[Union[dict[Any, Any], str, bytes]] = None,
         params: Optional[QueryParams] = None,
     ) -> Response:
         url = self.url.joinpath(*path)
-        headers = headers or dict()
-        headers.update(self.headers)
         response = (
             self._client.request(
-                method, str(url), data=json, headers=headers, params=params
+                method, str(url), content=json, headers=headers, params=params
             )
-            if isinstance(json, str)
+            if isinstance(json, (str, bytes))
             else self._client.request(
                 method, str(url), json=json, headers=headers, params=params
             )
         )
+        # Relay failures set this header even on non-2xx responses.
+        if response.headers.get("x-relay-error") == "true":
+            raise FunctionsRelayError(response.text, response.status_code)
         try:
             response.raise_for_status()
         except HTTPError as exc:
@@ -103,7 +108,7 @@ class SyncFunctionsClient:
                 status_code = response.status_code
 
             raise FunctionsHttpError(
-                response.json().get("error")
+                _error_message_from(response)
                 or f"An error occurred while requesting your edge function at {exc.request.url!r}.",
                 status_code,
             ) from exc
@@ -122,27 +127,36 @@ class SyncFunctionsClient:
         self.headers["Authorization"] = f"Bearer {token}"
 
     def invoke(
-        self, function_name: str, invoke_options: Optional[Dict] = None
-    ) -> Union[Dict, bytes]:
+        self, function_name: str, invoke_options: Optional[dict] = None
+    ) -> Union[dict, bytes]:
         """Invokes a function
 
         Parameters
         ----------
-        function_name : the name of the function to invoke
+        function_name : the name of the function to invoke. It may carry a query
+            string, as in `hello?name=bob`. A `#fragment` is dropped.
         invoke_options : object with the following properties
             `headers`: object representing the headers to send with the request
             `body`: the body of the request
+            `method`: the HTTP method to invoke the function with. The default is `POST`
             `responseType`: how the response should be parsed. The default is `json`
         """
         if not is_valid_str_arg(function_name):
             raise ValueError("function_name must a valid string value.")
-        headers = self.headers
-        params = QueryParams()
+        # Like a URL, a name such as "hello?name=bob" carries query params and
+        # the fragment is never sent.
+        path, _, query = function_name.split("#", 1)[0].partition("?")
+        if not is_valid_str_arg(path):
+            raise ValueError("function_name must a valid string value.")
+        headers = Headers(self.headers)
+        params = QueryParams(query)
         body = None
+        method: HTTPMethod = "POST"
         response_type = "text/plain"
 
         if invoke_options is not None:
             headers.update(invoke_options.get("headers", {}))
+            method = invoke_options.get("method", "POST")
             response_type = invoke_options.get("responseType", "text/plain")
 
             region = invoke_options.get("region")
@@ -157,19 +171,17 @@ class SyncFunctionsClient:
                     params = params.set("forceFunctionRegion", region.value)
 
             body = invoke_options.get("body")
-            if isinstance(body, str):
-                headers["Content-Type"] = "text/plain"
-            elif isinstance(body, dict):
-                headers["Content-Type"] = "application/json"
+            if headers.get("content-type", None) is None:
+                if isinstance(body, str):
+                    headers["Content-Type"] = "text/plain"
+                elif isinstance(body, dict):
+                    headers["Content-Type"] = "application/json"
+                elif isinstance(body, bytes):
+                    headers["Content-Type"] = "application/octet-stream"
 
         response = self._request(
-            "POST", [function_name], headers=headers, json=body, params=params
+            method, [path], headers=headers, json=body, params=params
         )
-        is_relay_error = response.headers.get("x-relay-header")
-
-        if is_relay_error and is_relay_error == "true":
-            raise FunctionsRelayError(response.json().get("error"))
-
         if response_type == "json":
             data = response.json()
         else:

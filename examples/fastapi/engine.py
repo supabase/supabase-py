@@ -26,11 +26,17 @@ async def on_task_change(service_client: AsyncClient, payload: dict) -> None:
 
     for rule in rules_response.data:
         if new_record.get(rule["watch_column"]) == rule["watch_value"]:
-            await service_client.table("rule_events").insert({
-                "rule_id": rule["id"],
-                "task_id": new_record["id"],
-                "payload": new_record,
-            }).execute()
+            await (
+                service_client.table("rule_events")
+                .insert(
+                    {
+                        "rule_id": rule["id"],
+                        "task_id": new_record["id"],
+                        "payload": new_record,
+                    }
+                )
+                .execute()
+            )
 
             # FRICTION: channel.send() requires an active subscription first.
             # Creating a new channel and subscribing before every broadcast is

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
-from httpx import AsyncClient, HTTPStatusError, QueryParams, Response
+from httpx import AsyncClient, HTTPStatusError, QueryParams, RequestError, Response
 from pydantic import BaseModel
 from typing_extensions import Literal, Self
 
 from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS_2024_01_01_NAME
-from ..helpers import handle_exception, model_dump
+from ..helpers import handle_exception
 
 
 class AsyncGoTrueBaseAPI:
@@ -15,13 +15,17 @@ class AsyncGoTrueBaseAPI:
         self,
         *,
         url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         http_client: Optional[AsyncClient],
         verify: bool = True,
         proxy: Optional[str] = None,
     ) -> None:
-        self._url = url
-        self._headers = headers
+        self._url = url.rstrip("/")
+        # Copy: callers pass a dict they keep mutating, and GoTrueClient hands
+        # its own `_headers` to the admin API. Sharing the object means a later
+        # `_headers["Authorization"] = <user token>` silently downgrades every
+        # other holder of that dict.
+        self._headers = dict(headers)
         self._http_client = http_client or AsyncClient(
             verify=bool(verify),
             proxy=proxy,
@@ -45,7 +49,7 @@ class AsyncGoTrueBaseAPI:
         *,
         jwt: Optional[str] = None,
         redirect_to: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         query: Optional[QueryParams] = None,
         body: Optional[Any] = None,
         no_resolve_json: bool = False,
@@ -67,10 +71,10 @@ class AsyncGoTrueBaseAPI:
                 url,
                 headers=headers,
                 params=query,
-                json=model_dump(body) if isinstance(body, BaseModel) else body,
+                json=body.model_dump() if isinstance(body, BaseModel) else body,
             )
 
             response.raise_for_status()
             return response
-        except (HTTPStatusError, RuntimeError) as e:
-            raise handle_exception(e)  # noqa
+        except (HTTPStatusError, RequestError, RuntimeError) as e:
+            raise handle_exception(e) from e

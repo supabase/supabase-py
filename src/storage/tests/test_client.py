@@ -1,10 +1,16 @@
 import re
-from typing import Dict
+from collections.abc import Mapping
+from typing import Any
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import AsyncClient, Client, Timeout
+from httpx import AsyncClient, Client, Headers, Request, Response, Timeout
 from storage3 import AsyncStorageClient, SyncStorageClient
+from storage3._async.file_api import AsyncBucketProxy
+from storage3._sync.file_api import SyncBucketProxy
 from storage3.constants import DEFAULT_TIMEOUT
+from storage3.exceptions import StorageApiError
+from yarl import URL
 
 
 @pytest.fixture
@@ -13,7 +19,7 @@ def valid_url() -> str:
 
 
 @pytest.fixture
-def valid_headers() -> Dict[str, str]:
+def valid_headers() -> dict[str, str]:
     return {"Authorization": "Bearer test_token", "apikey": "test_api_key"}
 
 
@@ -118,3 +124,518 @@ def test_custom_timeout(valid_url, valid_headers) -> None:
         url=valid_url, headers=valid_headers, timeout=custom_timeout
     )
     assert sync_client._client.timeout == Timeout(custom_timeout)
+
+
+def _mock_upload_response() -> Mock:
+    response = Mock()
+    response.json.return_value = {"Key": "bucket/file.txt", "Id": "id"}
+    return response
+
+
+def _async_bucket_proxy() -> AsyncBucketProxy:
+    client = AsyncMock()
+    client.headers = {}
+    return AsyncBucketProxy(
+        "bucket", URL("https://example.com/storage/v1/"), Headers(), client
+    )
+
+
+def _sync_bucket_proxy() -> SyncBucketProxy:
+    client = Mock()
+    client.headers = {}
+    return SyncBucketProxy(
+        "bucket", URL("https://example.com/storage/v1/"), Headers(), client
+    )
+
+
+def _request_kwargs(request: Mock) -> Mapping[str, Any]:
+    call = request.call_args
+    assert call is not None
+    return call.kwargs
+
+
+def _assert_multipart_cache_control(request: Mock, expected: str) -> None:
+    kwargs = _request_kwargs(request)
+    assert "cache-control" not in kwargs["headers"]
+    assert kwargs["data"]["cacheControl"] == expected
+
+
+@pytest.mark.asyncio
+async def test_async_upload_sends_default_cache_control_as_form_data() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload("file.txt", b"hello")
+
+    _assert_multipart_cache_control(request, "3600")
+
+
+@pytest.mark.asyncio
+async def test_async_upload_sends_custom_cache_control_as_form_data() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload(
+            "file.txt",
+            b"hello",
+            {
+                "cache-control": "86400",
+                "headers": {"x-custom-header": "custom-value"},
+            },
+        )
+
+    _assert_multipart_cache_control(request, "86400")
+    assert _request_kwargs(request)["headers"]["x-custom-header"] == "custom-value"
+
+
+def test_sync_upload_sends_default_cache_control_as_form_data() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload("file.txt", b"hello")
+
+    _assert_multipart_cache_control(request, "3600")
+
+
+def test_sync_upload_sends_custom_cache_control_as_form_data() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload(
+            "file.txt",
+            b"hello",
+            {
+                "cache-control": "86400",
+                "headers": {"x-custom-header": "custom-value"},
+            },
+        )
+
+    _assert_multipart_cache_control(request, "86400")
+    assert _request_kwargs(request)["headers"]["x-custom-header"] == "custom-value"
+
+
+@pytest.mark.asyncio
+async def test_async_update_sends_cache_control_as_form_data() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.update("file.txt", b"hello", {"cache-control": "7200"})
+
+    _assert_multipart_cache_control(request, "7200")
+    assert "x-upsert" not in _request_kwargs(request)["headers"]
+
+
+def test_sync_update_sends_cache_control_as_form_data() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.update("file.txt", b"hello", {"cache-control": "7200"})
+
+    _assert_multipart_cache_control(request, "7200")
+    assert "x-upsert" not in _request_kwargs(request)["headers"]
+
+
+@pytest.mark.asyncio
+async def test_async_signed_upload_sends_default_cache_control() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload_to_signed_url("file.txt", "token", b"hello")
+
+    _assert_multipart_cache_control(request, "3600")
+
+
+def test_sync_signed_upload_sends_default_cache_control() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload_to_signed_url("file.txt", "token", b"hello")
+
+    _assert_multipart_cache_control(request, "3600")
+
+
+@pytest.mark.asyncio
+async def test_async_upload_to_signed_url_forwards_all_file_options() -> None:
+    proxy = _async_bucket_proxy()
+    with patch.object(proxy, "_request", new_callable=AsyncMock) as request:
+        request.return_value = _mock_upload_response()
+        await proxy.upload_to_signed_url(
+            "file.txt",
+            "token",
+            b"hello",
+            {
+                "cache-control": "86400",
+                "content-type": "text/custom",
+                "metadata": {"owner": "alice"},
+                "headers": {"x-custom-header": "custom-value"},
+            },
+        )
+
+    kwargs = _request_kwargs(request)
+    _assert_multipart_cache_control(request, "86400")
+    assert kwargs["data"]["metadata"] == '{"owner": "alice"}'
+    assert kwargs["headers"]["x-custom-header"] == "custom-value"
+    assert "metadata" not in kwargs["headers"]
+    assert "headers" not in kwargs["headers"]
+    assert "x-metadata" not in kwargs["headers"]
+    assert kwargs["files"]["file"][2] == "text/custom"
+
+
+def test_sync_upload_to_signed_url_forwards_all_file_options() -> None:
+    proxy = _sync_bucket_proxy()
+    with patch.object(proxy, "_request") as request:
+        request.return_value = _mock_upload_response()
+        proxy.upload_to_signed_url(
+            "file.txt",
+            "token",
+            b"hello",
+            {
+                "cache-control": "86400",
+                "content-type": "text/custom",
+                "metadata": {"owner": "alice"},
+                "headers": {"x-custom-header": "custom-value"},
+            },
+        )
+
+    kwargs = _request_kwargs(request)
+    _assert_multipart_cache_control(request, "86400")
+    assert kwargs["data"]["metadata"] == '{"owner": "alice"}'
+    assert kwargs["headers"]["x-custom-header"] == "custom-value"
+    assert "metadata" not in kwargs["headers"]
+    assert "headers" not in kwargs["headers"]
+    assert "x-metadata" not in kwargs["headers"]
+    assert kwargs["files"]["file"][2] == "text/custom"
+
+
+def test_sync_bucket_proxy_request_missing_error_keys() -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = Response(
+        status_code=413,
+        json={"code": "PayloadTooLarge"},
+        request=Request("POST", "https://example.com"),
+    )
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        with pytest.raises(StorageApiError) as exc_info:
+            proxy._request("POST", ["object", "file.txt"])
+
+    err = exc_info.value
+    assert "PayloadTooLarge" in err.message
+    assert err.code == "InternalError"
+    assert err.status == 413
+
+
+@pytest.mark.asyncio
+async def test_async_bucket_proxy_request_missing_error_keys() -> None:
+    proxy = _async_bucket_proxy()
+    mock_response = Response(
+        status_code=413,
+        json={"code": "PayloadTooLarge"},
+        request=Request("POST", "https://example.com"),
+    )
+    with patch.object(
+        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
+        with pytest.raises(StorageApiError) as exc_info:
+            await proxy._request("POST", ["object", "file.txt"])
+
+    err = exc_info.value
+    assert "PayloadTooLarge" in err.message
+    assert err.code == "InternalError"
+    assert err.status == 413
+
+
+def test_sync_bucket_proxy_request_non_json_error() -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = Response(
+        status_code=504,
+        text="<html>504 Gateway Timeout</html>",
+        request=Request("POST", "https://example.com"),
+    )
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        with pytest.raises(StorageApiError) as exc_info:
+            proxy._request("POST", ["object", "file.txt"])
+
+    err = exc_info.value
+    assert "504 Gateway Timeout" in err.message
+    assert err.code == "InternalError"
+    assert err.status == 504
+
+
+@pytest.mark.asyncio
+async def test_async_bucket_proxy_request_non_json_error() -> None:
+    proxy = _async_bucket_proxy()
+    mock_response = Response(
+        status_code=504,
+        text="<html>504 Gateway Timeout</html>",
+        request=Request("POST", "https://example.com"),
+    )
+    with patch.object(
+        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
+        with pytest.raises(StorageApiError) as exc_info:
+            await proxy._request("POST", ["object", "file.txt"])
+
+    err = exc_info.value
+    assert "504 Gateway Timeout" in err.message
+    assert err.code == "InternalError"
+    assert err.status == 504
+
+
+# Integration tests cover real Storage responses; these cover bodies Storage never sends.
+_MISSING_OBJECT_RESPONSES = [None]
+
+_EXISTS_ERROR_RESPONSES = [
+    (
+        400,
+        {
+            "statusCode": "400",
+            "error": "InvalidJWT",
+            "message": "exp claim timestamp check failed",
+            "code": "InvalidJWT",
+        },
+    ),
+    (400, None),
+    (401, None),
+]
+
+
+def _exists_response(status_code: int, body: Any) -> Response:
+    request = Request("GET", "https://example.com")
+    if body is None:
+        return Response(status_code=status_code, request=request)
+    return Response(status_code=status_code, json=body, request=request)
+
+
+@pytest.mark.parametrize("body", _MISSING_OBJECT_RESPONSES)
+def test_sync_bucket_proxy_exists_false_on_missing_object(body: Any) -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = _exists_response(404, body)
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        assert proxy.exists("missing.txt") is False
+
+
+@pytest.mark.parametrize("status_code,body", _EXISTS_ERROR_RESPONSES)
+def test_sync_bucket_proxy_exists_reraises_other_errors(
+    status_code: int, body: Any
+) -> None:
+    proxy = _sync_bucket_proxy()
+    mock_response = _exists_response(status_code, body)
+    with patch.object(proxy._client, "request", return_value=mock_response):
+        with pytest.raises(StorageApiError) as exc_info:
+            proxy.exists("file.txt")
+
+    assert str(exc_info.value.status) == str(status_code)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("body", _MISSING_OBJECT_RESPONSES)
+async def test_async_bucket_proxy_exists_false_on_missing_object(body: Any) -> None:
+    proxy = _async_bucket_proxy()
+    mock_response = _exists_response(404, body)
+    with patch.object(
+        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
+        assert await proxy.exists("missing.txt") is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status_code,body", _EXISTS_ERROR_RESPONSES)
+async def test_async_bucket_proxy_exists_reraises_other_errors(
+    status_code: int, body: Any
+) -> None:
+    proxy = _async_bucket_proxy()
+    mock_response = _exists_response(status_code, body)
+    with patch.object(
+        proxy._client, "request", new_callable=AsyncMock, return_value=mock_response
+    ):
+        with pytest.raises(StorageApiError) as exc_info:
+            await proxy.exists("file.txt")
+
+    assert str(exc_info.value.status) == str(status_code)
+
+
+def _analytics_list_handler(captured: dict[str, Any]) -> Any:
+    def handler(request: Request) -> Response:
+        captured["url"] = request.url
+        return Response(200, json=[])
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_async_analytics_list_sends_camel_case_sort_params(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: dict[str, Any] = {}
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(
+            transport=MockTransport(_analytics_list_handler(captured))
+        ),
+    )
+
+    await client.analytics().list(
+        limit=5, offset=10, sort_column="created_at", sort_order="desc", search="logs"
+    )
+
+    assert captured["url"].path.endswith("/iceberg/bucket")
+    assert dict(captured["url"].params) == {
+        "limit": "5",
+        "offset": "10",
+        "sortColumn": "created_at",
+        "sortOrder": "desc",
+        "search": "logs",
+    }
+
+
+def test_sync_analytics_list_sends_camel_case_sort_params(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: dict[str, Any] = {}
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(transport=MockTransport(_analytics_list_handler(captured))),
+    )
+
+    client.analytics().list(
+        limit=5, offset=10, sort_column="created_at", sort_order="desc", search="logs"
+    )
+
+    assert captured["url"].path.endswith("/iceberg/bucket")
+    assert dict(captured["url"].params) == {
+        "limit": "5",
+        "offset": "10",
+        "sortColumn": "created_at",
+        "sortOrder": "desc",
+        "search": "logs",
+    }
+
+
+def _list_indexes_transport(captured: dict[str, Any]) -> Any:
+    """A transport that records the ListIndexes request body and replies with one page."""
+    import json as _json
+
+    def handler(request: Request) -> Response:
+        captured["url"] = str(request.url)
+        captured["body"] = _json.loads(request.content)
+        return Response(200, json={"indexes": [], "nextToken": None})
+
+    return handler
+
+
+@pytest.mark.asyncio
+async def test_async_list_indexes_sends_camel_case_pagination(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: dict[str, Any] = {}
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(
+            transport=MockTransport(_list_indexes_transport(captured))
+        ),
+    )
+
+    await (
+        client.vectors()
+        .from_("my-bucket")
+        .list_indexes(next_token="cursor-1", max_results=10, prefix="idx-")
+    )
+
+    assert captured["url"].endswith("/vector/ListIndexes")
+    assert captured["body"] == {
+        "vectorBucketName": "my-bucket",
+        "nextToken": "cursor-1",
+        "maxResults": 10,
+        "prefix": "idx-",
+    }
+
+
+def test_sync_list_indexes_sends_camel_case_pagination(
+    valid_url, valid_headers
+) -> None:
+    from httpx import MockTransport
+
+    captured: dict[str, Any] = {}
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(transport=MockTransport(_list_indexes_transport(captured))),
+    )
+
+    client.vectors().from_("my-bucket").list_indexes(
+        next_token="cursor-1", max_results=10, prefix="idx-"
+    )
+
+    assert captured["url"].endswith("/vector/ListIndexes")
+    assert captured["body"] == {
+        "vectorBucketName": "my-bucket",
+        "nextToken": "cursor-1",
+        "maxResults": 10,
+        "prefix": "idx-",
+    }
+
+
+_PARTIAL_SORT_BY_CASES = [
+    ({"order": "desc"}, {"column": "name", "order": "desc"}),
+    ({"column": "updated_at"}, {"column": "updated_at", "order": "asc"}),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sort_by, expected", _PARTIAL_SORT_BY_CASES)
+async def test_async_list_merges_partial_sort_by_with_default(
+    valid_url, valid_headers, sort_by, expected
+) -> None:
+    from httpx import MockTransport
+
+    captured: dict[str, Any] = {}
+    client = AsyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=AsyncClient(
+            transport=MockTransport(_list_indexes_transport(captured))
+        ),
+    )
+
+    await client.from_("b").list("folder", {"sortBy": sort_by})
+
+    assert captured["url"].endswith("/object/list/b")
+    assert captured["body"] == {
+        "limit": 100,
+        "offset": 0,
+        "sortBy": expected,
+        "prefix": "folder",
+    }
+
+
+@pytest.mark.parametrize("sort_by, expected", _PARTIAL_SORT_BY_CASES)
+def test_sync_list_merges_partial_sort_by_with_default(
+    valid_url, valid_headers, sort_by, expected
+) -> None:
+    from httpx import MockTransport
+
+    captured: dict[str, Any] = {}
+    client = SyncStorageClient(
+        url=valid_url + "/",
+        headers=valid_headers,
+        http_client=Client(transport=MockTransport(_list_indexes_transport(captured))),
+    )
+
+    client.from_("b").list("folder", {"sortBy": sort_by})
+
+    assert captured["url"].endswith("/object/list/b")
+    assert captured["body"] == {
+        "limit": 100,
+        "offset": 0,
+        "sortBy": expected,
+        "prefix": "folder",
+    }

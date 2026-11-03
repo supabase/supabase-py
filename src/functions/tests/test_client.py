@@ -1,5 +1,4 @@
 import re
-from typing import Dict
 
 import pytest
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient, create_client
@@ -11,7 +10,7 @@ def valid_url() -> str:
 
 
 @pytest.fixture
-def valid_headers() -> Dict[str, str]:
+def valid_headers() -> dict[str, str]:
     return {"Authorization": "Bearer test_token", "Content-Type": "application/json"}
 
 
@@ -21,7 +20,7 @@ _X_CLIENT_INFO_PATTERN = re.compile(
 
 
 def test_async_x_client_info_structured_format(
-    valid_url: str, valid_headers: Dict[str, str]
+    valid_url: str, valid_headers: dict[str, str]
 ) -> None:
     client = AsyncFunctionsClient(url=valid_url, headers=valid_headers)
     x_client_info = client.headers.get("X-Client-Info")
@@ -32,7 +31,7 @@ def test_async_x_client_info_structured_format(
 
 
 def test_sync_x_client_info_structured_format(
-    valid_url: str, valid_headers: Dict[str, str]
+    valid_url: str, valid_headers: dict[str, str]
 ) -> None:
     client = SyncFunctionsClient(url=valid_url, headers=valid_headers)
     x_client_info = client.headers.get("X-Client-Info")
@@ -42,7 +41,7 @@ def test_sync_x_client_info_structured_format(
     )
 
 
-def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
+def test_create_async_client(valid_url: str, valid_headers: dict[str, str]) -> None:
     # Test creating async client with explicit verify=True
     client = create_client(
         url=valid_url, headers=valid_headers, is_async=True, verify=True
@@ -51,9 +50,11 @@ def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> N
     assert isinstance(client, AsyncFunctionsClient)
     assert str(client.url) == valid_url
     assert all(client.headers[key] == value for key, value in valid_headers.items())
+    assert client.verify is True
+    assert client.timeout == 60
 
 
-def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
+def test_create_sync_client(valid_url: str, valid_headers: dict[str, str]) -> None:
     # Test creating sync client with explicit verify=True
     client = create_client(
         url=valid_url, headers=valid_headers, is_async=False, verify=True
@@ -62,6 +63,42 @@ def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> No
     assert isinstance(client, SyncFunctionsClient)
     assert str(client.url) == valid_url
     assert all(client.headers[key] == value for key, value in valid_headers.items())
+    assert client.verify is True
+    assert client.timeout == 60
+
+
+def test_create_async_client_no_verify(
+    valid_url: str, valid_headers: dict[str, str]
+) -> None:
+    client = create_client(
+        url=valid_url, headers=valid_headers, is_async=True, verify=False
+    )
+
+    assert isinstance(client, AsyncFunctionsClient)
+    assert client.verify is False
+    assert client.timeout == 60
+
+
+def test_create_sync_client_no_verify(
+    valid_url: str, valid_headers: dict[str, str]
+) -> None:
+    client = create_client(
+        url=valid_url, headers=valid_headers, is_async=False, verify=False
+    )
+
+    assert isinstance(client, SyncFunctionsClient)
+    assert client.verify is False
+    assert client.timeout == 60
+
+
+def test_create_client_default(valid_url: str, valid_headers: dict[str, str]) -> None:
+    sync_client = create_client(url=valid_url, headers=valid_headers, is_async=False)
+    assert sync_client.verify is True
+    assert sync_client.timeout == 60
+
+    async_client = create_client(url=valid_url, headers=valid_headers, is_async=True)
+    assert async_client.verify is True
+    assert async_client.timeout == 60
 
 
 def test_type_hints() -> None:

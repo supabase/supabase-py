@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -31,10 +32,12 @@ def app_with_user_client():
     # table() is synchronous on the real AsyncClient — use MagicMock so the
     # postgrest chain mock returned by _mock_chain() is accessible directly.
     mock_uc.table = MagicMock()
-    with patch("main.acreate_client", AsyncMock(return_value=mock_sc)), \
-         patch("main.start_engine", AsyncMock()):
-        from main import app
+    with (
+        patch("main.acreate_client", AsyncMock(return_value=mock_sc)),
+        patch("main.start_engine", AsyncMock()),
+    ):
         from dependencies import get_client
+        from main import app
 
         async def override():
             return mock_uc
@@ -46,13 +49,17 @@ def app_with_user_client():
 
 
 RULE = {
-    "id": "r1", "user_id": "u1", "watch_column": "status",
-    "watch_value": "done", "broadcast_channel": "team-alerts",
-    "label": "Alert on done", "created_at": "2024-01-01T00:00:00Z",
+    "id": "r1",
+    "user_id": "u1",
+    "watch_column": "status",
+    "watch_value": "done",
+    "broadcast_channel": "team-alerts",
+    "label": "Alert on done",
+    "created_at": "2024-01-01T00:00:00Z",
 }
 
 
-def test_list_rules_empty(app_with_user_client):
+def test_list_rules_empty(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     mock_uc.table.return_value = _mock_chain([])
     resp = tc.get("/rules/")
@@ -60,7 +67,7 @@ def test_list_rules_empty(app_with_user_client):
     assert resp.json() == []
 
 
-def test_list_rules_returns_rules(app_with_user_client):
+def test_list_rules_returns_rules(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     mock_uc.table.return_value = _mock_chain([RULE])
     resp = tc.get("/rules/")
@@ -68,18 +75,23 @@ def test_list_rules_returns_rules(app_with_user_client):
     assert resp.json()[0]["label"] == "Alert on done"
 
 
-def test_create_rule(app_with_user_client):
+def test_create_rule(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     mock_uc.table.return_value = _mock_chain([RULE])
-    resp = tc.post("/rules/", json={
-        "label": "Alert on done", "watch_column": "status",
-        "watch_value": "done", "broadcast_channel": "team-alerts",
-    })
+    resp = tc.post(
+        "/rules/",
+        json={
+            "label": "Alert on done",
+            "watch_column": "status",
+            "watch_value": "done",
+            "broadcast_channel": "team-alerts",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["broadcast_channel"] == "team-alerts"
 
 
-def test_delete_rule(app_with_user_client):
+def test_delete_rule(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     mock_uc.table.return_value = _mock_chain([RULE])
     resp = tc.delete("/rules/r1")
@@ -87,7 +99,7 @@ def test_delete_rule(app_with_user_client):
     assert resp.json() == {"deleted": "r1"}
 
 
-def test_delete_rule_not_found(app_with_user_client):
+def test_delete_rule_not_found(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     mock_uc.table.return_value = _mock_chain([])
     resp = tc.delete("/rules/missing")

@@ -22,6 +22,22 @@ uv add supabase
 conda install -c conda-forge supabase
 ```
 
+## Supabase Service Compatibility
+
+`supabase` only guarantees compatibility with the latest release of each Supabase service, unless a minimum supported version is explicitly listed below.
+
+Older service releases are supported on a best-effort basis, but compatibility is not guaranteed.
+
+If you self-host Supabase, we recommend upgrading your services to their latest releases when upgrading the SDK.
+
+| Service   | SDK package                                                         | Server releases                                                            | Lowest supported version |
+| --------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------ |
+| Auth      | [`supabase_auth`](https://pypi.org/project/supabase_auth)           | [supabase/auth](https://github.com/supabase/auth/releases)                 | Latest release           |
+| Storage   | [`storage3`](https://pypi.org/project/storage3)                     | [supabase/storage](https://github.com/supabase/storage/releases)           | Latest release           |
+| Functions | [`supabase_functions`](https://pypi.org/project/supabase_functions) | [supabase/edge-runtime](https://github.com/supabase/edge-runtime/releases) | Latest release           |
+| PostgREST | [`postgrest`](https://pypi.org/project/postgrest)                   | [PostgREST/postgrest](https://github.com/PostgREST/postgrest/releases)     | Latest release           |
+| Realtime  | [`realtime`](https://pypi.org/project/realtime)                     | [supabase/realtime](https://github.com/supabase/realtime/releases)         | Latest release           |
+
 ## Usage
 
 Set your Supabase environment variables in a dotenv file, or using the shell:

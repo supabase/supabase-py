@@ -9,13 +9,17 @@ from supabase_auth.errors import (
     AuthSessionMissingError,
 )
 from supabase_auth.helpers import decode_jwt
-from supabase_auth.types import SignUpWithEmailAndPasswordCredentials
+from supabase_auth.types import (
+    SignInWithOAuthCredentials,
+    SignUpWithEmailAndPasswordCredentials,
+)
 
 from .clients import (
     GOTRUE_JWT_SECRET,
     auth_client,
     auth_client_with_asymmetric_session,
     auth_client_with_session,
+    mock_access_token,
     mock_user_credentials,
 )
 
@@ -23,6 +27,13 @@ from .clients import (
 async def test_get_claims_returns_none_when_session_is_none() -> None:
     claims = await auth_client().get_claims()
     assert claims is None
+
+
+async def test_get_claims_raises_when_exp_claim_is_missing() -> None:
+    # `mock_access_token()` carries no `exp` claim, so `validate_exp` must
+    # reject it with AuthInvalidJwtError instead of leaking a KeyError.
+    with pytest.raises(AuthInvalidJwtError, match="JWT has no expiration time"):
+        await auth_client().get_claims(mock_access_token())
 
 
 async def test_get_claims_calls_get_user_if_symmetric_jwt(mocker) -> None:
@@ -342,6 +353,23 @@ async def test_exchange_code_for_session() -> None:
     assert code_verifier is not None
 
 
+async def test_sign_in_with_oauth_does_not_mutate_query_params() -> None:
+    client = auth_client()
+    query_params = {"prompt": "consent"}
+    credentials: SignInWithOAuthCredentials = {
+        "provider": "github",
+        "options": {
+            "query_params": query_params,
+            "redirect_to": "https://example.com/callback",
+        },
+    }
+
+    response = await client.sign_in_with_oauth(credentials)
+
+    assert "redirect_to=https%3A%2F%2Fexample.com%2Fcallback" in response.url
+    assert query_params == {"prompt": "consent"}
+
+
 async def test_get_authenticator_assurance_level() -> None:
     client = auth_client()
     credentials = mock_user_credentials()
@@ -402,6 +430,48 @@ async def test_link_identity() -> None:
             # Verify the response
             assert response.provider == "github"
             assert response.url == mock_url
+
+
+async def test_link_identity_does_not_mutate_query_params() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from httpx import Response
+
+    client = auth_client()
+    shared_params = {"prompt": "consent"}
+
+    with patch.object(
+        client, "get_session", return_value=MagicMock(access_token="token")
+    ):
+        with patch.object(
+            client,
+            "_request",
+            return_value=Response(
+                content=b'{"url":"http://example.com/authorize"}', status_code=200
+            ),
+        ) as mock_request:
+            await client.link_identity(
+                {
+                    "provider": "github",
+                    "options": {
+                        "redirect_to": "http://localhost/callback",
+                        "query_params": shared_params,
+                    },
+                }
+            )
+            await client.link_identity(
+                {"provider": "github", "options": {"query_params": shared_params}}
+            )
+
+    assert shared_params == {"prompt": "consent"}
+    first_query = mock_request.call_args_list[0].kwargs["query"]
+    second_query = mock_request.call_args_list[1].kwargs["query"]
+    assert first_query["prompt"] == "consent"
+    assert first_query["redirect_to"] == "http://localhost/callback"
+    assert first_query["skip_http_redirect"] == "true"
+    assert second_query["prompt"] == "consent"
+    assert "redirect_to" not in second_query
+    assert second_query["skip_http_redirect"] == "true"
 
 
 async def test_get_user_identities() -> None:
@@ -469,7 +539,7 @@ async def test_sign_in_with_password() -> None:
 
     # Test error case: missing credentials
     try:
-        await test_client.sign_in_with_password({})  # type: ignore
+        await test_client.sign_in_with_password({})  # type: ignore[arg-type]
         raise AssertionError(
             "Expected AuthInvalidCredentialsError for missing credentials"
         )
@@ -568,7 +638,7 @@ async def test_sign_in_with_otp() -> None:
     from supabase_auth.errors import AuthInvalidCredentialsError
 
     try:
-        await client.sign_in_with_otp({})  # type: ignore
+        await client.sign_in_with_otp({})  # type: ignore[arg-type]
         raise AssertionError("Expected AuthInvalidCredentialsError")
     except AuthInvalidCredentialsError:
         pass
@@ -711,3 +781,132 @@ async def test_sign_out() -> None:
 
                     # Verify that _notify_all_subscribers was still called despite the error
                     mock_notify.assert_called_once_with("SIGNED_OUT", None)
+
+
+async def test_initialize_from_storage_keeps_refreshed_session() -> None:
+    # A stored session whose access token has expired must be refreshed on
+    # startup, and the refreshed session must then stay persisted.
+    from httpx import AsyncClient, MockTransport, Request, Response
+    from supabase_auth import AsyncGoTrueClient
+    from supabase_auth.types import Session, User
+
+    user = {
+        "id": str(uuid4()),
+        "aud": "authenticated",
+        "app_metadata": {},
+        "user_metadata": {},
+        "created_at": "2024-01-01T00:00:00Z",
+    }
+
+    def handler(request: Request) -> Response:
+        assert request.url.path == "/token"
+        assert request.url.params["grant_type"] == "refresh_token"
+        return Response(
+            200,
+            json={
+                "access_token": "new-access-token",
+                "refresh_token": "new-refresh-token",
+                "token_type": "bearer",
+                "expires_in": 3600,
+                "expires_at": round(time.time()) + 3600,
+                "user": user,
+            },
+        )
+
+    client = AsyncGoTrueClient(
+        url="http://auth.test",
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    )
+    expired_session = Session(
+        access_token="expired-access-token",
+        refresh_token="old-refresh-token",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) - 60,
+        user=User.model_validate(user),
+    )
+    await client._storage.set_item(
+        client._storage_key, expired_session.model_dump_json()
+    )
+    events = []
+    client.on_auth_state_change(lambda event, _session: events.append(event))
+
+    await client.initialize_from_storage()
+
+    assert events == ["TOKEN_REFRESHED"]
+    stored = await client._storage.get_item(client._storage_key)
+    assert stored is not None
+    assert Session.model_validate_json(stored).access_token == "new-access-token"
+    assert client._refresh_token_timer is not None
+    client._refresh_token_timer.cancel()
+
+
+async def test_network_error_raises_auth_retryable_error() -> None:
+    # A transport failure (no HTTP response) must surface as a retryable auth
+    # error, not as a raw httpx exception.
+    from httpx import AsyncClient, ConnectError, MockTransport, Request, Response
+    from supabase_auth import AsyncGoTrueClient
+    from supabase_auth.errors import AuthRetryableError
+
+    def handler(request: Request) -> Response:
+        raise ConnectError("boom", request=request)
+
+    client = AsyncGoTrueClient(
+        url="http://auth.test",
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    )
+
+    with pytest.raises(AuthRetryableError) as exc_info:
+        await client.sign_in_with_password(
+            {"email": "user@example.com", "password": "password"}
+        )
+    assert exc_info.value.status == 0
+
+
+async def test_initialize_from_storage_keeps_session_on_network_error() -> None:
+    # A network failure while refreshing an expired stored session must keep
+    # the session and schedule a retry instead of signing the user out.
+    from httpx import AsyncClient, ConnectError, MockTransport, Request, Response
+    from supabase_auth import AsyncGoTrueClient
+    from supabase_auth.types import Session, User
+
+    user = {
+        "id": str(uuid4()),
+        "aud": "authenticated",
+        "app_metadata": {},
+        "user_metadata": {},
+        "created_at": "2024-01-01T00:00:00Z",
+    }
+
+    def handler(request: Request) -> Response:
+        assert request.url.path == "/token"
+        raise ConnectError("boom", request=request)
+
+    client = AsyncGoTrueClient(
+        url="http://auth.test",
+        http_client=AsyncClient(transport=MockTransport(handler)),
+    )
+    expired_session = Session(
+        access_token="expired-access-token",
+        refresh_token="old-refresh-token",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) - 60,
+        user=User.model_validate(user),
+    )
+    await client._storage.set_item(
+        client._storage_key, expired_session.model_dump_json()
+    )
+
+    try:
+        await client.initialize_from_storage()
+
+        stored = await client._storage.get_item(client._storage_key)
+        assert stored is not None
+        assert (
+            Session.model_validate_json(stored).access_token == "expired-access-token"
+        )
+        assert client._refresh_token_timer is not None
+    finally:
+        if client._refresh_token_timer:
+            client._refresh_token_timer.cancel()

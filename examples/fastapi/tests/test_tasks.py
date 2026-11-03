@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -34,10 +35,12 @@ def app_with_user_client():
     # postgrest chain mock returned by _mock_chain() is accessible directly.
     mock_uc.table = MagicMock()
 
-    with patch("main.acreate_client", AsyncMock(return_value=mock_sc)), \
-         patch("main.start_engine", AsyncMock()):
-        from main import app
+    with (
+        patch("main.acreate_client", AsyncMock(return_value=mock_sc)),
+        patch("main.start_engine", AsyncMock()),
+    ):
         from dependencies import get_client
+        from main import app
 
         async def override():
             return mock_uc
@@ -48,11 +51,17 @@ def app_with_user_client():
         app.dependency_overrides.clear()
 
 
-TASK = {"id": "t1", "title": "Fix bug", "status": "pending",
-        "assigned_to": "u1", "created_by": "u1", "created_at": "2024-01-01T00:00:00Z"}
+TASK = {
+    "id": "t1",
+    "title": "Fix bug",
+    "status": "pending",
+    "assigned_to": "u1",
+    "created_by": "u1",
+    "created_at": "2024-01-01T00:00:00Z",
+}
 
 
-def test_list_tasks_empty(app_with_user_client):
+def test_list_tasks_empty(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     mock_uc.table.return_value = _mock_chain([])
     resp = tc.get("/tasks/")
@@ -60,7 +69,7 @@ def test_list_tasks_empty(app_with_user_client):
     assert resp.json() == []
 
 
-def test_list_tasks_returns_tasks(app_with_user_client):
+def test_list_tasks_returns_tasks(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     mock_uc.table.return_value = _mock_chain([TASK])
     resp = tc.get("/tasks/")
@@ -68,7 +77,7 @@ def test_list_tasks_returns_tasks(app_with_user_client):
     assert resp.json()[0]["title"] == "Fix bug"
 
 
-def test_create_task(app_with_user_client):
+def test_create_task(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     created = {**TASK, "title": "New task"}
     mock_uc.table.return_value = _mock_chain([created])
@@ -77,7 +86,7 @@ def test_create_task(app_with_user_client):
     assert resp.json()["title"] == "New task"
 
 
-def test_update_task_status(app_with_user_client):
+def test_update_task_status(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     updated = {**TASK, "status": "done"}
     mock_uc.table.return_value = _mock_chain([updated])
@@ -86,13 +95,13 @@ def test_update_task_status(app_with_user_client):
     assert resp.json()["status"] == "done"
 
 
-def test_update_task_invalid_status(app_with_user_client):
+def test_update_task_invalid_status(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     resp = tc.patch("/tasks/t1", json={"status": "invalid"})
     assert resp.status_code == 400
 
 
-def test_update_task_not_found(app_with_user_client):
+def test_update_task_not_found(app_with_user_client) -> None:
     tc, mock_uc = app_with_user_client
     mock_uc.table.return_value = _mock_chain([])
     resp = tc.patch("/tasks/missing", json={"status": "done"})

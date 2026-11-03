@@ -1,3 +1,5 @@
+import base64
+import json
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -5,7 +7,6 @@ import httpx
 import pytest
 import respx
 from httpx import Headers, HTTPStatusError, Response
-from pydantic import BaseModel
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
 )
@@ -21,9 +22,6 @@ from supabase_auth.helpers import (
     generate_pkce_challenge,
     generate_pkce_verifier,
     handle_exception,
-    model_dump,
-    model_dump_json,
-    model_validate,
     parse_link_identity_response,
     parse_response_api_version,
     validate_exp,
@@ -128,6 +126,50 @@ def test_decode_jwt() -> None:
     assert exc.value is not None
 
 
+def _segment(value: object) -> str:
+    raw = value if isinstance(value, bytes) else json.dumps(value).encode()
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def _token(header: object, payload: object) -> str:
+    return f"{_segment(header)}.{_segment(payload)}.{_segment(b'signature')}"
+
+
+_HEADER = {"alg": "HS256", "typ": "JWT"}
+_PAYLOAD = {"sub": "user", "exp": 9999999999}
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        _token(b"not json", _PAYLOAD),
+        _token(_HEADER, b"not json"),
+        _token({"alg": "none", "typ": "JWT"}, _PAYLOAD),
+        _token({"alg": "EdDSA", "typ": "JWT"}, _PAYLOAD),
+        _token([_HEADER], _PAYLOAD),
+        _token(_HEADER, {"sub": "user", "exp": "soon"}),
+    ],
+    ids=[
+        "header-not-json",
+        "payload-not-json",
+        "alg-none",
+        "alg-eddsa",
+        "header-array",
+        "exp-string",
+    ],
+)
+def test_decode_jwt_raises_auth_error_for_malformed_segments(token: str) -> None:
+    with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure"):
+        decode_jwt(token)
+
+
+def test_decode_jwt_accepts_header_without_typ() -> None:
+    decoded = decode_jwt(_token({"alg": "HS256"}, _PAYLOAD))
+
+    assert decoded["header"] == {"alg": "HS256"}
+    assert decoded["payload"] == _PAYLOAD
+
+
 def test_generate_pkce_verifier() -> None:
     assert isinstance(generate_pkce_verifier(45), str)
     with pytest.raises(
@@ -150,71 +192,67 @@ def test_parse_response_api_version_invalid_date() -> None:
     assert result is None
 
 
-# Test for pydantic v1 compatibility in model_validate
-def test_model_validate_pydantic_v1() -> None:
-    # Mock the behavior of the try block to raise AttributeError
-    mock_model = MagicMock()
-    mock_model.model_validate_json.side_effect = AttributeError
-    mock_model.parse_raw.return_value = "parsed_obj_result"
-
-    # Use the patched model in the actual function
-    result = model_validate(mock_model, {"test": "data"})  # type: ignore
-
-    # Check that parse_obj was called
-    mock_model.parse_raw.assert_called_once_with({"test": "data"})
-    assert result == "parsed_obj_result"
+def _network_error(response: Response) -> HTTPStatusError:
+    response.request = httpx.Request("POST", f"{TEST_URL}/token")
+    return HTTPStatusError("Server error", request=response.request, response=response)
 
 
-# Test for pydantic v1 compatibility in model_dump
-def test_model_dump_pydantic_v1() -> None:
-    # Create a mock model with necessary behavior
-    mock_model = MagicMock(spec=BaseModel)
-    mock_model.model_dump.side_effect = AttributeError
-    mock_model.dict.return_value = {"test": "data"}
+@pytest.mark.parametrize("status", [502, 503, 504, 520, 521, 522, 523, 524, 530])
+def test_handle_exception_network_error(status: int) -> None:
+    exception = _network_error(Response(status, json={"msg": "upstream unavailable"}))
 
-    # Call the function
-    result = model_dump(mock_model)
-
-    # Check the results
-    assert result == {"test": "data"}
-    mock_model.dict.assert_called_once()
-
-
-# Test for pydantic v1 compatibility in model_dump_json
-def test_model_dump_json_pydantic_v1() -> None:
-    # Create a mock model with necessary behavior
-    mock_model = MagicMock(spec=BaseModel)
-    mock_model.model_dump_json.side_effect = AttributeError
-    mock_model.json.return_value = '{"test": "data"}'
-
-    # Call the function
-    result = model_dump_json(mock_model)
-
-    # Check the results
-    assert result == '{"test": "data"}'
-    mock_model.json.assert_called_once()
-
-
-def test_handle_exception_network_error() -> None:
-    # Test case for network errors (502, 503, 504)
-    mock_response = MagicMock(spec=Response)
-    mock_response.status_code = 503
-
-    exception = HTTPStatusError(
-        "Network error", request=MagicMock(), response=mock_response
-    )
     result = handle_exception(exception)
 
     assert isinstance(result, AuthRetryableError)
+    assert result.message == "upstream unavailable"
+    assert result.status == status
+
+
+@pytest.mark.parametrize("key", ["msg", "message"])
+def test_handle_exception_network_error_preserves_json_message(key: str) -> None:
+    exception = _network_error(Response(503, json={key: "upstream unavailable"}))
+
+    result = handle_exception(exception)
+
+    assert isinstance(result, AuthRetryableError)
+    assert result.message == "upstream unavailable"
     assert result.status == 503
 
 
-def test_handle_exception_with_weak_password_attribute() -> None:
-    # In the implementation there's a logical error in the code:
-    # It checks if data.get("weak_password") is BOTH a dict AND a list
-    # This can never be true. Let's just test the error_code path which works.
+def test_handle_exception_network_error_non_json_uses_reason_phrase() -> None:
+    exception = _network_error(Response(502, text="<html>Bad Gateway</html>"))
 
-    # Test case with error_code=None, so we take the alternate default path
+    result = handle_exception(exception)
+
+    assert isinstance(result, AuthRetryableError)
+    assert result.message == "Bad Gateway"
+    assert result.status == 502
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        # Server sent an empty reason phrase.
+        Response(503, text="oops", extensions={"reason_phrase": b""}),
+        # Cloudflare codes have no standard reason phrase.
+        Response(520, text="oops"),
+    ],
+)
+def test_handle_exception_network_error_non_json_without_reason_phrase(
+    response: Response,
+) -> None:
+    exception = _network_error(response)
+
+    result = handle_exception(exception)
+
+    assert isinstance(result, AuthRetryableError)
+    assert result.message == f"HTTP {response.status_code}"
+    assert result.status == response.status_code
+
+
+def test_handle_exception_with_weak_password_attribute() -> None:
+    # Test case with error_code=None and no weak_password object, so the
+    # generic AuthApiError path is taken.
     mock_response = MagicMock(spec=Response)
     mock_response.status_code = 400
     mock_response.json.return_value = {
@@ -232,6 +270,60 @@ def test_handle_exception_with_weak_password_attribute() -> None:
         assert result.message == "Invalid request"
         assert result.status == 400
         assert result.code is None
+
+
+def test_handle_exception_legacy_weak_password_without_error_code() -> None:
+    # GoTrue responses that predate error codes report weak passwords only through
+    # the `weak_password` object, so they must still surface as AuthWeakPasswordError.
+    mock_response = MagicMock(spec=Response)
+    mock_response.status_code = 422
+    mock_response.json.return_value = {
+        "message": "Password too weak",
+        "weak_password": {"reasons": ["length", "characters"]},
+    }
+
+    exception = HTTPStatusError(
+        "Password error", request=MagicMock(), response=mock_response
+    )
+
+    with patch("supabase_auth.helpers.parse_response_api_version", return_value=None):
+        result = handle_exception(exception)
+
+    assert isinstance(result, AuthWeakPasswordError)
+    assert result.message == "Password too weak"
+    assert result.status == 422
+    assert result.reasons == ["length", "characters"]
+
+
+@pytest.mark.parametrize(
+    "weak_password",
+    [
+        {"reasons": []},
+        {"reasons": "length"},
+        {"reasons": ["length", 1]},
+        {},
+        "length",
+    ],
+)
+def test_handle_exception_legacy_weak_password_ignores_malformed_reasons(
+    weak_password,
+) -> None:
+    mock_response = MagicMock(spec=Response)
+    mock_response.status_code = 422
+    mock_response.json.return_value = {
+        "message": "Password too weak",
+        "weak_password": weak_password,
+    }
+
+    exception = HTTPStatusError(
+        "Password error", request=MagicMock(), response=mock_response
+    )
+
+    with patch("supabase_auth.helpers.parse_response_api_version", return_value=None):
+        result = handle_exception(exception)
+
+    assert isinstance(result, AuthApiError)
+    assert not isinstance(result, AuthWeakPasswordError)
 
 
 def test_handle_exception_weak_password_with_error_code() -> None:
@@ -332,11 +424,7 @@ def test_is_http_url() -> None:
 
 
 def test_handle_exception_weak_password_branch() -> None:
-    """Specifically targeting the unreachable branch in handle_exception with weak_password.
-
-    This test attempts to test the branch where weak_password needs to be both a dict and a list,
-    which is logically impossible, so we'll test it by mocking the implementation details.
-    """
+    """Cover the legacy weak_password branch of handle_exception."""
     import httpx
     from supabase_auth.errors import AuthWeakPasswordError
     from supabase_auth.helpers import handle_exception
@@ -346,13 +434,6 @@ def test_handle_exception_weak_password_branch() -> None:
     mock_response.status_code = 400
     mock_response.headers = {}
 
-    # Create a special mock dict that pretends to be both a dict and a list
-    class WeirdDict(dict):
-        def __init__(self, *args, **kwargs) -> None:
-            super().__init__(*args, **kwargs)
-            self.reasons = ["Password too short"]
-
-    # Mock json response with our special dict
     mock_response.json.return_value = {
         "message": "Password too weak",
         "weak_password": {"reasons": ["Password too short"]},
@@ -363,23 +444,9 @@ def test_handle_exception_weak_password_branch() -> None:
         "Password error", request=MagicMock(spec=httpx.Request), response=mock_response
     )
 
-    # We need to directly target the specific branch handling weak passwords
-    # First, we need to monkey patch the implementation temporarily to reach our branch
-    original_isinstance = isinstance
+    result = handle_exception(exception)
 
-    def patched_isinstance(obj, cls):  # noqa
-        # Make weak_password appear as both dict and list when needed
-        if obj == mock_response.json()["weak_password"] and cls in (dict, list):
-            return True
-        return original_isinstance(obj, cls)
-
-    with (
-        patch("supabase_auth.helpers.isinstance", side_effect=patched_isinstance),
-        patch("supabase_auth.helpers.len", return_value=1),
-    ):
-        result = handle_exception(exception)
-
-        # Check if our test coverage reached the AuthWeakPasswordError branch
-        assert isinstance(result, AuthWeakPasswordError)
-        assert result.message == "Password too weak"
-        assert result.status == 400
+    assert isinstance(result, AuthWeakPasswordError)
+    assert result.message == "Password too weak"
+    assert result.status == 400
+    assert result.reasons == ["Password too short"]

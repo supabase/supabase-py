@@ -1,0 +1,16 @@
+name: Sync SDK Compliance Matrix
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: supabase/sdk/.github/workflows/sync-sdk-compliance.yml@982f77c3c993fb8ca4b7d2b0fa74e4278316ebf0
+    secrets:
+      app-id: ${{ secrets.GH_APP_ID }}
+      private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}

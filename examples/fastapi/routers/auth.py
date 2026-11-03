@@ -1,8 +1,8 @@
+from config import settings
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from supabase import acreate_client
 
-from config import settings
+from supabase import acreate_client
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -16,15 +16,21 @@ class AuthRequest(BaseModel):
 async def signup(body: AuthRequest):
     client = await acreate_client(settings.supabase_url, settings.supabase_anon_key)
     try:
-        response = await client.auth.sign_up({"email": body.email, "password": body.password})
+        response = await client.auth.sign_up(
+            {"email": body.email, "password": body.password}
+        )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {
-        "user": {"id": response.user.id, "email": response.user.email} if response.user else None,
+        "user": {"id": response.user.id, "email": response.user.email}
+        if response.user
+        else None,
         "session": {
             "access_token": response.session.access_token,
             "refresh_token": response.session.refresh_token,
-        } if response.session else None,
+        }
+        if response.session
+        else None,
     }
 
 
@@ -38,11 +44,15 @@ async def signin(body: AuthRequest):
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {
-        "user": {"id": response.user.id, "email": response.user.email} if response.user else None,
+        "user": {"id": response.user.id, "email": response.user.email}
+        if response.user
+        else None,
         "session": {
             "access_token": response.session.access_token,
             "refresh_token": response.session.refresh_token,
-        } if response.session else None,
+        }
+        if response.session
+        else None,
     }
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import platform
 import sys
-from typing import Any, Dict, Optional, Union, cast
+from typing import Optional, Union
 from warnings import warn
 
 from deprecation import deprecated
@@ -15,6 +15,7 @@ from ..constants import (
     DEFAULT_POSTGREST_CLIENT_TIMEOUT,
 )
 from ..types import CountMethod
+from ..utils import rpc_query_param
 from ..version import __version__
 from .request_builder import (
     AsyncRequestBuilder,
@@ -31,11 +32,12 @@ class AsyncPostgrestClient(BasePostgrestClient):
         base_url: str,
         *,
         schema: str = "public",
-        headers: Dict[str, str] = DEFAULT_POSTGREST_CLIENT_HEADERS,
+        headers: dict[str, str] = DEFAULT_POSTGREST_CLIENT_HEADERS,
         timeout: Union[int, float, Timeout, None] = None,
         verify: Optional[bool] = None,
         proxy: Optional[str] = None,
         http_client: Optional[AsyncClient] = None,
+        retry_enabled: bool = True,
     ) -> None:
         headers = {
             "X-Client-Info": (
@@ -93,11 +95,12 @@ class AsyncPostgrestClient(BasePostgrestClient):
             verify=self.verify,
             proxy=proxy,
         )
+        self.retry_enabled = retry_enabled
 
         self.session = http_client or AsyncClient(
             base_url=base_url,
             headers=self.headers,
-            timeout=timeout,
+            timeout=self.timeout,
             verify=self.verify,
             proxy=proxy,
             follow_redirects=True,
@@ -113,6 +116,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
             timeout=self.timeout,
             verify=self.verify,
             proxy=self.proxy,
+            retry_enabled=self.retry_enabled,
         )
 
     async def __aenter__(self) -> AsyncPostgrestClient:
@@ -134,7 +138,11 @@ class AsyncPostgrestClient(BasePostgrestClient):
             :class:`AsyncRequestBuilder`
         """
         return AsyncRequestBuilder(
-            self.session, self.base_url.joinpath(table), self.headers, self.basic_auth
+            self.session,
+            self.base_url.joinpath(table),
+            self.headers,
+            self.basic_auth,
+            retry_enabled=self.retry_enabled,
         )
 
     def table(self, table: str) -> AsyncRequestBuilder:
@@ -181,7 +189,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
         headers.update(self.headers)
         # the params here are params to be sent to the RPC and not the queryparams!
         json, http_params = (
-            ({}, QueryParams(params))
+            ({}, QueryParams({k: rpc_query_param(v) for k, v in params.items()}))
             if method in ("HEAD", "GET")
             else (params, QueryParams())
         )
@@ -193,5 +201,6 @@ class AsyncPostgrestClient(BasePostgrestClient):
             http_params,
             self.basic_auth,
             json,
+            retry_enabled=self.retry_enabled,
         )
         return AsyncRPCFilterRequestBuilder(request)

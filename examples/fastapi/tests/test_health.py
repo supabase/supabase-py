@@ -12,12 +12,15 @@ def _make_mock_service_client():
     return mock
 
 
-def test_health_returns_ok():
+def test_health_returns_ok() -> None:
     mock_sc = _make_mock_service_client()
-    with patch("main.acreate_client", AsyncMock(return_value=mock_sc)), \
-         patch("main.start_engine", AsyncMock()):
+    with (
+        patch("main.acreate_client", AsyncMock(return_value=mock_sc)),
+        patch("main.start_engine", AsyncMock()),
+    ):
         from fastapi.testclient import TestClient
         from main import app
+
         with TestClient(app) as client:
             response = client.get("/health")
     assert response.status_code == 200

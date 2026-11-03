@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import List, Optional
+import builtins
+from typing import Optional
 
 from httpx import AsyncClient, Headers
 from yarl import URL
@@ -74,7 +75,7 @@ class AsyncVectorBucketScope:
         prefix: Optional[str] = None,
     ) -> ListVectorIndexesResponse:
         body = self.with_metadata(
-            next_token=next_token, max_results=max_results, prefix=prefix
+            nextToken=next_token, maxResults=max_results, prefix=prefix
         )
         data = await self._request.send(
             http_method="POST", path=["ListIndexes"], body=body
@@ -104,7 +105,7 @@ class AsyncVectorIndexScope:
             **data,
         )
 
-    async def put(self, vectors: List[VectorObject]) -> None:
+    async def put(self, vectors: builtins.list[VectorObject]) -> None:
         body = self.with_metadata(
             vectors=[v.model_dump(exclude_none=True) for v in vectors]
         )
@@ -163,7 +164,7 @@ class AsyncVectorIndexScope:
         )
         return QueryVectorsResponse.model_validate_json(data.content)
 
-    async def delete(self, keys: List[str]) -> None:
+    async def delete(self, keys: builtins.list[str]) -> None:
         if len(keys) < 1 or len(keys) > 500:
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
         body = self.with_metadata(keys=keys)

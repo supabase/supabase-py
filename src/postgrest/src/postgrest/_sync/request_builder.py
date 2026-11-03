@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Generic, Literal, Optional, TypeVar, Union, overload
+from typing import Any, Literal, Optional, TypeVar, overload
 
-from httpx import BasicAuth, Client, Headers, QueryParams, Response
+from httpx import BasicAuth, Client, Headers, Response
 from pydantic import ValidationError
-from typing_extensions import Self, override
+from typing_extensions import Self
 from yarl import URL
 
 from ..base_request_builder import (
@@ -24,7 +24,6 @@ from ..base_request_builder import (
 )
 from ..exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from ..types import JSON, ReturnMethod
-from ..utils import model_validate_json
 
 ReqConfig = RequestConfig[Client]
 QueryBuilderT = TypeVar("QueryBuilderT", bound="SyncQueryRequestBuilder")
@@ -57,7 +56,7 @@ def send_with_retry(req: ReqConfig) -> Response:
 
 
 class SyncQueryRequestBuilder:
-    def __init__(self, request: ReqConfig):
+    def __init__(self, request: ReqConfig) -> None:
         self.request = request
 
     def select(self: QueryBuilderT, *columns: str) -> QueryBuilderT:
@@ -92,14 +91,14 @@ class SyncQueryRequestBuilder:
             if r.is_success:
                 return APIResponse.from_http_request_response(r)
             else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                json_obj = APIErrorFromJSON.model_validate_json(r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r))
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class SyncSingleRequestBuilder:
-    def __init__(self, request: ReqConfig):
+    def __init__(self, request: ReqConfig) -> None:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
@@ -125,14 +124,14 @@ class SyncSingleRequestBuilder:
             ):  # Response.ok from JS (https://developer.mozilla.org/en-US/docs/Web/API/Response/ok)
                 return SingleAPIResponse.from_http_request_response(r)
             else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                json_obj = APIErrorFromJSON.model_validate_json(r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r))
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class SyncExplainRequestBuilder:
-    def __init__(self, request: ReqConfig):
+    def __init__(self, request: ReqConfig) -> None:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
@@ -145,14 +144,14 @@ class SyncExplainRequestBuilder:
             if r.is_success:
                 return r.text
             else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                json_obj = APIErrorFromJSON.model_validate_json(r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r))
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class SyncMaybeSingleRequestBuilder:
-    def __init__(self, request: ReqConfig):
+    def __init__(self, request: ReqConfig) -> None:
         self.request = request
 
     def retry(self, enabled: bool) -> Self:
@@ -178,10 +177,10 @@ class SyncMaybeSingleRequestBuilder:
                         }
                     )
             else:
-                json_obj = model_validate_json(APIErrorFromJSON, r.content)
+                json_obj = APIErrorFromJSON.model_validate_json(r.content)
                 raise APIError(dict(json_obj))
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r))
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class SyncFilterRequestBuilder(
@@ -196,6 +195,10 @@ class SyncRPCFilterRequestBuilder(BaseRPCRequestBuilder, SyncSingleRequestBuilde
     def __init__(self, request: ReqConfig) -> None:
         BaseFilterRequestBuilder.__init__(self, request)
         SyncSingleRequestBuilder.__init__(self, request)
+
+    def maybe_single(self) -> SyncMaybeSingleRequestBuilder:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return SyncMaybeSingleRequestBuilder(self.request)
 
 
 class SyncSelectRequestBuilder(
@@ -219,8 +222,9 @@ class SyncSelectRequestBuilder(
         return SyncMaybeSingleRequestBuilder(self.request)
 
     def text_search(
-        self, column: str, query: str, options: dict[str, Any] = {}
-    ) -> SyncQueryRequestBuilder:
+        self, column: str, query: str, options: Optional[dict[str, Any]] = None
+    ) -> Self:
+        options = options or {}
         type_ = options.get("type")
         type_part = ""
         if type_ == "plain":
@@ -230,11 +234,9 @@ class SyncSelectRequestBuilder(
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.request.params = self.request.params.add(
-            column, f"{type_part}fts{config_part}.{query}"
-        )
+        self.filter(column, f"{type_part}fts{config_part}", query)
 
-        return SyncQueryRequestBuilder(self.request)
+        return self
 
     def csv(self) -> SyncSingleRequestBuilder:
         """Specify that the query must retrieve data as a single CSV string."""
@@ -290,12 +292,18 @@ class SyncSelectRequestBuilder(
 
 class SyncRequestBuilder:  #
     def __init__(
-        self, session: Client, path: URL, headers: Headers, auth: BasicAuth | None
+        self,
+        session: Client,
+        path: URL,
+        headers: Headers,
+        auth: BasicAuth | None,
+        retry_enabled: bool = True,
     ) -> None:
         self.session = session
         self.path = path
         self.headers = headers
         self.auth = auth
+        self.retry_enabled = retry_enabled
 
     def select(
         self,
@@ -321,6 +329,7 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
         return SyncSelectRequestBuilder(request)
 
@@ -332,7 +341,7 @@ class SyncRequestBuilder:  #
         returning: ReturnMethod = ReturnMethod.representation,
         upsert: bool = False,
         default_to_null: bool = True,
-    ) -> SyncQueryRequestBuilder:
+    ) -> SyncSelectRequestBuilder:
         """Run an INSERT query.
 
         Args:
@@ -344,7 +353,7 @@ class SyncRequestBuilder:  #
                 Otherwise, use the default value for the column.
                 Only applies for bulk inserts.
         Returns:
-            :class:`SyncQueryRequestBuilder`
+            :class:`SyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_insert(
             json,
@@ -362,8 +371,9 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
-        return SyncQueryRequestBuilder(request)
+        return SyncSelectRequestBuilder(request)
 
     def upsert(
         self,
@@ -374,7 +384,7 @@ class SyncRequestBuilder:  #
         ignore_duplicates: bool = False,
         on_conflict: str = "",
         default_to_null: bool = True,
-    ) -> SyncQueryRequestBuilder:
+    ) -> SyncSelectRequestBuilder:
         """Run an upsert (INSERT ... ON CONFLICT DO UPDATE) query.
 
         Args:
@@ -388,7 +398,7 @@ class SyncRequestBuilder:  #
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
         Returns:
-            :class:`SyncQueryRequestBuilder`
+            :class:`SyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_upsert(
             json,
@@ -407,8 +417,9 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
-        return SyncQueryRequestBuilder(request)
+        return SyncSelectRequestBuilder(request)
 
     def update(
         self,
@@ -416,7 +427,7 @@ class SyncRequestBuilder:  #
         *,
         count: Optional[CountMethod] = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> SyncFilterRequestBuilder:
+    ) -> SyncSelectRequestBuilder:
         """Run an UPDATE query.
 
         Args:
@@ -424,7 +435,7 @@ class SyncRequestBuilder:  #
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SyncFilterRequestBuilder`
+            :class:`SyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_update(
             json,
@@ -440,22 +451,23 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
-        return SyncFilterRequestBuilder(request)
+        return SyncSelectRequestBuilder(request)
 
     def delete(
         self,
         *,
         count: Optional[CountMethod] = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> SyncFilterRequestBuilder:
+    ) -> SyncSelectRequestBuilder:
         """Run a DELETE query.
 
         Args:
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SyncFilterRequestBuilder`
+            :class:`SyncSelectRequestBuilder`
         """
         method, params, headers, json = pre_delete(
             count=count,
@@ -470,5 +482,6 @@ class SyncRequestBuilder:  #
             http_method=method,
             headers=headers,
             json=json,
+            retry_enabled=self.retry_enabled,
         )
-        return SyncFilterRequestBuilder(request)
+        return SyncSelectRequestBuilder(request)

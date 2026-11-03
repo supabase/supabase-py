@@ -33,6 +33,7 @@
       pkgs.supabase-cli
       pkgs.uv
       pkgs.gnumake
+      pkgs.gnused
       pkgs.docker
     ];
     workspace = uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; };

@@ -17,8 +17,9 @@ def _make_request(auth_header: Optional[str]) -> Request:
 
 
 @pytest.mark.asyncio
-async def test_get_client_raises_401_when_no_auth_header():
+async def test_get_client_raises_401_when_no_auth_header() -> None:
     from dependencies import get_client
+
     request = _make_request(None)
     with pytest.raises(HTTPException) as exc_info:
         await get_client(request)
@@ -26,8 +27,9 @@ async def test_get_client_raises_401_when_no_auth_header():
 
 
 @pytest.mark.asyncio
-async def test_get_client_raises_401_when_not_bearer():
+async def test_get_client_raises_401_when_not_bearer() -> None:
     from dependencies import get_client
+
     request = _make_request("Basic dXNlcjpwYXNz")
     with pytest.raises(HTTPException) as exc_info:
         await get_client(request)
@@ -35,8 +37,9 @@ async def test_get_client_raises_401_when_not_bearer():
 
 
 @pytest.mark.asyncio
-async def test_get_client_raises_401_for_bearer_with_no_token():
+async def test_get_client_raises_401_for_bearer_with_no_token() -> None:
     from dependencies import get_client
+
     request = _make_request("Bearer ")
     with pytest.raises(HTTPException) as exc_info:
         await get_client(request)
@@ -44,10 +47,11 @@ async def test_get_client_raises_401_for_bearer_with_no_token():
 
 
 @pytest.mark.asyncio
-async def test_get_client_returns_client_with_jwt():
+async def test_get_client_returns_client_with_jwt() -> None:
     mock_client = AsyncMock()
     with patch("dependencies.acreate_client", AsyncMock(return_value=mock_client)):
         from dependencies import get_client
+
         request = _make_request("Bearer my-test-jwt")
         result = await get_client(request)
     assert result is mock_client

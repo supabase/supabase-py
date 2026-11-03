@@ -1,8 +1,7 @@
+from dependencies import get_client
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from supabase._async.client import AsyncClient
-
-from dependencies import get_client
 
 router = APIRouter(prefix="/rules", tags=["rules"])
 
@@ -22,12 +21,18 @@ async def list_rules(client: AsyncClient = Depends(get_client)):
 
 @router.post("/")
 async def create_rule(body: CreateRule, client: AsyncClient = Depends(get_client)):
-    response = await client.table("rules").insert({
-        "label": body.label,
-        "watch_column": body.watch_column,
-        "watch_value": body.watch_value,
-        "broadcast_channel": body.broadcast_channel,
-    }).execute()
+    response = (
+        await client.table("rules")
+        .insert(
+            {
+                "label": body.label,
+                "watch_column": body.watch_column,
+                "watch_value": body.watch_value,
+                "broadcast_channel": body.broadcast_channel,
+            }
+        )
+        .execute()
+    )
     return response.data[0]
 
 

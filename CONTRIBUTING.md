@@ -4,12 +4,12 @@ We highly appreciate feedback and contributions from the community! If you'd lik
 
 ## Code of conduct
 
-In the interest of fostering an open and welcoming environment, please review and follow our [code of conduct](./CODE_OF_CONDUCT.md).
+In the interest of fostering an open and welcoming environment, please review and follow our [code of conduct](https://github.com/supabase/.github/blob/main/CODE_OF_CONDUCT.md).
 
 ## Code and copy reviews
 
 All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. After filing a pull request, please tag any two of the [current maintainers](./MAINTAINERS.md) to request a review.
+use GitHub pull requests for this purpose. GitHub requests review from the [code owners](./.github/CODEOWNERS) automatically when you open a pull request. You do not need to request a review yourself.
 
 ## Report an issue/File a feature request
 

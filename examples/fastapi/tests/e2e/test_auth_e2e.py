@@ -4,7 +4,6 @@ import random
 import string
 
 import httpx
-import pytest
 
 
 def _rand_email() -> str:
@@ -12,11 +11,13 @@ def _rand_email() -> str:
     return f"e2e_signup_{suffix}@example.com"
 
 
-async def test_signup_returns_session(running_app, service_client):
+async def test_signup_returns_session(running_app, service_client) -> None:
     """POST /auth/signup creates a real user and returns an access token."""
     email = _rand_email()
     async with httpx.AsyncClient(base_url=running_app, timeout=10) as client:
-        r = await client.post("/auth/signup", json={"email": email, "password": "Password123!"})
+        r = await client.post(
+            "/auth/signup", json={"email": email, "password": "Password123!"}
+        )
 
     assert r.status_code == 200
     body = r.json()
@@ -31,7 +32,7 @@ async def test_signup_returns_session(running_app, service_client):
             break
 
 
-async def test_signin_returns_session(running_app, user_a):
+async def test_signin_returns_session(running_app, user_a) -> None:
     """POST /auth/signin returns a valid session for an existing user."""
     async with httpx.AsyncClient(base_url=running_app, timeout=10) as client:
         r = await client.post(
@@ -44,7 +45,7 @@ async def test_signin_returns_session(running_app, user_a):
     assert body["user"]["email"] == user_a["email"]
 
 
-async def test_signin_wrong_password_returns_400(running_app):
+async def test_signin_wrong_password_returns_400(running_app) -> None:
     """POST /auth/signin with wrong credentials returns 400."""
     async with httpx.AsyncClient(base_url=running_app, timeout=10) as client:
         r = await client.post(
@@ -55,7 +56,7 @@ async def test_signin_wrong_password_returns_400(running_app):
     assert r.status_code == 400
 
 
-async def test_signout_returns_ok(running_app, user_a):
+async def test_signout_returns_ok(running_app, user_a) -> None:
     """POST /auth/signout always returns {status: ok}."""
     async with httpx.AsyncClient(base_url=running_app, timeout=10) as client:
         r = await client.post("/auth/signout")
@@ -64,7 +65,7 @@ async def test_signout_returns_ok(running_app, user_a):
     assert r.json()["status"] == "ok"
 
 
-async def test_tasks_endpoint_requires_auth(running_app):
+async def test_tasks_endpoint_requires_auth(running_app) -> None:
     """GET /tasks/ without Authorization header returns 401."""
     async with httpx.AsyncClient(base_url=running_app, timeout=10) as client:
         r = await client.get("/tasks/")

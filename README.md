@@ -20,6 +20,22 @@ Relevant links:
   - [GitHub OAuth in your Python Flask app](https://supabase.com/blog/oauth2-login-python-flask-apps)
   - [Python data loading with Supabase](https://supabase.com/blog/loading-data-supabase-python)
 
+## Supabase Service Compatibility
+
+`supabase-py` only guarantees compatibility with the latest release of each Supabase service, unless a minimum supported version is explicitly listed below.
+
+Older service releases are supported on a best-effort basis, but compatibility is not guaranteed.
+
+If you self-host Supabase, we recommend upgrading your services to their latest releases when upgrading the SDK.
+
+| Service   | SDK package                           | Server releases                                                            | Lowest supported version |
+| --------- | ------------------------------------- | -------------------------------------------------------------------------- | ------------------------ |
+| Auth      | [`supabase_auth`](src/auth)           | [supabase/auth](https://github.com/supabase/auth/releases)                 | Latest release           |
+| Storage   | [`storage3`](src/storage)             | [supabase/storage](https://github.com/supabase/storage/releases)           | Latest release           |
+| Functions | [`supabase_functions`](src/functions) | [supabase/edge-runtime](https://github.com/supabase/edge-runtime/releases) | Latest release           |
+| PostgREST | [`postgrest`](src/postgrest)          | [PostgREST/postgrest](https://github.com/PostgREST/postgrest/releases)     | Latest release           |
+| Realtime  | [`realtime`](src/realtime)            | [supabase/realtime](https://github.com/supabase/realtime/releases)         | Latest release           |
+
 ## Local Development
 
 ### Clone the Repository

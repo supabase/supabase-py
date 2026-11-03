@@ -41,7 +41,7 @@ def _payload(record, old_record=None):
 
 
 @pytest.mark.asyncio
-async def test_no_matching_rules_does_not_broadcast():
+async def test_no_matching_rules_does_not_broadcast() -> None:
     """When no rules match the new status, channel.send is not called."""
     client, broadcast_channel = _make_service_client(
         rules_data=[
@@ -63,7 +63,7 @@ async def test_no_matching_rules_does_not_broadcast():
 
 
 @pytest.mark.asyncio
-async def test_matching_rule_inserts_event_and_broadcasts():
+async def test_matching_rule_inserts_event_and_broadcasts() -> None:
     """When a rule matches, a rule_event is inserted and broadcast is sent."""
     client, broadcast_channel = _make_service_client(
         rules_data=[
@@ -98,7 +98,7 @@ async def test_matching_rule_inserts_event_and_broadcasts():
 
 
 @pytest.mark.asyncio
-async def test_rule_with_non_status_column_fires():
+async def test_rule_with_non_status_column_fires() -> None:
     """Rules watching columns other than 'status' should also fire."""
     client, broadcast_channel = _make_service_client(
         rules_data=[
@@ -123,7 +123,7 @@ async def test_rule_with_non_status_column_fires():
 
 
 @pytest.mark.asyncio
-async def test_empty_new_record_is_ignored():
+async def test_empty_new_record_is_ignored() -> None:
     """Payloads without a record (e.g. missing data key) are silently ignored."""
     client, broadcast_channel = _make_service_client(
         rules_data=[

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -8,10 +9,11 @@ from uuid import uuid4
 
 import pytest
 from httpx import Client as HttpxClient
-from httpx import HTTPStatusError, Response
+from httpx import Headers, HTTPStatusError, MockTransport, Request, Response
 from storage3 import SyncStorageClient
 from storage3.exceptions import StorageApiError
 from storage3.utils import StorageException
+from yarl import URL
 
 from .. import SyncBucketProxy
 from ..utils import SyncFinalizerFactory
@@ -64,7 +66,6 @@ def bucket(
     bucket_id = uuid_factory()
 
     # Store bucket_id in global list
-    global temp_test_buckets_ids
     temp_test_buckets_ids.append(bucket_id)
 
     storage.create_bucket(id=bucket_id)
@@ -85,7 +86,6 @@ def public_bucket(
     bucket_id = uuid_factory()
 
     # Store bucket_id in global list
-    global temp_test_buckets_ids
     temp_test_buckets_ids.append(bucket_id)
 
     storage.create_bucket(id=bucket_id, options={"public": True})
@@ -282,6 +282,10 @@ def test_client_upload(
     assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
 
+    # Default cache-control is "3600" seconds and must be stored as max-age=3600
+    info = storage_file_client.info(file.bucket_path)
+    assert info.get("cache_control") == "max-age=3600"
+
 
 def test_client_upload_with_query(
     storage_file_client: SyncBucketProxy, file: FileForTesting
@@ -336,7 +340,10 @@ def test_client_update(
     storage_file_client.update(
         two_files[0].bucket_path,
         two_files[1].local_path,
-        {"content-type": two_files[1].mime_type},
+        {
+            "content-type": two_files[1].mime_type,
+            "cache-control": "7200",
+        },
     )
 
     image = storage_file_client.download(two_files[0].bucket_path)
@@ -348,6 +355,8 @@ def test_client_update(
     assert image == two_files[1].file_content
     assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == two_files[1].mime_type
+    info = storage_file_client.info(two_files[0].bucket_path)
+    assert info.get("cache_control") == "max-age=7200"
 
 
 @pytest.mark.parametrize(
@@ -371,7 +380,13 @@ def test_client_upload_to_signed_url(
     # Test with content-type
     data = storage_file_client.create_signed_upload_url(file.bucket_path)
     storage_file_client.upload_to_signed_url(
-        data["path"], data["token"], file.file_content, {"content-type": file.mime_type}
+        data["path"],
+        data["token"],
+        file.file_content,
+        {
+            "content-type": file.mime_type,
+            "metadata": {"source": "signed-upload"},
+        },
     )
     image = storage_file_client.download(file.bucket_path)
     files = storage_file_client.list(file.bucket_folder)
@@ -380,8 +395,10 @@ def test_client_upload_to_signed_url(
     assert image == file.file_content
     assert image_info is not None
     assert image_info.get("metadata", {}).get("mimetype") == file.mime_type
+    info = storage_file_client.info(file.bucket_path)
+    assert info.get("metadata") == {"source": "signed-upload"}
 
-    # Test with file_options=None
+    # Test with file_options=None — still applies default cache-control max-age=3600
     data = storage_file_client.create_signed_upload_url(
         f"no_options_{file.bucket_path}"
     )
@@ -390,14 +407,16 @@ def test_client_upload_to_signed_url(
     )
     image = storage_file_client.download(f"no_options_{file.bucket_path}")
     assert image == file.file_content
+    no_options_info = storage_file_client.info(f"no_options_{file.bucket_path}")
+    assert no_options_info.get("cache_control") == "max-age=3600"
 
-    # Test with cache-control
+    # Test with explicit cache-control
     data = storage_file_client.create_signed_upload_url(f"cached_{file.bucket_path}")
     storage_file_client.upload_to_signed_url(
-        data["path"], data["token"], file.file_content, {"cache-control": "3600"}
+        data["path"], data["token"], file.file_content, {"cache-control": "86400"}
     )
     cached_info = storage_file_client.info(f"cached_{file.bucket_path}")
-    assert cached_info.get("cache_control") == "max-age=3600"
+    assert cached_info.get("cache_control") == "max-age=86400"
 
 
 def test_client_create_signed_url(
@@ -591,19 +610,34 @@ def test_client_exists(
     assert exists
 
 
-def test_client_exists_json_decode_error(
-    storage_file_client_public: SyncBucketProxy,
-    monkeypatch: pytest.MonkeyPatch,
+def test_client_exists_false_for_missing_object(
+    storage_file_client: SyncBucketProxy, file: FileForTesting
 ) -> None:
-    """Test exists method handling of json.JSONDecodeError"""
-    from json import JSONDecodeError
+    """A missing object in an existing bucket is reported as not existing"""
+    assert storage_file_client.exists(file.bucket_path) is False
 
-    def mock_head(*args, **kwargs) -> None:
-        raise JSONDecodeError("Expecting value", "", 0)
 
-    monkeypatch.setattr(storage_file_client_public._client, "head", mock_head)
-    exists = storage_file_client_public.exists("some/path")
-    assert exists is False
+def test_client_exists_raises_for_missing_bucket(
+    storage: SyncStorageClient, uuid_factory: Callable[[], str]
+) -> None:
+    """A missing bucket is an error, not a missing file"""
+    with pytest.raises(StorageApiError) as exc_info:
+        storage.from_(uuid_factory()).exists("some/path")
+
+    assert str(exc_info.value.status) == "404"
+    assert exc_info.value.code != "not_found"
+
+
+def test_client_exists_raises_for_invalid_jwt(
+    storage: SyncStorageClient, bucket: str
+) -> None:
+    """A rejected token is an error, not a missing file"""
+    with SyncStorageClient(
+        os.environ["SUPABASE_TEST_URL"],
+        {"apiKey": "invalid", "Authorization": "Bearer invalid"},
+    ) as client:
+        with pytest.raises(StorageApiError):
+            client.from_(bucket).exists("some/path")
 
 
 def test_client_copy(
@@ -757,6 +791,7 @@ def test_client_list_v2(
     assert len(result.objects) == 1
     object = result.objects[0]
     assert object.name == file.bucket_path
+    assert object.metadata is not None
     assert object.metadata.get("mimetype") == file.mime_type
 
 
@@ -774,7 +809,7 @@ def test_client_list_v2_folder(
     assert len(result.objects) == 0
     assert len(result.folders) == 1
     folder = result.folders[0]
-    assert folder.key == file.bucket_folder
+    assert folder.name == file.bucket_folder + "/"
 
 
 def test_client_list_v2_paginated(
@@ -806,3 +841,40 @@ def test_client_list_v2_paginated(
         assert all(f.name.startswith(file.bucket_path) for f in result.objects)
         pages += 1
     assert pages == 4
+
+
+def test_client_list_v2_allows_null_object_metadata() -> None:
+    response_body = {
+        "hasNext": False,
+        "folders": [],
+        "objects": [
+            {
+                "id": "object-without-metadata",
+                "name": "file-without-metadata.txt",
+                "updated_at": "2024-01-01T00:00:00Z",
+                "created_at": "2024-01-01T00:00:00Z",
+                "metadata": None,
+            },
+            {
+                "id": "object-with-metadata",
+                "name": "file-with-metadata.txt",
+                "updated_at": "2024-01-01T00:00:00Z",
+                "created_at": "2024-01-01T00:00:00Z",
+                "metadata": {"mimetype": "text/plain"},
+            },
+        ],
+    }
+
+    def handle_request(request: Request) -> Response:
+        return Response(200, json=response_body, request=request)
+
+    with HttpxClient(transport=MockTransport(handle_request)) as http_client:
+        bucket = SyncBucketProxy(
+            "bucket", URL("https://example.com/storage/v1/"), Headers(), http_client
+        )
+        result = bucket.list_v2()
+
+    assert len(result.objects) == 2
+    assert result.objects[0].name == "file-without-metadata.txt"
+    assert result.objects[0].metadata is None
+    assert result.objects[1].metadata == {"mimetype": "text/plain"}

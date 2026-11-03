@@ -16,8 +16,12 @@ pytest: start-infra
 help::
 	@echo "  pytest         -- run pytest on realtime package"
 
+include ../../infra.mk
+
+REALTIME_EXCLUDED_SERVICES := studio,mailpit,edge-runtime,logflare,vector,supavisor,imgproxy,storage-api
+
 start-infra:
-	supabase start --workdir infra -x studio,mailpit,edge-runtime,logflare,vector,supavisor,imgproxy,storage-api
+	@$(call retry_start_infra,$(call supabase_cleanup,realtime-py-tests),supabase --workdir infra start -x $(REALTIME_EXCLUDED_SERVICES))
 help::
 	@echo "  stop-infra     -- start containers for tests"
 

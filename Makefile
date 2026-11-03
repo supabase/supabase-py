@@ -34,6 +34,10 @@ mypy: $(call FORALL_PKGS,mypy)
 help::
 	@echo "  mypy           -- Run mypy on all files"
 
+build-sync: functions.build-sync storage.build-sync auth.build-sync postgrest.build-sync supabase.build-sync
+help::
+	@echo "  build-sync     -- Generate _sync from _async for every package that has one."
+
 ruff:
 	@uv run ruff check --fix
 	@uv run ruff format

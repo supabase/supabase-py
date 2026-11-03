@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 from typing_extensions import TypedDict
 
@@ -90,11 +90,6 @@ ErrorCode = Literal[
 ]
 
 
-class UserDoesntExist(Exception):
-    def __init__(self, access_token: str) -> None:
-        self.access_token = access_token
-
-
 class AuthError(Exception):
     def __init__(self, message: str, code: ErrorCode | None) -> None:
         Exception.__init__(self, message)
@@ -148,6 +143,17 @@ class CustomAuthError(AuthError):
             "status": self.status,
             "code": self.code,
         }
+
+
+class UserDoesntExist(CustomAuthError):
+    def __init__(self) -> None:
+        CustomAuthError.__init__(
+            self,
+            "User does not exist for the provided access token",
+            "UserDoesntExist",
+            404,
+            "user_not_found",
+        )
 
 
 class AuthSessionMissingError(CustomAuthError):
@@ -218,11 +224,11 @@ class AuthRetryableError(CustomAuthError):
 
 
 class AuthApiErrorWithReasonsDict(AuthApiErrorDict):
-    reasons: List[str]
+    reasons: list[str]
 
 
 class AuthWeakPasswordError(CustomAuthError):
-    def __init__(self, message: str, status: int, reasons: List[str]) -> None:
+    def __init__(self, message: str, status: int, reasons: list[str]) -> None:
         CustomAuthError.__init__(
             self,
             message,

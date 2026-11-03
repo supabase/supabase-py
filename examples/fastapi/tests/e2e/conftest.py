@@ -18,8 +18,9 @@ from pathlib import Path
 
 import httpx
 import pytest
-from supabase import acreate_client
 from supabase.lib.client_options import AsyncClientOptions
+
+from supabase import acreate_client
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "http://127.0.0.1:54341")
 SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
@@ -55,7 +56,7 @@ async def _delete_user_and_data(user_id: str) -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _wipe_tables():
+def _wipe_tables() -> None:
     """Delete all rows from test tables at session start for a clean slate."""
     headers = {
         "apikey": SUPABASE_SERVICE_KEY,

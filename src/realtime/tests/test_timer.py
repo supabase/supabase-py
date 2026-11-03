@@ -1,4 +1,5 @@
 import asyncio
+from typing import NoReturn
 
 import pytest
 
@@ -10,8 +11,8 @@ def linear_backoff(tries: int) -> float:
 
 
 @pytest.mark.asyncio
-async def test_timer_initialization():
-    async def callback():
+async def test_timer_initialization() -> None:
+    async def callback() -> None:
         pass
 
     timer = AsyncTimer(callback, linear_backoff)
@@ -22,10 +23,10 @@ async def test_timer_initialization():
 
 
 @pytest.mark.asyncio
-async def test_timer_schedule():
+async def test_timer_schedule() -> None:
     callback_called = False
 
-    async def callback():
+    async def callback() -> None:
         nonlocal callback_called
         callback_called = True
 
@@ -42,10 +43,10 @@ async def test_timer_schedule():
 
 
 @pytest.mark.asyncio
-async def test_timer_reset():
+async def test_timer_reset() -> None:
     callback_called = False
 
-    async def callback():
+    async def callback() -> None:
         nonlocal callback_called
         callback_called = True
 
@@ -63,10 +64,10 @@ async def test_timer_reset():
 
 
 @pytest.mark.asyncio
-async def test_timer_multiple_schedules():
+async def test_timer_multiple_schedules() -> None:
     callback_count = 0
 
-    async def callback():
+    async def callback() -> None:
         nonlocal callback_count
         callback_count += 1
 
@@ -86,10 +87,8 @@ async def test_timer_multiple_schedules():
 
 
 @pytest.mark.asyncio
-async def test_timer_callback_error():
-    error_caught = False
-
-    async def callback():
+async def test_timer_callback_error() -> None:
+    async def callback() -> NoReturn:
         raise ValueError("Test error")
 
     timer = AsyncTimer(callback, linear_backoff)
@@ -103,10 +102,10 @@ async def test_timer_callback_error():
 
 
 @pytest.mark.asyncio
-async def test_timer_cancellation():
+async def test_timer_cancellation() -> None:
     callback_called = False
 
-    async def callback():
+    async def callback() -> None:
         nonlocal callback_called
         callback_called = True
 

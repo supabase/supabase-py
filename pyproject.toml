@@ -37,13 +37,36 @@ select = [
   # "SIM",
   # isort
   "I",
-  "ANN2"
+  "ANN2",
+  # pylint errors and warnings
+  "PLE",
+  "PLW",
+  # flake8-pie
+  "PIE",
+  # flake8-logging
+  "LOG",
+  # flynt
+  "FLY",
+  # flake8-2020
+  "YTT",
+  # duplicate pytest.mark.parametrize cases
+  "PT014",
+  # unused noqa directives
+  "RUF100",
+  # unreferenced asyncio tasks
+  "RUF006",
+  # blanket type: ignore and noqa
+  "PGH003",
+  "PGH004",
+  # flake8-async
+  "ASYNC",
 ]
-ignore = ["F403", "E501", "E402", "UP006", "UP035"]
+ignore = ["F403", "E501", "E402", "ASYNC230"]
 
 [tool.ruff.lint.per-file-ignores]
 # FastAPI uses Depends() in function default arguments — B008 is intentional there.
-"examples/fastapi/**" = ["B008"]
+# Return annotations are omitted in the example to keep it readable.
+"examples/fastapi/**" = ["B008", "ANN2"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

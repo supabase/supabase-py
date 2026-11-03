@@ -6,17 +6,15 @@ RLS policy summary (from 001_initial.sql):
   - Only the user whose id matches assigned_to may UPDATE a task.
 """
 
-import pytest
 
-
-async def test_list_tasks_returns_200_for_authenticated_user(client_a):
+async def test_list_tasks_returns_200_for_authenticated_user(client_a) -> None:
     """Authenticated user can list tasks (RLS SELECT policy: all users see all tasks)."""
     r = await client_a.get("/tasks/")
     assert r.status_code == 200
     assert isinstance(r.json(), list)
 
 
-async def test_create_task(client_a, user_a):
+async def test_create_task(client_a, user_a) -> None:
     r = await client_a.post(
         "/tasks/",
         json={"title": "E2E task", "assigned_to": user_a["user_id"]},
@@ -28,7 +26,7 @@ async def test_create_task(client_a, user_a):
     assert task["assigned_to"] == user_a["user_id"]
 
 
-async def test_list_tasks_returns_created_task(client_a, user_a):
+async def test_list_tasks_returns_created_task(client_a, user_a) -> None:
     await client_a.post(
         "/tasks/",
         json={"title": "Listed task", "assigned_to": user_a["user_id"]},
@@ -39,7 +37,7 @@ async def test_list_tasks_returns_created_task(client_a, user_a):
     assert "Listed task" in titles
 
 
-async def test_update_task_status(client_a, user_a):
+async def test_update_task_status(client_a, user_a) -> None:
     create_r = await client_a.post(
         "/tasks/",
         json={"title": "Status task", "assigned_to": user_a["user_id"]},
@@ -51,7 +49,7 @@ async def test_update_task_status(client_a, user_a):
     assert r.json()["status"] == "in_progress"
 
 
-async def test_update_task_invalid_status_returns_400(client_a, user_a):
+async def test_update_task_invalid_status_returns_400(client_a, user_a) -> None:
     create_r = await client_a.post(
         "/tasks/",
         json={"title": "Bad status task", "assigned_to": user_a["user_id"]},
@@ -62,7 +60,7 @@ async def test_update_task_invalid_status_returns_400(client_a, user_a):
     assert r.status_code == 400
 
 
-async def test_rls_user_b_cannot_update_user_a_task(client_a, client_b, user_a):
+async def test_rls_user_b_cannot_update_user_a_task(client_a, client_b, user_a) -> None:
     """RLS: user B cannot update a task assigned to user A."""
     create_r = await client_a.post(
         "/tasks/",
@@ -75,7 +73,7 @@ async def test_rls_user_b_cannot_update_user_a_task(client_a, client_b, user_a):
     assert r.status_code == 404
 
 
-async def test_rls_user_b_can_read_user_a_tasks(client_a, client_b, user_a):
+async def test_rls_user_b_can_read_user_a_tasks(client_a, client_b, user_a) -> None:
     """RLS: all authenticated users may read all tasks (SELECT policy)."""
     await client_a.post(
         "/tasks/",

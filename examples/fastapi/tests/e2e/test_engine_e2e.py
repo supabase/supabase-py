@@ -41,7 +41,7 @@ async def _wait_for_rule_event(
 
 async def test_engine_creates_rule_event_on_status_change(
     running_app, service_client, client_a, user_a
-):
+) -> None:
     """
     Updating a task status to a watched value causes the engine to write
     a rule_event row within the poll timeout.
@@ -82,7 +82,7 @@ async def test_engine_creates_rule_event_on_status_change(
 
 async def test_engine_ignores_non_matching_status(
     running_app, service_client, client_a, user_a
-):
+) -> None:
     """
     Updating a task to a status that no rule watches must NOT create a rule_event.
     """

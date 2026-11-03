@@ -1,11 +1,10 @@
 import asyncio
-import json
 import logging
 import re
 import sys
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Union
-from urllib.parse import urlencode, urlparse, urlunparse
+from typing import Any, Callable, Optional, Union
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from warnings import warn
 
 import websockets
@@ -30,7 +29,7 @@ from .channel import AsyncRealtimeChannel, RealtimeChannelOptions
 
 def deprecated(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         logger.warning(f"Warning: {func.__name__} is deprecated.")
         return func(*args, **kwargs)
 
@@ -46,7 +45,7 @@ class AsyncRealtimeClient:
         url: str,
         token: Optional[str] = None,
         auto_reconnect: bool = True,
-        params: Optional[Dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
         hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
         max_retries: int = 5,
         initial_backoff: float = 1.0,
@@ -76,17 +75,17 @@ class AsyncRealtimeClient:
 
         self.url = f"{re.sub(r'https://', 'wss://', re.sub(r'http://', 'ws://', url, flags=re.IGNORECASE), flags=re.IGNORECASE)}/websocket"
         if token:
-            self.url += f"?apikey={token}"
+            self.url += "?" + urlencode({"apikey": token})
         self.http_endpoint = http_endpoint_url(url)
         self.params = params or {}
         self.apikey = token
         self.access_token = token
-        self.send_buffer: List[Callable] = []
+        self.send_buffer: list[Callable] = []
         self.hb_interval = hb_interval
         self._ws_connection: Optional[ClientConnection] = None
         self.ref = 0
         self.auto_reconnect = auto_reconnect
-        self.channels: Dict[str, AsyncRealtimeChannel] = {}
+        self.channels: dict[str, AsyncRealtimeChannel] = {}
         self.max_retries = max_retries
         self.initial_backoff = initial_backoff
         self.timeout = timeout
@@ -161,13 +160,21 @@ class AsyncRealtimeClient:
             return
 
         retries = 0
-        backoff = self.initial_backoff
-
-        logger.debug(f"Attempting to connect to WebSocket at {self.url}")
+        endpoint_url = self.endpoint_url()
+        parsed_url = urlparse(endpoint_url)
+        redacted_query = urlencode(
+            [
+                (k, "REDACTED" if k == "apikey" else v)
+                for k, v in parse_qsl(parsed_url.query, keep_blank_values=True)
+            ]
+        )
+        logger.debug(
+            f"Attempting to connect to WebSocket at {urlunparse(parsed_url._replace(query=redacted_query))}"
+        )
 
         while retries < self.max_retries:
             try:
-                ws = await connect(self.url)
+                ws = await connect(endpoint_url, open_timeout=self.timeout)
                 self._ws_connection = ws
                 logger.debug("WebSocket connection established successfully")
                 return await self._on_connect()
@@ -181,19 +188,18 @@ class AsyncRealtimeClient:
                     )
                     raise
                 else:
-                    wait_time = backoff * (2 ** (retries - 1))
+                    wait_time = min(self.initial_backoff * (2 ** (retries - 1)), 60)
                     logger.debug(
-                        f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (backoff={backoff}s)"
+                        f"Retry {retries}/{self.max_retries}: Next attempt in {wait_time:.2f}s (initial_backoff={self.initial_backoff}s)"
                     )
                     await asyncio.sleep(wait_time)
-                    backoff = min(backoff, 60)
 
         raise Exception(
             f"Failed to establish WebSocket connection after {self.max_retries} attempts"
         )
 
     @deprecated
-    async def listen(self):
+    async def listen(self) -> None:
         pass
 
     async def _on_connect(self) -> None:
@@ -222,7 +228,7 @@ class AsyncRealtimeClient:
         else:
             logger.error("Auto-reconnect disabled, terminating connection")
 
-    async def _flush_send_buffer(self):
+    async def _flush_send_buffer(self) -> None:
         if self.is_connected and len(self.send_buffer) > 0:
             for callback in self.send_buffer:
                 await callback()
@@ -269,7 +275,7 @@ class AsyncRealtimeClient:
 
             except websockets.exceptions.ConnectionClosedError as e:
                 await self._on_connect_error(e)
-            except websockets.exceptions.ConnectionClosedOK as e:
+            except websockets.exceptions.ConnectionClosedOK:
                 pass
 
     def channel(
@@ -278,21 +284,30 @@ class AsyncRealtimeClient:
         """
         Initialize a channel and create a two-way association with the socket.
 
+        If a channel for this topic already exists and is not being left, that
+        channel is returned instead of a new one. Messages are routed to one
+        channel per topic, so replacing it would silently stop delivering
+        events to callbacks registered on the existing channel.
+
         :param topic: The topic to subscribe to
         :param params: Optional channel parameters
         :return: AsyncRealtimeChannel instance
         """
         topic = f"realtime:{topic}"
+        existing = self.channels.get(topic)
+        if existing and not existing.is_leaving:
+            return existing
         chan = AsyncRealtimeChannel(self, topic, params)
         self.channels[topic] = chan
 
         return chan
 
-    def get_channels(self) -> List[AsyncRealtimeChannel]:
+    def get_channels(self) -> list[AsyncRealtimeChannel]:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: AsyncRealtimeChannel) -> None:
-        del self.channels[channel.topic]
+        if self.channels.get(channel.topic) is channel:
+            del self.channels[channel.topic]
 
     async def remove_channel(self, channel: AsyncRealtimeChannel) -> None:
         """
@@ -300,8 +315,8 @@ class AsyncRealtimeClient:
         :param channel: Channel to remove
         :return: None
         """
-        if channel.topic in self.channels:
-            await self.channels[channel.topic].unsubscribe()
+        if self.channels.get(channel.topic) is channel:
+            await channel.unsubscribe()
             self._remove_channel(channel)
 
         if len(self.channels) == 0:
@@ -333,6 +348,8 @@ class AsyncRealtimeClient:
         self.access_token = token
 
         for _, channel in self.channels.items():
+            # Rejoins resend the stored join payload, so keep its token current.
+            channel.join_push.update_payload({"access_token": token})
             if channel._joined_once and channel.is_joined:
                 await channel.push(ChannelEvents.access_token, {"access_token": token})
 
@@ -340,7 +357,7 @@ class AsyncRealtimeClient:
         self.ref += 1
         return f"{self.ref}"
 
-    async def send(self, message: Union[Message, Dict[str, Any]]) -> None:
+    async def send(self, message: Union[Message, dict[str, Any]]) -> None:
         """
         Send a message through the WebSocket connection.
 
@@ -363,9 +380,16 @@ class AsyncRealtimeClient:
             )
             msg = Message(**message)
         message_str = msg.model_dump_json()
-        logger.debug(f"send: {message_str}")
+        if logger.isEnabledFor(logging.DEBUG):
+            redacted = {
+                k: "<redacted>" if k == "access_token" else v
+                for k, v in msg.payload.items()
+            }
+            logger.debug(
+                f"send: {msg.model_copy(update={'payload': redacted}).model_dump_json()}"
+            )
 
-        async def send_message():
+        async def send_message() -> None:
             if not self._ws_connection:
                 raise NotConnectedError("_send")
 
@@ -381,7 +405,7 @@ class AsyncRealtimeClient:
         else:
             self.send_buffer.append(send_message)
 
-    async def _leave_open_topic(self, topic: str):
+    async def _leave_open_topic(self, topic: str) -> None:
         dup_channels = [
             ch
             for ch in self.channels.values()
@@ -393,7 +417,8 @@ class AsyncRealtimeClient:
 
     def endpoint_url(self) -> str:
         parsed_url = urlparse(self.url)
-        query = urlencode({**self.params, "vsn": VSN}, doseq=True)
+        current_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
+        query = urlencode({**self.params, **current_params, "vsn": VSN}, doseq=True)
         return urlunparse(
             (
                 parsed_url.scheme,

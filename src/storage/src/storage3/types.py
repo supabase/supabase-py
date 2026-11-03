@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
+from typing import Any, Literal, Optional, TypedDict, Union
 
 from pydantic import BaseModel, Field, TypeAdapter
 from typing_extensions import ReadOnly, TypeAlias, TypeAliasType
@@ -14,7 +14,6 @@ RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 JSON = TypeAliasType(
     "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
 )
-JSONAdapter: TypeAdapter = TypeAdapter(JSON)
 
 
 class BaseBucket(BaseModel, extra="ignore"):
@@ -96,12 +95,12 @@ class SearchV2Object(BaseModel):
     name: str
     updated_at: datetime
     created_at: datetime
-    metadata: Dict[str, Any]
+    metadata: Optional[dict[str, Any]]
     key: Optional[str] = None
 
 
 class SearchV2Folder(BaseModel):
-    key: str
+    key: Optional[str] = None
     name: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -109,8 +108,8 @@ class SearchV2Folder(BaseModel):
 
 class SearchV2Result(BaseModel):
     hasNext: bool
-    folders: List[SearchV2Folder]
-    objects: List[SearchV2Object]
+    folders: list[SearchV2Folder]
+    objects: list[SearchV2Object]
     nextCursor: Optional[str] = None
 
 
@@ -125,8 +124,8 @@ FileOptions = TypedDict(
         "content-type": str,
         "x-upsert": str,
         "upsert": str,
-        "metadata": Dict[str, Any],
-        "headers": Dict[str, str],
+        "metadata": dict[str, Any],
+        "headers": dict[str, str],
     },
     total=False,
 )
@@ -185,8 +184,8 @@ UploadSignedUrlFileOptions = TypedDict(
     {
         "cache-control": str,
         "content-type": str,
-        "metadata": Dict[str, Any],
-        "headers": Dict[str, str],
+        "metadata": dict[str, Any],
+        "headers": dict[str, str],
     },
     total=False,
 )
@@ -195,7 +194,7 @@ DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
 
 
 class MetadataConfiguration(BaseModel, extra="ignore"):
-    non_filterable_metadata_keys: Optional[List[str]] = Field(
+    non_filterable_metadata_keys: Optional[list[str]] = Field(
         alias="nonFilterableMetadataKeys"
     )
 
@@ -211,7 +210,7 @@ class ListIndexesResponseItem(BaseModel, extra="ignore"):
 
 
 class ListVectorIndexesResponse(BaseModel, extra="ignore"):
-    indexes: List[ListIndexesResponseItem]
+    indexes: list[ListIndexesResponseItem]
     nextToken: Optional[str] = None
 
 
@@ -224,24 +223,24 @@ class VectorIndex(BaseModel, extra="ignore"):
     metadata: Optional[MetadataConfiguration] = Field(
         alias="metadataConfiguration", default=None
     )
-    creation_time: Optional[datetime] = None
+    creation_time: Optional[datetime] = Field(alias="creationTime", default=None)
 
 
 class GetVectorIndexResponse(BaseModel, extra="ignore"):
     index: VectorIndex
 
 
-VectorFilter = Dict[str, Any]
+VectorFilter = dict[str, Any]
 
 
 class VectorData(BaseModel, extra="ignore"):
-    float32: List[float]
+    float32: list[float]
 
 
 class VectorObject(BaseModel, extra="ignore"):
     key: str
     data: VectorData
-    metadata: Optional[dict[str, Union[str, bool, float]]] = None
+    metadata: Optional[dict[str, JSON]] = None
 
 
 class VectorMatch(BaseModel, extra="ignore"):
@@ -252,16 +251,16 @@ class VectorMatch(BaseModel, extra="ignore"):
 
 
 class GetVectorsResponse(BaseModel, extra="ignore"):
-    vectors: List[VectorMatch]
+    vectors: list[VectorMatch]
 
 
 class ListVectorsResponse(BaseModel, extra="ignore"):
-    vectors: List[VectorMatch]
+    vectors: list[VectorMatch]
     nextToken: Optional[str] = None
 
 
 class QueryVectorsResponse(BaseModel, extra="ignore"):
-    vectors: List[VectorMatch]
+    vectors: list[VectorMatch]
 
 
 class AnalyticsBucket(BaseModel, extra="ignore"):
@@ -275,7 +274,7 @@ class AnalyticsBucket(BaseModel, extra="ignore"):
 SortColumn = Literal["id", "name", "created_at", "updated_at"]
 SortOrder = Literal["asc", "desc"]
 
-AnalyticsBucketsParser = TypeAdapter(List[AnalyticsBucket])
+AnalyticsBucketsParser = TypeAdapter(list[AnalyticsBucket])
 
 
 class AnalyticsBucketDeleteResponse(BaseModel, extra="ignore"):
@@ -302,5 +301,5 @@ class ListVectorBucketsItem(BaseModel, extra="ignore"):
 
 
 class ListVectorBucketsResponse(BaseModel, extra="ignore"):
-    vectorBuckets: List[ListVectorBucketsItem]
+    vectorBuckets: list[ListVectorBucketsItem]
     nextToken: Optional[str] = None

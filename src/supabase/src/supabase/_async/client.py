@@ -1,7 +1,7 @@
 import asyncio
 import copy
 import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 from httpx import Timeout
 from postgrest import (
@@ -97,6 +97,7 @@ class AsyncClient:
         self._postgrest: Optional[AsyncPostgrestClient] = None
         self._storage: Optional[AsyncStorageClient] = None
         self._functions: Optional[AsyncFunctionsClient] = None
+        self._background_tasks: set[asyncio.Task[None]] = set()
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
@@ -152,7 +153,7 @@ class AsyncClient:
     def rpc(
         self,
         fn: str,
-        params: Optional[Dict[Any, Any]] = None,
+        params: Optional[dict[Any, Any]] = None,
         count: Optional[CountMethod] = None,
         head: bool = False,
         get: bool = False,
@@ -187,6 +188,7 @@ class AsyncClient:
                 headers=self.options.headers,
                 schema=self.options.schema,
                 timeout=self.options.postgrest_client_timeout,
+                retry_enabled=self.options.postgrest_client_retry,
                 http_client=self.options.httpx_client,
             )
 
@@ -224,7 +226,7 @@ class AsyncClient:
         """Creates a Realtime channel with Broadcast, Presence, and Postgres Changes."""
         return self.realtime.channel(topic, params or {})
 
-    def get_channels(self) -> List[AsyncRealtimeChannel]:
+    def get_channels(self) -> list[AsyncRealtimeChannel]:
         """Returns all realtime channels."""
         return self.realtime.get_channels()
 
@@ -251,7 +253,7 @@ class AsyncClient:
     @staticmethod
     def _init_storage_client(
         storage_url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         storage_client_timeout: int = DEFAULT_STORAGE_CLIENT_TIMEOUT,
         verify: bool = True,
         proxy: Optional[str] = None,
@@ -294,18 +296,23 @@ class AsyncClient:
     @staticmethod
     def _init_postgrest_client(
         rest_url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         schema: str,
         timeout: Union[int, float, Timeout] = DEFAULT_POSTGREST_CLIENT_TIMEOUT,
         verify: bool = True,
         proxy: Optional[str] = None,
         http_client: Union[AsyncHttpxClient, None] = None,
+        retry_enabled: bool = True,
     ) -> AsyncPostgrestClient:
         """Private helper for creating an instance of the Postgrest client."""
         if http_client is not None:
             # If an http client is provided, use it
             return AsyncPostgrestClient(
-                rest_url, headers=headers, schema=schema, http_client=http_client
+                rest_url,
+                headers=headers,
+                schema=schema,
+                http_client=http_client,
+                retry_enabled=retry_enabled,
             )
         return AsyncPostgrestClient(
             rest_url,
@@ -315,12 +322,13 @@ class AsyncClient:
             verify=verify,
             proxy=proxy,
             http_client=None,
+            retry_enabled=retry_enabled,
         )
 
     def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
-    def _get_auth_headers(self, authorization: Optional[str] = None) -> Dict[str, str]:
+    def _get_auth_headers(self, authorization: Optional[str] = None) -> dict[str, str]:
         if authorization is None:
             authorization = self.options.headers.get(
                 "Authorization", self._create_auth_header(self.supabase_key)
@@ -335,17 +343,18 @@ class AsyncClient:
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Optional[Session]
     ) -> None:
-        access_token = self.supabase_key
-        if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
-            # reset postgrest and storage instance on event change
-            self._postgrest = None
-            self._storage = None
-            self._functions = None
-            access_token = session.access_token if session else self.supabase_key
+        # Every event except SIGNED_OUT carries the current session, including
+        # USER_UPDATED and MFA_CHALLENGE_VERIFIED, whose token can carry new claims (aal2).
+        self._postgrest = None
+        self._storage = None
+        self._functions = None
+        access_token = session.access_token if session else self.supabase_key
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
         self.auth._headers["Authorization"] = auth_header
-        asyncio.create_task(self.realtime.set_auth(access_token))
+        task = asyncio.create_task(self.realtime.set_auth(access_token))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
 
 async def create_client(

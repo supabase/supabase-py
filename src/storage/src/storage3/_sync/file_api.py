@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import base64
+import builtins
 import json
 import urllib.parse
 from dataclasses import dataclass, field
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union, cast
+from typing import Any, Literal, Optional, Union, cast
 
 from httpx import Client, Headers, HTTPStatusError, Response
 from yarl import URL
 
-from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS
+from ..constants import DEFAULT_FILE_OPTIONS, DEFAULT_SEARCH_OPTIONS, DEFAULT_SORT_BY
 from ..exceptions import StorageApiError
 from ..types import (
     BaseBucket,
@@ -84,13 +84,11 @@ class SyncBucketActionsMixin:
                 raise StorageApiError(
                     resp["message"], resp["error"], resp["statusCode"]
                 ) from exc
-            except KeyError as err:
-                message = f"Unable to parse error message: {resp.text}"
-                raise StorageApiError(message, "InternalError", 400) from err
-
-        # close the resource before returning the response
-        if files and "file" in files and isinstance(files["file"][1], BufferedReader):
-            files["file"][1].close()
+            except (KeyError, TypeError, ValueError) as err:
+                message = f"Unable to parse error message: {exc.response.text}"
+                raise StorageApiError(
+                    message, "InternalError", exc.response.status_code
+                ) from err
 
         return response
 
@@ -157,19 +155,26 @@ class SyncBucketActionsMixin:
 
         final_url = ["object", "upload", "sign", self.id, *path_parts]
 
-        options: UploadSignedUrlFileOptions = file_options or {}
-        cache_control = options.get("cache-control")
-        # cacheControl is also passed as form data
-        # https://github.com/supabase/storage-js/blob/fa44be8156295ba6320ffeff96bdf91016536a46/src/packages/StorageFileApi.ts#L89
-        _data = {}
-        if cache_control:
-            options["cache-control"] = f"max-age={cache_control}"
-            _data = {"cacheControl": cache_control}
+        options: dict[str, Any] = {
+            **DEFAULT_FILE_OPTIONS,
+            **(file_options or {}),
+        }
+        cache_control = options.pop("cache-control")
+        content_type = options.pop("content-type")
+        metadata = options.pop("metadata", None)
+        file_opts_headers = options.pop("headers", None)
+
+        _data = {"cacheControl": cache_control}
+        if metadata is not None:
+            _data["metadata"] = json.dumps(metadata)
+
         headers = {
             **self._client.headers,
-            **DEFAULT_FILE_OPTIONS,
             **options,
         }
+        if file_opts_headers:
+            headers.update(file_opts_headers)
+
         filename = path_parts[-1]
 
         if (
@@ -177,25 +182,27 @@ class SyncBucketActionsMixin:
             or isinstance(file, bytes)
             or isinstance(file, FileIO)
         ):
-            # bytes or byte-stream-like object received
-            _file = {"file": (filename, file, headers.pop("content-type"))}
+            # bytes or byte-stream-like object received -- the caller owns it
+            opened = None
+            _file = {"file": (filename, file, content_type)}
         else:
-            # str or pathlib.path received
-            _file = {
-                "file": (
-                    filename,
-                    open(file, "rb"),
-                    headers.pop("content-type"),
-                )
-            }
-        response = self._request(
-            "PUT",
-            final_url,
-            files=_file,
-            headers=headers,
-            data=_data,
-            query_params=query_params,
-        )
+            # str or pathlib.path received -- we own the handle, so we close it
+            opened = open(file, "rb")
+            _file = {"file": (filename, opened, content_type)}
+
+        try:
+            response = self._request(
+                "PUT",
+                final_url,
+                files=_file,
+                headers=headers,
+                data=_data,
+                query_params=query_params,
+            )
+        finally:
+            if opened is not None:
+                opened.close()
+
         data: UploadData = response.json()
 
         return UploadResponse(path=path, Key=data["Key"])
@@ -243,10 +250,10 @@ class SyncBucketActionsMixin:
 
     def create_signed_urls(
         self,
-        paths: List[str],
+        paths: builtins.list[str],
         expires_in: int,
         options: Optional[CreateSignedURLsOptions] = None,
-    ) -> List[CreateSignedUrlResponse]:
+    ) -> builtins.list[CreateSignedUrlResponse]:
         """
         Parameters
         ----------
@@ -399,20 +406,26 @@ class SyncBucketActionsMixin:
         """
         Returns True if the file exists, False otherwise.
 
+        This reads the object's info, so the result is False only when Storage
+        reports that the object does not exist. Any other failure, such as an
+        invalid JWT or a missing bucket, raises.
+
         Parameters
         ----------
         path
             The path to the file.
         """
         try:
-            path_parts = relative_path_to_parts(path)  # split paths by /
-            response = self._request(
-                "HEAD",
-                ["object", self.id, *path_parts],
-            )
-            return response.status_code == 200
-        except json.JSONDecodeError:
-            return False
+            self.info(path)
+            return True
+        except StorageApiError as exc:
+            # A HEAD response has no body, so it can't tell an invalid JWT or a
+            # missing bucket apart from a missing object. The info response
+            # can: a missing object is a 404 "not_found", or a 404 without a
+            # parsable body.
+            if str(exc.status) == "404" and exc.code in ("not_found", "InternalError"):
+                return False
+            raise
 
     def list(
         self,
@@ -434,6 +447,10 @@ class SyncBucketActionsMixin:
         body = {
             **DEFAULT_SEARCH_OPTIONS,
             **extra_options,
+            "sortBy": {
+                **DEFAULT_SORT_BY,
+                **extra_options.get("sortBy", {}),
+            },
             "prefix": path or "",
         }
         response = self._request(
@@ -460,7 +477,7 @@ class SyncBucketActionsMixin:
         self,
         path: str,
         options: Optional[DownloadOptions] = None,
-        query_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[dict[str, str]] = None,
     ) -> bytes:
         """
         Downloads a file.
@@ -510,62 +527,63 @@ class SyncBucketActionsMixin:
         file_options
             HTTP headers.
         """
-        if file_options is None:
-            file_options = {}
-        cache_control = file_options.pop("cache-control", None)
-        _data = {}
+        options: dict[str, Any] = {
+            **DEFAULT_FILE_OPTIONS,
+            **(file_options or {}),
+        }
+        cache_control = options.pop("cache-control")
+        content_type = options.pop("content-type")
+        _data = {"cacheControl": cache_control}
 
-        upsert = file_options.pop("upsert", None)
+        upsert = options.pop("upsert", None)
         if upsert:
-            file_options.update({"x-upsert": upsert})
+            options["x-upsert"] = upsert
 
-        metadata = file_options.pop("metadata", None)
-        file_opts_headers = file_options.pop("headers", None)
+        metadata = options.pop("metadata", None)
+        file_opts_headers = options.pop("headers", None)
 
         headers = {
             **self._client.headers,
-            **DEFAULT_FILE_OPTIONS,
-            **file_options,
+            **options,
         }
 
-        if metadata:
+        if metadata is not None:
             metadata_str = json.dumps(metadata)
-            headers["x-metadata"] = base64.b64encode(metadata_str.encode())
-            _data.update({"metadata": metadata_str})
-
-        if file_opts_headers:
-            headers.update({**file_opts_headers})
+            _data["metadata"] = metadata_str
 
         # Only include x-upsert on a POST method
         if method != "POST":
-            del headers["x-upsert"]
+            headers.pop("x-upsert", None)
+
+        if file_opts_headers:
+            headers.update(file_opts_headers)
 
         filename = path[-1]
-
-        if cache_control:
-            headers["cache-control"] = f"max-age={cache_control}"
-            _data.update({"cacheControl": cache_control})
 
         if (
             isinstance(file, BufferedReader)
             or isinstance(file, bytes)
             or isinstance(file, FileIO)
         ):
-            # bytes or byte-stream-like object received
-            files = {"file": (filename, file, headers.pop("content-type"))}
+            # bytes or byte-stream-like object received -- the caller owns it
+            opened = None
+            files = {"file": (filename, file, content_type)}
         else:
-            # str or pathlib.path received
-            files = {
-                "file": (
-                    filename,
-                    open(file, "rb"),
-                    headers.pop("content-type"),
-                )
-            }
+            # str or pathlib.path received -- we own the handle, so we close it
+            opened = open(file, "rb")
+            files = {"file": (filename, opened, content_type)}
 
-        response = self._request(
-            method, ["object", self.id, *path], files=files, headers=headers, data=_data
-        )
+        try:
+            response = self._request(
+                method,
+                ["object", self.id, *path],
+                files=files,
+                headers=headers,
+                data=_data,
+            )
+        finally:
+            if opened is not None:
+                opened.close()
 
         data: UploadData = response.json()
 

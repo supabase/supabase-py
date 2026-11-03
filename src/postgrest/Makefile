@@ -16,11 +16,10 @@ mypy:
 help::
 	@echo "  mypy           -- run mypy on postgrest package"
 
+include ../../infra.mk
+
 start-infra:
-	cd infra &&\
-	docker compose down &&\
-	docker compose up -d
-	sleep 2
+	@$(call retry_start_infra,$(compose_cleanup),(cd infra && docker compose up -d))
 help::
 	@echo "  stop-infra     -- start containers for tests"
 
@@ -46,14 +45,18 @@ help::
 unasync:
 	uv run --package postgrest run-unasync.py
 
-build-sync: unasync
-	sed -i 's/@pytest.mark.asyncio//g' tests/_sync/test_client.py
-	sed -i 's/_async/_sync/g' tests/_sync/test_client.py tests/_sync/test_query_request_builder.py tests/_sync/test_filter_request_builder.py
-	sed -i 's/Async/Sync/g' src/postgrest/_sync/request_builder.py tests/_sync/test_client.py
-	sed -i 's/_client\.SyncClient/_client\.Client/g' tests/_sync/test_client.py
-	sed -i 's/SyncHTTPTransport/HTTPTransport/g' tests/_sync/**.py
-	sed -i 's/SyncClient/Client/g' src/postgrest/_sync/**.py tests/_sync/**.py
-	sed -i 's/self\.session\.aclose/self\.session\.close/g' src/postgrest/_sync/client.py
+include ../../gnu-sed.mk
+
+build-sync: gnu-sed
+	@$(MAKE) --no-print-directory unasync
+	$(SED) -i 's/@pytest.mark.asyncio//g' tests/_sync/test_client.py
+	$(SED) -i 's/_async/_sync/g' tests/_sync/test_client.py tests/_sync/test_query_request_builder.py tests/_sync/test_filter_request_builder.py
+	$(SED) -i 's/Async/Sync/g' src/postgrest/_sync/request_builder.py tests/_sync/test_client.py
+	$(SED) -i 's/_client\.SyncClient/_client\.Client/g' tests/_sync/test_client.py
+	$(SED) -i 's/SyncHTTPTransport/HTTPTransport/g' tests/_sync/**.py
+	$(SED) -i 's/SyncClient/Client/g' src/postgrest/_sync/**.py tests/_sync/**.py
+	$(SED) -i 's/self\.session\.aclose/self\.session\.close/g' src/postgrest/_sync/client.py
+	$(SED) -i 's/^import asyncio$$/import time/; s/asyncio\.sleep/time.sleep/' src/postgrest/_sync/request_builder.py
 help::
 	@echo "  build-sync     -- generate _sync from _async implementation"
 

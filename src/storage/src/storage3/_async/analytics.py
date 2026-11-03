@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from httpx import QueryParams
 
@@ -31,12 +31,12 @@ class AsyncStorageAnalyticsClient:
         sort_column: Optional[SortColumn] = None,
         sort_order: Optional[SortOrder] = None,
         search: Optional[str] = None,
-    ) -> List[AnalyticsBucket]:
+    ) -> list[AnalyticsBucket]:
         params = dict(
             limit=limit,
             offset=offset,
-            sort_column=sort_column,
-            sort_order=sort_order,
+            sortColumn=sort_column,
+            sortOrder=sort_order,
             search=search,
         )
         filtered_params = QueryParams(
