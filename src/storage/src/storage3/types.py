@@ -172,7 +172,9 @@ class SignedUrlsJsonItem(BaseModel, extra="ignore"):
     signedURL: str | None
 
 
-SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
+SignedUrlsJsonResponse: TypeAdapter[list[SignedUrlsJsonItem]] = TypeAdapter(
+    list[SignedUrlsJsonItem]
+)
 
 
 class CreateSignedUploadUrlOptions(BaseModel, extra="ignore"):
@@ -274,7 +276,9 @@ class AnalyticsBucket(BaseModel, extra="ignore"):
 SortColumn = Literal["id", "name", "created_at", "updated_at"]
 SortOrder = Literal["asc", "desc"]
 
-AnalyticsBucketsParser = TypeAdapter(list[AnalyticsBucket])
+AnalyticsBucketsParser: TypeAdapter[list[AnalyticsBucket]] = TypeAdapter(
+    list[AnalyticsBucket]
+)
 
 
 class AnalyticsBucketDeleteResponse(BaseModel, extra="ignore"):
