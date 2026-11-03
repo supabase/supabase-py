@@ -221,10 +221,6 @@ async def test_remove_all_channels_leaves_every_channel_and_closes() -> None:
     assert not socket.is_connected
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="remove_all_channels does not remove the channels from the client",
-)
 @pytest.mark.asyncio
 async def test_remove_all_channels_forgets_channels() -> None:
     socket, _ = await connected_socket()

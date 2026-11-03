@@ -155,10 +155,6 @@ async def test_join_reply_with_missing_server_binding_reports_channel_error() ->
     await socket.close()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="an empty postgres_changes reply drops every binding and reports SUBSCRIBED",
-)
 @pytest.mark.asyncio
 async def test_join_reply_with_empty_server_bindings_reports_channel_error() -> None:
     socket, connection = await connected_socket()
@@ -171,10 +167,6 @@ async def test_join_reply_with_empty_server_bindings_reports_channel_error() -> 
     assert [state for state, _ in states] == [RealtimeSubscribeStates.CHANNEL_ERROR]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="a join reply without postgres_changes drops every client binding",
-)
 @pytest.mark.asyncio
 async def test_join_reply_without_postgres_changes_keeps_bindings() -> None:
     socket, connection = await connected_socket()
@@ -200,10 +192,6 @@ async def test_join_reply_error_reports_channel_error() -> None:
     await socket.close()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="join() nests the channel config inside a second 'config' key",
-)
 @pytest.mark.asyncio
 async def test_join_sends_channel_config() -> None:
     socket, connection = await connected_socket()
