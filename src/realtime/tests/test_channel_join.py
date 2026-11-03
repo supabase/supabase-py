@@ -1,6 +1,5 @@
 import asyncio
 import json
-import logging
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +9,8 @@ from realtime.message import ReplyPostgresChanges
 from realtime.types import ChannelStates, RealtimeAcknowledgementStatus
 
 URL = "ws://localhost/realtime/v1"
+
+pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
 
 
 class RecordingConnection:
@@ -114,8 +115,24 @@ async def test_join_goes_through_join_push() -> None:
     )
     assert channel.state == ChannelStates.JOINED
 
-    with pytest.raises(Exception, match="subscribe multiple times"):
-        await channel.join()
+    assert await channel.join() is channel
+    assert len(join_messages(connection)) == 1
+    assert channel.is_joined
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_join_after_subscribe_does_not_raise_or_rejoin() -> None:
+    connection = RecordingConnection()
+    socket = await connected_socket(connection)
+    channel = socket.channel("room")
+
+    with patch.object(channel.join_push, "start_timeout"):
+        await channel.subscribe()
+        assert await channel.join() is channel
+
+    assert len(join_messages(connection)) == 1
 
     await socket.close()
 
@@ -139,44 +156,32 @@ async def test_join_timeout_reports_errored_state() -> None:
 
 
 @pytest.mark.asyncio
-async def test_join_logs_deprecation_warning(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+async def test_join_emits_deprecation_warning() -> None:
     connection = RecordingConnection()
     socket = await connected_socket(connection)
     channel = socket.channel("room")
 
     with (
-        caplog.at_level(logging.WARNING, logger="realtime._async.channel"),
+        pytest.warns(DeprecationWarning, match=r"join\(\) is deprecated") as record,
         patch.object(channel.join_push, "start_timeout"),
     ):
         await channel.join()
 
-    assert any(
-        "AsyncRealtimeChannel.join is deprecated" in record.getMessage()
-        and "subscribe" in record.getMessage()
-        for record in caplog.records
-        if record.levelno == logging.WARNING
-    )
+    assert "subscribe()" in str(record[0].message)
+    assert record[0].filename == __file__
 
     await socket.close()
 
 
 @pytest.mark.asyncio
-async def test_subscribe_does_not_log_deprecation_warning(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_subscribe_does_not_emit_deprecation_warning() -> None:
     connection = RecordingConnection()
     socket = await connected_socket(connection)
     channel = socket.channel("room")
 
-    with (
-        caplog.at_level(logging.WARNING, logger="realtime._async.channel"),
-        patch.object(channel.join_push, "start_timeout"),
-    ):
+    with patch.object(channel.join_push, "start_timeout"):
         await channel.subscribe()
-
-    assert not any("deprecated" in record.getMessage() for record in caplog.records)
 
     await socket.close()
 

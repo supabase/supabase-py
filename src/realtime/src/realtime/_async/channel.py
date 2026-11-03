@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import warnings
 from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any, assert_never
 from urllib.parse import quote
@@ -377,13 +378,19 @@ class AsyncRealtimeChannel:
         """
         Deprecated: use `subscribe()` instead.
 
-        Joins the channel through `subscribe()`.
+        Joins the channel through `subscribe()`. Does nothing if the channel
+        has already been joined or subscribed.
 
         :return: The Channel instance for method chaining
         """
-        logger.warning(
-            "Warning: AsyncRealtimeChannel.join is deprecated and will be removed in a future major version. Use AsyncRealtimeChannel.subscribe instead."
+        warnings.warn(
+            "AsyncRealtimeChannel.join() is deprecated and will be removed in a "
+            "future major version. Use AsyncRealtimeChannel.subscribe() instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        if self._joined_once:
+            return self
         return await self.subscribe()
 
     def on_broadcast(
