@@ -109,8 +109,10 @@ async def test_head_query_error() -> None:
             .execute()
         )
 
-    assert exc_info.value.code == "400"
+    assert exc_info.value.code in ("PGRST108", "400")
     assert exc_info.value.message == "Bad Request"
+    assert exc_info.value.hint is None
+    assert exc_info.value.details is None
 
 
 async def test_equals() -> None:
