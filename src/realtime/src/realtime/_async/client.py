@@ -78,6 +78,7 @@ class AsyncRealtimeClient:
         self.hb_interval = hb_interval
         self._ws_connection: ClientConnection | None = None
         self._connect_lock = asyncio.Lock()
+        self._connect_lock_loop: asyncio.AbstractEventLoop | None = None
         self.ref = 0
         self.auto_reconnect = auto_reconnect
         self.channels: dict[str, AsyncRealtimeChannel] = {}
@@ -170,6 +171,11 @@ class AsyncRealtimeClient:
         if self.is_connected:
             logger.debug("WebSocket connection already established")
             return
+
+        loop = asyncio.get_running_loop()
+        if self._connect_lock_loop is not loop:
+            self._connect_lock = asyncio.Lock()
+            self._connect_lock_loop = loop
 
         retries = 0
         endpoint_url = self.endpoint_url()

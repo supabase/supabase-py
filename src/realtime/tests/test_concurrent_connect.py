@@ -165,11 +165,45 @@ async def test_failed_handshake_can_retry() -> None:
             new_callable=AsyncMock,
             side_effect=[OSError("handshake failed"), transport],
         ) as connect,
-        patch.object(client, "_on_connect", new_callable=AsyncMock),
+        patch.object(client, "_on_connect", new_callable=AsyncMock) as on_connect,
     ):
         try:
             await asyncio.wait_for(client.connect(), 2)
             assert client.is_connected
             assert connect.await_count == 2
+            assert on_connect.await_count == 1
         finally:
             await client.close()
+
+
+def test_contended_connect_works_across_event_loops() -> None:
+    client = AsyncRealtimeClient("ws://localhost", auto_reconnect=False)
+
+    async def contend() -> None:
+        opening = asyncio.Event()
+        release = asyncio.Event()
+
+        async def open_connection(url: str, **kwargs: object) -> AsyncMock:
+            opening.set()
+            await release.wait()
+            return AsyncMock()
+
+        with (
+            patch(
+                "realtime._async.client.connect",
+                new_callable=AsyncMock,
+                side_effect=open_connection,
+            ) as connect,
+            patch.object(client, "_on_connect", new_callable=AsyncMock),
+        ):
+            owner = asyncio.create_task(client.connect())
+            await asyncio.wait_for(opening.wait(), 2)
+            waiter = asyncio.create_task(client.connect())
+            await asyncio.sleep(0)
+            release.set()
+            await asyncio.wait_for(asyncio.gather(owner, waiter), 2)
+            assert connect.await_count == 1
+            await client.close()
+
+    asyncio.run(contend())
+    asyncio.run(contend())
