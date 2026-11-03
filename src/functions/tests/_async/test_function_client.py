@@ -516,7 +516,7 @@ async def test_invoke_query_string_keeps_repeated_and_encoded_values() -> None:
 async def test_default_client_drops_apikey_on_cross_origin_redirect(
     location: str,
 ) -> None:
-    seen: Dict[str, object] = {}
+    seen: dict[str, object] = {}
 
     def handler(request: Request) -> Response:
         if request.url.path.endswith("/hello"):
@@ -540,7 +540,7 @@ async def test_default_client_drops_apikey_on_cross_origin_redirect(
 
 
 async def test_default_client_keeps_apikey_on_same_origin_redirect() -> None:
-    seen: Dict[str, object] = {}
+    seen: dict[str, object] = {}
 
     def handler(request: Request) -> Response:
         if request.url.path.endswith("/hello"):
