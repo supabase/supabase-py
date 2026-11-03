@@ -5,6 +5,9 @@
       "changelog-path": "CHANGELOG.md",
       "separate-pull-requests": false,
       "release-type": "python",
+      "versioning": "prerelease",
+      "prerelease": true,
+      "prerelease-type": "a",
       "extra-files": [
         {
           "type": "generic",
