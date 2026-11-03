@@ -31,6 +31,13 @@ class SupabaseException(Exception):
         super().__init__(self.message)
 
 
+def _validate_str_arg(name: str, value: object) -> None:
+    if value is not None and not isinstance(value, str):
+        raise SupabaseException(f"{name} must be a string, got {type(value).__name__}")
+    if not value:
+        raise SupabaseException(f"{name} is required")
+
+
 class Client:
     """Supabase client class."""
 
@@ -53,18 +60,8 @@ class Client:
             `DEFAULT_OPTIONS` dict.
         """
 
-        if supabase_url is not None and not isinstance(supabase_url, str):
-            raise SupabaseException(
-                f"supabase_url must be a string, got {type(supabase_url).__name__}"
-            )
-        if supabase_key is not None and not isinstance(supabase_key, str):
-            raise SupabaseException(
-                f"supabase_key must be a string, got {type(supabase_key).__name__}"
-            )
-        if not supabase_url:
-            raise SupabaseException("supabase_url is required")
-        if not supabase_key:
-            raise SupabaseException("supabase_key is required")
+        _validate_str_arg("supabase_url", supabase_url)
+        _validate_str_arg("supabase_key", supabase_key)
 
         # Check if the url and key are valid
         if not re.match(r"^(https?)://.+", supabase_url):

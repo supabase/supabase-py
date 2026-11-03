@@ -20,26 +20,31 @@ VALID_KEY = "valid-key"
 
 
 @pytest.mark.parametrize(
-    ("url", "key"),
+    ("url", "key", "message"),
     [
-        ("", VALID_KEY),
-        (None, VALID_KEY),
-        ("not-a-url", VALID_KEY),
-        ("ftp://example.supabase.co", VALID_KEY),
-        ("https://", VALID_KEY),
-        ({}, VALID_KEY),
-        ([], VALID_KEY),
-        (139, VALID_KEY),
-        (VALID_URL, ""),
-        (VALID_URL, None),
-        (VALID_URL, {}),
-        (VALID_URL, []),
-        (VALID_URL, 139),
+        ("", VALID_KEY, "supabase_url is required"),
+        (None, VALID_KEY, "supabase_url is required"),
+        ("not-a-url", VALID_KEY, "Invalid URL"),
+        ("ftp://example.supabase.co", VALID_KEY, "Invalid URL"),
+        ("https://", VALID_KEY, "Invalid URL"),
+        ({}, VALID_KEY, "supabase_url must be a string, got dict"),
+        ([], VALID_KEY, "supabase_url must be a string, got list"),
+        (139, VALID_KEY, "supabase_url must be a string, got int"),
+        (VALID_URL, "", "supabase_key is required"),
+        (VALID_URL, None, "supabase_key is required"),
+        (VALID_URL, {}, "supabase_key must be a string, got dict"),
+        (VALID_URL, [], "supabase_key must be a string, got list"),
+        (VALID_URL, 139, "supabase_key must be a string, got int"),
+        (None, 139, "supabase_url is required"),
+        (139, None, "supabase_url must be a string, got int"),
     ],
 )
-def test_incorrect_values_dont_instantiate_client(url: Any, key: Any) -> None:
-    with pytest.raises(SyncSupabaseException):
+def test_incorrect_values_dont_instantiate_client(
+    url: Any, key: Any, message: str
+) -> None:
+    with pytest.raises(SyncSupabaseException) as exc_info:
         create_client(url, key)
+    assert exc_info.value.message == message
 
 
 def test_valid_url_and_key_instantiate_client() -> None:
