@@ -102,9 +102,10 @@ class SyncPostgrestClient(BasePostgrestClient):
     def schema(self, schema: str) -> SyncPostgrestClient:
         """Switch to another schema.
 
-        The returned client shares this client's HTTP session. Closing it does
-        not close the session, and it cannot send requests after this client
-        is closed.
+        The returned client shares the HTTP session of the client it was
+        derived from. Only the client that owns the session closes it: closing
+        a client returned by `schema()` does nothing, and every client sharing
+        the session stops sending requests once the owner is closed.
         """
         client = SyncPostgrestClient(
             base_url=str(self.base_url),
