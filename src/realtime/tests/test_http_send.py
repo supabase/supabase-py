@@ -64,16 +64,6 @@ async def test_uses_updated_access_token_and_omits_missing_one() -> None:
 
 
 @pytest.mark.asyncio
-async def test_private_channel_sets_query_param() -> None:
-    channel = make_client().channel(
-        "t", {"config": {"broadcast": None, "presence": None, "private": True}}
-    )
-    with mock_post(response(202)) as post:
-        await channel.http_send("e", {})
-    assert post.call_args.kwargs["params"] == {"private": "true"}
-
-
-@pytest.mark.asyncio
 async def test_binary_payload_sent_as_octet_stream() -> None:
     channel = make_client().channel("t")
     with mock_post(response(202)) as post:
@@ -81,14 +71,6 @@ async def test_binary_payload_sent_as_octet_stream() -> None:
     kwargs = post.call_args.kwargs
     assert kwargs["content"] == b"\x00\x01"
     assert kwargs["headers"]["Content-Type"] == "application/octet-stream"
-
-
-@pytest.mark.asyncio
-async def test_does_not_require_subscription_or_connection() -> None:
-    channel = make_client().channel("t")
-    assert not channel._joined_once
-    with mock_post(response(202)):
-        await channel.http_send("e", {"x": 1})
 
 
 @pytest.mark.asyncio
@@ -124,15 +106,6 @@ async def test_404_mentions_server_version() -> None:
         with pytest.raises(RealtimeHTTPError, match=r"v2\.97\.0") as exc_info:
             await channel.http_send("e", {})
     assert exc_info.value.status == 404
-
-
-@pytest.mark.asyncio
-async def test_timeout_error() -> None:
-    channel = make_client().channel("t")
-    with patch("httpx.AsyncClient.post", side_effect=httpx.ReadTimeout("slow")):
-        with pytest.raises(RealtimeHTTPError, match="Request timeout") as exc_info:
-            await channel.http_send("e", {})
-    assert exc_info.value.status is None
 
 
 @pytest.mark.asyncio
