@@ -54,7 +54,6 @@ asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.mypy]
-python_version = "3.9"
 check_untyped_defs = true
 allow_redefinition = true
 
