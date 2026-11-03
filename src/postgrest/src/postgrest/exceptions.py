@@ -104,18 +104,12 @@ def _proxy_status_error_code(r: Response) -> Optional[str]:
 
 
 def generate_default_error_message(r: Response) -> dict[str, Any]:
-    if not r.content:
-        # HEAD responses have no body, so PostgREST reports the error code
-        # in the Proxy-Status header instead.
-        return {
-            "message": r.reason_phrase or f"Request failed with status {r.status_code}",
-            "code": _proxy_status_error_code(r) or str(r.status_code),
-            "hint": None,
-            "details": None,
-        }
+    # Error bodies that are missing (HEAD) or not PostgREST JSON (for example
+    # a proxy error page) do not carry the error code, so read it from the
+    # Proxy-Status header when PostgREST set it.
     return {
-        "message": "JSON could not be generated",
-        "code": r.status_code,
-        "hint": "Refer to full message for details",
-        "details": str(r.content),
+        "message": r.reason_phrase or f"Request failed with status {r.status_code}",
+        "code": _proxy_status_error_code(r) or str(r.status_code),
+        "hint": None,
+        "details": r.text or None,
     }
