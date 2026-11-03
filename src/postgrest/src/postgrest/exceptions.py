@@ -1,3 +1,4 @@
+import re
 from typing import Any, Optional
 
 from httpx import Response
@@ -60,12 +61,45 @@ class APIError(Exception):
         return self._raw_error
 
 
+def _split_outside_quotes(value: str, separator: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    in_quotes = False
+    escaped = False
+    for char in value:
+        if escaped:
+            escaped = False
+        elif in_quotes and char == "\\":
+            escaped = True
+        elif char == '"':
+            in_quotes = not in_quotes
+        elif char == separator and not in_quotes:
+            parts.append("".join(current))
+            current = []
+            continue
+        current.append(char)
+    parts.append("".join(current))
+    return parts
+
+
+def _unquote(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        return re.sub(r"\\(.)", r"\1", value[1:-1])
+    return value
+
+
 def _proxy_status_error_code(r: Response) -> Optional[str]:
     proxy_status: str = r.headers.get("Proxy-Status", "")
-    for param in proxy_status.split(";")[1:]:
-        key, _, value = param.strip().partition("=")
-        if key == "error" and value:
-            return value.strip('"')
+    for member in _split_outside_quotes(proxy_status, ","):
+        name, *params = _split_outside_quotes(member, ";")
+        if _unquote(name).lower() != "postgrest":
+            continue
+        for param in params:
+            key, _, value = param.partition("=")
+            if key.strip() == "error":
+                return _unquote(value) or None
+        return None
     return None
 
 

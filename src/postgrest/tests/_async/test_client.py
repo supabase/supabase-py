@@ -214,15 +214,42 @@ async def test_response_client_invalid_response_but_valid_json(
 @pytest.mark.parametrize(
     "headers, code",
     [
-        ({"Proxy-Status": "PostgREST; error=PGRST108"}, "PGRST108"),
-        ({"Proxy-Status": 'PostgREST; error="42703"'}, "42703"),
-        ({"Proxy-Status": "PostgREST"}, 400),
-        ({}, 400),
+        ([("Proxy-Status", "PostgREST; error=PGRST108")], "PGRST108"),
+        ([("Proxy-Status", 'PostgREST; error="42703"')], "42703"),
+        ([("Proxy-Status", 'PostgREST; error="a\\"b"')], 'a"b'),
+        (
+            [
+                (
+                    "Proxy-Status",
+                    "PostgREST; error=PGRST108, cdn; error=http_request_error",
+                )
+            ],
+            "PGRST108",
+        ),
+        (
+            [("Proxy-Status", "cdn; error=connection_timeout, PostgREST; error=57014")],
+            "57014",
+        ),
+        (
+            [
+                ("Proxy-Status", "cdn; error=connection_timeout"),
+                ("Proxy-Status", "PostgREST; error=PGRST301"),
+            ],
+            "PGRST301",
+        ),
+        (
+            [("Proxy-Status", 'PostgREST; details="a; b, error=x"; error=PGRST116')],
+            "PGRST116",
+        ),
+        ([("Proxy-Status", "cdn; error=connection_timeout")], 400),
+        ([("Proxy-Status", "PostgREST; error=")], 400),
+        ([("Proxy-Status", "PostgREST")], 400),
+        ([], 400),
     ],
 )
 async def test_response_client_empty_error_body(
     postgrest_client: AsyncPostgrestClient,
-    headers: dict[str, str],
+    headers: list[tuple[str, str]],
     code: Union[str, int],
 ) -> None:
     with patch(
