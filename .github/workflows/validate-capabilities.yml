@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   validate:
-    uses: supabase/sdk/.github/workflows/validate-sdk-compliance-python.yml@e259106b7826fcbe44f329f16845816bd424bb5d # capability-matrix/v1.18.0
+    uses: supabase/sdk/.github/workflows/validate-sdk-compliance-python.yml@982f77c3c993fb8ca4b7d2b0fa74e4278316ebf0 # capability-matrix/v1.19.0
     with:
       griffe-packages: >-
         supabase supabase_auth postgrest storage3 realtime supabase_functions
