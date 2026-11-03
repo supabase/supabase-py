@@ -23,3 +23,19 @@ class AuthorizationError(Exception):
 
     def __str__(self) -> str:
         return self.message
+
+
+class RealtimeHTTPError(Exception):
+    """
+    Raised when a request to the Realtime REST API fails, e.g. `AsyncRealtimeChannel.http_send`.
+
+    `status` is the HTTP status code, or None when no response was received (timeout).
+    """
+
+    def __init__(self, message: str, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.message: str = message
+        self.status: Optional[int] = status
+
+    def __str__(self) -> str:
+        return self.message

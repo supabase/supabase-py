@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Sign In{% endblock %}
+{% block content %}
+<h1>Sign In</h1>
+<div id="error" style="color:red;margin-bottom:8px;"></div>
+<form id="auth-form">
+  <input type="email" id="email" placeholder="Email" required>
+  <input type="password" id="password" placeholder="Password" required>
+  <button type="submit">Sign In</button>
+  <button type="button" id="signup-btn">Sign Up</button>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+  async function handleAuth(action) {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const { data, error } = action === 'signin'
+      ? await _supabase.auth.signInWithPassword({ email, password })
+      : await _supabase.auth.signUp({ email, password });
+
+    if (error) {
+      document.getElementById('error').textContent = error.message;
+      return;
+    }
+    if (data.session) {
+      localStorage.setItem('access_token', data.session.access_token);
+      window.location.href = '/';
+    } else {
+      document.getElementById('error').textContent = 'Check your email to confirm signup.';
+    }
+  }
+
+  document.getElementById('auth-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    handleAuth('signin');
+  });
+  document.getElementById('signup-btn').addEventListener('click', () => handleAuth('signup'));
+</script>
+{% endblock %}
