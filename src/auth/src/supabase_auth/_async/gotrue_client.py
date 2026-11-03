@@ -621,7 +621,6 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
         """
         Log in a user given a User supplied OTP received via mobile.
         """
-        await self._remove_session()
         response = await self._request(
             "POST",
             "verify",

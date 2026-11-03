@@ -4,7 +4,8 @@ import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
 from pydantic import ValidationError
 from supabase_auth import AsyncGoTrueClient
-from supabase_auth.types import VerifyOtpParams
+from supabase_auth.errors import AuthApiError
+from supabase_auth.types import Session, VerifyOtpParams
 
 _USER = {
     "id": "11111111-1111-1111-1111-111111111111",
@@ -176,3 +177,51 @@ async def test_verify_otp_rejects_non_json_email_change_response() -> None:
             await client.verify_otp(
                 {"token_hash": "token-hash", "type": "email_change"}
             )
+
+
+async def _signed_in_client(response: Response) -> AsyncGoTrueClient:
+    client = AsyncGoTrueClient(
+        url="https://example.supabase.co/auth/v1",
+        http_client=AsyncClient(transport=MockTransport(lambda request: response)),
+        auto_refresh_token=False,
+        persist_session=False,
+    )
+    await client._save_session(Session.model_validate(_SESSION))
+    return client
+
+
+async def test_verify_otp_failure_keeps_existing_session() -> None:
+    client = await _signed_in_client(
+        Response(
+            403,
+            json={"code": 403, "error_code": "otp_expired", "msg": "Token has expired"},
+        )
+    )
+    events: list[str] = []
+    client.on_auth_state_change(lambda event, session: events.append(event))
+
+    with pytest.raises(AuthApiError):
+        await client.verify_otp({"token_hash": "hash", "type": "email_change"})
+
+    session = await client.get_session()
+    assert session is not None
+    assert session.access_token == "access-token"
+    assert events == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        _USER,
+        {"msg": "Confirmation link accepted", "code": "200"},
+    ],
+)
+async def test_verify_otp_without_session_keeps_existing_session(body: dict) -> None:
+    client = await _signed_in_client(Response(200, json=body))
+
+    response = await client.verify_otp({"token_hash": "hash", "type": "email_change"})
+
+    assert response.session is None
+    session = await client.get_session()
+    assert session is not None
+    assert session.access_token == "access-token"
