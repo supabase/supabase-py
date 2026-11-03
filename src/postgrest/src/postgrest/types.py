@@ -10,6 +10,12 @@ JSON = TypeAliasType(
     "JSON", "None | bool | str | int | float | Sequence[JSON] | Mapping[str, JSON]"
 )
 
+# Type checkers only treat a TypedDict as Mapping[str, object], so generated
+# Insert and Update TypedDicts need it to be accepted as a body.
+RequestBody = TypeAliasType(
+    "RequestBody", "JSON | Mapping[str, object] | Sequence[Mapping[str, object]]"
+)
+
 # A scalar value accepted by PostgREST filter operators. Used instead of ``Any``
 # so the accepted types are explicit; values are still coerced to ``str`` when
 # serialized into the query string.

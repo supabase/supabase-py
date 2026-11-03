@@ -29,7 +29,7 @@ from ..base_request_builder import (
     pre_upsert,
 )
 from ..exceptions import APIError, APIErrorFromJSON, generate_default_error_message
-from ..types import JSON, ReturnMethod
+from ..types import RequestBody, ReturnMethod
 
 ReqConfig = RequestConfig[AsyncClient]
 QueryBuilderT = TypeVar("QueryBuilderT", bound="AsyncQueryRequestBuilder")
@@ -351,7 +351,7 @@ class AsyncRequestBuilder:  #
 
     def insert(
         self,
-        json: JSON,
+        json: RequestBody,
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
@@ -393,7 +393,7 @@ class AsyncRequestBuilder:  #
 
     def upsert(
         self,
-        json: JSON,
+        json: RequestBody,
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
@@ -439,7 +439,7 @@ class AsyncRequestBuilder:  #
 
     def update(
         self,
-        json: JSON,
+        json: RequestBody,
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
