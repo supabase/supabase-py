@@ -3343,6 +3343,7 @@ iceberg = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pyiceberg", extra = ["pyarrow"] },
     { name = "pylsp-mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -3372,6 +3373,7 @@ mypy = [
     { name = "pyiceberg", extra = ["pyarrow"] },
 ]
 tests = [
+    { name = "pyiceberg", extra = ["pyarrow"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -3390,6 +3392,7 @@ provides-extras = ["iceberg"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pyiceberg", extras = ["pyarrow"], specifier = ">=0.10.0" },
     { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", specifier = ">=0.21.0" },
@@ -3417,6 +3420,7 @@ lints = [
 ]
 mypy = [{ name = "pyiceberg", extras = ["pyarrow"], specifier = ">=0.10.0" }]
 tests = [
+    { name = "pyiceberg", extras = ["pyarrow"], specifier = ">=0.10.0" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", specifier = ">=0.21.0" },
     { name = "pytest-cov", specifier = ">=6.1.0" },
