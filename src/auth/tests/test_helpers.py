@@ -150,6 +150,7 @@ _PAYLOAD = {"sub": "user", "exp": 9999999999}
         _token(_HEADER, {"sub": "user", "exp": "soon"}),
         "a.b.c",
         "\u00e9.\u00e9.\u00e9",
+        f"{_segment(_HEADER)}.{_segment(_PAYLOAD)}.a",
     ],
     ids=[
         "header-not-json",
@@ -160,6 +161,7 @@ _PAYLOAD = {"sub": "user", "exp": 9999999999}
         "exp-string",
         "undecodable-base64",
         "non-ascii",
+        "undecodable-signature",
     ],
 )
 def test_decode_jwt_raises_auth_error_for_malformed_segments(token: str) -> None:
