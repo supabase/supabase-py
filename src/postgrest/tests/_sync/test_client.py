@@ -8,6 +8,7 @@ import pytest
 from httpx import (
     BasicAuth,
     Client,
+    ConnectError,
     Headers,
     HTTPTransport,
     Limits,
@@ -518,6 +519,7 @@ class TestRetryOnNetworkError:
         [
             RemoteProtocolError("Server disconnected without sending a response."),
             ReadError("Connection reset by peer"),
+            ConnectError("Connection refused"),
         ],
     )
     def test_select_is_retried_after_a_dropped_connection(

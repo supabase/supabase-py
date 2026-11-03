@@ -9,6 +9,7 @@ from httpx import (
     AsyncClient,
     AsyncHTTPTransport,
     BasicAuth,
+    ConnectError,
     Headers,
     Limits,
     MockTransport,
@@ -534,6 +535,7 @@ class TestRetryOnNetworkError:
         [
             RemoteProtocolError("Server disconnected without sending a response."),
             ReadError("Connection reset by peer"),
+            ConnectError("Connection refused"),
         ],
     )
     async def test_select_is_retried_after_a_dropped_connection(
