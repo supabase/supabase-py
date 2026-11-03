@@ -23,6 +23,8 @@ shadow_port = 55320
 # The database major version to use. This has to be the same as your remote database's. Run `SHOW
 # server_version;` on the remote database to check.
 major_version = 15
+# OrioleDB version to use as the Postgres storage engine. Leave empty to use the default engine.
+orioledb_version = ""
 
 [db.pooler]
 enabled = false
@@ -54,7 +56,7 @@ openai_api_key = "env(OPENAI_API_KEY)"
 
 # Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
 # are monitored, and you can view the emails that would have been sent from the web interface.
-[inbucket]
+[local_smtp]
 enabled = false
 # Port to use for the email testing server web interface.
 port = 55324
@@ -92,8 +94,9 @@ enable_anonymous_sign_ins = false
 enable_manual_linking = false
 
 [auth.email]
-# Allow/disallow new user signups via email to your project.
-enable_signup = false
+# Allow/disallow the email provider. When false, users can't sign up or sign in with email.
+# To block new signups only, set enable_signup = false under [auth] instead.
+enabled = false
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = false
@@ -108,8 +111,9 @@ max_frequency = "1s"
 # content_path = "./supabase/templates/invite.html"
 
 [auth.sms]
-# Allow/disallow new user signups via SMS to your project.
-enable_signup = false
+# Allow/disallow the phone provider. When false, users can't sign up or sign in with SMS.
+# To block new signups only, set enable_signup = false under [auth] instead.
+enabled = false
 # If enabled, users need to confirm their phone number before signing in.
 enable_confirmations = false
 # Template for sending OTP to users
@@ -159,8 +163,6 @@ backend = "postgres"
 
 # Experimental features may be deprecated any time
 [experimental]
-# Configures Postgres storage engine to use OrioleDB (S3)
-orioledb_version = ""
 # Configures S3 bucket URL, eg. <bucket_name>.s3-<region>.amazonaws.com
 s3_host = "env(S3_HOST)"
 # Configures S3 bucket region, eg. us-east-1
