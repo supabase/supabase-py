@@ -134,7 +134,8 @@ class AsyncRealtimeClient:
         for channel in self.channels.values():
             if channel.is_joined or channel.is_joining:
                 channel.state = ChannelStates.ERRORED
-                self._channels_to_rejoin.append(channel)
+                if channel not in self._channels_to_rejoin:
+                    self._channels_to_rejoin.append(channel)
 
         await self.connect()
 

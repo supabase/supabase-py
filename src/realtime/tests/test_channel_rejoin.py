@@ -189,3 +189,31 @@ async def test_reconnect_rejoins_channel_that_a_stale_reply_marked_joined() -> N
     rejoin.assert_awaited_once()
     assert socket._channels_to_rejoin == []
     await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_reconnect_rejoins_once_after_a_failed_reconnect() -> None:
+    socket = await connected_socket()
+    channel = await joining_channel(socket)
+    channel.state = ChannelStates.JOINED
+
+    with (
+        patch("realtime._async.client.connect", side_effect=ConnectionError),
+        patch("realtime._async.client.asyncio.sleep", new=AsyncMock()),
+        pytest.raises(ConnectionError),
+    ):
+        await socket._reconnect()
+
+    channel.state = ChannelStates.JOINED
+
+    with (
+        patch(
+            "realtime._async.client.connect",
+            new=AsyncMock(return_value=OpenConnection()),
+        ),
+        patch.object(channel, "_rejoin", new=AsyncMock()) as rejoin,
+    ):
+        await socket._reconnect()
+
+    rejoin.assert_awaited_once()
+    await socket.close()
