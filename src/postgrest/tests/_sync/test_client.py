@@ -1,7 +1,9 @@
+import datetime
 import json
 import re
+import uuid
 from collections.abc import Iterator
-from typing import Any
+from typing import Annotated, Any, NotRequired, TypedDict
 from unittest.mock import patch
 
 import pytest
@@ -20,6 +22,7 @@ from httpx import (
     Response,
     Timeout,
 )
+from pydantic import Field, JsonValue
 
 from postgrest import SyncPostgrestClient
 from postgrest.base_request_builder import MAX_RETRIES
@@ -437,6 +440,123 @@ def test_rpc_serializes_dictionary_arguments(
         assert request.url.params["raw"] == params["raw"]
         assert request.url.params["ids"] == "{1,2}"
         assert request.url.params["text"] == "keep"
+
+
+class PublicEventsInsert(TypedDict):
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    day: NotRequired[Annotated[datetime.date | None, Field(alias="day")]]
+    starts_at: NotRequired[Annotated[datetime.time, Field(alias="starts_at")]]
+    payload: NotRequired[Annotated[bytes | None, Field(alias="payload")]]
+    data: NotRequired[Annotated[JsonValue | None, Field(alias="data")]]
+    tags: NotRequired[Annotated[list[str], Field(alias="tags")]]
+    name: Annotated[str, Field(alias="name")]
+
+
+class PublicEventsUpdate(TypedDict):
+    id: NotRequired[Annotated[uuid.UUID, Field(alias="id")]]
+    created_at: NotRequired[Annotated[datetime.datetime, Field(alias="created_at")]]
+    name: NotRequired[Annotated[str, Field(alias="name")]]
+
+
+EVENT_ID = uuid.UUID("6f1b6c1e-1d2f-4e8b-9a43-6b3c2f0a7d11")
+EVENT_ROW: PublicEventsInsert = {
+    "id": EVENT_ID,
+    "created_at": datetime.datetime(2024, 5, 1, 12, 30, tzinfo=datetime.UTC),
+    "day": datetime.date(2024, 5, 1),
+    "starts_at": datetime.time(9, 15),
+    "payload": b"ab",
+    "data": {"nested": [1, None, "x"]},
+    "tags": ["a", "b"],
+    "name": "launch",
+}
+ENCODED_EVENT_ROW = {
+    "id": "6f1b6c1e-1d2f-4e8b-9a43-6b3c2f0a7d11",
+    "created_at": "2024-05-01T12:30:00+00:00",
+    "day": "2024-05-01",
+    "starts_at": "09:15:00",
+    "payload": "\\x6162",
+    "data": {"nested": [1, None, "x"]},
+    "tags": ["a", "b"],
+    "name": "launch",
+}
+
+
+class TestGeneratedTypedDictBodies:
+    @pytest.fixture
+    def captured(
+        self,
+    ) -> Iterator[tuple[SyncPostgrestClient, list[Request]]]:
+        requests: list[Request] = []
+
+        def handler(request: Request) -> Response:
+            requests.append(request)
+            return Response(201, json=[])
+
+        with Client(transport=MockTransport(handler)) as http:
+            yield (
+                SyncPostgrestClient("https://example.com", http_client=http),
+                requests,
+            )
+
+    def test_insert(self, captured: tuple[SyncPostgrestClient, list[Request]]) -> None:
+        client, requests = captured
+        client.from_("events").insert(EVENT_ROW).execute()
+
+        assert requests[0].method == "POST"
+        assert requests[0].headers["Content-Type"] == "application/json"
+        assert json.loads(requests[0].content) == ENCODED_EVENT_ROW
+
+    def test_bulk_insert(
+        self, captured: tuple[SyncPostgrestClient, list[Request]]
+    ) -> None:
+        client, requests = captured
+        rows: list[PublicEventsInsert] = [EVENT_ROW, {"name": "other"}]
+        client.from_("events").insert(rows).execute()
+
+        assert json.loads(requests[0].content) == [ENCODED_EVENT_ROW, {"name": "other"}]
+        assert set(requests[0].url.params["columns"].split(",")) == {
+            f'"{key}"' for key in ENCODED_EVENT_ROW
+        }
+
+    def test_upsert(self, captured: tuple[SyncPostgrestClient, list[Request]]) -> None:
+        client, requests = captured
+        client.from_("events").upsert(EVENT_ROW, on_conflict="id").execute()
+
+        assert requests[0].method == "POST"
+        assert json.loads(requests[0].content) == ENCODED_EVENT_ROW
+
+    def test_update(self, captured: tuple[SyncPostgrestClient, list[Request]]) -> None:
+        client, requests = captured
+        changes: PublicEventsUpdate = {
+            "created_at": datetime.datetime(2024, 6, 1, tzinfo=datetime.UTC),
+            "name": "renamed",
+        }
+        client.from_("events").update(changes).eq("id", str(EVENT_ID)).execute()
+
+        assert requests[0].method == "PATCH"
+        assert json.loads(requests[0].content) == {
+            "created_at": "2024-06-01T00:00:00+00:00",
+            "name": "renamed",
+        }
+
+    def test_custom_content_type_is_kept(
+        self, captured: tuple[SyncPostgrestClient, list[Request]]
+    ) -> None:
+        client, requests = captured
+        builder = client.from_("events").insert({"name": "launch"})
+        builder.request.headers["Content-Type"] = "application/json; charset=utf-8"
+        builder.execute()
+
+        assert requests[0].headers["Content-Type"] == "application/json; charset=utf-8"
+
+    def test_select_sends_no_body(
+        self, captured: tuple[SyncPostgrestClient, list[Request]]
+    ) -> None:
+        client, requests = captured
+        client.from_("events").select("*").execute()
+
+        assert requests[0].content == b""
 
 
 class TestRetryEnabled:

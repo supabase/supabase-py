@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Iterable
+from collections.abc import Awaitable, Iterable, Mapping, Sequence
 from json import JSONDecodeError
 from re import search
 from typing import (
@@ -23,10 +23,11 @@ from .types import (
     CountMethod,
     Filters,
     FilterValue,
+    RequestBody,
     RequestMethod,
     ReturnMethod,
 )
-from .utils import sanitize_array_param, sanitize_param
+from .utils import encode_json_body, sanitize_array_param, sanitize_param
 
 
 class QueryArgs(NamedTuple):
@@ -34,7 +35,7 @@ class QueryArgs(NamedTuple):
     method: RequestMethod
     params: QueryParams
     headers: Headers
-    json: JSON
+    json: RequestBody
 
 
 C = TypeVar("C", Client, AsyncClient)
@@ -50,7 +51,7 @@ class RequestConfig(Generic[C]):
         headers: Headers,
         params: QueryParams,
         auth: BasicAuth | None,
-        json: JSON,
+        json: RequestBody,
         retry_enabled: bool = True,
     ) -> None:
         self.session: C = session
@@ -89,10 +90,15 @@ class RequestConfig(Generic[C]):
                 additional_headers["Accept"] = (
                     "application/vnd.pgrst.array+json;nulls=stripped"
                 )
+        content = None
+        if self.json is not None:
+            content = encode_json_body(self.json)
+            if "Content-Type" not in additional_headers:
+                additional_headers["Content-Type"] = "application/json"
         return self.session.request(
             self.http_method,
             str(self.path),
-            json=self.json,
+            content=content,
             params=self.params,
             headers=additional_headers,
             auth=auth,
@@ -109,7 +115,7 @@ class RequestConfig(Generic[C]):
         return response.status_code == 503 or response.status_code == 520
 
 
-def _unique_columns(json: list[dict[str, JSON]]) -> str:
+def _unique_columns(json: Sequence[Mapping[str, object]]) -> str:
     unique_keys = {key for row in json for key in row.keys()}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
@@ -161,7 +167,7 @@ def pre_select(
 
 
 def pre_insert(
-    json: JSON,
+    json: RequestBody,
     *,
     count: CountMethod | None,
     returning: ReturnMethod,
@@ -186,7 +192,7 @@ def pre_insert(
 
 
 def pre_upsert(
-    json: JSON,
+    json: RequestBody,
     *,
     count: CountMethod | None,
     returning: ReturnMethod,
@@ -214,7 +220,7 @@ def pre_upsert(
 
 
 def pre_update(
-    json: JSON,
+    json: RequestBody,
     *,
     count: CountMethod | None,
     returning: ReturnMethod,
