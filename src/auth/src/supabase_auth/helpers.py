@@ -10,7 +10,7 @@ import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
 from typing import Any, TypedDict
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from httpx import HTTPStatusError, RequestError, Response
 from pydantic import TypeAdapter, ValidationError
@@ -80,6 +80,11 @@ def parse_sso_response(response: Response) -> SSOResponse:
 
 
 JWKSetParser: TypeAdapter[JWKSet] = TypeAdapter(JWKSet)
+
+
+def parse_url_params(url: str) -> dict[str, list[str]]:
+    result = urlparse(url)
+    return {**parse_qs(result.fragment), **parse_qs(result.query)}
 
 
 def parse_jwks(response: Response) -> JWKSet:
