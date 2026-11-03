@@ -58,7 +58,7 @@ async def send_with_retry(req: ReqConfig) -> Response:
         try:
             resp = await req.send(headers)
         except (NetworkError, RemoteProtocolError):
-            if not req.can_retry(attempt_count):
+            if not req._can_retry(attempt_count):
                 raise
         else:
             if resp.is_success or not req.should_retry(
