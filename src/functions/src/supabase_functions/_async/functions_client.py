@@ -18,22 +18,38 @@ from ..version import __version__
 HTTPMethod = Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
 
 
-class _RedirectGuardClient(AsyncClient):
-    """httpx client that drops the Supabase ``apiKey`` header on a cross host redirect.
+def _port_or_default(url: HttpxURL) -> Optional[int]:
+    if url.port is not None:
+        return url.port
+    return {"http": 80, "https": 443}.get(url.scheme)
 
-    httpx removes the ``Authorization`` header when a response redirects to a
-    different origin, but it forwards custom headers unchanged. The Supabase
-    ``apiKey`` header carries the project key, which is the ``service_role`` key
-    in server side usage, so it must not be sent to whatever host an invoked
-    edge function redirects to. This mirrors the redirect header handling used
-    by the other Supabase client libraries.
+
+def _keeps_credentials(source: HttpxURL, target: HttpxURL) -> bool:
+    if source.host != target.host:
+        return False
+    if source.scheme == target.scheme:
+        return _port_or_default(source) == _port_or_default(target)
+    return (
+        source.scheme == "http"
+        and _port_or_default(source) == 80
+        and target.scheme == "https"
+        and _port_or_default(target) == 443
+    )
+
+
+class _RedirectGuardClient(AsyncClient):
+    """Drops the ``apiKey`` header on redirects that leave the origin.
+
+    httpx only strips ``Authorization`` on such redirects, so the project key
+    (the ``service_role`` key in server side usage) would otherwise be sent to
+    whatever host an invoked edge function redirects to.
     """
 
     def _redirect_headers(
         self, request: Request, url: HttpxURL, method: str
     ) -> Headers:
         headers = super()._redirect_headers(request, url, method)
-        if url.host != request.url.host:
+        if not _keeps_credentials(request.url, url):
             headers.pop("apiKey", None)
         return headers
 

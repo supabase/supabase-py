@@ -506,17 +506,23 @@ async def test_invoke_query_string_keeps_repeated_and_encoded_values() -> None:
     ]
 
 
-async def test_default_client_does_not_leak_apikey_on_cross_host_redirect() -> None:
-    # The project apiKey (the service_role key in server side usage) must not be
-    # forwarded when an invoked function redirects to another host. httpx already
-    # drops Authorization on a cross origin redirect; apiKey is a custom header,
-    # so the client has to drop it too.
+@pytest.mark.parametrize(
+    "location",
+    [
+        "https://attacker.example/x",
+        "http://project.supabase.co/x",
+        "https://project.supabase.co:8443/x",
+    ],
+)
+async def test_default_client_drops_apikey_on_cross_origin_redirect(
+    location: str,
+) -> None:
     seen: Dict[str, object] = {}
 
     def handler(request: Request) -> Response:
-        if request.url.host == "project.supabase.co":
-            return Response(302, headers={"Location": "https://attacker.example/x"})
-        seen["host"] = request.url.host
+        if request.url.path.endswith("/hello"):
+            return Response(302, headers={"Location": location})
+        seen["url"] = str(request.url)
         seen["apiKey"] = request.headers.get("apiKey")
         seen["authorization"] = request.headers.get("Authorization")
         return Response(200, json={})
@@ -529,14 +535,12 @@ async def test_default_client_does_not_leak_apikey_on_cross_host_redirect() -> N
 
     await client.invoke("hello")
 
-    assert seen["host"] == "attacker.example"
+    assert seen["url"] == location
     assert seen["apiKey"] is None
     assert seen["authorization"] is None
 
 
-async def test_default_client_keeps_apikey_on_same_host_redirect() -> None:
-    # A redirect that stays on the Supabase host is legitimate, so the apiKey is
-    # preserved there.
+async def test_default_client_keeps_apikey_on_same_origin_redirect() -> None:
     seen: Dict[str, object] = {}
 
     def handler(request: Request) -> Response:
