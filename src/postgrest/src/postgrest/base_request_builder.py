@@ -63,7 +63,7 @@ class RequestConfig(Generic[C]):
         self.retry_enabled = retry_enabled
         self.strip_nulls = False
 
-    def reject_strip_nulls(self, method: str) -> None:
+    def _reject_strip_nulls(self, method: str) -> None:
         if self.strip_nulls:
             raise ValueError(f"strip_nulls() cannot be used with {method}()")
 
@@ -730,6 +730,6 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
 
     def csv(self) -> Self:
         """Specify that the query must retrieve data as a single CSV string."""
-        self.request.reject_strip_nulls("csv")
+        self.request._reject_strip_nulls("csv")
         self.request.headers["Accept"] = "text/csv"
         return self
