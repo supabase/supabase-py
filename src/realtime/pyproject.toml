@@ -29,7 +29,7 @@ changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [dependency-groups]
 tests = [
-  "aiohttp >= 3.12.13",
+  "aiohttp>=3.14.4",
   "pytest >= 8.4.1",
   "pytest-cov >= 6.2.1",
   "python-dotenv >= 1.1.1",
