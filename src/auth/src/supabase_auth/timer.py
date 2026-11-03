@@ -1,6 +1,8 @@
 import asyncio
+import inspect
+from collections.abc import Coroutine
 from threading import Timer as _Timer
-from typing import Any, Callable, Coroutine, Optional, cast
+from typing import Any, Callable, Optional, cast
 
 
 class Timer:
@@ -15,7 +17,7 @@ class Timer:
         self._timer: Optional[_Timer] = None
 
     def start(self) -> None:
-        if asyncio.iscoroutinefunction(self._function):
+        if inspect.iscoroutinefunction(self._function):
 
             async def schedule() -> None:
                 await asyncio.sleep(self._milliseconds / 1000)

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from httpx import QueryParams
 
@@ -31,7 +31,7 @@ class SyncStorageAnalyticsClient:
         sort_column: Optional[SortColumn] = None,
         sort_order: Optional[SortOrder] = None,
         search: Optional[str] = None,
-    ) -> List[AnalyticsBucket]:
+    ) -> list[AnalyticsBucket]:
         params = dict(
             limit=limit,
             offset=offset,

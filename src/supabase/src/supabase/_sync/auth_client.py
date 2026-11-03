@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 
 from httpx import Client
 from supabase_auth import (
@@ -15,7 +15,7 @@ class SyncSupabaseAuthClient(SyncGoTrueClient):
         self,
         *,
         url: str,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Optional[dict[str, str]] = None,
         storage_key: Optional[str] = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,

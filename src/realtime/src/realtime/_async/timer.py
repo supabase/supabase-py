@@ -6,13 +6,13 @@ logger = logging.getLogger(__name__)
 
 
 class AsyncTimer:
-    def __init__(self, callback: Callable, timer_calc: Callable[[int], float]):
+    def __init__(self, callback: Callable, timer_calc: Callable[[int], float]) -> None:
         self.callback = callback
         self.timer_calc = timer_calc
         self.timer: Optional[asyncio.Task] = None
         self.tries: int = 0
 
-    def reset(self):
+    def reset(self) -> None:
         self.tries = 0
         if self.timer and not self.timer.done():
             self.timer.cancel()
@@ -21,7 +21,7 @@ class AsyncTimer:
                 "AsyncTimer has been reset and any scheduler tasks have been cancelled"
             )
 
-    def schedule_timeout(self):
+    def schedule_timeout(self) -> None:
         if self.timer:
             self.timer.cancel()
 
@@ -30,7 +30,7 @@ class AsyncTimer:
         logger.debug(f"Scheduling callback to run after {delay} seconds.")
         self.timer = asyncio.create_task(self._run_timer(delay))
 
-    async def _run_timer(self, delay: float):
+    async def _run_timer(self, delay: float) -> None:
         try:
             await asyncio.sleep(delay)
             await self.callback()

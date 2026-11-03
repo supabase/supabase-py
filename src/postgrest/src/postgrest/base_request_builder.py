@@ -2,20 +2,14 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Awaitable, Iterable
 from json import JSONDecodeError
 from re import search
 from typing import (
     Any,
-    Awaitable,
-    Dict,
     Generic,
-    Iterable,
-    List,
-    Literal,
     NamedTuple,
     Optional,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     overload,
@@ -23,7 +17,7 @@ from typing import (
 
 from httpx import AsyncClient, Auth, BasicAuth, Client, Headers, QueryParams
 from httpx import Response as RequestResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from yarl import URL
 
 if sys.version_info >= (3, 11):
@@ -31,20 +25,11 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-try:
-    # >= 2.0.0
-    from pydantic import field_validator
-except ImportError:
-    # < 2.0.0
-    from pydantic import validator as field_validator  # type: ignore
-
-from .base_client import BasePostgrestClient
 from .types import (
     JSON,
     CountMethod,
     Filters,
     FilterValue,
-    JSONAdapter,
     RequestMethod,
     ReturnMethod,
 )
@@ -124,7 +109,7 @@ class RequestConfig(Generic[C]):
         return response.status_code == 503 or response.status_code == 520
 
 
-def _unique_columns(json: List[Dict[str, JSON]]):
+def _unique_columns(json: list[dict[str, JSON]]) -> str:
     unique_keys = {key for row in json for key in row.keys()}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
@@ -145,7 +130,7 @@ def _serialize_filter_value(value: Any) -> str:
     return str(value)
 
 
-def _cleaned_columns(columns: Tuple[str, ...]) -> str:
+def _cleaned_columns(columns: tuple[str, ...]) -> str:
     quoted = False
     cleaned = []
 
@@ -254,7 +239,7 @@ def pre_delete(
 
 
 class APIResponse(BaseModel):
-    data: List[JSON]
+    data: list[JSON]
     """The data returned by the query."""
     count: Optional[int] = None
     """The number of rows returned."""
@@ -264,7 +249,9 @@ class APIResponse(BaseModel):
         content_range_header: str,
     ) -> Optional[int]:
         content_range = content_range_header.split("/")
-        return None if len(content_range) < 2 else int(content_range[1])
+        if len(content_range) < 2 or content_range[1] == "*":
+            return None
+        return int(content_range[1])
 
     @staticmethod
     def _is_count_in_prefer_header(prefer_header: str) -> bool:
@@ -294,14 +281,14 @@ class APIResponse(BaseModel):
     def from_http_request_response(request_response: RequestResponse) -> APIResponse:
         count = APIResponse._get_count_from_http_request_response(request_response)
         try:
-            data = JSONAdapter.validate_json(request_response.content)
-        except ValidationError:
+            data = json.loads(request_response.content)
+        except ValueError:
             data = request_response.text if len(request_response.text) > 0 else []
         return APIResponse.model_construct(data=data, count=count)
 
 
 class SingleAPIResponse(APIResponse):
-    data: JSON  # type: ignore
+    data: JSON  # type: ignore[assignment]
     """The data returned by the query."""
 
     @staticmethod
@@ -501,7 +488,9 @@ class BaseFilterRequestBuilder(Generic[C]):
         return self.filter(column, Filters.WFTS, query)
 
     def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
-        stringified_values = ",".join(map(sanitize_param, values))
+        stringified_values = ",".join(
+            sanitize_param(_serialize_filter_value(value)) for value in values
+        )
         return self.filter(column, Filters.IN, f"({stringified_values})")
 
     def cs(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
@@ -513,7 +502,7 @@ class BaseFilterRequestBuilder(Generic[C]):
     def contains(
         self: Self,
         column: str,
-        value: Union[Iterable[FilterValue], str, Dict[str, JSON]],
+        value: Union[Iterable[FilterValue], str, dict[str, JSON]],
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -528,7 +517,7 @@ class BaseFilterRequestBuilder(Generic[C]):
     def contained_by(
         self: Self,
         column: str,
-        value: Union[Iterable[FilterValue], str, Dict[str, JSON]],
+        value: Union[Iterable[FilterValue], str, dict[str, JSON]],
     ) -> Self:
         if isinstance(value, str):
             # range
@@ -540,7 +529,7 @@ class BaseFilterRequestBuilder(Generic[C]):
     def ov(
         self: Self,
         column: str,
-        value: Union[Iterable[FilterValue], str, Dict[str, JSON]],
+        value: Union[Iterable[FilterValue], str, dict[str, JSON]],
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -551,40 +540,50 @@ class BaseFilterRequestBuilder(Generic[C]):
             return self.filter(column, Filters.OV, sanitize_array_param(value))
         return self.filter(column, Filters.OV, json.dumps(value))
 
-    def sl(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def sl(self: Self, column: str, range: tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.SL, f"({range[0]},{range[1]})")
 
-    def sr(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def sr(self: Self, column: str, range: tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.SR, f"({range[0]},{range[1]})")
 
-    def nxl(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def nxl(self: Self, column: str, range: tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.NXL, f"({range[0]},{range[1]})")
 
-    def nxr(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def nxr(self: Self, column: str, range: tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.NXR, f"({range[0]},{range[1]})")
 
-    def adj(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def adj(self: Self, column: str, range: tuple[FilterValue, FilterValue]) -> Self:
         return self.filter(column, Filters.ADJ, f"({range[0]},{range[1]})")
 
-    def range_gt(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_gt(
+        self: Self, column: str, range: tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.sr(column, range)
 
-    def range_gte(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_gte(
+        self: Self, column: str, range: tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.nxl(column, range)
 
-    def range_lt(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_lt(
+        self: Self, column: str, range: tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.sl(column, range)
 
-    def range_lte(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_lte(
+        self: Self, column: str, range: tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.nxr(column, range)
 
-    def range_adjacent(self: Self, column: str, range: Tuple[int, int]) -> Self:
+    def range_adjacent(
+        self: Self, column: str, range: tuple[FilterValue, FilterValue]
+    ) -> Self:
         return self.adj(column, range)
 
     def overlaps(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
         return self.ov(column, values)
 
-    def match(self: Self, query: Dict[str, Any]) -> Self:
+    def match(self: Self, query: dict[str, Any]) -> Self:
         updated_query = self
 
         if not query:

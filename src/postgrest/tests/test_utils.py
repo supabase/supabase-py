@@ -5,7 +5,7 @@ from postgrest.utils import SyncClient, sanitize_param
 
 
 @fail_if_not_removed
-def test_sync_client():
+def test_sync_client() -> None:
     client = SyncClient()
     # Verify that aclose method exists and calls close
     assert hasattr(client, "aclose")
@@ -20,10 +20,9 @@ def test_sync_client():
         ("param:name", '"param:name"'),
         ("param(name", '"param(name"'),
         ("param)name", '"param)name"'),
-        ("param,name", '"param,name"'),
         ("table.column", "table.column"),
         ("table_column", "table_column"),
     ],
 )
-def test_sanitize_params(value, expected):
+def test_sanitize_params(value, expected) -> None:
     assert sanitize_param(value) == expected

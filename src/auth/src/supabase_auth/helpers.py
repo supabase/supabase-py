@@ -9,11 +9,11 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from typing import Any, Dict, Optional, Type, TypedDict, TypeVar, Union
+from typing import Any, Optional, TypedDict, Union
 from urllib.parse import urlparse
 
 from httpx import HTTPStatusError, RequestError, Response
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from .constants import (
     API_VERSION_HEADER_NAME,
@@ -42,61 +42,28 @@ from .types import (
     UserResponse,
 )
 
-TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
-
-
-def model_validate(model: Type[TBaseModel], contents: Union[str, bytes]) -> TBaseModel:
-    """Compatibility layer between pydantic 1 and 2 for parsing an instance
-    of a BaseModel from varied"""
-    try:
-        # pydantic > 2
-        return model.model_validate_json(contents)
-    except AttributeError:
-        # pydantic < 2
-        return model.parse_raw(contents)
-
-
-def model_dump(model: BaseModel) -> Dict[str, Any]:
-    """Compatibility layer between pydantic 1 and 2 for dumping a model's contents as a dict"""
-    try:
-        # pydantic > 2
-        return model.model_dump()
-    except AttributeError:
-        # pydantic < 2
-        return model.dict()
-
-
-def model_dump_json(model: BaseModel) -> str:
-    """Compatibility layer between pydantic 1 and 2 for dumping a model's contents as json"""
-    try:
-        # pydantic > 2
-        return model.model_dump_json()
-    except AttributeError:
-        # pydantic < 2
-        return model.json()
-
 
 def parse_auth_response(response: Response) -> AuthResponse:
     try:
-        session = model_validate(Session, response.content)
+        session = Session.model_validate_json(response.content)
         user = session.user
     except ValidationError:
         session = None
-        user = model_validate(User, response.content)
+        user = User.model_validate_json(response.content)
     return AuthResponse(user=user, session=session)
 
 
 def parse_auth_otp_response(response: Response) -> AuthOtpResponse:
-    return model_validate(AuthOtpResponse, response.content)
+    return AuthOtpResponse.model_validate_json(response.content)
 
 
 def parse_link_identity_response(response: Response) -> LinkIdentityResponse:
-    return model_validate(LinkIdentityResponse, response.content)
+    return LinkIdentityResponse.model_validate_json(response.content)
 
 
 def parse_link_response(response: Response) -> GenerateLinkResponse:
-    properties = model_validate(GenerateLinkProperties, response.content)
-    user = model_validate(User, response.content)
+    properties = GenerateLinkProperties.model_validate_json(response.content)
+    user = User.model_validate_json(response.content)
     return GenerateLinkResponse(properties=properties, user=user)
 
 
@@ -109,7 +76,7 @@ def parse_user_response(response: Response) -> UserResponse:
 
 
 def parse_sso_response(response: Response) -> SSOResponse:
-    return model_validate(SSOResponse, response.content)
+    return SSOResponse.model_validate_json(response.content)
 
 
 JWKSetParser = TypeAdapter(JWKSet)
@@ -227,7 +194,7 @@ class DecodedJWT(TypedDict):
     header: JWTHeader
     payload: JWTPayload
     signature: bytes
-    raw: Dict[str, str]
+    raw: dict[str, str]
 
 
 JWTHeaderParser = TypeAdapter(JWTHeader)
@@ -240,15 +207,15 @@ def decode_jwt(token: str) -> DecodedJWT:
         raise AuthInvalidJwtError("Invalid JWT structure")
 
     try:
-        header = base64url_to_bytes(parts[0])
-        payload = base64url_to_bytes(parts[1])
+        header = JWTHeaderParser.validate_json(base64url_to_bytes(parts[0]))
+        payload = JWTPayloadParser.validate_json(base64url_to_bytes(parts[1]))
         signature = base64url_to_bytes(parts[2])
-    except binascii.Error as e:
+    except (binascii.Error, ValidationError) as e:
         raise AuthInvalidJwtError("Invalid JWT structure") from e
 
     return DecodedJWT(
-        header=JWTHeaderParser.validate_json(header),
-        payload=JWTPayloadParser.validate_json(payload),
+        header=header,
+        payload=payload,
         signature=signature,
         raw={
             "header": parts[0],

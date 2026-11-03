@@ -1,3 +1,5 @@
+import base64
+import json
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -5,7 +7,6 @@ import httpx
 import pytest
 import respx
 from httpx import Headers, HTTPStatusError, Response
-from pydantic import BaseModel
 from supabase_auth.constants import (
     API_VERSION_HEADER_NAME,
 )
@@ -21,9 +22,6 @@ from supabase_auth.helpers import (
     generate_pkce_challenge,
     generate_pkce_verifier,
     handle_exception,
-    model_dump,
-    model_dump_json,
-    model_validate,
     parse_link_identity_response,
     parse_response_api_version,
     validate_exp,
@@ -128,6 +126,50 @@ def test_decode_jwt() -> None:
     assert exc.value is not None
 
 
+def _segment(value: object) -> str:
+    raw = value if isinstance(value, bytes) else json.dumps(value).encode()
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def _token(header: object, payload: object) -> str:
+    return f"{_segment(header)}.{_segment(payload)}.{_segment(b'signature')}"
+
+
+_HEADER = {"alg": "HS256", "typ": "JWT"}
+_PAYLOAD = {"sub": "user", "exp": 9999999999}
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        _token(b"not json", _PAYLOAD),
+        _token(_HEADER, b"not json"),
+        _token({"alg": "none", "typ": "JWT"}, _PAYLOAD),
+        _token({"alg": "EdDSA", "typ": "JWT"}, _PAYLOAD),
+        _token([_HEADER], _PAYLOAD),
+        _token(_HEADER, {"sub": "user", "exp": "soon"}),
+    ],
+    ids=[
+        "header-not-json",
+        "payload-not-json",
+        "alg-none",
+        "alg-eddsa",
+        "header-array",
+        "exp-string",
+    ],
+)
+def test_decode_jwt_raises_auth_error_for_malformed_segments(token: str) -> None:
+    with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure"):
+        decode_jwt(token)
+
+
+def test_decode_jwt_accepts_header_without_typ() -> None:
+    decoded = decode_jwt(_token({"alg": "HS256"}, _PAYLOAD))
+
+    assert decoded["header"] == {"alg": "HS256"}
+    assert decoded["payload"] == _PAYLOAD
+
+
 def test_generate_pkce_verifier() -> None:
     assert isinstance(generate_pkce_verifier(45), str)
     with pytest.raises(
@@ -148,51 +190,6 @@ def test_parse_response_api_version_invalid_date() -> None:
 
     result = parse_response_api_version(mock_response)
     assert result is None
-
-
-# Test for pydantic v1 compatibility in model_validate
-def test_model_validate_pydantic_v1() -> None:
-    # Mock the behavior of the try block to raise AttributeError
-    mock_model = MagicMock()
-    mock_model.model_validate_json.side_effect = AttributeError
-    mock_model.parse_raw.return_value = "parsed_obj_result"
-
-    # Use the patched model in the actual function
-    result = model_validate(mock_model, {"test": "data"})  # type: ignore
-
-    # Check that parse_obj was called
-    mock_model.parse_raw.assert_called_once_with({"test": "data"})
-    assert result == "parsed_obj_result"
-
-
-# Test for pydantic v1 compatibility in model_dump
-def test_model_dump_pydantic_v1() -> None:
-    # Create a mock model with necessary behavior
-    mock_model = MagicMock(spec=BaseModel)
-    mock_model.model_dump.side_effect = AttributeError
-    mock_model.dict.return_value = {"test": "data"}
-
-    # Call the function
-    result = model_dump(mock_model)
-
-    # Check the results
-    assert result == {"test": "data"}
-    mock_model.dict.assert_called_once()
-
-
-# Test for pydantic v1 compatibility in model_dump_json
-def test_model_dump_json_pydantic_v1() -> None:
-    # Create a mock model with necessary behavior
-    mock_model = MagicMock(spec=BaseModel)
-    mock_model.model_dump_json.side_effect = AttributeError
-    mock_model.json.return_value = '{"test": "data"}'
-
-    # Call the function
-    result = model_dump_json(mock_model)
-
-    # Check the results
-    assert result == '{"test": "data"}'
-    mock_model.json.assert_called_once()
 
 
 def _network_error(response: Response) -> HTTPStatusError:

@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+from typing import Optional
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs, urlparse
 
@@ -8,7 +9,6 @@ import aiohttp
 import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from websockets import broadcast
 
 from realtime import (
     AsyncRealtimeChannel,
@@ -16,8 +16,13 @@ from realtime import (
     RealtimePostgresChangesListenEvent,
     RealtimeSubscribeStates,
 )
-from realtime.message import Message
-from realtime.types import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_TIMEOUT, ChannelEvents
+from realtime.message import Message, ReplyPostgresChanges
+from realtime.types import (
+    DEFAULT_HEARTBEAT_INTERVAL,
+    DEFAULT_TIMEOUT,
+    ChannelEvents,
+    RealtimeAcknowledgementStatus,
+)
 
 load_dotenv()
 
@@ -67,7 +72,7 @@ async def access_token() -> str:
                 )
 
 
-def test_init_client():
+def test_init_client() -> None:
     client = AsyncRealtimeClient(URL, PUBLISHABLE_KEY)
 
     assert client is not None
@@ -106,7 +111,7 @@ async def test_connect_includes_connection_params() -> None:
 
 
 @pytest.mark.asyncio
-async def test_broadcast_events(socket: AsyncRealtimeClient):
+async def test_broadcast_events(socket: AsyncRealtimeClient) -> None:
     await socket.connect()
 
     channel = socket.channel(
@@ -123,7 +128,7 @@ async def test_broadcast_events(socket: AsyncRealtimeClient):
 
     semaphore = asyncio.Semaphore(0)
 
-    def broadcast_callback(payload):
+    def broadcast_callback(payload) -> None:
         received_events.append(payload)
         semaphore.release()
 
@@ -152,7 +157,7 @@ async def test_broadcast_events(socket: AsyncRealtimeClient):
 
 
 @pytest.mark.asyncio
-async def test_postgrest_changes(socket: AsyncRealtimeClient):
+async def test_postgrest_changes(socket: AsyncRealtimeClient) -> None:
     token = await access_token()
 
     await socket.connect()
@@ -167,24 +172,24 @@ async def test_postgrest_changes(socket: AsyncRealtimeClient):
         "delete": [],
     }
 
-    def all_changes_callback(payload):
+    def all_changes_callback(payload) -> None:
         received_events["all"].append(payload)
 
     insert_event = asyncio.Event()
 
-    def insert_callback(payload):
+    def insert_callback(payload) -> None:
         received_events["insert"].append(payload)
         insert_event.set()
 
     update_event = asyncio.Event()
 
-    def update_callback(payload):
+    def update_callback(payload) -> None:
         received_events["update"].append(payload)
         update_event.set()
 
     delete_event = asyncio.Event()
 
-    def delete_callback(payload):
+    def delete_callback(payload) -> None:
         received_events["delete"].append(payload)
         delete_event.set()
 
@@ -256,7 +261,9 @@ async def test_postgrest_changes(socket: AsyncRealtimeClient):
 
 
 @pytest.mark.asyncio
-async def test_postgrest_changes_on_different_tables(socket: AsyncRealtimeClient):
+async def test_postgrest_changes_on_different_tables(
+    socket: AsyncRealtimeClient,
+) -> None:
     token = await access_token()
 
     await socket.connect()
@@ -266,12 +273,12 @@ async def test_postgrest_changes_on_different_tables(socket: AsyncRealtimeClient
     channel: AsyncRealtimeChannel = socket.channel("test-postgres-changes")
     received_events: dict[str, list[dict]] = {"all": [], "insert": []}
 
-    def all_changes_callback(payload):
+    def all_changes_callback(payload) -> None:
         received_events["all"].append(payload)
 
     insert_event = asyncio.Event()
 
-    def insert_callback(payload):
+    def insert_callback(payload) -> None:
         received_events["insert"].append(payload)
         insert_event.set()
 
@@ -361,7 +368,7 @@ async def create_todo(access_token: str, todo: dict) -> str:
                 raise Exception(f"Failed to create todo. Status: {response.status}")
 
 
-async def update_todo(access_token: str, id: str, todo: dict):
+async def update_todo(access_token: str, id: str, todo: dict) -> None:
     url = f"{URL}/rest/v1/todos?id=eq.{id}"
     headers = {
         "apikey": PUBLISHABLE_KEY,
@@ -401,7 +408,7 @@ async def create_message(access_token: str, message: dict) -> int:
                 raise Exception(f"Failed to create message. Status: {response.status}")
 
 
-async def delete_todo(access_token: str, id: str):
+async def delete_todo(access_token: str, id: str) -> None:
     url = f"{URL}/rest/v1/todos?id=eq.{id}"
     headers = {
         "apikey": PUBLISHABLE_KEY,
@@ -416,7 +423,7 @@ async def delete_todo(access_token: str, id: str):
 
 
 @pytest.mark.asyncio
-async def test_multiple_connect_attempts(socket: AsyncRealtimeClient):
+async def test_multiple_connect_attempts(socket: AsyncRealtimeClient) -> None:
     # First connection should succeed
     await socket.connect()
     assert socket.is_connected
@@ -475,7 +482,7 @@ async def test_multiple_connect_attempts(socket: AsyncRealtimeClient):
 
 
 @pytest.mark.asyncio
-async def test_send_message_reconnection(socket: AsyncRealtimeClient):
+async def test_send_message_reconnection(socket: AsyncRealtimeClient) -> None:
     # First establish a connection
     await socket.connect()
     assert socket.is_connected
@@ -519,10 +526,10 @@ async def test_send_message_reconnection(socket: AsyncRealtimeClient):
 @pytest.mark.asyncio
 async def test_subscribe_to_private_channel_with_broadcast_replay(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     """Test that channel subscription sends correct payload with broadcast replay configuration."""
     import json
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import AsyncMock
 
     # Mock the websocket connection
     mock_ws = AsyncMock()
@@ -550,7 +557,7 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
     # Mock the subscription callback to be called immediately
     callback_called = False
 
-    def mock_callback(state, error):
+    def mock_callback(state, error) -> None:
         nonlocal callback_called
         callback_called = True
 
@@ -595,10 +602,10 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
 @pytest.mark.asyncio
 async def test_subscribe_to_channel_with_empty_replay_config(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     """Test that channel subscription handles empty replay configuration correctly."""
     import json
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import AsyncMock
 
     # Mock the websocket connection
     mock_ws = AsyncMock()
@@ -622,7 +629,7 @@ async def test_subscribe_to_channel_with_empty_replay_config(
     # Mock the subscription callback
     callback_called = False
 
-    def mock_callback(state, error):
+    def mock_callback(state, error) -> None:
         nonlocal callback_called
         callback_called = True
 
@@ -652,10 +659,12 @@ async def test_subscribe_to_channel_with_empty_replay_config(
 
 
 @pytest.mark.asyncio
-async def test_subscribe_to_channel_without_replay_config(socket: AsyncRealtimeClient):
+async def test_subscribe_to_channel_without_replay_config(
+    socket: AsyncRealtimeClient,
+) -> None:
     """Test that channel subscription works without replay configuration."""
     import json
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import AsyncMock
 
     # Mock the websocket connection
     mock_ws = AsyncMock()
@@ -679,7 +688,7 @@ async def test_subscribe_to_channel_without_replay_config(socket: AsyncRealtimeC
     # Mock the subscription callback
     callback_called = False
 
-    def mock_callback(state, error):
+    def mock_callback(state, error) -> None:
         nonlocal callback_called
         callback_called = True
 
@@ -708,7 +717,7 @@ async def test_subscribe_to_channel_without_replay_config(socket: AsyncRealtimeC
     await socket.close()
 
 
-def test_postgres_changes_callback_binding_filter_includes_select():
+def test_postgres_changes_callback_binding_filter_includes_select() -> None:
     """binding_filter should include filter and select only when they are set."""
     from realtime.types import PostgresChangesCallback
 
@@ -722,6 +731,7 @@ def test_postgres_changes_callback_binding_filter_includes_select():
     )
     assert with_select.binding_filter == {
         "event": RealtimePostgresChangesListenEvent.Insert,
+        "schema": "public",
         "table": "todos",
         "filter": "id=eq.1",
         "select": ["id", "name"],
@@ -746,7 +756,7 @@ def test_postgres_changes_callback_binding_filter_includes_select():
 @pytest.mark.asyncio
 async def test_subscribe_forwards_select_in_postgres_changes(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     """on_postgres_changes(select=[...]) should be forwarded in the join payload."""
     import json
     from unittest.mock import AsyncMock
@@ -785,9 +795,80 @@ async def test_subscribe_forwards_select_in_postgres_changes(
 
 
 @pytest.mark.asyncio
+async def test_subscribe_defaults_postgres_changes_schema_to_public(
+    socket: AsyncRealtimeClient,
+) -> None:
+    import json
+
+    mock_ws = AsyncMock()
+    socket._ws_connection = mock_ws
+    await socket.connect()
+
+    channel: AsyncRealtimeChannel = socket.channel("test-default-schema")
+    channel.on_postgres_changes(RealtimePostgresChangesListenEvent.All, lambda _: None)
+    channel.on_postgres_changes(
+        RealtimePostgresChangesListenEvent.Insert,
+        lambda _: None,
+        table="todos",
+        filter="id=eq.1",
+    )
+
+    await channel.subscribe(lambda state, error: None)
+
+    message_data = json.loads(mock_ws.send.call_args[0][0])
+    assert message_data["payload"]["config"]["postgres_changes"] == [
+        {"event": RealtimePostgresChangesListenEvent.All, "schema": "public"},
+        {
+            "event": RealtimePostgresChangesListenEvent.Insert,
+            "schema": "public",
+            "table": "todos",
+            "filter": "id=eq.1",
+        },
+    ]
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_subscribe_accepts_server_echo_of_default_schema(
+    socket: AsyncRealtimeClient,
+) -> None:
+    socket._ws_connection = AsyncMock()
+    await socket.connect()
+
+    statuses: list[tuple[RealtimeSubscribeStates, Optional[Exception]]] = []
+    channel: AsyncRealtimeChannel = socket.channel("test-default-schema-reply")
+    channel.on_postgres_changes(
+        RealtimePostgresChangesListenEvent.Insert, lambda _: None, table="todos"
+    )
+    await channel.subscribe(lambda state, error: statuses.append((state, error)))
+
+    channel.join_push.trigger(
+        RealtimeAcknowledgementStatus.Ok,
+        ReplyPostgresChanges.model_validate(
+            {
+                "postgres_changes": [
+                    {
+                        "id": 42,
+                        "event": RealtimePostgresChangesListenEvent.Insert,
+                        "schema": "public",
+                        "table": "todos",
+                    }
+                ]
+            }
+        ),
+    )
+
+    assert statuses == [(RealtimeSubscribeStates.SUBSCRIBED, None)]
+    assert channel.postgres_changes_callbacks[0].id == 42
+
+    await socket.close()
+
+
+@pytest.mark.asyncio
 async def test_subscribe_forwards_broadcast_replication_ready(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     """broadcast.replication_ready opt-in should be forwarded in the join payload."""
     import json
     from unittest.mock import AsyncMock
@@ -820,7 +901,7 @@ async def test_subscribe_forwards_broadcast_replication_ready(
 
 def test_channel_returns_existing_channel_for_same_topic(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     first = socket.channel("room")
 
     assert socket.channel("room") is first
@@ -830,7 +911,7 @@ def test_channel_returns_existing_channel_for_same_topic(
 @pytest.mark.asyncio
 async def test_second_channel_call_keeps_first_subscription_receiving(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     """Calling channel() again for a subscribed topic must not orphan the
     subscribed channel: incoming messages are routed by topic."""
     import json
@@ -868,7 +949,7 @@ async def test_second_channel_call_keeps_first_subscription_receiving(
 @pytest.mark.asyncio
 async def test_channel_after_unsubscribe_creates_new_channel(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     from unittest.mock import AsyncMock
 
     socket._ws_connection = AsyncMock()
@@ -889,7 +970,7 @@ async def test_channel_after_unsubscribe_creates_new_channel(
 @pytest.mark.asyncio
 async def test_set_auth_updates_join_payload_used_on_rejoin(
     socket: AsyncRealtimeClient,
-):
+) -> None:
     """A token passed to set_auth must be sent when a joined channel rejoins."""
     import json
     from unittest.mock import AsyncMock

@@ -3,15 +3,12 @@ Defines the RealtimePresence class and its dependencies.
 """
 
 import logging
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Callable, Optional
 
 from ..types import (
     Presence,
-    PresenceDiff,
-    PresenceEvents,
     PresenceOnJoinCallback,
     PresenceOnLeaveCallback,
-    PresenceOpts,
     RawPresenceDiff,
     RawPresenceState,
     RealtimePresenceState,
@@ -29,29 +26,29 @@ class AsyncRealtimePresence:
             or self.on_sync_callback is not None
         )
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.state: RealtimePresenceState = {}
         self.on_join_callback: Optional[PresenceOnJoinCallback] = None
         self.on_leave_callback: Optional[PresenceOnLeaveCallback] = None
         self.on_sync_callback: Optional[Callable[[], None]] = None
 
-    def on_join(self, callback: PresenceOnJoinCallback):
+    def on_join(self, callback: PresenceOnJoinCallback) -> None:
         self.on_join_callback = callback
 
-    def on_leave(self, callback: PresenceOnLeaveCallback):
+    def on_leave(self, callback: PresenceOnLeaveCallback) -> None:
         self.on_leave_callback = callback
 
-    def on_sync(self, callback: Callable[[], None]):
+    def on_sync(self, callback: Callable[[], None]) -> None:
         self.on_sync_callback = callback
 
-    def _on_state_event(self, payload: RawPresenceState):
+    def _on_state_event(self, payload: RawPresenceState) -> None:
         state = AsyncRealtimePresence._transform_state(payload)
         self.state = self._sync_state(state)
 
         if self.on_sync_callback:
             self.on_sync_callback()
 
-    def _on_diff_event(self, payload: RawPresenceDiff):
+    def _on_diff_event(self, payload: RawPresenceDiff) -> None:
         joins = AsyncRealtimePresence._transform_state(payload["joins"])
         leaves = AsyncRealtimePresence._transform_state(payload["leaves"])
         self.state = self._sync_diff(joins, leaves)
