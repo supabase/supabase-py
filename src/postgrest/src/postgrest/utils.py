@@ -70,10 +70,6 @@ def sanitize_array_param(values: Iterable[Any]) -> str:
     return f"{{{','.join(sanitize_array_element(value) for value in values)}}}"
 
 
-def sanitize_pattern_param(pattern: str) -> str:
-    return sanitize_param(pattern.replace("%", "*"))
-
-
 def rpc_query_param(value: Any) -> Any:
     """Format an RPC argument sent in the query string, as in GET or HEAD calls.
 

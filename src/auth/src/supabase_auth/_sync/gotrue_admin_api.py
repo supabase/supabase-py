@@ -73,7 +73,6 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "logout",
             query=QueryParams(scope=scope),
             jwt=jwt,
-            no_resolve_json=True,
         )
 
     def invite_user_by_email(
@@ -231,7 +230,6 @@ class SyncGoTrueAdminAPI(SyncGoTrueBaseAPI):
             "GET",
             "admin/oauth/clients",
             query=query,
-            no_resolve_json=True,
         )
 
         result = OAuthClientListResponse.model_validate_json(response.content)
