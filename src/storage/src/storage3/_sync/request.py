@@ -1,8 +1,7 @@
 from httpx import Client, Headers, HTTPStatusError, QueryParams, Response
-from pydantic import ValidationError
 from yarl import URL
 
-from ..exceptions import StorageApiError, VectorBucketErrorMessage
+from ..exceptions import _parse_storage_api_error
 from ..types import JSON, RequestMethod
 
 
@@ -30,16 +29,4 @@ class SyncRequestBuilder:
             response.raise_for_status()
             return response
         except HTTPStatusError as exc:
-            try:
-                error = VectorBucketErrorMessage.model_validate_json(response.content)
-                raise StorageApiError(
-                    message=error.message,
-                    code=error.code or "400",
-                    status=error.statusCode,
-                ) from exc
-            except ValidationError as exc:
-                raise StorageApiError(
-                    message=f"The request failed, but could not parse error message response:'{response.text}'",
-                    code="LibraryError",
-                    status=response.status_code,
-                ) from exc
+            raise _parse_storage_api_error(response) from exc

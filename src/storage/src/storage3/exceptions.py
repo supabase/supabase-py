@@ -1,6 +1,7 @@
 from typing import TypedDict
 
-from pydantic import BaseModel
+from httpx import Response
+from pydantic import BaseModel, ValidationError
 
 from .utils import StorageException
 
@@ -15,6 +16,15 @@ class VectorBucketErrorMessage(BaseModel):
     error: str
     message: str
     code: str | None = None
+
+
+class _AnalyticsBucketErrorDetail(BaseModel):
+    message: str
+    type: str
+
+
+class _AnalyticsBucketErrorMessage(BaseModel):
+    error: _AnalyticsBucketErrorDetail
 
 
 class StorageApiErrorDict(TypedDict):
@@ -44,3 +54,31 @@ class StorageApiError(StorageException):
             "message": self.message,
             "status": self.status,
         }
+
+
+def _parse_storage_api_error(response: Response) -> StorageApiError:
+    try:
+        error = VectorBucketErrorMessage.model_validate_json(response.content)
+        return StorageApiError(
+            message=error.message,
+            code=error.code or "400",
+            status=error.statusCode,
+        )
+    except ValidationError:
+        pass
+    try:
+        analytics_error = _AnalyticsBucketErrorMessage.model_validate_json(
+            response.content
+        )
+        return StorageApiError(
+            message=analytics_error.error.message,
+            code=analytics_error.error.type,
+            status=response.status_code,
+        )
+    except ValidationError:
+        pass
+    return StorageApiError(
+        message=f"The request failed, but could not parse error message response:'{response.text}'",
+        code="LibraryError",
+        status=response.status_code,
+    )
