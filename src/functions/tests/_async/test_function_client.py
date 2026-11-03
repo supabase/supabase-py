@@ -503,3 +503,60 @@ async def test_invoke_query_string_keeps_repeated_and_encoded_values() -> None:
         ("q", "a b"),
         ("p", "x+y"),
     ]
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "https://attacker.example/x",
+        "http://project.supabase.co/x",
+        "https://project.supabase.co:8443/x",
+    ],
+)
+async def test_default_client_drops_apikey_on_cross_origin_redirect(
+    location: str,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: Request) -> Response:
+        if request.url.path.endswith("/hello"):
+            return Response(302, headers={"Location": location})
+        seen["url"] = str(request.url)
+        seen["apiKey"] = request.headers.get("apiKey")
+        seen["authorization"] = request.headers.get("Authorization")
+        return Response(200, json={})
+
+    client = AsyncFunctionsClient(
+        url="https://project.supabase.co/functions/v1",
+        headers={"apiKey": "service-role-secret", "Authorization": "Bearer jwt"},
+    )
+    client._client._transport = MockTransport(handler)
+
+    await client.invoke("hello")
+
+    assert seen["url"] == location
+    assert seen["apiKey"] is None
+    assert seen["authorization"] is None
+
+
+async def test_default_client_keeps_apikey_on_same_origin_redirect() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: Request) -> Response:
+        if request.url.path.endswith("/hello"):
+            return Response(
+                302,
+                headers={"Location": "https://project.supabase.co/functions/v1/final"},
+            )
+        seen["apiKey"] = request.headers.get("apiKey")
+        return Response(200, json={})
+
+    client = AsyncFunctionsClient(
+        url="https://project.supabase.co/functions/v1",
+        headers={"apiKey": "service-role-secret"},
+    )
+    client._client._transport = MockTransport(handler)
+
+    await client.invoke("hello")
+
+    assert seen["apiKey"] == "service-role-secret"

@@ -206,8 +206,102 @@ async def test_response_client_invalid_response_but_valid_json(
         assert isinstance(exc_info, pytest.ExceptionInfo)
         exc_response = exc_info.value.json()
         assert isinstance(exc_response.get("message"), str)
-        assert exc_response.get("message") == "JSON could not be generated"
-        assert "code" in exc_response and int(exc_response["code"]) == 502
+        assert exc_response.get("message") == "Bad Gateway"
+        assert exc_response.get("code") == "502"
+        assert exc_response.get("hint") is None
+        assert (
+            exc_response.get("details")
+            == '"gateway error: Error: Network connection lost."'
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "headers, code",
+    [
+        ([("Proxy-Status", "PostgREST; error=PGRST301")], "PGRST301"),
+        ([("Proxy-Status", "cdn; error=connection_timeout")], "502"),
+        ([], "502"),
+    ],
+)
+async def test_response_client_non_json_error_body(
+    postgrest_client: AsyncPostgrestClient,
+    headers: list[tuple[str, str]],
+    code: str,
+) -> None:
+    with patch(
+        "httpx._client.AsyncClient.request",
+        return_value=Response(
+            status_code=502,
+            headers=[*headers, ("Content-Type", "text/html; charset=utf-8")],
+            content="<html><body>Bad gateway ü</body></html>".encode(),
+            request=Request(method="GET", url="http://example.com"),
+        ),
+    ):
+        with pytest.raises(APIError) as exc_info:
+            await postgrest_client.from_("test").select("a").execute()
+        assert exc_info.value.message == "Bad Gateway"
+        assert exc_info.value.code == code
+        assert exc_info.value.hint is None
+        assert exc_info.value.details == "<html><body>Bad gateway ü</body></html>"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "headers, code",
+    [
+        ([("Proxy-Status", "PostgREST; error=PGRST108")], "PGRST108"),
+        ([("Proxy-Status", 'PostgREST; error="42703"')], "42703"),
+        ([("Proxy-Status", 'PostgREST; error="a\\"b"')], 'a"b'),
+        (
+            [
+                (
+                    "Proxy-Status",
+                    "PostgREST; error=PGRST108, cdn; error=http_request_error",
+                )
+            ],
+            "PGRST108",
+        ),
+        (
+            [("Proxy-Status", "cdn; error=connection_timeout, PostgREST; error=57014")],
+            "57014",
+        ),
+        (
+            [
+                ("Proxy-Status", "cdn; error=connection_timeout"),
+                ("Proxy-Status", "PostgREST; error=PGRST301"),
+            ],
+            "PGRST301",
+        ),
+        (
+            [("Proxy-Status", 'PostgREST; details="a; b, error=x"; error=PGRST116')],
+            "PGRST116",
+        ),
+        ([("Proxy-Status", "cdn; error=connection_timeout")], "400"),
+        ([("Proxy-Status", "PostgREST; error=")], "400"),
+        ([("Proxy-Status", "PostgREST")], "400"),
+        ([], "400"),
+    ],
+)
+async def test_response_client_empty_error_body(
+    postgrest_client: AsyncPostgrestClient,
+    headers: list[tuple[str, str]],
+    code: str,
+) -> None:
+    with patch(
+        "httpx._client.AsyncClient.request",
+        return_value=Response(
+            status_code=400,
+            headers=headers,
+            request=Request(method="HEAD", url="http://example.com"),
+        ),
+    ):
+        client = postgrest_client.from_("test").select("*", head=True)
+        with pytest.raises(APIError) as exc_info:
+            await client.execute()
+        assert exc_info.value.code == code
+        assert exc_info.value.message == "Bad Request"
+        assert exc_info.value.details is None
 
 
 @pytest.mark.asyncio

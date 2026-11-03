@@ -99,6 +99,22 @@ def test_maybe_single_multiple_rows() -> None:
     assert exc_info.value.details == "The result contains more than one row."
 
 
+def test_head_query_error() -> None:
+    with pytest.raises(APIError) as exc_info:
+        (
+            rest_client()
+            .from_("countries")
+            .select("*", count=CountMethod.exact, head=True)
+            .eq("ref.othercol", 123)
+            .execute()
+        )
+
+    assert exc_info.value.code in ("PGRST108", "400")
+    assert exc_info.value.message == "Bad Request"
+    assert exc_info.value.hint is None
+    assert exc_info.value.details is None
+
+
 def test_equals() -> None:
     res = (
         rest_client()
