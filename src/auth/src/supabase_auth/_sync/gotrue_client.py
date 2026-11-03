@@ -1129,7 +1129,7 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
                         )
                         self._refresh_token_timer.start()
                         return
-            self._remove_session()
+                self._remove_session()
             return
         if self._persist_session:
             self._save_session(current_session)

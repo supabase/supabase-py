@@ -1133,7 +1133,7 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
                         )
                         self._refresh_token_timer.start()
                         return
-            await self._remove_session()
+                await self._remove_session()
             return
         if self._persist_session:
             await self._save_session(current_session)
