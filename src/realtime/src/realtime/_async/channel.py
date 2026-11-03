@@ -526,7 +526,7 @@ class AsyncRealtimeChannel:
         payload: Any,
         *,
         timeout: Optional[float] = None,
-    ) -> dict[str, bool]:
+    ) -> None:
         """
         Send a broadcast message through the REST API.
 
@@ -538,7 +538,6 @@ class AsyncRealtimeChannel:
         :param event: The name of the broadcast event
         :param payload: The payload to broadcast (required)
         :param timeout: Optional timeout in seconds, defaults to the client timeout
-        :return: ``{"success": True}`` once the server accepts the message
         :raises ValueError: If the payload is None
         :raises RealtimeHTTPError: If the request times out or the server rejects it
         """
@@ -576,7 +575,7 @@ class AsyncRealtimeChannel:
             raise RealtimeHTTPError(f"Request timeout: {e}") from e
 
         if response.status_code == 202:
-            return {"success": True}
+            return
 
         if response.status_code == 404:
             raise RealtimeHTTPError(

@@ -34,9 +34,8 @@ def mock_post(resp: httpx.Response) -> Any:
 async def test_posts_to_per_event_endpoint_with_headers() -> None:
     channel = make_client().channel("room:1")
     with mock_post(response(202)) as post:
-        result = await channel.http_send("my event", {"a": 1})
+        await channel.http_send("my event", {"a": 1})
 
-    assert result == {"success": True}
     args, kwargs = post.call_args
     assert args[1] == f"{URL}/api/broadcast/room%3A1/events/my%20event"
     assert kwargs["params"] is None
@@ -89,7 +88,7 @@ async def test_does_not_require_subscription_or_connection() -> None:
     channel = make_client().channel("t")
     assert not channel._joined_once
     with mock_post(response(202)):
-        assert await channel.http_send("e", {"x": 1}) == {"success": True}
+        await channel.http_send("e", {"x": 1})
 
 
 @pytest.mark.asyncio
@@ -102,9 +101,7 @@ async def test_rejects_none_payload() -> None:
 @pytest.mark.parametrize("payload", [0, "", [], {}, False])
 async def test_accepts_falsy_payloads(payload) -> None:
     with mock_post(response(202)):
-        assert await make_client().channel("t").http_send("e", payload) == {
-            "success": True
-        }
+        await make_client().channel("t").http_send("e", payload)
 
 
 @pytest.mark.asyncio

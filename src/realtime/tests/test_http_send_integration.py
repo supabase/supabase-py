@@ -99,9 +99,8 @@ async def test_http_send_delivers_to_subscribers(
     topic = f"http-send-{uuid.uuid4().hex}"
     _, received = await subscribe(receiver, topic)
 
-    result = await sender.channel(topic).http_send("evt", {"hello": "world"})
+    await sender.channel(topic).http_send("evt", {"hello": "world"})
 
-    assert result == {"success": True}
     message = await asyncio.wait_for(received.get(), 5)
     assert message["event"] == "evt"
     assert message["payload"] == {"hello": "world"}
@@ -131,11 +130,8 @@ async def test_http_send_on_private_channel_with_user_token(
     topic = f"http-send-private-{uuid.uuid4().hex}"
     _, received = await subscribe(receiver, topic, private=True)
 
-    result = await sender.channel(topic, private_options()).http_send(
-        "evt", {"secret": 1}
-    )
+    await sender.channel(topic, private_options()).http_send("evt", {"secret": 1})
 
-    assert result == {"success": True}
     message = await asyncio.wait_for(received.get(), 5)
     assert message["payload"] == {"secret": 1}
 
@@ -158,9 +154,7 @@ async def test_http_send_default_timeout_is_not_too_short(
     assert sender.timeout >= 1
     topic = f"http-send-timeout-{uuid.uuid4().hex}"
     _, received = await subscribe(receiver, topic)
-    assert await sender.channel(topic).http_send("evt", {"n": 1}, timeout=30) == {
-        "success": True
-    }
+    await sender.channel(topic).http_send("evt", {"n": 1}, timeout=30)
     await asyncio.wait_for(received.get(), 5)
 
 
