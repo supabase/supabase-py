@@ -147,15 +147,12 @@ async def test_http_send_private_channel_without_user_is_rejected(
 
 
 @pytest.mark.asyncio
-async def test_http_send_default_timeout_is_not_too_short(
-    receiver: AsyncRealtimeClient, sender: AsyncRealtimeClient
-) -> None:
-    # The client timeout is in seconds; it must not be misread as milliseconds.
-    assert sender.timeout >= 1
-    topic = f"http-send-timeout-{uuid.uuid4().hex}"
-    _, received = await subscribe(receiver, topic)
-    await sender.channel(topic).http_send("evt", {"n": 1}, timeout=30)
-    await asyncio.wait_for(received.get(), 5)
+async def test_http_send_enforces_timeout(sender: AsyncRealtimeClient) -> None:
+    with pytest.raises(RealtimeHTTPError, match="Request timeout") as exc_info:
+        await sender.channel("http-send-timeout").http_send(
+            "evt", {"n": 1}, timeout=0.0001
+        )
+    assert exc_info.value.status is None
 
 
 @pytest.mark.asyncio
