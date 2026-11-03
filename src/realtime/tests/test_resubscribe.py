@@ -164,13 +164,14 @@ async def test_unsubscribe_before_resubscribe_starts_does_not_rejoin(
 
 
 @pytest.mark.asyncio
-async def test_client_close_during_resubscribe_does_not_rejoin(
+async def test_disconnect_during_resubscribe_rejoins_on_reconnect(
     socket: AsyncRealtimeClient,
 ) -> None:
     channel = socket.channel("room")
     await channel.subscribe(lambda state, error: None)
     await settle(channel)
 
+    ws = socket._ws_connection
     socket.server.hold_leave = True  # type: ignore[attr-defined]
     channel.on_presence_sync(lambda: None)
     for _ in range(5):
@@ -183,4 +184,14 @@ async def test_client_close_during_resubscribe_does_not_rejoin(
 
     assert events(socket) == ["phx_join", "phx_leave"]
     assert not socket.is_connected
-    assert "realtime:room" not in socket.channels
+    assert channel.is_errored
+    assert socket.channels["realtime:room"] is channel
+
+    socket._ws_connection = ws
+    await socket._rejoin_errored_channels()
+    await settle(channel)
+
+    assert events(socket) == ["phx_join", "phx_leave", "phx_join"]
+    assert channel.is_joined
+    last_join = socket.server.sent[-1]  # type: ignore[attr-defined]
+    assert last_join["payload"]["config"]["presence"]["enabled"] is True
