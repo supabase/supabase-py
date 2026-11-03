@@ -699,6 +699,7 @@ features:
     note: "POST /api/broadcast/{topic}/events/{event}; requires Realtime server v2.97.0+. Accepts bytes payloads as application/octet-stream. The persist option is not supported."
     symbols:
       - AsyncRealtimeChannel.http_send
+      - RealtimeHTTPError
 
   realtime.subscriptions.broadcast:
     status: implemented
