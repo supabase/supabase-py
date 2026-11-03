@@ -1,27 +1,17 @@
 import asyncio
 import json
-import socket
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from websockets.asyncio.server import serve
+from websockets.asyncio.server import ServerConnection, serve
+from websockets.http11 import Request
 
 from realtime import AsyncRealtimeClient, RealtimeSubscribeStates
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("concurrent", [False, True])
-def test_initial_subscriptions_share_one_connection(concurrent: bool) -> None:
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        listener.setblocking(False)
-        port = listener.getsockname()[1]
-        client = AsyncRealtimeClient(f"ws://127.0.0.1:{port}", auto_reconnect=False)
-        asyncio.run(subscribe_channels(client, concurrent, listener))
-
-
-async def subscribe_channels(
-    client: AsyncRealtimeClient, concurrent: bool, listener: socket.socket
-) -> None:
+async def test_initial_subscriptions_share_one_connection(concurrent: bool) -> None:
     first_handshake = asyncio.Event()
     release_handshake = asyncio.Event()
     second_started = asyncio.Event()
@@ -30,14 +20,14 @@ async def subscribe_channels(
     connections = []
     joins = []
     states = []
-    tasks = []
+    tasks: list[asyncio.Task[object]] = []
 
-    async def process_request(connection, request):
+    async def process_request(connection: ServerConnection, request: Request) -> None:
         first_handshake.set()
         if concurrent:
             await release_handshake.wait()
 
-    async def handle(connection):
+    async def handle(connection: ServerConnection) -> None:
         connections.append(connection)
         async for data in connection:
             message = json.loads(data)
@@ -59,19 +49,21 @@ async def subscribe_channels(
                     )
                 )
 
-    def on_subscribe(state, error):
+    def on_subscribe(state: RealtimeSubscribeStates, error: Exception | None) -> None:
         states.append((state, error))
         if len(states) == 2:
             joined.set()
 
-    async with serve(handle, sock=listener, process_request=process_request):
+    async with serve(handle, "127.0.0.1", 0, process_request=process_request) as server:
+        port = next(iter(server.sockets)).getsockname()[1]
+        client = AsyncRealtimeClient(f"ws://127.0.0.1:{port}", auto_reconnect=False)
         channels = [client.channel("a"), client.channel("b")]
         try:
             if concurrent:
                 tasks.append(asyncio.create_task(channels[0].subscribe(on_subscribe)))
                 await asyncio.wait_for(first_handshake.wait(), 2)
 
-                async def subscribe_second():
+                async def subscribe_second() -> None:
                     second_started.set()
                     await channels[1].subscribe(on_subscribe)
 
@@ -119,12 +111,12 @@ async def test_cancelling_waiter_does_not_cancel_connection() -> None:
     transport = AsyncMock()
     client = AsyncRealtimeClient("ws://localhost", auto_reconnect=False)
 
-    async def open_connection(url):
+    async def open_connection(url: str, **kwargs: object) -> AsyncMock:
         opening.set()
         await release.wait()
         return transport
 
-    async def connect_waiter():
+    async def connect_waiter() -> None:
         waiting.set()
         await client.connect()
 
