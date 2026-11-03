@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import json
 import os
 from typing import Optional
 from unittest.mock import AsyncMock, patch
@@ -9,6 +10,8 @@ import aiohttp
 import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from websockets import connect
+from websockets.asyncio.server import ServerConnection, serve
 
 from realtime import (
     AsyncRealtimeChannel,
@@ -521,6 +524,83 @@ async def test_send_message_reconnection(socket: AsyncRealtimeClient) -> None:
     await socket.send(message)
 
     await socket.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("close_code", [1000, 1001])
+async def test_reconnects_and_rejoins_after_server_closes_normally(
+    close_code: int,
+) -> None:
+    connections = 0
+    rejoined = asyncio.Event()
+
+    async def server_handler(ws: ServerConnection) -> None:
+        nonlocal connections
+        connections += 1
+        async for raw in ws:
+            if json.loads(raw)["event"] != ChannelEvents.join:
+                continue
+            if connections == 1:
+                await ws.close(code=close_code)
+            else:
+                rejoined.set()
+
+    async with serve(server_handler, "127.0.0.1", 0) as server:
+        port = next(iter(server.sockets)).getsockname()[1]
+        socket = AsyncRealtimeClient(f"ws://127.0.0.1:{port}", initial_backoff=0.1)
+        await socket.connect()
+        first_listen_task = socket._listen_task
+        assert first_listen_task is not None
+        await socket.channel("server-close").subscribe()
+
+        await asyncio.wait_for(rejoined.wait(), 5)
+        await asyncio.wait_for(first_listen_task, 5)
+        assert not first_listen_task.cancelled()
+        assert connections == 2
+        assert socket.is_connected
+
+        await socket.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("close_code", [1000, 1001])
+async def test_disconnects_after_server_closes_normally_without_auto_reconnect(
+    close_code: int,
+) -> None:
+    async def server_handler(ws: ServerConnection) -> None:
+        await ws.close(code=close_code)
+
+    async with serve(server_handler, "127.0.0.1", 0) as server:
+        port = next(iter(server.sockets)).getsockname()[1]
+        socket = AsyncRealtimeClient(
+            f"ws://127.0.0.1:{port}", auto_reconnect=False, initial_backoff=0.1
+        )
+        await socket.connect()
+        listen_task = socket._listen_task
+        assert listen_task is not None
+
+        await asyncio.wait_for(listen_task, 5)
+        assert not socket.is_connected
+
+        await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_close_does_not_reconnect() -> None:
+    async def server_handler(ws: ServerConnection) -> None:
+        await ws.wait_closed()
+
+    async with serve(server_handler, "127.0.0.1", 0) as server:
+        port = next(iter(server.sockets)).getsockname()[1]
+        socket = AsyncRealtimeClient(f"ws://127.0.0.1:{port}", initial_backoff=0.1)
+        await socket.connect()
+
+        with patch("realtime._async.client.connect", wraps=connect) as connect_spy:
+            await socket.close()
+            await asyncio.sleep(0.5)
+
+        connect_spy.assert_not_called()
+        assert not socket.is_connected
 
 
 @pytest.mark.asyncio
