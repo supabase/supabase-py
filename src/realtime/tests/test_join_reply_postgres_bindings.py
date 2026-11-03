@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
+from subscribe_helpers import start_subscribe
 
 from realtime import AsyncRealtimeClient
 from realtime._async.channel import AsyncRealtimeChannel
@@ -61,8 +62,12 @@ def noop(payload: Any) -> None:
     return None
 
 
-async def subscribe(channel: AsyncRealtimeChannel, statuses: Statuses) -> None:
-    await channel.subscribe(lambda status, error: statuses.append((status, error)))
+async def subscribe(
+    channel: AsyncRealtimeChannel, statuses: Statuses
+) -> asyncio.Task[AsyncRealtimeChannel]:
+    return await start_subscribe(
+        channel, lambda status, error: statuses.append((status, error))
+    )
 
 
 def reply_to_join(

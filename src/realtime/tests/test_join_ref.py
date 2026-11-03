@@ -3,6 +3,7 @@ import os
 from unittest.mock import AsyncMock
 
 import pytest
+from subscribe_helpers import subscribe_with_ok_reply
 
 from realtime import AsyncRealtimeChannel, AsyncRealtimeClient
 
@@ -24,7 +25,7 @@ def sent_messages(mock_ws: AsyncMock) -> list[dict]:
 
 
 async def subscribe(channel: AsyncRealtimeChannel) -> None:
-    await channel.subscribe(lambda state, error: None)
+    await subscribe_with_ok_reply(channel, lambda state, error: None)
 
 
 @pytest.mark.asyncio

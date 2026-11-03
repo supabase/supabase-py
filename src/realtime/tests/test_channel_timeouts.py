@@ -2,6 +2,7 @@ import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
+from subscribe_helpers import start_subscribe
 
 from realtime import AsyncRealtimeClient
 from realtime.types import ChannelStates, RealtimeSubscribeStates
@@ -23,7 +24,6 @@ async def test_join_push_uses_client_timeout() -> None:
     states: list[RealtimeSubscribeStates] = []
 
     await channel.subscribe(lambda state, error: states.append(state))
-    await asyncio.sleep(0.3)
 
     assert states == [RealtimeSubscribeStates.TIMED_OUT]
     assert channel.state == ChannelStates.ERRORED
@@ -36,8 +36,9 @@ async def test_join_push_uses_client_timeout() -> None:
 async def test_unsubscribe_closes_channel_when_leave_times_out() -> None:
     socket = await connected_socket(timeout=0.1)
     channel = socket.channel("leave-timeout")
-    await channel.subscribe(lambda state, error: None)
+    await start_subscribe(channel, lambda state, error: None)
     channel.join_push.destroy()
+    assert channel.is_joining
 
     await channel.unsubscribe()
     assert channel.state == ChannelStates.LEAVING
@@ -53,8 +54,9 @@ async def test_unsubscribe_closes_channel_when_leave_times_out() -> None:
 async def test_late_leave_timeout_keeps_replacement_channel() -> None:
     socket = await connected_socket(timeout=0.1)
     old = socket.channel("late-leave")
-    await old.subscribe(lambda state, error: None)
+    await start_subscribe(old, lambda state, error: None)
     old.join_push.destroy()
+    assert old.is_joining
 
     await old.unsubscribe()
     new = socket.channel("late-leave")

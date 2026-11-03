@@ -9,6 +9,7 @@ import aiohttp
 import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from subscribe_helpers import start_subscribe
 from websockets import connect
 from websockets.asyncio.server import ServerConnection, serve
 
@@ -641,7 +642,7 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
         callback_called = True
 
     # Subscribe to the channel
-    await channel.subscribe(mock_callback)
+    await start_subscribe(channel, mock_callback)
 
     # Verify that send was called with the correct payload
     assert mock_ws.send.called, "WebSocket send should have been called"
@@ -713,7 +714,7 @@ async def test_subscribe_to_channel_with_empty_replay_config(
         callback_called = True
 
     # Subscribe to the channel
-    await channel.subscribe(mock_callback)
+    await start_subscribe(channel, mock_callback)
 
     # Verify that send was called
     assert mock_ws.send.called, "WebSocket send should have been called"
@@ -772,7 +773,7 @@ async def test_subscribe_to_channel_without_replay_config(
         callback_called = True
 
     # Subscribe to the channel
-    await channel.subscribe(mock_callback)
+    await start_subscribe(channel, mock_callback)
 
     # Verify that send was called
     assert mock_ws.send.called, "WebSocket send should have been called"
@@ -854,7 +855,7 @@ async def test_subscribe_forwards_select_in_postgres_changes(
         select=["id", "description"],
     )
 
-    await channel.subscribe(lambda state, error: None)
+    await start_subscribe(channel, lambda state, error: None)
 
     assert mock_ws.send.called, "WebSocket send should have been called"
     message_data = json.loads(mock_ws.send.call_args[0][0])
@@ -892,7 +893,7 @@ async def test_subscribe_defaults_postgres_changes_schema_to_public(
         filter="id=eq.1",
     )
 
-    await channel.subscribe(lambda state, error: None)
+    await start_subscribe(channel, lambda state, error: None)
 
     message_data = json.loads(mock_ws.send.call_args[0][0])
     assert message_data["payload"]["config"]["postgres_changes"] == [
@@ -920,7 +921,9 @@ async def test_subscribe_accepts_server_echo_of_default_schema(
     channel.on_postgres_changes(
         RealtimePostgresChangesListenEvent.Insert, lambda _: None, table="todos"
     )
-    await channel.subscribe(lambda state, error: statuses.append((state, error)))
+    subscribe_task = await start_subscribe(
+        channel, lambda state, error: statuses.append((state, error))
+    )
 
     channel.join_push.trigger(
         RealtimeAcknowledgementStatus.Ok,
@@ -940,6 +943,7 @@ async def test_subscribe_accepts_server_echo_of_default_schema(
 
     assert statuses == [(RealtimeSubscribeStates.SUBSCRIBED, None)]
     assert channel.postgres_changes_callbacks[0].id == 42
+    assert await subscribe_task is channel
 
     await socket.close()
 
@@ -967,7 +971,7 @@ async def test_subscribe_forwards_broadcast_replication_ready(
         },
     )
 
-    await channel.subscribe(lambda state, error: None)
+    await start_subscribe(channel, lambda state, error: None)
 
     assert mock_ws.send.called, "WebSocket send should have been called"
     message_data = json.loads(mock_ws.send.call_args[0][0])
@@ -1004,7 +1008,7 @@ async def test_second_channel_call_keeps_first_subscription_receiving(
     channel = socket.channel("room").on_broadcast(
         "ping", lambda payload: received.append(payload["payload"])
     )
-    await channel.subscribe(lambda state, error: None)
+    await start_subscribe(channel, lambda state, error: None)
 
     socket.channel("room")
 
@@ -1035,7 +1039,7 @@ async def test_channel_after_unsubscribe_creates_new_channel(
     await socket.connect()
 
     first = socket.channel("room")
-    await first.subscribe(lambda state, error: None)
+    await start_subscribe(first, lambda state, error: None)
     await first.unsubscribe()
 
     second = socket.channel("room")
@@ -1061,7 +1065,7 @@ async def test_set_auth_updates_join_payload_used_on_rejoin(
     await socket.connect()
 
     channel: AsyncRealtimeChannel = socket.channel("test-set-auth-rejoin")
-    await channel.subscribe(lambda state, error: None)
+    await start_subscribe(channel, lambda state, error: None)
     channel.state = ChannelStates.JOINED  # the server acknowledged the join
 
     await socket.set_auth("refreshed-token")

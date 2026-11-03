@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import websockets
+from subscribe_helpers import start_subscribe
 
 from realtime import AsyncRealtimeClient
 from realtime._async.channel import AsyncRealtimeChannel
@@ -100,7 +101,9 @@ async def subscribe_with_postgres_changes(
     )
     states: list[tuple[RealtimeSubscribeStates, Any]] = []
     with patch.object(channel.join_push, "start_timeout"):
-        await channel.subscribe(lambda state, error: states.append((state, error)))
+        await start_subscribe(
+            channel, lambda state, error: states.append((state, error))
+        )
     join = connection.sent[-1]
     assert join["event"] == ChannelEvents.join
     return channel, states, join["ref"]
@@ -215,7 +218,8 @@ async def test_join_sends_channel_config() -> None:
         },
     )
 
-    await channel.join()
+    with patch.object(channel.join_push, "start_timeout"):
+        await start_subscribe(channel)
     await socket.close()
 
     payload = connection.sent[-1]["payload"]

@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from subscribe_helpers import start_subscribe
 
 from realtime import AsyncRealtimeClient
 from realtime._async.presence import AsyncRealtimePresence
@@ -59,7 +60,7 @@ async def connected_socket(
 async def subscribed_channel(socket: AsyncRealtimeClient, topic: str) -> Any:
     channel = socket.channel(topic)
     with patch.object(channel.join_push, "start_timeout"):
-        await channel.subscribe()
+        await start_subscribe(channel)
     channel.state = ChannelStates.JOINED
     return channel
 
@@ -237,7 +238,7 @@ async def test_set_auth_pushes_token_to_joined_channels_only() -> None:
     joined = await subscribed_channel(socket, "joined")
     joining = socket.channel("joining")
     with patch.object(joining.join_push, "start_timeout"):
-        await joining.subscribe()
+        await start_subscribe(joining)
 
     await socket.set_auth("new-token")
 

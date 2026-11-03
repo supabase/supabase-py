@@ -2,6 +2,7 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from subscribe_helpers import start_subscribe
 
 from realtime import AsyncRealtimeClient
 from realtime._async.channel import AsyncRealtimeChannel
@@ -33,7 +34,7 @@ async def connected_socket() -> AsyncRealtimeClient:
 async def joining_channel(socket: AsyncRealtimeClient) -> AsyncRealtimeChannel:
     channel = socket.channel("rejoin")
     with patch.object(channel.join_push, "start_timeout"):
-        await channel.subscribe()
+        await start_subscribe(channel)
     assert channel.is_joining
     return channel
 

@@ -3,6 +3,7 @@ import os
 from unittest.mock import AsyncMock
 
 import pytest
+from subscribe_helpers import subscribe_with_ok_reply
 
 from realtime import AsyncRealtimeChannel, AsyncRealtimeClient
 from realtime.message import ServerMessageAdapter
@@ -27,8 +28,7 @@ async def subscribed_channel(socket: AsyncRealtimeClient) -> AsyncRealtimeChanne
     socket._ws_connection = AsyncMock()
     await socket.connect()
     channel = socket.channel("test-broadcast-callback")
-    await channel.subscribe(lambda state, error: None)
-    return channel
+    return await subscribe_with_ok_reply(channel, lambda state, error: None)
 
 
 def receive_broadcast(channel: AsyncRealtimeChannel, payload: dict) -> None:
