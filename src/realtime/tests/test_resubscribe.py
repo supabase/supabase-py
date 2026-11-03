@@ -21,6 +21,7 @@ class FakeServer:
         self.socket = socket
         self.sent: list[dict[str, Any]] = []
         self.hold_leave = False
+        self.leave_status = "ok"
         self.held: list[Any] = []
 
     async def send(self, raw: str) -> None:
@@ -33,7 +34,12 @@ class FakeServer:
                 "topic": message["topic"],
                 "event": "phx_reply",
                 "ref": message["ref"],
-                "payload": {"status": "ok", "response": {}},
+                "payload": {
+                    "status": self.leave_status
+                    if message["event"] == "phx_leave"
+                    else "ok",
+                    "response": {},
+                },
             }
         )
         if self.hold_leave and message["event"] == "phx_leave":
@@ -195,3 +201,57 @@ async def test_disconnect_during_resubscribe_rejoins_on_reconnect(
     assert channel.is_joined
     last_join = socket.server.sent[-1]  # type: ignore[attr-defined]
     assert last_join["payload"]["config"]["presence"]["enabled"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["error", "timeout"])
+async def test_resubscribe_rejoins_after_failed_leave(
+    socket: AsyncRealtimeClient, outcome: str
+) -> None:
+    channel = socket.channel("room")
+    await channel.subscribe(lambda state, error: None)
+    await settle(channel)
+
+    channel.timeout = 0.05  # type: ignore[assignment]
+    if outcome == "error":
+        socket.server.leave_status = "error"  # type: ignore[attr-defined]
+    else:
+        socket.server.hold_leave = True  # type: ignore[attr-defined]
+    channel.on_presence_sync(lambda: None)
+    await settle(channel)
+
+    assert events(socket) == ["phx_join", "phx_leave", "phx_join"]
+    assert channel.is_joined
+    assert socket.channels["realtime:room"] is channel
+
+
+@pytest.mark.asyncio
+async def test_server_close_during_resubscribe_keeps_channel_closed(
+    socket: AsyncRealtimeClient,
+) -> None:
+    channel = socket.channel("room")
+    await channel.subscribe(lambda state, error: None)
+    await settle(channel)
+
+    socket.server.hold_leave = True  # type: ignore[attr-defined]
+    channel.on_presence_sync(lambda: None)
+    for _ in range(5):
+        await asyncio.sleep(0.01)
+    channel._handle_message(
+        ServerMessageAdapter.validate_python(
+            {
+                "topic": "realtime:room",
+                "event": "phx_close",
+                "ref": None,
+                "payload": {},
+            }
+        )
+    )
+    for reply in socket.server.held:  # type: ignore[attr-defined]
+        channel._handle_message(reply)
+    for _ in range(20):
+        await asyncio.sleep(0.01)
+
+    assert events(socket) == ["phx_join", "phx_leave"]
+    assert channel.is_closed
+    assert "realtime:room" not in socket.channels

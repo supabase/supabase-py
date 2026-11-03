@@ -724,6 +724,7 @@ class AsyncRealtimeChannel:
         elif isinstance(message, ChannelErrorMessage):
             self.on_error(message.payload)
         elif isinstance(message, ChannelCloseMessage):
+            self._resubscribing = False
             self.on_close()
         elif isinstance(message, HeartbeatMessage):  # do nothing
             return
