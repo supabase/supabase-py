@@ -67,12 +67,14 @@ class AsyncBucketActionsMixin:
     ) -> Response:
         try:
             url_path = self._base_url.joinpath(*path).with_query(query_params)
-            headers = headers or dict()
-            headers.update(self._headers)
+            # Per-call headers override the client's, whatever their casing.
+            request_headers = Headers(self._headers)
+            for name, value in (headers or {}).items():
+                request_headers[name] = value
             response = await self._client.request(
                 method,
                 str(url_path),
-                headers=headers,
+                headers=request_headers,
                 json=json,
                 files=files,
                 **kwargs,
