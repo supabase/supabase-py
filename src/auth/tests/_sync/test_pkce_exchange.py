@@ -3,6 +3,7 @@ import json
 import httpx
 import pytest
 from supabase_auth import SyncGoTrueClient, SyncMemoryStorage
+from supabase_auth.constants import STORAGE_KEY
 from supabase_auth.errors import AuthApiError
 from supabase_auth.helpers import generate_pkce_challenge
 
@@ -117,3 +118,33 @@ def test_failed_recovery_exchange_preserves_verifier_without_notifying() -> None
         assert storage.get_item("test-auth-code-verifier") == stored
         assert client.get_session() is None
         assert events == []
+
+
+def test_exchange_code_without_code_verifier_uses_stored_verifier() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=_SESSION)
+
+    storage = SyncMemoryStorage()
+    client = SyncGoTrueClient(
+        url="http://localhost",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        storage=storage,
+        flow_type="pkce",
+        auto_refresh_token=False,
+    )
+    storage.set_item(f"{STORAGE_KEY}-code-verifier", "stored-verifier")
+
+    with client:
+        response = client.exchange_code_for_session({"auth_code": "code"})
+
+    assert len(requests) == 1
+    assert requests[0].url.path == "/token"
+    assert json.loads(requests[0].content) == {
+        "auth_code": "code",
+        "code_verifier": "stored-verifier",
+    }
+    assert response.session is not None
+    assert storage.get_item(f"{STORAGE_KEY}-code-verifier") is None
