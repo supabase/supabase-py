@@ -20,7 +20,6 @@ import getopt
 import os
 import shutil
 import sys
-from typing import Optional
 
 from github import Github, GithubException
 from github.ContentFile import ContentFile
@@ -90,9 +89,9 @@ def main(argv) -> None:
         print(err)
         usage()
         sys.exit(2)
-    repo: Optional[str] = None
-    branch: Optional[str] = None
-    folder: Optional[str] = None
+    repo: str | None = None
+    branch: str | None = None
+    folder: str | None = None
     for opt, arg in opts:
         if opt in ("-r", "--repo"):
             repo = arg

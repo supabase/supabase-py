@@ -1,6 +1,5 @@
 import platform
-import sys
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal
 from warnings import warn
 
 from httpx import URL as HttpxURL
@@ -18,7 +17,7 @@ from ..version import __version__
 HTTPMethod = Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
 
 
-def _port_or_default(url: HttpxURL) -> Optional[int]:
+def _port_or_default(url: HttpxURL) -> int | None:
     if url.port is not None:
         return url.port
     return {"http": 80, "https": 443}.get(url.scheme)
@@ -59,10 +58,10 @@ class SyncFunctionsClient:
         self,
         url: str,
         headers: dict,
-        timeout: Optional[int] = None,
-        verify: Optional[bool] = None,
-        proxy: Optional[str] = None,
-        http_client: Optional[Client] = None,
+        timeout: int | None = None,
+        verify: bool | None = None,
+        proxy: str | None = None,
+        http_client: Client | None = None,
     ) -> None:
         if not is_http_url(url):
             raise ValueError("url must be a valid HTTP URL string")
@@ -79,13 +78,6 @@ class SyncFunctionsClient:
             }
         )
         self.headers.update(headers)
-
-        if sys.version_info < (3, 10):
-            warn(
-                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         if timeout is not None:
             warn(
@@ -121,8 +113,8 @@ class SyncFunctionsClient:
         method: HTTPMethod,
         path: list[str],
         headers: Headers,
-        json: Optional[Union[dict[Any, Any], str, bytes]] = None,
-        params: Optional[QueryParams] = None,
+        json: dict[Any, Any] | str | bytes | None = None,
+        params: QueryParams | None = None,
     ) -> Response:
         url = self.url.joinpath(*path)
         response = (
@@ -164,8 +156,8 @@ class SyncFunctionsClient:
         self.headers["Authorization"] = f"Bearer {token}"
 
     def invoke(
-        self, function_name: str, invoke_options: Optional[dict] = None
-    ) -> Union[dict, bytes]:
+        self, function_name: str, invoke_options: dict | None = None
+    ) -> dict | bytes:
         """Invokes a function
 
         Parameters

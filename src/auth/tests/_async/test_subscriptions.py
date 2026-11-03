@@ -1,5 +1,3 @@
-from typing import Optional
-
 from supabase_auth.types import AuthChangeEvent, Session
 
 from .clients import auth_client
@@ -9,9 +7,7 @@ async def test_auth_state_change_callback_can_unsubscribe_during_notification() 
     client = auth_client()
     received: list[tuple[str, AuthChangeEvent]] = []
 
-    def unsubscribe_on_event(
-        event: AuthChangeEvent, session: Optional[Session]
-    ) -> None:
+    def unsubscribe_on_event(event: AuthChangeEvent, session: Session | None) -> None:
         received.append(("once", event))
         subscription.unsubscribe()
 

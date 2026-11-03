@@ -1,6 +1,3 @@
-from typing import Optional
-
-
 class NotConnectedError(Exception):
     """
     Raised when operations requiring a connection are executed when socket is not connected
@@ -18,7 +15,7 @@ class AuthorizationError(Exception):
     Raised when there is an authorization failure for private channels
     """
 
-    def __init__(self, message: Optional[str] = None) -> None:
+    def __init__(self, message: str | None = None) -> None:
         self.message: str = message or "Authorization failed for private channel"
 
     def __str__(self) -> str:
@@ -32,10 +29,10 @@ class RealtimeHTTPError(Exception):
     `status` is the HTTP status code, or None when no response was received (timeout).
     """
 
-    def __init__(self, message: str, status: Optional[int] = None) -> None:
+    def __init__(self, message: str, status: int | None = None) -> None:
         super().__init__(message)
         self.message: str = message
-        self.status: Optional[int] = status
+        self.status: int | None = status
 
     def __str__(self) -> str:
         return self.message

@@ -1,5 +1,5 @@
 import re
-from typing import Any, Optional
+from typing import Any
 
 from httpx import Response
 from pydantic import BaseModel
@@ -11,13 +11,13 @@ class APIErrorFromJSON(BaseModel):
     from a json string.
     """
 
-    message: Optional[str] = None
+    message: str | None = None
     """The error message."""
-    code: Optional[str] = None
+    code: str | None = None
     """The error code."""
-    hint: Optional[str] = None
+    hint: str | None = None
     """The error hint."""
-    details: Optional[Any] = None
+    details: Any | None = None
     """The error details."""
 
 
@@ -27,13 +27,13 @@ class APIError(Exception):
     """
 
     _raw_error: dict[str, Any]
-    message: Optional[str]
+    message: str | None
     """The error message."""
-    code: Optional[str]
+    code: str | None
     """The error code."""
-    hint: Optional[str]
+    hint: str | None
     """The error hint."""
-    details: Optional[Any]
+    details: Any | None
     """The error details."""
 
     def __init__(self, error: dict[str, Any]) -> None:
@@ -89,7 +89,7 @@ def _unquote(value: str) -> str:
     return value
 
 
-def _proxy_status_error_code(r: Response) -> Optional[str]:
+def _proxy_status_error_code(r: Response) -> str | None:
     proxy_status: str = r.headers.get("Proxy-Status", "")
     for member in _split_outside_quotes(proxy_status, ","):
         name, *params = _split_outside_quotes(member, ";")

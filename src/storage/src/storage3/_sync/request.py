@@ -1,5 +1,3 @@
-from typing import Optional
-
 from httpx import Client, Headers, HTTPStatusError, QueryParams, Response
 from pydantic import ValidationError
 from yarl import URL
@@ -19,7 +17,7 @@ class SyncRequestBuilder:
         http_method: RequestMethod,
         path: list[str],
         body: JSON = None,
-        query_params: Optional[QueryParams] = None,
+        query_params: QueryParams | None = None,
     ) -> Response:
         response = self._session.request(
             method=http_method,

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import platform
-import sys
-from typing import Optional, Union
 from warnings import warn
 
 from deprecation import deprecated
@@ -33,10 +31,10 @@ class AsyncPostgrestClient(BasePostgrestClient):
         *,
         schema: str = "public",
         headers: dict[str, str] = DEFAULT_POSTGREST_CLIENT_HEADERS,
-        timeout: Union[int, float, Timeout, None] = None,
-        verify: Optional[bool] = None,
-        proxy: Optional[str] = None,
-        http_client: Optional[AsyncClient] = None,
+        timeout: int | float | Timeout | None = None,
+        verify: bool | None = None,
+        proxy: str | None = None,
+        http_client: AsyncClient | None = None,
         retry_enabled: bool = True,
     ) -> None:
         headers = {
@@ -49,13 +47,6 @@ class AsyncPostgrestClient(BasePostgrestClient):
             ),
             **headers,
         }
-
-        if sys.version_info < (3, 10):
-            warn(
-                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         if timeout is not None:
             warn(
@@ -158,7 +149,7 @@ class AsyncPostgrestClient(BasePostgrestClient):
         self,
         func: str,
         params: dict[str, str],
-        count: Optional[CountMethod] = None,
+        count: CountMethod | None = None,
         head: bool = False,
         get: bool = False,
     ) -> AsyncRPCFilterRequestBuilder:

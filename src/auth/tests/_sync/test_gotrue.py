@@ -1,6 +1,6 @@
 import time
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -809,7 +809,7 @@ def _signed_in_client(handler: Any, expires_at: int) -> Any:
             app_metadata={},
             user_metadata={},
             aud="authenticated",
-            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
         ),
     )
     client._save_session(session)
@@ -843,7 +843,7 @@ def _signed_in_client(handler: Any, expires_at: int) -> Any:
 def test_sign_out_when_logout_request_fails(
     scope: SignOutScope,
     response: Any,
-    raises: Optional[type],
+    raises: type | None,
     cleared: bool,
 ) -> None:
     from httpx import Request, Response
@@ -893,7 +893,7 @@ def test_sign_out_when_logout_request_fails(
 def test_sign_out_when_refresh_fails(
     scope: SignOutScope,
     response: Any,
-    raises: Optional[type],
+    raises: type | None,
     cleared: bool,
 ) -> None:
     # The access token has expired and the refresh fails, so there is no token

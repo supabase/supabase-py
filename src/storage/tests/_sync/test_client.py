@@ -19,8 +19,8 @@ from .. import SyncBucketProxy
 from ..utils import SyncFinalizerFactory
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
-    from typing import Callable
 
 
 # Global variable to track the ids from the buckets created in the tests run

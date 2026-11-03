@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Optional
+from typing import Any
 
 from httpx import AsyncClient, Headers, HTTPStatusError, Response
 from yarl import URL
@@ -33,7 +33,7 @@ class AsyncStorageBucketAPI:
         self,
         method: RequestMethod,
         path: list[str],
-        json: Optional[dict[Any, Any]] = None,
+        json: dict[Any, Any] | None = None,
     ) -> Response:
         try:
             url_path = self._base_url.joinpath(*path)
@@ -76,8 +76,8 @@ class AsyncStorageBucketAPI:
     async def create_bucket(
         self,
         id: str,
-        name: Optional[str] = None,
-        options: Optional[CreateOrUpdateBucketOptions] = None,
+        name: str | None = None,
+        options: CreateOrUpdateBucketOptions | None = None,
     ) -> dict[str, str]:
         """Creates a new storage bucket.
 

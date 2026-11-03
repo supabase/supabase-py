@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import builtins
-from typing import Optional
 
 from httpx import Client, Headers
 from yarl import URL
@@ -45,7 +44,7 @@ class SyncVectorBucketScope:
         dimension: int,
         distance_metric: DistanceMetric,
         data_type: str,
-        metadata: Optional[MetadataConfiguration] = None,
+        metadata: MetadataConfiguration | None = None,
     ) -> None:
         body = self.with_metadata(
             indexName=index_name,
@@ -58,7 +57,7 @@ class SyncVectorBucketScope:
         )
         self._request.send(http_method="POST", path=["CreateIndex"], body=body)
 
-    def get_index(self, index_name: str) -> Optional[GetVectorIndexResponse]:
+    def get_index(self, index_name: str) -> GetVectorIndexResponse | None:
         body = self.with_metadata(indexName=index_name)
         try:
             data = self._request.send(http_method="POST", path=["GetIndex"], body=body)
@@ -68,9 +67,9 @@ class SyncVectorBucketScope:
 
     def list_indexes(
         self,
-        next_token: Optional[str] = None,
-        max_results: Optional[int] = None,
-        prefix: Optional[str] = None,
+        next_token: str | None = None,
+        max_results: int | None = None,
+        prefix: str | None = None,
     ) -> ListVectorIndexesResponse:
         body = self.with_metadata(
             nextToken=next_token, maxResults=max_results, prefix=prefix
@@ -118,12 +117,12 @@ class SyncVectorIndexScope:
 
     def list(
         self,
-        max_results: Optional[int] = None,
-        next_token: Optional[str] = None,
+        max_results: int | None = None,
+        next_token: str | None = None,
         return_data: bool = True,
         return_metadata: bool = True,
-        segment_count: Optional[int] = None,
-        segment_index: Optional[int] = None,
+        segment_count: int | None = None,
+        segment_index: int | None = None,
     ) -> ListVectorsResponse:
         body = self.with_metadata(
             maxResults=max_results,
@@ -139,8 +138,8 @@ class SyncVectorIndexScope:
     def query(
         self,
         query_vector: VectorData,
-        topK: Optional[int] = None,
-        filter: Optional[VectorFilter] = None,
+        topK: int | None = None,
+        filter: VectorFilter | None = None,
         return_distance: bool = True,
         return_metadata: bool = True,
     ) -> QueryVectorsResponse:
@@ -172,7 +171,7 @@ class SyncStorageVectorsClient:
         body = {"vectorBucketName": bucket_name}
         self._request.send(http_method="POST", path=["CreateVectorBucket"], body=body)
 
-    def get_bucket(self, bucket_name: str) -> Optional[GetVectorBucketResponse]:
+    def get_bucket(self, bucket_name: str) -> GetVectorBucketResponse | None:
         body = {"vectorBucketName": bucket_name}
         try:
             data = self._request.send(
@@ -184,9 +183,9 @@ class SyncStorageVectorsClient:
 
     def list_buckets(
         self,
-        prefix: Optional[str] = None,
-        max_results: Optional[int] = None,
-        next_token: Optional[str] = None,
+        prefix: str | None = None,
+        max_results: int | None = None,
+        next_token: str | None = None,
     ) -> ListVectorBucketsResponse:
         body = remove_none(prefix=prefix, maxResults=max_results, nextToken=next_token)
         data = self._request.send(

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import builtins
-from typing import Optional
 
 from httpx import AsyncClient, Headers
 from yarl import URL
@@ -45,7 +44,7 @@ class AsyncVectorBucketScope:
         dimension: int,
         distance_metric: DistanceMetric,
         data_type: str,
-        metadata: Optional[MetadataConfiguration] = None,
+        metadata: MetadataConfiguration | None = None,
     ) -> None:
         body = self.with_metadata(
             indexName=index_name,
@@ -58,7 +57,7 @@ class AsyncVectorBucketScope:
         )
         await self._request.send(http_method="POST", path=["CreateIndex"], body=body)
 
-    async def get_index(self, index_name: str) -> Optional[GetVectorIndexResponse]:
+    async def get_index(self, index_name: str) -> GetVectorIndexResponse | None:
         body = self.with_metadata(indexName=index_name)
         try:
             data = await self._request.send(
@@ -70,9 +69,9 @@ class AsyncVectorBucketScope:
 
     async def list_indexes(
         self,
-        next_token: Optional[str] = None,
-        max_results: Optional[int] = None,
-        prefix: Optional[str] = None,
+        next_token: str | None = None,
+        max_results: int | None = None,
+        prefix: str | None = None,
     ) -> ListVectorIndexesResponse:
         body = self.with_metadata(
             nextToken=next_token, maxResults=max_results, prefix=prefix
@@ -124,12 +123,12 @@ class AsyncVectorIndexScope:
 
     async def list(
         self,
-        max_results: Optional[int] = None,
-        next_token: Optional[str] = None,
+        max_results: int | None = None,
+        next_token: str | None = None,
         return_data: bool = True,
         return_metadata: bool = True,
-        segment_count: Optional[int] = None,
-        segment_index: Optional[int] = None,
+        segment_count: int | None = None,
+        segment_index: int | None = None,
     ) -> ListVectorsResponse:
         body = self.with_metadata(
             maxResults=max_results,
@@ -147,8 +146,8 @@ class AsyncVectorIndexScope:
     async def query(
         self,
         query_vector: VectorData,
-        topK: Optional[int] = None,
-        filter: Optional[VectorFilter] = None,
+        topK: int | None = None,
+        filter: VectorFilter | None = None,
         return_distance: bool = True,
         return_metadata: bool = True,
     ) -> QueryVectorsResponse:
@@ -184,7 +183,7 @@ class AsyncStorageVectorsClient:
             http_method="POST", path=["CreateVectorBucket"], body=body
         )
 
-    async def get_bucket(self, bucket_name: str) -> Optional[GetVectorBucketResponse]:
+    async def get_bucket(self, bucket_name: str) -> GetVectorBucketResponse | None:
         body = {"vectorBucketName": bucket_name}
         try:
             data = await self._request.send(
@@ -196,9 +195,9 @@ class AsyncStorageVectorsClient:
 
     async def list_buckets(
         self,
-        prefix: Optional[str] = None,
-        max_results: Optional[int] = None,
-        next_token: Optional[str] = None,
+        prefix: str | None = None,
+        max_results: int | None = None,
+        next_token: str | None = None,
     ) -> ListVectorBucketsResponse:
         body = remove_none(prefix=prefix, maxResults=max_results, nextToken=next_token)
         data = await self._request.send(

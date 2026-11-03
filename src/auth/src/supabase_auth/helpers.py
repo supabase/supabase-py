@@ -9,7 +9,7 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from datetime import datetime
-from typing import Any, Optional, TypedDict, Union
+from typing import Any, TypedDict
 from urllib.parse import urlparse
 
 from httpx import HTTPStatusError, RequestError, Response
@@ -67,7 +67,7 @@ def parse_link_response(response: Response) -> GenerateLinkResponse:
     return GenerateLinkResponse(properties=properties, user=user)
 
 
-UserParser: TypeAdapter = TypeAdapter(Union[UserResponse, User])
+UserParser: TypeAdapter = TypeAdapter(UserResponse | User)
 
 
 def parse_user_response(response: Response) -> UserResponse:
@@ -247,7 +247,7 @@ def generate_pkce_challenge(code_verifier) -> str:
 API_VERSION_REGEX = r"^2[0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])$"
 
 
-def parse_response_api_version(response: Response) -> Optional[datetime]:
+def parse_response_api_version(response: Response) -> datetime | None:
     api_version = response.headers.get(API_VERSION_HEADER_NAME)
 
     if not api_version:
@@ -267,7 +267,7 @@ def is_http_url(url: str) -> bool:
     return urlparse(url).scheme in {"https", "http"}
 
 
-def validate_exp(exp: Optional[int]) -> None:
+def validate_exp(exp: int | None) -> None:
     if not exp:
         raise AuthInvalidJwtError("JWT has no expiration time")
 

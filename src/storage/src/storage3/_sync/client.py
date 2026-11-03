@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import platform
-import sys
-from typing import Optional
 from warnings import warn
 
 from httpx import Client, Headers
@@ -28,10 +26,10 @@ class SyncStorageClient(SyncStorageBucketAPI):
         self,
         url: str,
         headers: dict[str, str],
-        timeout: Optional[int] = None,
-        verify: Optional[bool] = None,
-        proxy: Optional[str] = None,
-        http_client: Optional[Client] = None,
+        timeout: int | None = None,
+        verify: bool | None = None,
+        proxy: str | None = None,
+        http_client: Client | None = None,
     ) -> None:
         headers = {
             "X-Client-Info": (
@@ -43,13 +41,6 @@ class SyncStorageClient(SyncStorageBucketAPI):
             ),
             **headers,
         }
-
-        if sys.version_info < (3, 10):
-            warn(
-                "Python versions below 3.10 are deprecated and will not be supported in future versions. Please upgrade to Python 3.10 or newer.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         if timeout is not None:
             warn(

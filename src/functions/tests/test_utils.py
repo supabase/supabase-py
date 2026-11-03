@@ -1,4 +1,3 @@
-import sys
 from typing import Any
 
 import pytest
@@ -85,21 +84,7 @@ def test_base64url_regex() -> None:
     assert not pattern.match("abc@")  # invalid character
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="StrEnum import test only relevant for Python 3.11+",
-)
-def test_strenum_import_python_311_plus() -> None:
-    from enum import StrEnum as BuiltinStrEnum  # type: ignore[attr-defined]
+def test_function_region_is_builtin_strenum() -> None:
+    from enum import StrEnum
 
-    assert isinstance(FunctionRegion.Any, BuiltinStrEnum)
-
-
-@pytest.mark.skipif(
-    sys.version_info >= (3, 11),
-    reason="strenum import test only relevant for Python < 3.11",
-)
-def test_strenum_import_python_310_and_below() -> None:
-    from strenum import StrEnum as ExternalStrEnum
-
-    assert isinstance(FunctionRegion.Any, ExternalStrEnum)
+    assert isinstance(FunctionRegion.Any, StrEnum)

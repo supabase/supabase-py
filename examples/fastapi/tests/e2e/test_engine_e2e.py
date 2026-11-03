@@ -15,7 +15,6 @@ This exercises the full supabase-py Realtime path from Python:
 """
 
 import asyncio
-from typing import Optional
 
 _POLL_INTERVAL = 0.5
 _TIMEOUT = 45
@@ -24,7 +23,7 @@ _RETRIGGER_INTERVAL = 5
 
 async def _wait_for_rule_event(
     service_client, rule_id: str, task_id: str, timeout: float = _TIMEOUT
-) -> Optional[dict]:
+) -> dict | None:
     deadline = asyncio.get_running_loop().time() + timeout
     while asyncio.get_running_loop().time() < deadline:
         result = (

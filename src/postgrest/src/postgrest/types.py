@@ -1,25 +1,19 @@
 from __future__ import annotations
 
-import sys
 from collections.abc import Mapping, Sequence
-from typing import Union
+from enum import StrEnum
 
 from typing_extensions import TypeAliasType
 
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-else:
-    from strenum import StrEnum
-
 # https://docs.pydantic.dev/2.11/concepts/types/#named-recursive-types
 JSON = TypeAliasType(
-    "JSON", "Union[None, bool, str, int, float, Sequence[JSON], Mapping[str, JSON]]"
+    "JSON", "None | bool | str | int | float | Sequence[JSON] | Mapping[str, JSON]"
 )
 
 # A scalar value accepted by PostgREST filter operators. Used instead of ``Any``
 # so the accepted types are explicit; values are still coerced to ``str`` when
 # serialized into the query string.
-FilterValue = Union[str, int, float, bool]
+FilterValue = str | int | float | bool
 
 
 class CountMethod(StrEnum):

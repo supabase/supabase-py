@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import json
 import os
-from typing import Optional
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs, urlparse
 
@@ -916,7 +915,7 @@ async def test_subscribe_accepts_server_echo_of_default_schema(
     socket._ws_connection = AsyncMock()
     await socket.connect()
 
-    statuses: list[tuple[RealtimeSubscribeStates, Optional[Exception]]] = []
+    statuses: list[tuple[RealtimeSubscribeStates, Exception | None]] = []
     channel: AsyncRealtimeChannel = socket.channel("test-default-schema-reply")
     channel.on_postgres_changes(
         RealtimePostgresChangesListenEvent.Insert, lambda _: None, table="todos"

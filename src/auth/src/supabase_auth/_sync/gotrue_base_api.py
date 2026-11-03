@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Literal, Self
 
 from httpx import Client, HTTPStatusError, QueryParams, RequestError, Response
 from pydantic import BaseModel
-from typing_extensions import Literal, Self
 
 from ..constants import API_VERSION_HEADER_NAME, API_VERSIONS_2024_01_01_NAME
 from ..helpers import handle_exception
@@ -16,9 +15,9 @@ class SyncGoTrueBaseAPI:
         *,
         url: str,
         headers: dict[str, str],
-        http_client: Optional[Client],
+        http_client: Client | None,
         verify: bool = True,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
     ) -> None:
         self._url = url.rstrip("/")
         # Copy: callers pass a dict they keep mutating, and GoTrueClient hands
@@ -47,11 +46,11 @@ class SyncGoTrueBaseAPI:
         method: Literal["GET", "OPTIONS", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
         path: str,
         *,
-        jwt: Optional[str] = None,
-        redirect_to: Optional[str] = None,
-        headers: Optional[dict[str, str]] = None,
-        query: Optional[QueryParams] = None,
-        body: Optional[Any] = None,
+        jwt: str | None = None,
+        redirect_to: str | None = None,
+        headers: dict[str, str] | None = None,
+        query: QueryParams | None = None,
+        body: Any | None = None,
         no_resolve_json: bool = False,
     ) -> Response:
         url = f"{self._url}/{path}"

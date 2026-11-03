@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Self
 
 from httpx import BasicAuth, Headers, Timeout
-from typing_extensions import Self
 from yarl import URL
 
 from .utils import is_http_url
@@ -18,9 +17,9 @@ class BasePostgrestClient:
         *,
         schema: str,
         headers: dict[str, str],
-        timeout: Union[int, float, Timeout],
+        timeout: int | float | Timeout,
         verify: bool = True,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
     ) -> None:
         if not is_http_url(base_url):
             raise ValueError("base_url must be a valid HTTP URL string")
@@ -36,10 +35,10 @@ class BasePostgrestClient:
 
     def auth(
         self,
-        token: Optional[str],
+        token: str | None,
         *,
-        username: Union[str, bytes, None] = None,
-        password: Union[str, bytes] = "",
+        username: str | bytes | None = None,
+        password: str | bytes = "",
     ) -> Self:
         """
         Authenticate the client with either bearer token or basic authentication.
