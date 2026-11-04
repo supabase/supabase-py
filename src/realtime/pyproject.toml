@@ -22,7 +22,7 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
   "supabase_utils==3.0.0a1", # x-release-please-version
-  "websockets >=14,<16",
+  "websockets >=14,<18",
   "typing-extensions >=4.14.0",
   "pydantic (>=2.11.7,<3.0.0)",
   "yarl>=1.22.0",

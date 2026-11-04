@@ -38,7 +38,6 @@ changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 [dependency-groups]
 tests = [
   "Faker >= 37.4.0",
-  "respx >=0.20.2,<0.23.0",
   "pytest >=9.0.3",
   "pytest-mock >= 3.14.0",
   "pytest-cov >=6.2.1",
