@@ -14,18 +14,6 @@ from pydantic import (
 from pydantic.dataclasses import dataclass
 from supabase_utils.http.headers import Headers
 from supabase_utils.types import JSON
-
-try:
-    # > 2
-    from pydantic import model_validator
-
-    model_validator_v1_v2_compat = model_validator(mode="before")
-except ImportError:
-    # < 2
-    from pydantic import root_validator
-
-    model_validator_v1_v2_compat = root_validator  # type: ignore
-
 from typing_extensions import Literal, TypedDict
 
 Provider = Literal[

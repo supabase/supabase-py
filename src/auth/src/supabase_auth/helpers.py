@@ -50,34 +50,15 @@ TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
 def _model_validate(model: Type[TBaseModel], contents: str | bytes) -> TBaseModel:
-    """Compatibility layer between pydantic 1 and 2 for parsing an instance
-    of a BaseModel from varied"""
-    try:
-        # pydantic > 2
-        return model.model_validate_json(contents)
-    except AttributeError:
-        # pydantic < 2
-        return model.parse_raw(contents)
+    return model.model_validate_json(contents)
 
 
 def _model_dump(model: BaseModel) -> Dict[str, Any]:
-    """Compatibility layer between pydantic 1 and 2 for dumping a model's contents as a dict"""
-    try:
-        # pydantic > 2
-        return model.model_dump()
-    except AttributeError:
-        # pydantic < 2
-        return model.dict()
+    return model.model_dump()
 
 
 def _model_dump_json(model: BaseModel) -> str:
-    """Compatibility layer between pydantic 1 and 2 for dumping a model's contents as json"""
-    try:
-        # pydantic > 2
-        return model.model_dump_json()
-    except AttributeError:
-        # pydantic < 2
-        return model.json()
+    return model.model_dump_json()
 
 
 def parse_auth_response(response: Response) -> AuthResponse:

@@ -15,7 +15,7 @@ repository = "https://github.com/supabase/supabase-py"
 requires-python = ">=3.10"
 dependencies = [
   "supabase_utils==3.0.0a1", # x-release-please-version
-  "websockets >=11,<16",
+  "websockets >=14,<16",
   "typing-extensions >=4.14.0",
   "pydantic (>=2.11.7,<3.0.0)",
   "yarl>=1.22.0",
@@ -30,10 +30,10 @@ changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 [dependency-groups]
 tests = [
   "aiohttp>=3.14.4",
-  "pytest >= 8.4.1",
-  "pytest-cov >= 6.2.1",
-  "python-dotenv >= 1.1.1",
-  "pytest-asyncio >= 1.0.0",
+  "pytest >=9.0.3",
+  "pytest-cov >=6.2.1",
+  "python-dotenv >=1.2.2",
+  "pytest-asyncio >=1.3.0",
   "pudb>=2025.1.5",
 ]
 lints = [
