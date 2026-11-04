@@ -22,45 +22,44 @@
           "path": "src/auth/src/supabase_auth/version.py"
         },
         {
-          "type": "toml",
-          "path": "src/auth/pyproject.toml",
-          "jsonpath": "$.project.version"
+          "type": "generic",
+          "path": "src/auth/pyproject.toml"
         },
         {
           "type": "generic",
           "path": "src/functions/src/supabase_functions/version.py"
         },
         {
-          "type": "toml",
-          "path": "src/functions/pyproject.toml",
-          "jsonpath": "$.project.version"
+          "type": "generic",
+          "path": "src/functions/pyproject.toml"
         },
         {
           "type": "generic",
           "path": "src/postgrest/src/postgrest/version.py"
         },
         {
-          "type": "toml",
-          "path": "src/postgrest/pyproject.toml",
-          "jsonpath": "$.project.version"
+          "type": "generic",
+          "path": "src/postgrest/pyproject.toml"
         },
         {
           "type": "generic",
           "path": "src/storage/src/storage3/version.py"
         },
         {
-          "type": "toml",
-          "path": "src/storage/pyproject.toml",
-          "jsonpath": "$.project.version"
+          "type": "generic",
+          "path": "src/storage/pyproject.toml"
         },
         {
           "type": "generic",
           "path": "src/realtime/src/realtime/version.py"
         },
         {
-          "type": "toml",
-          "path": "src/realtime/pyproject.toml",
-          "jsonpath": "$.project.version"
+          "type": "generic",
+          "path": "src/realtime/pyproject.toml"
+        },
+        {
+          "type": "generic",
+          "path": "src/utils/pyproject.toml"
         }
       ]
     }
