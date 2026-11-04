@@ -117,13 +117,25 @@ def test_json_request_keeps_request_content_type() -> None:
     assert request.headers.get_list("Content-Type") == ["application/merge-patch+json"]
 
 
-@pytest.mark.parametrize("client_class", [SyncFunctionsClient, AsyncFunctionsClient])
+@pytest.mark.parametrize("is_async", [False, True])
 def test_invoke_keeps_wrapped_method_metadata(
-    client_class: type[SyncFunctionsClient] | type[AsyncFunctionsClient],
+    is_async: bool,
     valid_url: str,
     valid_headers: dict[str, str],
 ) -> None:
-    client = client_class(url=valid_url, headers=valid_headers)
+    client = (
+        AsyncFunctionsClient(
+            url=valid_url,
+            headers=valid_headers,
+            http_session=AsyncMockHttpClient(b"", 200),
+        )
+        if is_async
+        else SyncFunctionsClient(
+            url=valid_url,
+            headers=valid_headers,
+            http_session=SyncMockHttpClient(b"", 200),
+        )
+    )
     invoke = client.invoke
 
     assert invoke.__name__ == "invoke"
