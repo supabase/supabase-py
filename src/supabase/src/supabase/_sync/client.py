@@ -218,6 +218,7 @@ class Client:
             self._functions = SyncFunctionsClient(
                 url=str(self.functions_url),
                 headers=self.options.headers,
+                http_session=self.http_session,
             )
         return self._functions
 

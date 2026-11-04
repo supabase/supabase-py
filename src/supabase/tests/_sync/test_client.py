@@ -26,7 +26,7 @@ def test_rpc_client(create_client: SyncClientCallable) -> None:
 
 def test_function_initialization(create_client: SyncClientCallable) -> None:
     with create_client(url, key) as client:
-        assert client.functions
+        assert client.functions.executor.session is client.http_session
 
 
 def test_uses_key_as_authorization_header_by_default(

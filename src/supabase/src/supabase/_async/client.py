@@ -236,6 +236,7 @@ class AsyncClient:
         return AsyncFunctionsClient(
             url=str(self.functions_url),
             headers=self.options.headers,
+            http_session=self.http_session,
         )
 
     async def realtime_get_token_callback(self) -> str | None:

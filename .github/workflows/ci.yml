@@ -62,6 +62,35 @@ jobs:
       - name: Check formatting
         run: uv run --frozen ruff format --check
 
+  import-without-httpx:
+    name: Import without httpx
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.11"
+
+      - name: Import each package without httpx
+        run: |
+          set -eu
+          check() {
+            package=$1
+            shift
+            echo "::group::$package $*"
+            export UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/venv-$package-$#"
+            uv sync --frozen --no-dev --no-default-groups --package "$package" "$@"
+            uv run --no-sync python -I .github/scripts/import_without_httpx.py "$package"
+            echo "::endgroup::"
+          }
+          for package in supabase_utils supabase_functions postgrest storage3 supabase_auth realtime supabase; do
+            check "$package"
+          done
+          check supabase --extra aiohttp
+
   test:
     name: py${{ matrix.python-version }} | ${{ matrix.package }}${{ matrix.resolution == 'lowest-direct' && ' | lowest' || '' }}
     needs: changes
@@ -165,7 +194,7 @@ jobs:
 
   ci-passed:
     name: CI passed
-    needs: [changes, lint, test]
+    needs: [changes, lint, import-without-httpx, test]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -173,10 +202,11 @@ jobs:
         env:
           CHANGES: ${{ needs.changes.result }}
           LINT: ${{ needs.lint.result }}
+          IMPORTS: ${{ needs.import-without-httpx.result }}
           TEST: ${{ needs.test.result }}
         run: |
-          echo "changes=$CHANGES lint=$LINT test=$TEST"
-          [ "$CHANGES" = success ] && [ "$LINT" = success ] \
+          echo "changes=$CHANGES lint=$LINT imports=$IMPORTS test=$TEST"
+          [ "$CHANGES" = success ] && [ "$LINT" = success ] && [ "$IMPORTS" = success ] \
             && { [ "$TEST" = success ] || [ "$TEST" = skipped ]; }
 
   release-please:

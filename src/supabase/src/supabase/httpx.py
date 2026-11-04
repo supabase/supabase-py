@@ -16,6 +16,7 @@ def create_client(
     client = http_client or SyncHttpxClient(
         http2=True,
         verify=True,
+        follow_redirects=True,
     )
     return Client(
         supabase_url=supabase_url,
@@ -34,6 +35,7 @@ def create_aclient(
     client = http_client or AsyncHttpxClient(
         http2=True,
         verify=True,
+        follow_redirects=True,
     )
     return AsyncClient(
         supabase_url=supabase_url,

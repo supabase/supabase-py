@@ -3,10 +3,14 @@ import re
 
 import pytest
 from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import AsyncHttpSession, HttpSession
 from supabase_utils.http.request import JSONRequest
 from yarl import URL
 
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient, create_client
+
+from ._async.test_function_client import MockHttpClient as AsyncMockHttpClient
+from ._sync.test_function_client import MockHttpClient as SyncMockHttpClient
 
 
 @pytest.fixture
@@ -27,7 +31,11 @@ _X_CLIENT_INFO_PATTERN = re.compile(
 def test_async_x_client_info_structured_format(
     valid_url: str, valid_headers: dict[str, str]
 ) -> None:
-    client = AsyncFunctionsClient(url=valid_url, headers=valid_headers)
+    client = AsyncFunctionsClient(
+        url=valid_url,
+        headers=valid_headers,
+        http_session=AsyncMockHttpClient(b"", 200),
+    )
     x_client_info = client.default_headers.get("X-Client-Info")
     assert x_client_info is not None
     assert _X_CLIENT_INFO_PATTERN.match(x_client_info), (
@@ -38,7 +46,11 @@ def test_async_x_client_info_structured_format(
 def test_sync_x_client_info_structured_format(
     valid_url: str, valid_headers: dict[str, str]
 ) -> None:
-    client = SyncFunctionsClient(url=valid_url, headers=valid_headers)
+    client = SyncFunctionsClient(
+        url=valid_url,
+        headers=valid_headers,
+        http_session=SyncMockHttpClient(b"", 200),
+    )
     x_client_info = client.default_headers.get("X-Client-Info")
     assert x_client_info is not None
     assert _X_CLIENT_INFO_PATTERN.match(x_client_info), (
@@ -47,8 +59,12 @@ def test_sync_x_client_info_structured_format(
 
 
 def test_create_async_client(valid_url: str, valid_headers: dict[str, str]) -> None:
-    # Test creating async client with explicit verify=True
-    client = create_client(url=valid_url, headers=valid_headers, is_async=True)
+    client = create_client(
+        url=valid_url,
+        headers=valid_headers,
+        http_session=AsyncMockHttpClient(b"", 200),
+        is_async=True,
+    )
 
     assert isinstance(client, AsyncFunctionsClient)
     assert str(client.base_url) == valid_url
@@ -58,7 +74,12 @@ def test_create_async_client(valid_url: str, valid_headers: dict[str, str]) -> N
 
 
 def test_create_sync_client(valid_url: str, valid_headers: dict[str, str]) -> None:
-    client = create_client(url=valid_url, headers=valid_headers, is_async=False)
+    client = create_client(
+        url=valid_url,
+        headers=valid_headers,
+        http_session=SyncMockHttpClient(b"", 200),
+        is_async=False,
+    )
 
     assert isinstance(client, SyncFunctionsClient)
     assert str(client.base_url) == valid_url
@@ -74,6 +95,7 @@ def test_type_hints() -> None:
 
     assert hints["url"] is str
     assert hints["headers"] == dict[str, str]
+    assert hints["http_session"] == AsyncHttpSession | HttpSession
     assert hints["is_async"] is bool
     assert hints["return"] == AsyncFunctionsClient | SyncFunctionsClient
 
@@ -95,13 +117,25 @@ def test_json_request_keeps_request_content_type() -> None:
     assert request.headers.get_list("Content-Type") == ["application/merge-patch+json"]
 
 
-@pytest.mark.parametrize("client_class", [SyncFunctionsClient, AsyncFunctionsClient])
+@pytest.mark.parametrize("is_async", [False, True])
 def test_invoke_keeps_wrapped_method_metadata(
-    client_class: type[SyncFunctionsClient] | type[AsyncFunctionsClient],
+    is_async: bool,
     valid_url: str,
     valid_headers: dict[str, str],
 ) -> None:
-    client = client_class(url=valid_url, headers=valid_headers)
+    client = (
+        AsyncFunctionsClient(
+            url=valid_url,
+            headers=valid_headers,
+            http_session=AsyncMockHttpClient(b"", 200),
+        )
+        if is_async
+        else SyncFunctionsClient(
+            url=valid_url,
+            headers=valid_headers,
+            http_session=SyncMockHttpClient(b"", 200),
+        )
+    )
     invoke = client.invoke
 
     assert invoke.__name__ == "invoke"

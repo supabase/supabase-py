@@ -1,9 +1,5 @@
 from enum import StrEnum
 
-from httpx import AsyncClient as AsyncClient  # noqa: F401
-
-DEFAULT_FUNCTION_CLIENT_TIMEOUT = 5
-
 
 class FunctionRegion(StrEnum):
     Any = "any"
