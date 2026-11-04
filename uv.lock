@@ -752,18 +752,6 @@ wheels = [
 ]
 
 [[package]]
-name = "deprecation"
-version = "2.1.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5a/d3/8ae2869247df154b64c1884d7346d412fed0c49df84db635aab2d1c40e62/deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff", size = 173788, upload-time = "2020-04-20T14:23:38.738Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/c3/253a89ee03fc9b9682f1541728eb66db7db22148cd94f89ab22528cd1e1b/deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a", size = 11178, upload-time = "2020-04-20T14:23:36.581Z" },
-]
-
-[[package]]
 name = "dict2css"
 version = "0.3.0.post1"
 source = { registry = "https://pypi.org/simple" }
@@ -1763,7 +1751,6 @@ name = "postgrest"
 version = "3.0.0a1"
 source = { editable = "src/postgrest" }
 dependencies = [
-    { name = "deprecation" },
     { name = "pydantic" },
     { name = "supabase-utils" },
     { name = "typing-extensions" },
@@ -1804,7 +1791,6 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "deprecation", specifier = ">=2.1.0" },
     { name = "pydantic", specifier = ">=2,<3" },
     { name = "supabase-utils", editable = "src/utils" },
     { name = "typing-extensions", specifier = ">=4.15.0" },
@@ -2949,7 +2935,6 @@ name = "storage3"
 version = "3.0.0a1"
 source = { editable = "src/storage" }
 dependencies = [
-    { name = "deprecation" },
     { name = "pydantic" },
     { name = "supabase-utils" },
     { name = "typing-extensions" },
@@ -3002,7 +2987,6 @@ typecheck = [
 
 [package.metadata]
 requires-dist = [
-    { name = "deprecation", specifier = ">=2.1.0" },
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pyiceberg", marker = "extra == 'iceberg'", specifier = ">=0.10.0" },
     { name = "supabase-utils", editable = "src/utils" },

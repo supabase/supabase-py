@@ -25,7 +25,6 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-  "deprecation >=2.1.0",
   "pydantic >=2,<3",
   "typing-extensions >=4.15.0",
   "yarl>=1.20.1",
