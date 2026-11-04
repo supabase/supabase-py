@@ -42,7 +42,7 @@ jobs:
         id: matrix
         run: |
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            git diff --name-only HEAD^1 HEAD | python3 .github/scripts/ci_matrix.py >> "$GITHUB_OUTPUT"
+            git diff --name-only --no-renames HEAD^1 HEAD | python3 .github/scripts/ci_matrix.py >> "$GITHUB_OUTPUT"
           else
             python3 .github/scripts/ci_matrix.py --all >> "$GITHUB_OUTPUT"
           fi
