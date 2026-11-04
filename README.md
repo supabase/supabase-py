@@ -6,6 +6,11 @@
 
 Python monorepo for all [Supabase](https://supabase.com) libraries.
 
+> [!IMPORTANT]
+> The `main` branch holds v3, which is in early development. We are not accepting external contributions or issues for v3 at this point.
+> For v2, on the [`v2`](https://github.com/supabase/supabase-py/tree/v2) branch, we only accept critical bug fixes and security fixes.
+> See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
 - [supabase](src/supabase/README.md)
 - [realtime-py](src/realtime/README.md)
 - [supabase_functions](src/functions/README.md)
