@@ -94,11 +94,4 @@ TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
 def _model_validate_json(model: Type[TBaseModel], contents) -> TBaseModel:
-    """Compatibility layer between pydantic 1 and 2 for parsing an instance
-    of a BaseModel from varied"""
-    try:
-        # pydantic > 2
-        return model.model_validate_json(contents)
-    except AttributeError:
-        # pydantic < 2
-        return model.parse_raw(contents)
+    return model.model_validate_json(contents)

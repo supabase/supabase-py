@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   test:
-    name: py${{ matrix.python-version }} | ${{ matrix.package }} @ ${{ matrix.os }}
+    name: py${{ matrix.python-version }} | ${{ matrix.package }} @ ${{ matrix.os }}${{ matrix.resolution == 'lowest-direct' && ' | lowest' || '' }}
     strategy:
       # Don't let one broken package cancel the other packages' jobs.
       fail-fast: false
@@ -29,6 +29,14 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase"]
+        resolution: ["highest"]
+        include:
+          - { os: ubuntu-latest, python-version: "3.10", package: functions, resolution: lowest-direct }
+          - { os: ubuntu-latest, python-version: "3.10", package: realtime, resolution: lowest-direct }
+          - { os: ubuntu-latest, python-version: "3.10", package: storage, resolution: lowest-direct }
+          - { os: ubuntu-latest, python-version: "3.10", package: auth, resolution: lowest-direct }
+          - { os: ubuntu-latest, python-version: "3.10", package: postgrest, resolution: lowest-direct }
+          - { os: ubuntu-latest, python-version: "3.10", package: supabase, resolution: lowest-direct }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
@@ -72,6 +80,8 @@ jobs:
 
       - name: Run Tests
         run: make ${{ matrix.package }}.tests
+        env:
+          UV_RESOLUTION: ${{ matrix.resolution }}
 
       - name: Save docker images to cache
         if: ${{ steps.docker-images.outputs.cache-hit == 'false' }}
