@@ -151,9 +151,7 @@ class RealtimeChannelOptions:
                     key=self.presence_key,
                     enabled=self.presence_enabled,
                 ),
-                postgres_changes=[
-                    binding.as_dict() for binding in self.postgres_changes_bindings
-                ],
+                postgres_changes=self.postgres_changes_bindings,
             ),
         )
         return payload

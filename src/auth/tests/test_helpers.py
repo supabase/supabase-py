@@ -25,6 +25,7 @@ from supabase_auth.helpers import (
     parse_response_api_version,
     validate_exp,
 )
+from supabase_auth.types import AMREntry, JWTPayload
 
 from ._sync.conftest import mock_access_token
 
@@ -80,6 +81,14 @@ def test_decode_jwt() -> None:
     with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure") as exc:
         decode_jwt("non-valid-jwt")
     assert exc.value is not None
+
+
+def test_jwt_payload_parses_amr_entries_into_models() -> None:
+    payload = JWTPayload.model_validate(
+        {"amr": [{"method": "password", "timestamp": 1700000000}]}
+    )
+
+    assert payload.amr == [AMREntry(method="password", timestamp=1700000000)]
 
 
 def test_generate_pkce_verifier() -> None:

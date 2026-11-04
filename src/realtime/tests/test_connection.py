@@ -125,12 +125,12 @@ async def test_broadcast_events(socket: RealtimeClient) -> None:
         assert isinstance(msg2, BroadcastMessage)
         msg3 = await message_stream.__anext__()
         assert isinstance(msg3, BroadcastMessage)
-        assert msg1.payload["event"] == "test-event"
-        assert msg2.payload["event"] == "test-event"
-        assert msg3.payload["event"] == "test-event"
-        assert msg1.payload["payload"]["message"] == "Event 1"
-        assert msg2.payload["payload"]["message"] == "Event 2"
-        assert msg3.payload["payload"]["message"] == "Event 3"
+        assert msg1.payload.event == "test-event"
+        assert msg2.payload.event == "test-event"
+        assert msg3.payload.event == "test-event"
+        assert msg1.payload.payload["message"] == "Event 1"
+        assert msg2.payload.payload["message"] == "Event 2"
+        assert msg3.payload.payload["message"] == "Event 3"
 
 
 @pytest.mark.asyncio
@@ -171,19 +171,19 @@ async def test_postgrest_changes(socket: RealtimeClient) -> None:
         delete = await message_stream.__anext__()
         assert isinstance(delete, PostgresChangesMessage)
 
-    insert_record = insert.payload["data"].get("record")
+    insert_record = insert.payload.data.record
     assert insert_record is not None
     assert insert_record["id"] == created_todo_id
     assert insert_record["description"] == "Test todo"
     assert not insert_record["is_completed"]
 
-    update_record = update.payload["data"].get("record")
+    update_record = update.payload.data.record
     assert update_record is not None
     assert update_record["id"] == created_todo_id
     assert update_record["description"] == "Updated todo"
     assert update_record["is_completed"]
 
-    delete_record = delete.payload["data"].get("old_record")
+    delete_record = delete.payload.data.old_record
     assert delete_record is not None
     assert delete_record["id"] == created_todo_id
 
@@ -217,13 +217,13 @@ async def test_postgrest_changes_on_different_tables(socket: RealtimeClient) -> 
         insert_message = await message_stream.__anext__()
         assert isinstance(insert_message, PostgresChangesMessage)
 
-    insert_todo_record = insert_todo.payload["data"].get("record")
+    insert_todo_record = insert_todo.payload.data.record
     assert insert_todo_record is not None
     assert insert_todo_record["id"] == created_todo_id
     assert insert_todo_record["description"] == "Test todo"
     assert insert_todo_record["is_completed"] is False
 
-    insert_message_record = insert_message.payload["data"].get("record")
+    insert_message_record = insert_message.payload.data.record
     assert insert_message_record is not None
     assert insert_message_record["id"] == created_message_id
     assert insert_message_record["title"] == "Test message"
@@ -342,10 +342,10 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
         for i in range(messages):
             broadcast = await message_stream.__anext__()
             assert isinstance(broadcast, BroadcastMessage)
-            assert broadcast.payload["payload"]["i"] == str(i)
-            meta = broadcast.payload.get("meta")
+            assert broadcast.payload.payload["i"] == str(i)
+            meta = broadcast.payload.meta
             assert meta
-            assert meta.get("replayed")
+            assert meta.replayed
 
 
 def test_normalize_url_includes_connection_params() -> None:

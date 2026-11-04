@@ -261,7 +261,6 @@ features:
     supporting_symbols:
       - AuthMFAGetAuthenticatorAssuranceLevelResponse
       - AMREntry
-      - AMREntryDict
 
   auth.admin.create_user:
     status: implemented
@@ -893,8 +892,6 @@ features:
       - PostgresChangesData
       - PostgresChangesColumn
       - PostgresChangesBinding
-      - PostgresChangesBinding.as_dict
-      - PostgresChangesBindingDict
       - PostgresRowChange
       - RealtimePostgresChangesListenEvent
   realtime.subscriptions.subscribe_presence:
