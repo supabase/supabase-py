@@ -51,10 +51,10 @@ def test_sync_timer_waits_given_seconds() -> None:
 def test_sync_timer_cancel_prevents_call() -> None:
     called = threading.Event()
 
-    timer = _SyncTimer(seconds=0.05, function=called.set)
+    timer = _SyncTimer(seconds=0.3, function=called.set)
     timer.start()
     assert timer.is_alive()
     timer.cancel()
 
-    assert not called.wait(timeout=0.2)
+    assert not called.wait(timeout=0.5)
     assert not timer.is_alive()
