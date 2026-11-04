@@ -904,6 +904,7 @@ features:
       - PresenceLeave
       - RealtimePresence
       - RealtimeChannelPresenceConfig
+      - PresenceOptions
       - PresenceStateMessage
       - PresenceDiffMessage
       - PresenceDiff
@@ -1358,6 +1359,8 @@ supporting_symbols:
   - SyncClientOptions
   - SyncClientOptions.replace
   - SupabaseException
+  - validate_expiration
+  - is_valid_string_argument
   - AsyncSupabaseAuthClient
   - SyncSupabaseAuthClient
   - SupabaseAuthHttpClient
