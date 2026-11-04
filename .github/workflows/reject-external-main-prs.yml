@@ -48,6 +48,16 @@ jobs:
               'See [What we accept right now](https://github.com/supabase/supabase-py/blob/main/CONTRIBUTING.md#what-we-accept-right-now) in our contributing guide for more details.',
             ].join('\n');
 
+            const { data: current } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+            });
+
+            if (current.state !== 'open' || current.base.ref !== 'main') {
+              return;
+            }
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
