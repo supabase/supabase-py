@@ -1,40 +1,27 @@
 import asyncio
-import datetime
-import os
 import socket
 from collections.abc import AsyncIterator
 from types import TracebackType
 
-import aiohttp
 import pytest
-from dotenv import load_dotenv
-from pydantic import BaseModel, TypeAdapter
-from websockets import broadcast
+from pydantic import TypeAdapter
 from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosedOK
 
 from realtime import (
-    RealtimeChannel,
     RealtimeClient,
-    RealtimePostgresChangesListenEvent,
-    RealtimeSubscribeStates,
 )
-from realtime.channel import RealtimeChannelOptions
 from realtime.client import MaxRetriesExceeded, automatically_reconnect, connect_once
 from realtime.message import (
-    BroadcastMessage,
     ChannelLeaveMessage,
     ClientMessage,
     HeartbeatMessage,
     JoinMessage,
-    Message,
-    PostgresChangesMessage,
     ReplyMessage,
     ReplyPostgresChanges,
     SuccessReplyMessage,
-    SystemMessage,
 )
-from realtime.types import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_TIMEOUT, ChannelEvents
+from realtime.types import ChannelEvents
 
 HOST = "127.0.0.1"
 PUBLISHABLE_KEY = "my-publishable-key"
@@ -175,7 +162,7 @@ async def test_automatic_reconnection_fails_after_max_retries() -> None:
             await automatically_reconnect(
                 f"http://{HOST}:{port}", get_token, client_callback, max_retries=3
             )
-        except MaxRetriesExceeded as exc:
+        except MaxRetriesExceeded:
             return
     raise Exception("expected max retries exceeded exception but got nothing")
 
@@ -198,7 +185,7 @@ async def test_automatic_reconnection_calls_callback_when_connected(
         # reschedule server to re-start 1 second later
         asyncio.create_task(restart_server_after_1_second())
         # this should raise when the server is offline
-        async with client.channel("test-channel") as channel:
+        async with client.channel("test-channel"):
             pass
 
     await automatically_reconnect(server.url, get_token, client_callback, max_retries=3)

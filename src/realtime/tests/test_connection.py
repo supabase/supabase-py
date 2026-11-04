@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import json
 import os
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock
@@ -9,14 +8,11 @@ import aiohttp
 import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from websockets import broadcast
 from yarl import URL
 
 from realtime import (
-    RealtimeChannel,
     RealtimeClient,
     RealtimePostgresChangesListenEvent,
-    RealtimeSubscribeStates,
 )
 from realtime.channel import RealtimeChannelOptions
 from realtime.client import connect_once, exponential_delay, normalize_url
@@ -27,7 +23,7 @@ from realtime.message import (
     PostgresChangesMessage,
     SystemMessage,
 )
-from realtime.types import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_TIMEOUT, ChannelEvents
+from realtime.types import ChannelEvents
 
 load_dotenv()
 

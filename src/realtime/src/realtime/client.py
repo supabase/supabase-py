@@ -1,31 +1,21 @@
 import asyncio
-import json
 import logging
-import re
-import sys
-from collections.abc import AsyncIterator, Awaitable, Callable, Generator
-from functools import wraps
+from collections.abc import Awaitable, Callable, Generator
 from types import TracebackType
-from typing import Any, Optional, Union
-from urllib.parse import urlencode, urlparse, urlunparse
 from warnings import warn
 
 import websockets
 from pydantic import ValidationError
 from websockets.asyncio.client import ClientConnection
 from yarl import URL
-from yarl._query import get_str_query
 
 from .channel import RealtimeChannel, RealtimeChannelOptions
-from .exceptions import NotConnectedError
-from .message import Message, ReplyMessage, ServerMessage
+from .message import Message, ReplyMessage
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
-    DEFAULT_TIMEOUT,
     PHOENIX_CHANNEL,
     VSN,
     ChannelEvents,
-    ChannelStates,
 )
 
 logger = logging.getLogger(__name__)

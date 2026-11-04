@@ -3,15 +3,11 @@ Defines the RealtimePresence class and its dependencies.
 """
 
 import logging
-from collections.abc import Callable, Generator
+from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Any, Optional, Union
 
 from .types import (
     Presence,
-    PresenceDiff,
-    PresenceEvents,
-    PresenceOpts,
     RawPresenceDiff,
     RawPresenceState,
     RealtimePresenceState,

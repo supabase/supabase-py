@@ -70,7 +70,7 @@ select = [
   # isort
   "I",
 ]
-ignore = ["F401", "F403", "F841", "E712", "E501", "E402"]
+ignore = ["E712", "E501", "E402"]
 # isort.required-imports = ["from __future__ import annotations"]
 
 

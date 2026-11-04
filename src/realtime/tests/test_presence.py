@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import os
 from collections.abc import AsyncIterator
@@ -6,16 +5,15 @@ from collections.abc import AsyncIterator
 import pytest
 from dotenv import load_dotenv
 
-from realtime import RealtimeChannel, RealtimeClient
+from realtime import RealtimeClient
 from realtime.client import connect_once
-from realtime.message import PresenceDiffMessage, ServerMessage
 from realtime.presence import (
     PresenceJoin,
     PresenceLeave,
     RealtimePresence,
     _transform_state,
 )
-from realtime.types import ChannelStates, Presence, RawPresenceState
+from realtime.types import RawPresenceState
 
 load_dotenv()
 
@@ -43,7 +41,7 @@ async def test_presence(socket: RealtimeClient) -> None:
     user2 = {"user_id": "2", "online_at": datetime.datetime.now().isoformat()}
 
     async with socket.channel("room") as chan:
-        res = await chan.track(user1)
+        await chan.track(user1)
         messages_stream = chan.messages
         fst_join = await messages_stream.__anext__()
         if not isinstance(fst_join, PresenceJoin):
