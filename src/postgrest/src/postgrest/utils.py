@@ -2,32 +2,9 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from typing import Any, TypeVar
+from typing import Any
 
-from deprecation import deprecated
-from httpx import AsyncClient  # noqa: F401
-from httpx import Client as BaseClient  # noqa: F401
-from pydantic import BaseModel
 from yarl import URL
-
-from .version import __version__
-
-
-class SyncClient(BaseClient):
-    @deprecated(
-        "1.0.2", "3.0.0", __version__, "Use `Client` from the httpx package instead"
-    )
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-
-    @deprecated(
-        "1.0.2",
-        "3.0.0",
-        __version__,
-        "Use `close` method from `Client` in the httpx package instead",
-    )
-    def aclose(self) -> None:
-        self.close()
 
 
 def sanitize_param(param: Any) -> str:
@@ -89,10 +66,3 @@ def _rpc_query_param(value: Any) -> Any:
 
 def is_http_url(url: URL) -> bool:
     return url.scheme in {"https", "http"}
-
-
-TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
-
-
-def _model_validate_json(model: type[TBaseModel], contents: str | bytes) -> TBaseModel:
-    return model.model_validate_json(contents)

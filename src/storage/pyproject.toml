@@ -26,7 +26,6 @@ version = "3.0.0-a1" # {x-release-please-version}
 requires-python = ">=3.11"
 
 dependencies = [
-  "deprecation >=2.1.0",
   "pydantic >=2.11.7",
   "yarl>=1.20.1",
   "supabase_utils==3.0.0-a1", # x-release-please-version

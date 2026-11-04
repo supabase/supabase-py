@@ -36,7 +36,7 @@ from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .types import CountMethod, Filters, FilterValue, ReturnMethod
-from .utils import _model_validate_json, _sanitize_array_param, sanitize_param
+from .utils import _sanitize_array_param, sanitize_param
 
 MAX_RETRIES = 3
 
@@ -662,7 +662,7 @@ class BaseRequestClient(Generic[HttpIO]):
 
 def _api_error(response: Response) -> APIError:
     try:
-        json_obj = _model_validate_json(APIErrorFromJSON, response.content)
+        json_obj = APIErrorFromJSON.model_validate_json(response.content)
     except ValidationError:
         return APIError(generate_default_error_message(response))
     return APIError(dict(json_obj))
