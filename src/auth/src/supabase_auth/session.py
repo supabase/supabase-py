@@ -19,13 +19,23 @@ from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
-from .constants import EXPIRY_MARGIN, MAX_RETRIES, RETRY_INTERVAL, STORAGE_KEY
+from .constants import (
+    EXPIRY_MARGIN,
+    MAX_RETRIES,
+    RETRY_BASE_DELAY,
+    RETRY_MAX_DELAY,
+    STORAGE_KEY,
+)
 from .errors import AuthRetryableError, AuthSessionMissingError
 from .helpers import parse_auth_response, parse_user_response
 from .timer import _AsyncTimer, _SyncTimer
 from .types import AuthChangeEvent, AuthResponse, Session, Subscription, UserResponse
 
 logger = logging.getLogger(__name__)
+
+
+def _retry_delay(attempt: int) -> float:
+    return min(RETRY_BASE_DELAY * 2.0 ** (attempt - 1), RETRY_MAX_DELAY)
 
 
 class AsyncSupportedStorage(ABC):
@@ -239,7 +249,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
                         if self.refresh_token_timer:
                             self.refresh_token_timer.cancel()
                         self.refresh_token_timer = _AsyncTimer(
-                            RETRY_INTERVAL ** (2 * (self.network_retries - 1)) / 1000,
+                            _retry_delay(self.network_retries),
                             self.recover_and_refresh,
                         )
                         self.refresh_token_timer.start()
@@ -259,9 +269,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
                 self.network_retries = 0
         except Exception as e:
             if isinstance(e, AuthRetryableError) and self.network_retries < MAX_RETRIES:
-                self.start_auto_refresh_token(
-                    RETRY_INTERVAL ** (2 * (self.network_retries - 1)) / 1000,
-                )
+                self.start_auto_refresh_token(_retry_delay(self.network_retries))
 
     def start_auto_refresh_token(self, seconds: float) -> None:
         if self.refresh_token_timer:
@@ -395,9 +403,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
                 self.network_retries = 0
         except Exception as e:
             if isinstance(e, AuthRetryableError) and self.network_retries < MAX_RETRIES:
-                self.start_auto_refresh_token(
-                    RETRY_INTERVAL ** (2 * (self.network_retries - 1)) / 1000
-                )
+                self.start_auto_refresh_token(_retry_delay(self.network_retries))
 
     def recover_and_refresh(self) -> None:
         raw_session = self.storage.get_item(self.storage_key)
@@ -424,7 +430,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
                         if self.refresh_token_timer:
                             self.refresh_token_timer.cancel()
                         self.refresh_token_timer = _SyncTimer(
-                            RETRY_INTERVAL ** (2 * (self.network_retries - 1)) / 1000,
+                            _retry_delay(self.network_retries),
                             self.recover_and_refresh,
                         )
                         self.refresh_token_timer.start()
