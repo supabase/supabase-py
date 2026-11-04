@@ -5,7 +5,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Dict, Generic
+from typing import Generic
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -41,7 +41,7 @@ class AsyncSupportedStorage(ABC):
 
 class AsyncMemoryStorage(AsyncSupportedStorage):
     def __init__(self) -> None:
-        self.storage: Dict[str, str] = {}
+        self.storage: dict[str, str] = {}
 
     async def get_item(self, key: str) -> str | None:
         if key in self.storage:
@@ -66,7 +66,7 @@ class _SessionManagerCommon(Generic[HttpIO]):
     base_url: URL
     executor: HttpIO
     default_headers: Headers
-    state_change_emitters: Dict[str, Subscription]
+    state_change_emitters: dict[str, Subscription]
     storage_key: str = field(default=STORAGE_KEY, kw_only=True)
     persist_session: bool = field(default=True, kw_only=True)
     network_retries: int = field(default=0, kw_only=True)
@@ -288,7 +288,7 @@ class SyncSupportedStorage(ABC):
 
 class SyncMemoryStorage(SyncSupportedStorage):
     def __init__(self) -> None:
-        self.storage: Dict[str, str] = {}
+        self.storage: dict[str, str] = {}
 
     def get_item(self, key: str) -> str | None:
         if key in self.storage:

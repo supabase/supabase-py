@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import builtins
 from dataclasses import dataclass
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Literal, Tuple
+from typing import Any, Generic, Literal
 
 from pydantic import TypeAdapter
 from supabase_utils.http.headers import Headers
@@ -50,7 +51,7 @@ from .types import (
 __all__ = ["StorageFileApiClient"]
 
 
-def relative_path_to_parts(path: str) -> Tuple[str, ...]:
+def relative_path_to_parts(path: str) -> tuple[str, ...]:
     url = URL(path)
     if url.absolute or url.parts[0] == "/":
         return url.parts[1:]
@@ -116,7 +117,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         if upsert:
             headers = headers.set("x-upsert", upsert)
 
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)
         response = yield EmptyRequest(
             method="POST",
             path=["object", "upload", "sign", self.id, *path_parts],
@@ -133,8 +134,8 @@ class StorageFileApiClient(Generic[HttpIO]):
         file: BufferedReader | bytes | FileIO | str | Path,
         content_type: str = "text/plain;charset=UTF-8",
         cache_control: str = "3600",
-        metadata: Dict[str, Any] | None = None,
-        headers: Dict[str, str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> HttpMethod[UploadResponse]:
         """
         Upload a file with a token generated from :meth:`.create_signed_url`
@@ -148,7 +149,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         file
             The file contents or a file-like object to upload
         """
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)
         query_params = URLQuery.from_mapping({"token": token})
 
         http_headers = Headers.empty().set("x-upsert", "false")
@@ -219,7 +220,7 @@ class StorageFileApiClient(Generic[HttpIO]):
                 "download", "" if download is True else download
             )
 
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)
         body = CreateSignedUrlBody(
             expiresIn=expires_in,
             download=download,
@@ -236,7 +237,7 @@ class StorageFileApiClient(Generic[HttpIO]):
 
     def _parse_signed_urls(
         self, response: Response, download_query: URLQuery
-    ) -> List[CreateSignedUrlResponse]:
+    ) -> builtins.list[CreateSignedUrlResponse]:
         if not response.is_success:
             raise parse_api_error(response)
         data = SignedUrlsJsonResponse.validate_json(response.content)
@@ -259,10 +260,10 @@ class StorageFileApiClient(Generic[HttpIO]):
     @handle_http_io
     def create_signed_urls(
         self,
-        paths: List[str],
+        paths: builtins.list[str],
         expires_in: int,
         download: bool | str | None = None,
-    ) -> HttpMethod[List[CreateSignedUrlResponse]]:
+    ) -> HttpMethod[builtins.list[CreateSignedUrlResponse]]:
         """
         Parameters
         ----------
@@ -397,7 +398,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         path
             The path to the file.
         """
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
         response = yield EmptyRequest(
             method="GET",
             path=["object", "info", self.id, *path_parts],
@@ -417,7 +418,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         path
             The path to the file.
         """
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
         response = yield EmptyRequest(
             method="HEAD",
             path=["object", self.id, *path_parts],
@@ -437,7 +438,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         offset: int = 0,
         search: str | None = None,
         sortBy: SortByType | None = None,
-    ) -> HttpMethod[List[ListFileObject]]:
+    ) -> HttpMethod[builtins.list[ListFileObject]]:
         """
         Lists all the files within a bucket.
 
@@ -491,7 +492,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         self,
         path: str,
         transform: TransformOptions | None = None,
-        query_params: Dict[str, str] | None = None,
+        query_params: dict[str, str] | None = None,
     ) -> HttpMethod[bytes]:
         """
         Downloads a file.
@@ -501,14 +502,14 @@ class StorageFileApiClient(Generic[HttpIO]):
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         """
-        render_path: List[str] = ["object"]
+        render_path: list[str] = ["object"]
         params = (
             URLQuery.from_mapping(query_params) if query_params else URLQuery.empty()
         )
         if transform:
             params = params.merge(URLQuery.from_mapping(transform_to_dict(transform)))
             render_path = ["render", "image", "authenticated"]
-        path_parts: Tuple[str, ...] = relative_path_to_parts(path)
+        path_parts: tuple[str, ...] = relative_path_to_parts(path)
         response = yield EmptyRequest(
             method="GET",
             path=[*render_path, self.id, *path_parts],
@@ -526,8 +527,8 @@ class StorageFileApiClient(Generic[HttpIO]):
         cache_control: str,
         content_type: str,
         upsert: str,
-        metadata: Dict[str, Any] | None,
-        headers: Dict[str, str] | None,
+        metadata: dict[str, Any] | None,
+        headers: dict[str, str] | None,
     ) -> HttpMethod[UploadResponse]:
         """
         Uploads a file to an existing bucket.
@@ -588,8 +589,8 @@ class StorageFileApiClient(Generic[HttpIO]):
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
         upsert: str = "false",
-        metadata: Dict[str, Any] | None = None,
-        headers: Dict[str, str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> HttpMethod[UploadResponse]:
         """
         Uploads a file to an existing bucket.
@@ -624,8 +625,8 @@ class StorageFileApiClient(Generic[HttpIO]):
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
         upsert: str = "false",
-        metadata: Dict[str, Any] | None = None,
-        headers: Dict[str, str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> HttpMethod[UploadResponse]:
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(

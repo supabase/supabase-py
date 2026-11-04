@@ -3,8 +3,9 @@ Defines the RealtimePresence class and its dependencies.
 """
 
 import logging
+from collections.abc import Callable, Generator
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Generator, List, Optional, Union
+from typing import Any, Optional, Union
 
 from .types import (
     Presence,
@@ -72,15 +73,15 @@ def _transform_state(
 @dataclass
 class PresenceJoin:
     key: str
-    current_presences: List[Presence]
-    new_presences: List[Presence]
+    current_presences: list[Presence]
+    new_presences: list[Presence]
 
 
 @dataclass
 class PresenceLeave:
     key: str
-    current_presences: List[Presence]
-    left_presences: List[Presence]
+    current_presences: list[Presence]
+    left_presences: list[Presence]
 
 
 PresenceEvent = PresenceJoin | PresenceLeave

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Generic, List
+from typing import Generic
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -317,7 +317,7 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
     @handle_http_io
     def list_users(
         self, page: int | None = None, per_page: int | None = None
-    ) -> HttpMethod[List[User]]:
+    ) -> HttpMethod[list[User]]:
         """
         Get a list of users.
 

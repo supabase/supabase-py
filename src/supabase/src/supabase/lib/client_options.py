@@ -1,7 +1,7 @@
 import dataclasses
 import platform
 from dataclasses import dataclass, field
-from typing import Any, Dict, TypeVar
+from typing import Any, TypeVar
 
 from supabase_auth import (
     AsyncMemoryStorage,
@@ -37,7 +37,7 @@ class ClientOptions:
     Must be on the list of exposed schemas in Supabase. Defaults to 'public'.
     """
 
-    headers: Dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
+    headers: dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
     """Optional headers for initializing the client."""
 
     auto_refresh_token: bool = True
@@ -67,7 +67,7 @@ class AsyncClientOptions(ClientOptions):
         self,
         *,
         schema: str | None = None,
-        headers: Dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         auto_refresh_token: bool | None = None,
         persist_session: bool | None = None,
         storage: AsyncSupportedStorage | None = None,
@@ -95,7 +95,7 @@ class SyncClientOptions(ClientOptions):
         self,
         *,
         schema: str | None = None,
-        headers: Dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         auto_refresh_token: bool | None = None,
         persist_session: bool | None = None,
         storage: SyncSupportedStorage | None = None,

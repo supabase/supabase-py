@@ -1,4 +1,4 @@
-from typing import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 from pydantic import TypeAdapter
 from typing_extensions import TypeAliasType

@@ -74,7 +74,7 @@ select = [
   # isort
   "I",
 ]
-ignore = ["E712", "E501", "E402", "UP006", "UP035"]
+ignore = ["E712", "E501", "E402"]
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]

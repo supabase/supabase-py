@@ -1,4 +1,4 @@
-from typing import Dict, Generic, List, Literal, overload
+from typing import Generic, Literal, overload
 
 from httpx import AsyncClient, Client
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
@@ -32,7 +32,7 @@ from .version import __version__
 
 
 class FunctionsClient(Generic[HttpIO]):
-    def __init__(self, url: URL, headers: Dict[str, str], executor: HttpIO) -> None:
+    def __init__(self, url: URL, headers: dict[str, str], executor: HttpIO) -> None:
         if not (url.scheme == "http" or url.scheme == "https"):
             raise ValueError("url must be a valid HTTP URL string")
         supabase_headers = Headers.supabase_client_headers(
@@ -60,9 +60,9 @@ class FunctionsClient(Generic[HttpIO]):
     def _invoke_options_to_request(
         self,
         function_name: str,
-        body: bytes | bytearray | str | Dict[str, JSON] | List[JSON] | None,
+        body: bytes | bytearray | str | dict[str, JSON] | list[JSON] | None,
         region: FunctionRegion | str | None,
-        headers: Dict[str, str] | None,
+        headers: dict[str, str] | None,
         method: HTTPRequestMethod,
     ) -> ToRequest:
         if not is_valid_str_arg(function_name):
@@ -116,9 +116,9 @@ class FunctionsClient(Generic[HttpIO]):
     def invoke(
         self,
         function_name: str,
-        body: bytes | bytearray | str | Dict[str, JSON] | List[JSON] | None = None,
+        body: bytes | bytearray | str | dict[str, JSON] | list[JSON] | None = None,
         region: FunctionRegion | str | None = None,
-        headers: Dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
         method: HTTPRequestMethod = "POST",
     ) -> HttpMethod[Response]:
         """Invokes a function
@@ -144,7 +144,7 @@ class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
     def __init__(
         self,
         url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         http_client: AsyncClient | None = None,
     ) -> None:
         http_client = http_client or AsyncClient(
@@ -163,7 +163,7 @@ class SyncFunctionsClient(FunctionsClient[SyncHttpIO]):
     def __init__(
         self,
         url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         http_client: Client | None = None,
     ) -> None:
         http_client = http_client or Client(

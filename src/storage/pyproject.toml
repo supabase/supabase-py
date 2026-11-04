@@ -94,7 +94,7 @@ select = [
   # isort
   "I",
 ]
-ignore = ["E712", "E501", "E402", "UP006", "UP035"]
+ignore = ["E712", "E501", "E402"]
 
 [tool.uv]
 default-groups = [ "dev" ]

@@ -87,7 +87,7 @@ select = [
   "I",
   "ANN2"
 ]
-ignore = ["F403", "E501", "E402", "UP006", "UP035"]
+ignore = ["F403", "E501", "E402"]
 
 
 [build-system]

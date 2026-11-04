@@ -2,7 +2,6 @@ import os
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import (
-    List,
     Literal,
     Protocol,
 )
@@ -49,7 +48,7 @@ class ToRequest(Protocol):
 
 @dataclass
 class EmptyRequest:
-    path: List[str]
+    path: list[str]
     method: HTTPRequestMethod
     delay: float | None = field(default=None, kw_only=True)
     headers: Headers = field(default_factory=Headers.empty, kw_only=True)

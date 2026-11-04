@@ -2,19 +2,15 @@ from __future__ import annotations
 
 import copy
 import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from re import search
 from typing import (
     Any,
-    Dict,
     Generic,
-    Iterable,
-    List,
     Literal,
-    Mapping,
     NamedTuple,
     Self,
-    Tuple,
     TypeVar,
     overload,
 )
@@ -56,7 +52,7 @@ class QueryArgs(NamedTuple):
 C = TypeVar("C", Client, AsyncClient)
 
 
-def _unique_columns(json: List[JSON]) -> str:
+def _unique_columns(json: list[JSON]) -> str:
     unique_keys = {key for row in json if isinstance(row, Mapping) for key in row}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
@@ -77,7 +73,7 @@ def _serialize_filter_value(value: Any) -> str:
     return str(value)
 
 
-def _cleaned_columns(columns: Tuple[str, ...]) -> str:
+def _cleaned_columns(columns: tuple[str, ...]) -> str:
     quoted = False
     cleaned = []
 
@@ -179,13 +175,13 @@ def pre_delete(
     return QueryArgs("DELETE", URLQuery.empty(), prefer_headers, {})
 
 
-JSONListParser = TypeAdapter(List[Dict[str, JSON]])
-JSONDictParser = TypeAdapter(Dict[str, JSON])
+JSONListParser = TypeAdapter(list[dict[str, JSON]])
+JSONDictParser = TypeAdapter(dict[str, JSON])
 
 
 @dataclass
 class APIResponse:
-    data: List[Dict[str, JSON]]
+    data: list[dict[str, JSON]]
     """The data returned by the query."""
     count: int | None = None
     """The number of rows returned."""
@@ -230,7 +226,7 @@ class APIResponse:
 
 @dataclass
 class SingleAPIResponse:
-    data: Dict[str, JSON]
+    data: dict[str, JSON]
     count: int | None
 
     @staticmethod
@@ -451,7 +447,7 @@ class BaseFilterRequestBuilder:
         return self.filter(column, Filters.CD, _sanitize_array_param(values))
 
     def contains(
-        self: Self, column: str, value: Iterable[FilterValue] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[FilterValue] | str | dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -464,7 +460,7 @@ class BaseFilterRequestBuilder:
         return self.filter(column, Filters.CS, json.dumps(value))
 
     def contained_by(
-        self: Self, column: str, value: Iterable[FilterValue] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[FilterValue] | str | dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range
@@ -474,7 +470,7 @@ class BaseFilterRequestBuilder:
         return self.filter(column, Filters.CD, json.dumps(value))
 
     def ov(
-        self: Self, column: str, value: Iterable[FilterValue] | str | Dict[str, JSON]
+        self: Self, column: str, value: Iterable[FilterValue] | str | dict[str, JSON]
     ) -> Self:
         if isinstance(value, str):
             # range types can be inclusive '[', ']' or exclusive '(', ')' so just
@@ -518,7 +514,7 @@ class BaseFilterRequestBuilder:
     def overlaps(self: Self, column: str, values: str | Iterable[FilterValue]) -> Self:
         return self.ov(column, values)
 
-    def match(self: Self, query: Dict[str, str | int]) -> Self:
+    def match(self: Self, query: dict[str, str | int]) -> Self:
         updated_query = self
 
         if not query:

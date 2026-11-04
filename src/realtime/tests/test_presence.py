@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import os
-from typing import AsyncIterator, Dict, List, Tuple
+from collections.abc import AsyncIterator
 
 import pytest
 from dotenv import load_dotenv

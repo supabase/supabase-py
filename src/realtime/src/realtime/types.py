@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List, Literal, Optional, TypeVar
+from typing import (
+    Any,
+    Generic,
+    Literal,
+    NotRequired,
+    Optional,
+    Required,
+    TypeAlias,
+    TypeVar,
+)
 
 from pydantic import BaseModel, ConfigDict, Field, with_config
 from typing_extensions import (
-    Generic,
-    NotRequired,
     ParamSpec,
-    Required,
-    TypeAlias,
     TypedDict,
 )
 
@@ -97,7 +103,7 @@ class PostgresChangesData(TypedDict):
     commit_timestamp: str
     type: RealtimePostgresChangesListenEvent
     errors: str | None
-    columns: List[PostgresChangesColumn]
+    columns: list[PostgresChangesColumn]
     record: NotRequired[dict[str, Any] | None]
     old_record: NotRequired[dict[str, Any]]  # todo: improve this
 
@@ -107,7 +113,7 @@ class PostgresChangesBindingDict(TypedDict):
     table: NotRequired[str]
     schema: NotRequired[str]
     filter: NotRequired[str]
-    select: NotRequired[List[str]]
+    select: NotRequired[list[str]]
     id: NotRequired[int]
 
 
@@ -117,7 +123,7 @@ class PostgresChangesBinding:
     table: str | None
     schema: str | None
     filter: str | None
-    select: List[str] | None = None
+    select: list[str] | None = None
     id: int | None = None
 
     def as_dict(self) -> PostgresChangesBindingDict:
@@ -135,7 +141,7 @@ class PostgresChangesBinding:
 
 class PostgresChangesPayload(TypedDict):
     data: PostgresChangesData
-    ids: List[int]
+    ids: list[int]
 
 
 class BroadcastMeta(TypedDict, total=False):
@@ -203,11 +209,11 @@ class PresenceMeta(TypedDict, extra_items=Any):
 
 
 class RawPresenceStateEntry(TypedDict):
-    metas: List[PresenceMeta]
+    metas: list[PresenceMeta]
 
 
-RealtimePresenceState = Dict[str, List[Presence]]
-RawPresenceState = Dict[str, RawPresenceStateEntry]
+RealtimePresenceState = dict[str, list[Presence]]
+RawPresenceState = dict[str, RawPresenceStateEntry]
 
 
 class RawPresenceDiff(TypedDict):
@@ -224,12 +230,12 @@ class PresenceDiff(TypedDict):
 class RealtimePresenceJoinPayload(TypedDict):
     event: Literal[RealtimePresenceListenEvents.JOIN]
     key: str
-    current_presences: List[Presence]
-    new_presences: List[Presence]
+    current_presences: list[Presence]
+    new_presences: list[Presence]
 
 
 class RealtimePresenceLeavePayload(TypedDict):
     event: Literal[RealtimePresenceListenEvents.LEAVE]
     key: str
-    current_presences: List[Presence]
-    left_presences: List[Presence]
+    current_presences: list[Presence]
+    left_presences: list[Presence]

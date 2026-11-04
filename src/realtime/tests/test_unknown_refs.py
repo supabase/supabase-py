@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 import pytest
 from websockets.asyncio.server import ServerConnection, serve

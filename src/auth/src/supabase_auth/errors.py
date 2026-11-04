@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, TypeAdapter, ValidationError, field_validator
 
@@ -204,7 +204,7 @@ class AuthRetryableError(CustomAuthError):
 
 
 class AuthWeakPasswordError(CustomAuthError):
-    def __init__(self, message: str, status: int, reasons: List[str]) -> None:
+    def __init__(self, message: str, status: int, reasons: list[str]) -> None:
         CustomAuthError.__init__(
             self,
             message=message,

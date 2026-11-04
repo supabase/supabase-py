@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import builtins
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, List
+from typing import TYPE_CHECKING, Generic
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -53,7 +54,7 @@ class StorageAnalyticsClient(Generic[HttpIO]):
         sort_column: SortColumn | None = None,
         sort_order: SortOrder | None = None,
         search: str | None = None,
-    ) -> HttpMethod[List[AnalyticsBucket]]:
+    ) -> HttpMethod[builtins.list[AnalyticsBucket]]:
         params = dict(
             limit=limit,
             offset=offset,

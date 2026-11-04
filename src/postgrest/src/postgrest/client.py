@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from base64 import b64encode
+from collections.abc import Mapping
 from types import TracebackType
-from typing import Generic, Literal, Mapping, Self, overload
+from typing import Generic, Literal, Self, overload
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (

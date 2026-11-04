@@ -2,8 +2,8 @@ import asyncio
 import datetime
 import os
 import socket
+from collections.abc import AsyncIterator
 from types import TracebackType
-from typing import AsyncIterator
 
 import aiohttp
 import pytest

@@ -3,19 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass, field, replace
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    AsyncIterator,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    TypeAlias,
-    assert_never,
-)
+from typing import TYPE_CHECKING, Any, Optional, TypeAlias, assert_never
 
 import websockets
 from supabase_utils.types import JSON
@@ -303,7 +293,7 @@ class RealtimeChannel:
             )
 
     # Presence methods
-    async def track(self, user_status: Dict[str, Any]) -> ReplyMessage:
+    async def track(self, user_status: dict[str, Any]) -> ReplyMessage:
         """
         Track presence status for the current user.
 

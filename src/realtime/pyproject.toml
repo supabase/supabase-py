@@ -70,12 +70,9 @@ select = [
   # isort
   "I",
 ]
-ignore = ["F401", "F403", "F841", "E712", "E501", "E402", "UP006", "UP035"]
+ignore = ["F401", "F403", "F841", "E712", "E501", "E402"]
 # isort.required-imports = ["from __future__ import annotations"]
 
-[tool.ruff.lint.pyupgrade]
-# Preserve types, even if a file imports `from __future__ import annotations`.
-keep-runtime-typing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

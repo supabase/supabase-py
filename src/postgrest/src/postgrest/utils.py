@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Iterable, Type, TypeVar
+from collections.abc import Iterable
+from typing import Any, TypeVar
 
 from deprecation import deprecated
 from httpx import AsyncClient  # noqa: F401
@@ -93,5 +94,5 @@ def is_http_url(url: URL) -> bool:
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def _model_validate_json(model: Type[TBaseModel], contents: str | bytes) -> TBaseModel:
+def _model_validate_json(model: type[TBaseModel], contents: str | bytes) -> TBaseModel:
     return model.model_validate_json(contents)

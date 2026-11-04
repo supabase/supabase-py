@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterator, KeysView, Mapping
+from collections.abc import Iterator, KeysView, Mapping
 
 from pyrsistent import PMap, PVector
 from pyrsistent import m as Map

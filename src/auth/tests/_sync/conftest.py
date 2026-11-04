@@ -1,13 +1,14 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
 from random import random
 from time import time
-from typing import Iterator
+from typing import NotRequired
 
 import pytest
 from httpx import Client
 from jwt import encode
 from supabase_utils.http.adapters.httpx import HttpxSession
-from typing_extensions import Generator, NotRequired, TypedDict
+from typing_extensions import Generator, TypedDict
 
 from supabase_auth import SyncSupabaseAuthAdmin, SyncSupabaseAuthClient
 from supabase_auth.types import (

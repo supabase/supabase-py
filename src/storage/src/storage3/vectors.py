@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import builtins
 from dataclasses import dataclass
-from typing import Generic, List
+from typing import Generic
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -137,7 +138,7 @@ class VectorIndexScope(Generic[HttpIO]):
         )
 
     @handle_http_io
-    def put(self, vectors: List[VectorObject]) -> HttpMethod[None]:
+    def put(self, vectors: builtins.list[VectorObject]) -> HttpMethod[None]:
         body = self._with_metadata(
             vectors=[v.model_dump(exclude_none=True) for v in vectors]
         )
@@ -214,7 +215,7 @@ class VectorIndexScope(Generic[HttpIO]):
         return _validate_model(response, QueryVectorsResponse)
 
     @handle_http_io
-    def delete(self, keys: List[str]) -> HttpMethod[None]:
+    def delete(self, keys: builtins.list[str]) -> HttpMethod[None]:
         if len(keys) < 1 or len(keys) > 500:
             raise VectorBucketException("Keys batch size must be between 1 and 500.")
         body = self._with_metadata(keys=keys)

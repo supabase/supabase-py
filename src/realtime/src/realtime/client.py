@@ -3,19 +3,10 @@ import json
 import logging
 import re
 import sys
+from collections.abc import AsyncIterator, Awaitable, Callable, Generator
 from functools import wraps
 from types import TracebackType
-from typing import (
-    Any,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Union,
-)
+from typing import Any, Optional, Union
 from urllib.parse import urlencode, urlparse, urlunparse
 from warnings import warn
 
@@ -164,8 +155,8 @@ class RealtimeClient:
         self._ws_connection: ClientConnection = ws_connection
 
         self.ref = 0
-        self.channels: Dict[str, RealtimeChannel] = {}
-        self.message_refs: Dict[str, asyncio.Future[Message]] = {}
+        self.channels: dict[str, RealtimeChannel] = {}
+        self.message_refs: dict[str, asyncio.Future[Message]] = {}
         self._connection_failure: asyncio.Future[Message] = asyncio.Future()
 
         self.hb_interval = hb_interval
@@ -276,7 +267,7 @@ class RealtimeClient:
         self.channels[topic] = chan
         return chan
 
-    def get_channels(self) -> List[RealtimeChannel]:
+    def get_channels(self) -> list[RealtimeChannel]:
         return list(self.channels.values())
 
     def _remove_channel(self, channel: RealtimeChannel) -> None:
