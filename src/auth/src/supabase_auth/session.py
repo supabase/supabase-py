@@ -19,7 +19,13 @@ from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
-from .constants import EXPIRY_MARGIN, MAX_RETRIES, RETRY_BASE_DELAY, STORAGE_KEY
+from .constants import (
+    EXPIRY_MARGIN,
+    MAX_RETRIES,
+    RETRY_BASE_DELAY,
+    RETRY_MAX_DELAY,
+    STORAGE_KEY,
+)
 from .errors import AuthRetryableError, AuthSessionMissingError
 from .helpers import parse_auth_response, parse_user_response
 from .timer import _AsyncTimer, _SyncTimer
@@ -29,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 def _retry_delay(attempt: int) -> float:
-    return RETRY_BASE_DELAY * 2.0 ** (attempt - 1)
+    return min(RETRY_BASE_DELAY * 2.0 ** (attempt - 1), RETRY_MAX_DELAY)
 
 
 class AsyncSupportedStorage(ABC):
