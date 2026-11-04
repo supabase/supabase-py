@@ -1,6 +1,6 @@
 [project]
 name = "supabase"
-version = "3.0.0a1" # {x-release-please-version}
+version = "3.0.0-a1" # {x-release-please-version}
 description = "Supabase client for Python."
 authors = [
   { name = "Joel Lee", email = "joel@joellee.org" },
@@ -27,12 +27,12 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-  "realtime == 3.0.0a1", # x-release-please-version
-  "supabase_functions == 3.0.0a1", # x-release-please-version
-  "storage3 == 3.0.0a1", # x-release-please-version
-  "supabase_auth == 3.0.0a1", # x-release-please-version
-  "supabase_utils == 3.0.0a1", # x-release-please-version
-  "postgrest == 3.0.0a1", # x-release-please-version
+  "realtime == 3.0.0-a1", # x-release-please-version
+  "supabase_functions == 3.0.0-a1", # x-release-please-version
+  "storage3 == 3.0.0-a1", # x-release-please-version
+  "supabase_auth == 3.0.0-a1", # x-release-please-version
+  "supabase_utils == 3.0.0-a1", # x-release-please-version
+  "postgrest == 3.0.0-a1", # x-release-please-version
   "typing-extensions >=4.15.0",
   "yarl>=1.22.0",
 ]
@@ -47,7 +47,7 @@ changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 httpx = ["supabase_utils[httpx]"]
 aiohttp = ["supabase_utils[aiohttp]"]
 iceberg = [
-  "storage3[iceberg] == 3.0.0a1", # x-release-please-version
+  "storage3[iceberg] == 3.0.0-a1", # x-release-please-version
 ]
 
 [dependency-groups]
@@ -56,7 +56,7 @@ dev = [
   { include-group = "lints" },
 ]
 tests = [
-  "storage3[iceberg] == 3.0.0a1", # x-release-please-version
+  "storage3[iceberg] == 3.0.0-a1", # x-release-please-version
   "pytest >=9.0.3",
   "pytest-cov >=6.2.1",
   "pytest-asyncio >=1.3.0",
