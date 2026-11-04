@@ -1,3 +1,4 @@
+import inspect
 import re
 
 import pytest
@@ -92,3 +93,25 @@ def test_json_request_keeps_request_content_type() -> None:
         headers=Headers.from_mapping({"Content-Type": "application/merge-patch+json"}),
     ).finalize(URL("https://example.com"), Headers.empty())
     assert request.headers.get_list("Content-Type") == ["application/merge-patch+json"]
+
+
+@pytest.mark.parametrize("client_class", [SyncFunctionsClient, AsyncFunctionsClient])
+def test_invoke_keeps_wrapped_method_metadata(
+    client_class: type[SyncFunctionsClient] | type[AsyncFunctionsClient],
+    valid_url: str,
+    valid_headers: dict[str, str],
+) -> None:
+    client = client_class(url=valid_url, headers=valid_headers)
+    invoke = client.invoke
+
+    assert invoke.__name__ == "invoke"
+    assert invoke.__doc__ is not None
+    assert invoke.__doc__.startswith("Invokes a function")
+    assert inspect.unwrap(invoke) is not invoke
+    assert list(inspect.signature(invoke).parameters) == [
+        "function_name",
+        "body",
+        "region",
+        "headers",
+        "method",
+    ]
