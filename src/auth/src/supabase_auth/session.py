@@ -210,8 +210,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
             refresh_duration_before_expires = (
                 EXPIRY_MARGIN if expire_in > EXPIRY_MARGIN else 0.5
             )
-            value = (expire_in - refresh_duration_before_expires) * 1000
-            self.start_auto_refresh_token(value)
+            self.start_auto_refresh_token(expire_in - refresh_duration_before_expires)
         if self.persist_session and session.expires_at:
             await self.storage.set_item(self.storage_key, session.model_dump_json())
 
@@ -240,7 +239,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
                         if self.refresh_token_timer:
                             self.refresh_token_timer.cancel()
                         self.refresh_token_timer = _AsyncTimer(
-                            (RETRY_INTERVAL ** (2 * (self.network_retries - 1))),
+                            RETRY_INTERVAL ** (2 * (self.network_retries - 1)) / 1000,
                             self.recover_and_refresh,
                         )
                         self.refresh_token_timer.start()
@@ -261,17 +260,17 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         except Exception as e:
             if isinstance(e, AuthRetryableError) and self.network_retries < MAX_RETRIES:
                 self.start_auto_refresh_token(
-                    (RETRY_INTERVAL ** (2 * (self.network_retries - 1))),
+                    RETRY_INTERVAL ** (2 * (self.network_retries - 1)) / 1000,
                 )
 
-    def start_auto_refresh_token(self, value: float) -> None:
+    def start_auto_refresh_token(self, seconds: float) -> None:
         if self.refresh_token_timer:
             self.refresh_token_timer.cancel()
             self.refresh_token_timer = None
-        if value <= 0 or not self.auto_refresh_token:
+        if seconds <= 0 or not self.auto_refresh_token:
             return
 
-        self.refresh_token_timer = _AsyncTimer(value, self.refresh_token_function)
+        self.refresh_token_timer = _AsyncTimer(seconds, self.refresh_token_function)
         self.refresh_token_timer.start()
 
 
@@ -383,8 +382,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
             refresh_duration_before_expires = (
                 EXPIRY_MARGIN if expire_in > EXPIRY_MARGIN else 0.5
             )
-            value = (expire_in - refresh_duration_before_expires) * 1000
-            self.start_auto_refresh_token(value)
+            self.start_auto_refresh_token(expire_in - refresh_duration_before_expires)
         if self.persist_session and session.expires_at:
             self.storage.set_item(self.storage_key, session.model_dump_json())
 
@@ -398,7 +396,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         except Exception as e:
             if isinstance(e, AuthRetryableError) and self.network_retries < MAX_RETRIES:
                 self.start_auto_refresh_token(
-                    RETRY_INTERVAL ** (2 * (self.network_retries - 1))
+                    RETRY_INTERVAL ** (2 * (self.network_retries - 1)) / 1000
                 )
 
     def recover_and_refresh(self) -> None:
@@ -426,7 +424,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
                         if self.refresh_token_timer:
                             self.refresh_token_timer.cancel()
                         self.refresh_token_timer = _SyncTimer(
-                            (RETRY_INTERVAL ** (2 * (self.network_retries - 1))),
+                            RETRY_INTERVAL ** (2 * (self.network_retries - 1)) / 1000,
                             self.recover_and_refresh,
                         )
                         self.refresh_token_timer.start()
@@ -437,12 +435,12 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
             self.save_session(current_session)
         self.notify_all_subscribers("SIGNED_IN", current_session)
 
-    def start_auto_refresh_token(self, value: float) -> None:
+    def start_auto_refresh_token(self, seconds: float) -> None:
         if self.refresh_token_timer:
             self.refresh_token_timer.cancel()
             self.refresh_token_timer = None
-        if value <= 0 or not self.auto_refresh_token:
+        if seconds <= 0 or not self.auto_refresh_token:
             return
 
-        self.refresh_token_timer = _SyncTimer(value, self.refresh_token_function)
+        self.refresh_token_timer = _SyncTimer(seconds, self.refresh_token_function)
         self.refresh_token_timer.start()

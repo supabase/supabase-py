@@ -5,13 +5,13 @@ import time
 from supabase_auth.timer import _AsyncTimer, _SyncTimer
 
 
-async def test_async_timer_waits_given_milliseconds() -> None:
+async def test_async_timer_waits_given_seconds() -> None:
     called = asyncio.Event()
 
     async def callback() -> None:
         called.set()
 
-    timer = _AsyncTimer(milliseconds=50, function=callback)
+    timer = _AsyncTimer(seconds=0.05, function=callback)
     start = time.monotonic()
     timer.start()
     await asyncio.wait_for(called.wait(), timeout=1)
@@ -26,7 +26,7 @@ async def test_async_timer_cancel_prevents_call() -> None:
     async def callback() -> None:
         called.set()
 
-    timer = _AsyncTimer(milliseconds=50, function=callback)
+    timer = _AsyncTimer(seconds=0.05, function=callback)
     timer.start()
     assert timer.is_alive()
     timer.cancel()
@@ -36,10 +36,10 @@ async def test_async_timer_cancel_prevents_call() -> None:
     assert not timer.is_alive()
 
 
-def test_sync_timer_waits_given_milliseconds() -> None:
+def test_sync_timer_waits_given_seconds() -> None:
     called = threading.Event()
 
-    timer = _SyncTimer(milliseconds=50, function=called.set)
+    timer = _SyncTimer(seconds=0.05, function=called.set)
     start = time.monotonic()
     timer.start()
     assert called.wait(timeout=1)
@@ -51,7 +51,7 @@ def test_sync_timer_waits_given_milliseconds() -> None:
 def test_sync_timer_cancel_prevents_call() -> None:
     called = threading.Event()
 
-    timer = _SyncTimer(milliseconds=50, function=called.set)
+    timer = _SyncTimer(seconds=0.05, function=called.set)
     timer.start()
     assert timer.is_alive()
     timer.cancel()

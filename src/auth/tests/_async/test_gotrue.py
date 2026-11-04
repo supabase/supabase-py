@@ -9,6 +9,7 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 from supabase_utils.types import JSON
 
 from supabase_auth import AsyncSupabaseAuthClient
+from supabase_auth.constants import EXPIRY_MARGIN
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -487,3 +488,33 @@ async def test_initialize_from_storage_keeps_refreshed_session() -> None:
     assert Session.model_validate_json(stored).access_token == "new-access-token"
     assert manager.refresh_token_timer is not None
     manager.refresh_token_timer.cancel()
+
+
+async def test_save_session_schedules_refresh_in_seconds() -> None:
+    client = AsyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=AsyncHttpxSession(client=AsyncClient()),
+    )
+    manager = client.session_manager
+    user: dict[str, JSON] = {
+        "id": str(uuid4()),
+        "aud": "authenticated",
+        "app_metadata": {},
+        "user_metadata": {},
+        "created_at": "2024-01-01T00:00:00Z",
+    }
+    session = Session(
+        access_token="access-token",
+        refresh_token="refresh-token",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) + 3600,
+        user=User.model_validate(user),
+    )
+
+    await manager.save_session(session)
+
+    timer = manager.refresh_token_timer
+    assert timer is not None
+    timer.cancel()
+    assert 3600 - EXPIRY_MARGIN - 5 <= timer._seconds <= 3600 - EXPIRY_MARGIN
