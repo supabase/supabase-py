@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Optional, TypeAlias, assert_never
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import websockets
 from supabase_utils.types import JSON
@@ -15,37 +14,25 @@ from .message import (
     BroadcastMessage,
     ChannelCloseMessage,
     ChannelErrorMessage,
-    HeartbeatMessage,
     Message,
     PostgresChangesMessage,
-    PostgresRowChange,
     PresenceDiffMessage,
     PresenceStateMessage,
     ReplyMessage,
-    ReplyPostgresChanges,
-    ServerMessage,
     ServerMessageAdapter,
-    SuccessReplyMessage,
-    SuccessSystemPayload,
     SystemMessage,
 )
 from .presence import PresenceEvent, RealtimePresence
 from .types import (
-    BroadcastPayload,
-    Callback,
     ChannelEvents,
     ChannelStates,
     PostgresChangesBinding,
-    PostgresChangesData,
-    PostgresChangesPayload,
-    RealtimeAcknowledgementStatus,
     RealtimeChannelBroadcastConfig,
     RealtimeChannelConfig,
     RealtimeChannelOptionsPayload,
     RealtimeChannelPresenceConfig,
     RealtimePostgresChangesListenEvent,
     RealtimePresenceState,
-    RealtimeSubscribeStates,
     ReplayOption,
 )
 

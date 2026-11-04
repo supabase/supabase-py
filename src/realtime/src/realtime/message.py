@@ -1,9 +1,8 @@
 from collections.abc import Mapping
-from typing import Annotated, Any, Literal, Optional, TypeAlias, Union
+from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from supabase_utils.types import JSON
-from typing_extensions import TypedDict
 
 from .types import (
     BroadcastPayload,
