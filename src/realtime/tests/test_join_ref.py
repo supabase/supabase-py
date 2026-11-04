@@ -20,8 +20,7 @@ from realtime.types import ChannelEvents
 # the server can detect stale messages after a rejoin.
 # See: https://supabase.com/docs/guides/realtime/protocol#client-sent-events
 
-PORT = 55565
-URL = "localhost"
+HOST = "127.0.0.1"
 PUBLISHABLE_KEY = "my-publishable-key"
 MessageParser: TypeAdapter[ClientMessage] = TypeAdapter(ClientMessage)
 
@@ -45,13 +44,13 @@ def reply_ack(topic: str, ref: str) -> str:
 class RecordingServer:
     """A local websocket server that acks every ref'd message and records what it received."""
 
-    def __init__(self, url: str, port: int) -> None:
-        self.url = url
-        self.port = port
+    def __init__(self) -> None:
         self.received: list[Message] = []
 
     async def start(self) -> None:
-        self.ws_server = await serve(self.handler, self.url, self.port)
+        self.ws_server = await serve(self.handler, HOST, 0)
+        port = next(iter(self.ws_server.sockets)).getsockname()[1]
+        self.url = f"http://{HOST}:{port}"
         await self.ws_server.start_serving()
 
     async def __aenter__(self) -> "RecordingServer":
@@ -76,7 +75,7 @@ class RecordingServer:
 
 @pytest.fixture
 async def server() -> AsyncIterator[RecordingServer]:
-    async with RecordingServer(URL, PORT) as server:
+    async with RecordingServer() as server:
         yield server
 
 
@@ -84,7 +83,7 @@ async def server() -> AsyncIterator[RecordingServer]:
 async def test_join_carries_join_ref_equal_to_its_own_ref(
     server: RecordingServer,
 ) -> None:
-    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+    async with connect_once(server.url, get_token) as client:
         async with client.channel("test-join-ref") as channel:
             [join_message] = server.events("phx_join")
             assert join_message.join_ref == join_message.ref
@@ -94,7 +93,7 @@ async def test_join_carries_join_ref_equal_to_its_own_ref(
 @pytest.mark.asyncio
 async def test_broadcast_push_carries_channel_join_ref(server: RecordingServer) -> None:
     options = RealtimeChannelOptions().broadcast(ack=True)
-    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+    async with connect_once(server.url, get_token) as client:
         async with client.channel("test-join-ref-broadcast", params=options) as channel:
             await channel.send_broadcast("cursor", {"x": 1})
 
@@ -109,7 +108,7 @@ async def test_presence_track_and_untrack_carry_channel_join_ref(
     server: RecordingServer,
 ) -> None:
     options = RealtimeChannelOptions().presence(enabled=True)
-    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+    async with connect_once(server.url, get_token) as client:
         async with client.channel("test-join-ref-presence", params=options) as channel:
             await channel.track({"id": 123})
             await channel.untrack()
@@ -125,7 +124,7 @@ async def test_presence_track_and_untrack_carry_channel_join_ref(
 
 @pytest.mark.asyncio
 async def test_leave_push_carries_channel_join_ref(server: RecordingServer) -> None:
-    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+    async with connect_once(server.url, get_token) as client:
         async with client.channel("test-join-ref-leave"):
             pass
 

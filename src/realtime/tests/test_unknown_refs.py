@@ -13,8 +13,7 @@ from realtime.message import (
 )
 from realtime.types import ChannelEvents
 
-PORT = 55566
-URL = "localhost"
+HOST = "127.0.0.1"
 
 
 async def get_token() -> str:
@@ -39,7 +38,9 @@ class FakeServer:
         self.join_reply_delay = 0.0
 
     async def __aenter__(self) -> "FakeServer":
-        self.ws_server = await serve(self.handler, URL, PORT)
+        self.ws_server = await serve(self.handler, HOST, 0)
+        port = next(iter(self.ws_server.sockets)).getsockname()[1]
+        self.url = f"http://{HOST}:{port}"
         await self.ws_server.start_serving()
         return self
 
@@ -77,7 +78,7 @@ async def server() -> AsyncIterator[FakeServer]:
 async def test_close_with_join_ref_after_leave_keeps_client_alive(
     server: FakeServer,
 ) -> None:
-    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+    async with connect_once(server.url, get_token) as client:
         async with client.channel("first"):
             pass
         async with client.channel("second") as channel:
@@ -88,7 +89,7 @@ async def test_close_with_join_ref_after_leave_keeps_client_alive(
 
 @pytest.mark.asyncio
 async def test_orphan_reply_is_not_forwarded_to_the_channel(server: FakeServer) -> None:
-    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+    async with connect_once(server.url, get_token) as client:
         channel = client.channel("room")
         await channel.subscribe()
         await channel.socket._send_no_wait(
@@ -108,7 +109,7 @@ async def test_late_reply_for_timed_out_send_keeps_client_alive(
     server: FakeServer,
 ) -> None:
     server.join_reply_delay = 0.2
-    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+    async with connect_once(server.url, get_token) as client:
         with pytest.raises(asyncio.TimeoutError):
             await asyncio.wait_for(client.channel("slow").subscribe(), timeout=0.05)
 
@@ -121,7 +122,7 @@ async def test_late_reply_for_timed_out_send_keeps_client_alive(
 
 @pytest.mark.asyncio
 async def test_unsubscribe_delivers_a_single_close(server: FakeServer) -> None:
-    async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
+    async with connect_once(server.url, get_token) as client:
         channel = client.channel("room")
         await channel.subscribe()
         await channel.unsubscribe()
