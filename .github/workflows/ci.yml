@@ -166,9 +166,7 @@ jobs:
             | xargs docker image save \
             | zstd -T0 > /tmp/docker-images/images.tar.zst
 
-      # utils has no pytest suite, so its job produces no coverage report.
       - name: Upload coverage to Coveralls
-        if: ${{ matrix.package != 'utils' }}
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
