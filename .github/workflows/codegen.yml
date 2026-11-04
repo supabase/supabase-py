@@ -1,0 +1,46 @@
+name: Generated code
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  check-sync:
+    name: Generated sync code is up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      UV_FROZEN: "1"
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.11"
+
+      - name: Regenerate sync code
+        run: make auth.build-sync
+
+      - name: Format generated code
+        run: make ruff
+
+      - name: Check for differences
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::The committed generated sync code is out of date. Run 'make auth.build-sync && make ruff' and commit the result."
+            exit 1
+          fi
