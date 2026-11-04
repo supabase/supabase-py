@@ -6,7 +6,7 @@
 
 ### Requirements
 
-- Python >= 3.9
+- Python >= 3.10
 - PostgreSQL >= 13
 - PostgREST >= 11
 
@@ -33,6 +33,12 @@ uv add postgrest
 ```sh
 pip install postgrest
 ```
+
+## Supabase Service Compatibility
+
+`postgrest` only guarantees compatibility with the [latest PostgREST release](https://github.com/PostgREST/postgrest/releases). Older PostgREST releases are supported on a best-effort basis, but compatibility is not guaranteed.
+
+If you self-host PostgREST, we recommend upgrading to the latest release when upgrading this SDK.
 
 ## USAGE
 

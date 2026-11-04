@@ -15,6 +15,12 @@ uv add supabase_functions
 poetry add supabase_functions
 ```
 
+## Supabase Service Compatibility
+
+`supabase_functions` only guarantees compatibility with the [latest Supabase Edge Runtime release](https://github.com/supabase/edge-runtime/releases). Older Supabase Edge Runtime releases are supported on a best-effort basis, but compatibility is not guaranteed.
+
+If you self-host the Supabase Edge Runtime, we recommend upgrading to the latest release when upgrading this SDK.
+
 ## Usage
 
 Deploy your Edge Function following the [Supabase Functions documentation](https://supabase.com/docs/guides/functions).
