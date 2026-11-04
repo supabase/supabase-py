@@ -18,10 +18,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
-env:
-  SUPABASE_CLI_VERSION: "3.0.0"
-  UV_VERSION: "0.8.2"
-
 jobs:
   changes:
     name: Select packages to test
@@ -58,7 +54,6 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: ${{ env.UV_VERSION }}
           python-version: "3.11"
 
       - name: Check lint
@@ -89,12 +84,18 @@ jobs:
         if: ${{ env.USES_SUPABASE_CLI == 'true' }}
         uses: supabase/setup-cli@d239d1052f6f024a8d746d7e5aeddead63b9cb53 # v3.1.0
         with:
-          version: ${{ env.SUPABASE_CLI_VERSION }}
+          version: latest
+
+      # The image versions come from the cli, so a new cli release must not
+      # reuse images cached by an older one.
+      - name: Print supabase cli version
+        if: ${{ env.USES_SUPABASE_CLI == 'true' }}
+        id: supabase-cli
+        run: echo "version=$(supabase --version | head -n 1)" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: ${{ env.UV_VERSION }}
           python-version: ${{ matrix.python-version }}
 
       # The supabase cli publishes host ports inside the ephemeral range, and
@@ -112,7 +113,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /tmp/docker-images
-          key: docker-images-${{ matrix.package }}-${{ env.SUPABASE_CLI_VERSION }}-${{ hashFiles(format('src/{0}/infra/**', matrix.package)) }}
+          key: docker-images-${{ matrix.package }}-${{ steps.supabase-cli.outputs.version || 'compose' }}-${{ hashFiles(format('src/{0}/infra/**', matrix.package)) }}
 
       - name: Load cached docker images
         if: ${{ steps.docker-images.outputs.cache-hit == 'true' }}
@@ -224,7 +225,6 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: ${{ env.UV_VERSION }}
           python-version: "3.11"
 
       - name: Build all packages and publish
