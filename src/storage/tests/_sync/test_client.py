@@ -281,6 +281,7 @@ def test_client_upload(
 
     assert image == file.file_content
     assert image_info is not None
+    assert image_info.metadata is not None
     assert image_info.metadata.get("mimetype") == file.mime_type
 
     # Default cache-control is "3600" seconds and must be stored as max-age=3600
@@ -304,6 +305,7 @@ def test_client_upload_with_query(
 
     assert image == file.file_content
     assert image_info is not None
+    assert image_info.metadata is not None
     assert image_info.metadata.get("mimetype") == file.mime_type
 
 
@@ -355,6 +357,7 @@ def test_client_update(
 
     assert image == two_files[1].file_content
     assert image_info is not None
+    assert image_info.metadata is not None
     assert image_info.metadata.get("mimetype") == two_files[1].mime_type
     info = storage_file_client.info(two_files[0].bucket_path)
     assert info.cache_control == "max-age=7200"
@@ -394,6 +397,7 @@ def test_client_upload_to_signed_url(
 
     assert image == file.file_content
     assert image_info is not None
+    assert image_info.metadata is not None
     assert image_info.metadata.get("mimetype") == file.mime_type
     info = storage_file_client.info(file.bucket_path)
     assert info.metadata == {"source": "signed-upload"}
@@ -625,6 +629,7 @@ def test_client_copy(
     files = storage_file_client.list(file.bucket_folder)
     copied_info = next((f for f in files if f.name == f"copied_{file.name}"), None)
     assert copied_info is not None
+    assert copied_info.metadata is not None
     assert copied_info.metadata.get("mimetype") == file.mime_type
 
 
@@ -652,6 +657,7 @@ def test_client_move(
     files = storage_file_client.list(file.bucket_folder)
     moved_info = next((f for f in files if f.name == f"moved_{file.name}"), None)
     assert moved_info is not None
+    assert moved_info.metadata is not None
     assert moved_info.metadata.get("mimetype") == file.mime_type
 
 

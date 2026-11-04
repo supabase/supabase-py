@@ -151,13 +151,13 @@ class SearchV2Result(BaseModel):
 
 
 class ListFileObject(BaseModel):
-    id: str
+    id: str | None
     name: str
     owner: str | None = None
     bucket_id: str | None = None
-    updated_at: datetime
-    created_at: datetime
-    metadata: Dict[str, Any]
+    updated_at: datetime | None
+    created_at: datetime | None
+    metadata: Dict[str, Any] | None
     buckets: Bucket | None = None
 
 
