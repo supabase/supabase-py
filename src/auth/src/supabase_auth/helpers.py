@@ -254,12 +254,12 @@ def is_http_url(url: str) -> bool:
     return urlparse(url).scheme in {"https", "http"}
 
 
-def validate_exp(exp: int | None) -> None:
-    if not exp:
+def validate_expiration(expires_at: int | None) -> None:
+    if not expires_at:
         raise AuthInvalidJwtError("JWT has no expiration time")
 
     time_now = datetime.now().timestamp()
-    if exp <= time_now:
+    if expires_at <= time_now:
         raise AuthInvalidJwtError("JWT has expired")
 
 

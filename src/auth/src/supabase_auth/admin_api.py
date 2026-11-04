@@ -338,25 +338,25 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         return _validate_model(response, UserList).users
 
     @handle_http_io
-    def get_user_by_id(self, uid: str) -> HttpMethod[UserResponse]:
+    def get_user_by_id(self, user_id: str) -> HttpMethod[UserResponse]:
         """
         Get user by id.
 
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        validate_uuid(uid)
+        validate_uuid(user_id)
 
         response = yield EmptyRequest(
             method="GET",
-            path=["admin", "users", uid],
+            path=["admin", "users", user_id],
         )
         return parse_user_response(response)
 
     @handle_http_io
     def update_user_by_id(
         self,
-        uid: str,
+        user_id: str,
         attributes: AdminUserAttributes,
     ) -> HttpMethod[UserResponse]:
         """
@@ -365,10 +365,10 @@ class SupabaseAuthAdmin(Generic[HttpIO]):
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
         """
-        validate_uuid(uid)
+        validate_uuid(user_id)
         response = yield JSONRequest(
             method="PUT",
-            path=["admin", "users", uid],
+            path=["admin", "users", user_id],
             body=attributes,
         )
         return parse_user_response(response)

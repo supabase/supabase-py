@@ -29,7 +29,7 @@ from .errors import (
     AuthImplicitGrantRedirectError,
     AuthInvalidJwtError,
     AuthSessionMissingError,
-    UserDoesntExist,
+    UserDoesNotExistError,
 )
 from .helpers import (
     _handle_error_response,
@@ -43,7 +43,7 @@ from .helpers import (
     parse_link_identity_response,
     parse_sso_response,
     parse_user_response,
-    validate_exp,
+    validate_expiration,
 )
 from .mfa import AsyncSupabaseAuthMFAClient, SyncSupabaseAuthMFAClient
 from .session import (
@@ -428,7 +428,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO, SessionManager]):
         else:
             user_response = yield from self.session_manager._get_user(access_token)
             if user_response is None:
-                raise UserDoesntExist()
+                raise UserDoesNotExistError()
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -524,7 +524,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO, SessionManager]):
         expires_at = time_now + int(expires_in)
         user = yield from self.session_manager._get_user(access_token)
         if user is None:
-            raise UserDoesntExist()
+            raise UserDoesNotExistError()
         session = Session(
             provider_token=provider_token,
             provider_refresh_token=provider_refresh_token,
@@ -609,7 +609,7 @@ class SupabaseAuthHttpClient(Generic[HttpIO, SessionManager]):
     ) -> HttpMethod[ClaimsResponse]:
         decoded_jwt = decode_jwt(jwt)
 
-        validate_exp(decoded_jwt.payload.exp)
+        validate_expiration(decoded_jwt.payload.exp)
         header = decoded_jwt.header
         payload = decoded_jwt.payload
         signature = decoded_jwt.signature

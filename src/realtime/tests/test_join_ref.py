@@ -94,7 +94,9 @@ async def test_join_carries_join_ref_equal_to_its_own_ref(
 async def test_broadcast_push_carries_channel_join_ref(server: RecordingServer) -> None:
     options = RealtimeChannelOptions().broadcast(ack=True)
     async with connect_once(server.url, get_token) as client:
-        async with client.channel("test-join-ref-broadcast", params=options) as channel:
+        async with client.channel(
+            "test-join-ref-broadcast", options=options
+        ) as channel:
             await channel.send_broadcast("cursor", {"x": 1})
 
             [join_message] = server.events("phx_join")
@@ -109,7 +111,7 @@ async def test_presence_track_and_untrack_carry_channel_join_ref(
 ) -> None:
     options = RealtimeChannelOptions().presence(enabled=True)
     async with connect_once(server.url, get_token) as client:
-        async with client.channel("test-join-ref-presence", params=options) as channel:
+        async with client.channel("test-join-ref-presence", options=options) as channel:
             await channel.track({"id": 123})
             await channel.untrack()
 

@@ -11,7 +11,7 @@ from typing_extensions import ParamSpec
 # Constants
 DEFAULT_TIMEOUT = 10
 PHOENIX_CHANNEL = "phoenix"
-VSN = "1.0.0"
+PROTOCOL_VERSION = "1.0.0"
 DEFAULT_HEARTBEAT_INTERVAL = 25
 
 # Type variables and custom types
@@ -137,7 +137,7 @@ class PresenceEvents:
         self.diff = diff
 
 
-class PresenceOpts:
+class PresenceOptions:
     def __init__(self, events: PresenceEvents):
         self.events = events
 

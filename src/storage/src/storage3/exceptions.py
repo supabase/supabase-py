@@ -11,8 +11,8 @@ class StorageException(Exception):
 
 
 class VectorBucketException(StorageException):
-    def __init__(self, msg: str) -> None:
-        self.msg = msg
+    def __init__(self, message: str) -> None:
+        self.message = message
 
 
 class StorageApiErrorMessage(BaseModel):

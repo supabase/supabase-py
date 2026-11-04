@@ -977,7 +977,7 @@ features:
       - exponential_delay
   realtime.configuration.heartbeat_interval:
     status: implemented
-    note: "hb_interval parameter (in seconds) on connect_once, and RealtimeClientOptions on the supabase client. Intervals below 15 seconds are raised to 15."
+    note: "heartbeat_interval parameter (in seconds) on connect_once, and RealtimeClientOptions on the supabase client. Intervals below 15 seconds are raised to 15."
     symbols:
       - connect_once
     supporting_symbols:

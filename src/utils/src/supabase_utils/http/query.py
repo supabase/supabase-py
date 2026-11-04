@@ -25,9 +25,9 @@ class URLQuery:
             map = map.set(key, Vec(val))
         return URLQuery(pmap=map)
 
-    def set(self, key: str, val: QueryValue) -> URLQuery:
+    def set(self, key: str, value: QueryValue) -> URLQuery:
         existing: PVector[QueryValue] = self._map.get(key, Vec())
-        new_val = existing.append(val)
+        new_val = existing.append(value)
         return URLQuery(pmap=self._map.set(key, new_val))
 
     def get(self, key: str) -> str | None:

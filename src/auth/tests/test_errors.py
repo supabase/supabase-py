@@ -1,8 +1,8 @@
-from supabase_auth.errors import AuthError, UserDoesntExist
+from supabase_auth.errors import AuthError, UserDoesNotExistError
 
 
 def test_user_doesnt_exist_never_carries_the_token() -> None:
-    error = UserDoesntExist()
+    error = UserDoesNotExistError()
     assert isinstance(error, AuthError)
     assert error.message == "User does not exist for the provided access token"
     assert error.code == "user_not_found"

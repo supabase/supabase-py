@@ -19,5 +19,5 @@ class FunctionRegion(StrEnum):
     UsWest2 = "us-west-2"
 
 
-def is_valid_str_arg(target: str) -> bool:
+def is_valid_string_argument(target: str) -> bool:
     return isinstance(target, str) and len(target.strip()) > 0
