@@ -1,0 +1,63 @@
+name: Reject External PRs to main
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - edited
+    branches:
+      - main
+
+permissions:
+  pull-requests: write
+
+jobs:
+  reject:
+    name: Close external PRs targeting main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+
+            if (pr.state !== 'open' || pr.user.type === 'Bot') {
+              return;
+            }
+
+            const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: author,
+            });
+
+            if (['admin', 'maintain', 'write'].includes(permission.permission)) {
+              core.info(`${author} has ${permission.permission} access, skipping.`);
+              return;
+            }
+
+            const body = [
+              `Thank you for your contribution, @${author}!`,
+              '',
+              'The `main` branch is v3, which is in early development, and we are not accepting external contributions to it right now.',
+              '',
+              'From external contributors we are currently only taking critical bug fixes and security fixes for v2. If your change is one of those, please open a new pull request targeting the [`v2`](https://github.com/supabase/supabase-py/tree/v2) branch instead.',
+              '',
+              'See [What we accept right now](https://github.com/supabase/supabase-py/blob/main/CONTRIBUTING.md#what-we-accept-right-now) in our contributing guide for more details.',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body,
+            });
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              state: 'closed',
+            });
