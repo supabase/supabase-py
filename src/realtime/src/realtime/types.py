@@ -92,7 +92,7 @@ class PostgresChangesData(BaseModel):
     table: str
     commit_timestamp: str
     type: RealtimePostgresChangesListenEvent
-    errors: str | None
+    errors: list[str] | None
     columns: list[PostgresChangesColumn]
     record: dict[str, Any] | None = None
     old_record: dict[str, Any] | None = None

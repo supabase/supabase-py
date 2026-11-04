@@ -23,12 +23,15 @@ def _transform_state(
     Transform the Phoenix presence state into a RealtimePresenceState.
 
     Each ``PresenceMeta`` becomes a ``Presence`` whose ``presence_ref`` is the
-    meta's ``phx_ref``. ``phx_ref_prev`` is dropped and every other field is
-    kept as an extra field on the ``Presence``.
+    meta's ``phx_ref``, even when the tracked state has its own
+    ``presence_ref``. ``phx_ref_prev`` is dropped and every other field is kept
+    as an extra field on the ``Presence``.
     """
     return {
         key: [
-            Presence(presence_ref=meta.phx_ref, **(meta.model_extra or {}))
+            Presence.model_validate(
+                {**(meta.model_extra or {}), "presence_ref": meta.phx_ref}
+            )
             for meta in entry.metas
         ]
         for key, entry in state.items()

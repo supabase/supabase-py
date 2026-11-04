@@ -8,7 +8,11 @@ from pydantic import TypeAdapter
 
 from realtime import RealtimeClient
 from realtime.client import connect_once
-from realtime.message import PresenceDiffMessage, ServerMessageAdapter
+from realtime.message import (
+    PostgresChangesMessage,
+    PresenceDiffMessage,
+    ServerMessageAdapter,
+)
 from realtime.presence import (
     PresenceJoin,
     PresenceLeave,
@@ -156,6 +160,39 @@ def test_transform_state_additional_fields() -> None:
         "status": "online",
         "extra": "data",
     }
+
+
+def test_transform_state_uses_phx_ref_over_tracked_presence_ref() -> None:
+    state = raw_state(
+        {"user1": {"metas": [{"phx_ref": "ABC123", "presence_ref": "tracked"}]}}
+    )
+
+    assert _transform_state(state) == {"user1": [Presence(presence_ref="ABC123")]}
+
+
+def test_postgres_changes_message_accepts_a_list_of_errors() -> None:
+    message = ServerMessageAdapter.validate_python(
+        {
+            "event": "postgres_changes",
+            "topic": "realtime:room",
+            "ref": None,
+            "payload": {
+                "ids": [1],
+                "data": {
+                    "schema": "public",
+                    "table": "todos",
+                    "commit_timestamp": "2026-11-04T00:00:00Z",
+                    "type": "INSERT",
+                    "errors": ["Error 413: Payload Too Large"],
+                    "columns": [{"name": "id", "type": "int8"}],
+                },
+            },
+        }
+    )
+
+    assert isinstance(message, PostgresChangesMessage)
+    assert message.payload.data.errors == ["Error 413: Payload Too Large"]
+    assert message.payload.data.schema_ == "public"
 
 
 def test_sync_diff_processes_every_leave_key() -> None:
