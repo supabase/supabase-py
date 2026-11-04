@@ -2,21 +2,24 @@ from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from realtime import AuthorizationError, NotConnectedError
 from storage3 import AsyncStorageClient as AsyncSupabaseStorageClient
+from storage3 import StorageApiError, StorageException, VectorBucketException
 
 # Sync Client
 from storage3 import SyncStorageClient as SupabaseStorageClient
-from storage3.exceptions import StorageException
-from supabase_auth.errors import (
+from supabase_auth import (
     AuthApiError,
     AuthError,
     AuthImplicitGrantRedirectError,
     AuthInvalidCredentialsError,
+    AuthInvalidJwtError,
     AuthRetryableError,
     AuthSessionMissingError,
     AuthUnknownError,
     AuthWeakPasswordError,
+    CustomAuthError,
+    UserDoesntExist,
 )
-from supabase_functions.errors import (
+from supabase_functions import (
     FunctionsError,
     FunctionsHttpError,
     FunctionsRelayError,
@@ -42,16 +45,21 @@ __all__ = [
     "SupabaseStorageClient",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
+    "StorageApiError",
     "StorageException",
+    "VectorBucketException",
     "__version__",
     "AuthApiError",
     "AuthError",
     "AuthImplicitGrantRedirectError",
     "AuthInvalidCredentialsError",
+    "AuthInvalidJwtError",
     "AuthRetryableError",
     "AuthSessionMissingError",
     "AuthWeakPasswordError",
     "AuthUnknownError",
+    "CustomAuthError",
+    "UserDoesntExist",
     "FunctionsHttpError",
     "FunctionsRelayError",
     "FunctionsError",
