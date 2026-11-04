@@ -93,8 +93,8 @@ class AsyncClient:
 
     async def __aexit__(
         self,
-        exc_type: type[Exception] | None,
-        exc: Exception | None,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
         await self.http_session.__aexit__(exc_type, exc, tb)
@@ -316,10 +316,6 @@ class AsyncClient:
     ) -> None:
         access_token = self.supabase_key
         if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
-            # reset postgrest and storage instance on event change
-            self._postgrest = None
-            self._storage = None
-            self._functions = None
             access_token = session.access_token if session else self.supabase_key
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header

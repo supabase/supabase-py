@@ -35,7 +35,7 @@ class ChannelEvents(str, Enum):
 
     close = "phx_close"
     error = "phx_error"
-    join = "phx_join"  # type: ignore
+    join = "phx_join"  # pyrefly: ignore[bad-override-mutable-attribute]
     reply = "phx_reply"
     leave = "phx_leave"
     heartbeat = "heartbeat"
@@ -151,7 +151,7 @@ class BroadcastPayload(TypedDict):
 
 
 @with_config(ConfigDict(extra="allow"))
-class Presence(TypedDict):
+class Presence(TypedDict, extra_items=Any):
     presence_ref: str
 
 
@@ -197,7 +197,7 @@ class RealtimeChannelOptionsPayload(BaseModel):
 
 
 @with_config(ConfigDict(extra="allow"))
-class PresenceMeta(TypedDict):
+class PresenceMeta(TypedDict, extra_items=Any):
     phx_ref: NotRequired[str]
     phx_ref_prev: NotRequired[str]
 

@@ -36,8 +36,8 @@ def client_returning(
 
         async def __aexit__(
             self,
-            exc_type: type[Exception] | None,
-            exc: Exception | None,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
             tb: TracebackType | None,
         ) -> None:
             pass
@@ -252,14 +252,17 @@ async def test_invoke_with_list_body_sends_json(body: list[JSON]) -> None:
 
 async def test_invoke_with_bytearray_body() -> None:
     client = client_returning(content=b"{}", status=200)
-    response = await client.invoke("test-function", body=bytearray(b"x"))  # type: ignore[arg-type]
+    response = await client.invoke("test-function", body=bytearray(b"x"))
     assert response.request.content == b"x"
 
 
 async def test_invoke_with_unsupported_body_raises() -> None:
     client = client_returning(content=b"{}", status=200)
     with pytest.raises(TypeError):
-        await client.invoke("test-function", body=1.5)  # type: ignore[arg-type]
+        await client.invoke(
+            "test-function",
+            body=1.5,  # pyrefly: ignore[bad-argument-type]
+        )
 
 
 async def test_invoke_raises_on_300() -> None:

@@ -5,12 +5,12 @@ from postgrest.utils import SyncClient, sanitize_param
 
 
 @fail_if_not_removed
-def test_sync_client():
-    client = SyncClient()
+def test_sync_client() -> None:
+    client = SyncClient()  # pyrefly: ignore[deprecated]
     # Verify that aclose method exists and calls close
     assert hasattr(client, "aclose")
-    assert callable(client.aclose)
-    client.aclose()  # Should not raise any exception
+    assert callable(client.aclose)  # pyrefly: ignore[deprecated]
+    client.aclose()  # pyrefly: ignore[deprecated]
 
 
 @pytest.mark.parametrize(
@@ -25,5 +25,5 @@ def test_sync_client():
         ("table_column", "table_column"),
     ],
 )
-def test_sanitize_params(value, expected):
+def test_sanitize_params(value: str, expected: str) -> None:
     assert sanitize_param(value) == expected

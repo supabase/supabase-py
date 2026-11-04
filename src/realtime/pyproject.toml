@@ -39,7 +39,7 @@ tests = [
 lints = [
   "ruff >= 0.12.1",
   "python-lsp-server (>=1.12.2,<2.0.0)",
-  "pylsp-mypy (>=0.7.0,<0.8.0)",
+  "pyrefly >=1.4.0,<2.0.0",
   "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
 dev = [{ include-group = "lints" }, {include-group = "tests" }]
@@ -73,12 +73,7 @@ keep-runtime-typing = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
-[tool.mypy]
-python_version = "3.11"
-check_untyped_defs = true
-allow_redefinition = true
-
-warn_return_any = true
-warn_unused_configs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
+[tool.pyrefly]
+extends = "../../pyrefly.toml"
+project-includes = ["src", "tests"]
+search-path = ["src", "."]

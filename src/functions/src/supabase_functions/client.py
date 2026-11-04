@@ -60,7 +60,7 @@ class FunctionsClient(Generic[HttpIO]):
     def _invoke_options_to_request(
         self,
         function_name: str,
-        body: bytes | str | Dict[str, JSON] | List[JSON] | None,
+        body: bytes | bytearray | str | Dict[str, JSON] | List[JSON] | None,
         region: FunctionRegion | str | None,
         headers: Dict[str, str] | None,
         method: HTTPRequestMethod,
@@ -76,10 +76,10 @@ class FunctionsClient(Generic[HttpIO]):
             new_headers = new_headers.set("Content-Type", client_content_type)
         query_params = URLQuery.empty()
 
-        if region and (region := FunctionRegion(region)) != FunctionRegion.Any:
-            new_headers = new_headers.override("x-region", region.value)
+        if region and (resolved := FunctionRegion(region)) != FunctionRegion.Any:
+            new_headers = new_headers.override("x-region", resolved.value)
             # Add region as query parameter
-            query_params = query_params.set("forceFunctionRegion", region.value)
+            query_params = query_params.set("forceFunctionRegion", resolved.value)
         if body is None:
             return EmptyRequest(
                 method=method, path=path, headers=new_headers, query=query_params
@@ -116,7 +116,7 @@ class FunctionsClient(Generic[HttpIO]):
     def invoke(
         self,
         function_name: str,
-        body: bytes | str | Dict[str, JSON] | List[JSON] | None = None,
+        body: bytes | bytearray | str | Dict[str, JSON] | List[JSON] | None = None,
         region: FunctionRegion | str | None = None,
         headers: Dict[str, str] | None = None,
         method: HTTPRequestMethod = "POST",

@@ -30,9 +30,9 @@ help::
 	@echo "  stop-infra     -- Stop all infra used by tests."
 	@echo "                    NOTE: run this command to ensure all containers are stopped after tests"
 
-mypy: $(call FORALL_PKGS,mypy)
+pyrefly: $(call FORALL_PKGS,pyrefly)
 help::
-	@echo "  mypy           -- Run mypy on all files"
+	@echo "  pyrefly        -- Run pyrefly on all packages"
 
 ruff:
 	@uv run ruff check --fix
@@ -79,5 +79,5 @@ supabase.%:
 help::
 	@echo
 	@echo "Package specific commands can be ran by prefixing the command with the package name. Examples:"
-	@echo "  realtime.mypy  -- runs relatime's mypy target"
+	@echo "  realtime.pyrefly -- runs realtime's pyrefly target"
 	@echo "  supabase.build -- runs supabase's build target"

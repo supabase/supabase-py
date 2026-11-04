@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 from pydantic import BaseModel
 from supabase_utils.http.request import Response
+from typing_extensions import override
 
 
 class APIErrorFromJSON(BaseModel):
@@ -43,6 +44,7 @@ class APIError(Exception):
         self.details = error.get("details")
         Exception.__init__(self, str(self))
 
+    @override
     def __repr__(self) -> str:
         error_text = f"Error {self.code}:" if self.code else ""
         message_text = f"\nMessage: {self.message}" if self.message else ""

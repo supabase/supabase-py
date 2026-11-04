@@ -16,7 +16,7 @@ class SyncClient(BaseClient):
     @deprecated(
         "1.0.2", "3.0.0", __version__, "Use `Client` from the httpx package instead"
     )
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
     @deprecated(
@@ -93,5 +93,5 @@ def is_http_url(url: URL) -> bool:
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def _model_validate_json(model: Type[TBaseModel], contents) -> TBaseModel:
+def _model_validate_json(model: Type[TBaseModel], contents: str | bytes) -> TBaseModel:
     return model.model_validate_json(contents)

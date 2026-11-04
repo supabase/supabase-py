@@ -123,8 +123,8 @@ class Client:
 
     def __exit__(
         self,
-        exc_type: type[Exception] | None,
-        exc: Exception | None,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
         self.http_session.__exit__(exc_type, exc, tb)

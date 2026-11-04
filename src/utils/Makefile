@@ -2,17 +2,17 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
-tests: mypy
+tests: pyrefly
 help::
 	@echo "  tests          -- run all tests for supabase_utils package"
 
-mypy:
-	uv run --package supabase_utils mypy src/supabase_utils
+pyrefly:
+	uv run --package supabase_utils pyrefly check
 help::
-	@echo "  mypy           -- run mypy on supabase_utils package"
+	@echo "  pyrefly        -- run pyrefly on supabase_utils"
 
 clean:
-	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
+	rm -rf htmlcov .pytest_cache .ruff_cache
 	rm -f .coverage coverage.xml
 help::
 	@echo "  clean          -- clean intermediary files"

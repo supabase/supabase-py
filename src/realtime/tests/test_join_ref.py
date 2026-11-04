@@ -45,7 +45,7 @@ def reply_ack(topic: str, ref: str) -> str:
 class RecordingServer:
     """A local websocket server that acks every ref'd message and records what it received."""
 
-    def __init__(self, url: str, port: int):
+    def __init__(self, url: str, port: int) -> None:
         self.url = url
         self.port = port
         self.received: list[Message] = []
@@ -58,7 +58,7 @@ class RecordingServer:
         await self.start()
         return self
 
-    async def __aexit__(self, *exc) -> None:
+    async def __aexit__(self, *exc: object) -> None:
         self.ws_server.close()
         await self.ws_server.wait_closed()
 
@@ -81,7 +81,9 @@ async def server() -> AsyncIterator[RecordingServer]:
 
 
 @pytest.mark.asyncio
-async def test_join_carries_join_ref_equal_to_its_own_ref(server: RecordingServer):
+async def test_join_carries_join_ref_equal_to_its_own_ref(
+    server: RecordingServer,
+) -> None:
     async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
         async with client.channel("test-join-ref") as channel:
             [join_message] = server.events("phx_join")
@@ -90,7 +92,7 @@ async def test_join_carries_join_ref_equal_to_its_own_ref(server: RecordingServe
 
 
 @pytest.mark.asyncio
-async def test_broadcast_push_carries_channel_join_ref(server: RecordingServer):
+async def test_broadcast_push_carries_channel_join_ref(server: RecordingServer) -> None:
     options = RealtimeChannelOptions().broadcast(ack=True)
     async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
         async with client.channel("test-join-ref-broadcast", params=options) as channel:
@@ -105,7 +107,7 @@ async def test_broadcast_push_carries_channel_join_ref(server: RecordingServer):
 @pytest.mark.asyncio
 async def test_presence_track_and_untrack_carry_channel_join_ref(
     server: RecordingServer,
-):
+) -> None:
     options = RealtimeChannelOptions().presence(enabled=True)
     async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
         async with client.channel("test-join-ref-presence", params=options) as channel:
@@ -122,7 +124,7 @@ async def test_presence_track_and_untrack_carry_channel_join_ref(
 
 
 @pytest.mark.asyncio
-async def test_leave_push_carries_channel_join_ref(server: RecordingServer):
+async def test_leave_push_carries_channel_join_ref(server: RecordingServer) -> None:
     async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
         async with client.channel("test-join-ref-leave"):
             pass

@@ -155,7 +155,9 @@ class TestInsert:
         assert builder.request.method == "POST"
         assert builder.request.body == {"key1": "val1"}
 
-    def test_insert_with_select(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_insert_with_select(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.insert({"key1": "val1"}).select("id", "key1")
 
         assert builder.request.query["select"] == "id,key1"
@@ -163,7 +165,7 @@ class TestInsert:
 
     def test_insert_with_select_forces_representation(
         self, request_builder: RequestBuilder[SyncHttpIO]
-    ):
+    ) -> None:
         builder = request_builder.insert(
             {"key1": "val1"}, returning=ReturnMethod.minimal
         ).select("id")
@@ -255,7 +257,9 @@ class TestUpdate:
         assert builder.request.method == "PATCH"
         assert builder.request.body == {"key1": "val1"}
 
-    def test_update_with_select(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_update_with_select(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.update({"key1": "val1"}).eq("id", 1).select("id")
 
         assert builder.request.query["id"] == "eq.1"
@@ -312,7 +316,9 @@ class TestDelete:
         assert builder.request.method == "DELETE"
         assert builder.request.body == {}
 
-    def test_delete_with_select(self, request_builder: RequestBuilder[SyncHttpIO]):
+    def test_delete_with_select(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
         builder = request_builder.delete().eq("id", 1).select("id")
 
         assert builder.request.query["id"] == "eq.1"

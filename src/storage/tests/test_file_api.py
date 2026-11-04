@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from httpx import Request, Response
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
+from supabase_utils.types import JSON
 
 from storage3 import StorageFileApiClient
 from storage3.exceptions import StorageApiError
@@ -160,7 +161,7 @@ async def test_error_with_binary_body_raises_storage_api_error(use_async: bool) 
 
 @use_async
 async def test_list_v2_allows_null_object_metadata(use_async: bool) -> None:
-    response_body = {
+    response_body: dict[str, JSON] = {
         "hasNext": False,
         "folders": [],
         "objects": [

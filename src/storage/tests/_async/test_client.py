@@ -315,7 +315,7 @@ async def test_client_download_with_query_doesnt_lose_params(
 
     params = {"my-param": "test"}
     mock_response = Mock()
-    mock_response.headers = {}
+    mock_response.headers = dict[str, str]()
     mock_response.status_code = 200
     with patch.object(storage_file_client.executor.session, "send") as mock_request:
         mock_request.return_value = mock_response

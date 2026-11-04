@@ -16,14 +16,14 @@ stop-infra:
 help::
 	@echo "  stop-infra     -- stop containers for tests"
 
-tests: mypy pytest
+tests: pyrefly pytest
 help::
 	@echo "  tests          -- run all tests for storage3"
 
-mypy:
-	uv run --package storage3 --group mypy mypy src/storage3 tests
+pyrefly:
+	uv run --package storage3 --group typecheck pyrefly check
 help::
-	@echo "  mypy           -- run mypy on storage3"
+	@echo "  pyrefly        -- run pyrefly on storage3"
 
 pytest: start-infra
 	uv run --package storage3 pytest --cov=./ --cov-report=xml --cov-report=html -vv
@@ -31,7 +31,7 @@ help::
 	@echo "  pytest         -- run pytest on storage3"
 
 clean:
-	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
+	rm -rf htmlcov .pytest_cache .ruff_cache
 	rm -f .coverage coverage.xml
 help::
 	@echo "  clean          -- clean intermediary files"

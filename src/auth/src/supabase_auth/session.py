@@ -137,8 +137,8 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
 
     async def __aexit__(
         self,
-        exc_type: type[Exception] | None,
-        exc: Exception | None,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
         if self.refresh_token_timer:
@@ -310,8 +310,8 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
 
     def __exit__(
         self,
-        exc_type: type[Exception] | None,
-        exc: Exception | None,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
         if self.refresh_token_timer:

@@ -2,7 +2,7 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
-tests: mypy pytest
+tests: pyrefly pytest
 help::
 	@echo "  tests          -- run all tests for supabase_functions package"
 
@@ -11,13 +11,13 @@ pytest:
 help::
 	@echo "  pytest         -- run pytest on supabase_functions package"
 
-mypy:
-	uv run --package supabase_functions mypy --strict src/supabase_functions tests
+pyrefly:
+	uv run --package supabase_functions pyrefly check
 help::
-	@echo "  mypy           -- run mypy on supabase_functions package"
+	@echo "  pyrefly        -- run pyrefly on supabase_functions"
 
 clean:
-	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
+	rm -rf htmlcov .pytest_cache .ruff_cache
 	rm -f .coverage coverage.xml
 help::
 	@echo "  clean          -- clean intermediary files"

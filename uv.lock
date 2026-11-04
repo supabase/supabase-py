@@ -1552,44 +1552,6 @@ wheels = [
 ]
 
 [[package]]
-name = "mypy"
-version = "1.18.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "mypy-extensions" },
-    { name = "pathspec" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c0/77/8f0d0001ffad290cef2f7f216f96c814866248a0b92a722365ed54648e7e/mypy-1.18.2.tar.gz", hash = "sha256:06a398102a5f203d7477b2923dda3634c36727fa5c237d8f859ef90c42a9924b", size = 3448846, upload-time = "2025-09-19T00:11:10.519Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/87/cafd3ae563f88f94eec33f35ff722d043e09832ea8530ef149ec1efbaf08/mypy-1.18.2-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:807d9315ab9d464125aa9fcf6d84fde6e1dc67da0b6f80e7405506b8ac72bc7f", size = 12731198, upload-time = "2025-09-19T00:09:44.857Z" },
-    { url = "https://files.pythonhosted.org/packages/0f/e0/1e96c3d4266a06d4b0197ace5356d67d937d8358e2ee3ffac71faa843724/mypy-1.18.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:776bb00de1778caf4db739c6e83919c1d85a448f71979b6a0edd774ea8399341", size = 11817879, upload-time = "2025-09-19T00:09:47.131Z" },
-    { url = "https://files.pythonhosted.org/packages/72/ef/0c9ba89eb03453e76bdac5a78b08260a848c7bfc5d6603634774d9cd9525/mypy-1.18.2-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:1379451880512ffce14505493bd9fe469e0697543717298242574882cf8cdb8d", size = 12427292, upload-time = "2025-09-19T00:10:22.472Z" },
-    { url = "https://files.pythonhosted.org/packages/1a/52/ec4a061dd599eb8179d5411d99775bec2a20542505988f40fc2fee781068/mypy-1.18.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:1331eb7fd110d60c24999893320967594ff84c38ac6d19e0a76c5fd809a84c86", size = 13163750, upload-time = "2025-09-19T00:09:51.472Z" },
-    { url = "https://files.pythonhosted.org/packages/c4/5f/2cf2ceb3b36372d51568f2208c021870fe7834cf3186b653ac6446511839/mypy-1.18.2-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:3ca30b50a51e7ba93b00422e486cbb124f1c56a535e20eff7b2d6ab72b3b2e37", size = 13351827, upload-time = "2025-09-19T00:09:58.311Z" },
-    { url = "https://files.pythonhosted.org/packages/c8/7d/2697b930179e7277529eaaec1513f8de622818696857f689e4a5432e5e27/mypy-1.18.2-cp311-cp311-win_amd64.whl", hash = "sha256:664dc726e67fa54e14536f6e1224bcfce1d9e5ac02426d2326e2bb4e081d1ce8", size = 9757983, upload-time = "2025-09-19T00:10:09.071Z" },
-    { url = "https://files.pythonhosted.org/packages/07/06/dfdd2bc60c66611dd8335f463818514733bc763e4760dee289dcc33df709/mypy-1.18.2-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:33eca32dd124b29400c31d7cf784e795b050ace0e1f91b8dc035672725617e34", size = 12908273, upload-time = "2025-09-19T00:10:58.321Z" },
-    { url = "https://files.pythonhosted.org/packages/81/14/6a9de6d13a122d5608e1a04130724caf9170333ac5a924e10f670687d3eb/mypy-1.18.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:a3c47adf30d65e89b2dcd2fa32f3aeb5e94ca970d2c15fcb25e297871c8e4764", size = 11920910, upload-time = "2025-09-19T00:10:20.043Z" },
-    { url = "https://files.pythonhosted.org/packages/5f/a9/b29de53e42f18e8cc547e38daa9dfa132ffdc64f7250e353f5c8cdd44bee/mypy-1.18.2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:5d6c838e831a062f5f29d11c9057c6009f60cb294fea33a98422688181fe2893", size = 12465585, upload-time = "2025-09-19T00:10:33.005Z" },
-    { url = "https://files.pythonhosted.org/packages/77/ae/6c3d2c7c61ff21f2bee938c917616c92ebf852f015fb55917fd6e2811db2/mypy-1.18.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:01199871b6110a2ce984bde85acd481232d17413868c9807e95c1b0739a58914", size = 13348562, upload-time = "2025-09-19T00:10:11.51Z" },
-    { url = "https://files.pythonhosted.org/packages/4d/31/aec68ab3b4aebdf8f36d191b0685d99faa899ab990753ca0fee60fb99511/mypy-1.18.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:a2afc0fa0b0e91b4599ddfe0f91e2c26c2b5a5ab263737e998d6817874c5f7c8", size = 13533296, upload-time = "2025-09-19T00:10:06.568Z" },
-    { url = "https://files.pythonhosted.org/packages/9f/83/abcb3ad9478fca3ebeb6a5358bb0b22c95ea42b43b7789c7fb1297ca44f4/mypy-1.18.2-cp312-cp312-win_amd64.whl", hash = "sha256:d8068d0afe682c7c4897c0f7ce84ea77f6de953262b12d07038f4d296d547074", size = 9828828, upload-time = "2025-09-19T00:10:28.203Z" },
-    { url = "https://files.pythonhosted.org/packages/5f/04/7f462e6fbba87a72bc8097b93f6842499c428a6ff0c81dd46948d175afe8/mypy-1.18.2-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:07b8b0f580ca6d289e69209ec9d3911b4a26e5abfde32228a288eb79df129fcc", size = 12898728, upload-time = "2025-09-19T00:10:01.33Z" },
-    { url = "https://files.pythonhosted.org/packages/99/5b/61ed4efb64f1871b41fd0b82d29a64640f3516078f6c7905b68ab1ad8b13/mypy-1.18.2-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:ed4482847168439651d3feee5833ccedbf6657e964572706a2adb1f7fa4dfe2e", size = 11910758, upload-time = "2025-09-19T00:10:42.607Z" },
-    { url = "https://files.pythonhosted.org/packages/3c/46/d297d4b683cc89a6e4108c4250a6a6b717f5fa96e1a30a7944a6da44da35/mypy-1.18.2-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c3ad2afadd1e9fea5cf99a45a822346971ede8685cc581ed9cd4d42eaf940986", size = 12475342, upload-time = "2025-09-19T00:11:00.371Z" },
-    { url = "https://files.pythonhosted.org/packages/83/45/4798f4d00df13eae3bfdf726c9244bcb495ab5bd588c0eed93a2f2dd67f3/mypy-1.18.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a431a6f1ef14cf8c144c6b14793a23ec4eae3db28277c358136e79d7d062f62d", size = 13338709, upload-time = "2025-09-19T00:11:03.358Z" },
-    { url = "https://files.pythonhosted.org/packages/d7/09/479f7358d9625172521a87a9271ddd2441e1dab16a09708f056e97007207/mypy-1.18.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:7ab28cc197f1dd77a67e1c6f35cd1f8e8b73ed2217e4fc005f9e6a504e46e7ba", size = 13529806, upload-time = "2025-09-19T00:10:26.073Z" },
-    { url = "https://files.pythonhosted.org/packages/71/cf/ac0f2c7e9d0ea3c75cd99dff7aec1c9df4a1376537cb90e4c882267ee7e9/mypy-1.18.2-cp313-cp313-win_amd64.whl", hash = "sha256:0e2785a84b34a72ba55fb5daf079a1003a34c05b22238da94fcae2bbe46f3544", size = 9833262, upload-time = "2025-09-19T00:10:40.035Z" },
-    { url = "https://files.pythonhosted.org/packages/5a/0c/7d5300883da16f0063ae53996358758b2a2df2a09c72a5061fa79a1f5006/mypy-1.18.2-cp314-cp314-macosx_10_13_x86_64.whl", hash = "sha256:62f0e1e988ad41c2a110edde6c398383a889d95b36b3e60bcf155f5164c4fdce", size = 12893775, upload-time = "2025-09-19T00:10:03.814Z" },
-    { url = "https://files.pythonhosted.org/packages/50/df/2cffbf25737bdb236f60c973edf62e3e7b4ee1c25b6878629e88e2cde967/mypy-1.18.2-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:8795a039bab805ff0c1dfdb8cd3344642c2b99b8e439d057aba30850b8d3423d", size = 11936852, upload-time = "2025-09-19T00:10:51.631Z" },
-    { url = "https://files.pythonhosted.org/packages/be/50/34059de13dd269227fb4a03be1faee6e2a4b04a2051c82ac0a0b5a773c9a/mypy-1.18.2-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:6ca1e64b24a700ab5ce10133f7ccd956a04715463d30498e64ea8715236f9c9c", size = 12480242, upload-time = "2025-09-19T00:11:07.955Z" },
-    { url = "https://files.pythonhosted.org/packages/5b/11/040983fad5132d85914c874a2836252bbc57832065548885b5bb5b0d4359/mypy-1.18.2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:d924eef3795cc89fecf6bedc6ed32b33ac13e8321344f6ddbf8ee89f706c05cb", size = 13326683, upload-time = "2025-09-19T00:09:55.572Z" },
-    { url = "https://files.pythonhosted.org/packages/e9/ba/89b2901dd77414dd7a8c8729985832a5735053be15b744c18e4586e506ef/mypy-1.18.2-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:20c02215a080e3a2be3aa50506c67242df1c151eaba0dcbc1e4e557922a26075", size = 13514749, upload-time = "2025-09-19T00:10:44.827Z" },
-    { url = "https://files.pythonhosted.org/packages/25/bc/cc98767cffd6b2928ba680f3e5bc969c4152bf7c2d83f92f5a504b92b0eb/mypy-1.18.2-cp314-cp314-win_amd64.whl", hash = "sha256:749b5f83198f1ca64345603118a6f01a4e99ad4bf9d103ddc5a3200cc4614adf", size = 9982959, upload-time = "2025-09-19T00:10:37.344Z" },
-    { url = "https://files.pythonhosted.org/packages/87/e3/be76d87158ebafa0309946c4a73831974d4d6ab4f4ef40c3b53a385a66fd/mypy-1.18.2-py3-none-any.whl", hash = "sha256:22a1748707dd62b58d2ae53562ffc4d7f8bcc727e8ac7cbc69c053ddc874d47e", size = 2352367, upload-time = "2025-09-19T00:10:15.489Z" },
-]
-
-[[package]]
 name = "mypy-extensions"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1669,12 +1631,13 @@ dependencies = [
     { name = "deprecation" },
     { name = "pydantic" },
     { name = "supabase-utils" },
+    { name = "typing-extensions" },
     { name = "yarl" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "pylsp-mypy" },
+    { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -1690,7 +1653,7 @@ docs = [
     { name = "sphinx" },
 ]
 lints = [
-    { name = "pylsp-mypy" },
+    { name = "pyrefly" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
     { name = "ruff" },
@@ -1709,12 +1672,13 @@ requires-dist = [
     { name = "deprecation", specifier = ">=2.1.0" },
     { name = "pydantic", specifier = ">=2,<3" },
     { name = "supabase-utils", editable = "src/utils" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "yarl", specifier = ">=1.20.1" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
@@ -1730,7 +1694,7 @@ docs = [
     { name = "sphinx", specifier = ">=7.1.2" },
 ]
 lints = [
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
@@ -2033,19 +1997,6 @@ crypto = [
 ]
 
 [[package]]
-name = "pylsp-mypy"
-version = "0.7.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "mypy" },
-    { name = "python-lsp-server" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/4d/9683a57f2e8b9263910ef497a99d88622f4fb1c158decb867fd40a41bfdd/pylsp_mypy-0.7.0.tar.gz", hash = "sha256:e94f531d4ce523222c2af7471abe396cfeb4cc3c4b181d54462fb6d553e1e0b3", size = 18529, upload-time = "2025-01-25T13:15:38.978Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/7d/324859fa4af565db32ff8d924fd10dd49922756736be12d783be3813ffc8/pylsp_mypy-0.7.0-py3-none-any.whl", hash = "sha256:756377d05d251d2e31d1963397654149b9c1ea5b0ba1aedd74adef76decd32e9", size = 12232, upload-time = "2025-01-25T13:15:37.472Z" },
-]
-
-[[package]]
 name = "pyotp"
 version = "2.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2061,6 +2012,25 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f2/a5/181488fc2b9d093e3972d2a472855aae8a03f000592dbfce716a512b3359/pyparsing-3.2.5.tar.gz", hash = "sha256:2df8d5b7b2802ef88e8d016a2eb9c7aeaa923529cd251ed0fe4608275d4105b6", size = 1099274, upload-time = "2025-09-21T04:11:06.277Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/10/5e/1aa9a93198c6b64513c9d7752de7422c06402de6600a8767da1524f9570b/pyparsing-3.2.5-py3-none-any.whl", hash = "sha256:e38a4f02064cf41fe6593d328d0512495ad1f3d8a91c4f73fc401b3079a59a5e", size = 113890, upload-time = "2025-09-21T04:11:04.117Z" },
+]
+
+[[package]]
+name = "pyrefly"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b3/3e/ea6893be167fa14307d7f9a924bed9ecbbbd91b01953890b9b3c58ed5359/pyrefly-1.4.0.tar.gz", hash = "sha256:bb57c004a4842cfe93f93aebb5203ca6209a5f0c8bda47e8bc289e70940fd910", size = 6962062, upload-time = "2026-10-15T16:54:11.819Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/17/dfce6611acc00cb26667e5e1011438cc510f3067f961e0f07f7a0c68f416/pyrefly-1.4.0-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:460cec39bc8743915e9c2c8c10ba926ad0b29b099d89c1859fb97e0059f42fa7", size = 15705624, upload-time = "2026-10-15T16:53:43.412Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/78/a7b96442123fa6ed733de0d1ea933e35d6fc6b7c9cf16e05279abb493493/pyrefly-1.4.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:5a6370d686b6cbbac8869832f09a52012888371956fbc68d446a349bc85ccd43", size = 14978669, upload-time = "2026-10-15T16:53:46.546Z" },
+    { url = "https://files.pythonhosted.org/packages/23/97/dfcfec6a9d8948ab4b2746f7e87558a82bffabb7a54c22e7d3ce4bdc1932/pyrefly-1.4.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8f1b16923a6583a6764e8aec07787e2ef4df644c7030294cba71339783a9451c", size = 15438858, upload-time = "2026-10-15T16:53:48.904Z" },
+    { url = "https://files.pythonhosted.org/packages/31/12/6fa414aa87e398d6ddc7145a5d993b0975fc3511198dbb72c47873653ab6/pyrefly-1.4.0-py3-none-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:688ad4cb4d6e711d67026fdcfb37b599f86061efe11ba5704287330e7041a69e", size = 16852241, upload-time = "2026-10-15T16:53:51.496Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/73/2d7312262cf6481d6ad46eed55b8f2592c3cff60f95cc2f30a114cd1484e/pyrefly-1.4.0-py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:f5f3c9dddb6f3128beb49cf4e0f5cb88d4d17f039008d8e0c2be653966acd234", size = 16751917, upload-time = "2026-10-15T16:53:54.39Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/65/b44a1cb23667bcbcdc88558cbef79fa9e07a1152c2a1da148036b1a2e0d1/pyrefly-1.4.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b6951f51687304caebfedf13dd1a943aeafdbc95abcc4e24a683b97467a77007", size = 16066345, upload-time = "2026-10-15T16:53:57.436Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/07/7ca6ff0c53e3a90ecdab05790d33f430fca5c48687613a0b182744166d98/pyrefly-1.4.0-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:838de4d4a8b9b8ed39bedd0b8b55629c69661d73a6fa3a3a4adff24b9dbeb399", size = 15461223, upload-time = "2026-10-15T16:54:00.364Z" },
+    { url = "https://files.pythonhosted.org/packages/61/be/ec7b2f38a898ce5b2219dda730e87d31fc8cfb2108a3d5844f9d590f1281/pyrefly-1.4.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:afb9ce2e0ae3e6106fb45f6d47536ac92b6423e601e08401cdefa850066444f5", size = 16119099, upload-time = "2026-10-15T16:54:02.664Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/16/1b9549168b38a575d9c168e17b4b4ee30028d602ec0f7b07c198ef265dbe/pyrefly-1.4.0-py3-none-win32.whl", hash = "sha256:839db536d0ac29f1b23e2d974fb911075c2283e3e623755c45d826aafac175bc", size = 14858880, upload-time = "2026-10-15T16:54:05.114Z" },
+    { url = "https://files.pythonhosted.org/packages/03/02/18f075d4de0e255f184f42fc28c1f0ecc9f49dd528678479fc90cf12246c/pyrefly-1.4.0-py3-none-win_amd64.whl", hash = "sha256:7aff37c2b711c8240ed650da0c6148237b327bf7e5dfacee65884f1adea22305", size = 15726220, upload-time = "2026-10-15T16:54:07.452Z" },
+    { url = "https://files.pythonhosted.org/packages/92/62/92947076681550904c72a9dd03b24e92694ede9a48548f5e487c849e66ea/pyrefly-1.4.0-py3-none-win_arm64.whl", hash = "sha256:88879f0cb749e5fea81d9ff4c2d5431a70349c458bcdf0b61de72c79214d90a5", size = 14943690, upload-time = "2026-10-15T16:54:09.689Z" },
 ]
 
 [[package]]
@@ -2319,7 +2289,7 @@ dependencies = [
 dev = [
     { name = "aiohttp" },
     { name = "pudb" },
-    { name = "pylsp-mypy" },
+    { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -2329,7 +2299,7 @@ dev = [
     { name = "ruff" },
 ]
 lints = [
-    { name = "pylsp-mypy" },
+    { name = "pyrefly" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
     { name = "ruff" },
@@ -2356,7 +2326,7 @@ requires-dist = [
 dev = [
     { name = "aiohttp", specifier = ">=3.14.4" },
     { name = "pudb", specifier = ">=2025.1.5" },
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
@@ -2366,7 +2336,7 @@ dev = [
     { name = "ruff", specifier = ">=0.12.1" },
 ]
 lints = [
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
@@ -2775,7 +2745,7 @@ iceberg = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "pylsp-mypy" },
+    { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -2795,14 +2765,11 @@ docs = [
     { name = "sphinx-toolbox" },
 ]
 lints = [
-    { name = "pylsp-mypy" },
+    { name = "pyrefly" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
     { name = "ruff" },
     { name = "unasync" },
-]
-mypy = [
-    { name = "pyiceberg" },
 ]
 tests = [
     { name = "pytest" },
@@ -2810,6 +2777,9 @@ tests = [
     { name = "pytest-cov" },
     { name = "python-dotenv" },
     { name = "supabase-utils", extra = ["all"] },
+]
+typecheck = [
+    { name = "pyiceberg" },
 ]
 
 [package.metadata]
@@ -2825,7 +2795,7 @@ provides-extras = ["iceberg"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
@@ -2845,13 +2815,12 @@ docs = [
     { name = "sphinx-toolbox", specifier = ">=3.4.0" },
 ]
 lints = [
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
-mypy = [{ name = "pyiceberg", specifier = ">=0.10.0" }]
 tests = [
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
@@ -2859,6 +2828,7 @@ tests = [
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
 ]
+typecheck = [{ name = "pyiceberg", specifier = ">=0.10.0" }]
 
 [[package]]
 name = "strictyaml"
@@ -2883,6 +2853,7 @@ dependencies = [
     { name = "supabase-auth" },
     { name = "supabase-functions" },
     { name = "supabase-utils" },
+    { name = "typing-extensions" },
     { name = "yarl" },
 ]
 
@@ -2899,7 +2870,7 @@ iceberg = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "mypy" },
+    { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -2910,11 +2881,11 @@ dev = [
     { name = "unasync" },
 ]
 lints = [
+    { name = "pyrefly" },
     { name = "ruff" },
     { name = "unasync" },
 ]
 tests = [
-    { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -2934,13 +2905,14 @@ requires-dist = [
     { name = "supabase-utils", editable = "src/utils" },
     { name = "supabase-utils", extras = ["aiohttp"], marker = "extra == 'aiohttp'", editable = "src/utils" },
     { name = "supabase-utils", extras = ["httpx"], marker = "extra == 'httpx'", editable = "src/utils" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "yarl", specifier = ">=1.22.0" },
 ]
 provides-extras = ["httpx", "aiohttp", "iceberg"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "mypy", specifier = ">=1.18.2" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
@@ -2951,11 +2923,11 @@ dev = [
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 lints = [
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 tests = [
-    { name = "mypy", specifier = ">=1.18.2" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
@@ -2972,13 +2944,14 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "supabase-utils" },
+    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "faker" },
-    { name = "pylsp-mypy" },
     { name = "pyotp" },
+    { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -2992,7 +2965,7 @@ dev = [
     { name = "unasync" },
 ]
 lints = [
-    { name = "pylsp-mypy" },
+    { name = "pyrefly" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
     { name = "ruff" },
@@ -3015,13 +2988,14 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2,<3" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.12.0" },
     { name = "supabase-utils", editable = "src/utils" },
+    { name = "typing-extensions", specifier = ">=4.15.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "faker", specifier = ">=37.4.0" },
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
     { name = "pyotp", specifier = ">=2.9.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
@@ -3035,7 +3009,7 @@ dev = [
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 lints = [
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
@@ -3066,7 +3040,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "pyjwt" },
-    { name = "pylsp-mypy" },
+    { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -3076,7 +3050,7 @@ dev = [
     { name = "supabase-utils", extra = ["all"] },
 ]
 lints = [
-    { name = "pylsp-mypy" },
+    { name = "pyrefly" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
     { name = "ruff" },
@@ -3099,7 +3073,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "pyjwt", specifier = ">=2.15.1" },
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },
@@ -3109,7 +3083,7 @@ dev = [
     { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
 ]
 lints = [
-    { name = "pylsp-mypy", specifier = ">=0.7.0,<0.8.0" },
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
@@ -3145,6 +3119,15 @@ httpx = [
     { name = "httpx", extra = ["http2"] },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pyrefly" },
+    { name = "supabase-utils", extra = ["all"] },
+]
+lints = [
+    { name = "pyrefly" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", marker = "extra == 'aiohttp'", specifier = ">=3.14.4" },
@@ -3157,6 +3140,13 @@ requires-dist = [
     { name = "yarl", specifier = ">=1.22.0" },
 ]
 provides-extras = ["httpx", "aiohttp", "all"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
+]
+lints = [{ name = "pyrefly", specifier = ">=1.4.0,<2.0.0" }]
 
 [[package]]
 name = "tabulate"

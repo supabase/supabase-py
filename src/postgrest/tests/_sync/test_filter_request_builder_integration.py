@@ -1,4 +1,5 @@
 import pytest
+from supabase_utils.http.request import Response
 
 from postgrest import CountMethod, SyncPostgrestClient
 from postgrest.exceptions import APIError
@@ -655,12 +656,12 @@ def test_order_on_foreign_table(postgrest_client: SyncPostgrestClient) -> None:
 
 def test_get_retry_503(postgrest_client: SyncPostgrestClient) -> None:
     from supabase_utils.http.headers import Headers
-    from supabase_utils.http.request import Request, Response
+    from supabase_utils.http.request import Request
 
     retry_count = 0
     original_send = postgrest_client.executor.session.send
 
-    def fake_send(request: Request, **kwargs):
+    def fake_send(request: Request) -> Response:
         nonlocal retry_count
         if retry_count > 0:
             assert request.headers["X-Retry-Count"] == str(retry_count)
@@ -694,12 +695,12 @@ def test_get_retry_503_does_not_retry_when_disabled(
     postgrest_client: SyncPostgrestClient,
 ) -> None:
     from supabase_utils.http.headers import Headers
-    from supabase_utils.http.request import Request, Response
+    from supabase_utils.http.request import Request
 
     retry_count = 0
     original_send = postgrest_client.executor.session.send
 
-    def fake_send(request: Request, **kwargs):
+    def fake_send(request: Request) -> Response:
         nonlocal retry_count
         if retry_count > 0:
             assert request.headers["X-Retry-Count"] == str(retry_count)
@@ -733,12 +734,12 @@ def test_get_retry_503_does_not_retry_when_disabled(
 
 def test_order_retry_400_doesnt_retry(postgrest_client: SyncPostgrestClient) -> None:
     from supabase_utils.http.headers import Headers
-    from supabase_utils.http.request import Request, Response
+    from supabase_utils.http.request import Request
 
     retry_count = 0
     original_send = postgrest_client.executor.session.send
 
-    def fake_send(request: Request, **kwargs):
+    def fake_send(request: Request) -> Response:
         nonlocal retry_count
         if retry_count < 3:
             retry_count += 1

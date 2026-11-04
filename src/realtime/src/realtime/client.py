@@ -63,8 +63,8 @@ class connect_once:
     ) -> None:
         self.url = URL(url)
         self.get_access_token = token_callback
-        self.listen_task: asyncio.Task | None = None
-        self.heartbeat_task: asyncio.Task | None = None
+        self.listen_task: asyncio.Task[None] | None = None
+        self.heartbeat_task: asyncio.Task[None] | None = None
         self.hb_interval = hb_interval
         self.hb_timeout = hb_timeout
 

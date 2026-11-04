@@ -38,7 +38,7 @@ async def socket() -> AsyncIterator[RealtimeClient]:
 
 
 @pytest.mark.asyncio
-async def test_presence(socket: RealtimeClient):
+async def test_presence(socket: RealtimeClient) -> None:
     user1 = {"user_id": "1", "online_at": datetime.datetime.now().isoformat()}
     user2 = {"user_id": "2", "online_at": datetime.datetime.now().isoformat()}
 
@@ -85,8 +85,8 @@ def test_transform_state_raw_presence_state() -> None:
     raw_state: RawPresenceState = {
         "user1": {
             "metas": [
-                {"phx_ref": "ABC123", "user_id": "user1", "status": "online"},  # type: ignore
-                {  # type: ignore
+                {"phx_ref": "ABC123", "user_id": "user1", "status": "online"},
+                {
                     "phx_ref": "DEF456",
                     "phx_ref_prev": "ABC123",
                     "user_id": "user1",
@@ -95,7 +95,7 @@ def test_transform_state_raw_presence_state() -> None:
             ]
         },
         "user2": {
-            "metas": [{"phx_ref": "GHI789", "user_id": "user2", "status": "offline"}]  # type: ignore
+            "metas": [{"phx_ref": "GHI789", "user_id": "user2", "status": "offline"}]
         },
     }
 
@@ -121,7 +121,7 @@ def test_transform_state_additional_fields() -> None:
     state_with_additional_fields: RawPresenceState = {
         "user1": {
             "metas": [
-                {  # type: ignore
+                {
                     "phx_ref": "ABC123",
                     "user_id": "user1",
                     "status": "online",
@@ -176,12 +176,10 @@ def test_sync_diff_processes_every_leave_key() -> None:
 
 def test_diff_join_for_known_presence_is_not_reported_twice() -> None:
     presence = RealtimePresence()
-    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}  # type: ignore
+    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}
     assert len(list(presence._on_state_event(state))) == 1
 
-    diff_joins: RawPresenceState = {
-        "k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}  # type: ignore
-    }
+    diff_joins: RawPresenceState = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}
     events = list(presence._on_diff_event({"joins": diff_joins, "leaves": {}}))
 
     assert events == []

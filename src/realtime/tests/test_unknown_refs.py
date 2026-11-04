@@ -43,7 +43,7 @@ class FakeServer:
         await self.ws_server.start_serving()
         return self
 
-    async def __aexit__(self, *exc) -> None:
+    async def __aexit__(self, *exc: object) -> None:
         self.ws_server.close()
         await self.ws_server.wait_closed()
 
@@ -74,7 +74,9 @@ async def server() -> AsyncIterator[FakeServer]:
 
 
 @pytest.mark.asyncio
-async def test_close_with_join_ref_after_leave_keeps_client_alive(server: FakeServer):
+async def test_close_with_join_ref_after_leave_keeps_client_alive(
+    server: FakeServer,
+) -> None:
     async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
         async with client.channel("first"):
             pass
@@ -85,7 +87,7 @@ async def test_close_with_join_ref_after_leave_keeps_client_alive(server: FakeSe
 
 
 @pytest.mark.asyncio
-async def test_orphan_reply_is_not_forwarded_to_the_channel(server: FakeServer):
+async def test_orphan_reply_is_not_forwarded_to_the_channel(server: FakeServer) -> None:
     async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
         channel = client.channel("room")
         await channel.subscribe()
@@ -102,7 +104,9 @@ async def test_orphan_reply_is_not_forwarded_to_the_channel(server: FakeServer):
 
 
 @pytest.mark.asyncio
-async def test_late_reply_for_timed_out_send_keeps_client_alive(server: FakeServer):
+async def test_late_reply_for_timed_out_send_keeps_client_alive(
+    server: FakeServer,
+) -> None:
     server.join_reply_delay = 0.2
     async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
         with pytest.raises(asyncio.TimeoutError):
@@ -116,7 +120,7 @@ async def test_late_reply_for_timed_out_send_keeps_client_alive(server: FakeServ
 
 
 @pytest.mark.asyncio
-async def test_unsubscribe_delivers_a_single_close(server: FakeServer):
+async def test_unsubscribe_delivers_a_single_close(server: FakeServer) -> None:
     async with connect_once(f"http://{URL}:{PORT}", get_token) as client:
         channel = client.channel("room")
         await channel.subscribe()

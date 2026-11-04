@@ -11,6 +11,7 @@ from typing import (
     Iterable,
     List,
     Literal,
+    Mapping,
     NamedTuple,
     Self,
     Tuple,
@@ -34,6 +35,7 @@ from supabase_utils.http.request import (
     Response,
 )
 from supabase_utils.types import JSON
+from typing_extensions import override
 from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
@@ -54,8 +56,8 @@ class QueryArgs(NamedTuple):
 C = TypeVar("C", Client, AsyncClient)
 
 
-def _unique_columns(json: List[Dict[str, JSON]]):
-    unique_keys = {key for row in json for key in row.keys()}
+def _unique_columns(json: List[JSON]) -> str:
+    unique_keys = {key for row in json if isinstance(row, Mapping) for key in row}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
 
@@ -123,7 +125,7 @@ def pre_insert(
     if not default_to_null:
         prefer_headers = prefer_headers.set("Prefer", "missing=default")
     # Adding 'columns' query parameters
-    query_params = {}
+    query_params: dict[str, str] = {}
     if isinstance(json, list):
         query_params = {"columns": _unique_columns(json)}
     return QueryArgs("POST", URLQuery.from_mapping(query_params), prefer_headers, json)
@@ -138,7 +140,7 @@ def pre_upsert(
     on_conflict: str = "",
     default_to_null: bool = True,
 ) -> QueryArgs:
-    query_params = {}
+    query_params: dict[str, str] = {}
     prefer_headers = Headers.from_mapping({"Prefer": f"return={returning}"})
     if count:
         prefer_headers = prefer_headers.set("Prefer", f"count={count}")
@@ -244,6 +246,7 @@ class PostgrestRequest(JSONRequest):
     retry: bool = True
     strip_nulls: bool = False
 
+    @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         request = super().finalize(base_url, default_headers)
         if self.strip_nulls:
