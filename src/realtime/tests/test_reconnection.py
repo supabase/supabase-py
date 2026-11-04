@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+import socket
 from types import TracebackType
 from typing import AsyncIterator
 
@@ -35,8 +36,7 @@ from realtime.message import (
 )
 from realtime.types import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_TIMEOUT, ChannelEvents
 
-PORT = 55555
-URL = "localhost"
+HOST = "127.0.0.1"
 PUBLISHABLE_KEY = "my-publishable-key"
 MessageParser: TypeAdapter[ClientMessage] = TypeAdapter(ClientMessage)
 
@@ -58,12 +58,16 @@ def reply_ack(topic: str, ref: str) -> str:
 
 
 class RealtimeServer:
-    def __init__(self, url: str, port: int) -> None:
-        self.url = url
-        self.port = port
+    def __init__(self) -> None:
+        self.port = 0
+
+    @property
+    def url(self) -> str:
+        return f"http://{HOST}:{self.port}"
 
     async def start(self) -> None:
-        self.ws_server = await serve(self.handler, self.url, self.port)
+        self.ws_server = await serve(self.handler, HOST, self.port)
+        self.port = next(iter(self.ws_server.sockets)).getsockname()[1]
         await self.ws_server.start_serving()
 
     async def __aenter__(self) -> "RealtimeServer":
@@ -103,13 +107,13 @@ class RealtimeServer:
 
 @pytest.fixture
 async def server() -> AsyncIterator[RealtimeServer]:
-    async with RealtimeServer(URL, PORT) as server:
+    async with RealtimeServer() as server:
         yield server
 
 
 async def test_raises_on_send_broadcast(server: RealtimeServer) -> None:
     async with (
-        connect_once(f"http://{URL}:{PORT}", get_token) as client,
+        connect_once(server.url, get_token) as client,
         client.channel("test-channel") as channel,
     ):
         await server.close()
@@ -122,7 +126,7 @@ async def test_raises_on_send_broadcast(server: RealtimeServer) -> None:
 
 async def test_raises_on_send_presence(server: RealtimeServer) -> None:
     async with (
-        connect_once(f"http://{URL}:{PORT}", get_token) as client,
+        connect_once(server.url, get_token) as client,
         client.channel("test-channel") as channel,
     ):
         await server.close()
@@ -135,7 +139,7 @@ async def test_raises_on_send_presence(server: RealtimeServer) -> None:
 
 async def test_raises_on_listen_message(server: RealtimeServer) -> None:
     async with (
-        connect_once(f"http://{URL}:{PORT}", get_token) as client,
+        connect_once(server.url, get_token) as client,
         client.channel("test-channel") as channel,
     ):
         await server.close()
@@ -157,22 +161,22 @@ async def test_automatic_reconnection(server: RealtimeServer) -> None:
 
     await server.close()
     asyncio.create_task(restart_server_after_2_seconds())
-    await automatically_reconnect(
-        f"http://{URL}:{PORT}", get_token, client_callback, max_retries=3
-    )
+    await automatically_reconnect(server.url, get_token, client_callback, max_retries=3)
 
 
 async def test_automatic_reconnection_fails_after_max_retries() -> None:
-    # no server running.
     async def client_callback(client: RealtimeClient) -> None:
         return
 
-    try:
-        await automatically_reconnect(
-            f"http://{URL}:{PORT}", get_token, client_callback, max_retries=3
-        )
-    except MaxRetriesExceeded as exc:
-        return
+    with socket.socket() as unused:
+        unused.bind((HOST, 0))
+        port = unused.getsockname()[1]
+        try:
+            await automatically_reconnect(
+                f"http://{HOST}:{port}", get_token, client_callback, max_retries=3
+            )
+        except MaxRetriesExceeded as exc:
+            return
     raise Exception("expected max retries exceeded exception but got nothing")
 
 
@@ -197,7 +201,5 @@ async def test_automatic_reconnection_calls_callback_when_connected(
         async with client.channel("test-channel") as channel:
             pass
 
-    await automatically_reconnect(
-        f"http://{URL}:{PORT}", get_token, client_callback, max_retries=3
-    )
+    await automatically_reconnect(server.url, get_token, client_callback, max_retries=3)
     assert called_twice
