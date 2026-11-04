@@ -15,7 +15,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
   "pydantic >=2,<3",
   "pyjwt[crypto] >=2.12.0",
@@ -78,7 +78,7 @@ requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 check_untyped_defs = true
 allow_redefinition = true
 follow_untyped_imports = true # for deprecation module that does not have stubs

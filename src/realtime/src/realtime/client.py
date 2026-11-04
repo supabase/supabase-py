@@ -134,12 +134,7 @@ async def automatically_reconnect(
                 connected_at = loop.time()
                 await client_handler(client)
                 break
-        except (
-            websockets.ConnectionClosed,
-            TimeoutError,
-            asyncio.TimeoutError,
-            OSError,
-        ):
+        except (websockets.ConnectionClosed, TimeoutError, OSError):
             if (
                 connected_at is not None
                 and loop.time() - connected_at >= MAX_RECONNECT_DELAY
@@ -247,7 +242,7 @@ class RealtimeClient:
                 await asyncio.sleep(max(self.hb_interval, 15))
         except asyncio.CancelledError:
             return
-        except (websockets.ConnectionClosed, asyncio.TimeoutError) as exc:
+        except (TimeoutError, websockets.ConnectionClosed) as exc:
             if (
                 not self._connection_failure.done()
                 or self._connection_failure.cancelled()

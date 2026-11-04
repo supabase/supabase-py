@@ -754,7 +754,7 @@ features:
       - BaseRequestClient
   database.configuration.request_timeout:
     status: implemented
-    note: "No timeout parameter. Configure the timeout on the httpx client passed in through http_session, or wrap async calls in asyncio.wait_for (asyncio.timeout on Python 3.11+)."
+    note: "No timeout parameter. Configure the timeout on the httpx client passed in through http_session, or wrap async calls in asyncio.wait_for or asyncio.timeout."
     no_public_symbols: true
   database.configuration.access_token:
     status: partially_implemented
@@ -800,7 +800,7 @@ features:
     no_public_symbols: true
   functions.invocation.timeout:
     status: implemented
-    note: "No timeout parameter. Configure the timeout on the httpx client passed in as http_client, or wrap async calls in asyncio.wait_for (asyncio.timeout on Python 3.11+)."
+    note: "No timeout parameter. Configure the timeout on the httpx client passed in as http_client, or wrap async calls in asyncio.wait_for or asyncio.timeout."
     no_public_symbols: true
 
   # ── Realtime ───────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent"
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 description = "Common collection of methods used in the supabase python libraries."
 readme = "README.md"
 dependencies = [

@@ -1,12 +1,6 @@
-import sys
+from enum import StrEnum
 
 from httpx import AsyncClient as AsyncClient  # noqa: F401
-
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-else:
-    from strenum import StrEnum
-
 
 DEFAULT_FUNCTION_CLIENT_TIMEOUT = 5
 

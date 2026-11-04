@@ -12,7 +12,7 @@ maintainers = [
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/supabase/supabase-py"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
   "supabase_utils==3.0.0a1", # x-release-please-version
   "websockets >=14,<16",
@@ -74,7 +74,7 @@ keep-runtime-typing = true
 asyncio_mode = "auto"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 check_untyped_defs = true
 allow_redefinition = true
 

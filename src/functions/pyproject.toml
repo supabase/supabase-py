@@ -11,10 +11,9 @@ maintainers = [
 ]
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
   "pydantic>=2.12.2",
-  "strenum >=0.4.15",
   "supabase-utils==3.0.0a1", # x-release-please-version
   "yarl>=1.20.1",
 ]

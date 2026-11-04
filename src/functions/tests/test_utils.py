@@ -1,4 +1,4 @@
-import sys
+from enum import StrEnum
 from typing import Any
 
 import pytest
@@ -44,10 +44,5 @@ def test_is_valid_str_arg(test_input: Any, expected: bool) -> None:
     assert is_valid_str_arg(test_input) == expected
 
 
-def test_strenum_import_python_311_plus() -> None:
-    if sys.version_info >= (3, 11):
-        from enum import StrEnum as StrEnum
-    else:
-        from strenum import StrEnum
-
+def test_function_region_is_str_enum() -> None:
     assert isinstance(FunctionRegion.Any, StrEnum)

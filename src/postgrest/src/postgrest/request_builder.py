@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import json
-import sys
 from dataclasses import dataclass
 from re import search
 from typing import (
@@ -13,6 +12,7 @@ from typing import (
     List,
     Literal,
     NamedTuple,
+    Self,
     Tuple,
     TypeVar,
     overload,
@@ -34,17 +34,11 @@ from supabase_utils.http.request import (
     Response,
 )
 from supabase_utils.types import JSON
-from typing_extensions import Self
 from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .types import CountMethod, Filters, FilterValue, ReturnMethod
 from .utils import _model_validate_json, _sanitize_array_param, sanitize_param
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
 
 MAX_RETRIES = 3
 

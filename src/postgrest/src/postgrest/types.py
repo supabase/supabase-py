@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import sys
-
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-else:
-    from strenum import StrEnum
+from enum import StrEnum
 
 FilterValue = str | int | float | bool
 
