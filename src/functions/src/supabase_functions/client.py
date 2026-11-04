@@ -1,12 +1,12 @@
-from typing import Generic, Literal, overload
+from typing import Generic, Literal, cast, overload
 
-from httpx import AsyncClient, Client
-from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
+    AsyncHttpSession,
     HttpIO,
     HttpMethod,
+    HttpSession,
     SyncHttpIO,
     handle_http_io,
 )
@@ -145,16 +145,12 @@ class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
         self,
         url: str,
         headers: dict[str, str],
-        http_client: AsyncClient | None = None,
+        http_session: AsyncHttpSession,
     ) -> None:
-        http_client = http_client or AsyncClient(
-            follow_redirects=True,
-            http2=True,
-        )
         FunctionsClient.__init__(
             self,
             url=URL(url),
-            executor=AsyncHttpIO(session=AsyncHttpxSession(client=http_client)),
+            executor=AsyncHttpIO(session=http_session),
             headers=headers,
         )
 
@@ -164,36 +160,43 @@ class SyncFunctionsClient(FunctionsClient[SyncHttpIO]):
         self,
         url: str,
         headers: dict[str, str],
-        http_client: Client | None = None,
+        http_session: HttpSession,
     ) -> None:
-        http_client = http_client or Client(
-            follow_redirects=True,
-            http2=True,
-        )
         FunctionsClient.__init__(
             self,
             url=URL(url),
-            executor=SyncHttpIO(session=HttpxSession(client=http_client)),
+            executor=SyncHttpIO(session=http_session),
             headers=headers,
         )
 
 
 @overload
 def create_client(
-    url: str, headers: dict[str, str], *, is_async: Literal[True]
+    url: str,
+    headers: dict[str, str],
+    *,
+    http_session: AsyncHttpSession,
+    is_async: Literal[True],
 ) -> AsyncFunctionsClient: ...
 
 
 @overload
 def create_client(
-    url: str, headers: dict[str, str], *, is_async: Literal[False]
+    url: str,
+    headers: dict[str, str],
+    *,
+    http_session: HttpSession,
+    is_async: Literal[False],
 ) -> SyncFunctionsClient: ...
 
 
 def create_client(
-    url: str, headers: dict[str, str], *, is_async: bool
+    url: str,
+    headers: dict[str, str],
+    *,
+    http_session: AsyncHttpSession | HttpSession,
+    is_async: bool,
 ) -> AsyncFunctionsClient | SyncFunctionsClient:
     if is_async:
-        return AsyncFunctionsClient(url, headers)
-    else:
-        return SyncFunctionsClient(url, headers)
+        return AsyncFunctionsClient(url, headers, cast(AsyncHttpSession, http_session))
+    return SyncFunctionsClient(url, headers, cast(HttpSession, http_session))

@@ -2,7 +2,10 @@ import inspect
 import re
 
 import pytest
+from httpx import AsyncClient, Client
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import AsyncHttpSession, HttpSession
 from supabase_utils.http.request import JSONRequest
 from yarl import URL
 
@@ -27,7 +30,11 @@ _X_CLIENT_INFO_PATTERN = re.compile(
 def test_async_x_client_info_structured_format(
     valid_url: str, valid_headers: dict[str, str]
 ) -> None:
-    client = AsyncFunctionsClient(url=valid_url, headers=valid_headers)
+    client = AsyncFunctionsClient(
+        url=valid_url,
+        headers=valid_headers,
+        http_session=AsyncHttpxSession(client=AsyncClient()),
+    )
     x_client_info = client.default_headers.get("X-Client-Info")
     assert x_client_info is not None
     assert _X_CLIENT_INFO_PATTERN.match(x_client_info), (
@@ -38,7 +45,11 @@ def test_async_x_client_info_structured_format(
 def test_sync_x_client_info_structured_format(
     valid_url: str, valid_headers: dict[str, str]
 ) -> None:
-    client = SyncFunctionsClient(url=valid_url, headers=valid_headers)
+    client = SyncFunctionsClient(
+        url=valid_url,
+        headers=valid_headers,
+        http_session=HttpxSession(client=Client()),
+    )
     x_client_info = client.default_headers.get("X-Client-Info")
     assert x_client_info is not None
     assert _X_CLIENT_INFO_PATTERN.match(x_client_info), (
@@ -47,8 +58,12 @@ def test_sync_x_client_info_structured_format(
 
 
 def test_create_async_client(valid_url: str, valid_headers: dict[str, str]) -> None:
-    # Test creating async client with explicit verify=True
-    client = create_client(url=valid_url, headers=valid_headers, is_async=True)
+    client = create_client(
+        url=valid_url,
+        headers=valid_headers,
+        http_session=AsyncHttpxSession(client=AsyncClient()),
+        is_async=True,
+    )
 
     assert isinstance(client, AsyncFunctionsClient)
     assert str(client.base_url) == valid_url
@@ -58,7 +73,12 @@ def test_create_async_client(valid_url: str, valid_headers: dict[str, str]) -> N
 
 
 def test_create_sync_client(valid_url: str, valid_headers: dict[str, str]) -> None:
-    client = create_client(url=valid_url, headers=valid_headers, is_async=False)
+    client = create_client(
+        url=valid_url,
+        headers=valid_headers,
+        http_session=HttpxSession(client=Client()),
+        is_async=False,
+    )
 
     assert isinstance(client, SyncFunctionsClient)
     assert str(client.base_url) == valid_url
@@ -74,6 +94,7 @@ def test_type_hints() -> None:
 
     assert hints["url"] is str
     assert hints["headers"] == dict[str, str]
+    assert hints["http_session"] == AsyncHttpSession | HttpSession
     assert hints["is_async"] is bool
     assert hints["return"] == AsyncFunctionsClient | SyncFunctionsClient
 

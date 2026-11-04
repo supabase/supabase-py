@@ -16,41 +16,53 @@ from supabase_functions.utils import FunctionRegion
 from supabase_functions.version import __version__
 
 
+class MockHttpClient:
+    def __init__(
+        self, content: bytes, status: int, headers: Headers | None = None
+    ) -> None:
+        self.content = content
+        self.status = status
+        self.headers = headers or Headers.empty()
+
+    def send(self, request: Request) -> Response:
+        return Response(
+            headers=self.headers,
+            status=self.status,
+            content=self.content,
+            request=request,
+        )
+
+    def __enter__(self) -> "MockHttpClient":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        pass
+
+
 def client_returning(
     content: bytes,
     status: int,
     headers: Headers | None = None,
     client_headers: dict[str, str] | None = None,
 ) -> FunctionsClient[SyncHttpIO]:
-    class MockHttpClient:
-        def send(self, request: Request) -> Response:
-            return Response(
-                headers=headers or Headers.empty(),
-                status=status,
-                content=content,
-                request=request,
-            )
-
-        def __enter__(self) -> "MockHttpClient":
-            return self
-
-        def __exit__(
-            self,
-            exc_type: type[BaseException] | None,
-            exc: BaseException | None,
-            tb: TracebackType | None,
-        ) -> None:
-            pass
-
     return FunctionsClient(
         url=URL("https://supabase.com"),
         headers=client_headers or {},
-        executor=SyncHttpIO(session=MockHttpClient()),
+        executor=SyncHttpIO(session=MockHttpClient(content, status, headers)),
     )
 
 
 def test_init_with_valid_params() -> None:
-    client = SyncFunctionsClient(url="https://supabase.com", headers={})
+    client = SyncFunctionsClient(
+        url="https://supabase.com",
+        headers={},
+        http_session=MockHttpClient(b"", 200),
+    )
     assert "X-Client-Info" in client.default_headers
     assert re.match(
         rf"^supabase-py/supabase_functions v{re.escape(__version__)}; platform=.+; platform-version=.+; runtime=python; runtime-version=\S+$",
@@ -61,7 +73,9 @@ def test_init_with_valid_params() -> None:
 @pytest.mark.parametrize("invalid_url", ["not-a-url", "ftp://invalid.com", ""])
 def test_init_with_invalid_url(invalid_url: str) -> None:
     with pytest.raises(Exception, match="url must be a valid HTTP URL string"):
-        SyncFunctionsClient(url=invalid_url, headers={})
+        SyncFunctionsClient(
+            url=invalid_url, headers={}, http_session=MockHttpClient(b"", 200)
+        )
 
 
 def test_set_auth_valid_token() -> None:

@@ -27,7 +27,7 @@ async def test_function_initialization(
     create_async_client: AsyncClientCallable,
 ) -> None:
     async with create_async_client(url, key) as client:
-        assert client.functions
+        assert client.functions.executor.session is client.http_session
 
 
 async def test_uses_key_as_authorization_header_by_default(

@@ -11,11 +11,9 @@ from typing import (
     Literal,
     NamedTuple,
     Self,
-    TypeVar,
     overload,
 )
 
-from httpx import AsyncClient, Client
 from pydantic import TypeAdapter, ValidationError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -47,9 +45,6 @@ class QueryArgs(NamedTuple):
     params: URLQuery
     headers: Headers
     json: JSON
-
-
-C = TypeVar("C", Client, AsyncClient)
 
 
 def _unique_columns(json: list[JSON]) -> str:

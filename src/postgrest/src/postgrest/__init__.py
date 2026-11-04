@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from httpx import Timeout
-
 from .client import AsyncPostgrestClient, SyncPostgrestClient
 from .exceptions import APIError
 from .request_builder import APIResponse
@@ -22,6 +20,5 @@ __all__ = [
     "Filters",
     "RequestMethod",
     "ReturnMethod",
-    "Timeout",
     "__version__",
 ]
