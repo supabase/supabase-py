@@ -2,6 +2,12 @@
 
 Python Client library to interact with Supabase Storage.
 
+## Supabase Service Compatibility
+
+`storage3` only guarantees compatibility with the [latest Supabase Storage release](https://github.com/supabase/storage/releases). Older Supabase Storage releases are supported on a best-effort basis, but compatibility is not guaranteed.
+
+If you self-host Supabase Storage, we recommend upgrading to the latest release when upgrading this SDK.
+
 ## How to use
 
 As it takes some effort to get the headers. We suggest that you use the storage functionality through the main [Supabase Python Client](https://github.com/supabase-community/supabase-py)

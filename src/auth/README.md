@@ -60,6 +60,12 @@ The other key difference is we do not use pascalCase to encode variable and meth
 
 Also, the `supabase_auth` library for Python parses the date-time string into `datetime` Python objects. The [JS client](https://github.com/supabase/gotrue-js) keeps the date-time as strings.
 
+## Supabase Service Compatibility
+
+`supabase_auth` only guarantees compatibility with the [latest Supabase Auth release](https://github.com/supabase/auth/releases). Older Supabase Auth releases are supported on a best-effort basis, but compatibility is not guaranteed.
+
+If you self-host Supabase Auth, we recommend upgrading to the latest release when upgrading this SDK.
+
 ## Usage
 
 The library provides both synchronous and asynchronous clients. Here are some examples:
