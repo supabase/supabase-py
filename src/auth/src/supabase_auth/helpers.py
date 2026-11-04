@@ -10,7 +10,7 @@ import uuid
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, Type, TypeVar
+from typing import Any, TypeVar
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -49,11 +49,11 @@ from .types import (
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-def _model_validate(model: Type[TBaseModel], contents: str | bytes) -> TBaseModel:
+def _model_validate(model: type[TBaseModel], contents: str | bytes) -> TBaseModel:
     return model.model_validate_json(contents)
 
 
-def _model_dump(model: BaseModel) -> Dict[str, Any]:
+def _model_dump(model: BaseModel) -> dict[str, Any]:
     return model.model_dump()
 
 

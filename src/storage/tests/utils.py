@@ -1,5 +1,6 @@
 import asyncio
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response

@@ -1,7 +1,7 @@
 [project]
 name = "realtime"
 version = "3.0.0a1" # {x-release-please-version}
-description = ""
+description = "Supabase Realtime client for Python."
 authors = [
     { name = "Joel Lee", email="joel@joellee.org"},
     { name = "Andrew Smith", email="a.smith@silentworks.co.uk"},
@@ -11,20 +11,27 @@ maintainers = [
 ]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/supabase/supabase-py"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
+]
 requires-python = ">=3.11"
 dependencies = [
   "supabase_utils==3.0.0a1", # x-release-please-version
-  "websockets >=14,<16",
+  "websockets >=14,<18",
   "typing-extensions >=4.14.0",
   "pydantic (>=2.11.7,<3.0.0)",
   "yarl>=1.22.0",
 ]
 
 [project.urls]
-homepage = "https://github.com/supabase/supabase/tree/main/src/realime"
+homepage = "https://github.com/supabase/supabase-py/tree/main/src/realtime"
 repository = "https://github.com/supabase/supabase-py"
-documentation = "https://github.com/supabase/supabase/tree/main/src/realime"
+documentation = "https://github.com/supabase/supabase-py/tree/main/src/realtime"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [dependency-groups]
@@ -45,8 +52,8 @@ lints = [
 dev = [{ include-group = "lints" }, {include-group = "tests" }]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
 
 [tool.ruff.lint]
 select = [
@@ -63,12 +70,9 @@ select = [
   # isort
   "I",
 ]
-ignore = ["F401", "F403", "F841", "E712", "E501", "E402", "UP006", "UP035"]
+ignore = ["F401", "F403", "F841", "E712", "E501", "E402"]
 # isort.required-imports = ["from __future__ import annotations"]
 
-[tool.ruff.lint.pyupgrade]
-# Preserve types, even if a file imports `from __future__ import annotations`.
-keep-runtime-typing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

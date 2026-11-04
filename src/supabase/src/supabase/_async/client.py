@@ -1,6 +1,6 @@
 import copy
 from types import TracebackType
-from typing import Dict, Literal, overload
+from typing import Literal, overload
 
 from postgrest import AsyncPostgrestClient
 from postgrest.request_builder import (
@@ -155,7 +155,7 @@ class AsyncClient:
         self,
         fn: str,
         head: Literal[False],
-        params: Dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
         count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCFilterRequestBuilder[AsyncHttpIO]: ...
@@ -165,7 +165,7 @@ class AsyncClient:
         self,
         fn: str,
         head: Literal[True],
-        params: Dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
         count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCCountRequestBuilder[AsyncHttpIO]: ...
@@ -180,7 +180,7 @@ class AsyncClient:
         self,
         fn: str,
         head: bool = False,
-        params: Dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
         count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCFilterRequestBuilder[AsyncHttpIO] | RPCCountRequestBuilder[AsyncHttpIO]:
@@ -255,7 +255,7 @@ class AsyncClient:
     @staticmethod
     def _init_storage_client(
         storage_url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         http_session: AsyncHttpSession,
     ) -> AsyncStorageClient:
         return AsyncStorageClient(
@@ -284,7 +284,7 @@ class AsyncClient:
     @staticmethod
     def _init_postgrest_client(
         rest_url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         schema: str,
         http_session: AsyncHttpSession,
     ) -> AsyncPostgrestClient:
@@ -299,7 +299,7 @@ class AsyncClient:
     def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
-    def _get_auth_headers(self, authorization: str | None = None) -> Dict[str, str]:
+    def _get_auth_headers(self, authorization: str | None = None) -> dict[str, str]:
         if authorization is None:
             authorization = self.options.headers.get(
                 "Authorization", self._create_auth_header(self.supabase_key)

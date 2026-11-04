@@ -1,12 +1,11 @@
 import asyncio
 import time
+from collections.abc import Awaitable, Callable, Generator
 from dataclasses import dataclass
 from types import TracebackType
 from typing import (
     Any,
-    Awaitable,
-    Callable,
-    Generator,
+    Concatenate,
     Generic,
     Protocol,
     Self,
@@ -15,7 +14,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Concatenate, ParamSpec
+from typing_extensions import ParamSpec
 from yarl import URL
 
 from .headers import Headers

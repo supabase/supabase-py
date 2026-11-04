@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal
+from typing import Any, Literal, TypeAlias
 
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
 from supabase_utils.types import JSON
-from typing_extensions import TypeAlias, TypedDict
+from typing_extensions import TypedDict
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 
@@ -71,7 +71,7 @@ class CreateSignedUrlBody(BaseModel):
 
 
 class CreateSignedUrlsBody(BaseModel):
-    paths: List[str]
+    paths: list[str]
     expiresIn: int
     download: str | bool | None
 
@@ -98,7 +98,7 @@ class FileObject(BaseModel):
     name: str
     bucket_id: str
     created_at: datetime
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     last_modified: datetime | None = None
     size: int | None = None
     cache_control: str | None = None
@@ -124,7 +124,7 @@ class SearchV2Object(BaseModel):
     name: str
     updated_at: datetime
     created_at: datetime
-    metadata: Dict[str, Any] | None
+    metadata: dict[str, Any] | None
     key: str | None = None
 
 
@@ -145,8 +145,8 @@ class SearchV2Body(BaseModel):
 
 class SearchV2Result(BaseModel):
     hasNext: bool
-    folders: List[SearchV2Folder]
-    objects: List[SearchV2Object]
+    folders: list[SearchV2Folder]
+    objects: list[SearchV2Object]
     nextCursor: str | None = None
 
 
@@ -157,7 +157,7 @@ class ListFileObject(BaseModel):
     bucket_id: str | None = None
     updated_at: datetime
     created_at: datetime
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     buckets: Bucket | None = None
 
 
@@ -193,7 +193,7 @@ DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
 
 
 class MetadataConfiguration(BaseModel, extra="ignore"):
-    non_filterable_metadata_keys: List[str] | None = Field(
+    non_filterable_metadata_keys: list[str] | None = Field(
         alias="nonFilterableMetadataKeys"
     )
 
@@ -203,7 +203,7 @@ class ListIndexesResponseItem(BaseModel, extra="ignore"):
 
 
 class ListVectorIndexesResponse(BaseModel, extra="ignore"):
-    indexes: List[ListIndexesResponseItem]
+    indexes: list[ListIndexesResponseItem]
     nextToken: str | None = None
 
 
@@ -223,11 +223,11 @@ class GetVectorIndexResponse(BaseModel, extra="ignore"):
     index: VectorIndex
 
 
-VectorFilter = Dict[str, Any]
+VectorFilter = dict[str, Any]
 
 
 class VectorData(BaseModel, extra="ignore"):
-    float32: List[float]
+    float32: list[float]
 
 
 class VectorObject(BaseModel, extra="ignore"):
@@ -244,16 +244,16 @@ class VectorMatch(BaseModel, extra="ignore"):
 
 
 class GetVectorsResponse(BaseModel, extra="ignore"):
-    vectors: List[VectorMatch]
+    vectors: list[VectorMatch]
 
 
 class ListVectorsResponse(BaseModel, extra="ignore"):
-    vectors: List[VectorMatch]
+    vectors: list[VectorMatch]
     nextToken: str | None = None
 
 
 class QueryVectorsResponse(BaseModel, extra="ignore"):
-    vectors: List[VectorMatch]
+    vectors: list[VectorMatch]
 
 
 class AnalyticsBucket(BaseModel, extra="ignore"):
@@ -267,7 +267,7 @@ class AnalyticsBucket(BaseModel, extra="ignore"):
 SortColumn = Literal["id", "name", "created_at", "updated_at"]
 SortOrder = Literal["asc", "desc"]
 
-AnalyticsBucketsParser = TypeAdapter(List[AnalyticsBucket])
+AnalyticsBucketsParser = TypeAdapter(list[AnalyticsBucket])
 
 
 class AnalyticsBucketDeleteResponse(BaseModel, extra="ignore"):
@@ -294,5 +294,5 @@ class ListVectorBucketsItem(BaseModel, extra="ignore"):
 
 
 class ListVectorBucketsResponse(BaseModel, extra="ignore"):
-    vectorBuckets: List[ListVectorBucketsItem]
+    vectorBuckets: list[ListVectorBucketsItem]
     nextToken: str | None = None

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from datetime import datetime
 from time import time
-from typing import Callable, List, Mapping
+from typing import Literal
 
 from pydantic import (
     BaseModel,
@@ -14,7 +15,7 @@ from pydantic import (
 from pydantic.dataclasses import dataclass
 from supabase_utils.http.headers import Headers
 from supabase_utils.types import JSON
-from typing_extensions import Literal, TypedDict
+from typing_extensions import TypedDict
 
 Provider = Literal[
     "apple",
@@ -913,7 +914,7 @@ class AuthMFAAdminDeleteFactorResponse(BaseModel):
     """
 
 
-AuthMFAAdminListFactorsResponse = List[Factor]
+AuthMFAAdminListFactorsResponse = list[Factor]
 
 AuthMFAAdminListFactorsResponseParser: TypeAdapter[AuthMFAAdminListFactorsResponse] = (
     TypeAdapter(AuthMFAAdminListFactorsResponse)

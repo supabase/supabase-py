@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from random import random
 from time import time
+from typing import NotRequired
 
 import pytest
 from aiohttp import ClientSession
@@ -8,7 +9,7 @@ from httpx import AsyncClient
 from jwt import encode
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
-from typing_extensions import AsyncGenerator, NotRequired, TypedDict
+from typing_extensions import AsyncGenerator, TypedDict
 
 from supabase_auth import AsyncSupabaseAuthAdmin, AsyncSupabaseAuthClient
 from supabase_auth.types import (

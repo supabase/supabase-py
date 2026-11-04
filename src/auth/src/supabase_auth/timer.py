@@ -1,6 +1,6 @@
 import asyncio
+from collections.abc import Awaitable, Callable
 from threading import Timer
-from typing import Awaitable, Callable
 
 
 class _AsyncTimer:

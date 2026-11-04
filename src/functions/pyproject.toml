@@ -11,6 +11,14 @@ maintainers = [
 ]
 license = "MIT"
 readme = "README.md"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
+]
 requires-python = ">=3.11"
 dependencies = [
   "pydantic>=2.12.2",
@@ -67,10 +75,10 @@ select = [
   # isort
   "I",
 ]
-ignore = ["E712", "E501", "E402", "UP006", "UP035"]
+ignore = ["E712", "E501", "E402"]
 
 [build-system]
-requires = ["uv_build>=0.8.3,<0.9.0"]
+requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.pyrefly]

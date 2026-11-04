@@ -1,5 +1,3 @@
-from typing import Type
-
 import pytest
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
@@ -41,7 +39,7 @@ def make_response(
     ],
 )
 def test_error_initialization(
-    error_class: Type[FunctionsError], expected_name: str, expected_status: int
+    error_class: type[FunctionsError], expected_name: str, expected_status: int
 ) -> None:
     test_message = "Test error message"
     if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
@@ -65,7 +63,7 @@ def test_error_initialization(
     ],
 )
 def test_error_to_dict(
-    error_class: Type[FunctionsError], expected_name: str, expected_status: int
+    error_class: type[FunctionsError], expected_name: str, expected_status: int
 ) -> None:
     test_message = "Test error message"
 

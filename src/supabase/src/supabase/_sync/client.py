@@ -1,7 +1,7 @@
 import copy
 import re
 from types import TracebackType
-from typing import Dict, Literal, overload
+from typing import Literal, overload
 
 from postgrest import SyncPostgrestClient
 from postgrest.request_builder import (
@@ -157,7 +157,7 @@ class Client:
         self,
         fn: str,
         head: Literal[False],
-        params: Dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
         count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCFilterRequestBuilder[SyncHttpIO]: ...
@@ -167,7 +167,7 @@ class Client:
         self,
         fn: str,
         head: Literal[True],
-        params: Dict[str, str] | None = None,
+        params: dict[str, str] | None = None,
         count: CountMethod | None = None,
         get: bool = False,
     ) -> RPCCountRequestBuilder[SyncHttpIO]: ...
@@ -224,7 +224,7 @@ class Client:
     @staticmethod
     def _init_storage_client(
         storage_url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         http_session: HttpSession,
     ) -> SyncStorageClient:
         return SyncStorageClient(
@@ -253,7 +253,7 @@ class Client:
     @staticmethod
     def _init_postgrest_client(
         rest_url: str,
-        headers: Dict[str, str],
+        headers: dict[str, str],
         schema: str,
         http_session: HttpSession,
     ) -> SyncPostgrestClient:
@@ -268,7 +268,7 @@ class Client:
     def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
-    def _get_auth_headers(self, authorization: str | None = None) -> Dict[str, str]:
+    def _get_auth_headers(self, authorization: str | None = None) -> dict[str, str]:
         if authorization is None:
             authorization = self.options.headers.get(
                 "Authorization", self._create_auth_header(self.supabase_key)

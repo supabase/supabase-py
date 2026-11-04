@@ -1,5 +1,4 @@
 import re
-from typing import Dict
 
 import pytest
 from supabase_utils.http.headers import Headers
@@ -15,7 +14,7 @@ def valid_url() -> str:
 
 
 @pytest.fixture
-def valid_headers() -> Dict[str, str]:
+def valid_headers() -> dict[str, str]:
     return {"Authorization": "Bearer test_token", "Content-Type": "application/json"}
 
 
@@ -25,7 +24,7 @@ _X_CLIENT_INFO_PATTERN = re.compile(
 
 
 def test_async_x_client_info_structured_format(
-    valid_url: str, valid_headers: Dict[str, str]
+    valid_url: str, valid_headers: dict[str, str]
 ) -> None:
     client = AsyncFunctionsClient(url=valid_url, headers=valid_headers)
     x_client_info = client.default_headers.get("X-Client-Info")
@@ -36,7 +35,7 @@ def test_async_x_client_info_structured_format(
 
 
 def test_sync_x_client_info_structured_format(
-    valid_url: str, valid_headers: Dict[str, str]
+    valid_url: str, valid_headers: dict[str, str]
 ) -> None:
     client = SyncFunctionsClient(url=valid_url, headers=valid_headers)
     x_client_info = client.default_headers.get("X-Client-Info")
@@ -46,7 +45,7 @@ def test_sync_x_client_info_structured_format(
     )
 
 
-def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
+def test_create_async_client(valid_url: str, valid_headers: dict[str, str]) -> None:
     # Test creating async client with explicit verify=True
     client = create_client(url=valid_url, headers=valid_headers, is_async=True)
 
@@ -57,7 +56,7 @@ def test_create_async_client(valid_url: str, valid_headers: Dict[str, str]) -> N
     )
 
 
-def test_create_sync_client(valid_url: str, valid_headers: Dict[str, str]) -> None:
+def test_create_sync_client(valid_url: str, valid_headers: dict[str, str]) -> None:
     client = create_client(url=valid_url, headers=valid_headers, is_async=False)
 
     assert isinstance(client, SyncFunctionsClient)

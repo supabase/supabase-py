@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import json
 import os
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock
 
 import aiohttp

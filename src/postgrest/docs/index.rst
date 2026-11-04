@@ -4,23 +4,23 @@ Welcome to postgrest-py's documentation!
 `PostgREST <https://postgrest.org>`_ client library for Python. This library provides an ORM interface to PostgREST.
 
 .. attention::
-   This library is currently unstable. If you find any bugs, please file an `issue <https://github.com/supabase-community/postgrest-py/issues/>`_.
+   This library is currently unstable. If you find any bugs, please file an `issue <https://github.com/supabase/supabase-py/issues/>`_.
 
 Installation
 ============
 Requirements:
 
-- Python >= 3.7
+- Python >= 3.11
 
 **With pip:**
 ::
 
-   pip install postgrest-py
+   pip install postgrest
 
 **With poetry:**
 ::
 
-   poetry add postgrest-py
+   poetry add postgrest
 
 
 .. toctree::
