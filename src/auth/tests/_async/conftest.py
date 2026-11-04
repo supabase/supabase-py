@@ -4,11 +4,7 @@ from time import time
 from typing import NotRequired
 
 import pytest
-from aiohttp import ClientSession
-from httpx import AsyncClient
 from jwt import encode
-from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
-from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 from typing_extensions import AsyncGenerator, TypedDict
 
 from supabase_auth import AsyncSupabaseAuthAdmin, AsyncSupabaseAuthClient
@@ -20,6 +16,7 @@ from supabase_auth.types import (
 )
 
 from ..conftest import fake
+from ..http_sessions import async_http_sessions as http_sessions
 
 
 def mock_access_token() -> str:
@@ -100,17 +97,6 @@ AUTH_ADMIN_JWT = encode(
     },
     GOTRUE_JWT_SECRET,
 )
-
-
-def httpx() -> AsyncHttpxSession:
-    return AsyncHttpxSession(client=AsyncClient(http2=True, verify=True))
-
-
-def aiohttp() -> AsyncAiohttpSession:
-    return AsyncAiohttpSession(client=ClientSession())
-
-
-http_sessions = [httpx, aiohttp]
 
 
 @pytest.fixture

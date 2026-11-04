@@ -9,7 +9,13 @@ rules = (
     unasync.Rule(
         fromdir="/_async/",
         todir="/_sync/",
-        additional_replacements={"AsyncClient": "Client", "aclose": "close"},
+        additional_replacements={
+            "AsyncClient": "Client",
+            "aclose": "close",
+            "AsyncHttpSession": "HttpSession",
+            "AsyncHttpxSession": "HttpxSession",
+            "async_http_sessions": "sync_http_sessions",
+        },
     ),
     unasync._DEFAULT_RULE,
 )

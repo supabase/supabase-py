@@ -1,13 +1,10 @@
-from collections.abc import Iterator
 from dataclasses import dataclass
 from random import random
 from time import time
 from typing import NotRequired
 
 import pytest
-from httpx import Client
 from jwt import encode
-from supabase_utils.http.adapters.httpx import HttpxSession
 from typing_extensions import Generator, TypedDict
 
 from supabase_auth import SyncSupabaseAuthAdmin, SyncSupabaseAuthClient
@@ -19,6 +16,7 @@ from supabase_auth.types import (
 )
 
 from ..conftest import fake
+from ..http_sessions import sync_http_sessions as http_sessions
 
 
 def mock_access_token() -> str:
@@ -72,24 +70,6 @@ def mock_app_metadata() -> dict[str, list[str]]:
     }
 
 
-def create_new_user_with_email(
-    secret_key_api_client: SyncSupabaseAuthAdmin,
-    *,
-    email: str | None = None,
-    password: str | None = None,
-) -> User:
-    credentials = mock_user_credentials(
-        {
-            "email": email,
-            "password": password,
-        }
-    )
-    response = secret_key_api_client.create_user(
-        AdminUserAttributes(email=credentials.email, password=credentials.password)
-    )
-    return response.user
-
-
 SIGNUP_ENABLED_AUTO_CONFIRM_OFF_PORT = 9999
 SIGNUP_ENABLED_AUTO_CONFIRM_ON_PORT = 9998
 SIGNUP_DISABLED_AUTO_CONFIRM_OFF_PORT = 9997
@@ -119,15 +99,22 @@ AUTH_ADMIN_JWT = encode(
 )
 
 
-def httpx() -> HttpxSession:
-    return HttpxSession(client=Client(http2=True, verify=True))
-
-
-http_sessions = [httpx]
+@pytest.fixture
+def admin_client_with_user_and_credentials(
+    secret_key_api_client: SyncSupabaseAuthAdmin,
+) -> Generator[tuple[SyncSupabaseAuthAdmin, User, Credentials]]:
+    credentials = mock_user_credentials()
+    response = secret_key_api_client.create_user(
+        AdminUserAttributes(email=credentials.email, password=credentials.password)
+    )
+    yield (secret_key_api_client, response.user, credentials)
+    secret_key_api_client.delete_user(response.user.id)
 
 
 @pytest.fixture(params=http_sessions)
-def auth_client(request: pytest.FixtureRequest) -> Iterator[SyncSupabaseAuthClient]:
+def auth_client(
+    request: pytest.FixtureRequest,
+) -> Generator[SyncSupabaseAuthClient]:
     with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -140,7 +127,7 @@ def auth_client(request: pytest.FixtureRequest) -> Iterator[SyncSupabaseAuthClie
 @pytest.fixture(params=http_sessions)
 def auth_client_with_session(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthClient]:
+) -> Generator[SyncSupabaseAuthClient]:
     with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -159,12 +146,13 @@ def auth_client_with_session(
             )
         )
         yield client
+        client.sign_out()
 
 
 @pytest.fixture(params=http_sessions)
 def auth_client_with_asymmetric_session(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthClient]:
+) -> Generator[SyncSupabaseAuthClient]:
     with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_ASYMMETRIC_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -177,7 +165,7 @@ def auth_client_with_asymmetric_session(
 @pytest.fixture(params=http_sessions)
 def auth_subscription_client(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthClient]:
+) -> Generator[SyncSupabaseAuthClient]:
     with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -190,7 +178,7 @@ def auth_subscription_client(
 @pytest.fixture(params=http_sessions)
 def client_api_auto_confirm_enabled_client(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthClient]:
+) -> Generator[SyncSupabaseAuthClient]:
     with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
@@ -203,7 +191,7 @@ def client_api_auto_confirm_enabled_client(
 @pytest.fixture(params=http_sessions)
 def client_api_auto_confirm_off_signups_enabled_client(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthClient]:
+) -> Generator[SyncSupabaseAuthClient]:
     with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
@@ -216,7 +204,7 @@ def client_api_auto_confirm_off_signups_enabled_client(
 @pytest.fixture(params=http_sessions)
 def client_api_auto_confirm_disabled_client(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthClient]:
+) -> Generator[SyncSupabaseAuthClient]:
     with SyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
@@ -229,7 +217,7 @@ def client_api_auto_confirm_disabled_client(
 @pytest.fixture(params=http_sessions)
 def auth_admin_api_auto_confirm_enabled_client(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthAdmin]:
+) -> Generator[SyncSupabaseAuthAdmin]:
     with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         default_headers={
@@ -243,7 +231,7 @@ def auth_admin_api_auto_confirm_enabled_client(
 @pytest.fixture(params=http_sessions)
 def auth_admin_api_auto_confirm_disabled_client(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthAdmin]:
+) -> Generator[SyncSupabaseAuthAdmin]:
     with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         default_headers={
@@ -252,18 +240,6 @@ def auth_admin_api_auto_confirm_disabled_client(
         http_session=request.param(),
     ) as client:
         yield client
-
-
-@pytest.fixture
-def admin_client_with_user_and_credentials(
-    secret_key_api_client: SyncSupabaseAuthAdmin,
-) -> Generator[tuple[SyncSupabaseAuthAdmin, User, Credentials]]:
-    credentials = mock_user_credentials()
-    response = secret_key_api_client.create_user(
-        AdminUserAttributes(email=credentials.email, password=credentials.password)
-    )
-    yield (secret_key_api_client, response.user, credentials)
-    secret_key_api_client.delete_user(response.user.id)
 
 
 SECRET_KEY_JWT = encode(
@@ -277,7 +253,7 @@ SECRET_KEY_JWT = encode(
 @pytest.fixture(params=http_sessions)
 def secret_key_api_client(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthAdmin]:
+) -> Generator[SyncSupabaseAuthAdmin]:
     with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         default_headers={
@@ -291,7 +267,7 @@ def secret_key_api_client(
 @pytest.fixture(params=http_sessions)
 def secret_key_api_client_with_sms(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthAdmin]:
+) -> Generator[SyncSupabaseAuthAdmin]:
     with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         default_headers={
@@ -305,7 +281,7 @@ def secret_key_api_client_with_sms(
 @pytest.fixture(params=http_sessions)
 def secret_key_api_client_no_sms(
     request: pytest.FixtureRequest,
-) -> Iterator[SyncSupabaseAuthAdmin]:
+) -> Generator[SyncSupabaseAuthAdmin]:
     with SyncSupabaseAuthAdmin(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         default_headers={

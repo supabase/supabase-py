@@ -120,7 +120,9 @@ def test_jwks_ttl_cache_behavior(
         mocker.patch("time.time", original_time)
 
 
-def test_set_session_with_valid_tokens(auth_client: SyncSupabaseAuthClient) -> None:
+def test_set_session_with_valid_tokens(
+    auth_client: SyncSupabaseAuthClient,
+) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get valid tokens
@@ -147,7 +149,9 @@ def test_set_session_with_valid_tokens(auth_client: SyncSupabaseAuthClient) -> N
     assert response.user.email == credentials.email
 
 
-def test_set_session_with_expired_token(auth_client: SyncSupabaseAuthClient) -> None:
+def test_set_session_with_expired_token(
+    auth_client: SyncSupabaseAuthClient,
+) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get valid tokens
@@ -183,7 +187,9 @@ def test_set_session_with_expired_token(auth_client: SyncSupabaseAuthClient) -> 
     assert response.user.email == credentials.email
 
 
-def test_set_session_without_refresh_token(auth_client: SyncSupabaseAuthClient) -> None:
+def test_set_session_without_refresh_token(
+    auth_client: SyncSupabaseAuthClient,
+) -> None:
     credentials = mock_user_credentials()
 
     # First sign up to get valid tokens
@@ -212,7 +218,9 @@ def test_set_session_without_refresh_token(auth_client: SyncSupabaseAuthClient) 
         auth_client.set_session(expired_access_token, "")
 
 
-def test_set_session_with_invalid_token(auth_client: SyncSupabaseAuthClient) -> None:
+def test_set_session_with_invalid_token(
+    auth_client: SyncSupabaseAuthClient,
+) -> None:
     # Try to set the session with invalid tokens
     with pytest.raises(AuthInvalidJwtError):
         auth_client.set_session("invalid.token.here", "invalid_refresh_token")
@@ -295,7 +303,9 @@ def test_mfa_list_factors(auth_client: SyncSupabaseAuthClient) -> None:
     assert len(list_response.all) == 1
 
 
-def test_get_authenticator_assurance_level(auth_client: SyncSupabaseAuthClient) -> None:
+def test_get_authenticator_assurance_level(
+    auth_client: SyncSupabaseAuthClient,
+) -> None:
     credentials = mock_user_credentials()
 
     # Without a session, should return null values
