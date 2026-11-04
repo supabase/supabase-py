@@ -15,12 +15,12 @@ Requirements:
 **With pip:**
 ::
 
-   pip install postgrest-py
+   pip install postgrest
 
 **With poetry:**
 ::
 
-   poetry add postgrest-py
+   poetry add postgrest
 
 
 .. toctree::
