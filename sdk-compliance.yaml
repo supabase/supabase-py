@@ -777,7 +777,7 @@ features:
       - FunctionsClient
       - AsyncFunctionsClient
       - SyncFunctionsClient
-  functions.invocation.set_auth_token:
+  functions.invocation.auth_token:
     status: implemented
     symbols:
       - FunctionsClient.set_auth
