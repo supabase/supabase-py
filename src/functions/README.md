@@ -45,7 +45,7 @@ async def run_func():
     fc = AsyncFunctionsClient(
         "https://<project_ref>.functions.supabase.co",
         headers,
-        http_session=AsyncHttpxSession(client=AsyncClient()),
+        http_session=AsyncHttpxSession(client=AsyncClient(follow_redirects=True)),
     )
     
     try:
@@ -72,7 +72,7 @@ headers = {"Authorization": "Bearer your-publishable-key"}
 fc = SyncFunctionsClient(
     "https://<project_ref>.functions.supabase.co",
     headers,
-    http_session=HttpxSession(client=Client()),
+    http_session=HttpxSession(client=Client(follow_redirects=True)),
 )
 
 # Invoke your Edge Function
