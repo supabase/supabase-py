@@ -1,7 +1,9 @@
 import asyncio
+import inspect
 import time
 from collections.abc import Awaitable, Callable, Generator
 from dataclasses import dataclass
+from functools import cached_property, update_wrapper
 from types import TracebackType
 from typing import (
     Any,
@@ -140,4 +142,15 @@ class handle_http_io(Generic[Params, Success]):
             iterator = self.method(obj, *args, **kwargs)
             return obj.executor.communicate(obj.base_url, obj.default_headers, iterator)
 
+        update_wrapper(bound_method, self.method)
+        # pyrefly: ignore[missing-attribute]
+        bound_method.__signature__ = self.bound_signature
         return bound_method
+
+    @cached_property
+    def bound_signature(self) -> inspect.Signature:
+        signature = inspect.signature(self.method)
+        parameters = list(signature.parameters.values())[1:]
+        return signature.replace(
+            parameters=parameters, return_annotation=inspect.Signature.empty
+        )
