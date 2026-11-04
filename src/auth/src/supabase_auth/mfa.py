@@ -21,7 +21,6 @@ from .helpers import (
 )
 from .session import _AsyncSessionManager, _SyncSessionManager
 from .types import (
-    AMREntry,
     AuthMFAChallengeResponse,
     AuthMFAEnrollResponse,
     AuthMFAGetAuthenticatorAssuranceLevelResponse,
@@ -159,14 +158,10 @@ class SupabaseAuthMFAHttpClient(Generic[HttpIO]):
             f for f in session.user.factors or [] if f.status == "verified"
         ]
         next_level = "aal2" if verified_factors else current_level
-        amr_dict_list = payload.amr or []
-        current_authentication_methods = [
-            AMREntry.model_validate(amr) for amr in amr_dict_list
-        ]
         return AuthMFAGetAuthenticatorAssuranceLevelResponse(
             current_level=current_level,
             next_level=next_level,
-            current_authentication_methods=current_authentication_methods,
+            current_authentication_methods=payload.amr or [],
         )
 
 

@@ -4,18 +4,31 @@ from collections.abc import AsyncIterator
 
 import pytest
 from dotenv import load_dotenv
+from pydantic import TypeAdapter
 
 from realtime import RealtimeClient
 from realtime.client import connect_once
+from realtime.message import PresenceDiffMessage, ServerMessageAdapter
 from realtime.presence import (
     PresenceJoin,
     PresenceLeave,
     RealtimePresence,
     _transform_state,
 )
-from realtime.types import RawPresenceState
+from realtime.types import Presence, RawPresenceDiff, RawPresenceState
 
 load_dotenv()
+
+RawPresenceStateAdapter: TypeAdapter[RawPresenceState] = TypeAdapter(RawPresenceState)
+
+
+def raw_state(state: object) -> RawPresenceState:
+    return RawPresenceStateAdapter.validate_python(state)
+
+
+def raw_diff(joins: object, leaves: object) -> RawPresenceDiff:
+    return RawPresenceDiff.model_validate({"joins": joins, "leaves": leaves})
+
 
 URL = os.getenv("SUPABASE_URL") or "http://127.0.0.1:54321"
 PUBLISHABLE_KEY = (
@@ -51,22 +64,19 @@ async def test_presence(socket: RealtimeClient) -> None:
 
         assert len(presences) == 1
         assert len(presences[0][1]) == 1
-        assert presences[0][1][0].get("user_id", "") == user1["user_id"]
-        assert presences[0][1][0].get("online_at", "") == user1["online_at"]
-        assert "presence_ref" in presences[0][1][0]
+        assert presences[0][1][0].model_extra == user1
+        assert presences[0][1][0].presence_ref
 
-        assert fst_join.new_presences[0].get("user_id", "") == user1["user_id"]
-        assert fst_join.new_presences[0].get("online_at", "") == user1["online_at"]
-        assert "presence_ref" in fst_join.new_presences[0]
+        assert fst_join.new_presences[0].model_extra == user1
+        assert fst_join.new_presences[0].presence_ref
 
         await chan.track(user2)
         snd_join = await messages_stream.__anext__()
         if not isinstance(snd_join, PresenceJoin):
             raise Exception("unexpected message")
 
-        assert snd_join.new_presences[0].get("user_id", "") == user2["user_id"]
-        assert snd_join.new_presences[0].get("online_at", "") == user2["online_at"]
-        assert "presence_ref" in snd_join.new_presences[0]
+        assert snd_join.new_presences[0].model_extra == user2
+        assert snd_join.new_presences[0].presence_ref
 
         await chan.untrack()
         fst_leave = await messages_stream.__anext__()
@@ -80,89 +90,94 @@ async def test_presence(socket: RealtimeClient) -> None:
 
 
 def test_transform_state_raw_presence_state() -> None:
-    raw_state: RawPresenceState = {
-        "user1": {
-            "metas": [
-                {"phx_ref": "ABC123", "user_id": "user1", "status": "online"},
-                {
-                    "phx_ref": "DEF456",
-                    "phx_ref_prev": "ABC123",
-                    "user_id": "user1",
-                    "status": "away",
-                },
-            ]
-        },
-        "user2": {
-            "metas": [{"phx_ref": "GHI789", "user_id": "user2", "status": "offline"}]
-        },
-    }
+    state = raw_state(
+        {
+            "user1": {
+                "metas": [
+                    {"phx_ref": "ABC123", "user_id": "user1", "status": "online"},
+                    {
+                        "phx_ref": "DEF456",
+                        "phx_ref_prev": "ABC123",
+                        "user_id": "user1",
+                        "status": "away",
+                    },
+                ]
+            },
+            "user2": {
+                "metas": [
+                    {"phx_ref": "GHI789", "user_id": "user2", "status": "offline"}
+                ]
+            },
+        }
+    )
 
     expected_output = {
         "user1": [
-            {"presence_ref": "ABC123", "user_id": "user1", "status": "online"},
-            {"presence_ref": "DEF456", "user_id": "user1", "status": "away"},
+            Presence(presence_ref="ABC123", user_id="user1", status="online"),
+            Presence(presence_ref="DEF456", user_id="user1", status="away"),
         ],
-        "user2": [{"presence_ref": "GHI789", "user_id": "user2", "status": "offline"}],
+        "user2": [Presence(presence_ref="GHI789", user_id="user2", status="offline")],
     }
 
-    result = _transform_state(raw_state)
-    assert result == expected_output
+    assert _transform_state(state) == expected_output
 
 
 def test_transform_state_empty_input() -> None:
-    empty_state: RawPresenceState = {}
-    result = _transform_state(empty_state)
-    assert result == {}
+    assert _transform_state({}) == {}
 
 
 def test_transform_state_additional_fields() -> None:
-    state_with_additional_fields: RawPresenceState = {
-        "user1": {
-            "metas": [
-                {
-                    "phx_ref": "ABC123",
-                    "user_id": "user1",
-                    "status": "online",
-                    "extra": "data",
-                }
-            ]
-        }
-    }
-
-    expected_output = {
-        "user1": [
-            {
-                "presence_ref": "ABC123",
-                "user_id": "user1",
-                "status": "online",
-                "extra": "data",
+    state = raw_state(
+        {
+            "user1": {
+                "metas": [
+                    {
+                        "phx_ref": "ABC123",
+                        "user_id": "user1",
+                        "status": "online",
+                        "extra": "data",
+                    }
+                ]
             }
+        }
+    )
+
+    result = _transform_state(state)
+
+    assert result == {
+        "user1": [
+            Presence(
+                presence_ref="ABC123", user_id="user1", status="online", extra="data"
+            )
         ]
     }
-
-    result = _transform_state(state_with_additional_fields)
-    assert result == expected_output
+    assert result["user1"][0].model_extra == {
+        "user_id": "user1",
+        "status": "online",
+        "extra": "data",
+    }
 
 
 def test_sync_diff_processes_every_leave_key() -> None:
     """Leaves for a key the client never tracked must not skip the remaining keys."""
     presence = RealtimePresence()
 
-    state: RawPresenceState = {
-        "bob": {"metas": [{"phx_ref": "ref-bob"}]},
-    }
-    list(presence._on_state_event(state))
+    list(
+        presence._on_state_event(
+            raw_state({"bob": {"metas": [{"phx_ref": "ref-bob"}]}})
+        )
+    )
     assert list(presence.state) == ["bob"]
 
     events = list(
         presence._on_diff_event(
-            {
-                "joins": {},
-                "leaves": {
+            raw_diff(
+                joins={},
+                leaves={
                     "alice": {"metas": [{"phx_ref": "ref-alice"}]},
                     "bob": {"metas": [{"phx_ref": "ref-bob"}]},
                 },
-            }
+            )
         )
     )
 
@@ -174,46 +189,65 @@ def test_sync_diff_processes_every_leave_key() -> None:
 
 def test_diff_join_for_known_presence_is_not_reported_twice() -> None:
     presence = RealtimePresence()
-    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}
+    state = raw_state({"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}})
     assert len(list(presence._on_state_event(state))) == 1
 
-    diff_joins: RawPresenceState = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}
-    events = list(presence._on_diff_event({"joins": diff_joins, "leaves": {}}))
+    joins = {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}}
+    events = list(presence._on_diff_event(raw_diff(joins=joins, leaves={})))
 
     assert events == []
-    assert presence.state == {"k": [{"presence_ref": "A", "user_id": "1"}]}
+    assert presence.state == {"k": [Presence(presence_ref="A", user_id="1")]}
 
 
 def test_diff_leave_for_presence_already_gone_is_not_reported() -> None:
     presence = RealtimePresence()
-    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "B"}]}}
-    list(presence._on_state_event(state))
+    list(presence._on_state_event(raw_state({"k": {"metas": [{"phx_ref": "B"}]}})))
 
-    leaves: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
-    events = list(presence._on_diff_event({"joins": {}, "leaves": leaves}))
+    leaves = {"k": {"metas": [{"phx_ref": "A"}]}}
+    events = list(presence._on_diff_event(raw_diff(joins={}, leaves=leaves)))
 
     assert events == []
-    assert presence.state == {"k": [{"presence_ref": "B"}]}
+    assert presence.state == {"k": [Presence(presence_ref="B")]}
 
 
 def test_diff_join_reports_only_new_presences_for_a_key() -> None:
     presence = RealtimePresence()
-    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
-    list(presence._on_state_event(state))
+    list(presence._on_state_event(raw_state({"k": {"metas": [{"phx_ref": "A"}]}})))
 
-    joins: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}, {"phx_ref": "B"}]}}
-    events = list(presence._on_diff_event({"joins": joins, "leaves": {}}))
+    joins = {"k": {"metas": [{"phx_ref": "A"}, {"phx_ref": "B"}]}}
+    events = list(presence._on_diff_event(raw_diff(joins=joins, leaves={})))
 
     assert events == [
-        PresenceJoin("k", [{"presence_ref": "A"}], [{"presence_ref": "B"}])
+        PresenceJoin("k", [Presence(presence_ref="A")], [Presence(presence_ref="B")])
     ]
-    assert presence.state == {"k": [{"presence_ref": "A"}, {"presence_ref": "B"}]}
+    assert presence.state == {
+        "k": [Presence(presence_ref="A"), Presence(presence_ref="B")]
+    }
 
 
 def test_unchanged_state_resync_reports_nothing() -> None:
     presence = RealtimePresence()
-    state: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
-    list(presence._on_state_event(state))
+    list(presence._on_state_event(raw_state({"k": {"metas": [{"phx_ref": "A"}]}})))
 
-    resync: RawPresenceState = {"k": {"metas": [{"phx_ref": "A"}]}}
+    resync = raw_state({"k": {"metas": [{"phx_ref": "A"}]}})
     assert list(presence._on_state_event(resync)) == []
+
+
+def test_presence_diff_message_payload_is_validated_into_models() -> None:
+    message = ServerMessageAdapter.validate_python(
+        {
+            "event": "presence_diff",
+            "topic": "realtime:room",
+            "ref": None,
+            "payload": {
+                "joins": {"k": {"metas": [{"phx_ref": "A", "user_id": "1"}]}},
+                "leaves": {},
+            },
+        }
+    )
+
+    assert isinstance(message, PresenceDiffMessage)
+    assert isinstance(message.payload, RawPresenceDiff)
+    meta = message.payload.joins["k"].metas[0]
+    assert meta.phx_ref == "A"
+    assert meta.model_extra == {"user_id": "1"}

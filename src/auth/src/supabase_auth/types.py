@@ -15,7 +15,6 @@ from pydantic import (
 from pydantic.dataclasses import dataclass
 from supabase_utils.http.headers import Headers
 from supabase_utils.types import JSON
-from typing_extensions import TypedDict
 
 Provider = Literal[
     "apple",
@@ -79,11 +78,6 @@ class AMREntry(BaseModel):
     Timestamp when the method was successfully used. Represents number of
     seconds since 1st January 1970 (UNIX epoch) in UTC.
     """
-
-
-class AMREntryDict(TypedDict):
-    timestamp: int
-    method: Literal["password", "otp", "oauth", "mfa/totp"] | str
 
 
 class AuthResponse(BaseModel):
@@ -975,7 +969,7 @@ class JWTPayload(BaseModel, extra="allow"):
     role: str | None = None
     aal: AuthenticatorAssuranceLevels | None = None
     session_id: str | None = None
-    amr: list[AMREntryDict] | None = None
+    amr: list[AMREntry] | None = None
 
 
 @dataclass
