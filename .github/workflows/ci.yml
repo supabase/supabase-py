@@ -27,7 +27,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.11", "3.12", "3.13", "3.14"]
-        package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase"]
+        package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase", "utils"]
         resolution: ["highest"]
         include:
           - { os: ubuntu-latest, python-version: "3.11", package: functions, resolution: lowest-direct }
@@ -36,6 +36,7 @@ jobs:
           - { os: ubuntu-latest, python-version: "3.11", package: auth, resolution: lowest-direct }
           - { os: ubuntu-latest, python-version: "3.11", package: postgrest, resolution: lowest-direct }
           - { os: ubuntu-latest, python-version: "3.11", package: supabase, resolution: lowest-direct }
+          - { os: ubuntu-latest, python-version: "3.11", package: utils, resolution: lowest-direct }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
@@ -90,7 +91,9 @@ jobs:
             | xargs docker image save \
             | zstd -T0 > /tmp/docker-images/images.tar.zst
 
+      # utils has no pytest suite, so its job produces no coverage report.
       - name: Upload coverage to Coveralls
+        if: ${{ matrix.package != 'utils' }}
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
