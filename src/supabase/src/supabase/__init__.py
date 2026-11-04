@@ -39,7 +39,7 @@ from .lib.client_options import SyncClientOptions as ClientOptions
 # Version
 from .version import __version__
 
-__all__ = (
+__all__ = [
     "AClient",
     "ASupabaseStorageClient",
     "AClientOptions",
@@ -73,4 +73,4 @@ __all__ = (
     "ASupabaseException",
     "AsyncSupabaseException",
     "SyncSupabaseException",
-)
+]

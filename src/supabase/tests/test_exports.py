@@ -9,12 +9,14 @@ import supabase_auth
 import supabase_functions
 
 import supabase
+import supabase.client
 
 PACKAGES = [
     "postgrest",
     "realtime",
     "storage3",
     "supabase",
+    "supabase.client",
     "supabase_auth",
     "supabase_functions",
     "supabase_utils",
@@ -68,6 +70,8 @@ def test_errors_are_exported_from_package_and_supabase(
         assert name in package.__all__
         assert name in supabase.__all__
         assert getattr(supabase, name) is getattr(package, name)
+        assert name in supabase.client.__all__
+        assert getattr(supabase.client, name) is getattr(package, name)
 
 
 def test_postgrest_error_is_exported_from_supabase() -> None:
