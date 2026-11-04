@@ -1,7 +1,7 @@
 [project]
 name = "realtime"
 version = "3.0.0a1" # {x-release-please-version}
-description = ""
+description = "Supabase Realtime client for Python."
 authors = [
     { name = "Joel Lee", email="joel@joellee.org"},
     { name = "Andrew Smith", email="a.smith@silentworks.co.uk"},
@@ -11,7 +11,14 @@ maintainers = [
 ]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/supabase/supabase-py"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
+]
 requires-python = ">=3.11"
 dependencies = [
   "supabase_utils==3.0.0a1", # x-release-please-version
@@ -22,9 +29,9 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://github.com/supabase/supabase/tree/main/src/realime"
+homepage = "https://github.com/supabase/supabase-py/tree/main/src/realtime"
 repository = "https://github.com/supabase/supabase-py"
-documentation = "https://github.com/supabase/supabase/tree/main/src/realime"
+documentation = "https://github.com/supabase/supabase-py/tree/main/src/realtime"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [dependency-groups]
@@ -45,8 +52,8 @@ lints = [
 dev = [{ include-group = "lints" }, {include-group = "tests" }]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
 
 [tool.ruff.lint]
 select = [

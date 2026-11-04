@@ -8,8 +8,12 @@ maintainers = [
   { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
 ]
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent"
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
 ]
 requires-python = ">=3.11"
 description = "Common collection of methods used in the supabase python libraries."
@@ -42,7 +46,7 @@ lints = [
 dev = [{ include-group = "lints" }, "supabase_utils[all]"]
 
 [build-system]
-requires = ["uv_build>=0.8.3,<0.9.0"]
+requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.pyrefly]

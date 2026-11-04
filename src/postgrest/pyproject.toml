@@ -15,9 +15,12 @@ maintainers = [
 readme = "README.md"
 license = "MIT"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent"
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
 ]
 requires-python = ">=3.11"
 dependencies = [
@@ -29,7 +32,7 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://github.com/supabase/supabase/tree/main/src/postgrest"
+homepage = "https://github.com/supabase/supabase-py/tree/main/src/postgrest"
 repository = "https://github.com/supabase/supabase-py"
 documentation = "https://postgrest-py.rtfd.io"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
@@ -86,7 +89,7 @@ filterwarnings = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.8.3,<0.9.0"]
+requires = ["uv_build>=0.13.7,<0.14.0"]
 build-backend = "uv_build"
 
 [tool.pyrefly]
