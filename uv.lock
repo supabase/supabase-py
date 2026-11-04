@@ -3122,6 +3122,7 @@ httpx = [
 [package.dev-dependencies]
 dev = [
     { name = "pyrefly" },
+    { name = "supabase-utils", extra = ["all"] },
 ]
 lints = [
     { name = "pyrefly" },
@@ -3141,7 +3142,10 @@ requires-dist = [
 provides-extras = ["httpx", "aiohttp", "all"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pyrefly", specifier = ">=1.4.0,<2.0.0" }]
+dev = [
+    { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
+    { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
+]
 lints = [{ name = "pyrefly", specifier = ">=1.4.0,<2.0.0" }]
 
 [[package]]

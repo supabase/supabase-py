@@ -39,7 +39,7 @@ changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 lints = [
     "pyrefly >=1.4.0,<2.0.0",
 ]
-dev = [{ include-group = "lints" }]
+dev = [{ include-group = "lints" }, "supabase_utils[all]"]
 
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
