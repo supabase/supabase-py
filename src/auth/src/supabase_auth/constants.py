@@ -5,7 +5,7 @@ from datetime import datetime
 GOTRUE_URL = "http://localhost:9999"
 EXPIRY_MARGIN = 10  # seconds
 MAX_RETRIES = 10
-RETRY_INTERVAL = 2  # deciseconds
+RETRY_BASE_DELAY = 0.2  # seconds
 STORAGE_KEY = "supabase.auth.token"
 
 API_VERSION_HEADER_NAME = "X-Supabase-Api-Version"
