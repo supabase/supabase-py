@@ -192,3 +192,39 @@ async def test_list_v2_allows_null_object_metadata(use_async: bool) -> None:
     assert result.objects[0].name == "file-without-metadata.txt"
     assert result.objects[0].metadata is None
     assert result.objects[1].metadata == {"mimetype": "text/plain"}
+
+
+@use_async
+async def test_list_returns_folder_entries(use_async: bool) -> None:
+    response_body = [
+        {
+            "name": "avatars",
+            "id": None,
+            "updated_at": None,
+            "created_at": None,
+            "last_accessed_at": None,
+            "metadata": None,
+        },
+        {
+            "name": "file.txt",
+            "id": "object-id",
+            "updated_at": "2024-01-01T00:00:00Z",
+            "created_at": "2024-01-01T00:00:00Z",
+            "last_accessed_at": "2024-01-01T00:00:00Z",
+            "metadata": {"mimetype": "text/plain"},
+        },
+    ]
+
+    def handler(request: Request) -> Response:
+        return Response(200, json=response_body)
+
+    result = await call_with_client(
+        use_async, handler, lambda client: client.from_("bucket").list()
+    )
+
+    assert [(item.name, item.id, item.metadata) for item in result] == [
+        ("avatars", None, None),
+        ("file.txt", "object-id", {"mimetype": "text/plain"}),
+    ]
+    assert result[0].created_at is None
+    assert result[0].updated_at is None
