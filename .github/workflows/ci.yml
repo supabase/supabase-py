@@ -18,73 +18,118 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
+env:
+  SUPABASE_CLI_VERSION: "3.0.0"
+  UV_VERSION: "0.8.2"
+
 jobs:
-  test:
-    name: py${{ matrix.python-version }} | ${{ matrix.package }} @ ${{ matrix.os }}${{ matrix.resolution == 'lowest-direct' && ' | lowest' || '' }}
-    strategy:
-      # Don't let one broken package cancel the other packages' jobs.
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
-        package: ["functions", "realtime", "storage", "auth", "postgrest", "supabase", "utils"]
-        resolution: ["highest"]
-        include:
-          - { os: ubuntu-latest, python-version: "3.11", package: functions, resolution: lowest-direct }
-          - { os: ubuntu-latest, python-version: "3.11", package: realtime, resolution: lowest-direct }
-          - { os: ubuntu-latest, python-version: "3.11", package: storage, resolution: lowest-direct }
-          - { os: ubuntu-latest, python-version: "3.11", package: auth, resolution: lowest-direct }
-          - { os: ubuntu-latest, python-version: "3.11", package: postgrest, resolution: lowest-direct }
-          - { os: ubuntu-latest, python-version: "3.11", package: supabase, resolution: lowest-direct }
-          - { os: ubuntu-latest, python-version: "3.11", package: utils, resolution: lowest-direct }
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+  changes:
+    name: Select packages to test
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      has-tests: ${{ steps.matrix.outputs.has-tests }}
+      coverage-flags: ${{ steps.matrix.outputs.coverage-flags }}
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
+
+      # A pull request checks out a merge commit, so its first parent is the
+      # base branch and the diff is exactly what the pull request changes.
+      - name: Build test matrix
+        id: matrix
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git diff --name-only HEAD^1 HEAD | python3 .github/scripts/ci_matrix.py >> "$GITHUB_OUTPUT"
+          else
+            python3 .github/scripts/ci_matrix.py --all >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
     steps:
       - name: Clone Repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install supabase cli latest
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.11"
+
+      - name: Check lint
+        run: uv run --frozen ruff check --output-format=github
+
+      - name: Check formatting
+        run: uv run --frozen ruff format --check
+
+  test:
+    name: py${{ matrix.python-version }} | ${{ matrix.package }}${{ matrix.resolution == 'lowest-direct' && ' | lowest' || '' }}
+    needs: changes
+    if: ${{ needs.changes.outputs.has-tests == 'true' }}
+    strategy:
+      # Don't let one broken package cancel the other packages' jobs.
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      UV_RESOLUTION: ${{ matrix.resolution }}
+      USES_SUPABASE_CLI: ${{ contains(fromJSON('["realtime", "storage"]'), matrix.package) }}
+      USES_INFRA: ${{ contains(fromJSON('["realtime", "storage", "auth", "postgrest"]'), matrix.package) }}
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install supabase cli
+        if: ${{ env.USES_SUPABASE_CLI == 'true' }}
         uses: supabase/setup-cli@d239d1052f6f024a8d746d7e5aeddead63b9cb53 # v3.1.0
         with:
-          version: "latest"
+          version: ${{ env.SUPABASE_CLI_VERSION }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: "0.8.2"
+          version: ${{ env.UV_VERSION }}
           python-version: ${{ matrix.python-version }}
 
       # The supabase cli publishes host ports inside the ephemeral range, and
       # parallel image pulls can take one as an outgoing source port, which
       # fails the container start with "address already in use".
       - name: Reserve infra ports
+        if: ${{ env.USES_SUPABASE_CLI == 'true' }}
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329,55320-55329
-
-      - name: Print supabase cli version
-        id: supabase-cli
-        run: echo "version=$(supabase --version | head -n 1)" >> "$GITHUB_OUTPUT"
 
       # Pulling images from the registries on every job gets throttled
       # (429 / "Data limit exceeded"), so reuse the images between runs.
       - name: Cache docker images
-        if: ${{ contains(fromJSON('["realtime", "storage", "auth", "postgrest"]'), matrix.package) }}
+        if: ${{ env.USES_INFRA == 'true' }}
         id: docker-images
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /tmp/docker-images
-          key: docker-images-${{ matrix.package }}-${{ steps.supabase-cli.outputs.version }}-${{ hashFiles(format('src/{0}/infra/**', matrix.package)) }}
+          key: docker-images-${{ matrix.package }}-${{ env.SUPABASE_CLI_VERSION }}-${{ hashFiles(format('src/{0}/infra/**', matrix.package)) }}
 
       - name: Load cached docker images
         if: ${{ steps.docker-images.outputs.cache-hit == 'true' }}
         run: zstd -d --stdout /tmp/docker-images/images.tar.zst | docker image load
 
-      - name: Run Tests
-        run: make ${{ matrix.package }}.tests
-        env:
-          UV_RESOLUTION: ${{ matrix.resolution }}
+      - name: Install dependencies
+        run: uv sync --package ${{ matrix.import-name }}
 
+      # Type checking runs while the infra starts, since pytest depends on
+      # start-infra but not on pyrefly. The environment is already synced, so
+      # the parallel uv runs only read it.
+      - name: Run Tests
+        run: make -j2 --output-sync=target ${{ matrix.package }}.tests
+
+      # On a cache miss cache-hit is an empty string, not 'false'.
       - name: Save docker images to cache
-        if: ${{ steps.docker-images.outputs.cache-hit == 'false' }}
+        if: ${{ env.USES_INFRA == 'true' && steps.docker-images.outputs.cache-hit != 'true' }}
         run: |
           mkdir -p /tmp/docker-images
           docker ps --all --format '{{.Image}}' | sort -u \
@@ -97,25 +142,44 @@ jobs:
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          flag-name: run-${{ join(matrix.*, '-') }}
+          flag-name: ${{ matrix.package }}-py${{ matrix.python-version }}-${{ matrix.resolution }}
           parallel: true
           fail-on-error: false
 
   finish_tests:
-    needs: test
+    needs: [changes, test]
     name: Upload tests coveralls results
-    if: ${{ always() }}
+    if: ${{ always() && needs.changes.outputs.has-tests == 'true' }}
     runs-on: ubuntu-latest
     steps:
+      # Packages a pull request does not touch are not tested, so carry their
+      # coverage forward from the base build.
       - name: Coveralls Finished
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
+          carryforward: ${{ needs.changes.outputs.coverage-flags }}
           fail-on-error: false
 
+  ci-passed:
+    name: CI passed
+    needs: [changes, lint, test]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job results
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          LINT: ${{ needs.lint.result }}
+          TEST: ${{ needs.test.result }}
+        run: |
+          echo "changes=$CHANGES lint=$LINT test=$TEST"
+          [ "$CHANGES" = success ] && [ "$LINT" = success ] \
+            && { [ "$TEST" = success ] || [ "$TEST" = skipped ]; }
+
   release-please:
-    needs: test
+    needs: [lint, test]
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && github.repository_owner == 'supabase' }}
     runs-on: ubuntu-latest
     name: "Run release-please"
@@ -160,7 +224,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: "0.8.2"
+          version: ${{ env.UV_VERSION }}
           python-version: "3.11"
 
       - name: Build all packages and publish
