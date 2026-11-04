@@ -9,13 +9,13 @@ class _AsyncTimer:
         seconds: float,
         function: Callable[[], Awaitable[None]],
     ) -> None:
-        self._milliseconds = seconds
+        self._seconds = seconds
         self._function = function
         self._task: asyncio.Task[None] | None = None
 
     def start(self) -> None:
         async def schedule() -> None:
-            await asyncio.sleep(self._milliseconds / 1000)
+            await asyncio.sleep(self._seconds)
             await self._function()
 
         def cleanup(_task: asyncio.Task[None]) -> None:
@@ -39,12 +39,12 @@ class _SyncTimer:
         seconds: float,
         function: Callable[[], None],
     ) -> None:
-        self._milliseconds = seconds
+        self._seconds = seconds
         self._function = function
         self._timer: Timer | None = None
 
     def start(self) -> None:
-        self._timer = Timer(self._milliseconds / 1000, self._function)
+        self._timer = Timer(self._seconds, self._function)
         self._timer.daemon = True
         self._timer.start()
 
