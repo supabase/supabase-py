@@ -6,10 +6,10 @@ from threading import Timer
 class _AsyncTimer:
     def __init__(
         self,
-        seconds: float,
+        milliseconds: float,
         function: Callable[[], Awaitable[None]],
     ) -> None:
-        self._milliseconds = seconds
+        self._milliseconds = milliseconds
         self._function = function
         self._task: asyncio.Task[None] | None = None
 
@@ -36,10 +36,10 @@ class _AsyncTimer:
 class _SyncTimer:
     def __init__(
         self,
-        seconds: float,
+        milliseconds: float,
         function: Callable[[], None],
     ) -> None:
-        self._milliseconds = seconds
+        self._milliseconds = milliseconds
         self._function = function
         self._timer: Timer | None = None
 
