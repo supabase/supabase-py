@@ -9,12 +9,13 @@ from typing import (
     Generator,
     Generic,
     Protocol,
+    Self,
     TypeAlias,
     TypeVar,
     overload,
 )
 
-from typing_extensions import Concatenate, ParamSpec, Self
+from typing_extensions import Concatenate, ParamSpec
 from yarl import URL
 
 from .headers import Headers

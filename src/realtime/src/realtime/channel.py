@@ -14,11 +14,11 @@ from typing import (
     Mapping,
     Optional,
     TypeAlias,
+    assert_never,
 )
 
 import websockets
 from supabase_utils.types import JSON
-from typing_extensions import assert_never
 
 from .message import (
     BroadcastMessage,

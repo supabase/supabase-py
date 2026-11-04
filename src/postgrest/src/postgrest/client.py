@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from base64 import b64encode
 from types import TracebackType
-from typing import Generic, Literal, Mapping, overload
+from typing import Generic, Literal, Mapping, Self, overload
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -15,7 +15,6 @@ from supabase_utils.http.io import (
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import HTTPRequestMethod
 from supabase_utils.types import JSON
-from typing_extensions import Self
 from yarl import URL
 
 from .request_builder import (
