@@ -62,26 +62,9 @@ jobs:
       - name: Check formatting
         run: uv run --frozen ruff format --check
 
-  # httpx is an optional extra of supabase_utils, so every package has to
-  # import without it.
   import-without-httpx:
-    name: Import without httpx | ${{ matrix.package }}${{ matrix.extra && format('[{0}]', matrix.extra) || '' }}
+    name: Import without httpx
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package:
-          - supabase_utils
-          - supabase_functions
-          - postgrest
-          - storage3
-          - supabase_auth
-          - realtime
-          - supabase
-        extra: [""]
-        include:
-          - package: supabase
-            extra: aiohttp
     steps:
       - name: Clone Repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -91,24 +74,22 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install the package without development dependencies
-        env:
-          PACKAGE: ${{ matrix.package }}
-          EXTRA: ${{ matrix.extra }}
-        run: uv sync --frozen --no-dev --no-default-groups --package "$PACKAGE" ${EXTRA:+--extra "$EXTRA"}
-
-      - name: Import the package
-        env:
-          PACKAGE: ${{ matrix.package }}
+      - name: Import each package without httpx
         run: |
-          uv run --no-sync python - <<'EOF'
-          import importlib
-          import importlib.util
-          import os
-
-          assert importlib.util.find_spec("httpx") is None, "httpx is installed"
-          importlib.import_module(os.environ["PACKAGE"])
-          EOF
+          set -eu
+          check() {
+            package=$1
+            shift
+            echo "::group::$package $*"
+            export UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/venv-$package-$#"
+            uv sync --frozen --no-dev --no-default-groups --package "$package" "$@"
+            uv run --no-sync python -I .github/scripts/import_without_httpx.py "$package"
+            echo "::endgroup::"
+          }
+          for package in supabase_utils supabase_functions postgrest storage3 supabase_auth realtime supabase; do
+            check "$package"
+          done
+          check supabase --extra aiohttp
 
   test:
     name: py${{ matrix.python-version }} | ${{ matrix.package }}${{ matrix.resolution == 'lowest-direct' && ' | lowest' || '' }}

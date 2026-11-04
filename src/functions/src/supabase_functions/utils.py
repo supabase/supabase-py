@@ -1,7 +1,5 @@
 from enum import StrEnum
 
-DEFAULT_FUNCTION_CLIENT_TIMEOUT = 5
-
 
 class FunctionRegion(StrEnum):
     Any = "any"

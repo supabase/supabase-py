@@ -2,14 +2,15 @@ import inspect
 import re
 
 import pytest
-from httpx import AsyncClient, Client
-from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpSession, HttpSession
 from supabase_utils.http.request import JSONRequest
 from yarl import URL
 
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient, create_client
+
+from ._async.test_function_client import MockHttpClient as AsyncMockHttpClient
+from ._sync.test_function_client import MockHttpClient as SyncMockHttpClient
 
 
 @pytest.fixture
@@ -33,7 +34,7 @@ def test_async_x_client_info_structured_format(
     client = AsyncFunctionsClient(
         url=valid_url,
         headers=valid_headers,
-        http_session=AsyncHttpxSession(client=AsyncClient()),
+        http_session=AsyncMockHttpClient(b"", 200),
     )
     x_client_info = client.default_headers.get("X-Client-Info")
     assert x_client_info is not None
@@ -48,7 +49,7 @@ def test_sync_x_client_info_structured_format(
     client = SyncFunctionsClient(
         url=valid_url,
         headers=valid_headers,
-        http_session=HttpxSession(client=Client()),
+        http_session=SyncMockHttpClient(b"", 200),
     )
     x_client_info = client.default_headers.get("X-Client-Info")
     assert x_client_info is not None
@@ -61,7 +62,7 @@ def test_create_async_client(valid_url: str, valid_headers: dict[str, str]) -> N
     client = create_client(
         url=valid_url,
         headers=valid_headers,
-        http_session=AsyncHttpxSession(client=AsyncClient()),
+        http_session=AsyncMockHttpClient(b"", 200),
         is_async=True,
     )
 
@@ -76,7 +77,7 @@ def test_create_sync_client(valid_url: str, valid_headers: dict[str, str]) -> No
     client = create_client(
         url=valid_url,
         headers=valid_headers,
-        http_session=HttpxSession(client=Client()),
+        http_session=SyncMockHttpClient(b"", 200),
         is_async=False,
     )
 
