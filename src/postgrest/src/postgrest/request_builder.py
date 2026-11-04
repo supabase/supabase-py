@@ -11,6 +11,7 @@ from typing import (
     Iterable,
     List,
     Literal,
+    Mapping,
     NamedTuple,
     Self,
     Tuple,
@@ -56,7 +57,7 @@ C = TypeVar("C", Client, AsyncClient)
 
 
 def _unique_columns(json: List[JSON]) -> str:
-    unique_keys = {key for row in json if isinstance(row, dict) for key in row}
+    unique_keys = {key for row in json if isinstance(row, Mapping) for key in row}
     columns = ",".join([f'"{k}"' for k in unique_keys])
     return columns
 
