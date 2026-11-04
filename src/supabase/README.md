@@ -9,7 +9,7 @@ Python client for [Supabase](https://supabase.com)
 
 ### PyPI installation
 
-Install the package (for Python >= 3.10):
+Install the package (for Python >= 3.11):
 
 ```bash
 # with pip
