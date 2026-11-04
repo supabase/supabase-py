@@ -1,5 +1,5 @@
 import inspect
-from types import TracebackType
+from types import SimpleNamespace, TracebackType
 from typing import Generic
 
 import pytest
@@ -93,7 +93,7 @@ def test_sync_communicate_sends_requests_until_return(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sleeps: list[float] = []
-    monkeypatch.setattr(io.time, "sleep", sleeps.append)
+    monkeypatch.setattr(io, "time", SimpleNamespace(sleep=sleeps.append))
     session = FakeSession([500, 503, 200])
     result = SyncHttpIO(session).communicate(
         BASE_URL, DEFAULT_HEADERS, retry_until_success(5)
@@ -114,7 +114,7 @@ async def test_async_communicate_sends_requests_until_return(
     async def fake_sleep(delay: float) -> None:
         sleeps.append(delay)
 
-    monkeypatch.setattr(io.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(io, "asyncio", SimpleNamespace(sleep=fake_sleep))
     session = AsyncFakeSession([500, 200])
     result = await AsyncHttpIO(session).communicate(
         BASE_URL, DEFAULT_HEADERS, retry_until_success(5)

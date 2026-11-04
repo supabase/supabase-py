@@ -21,6 +21,7 @@ async def echo(request: web.Request) -> web.Response:
             "X-Query": request.query_string,
             "X-Apikey": request.headers.get("apikey", ""),
             "X-Content-Type": request.headers.get("Content-Type", ""),
+            "X-Accept": repr(request.headers.getall("Accept", [])),
         },
     )
 
@@ -83,3 +84,16 @@ async def test_error_status_is_returned(server: TestServer) -> None:
     assert response.is_error
     assert response.content == b"missing"
     assert response.headers.get("content-type") == "text/plain; charset=utf-8"
+
+
+def get_items_with_repeated_accept() -> HttpMethod[Response]:
+    headers = Headers.empty().set("Accept", "a").set("Accept", "b")
+    return (yield EmptyRequest(path=["items"], method="GET", headers=headers))
+
+
+async def test_repeated_request_headers_are_joined(server: TestServer) -> None:
+    async with AsyncAiohttpSession(aiohttp.ClientSession()) as session:
+        response = await AsyncHttpIO(session).communicate(
+            base_url(server), Headers.empty(), get_items_with_repeated_accept()
+        )
+    assert response.headers.get("x-accept") == "['a, b']"

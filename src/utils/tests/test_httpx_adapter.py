@@ -107,6 +107,7 @@ def test_sync_session_sends_headers() -> None:
         seen.append(request)
         return httpx.Response(200)
 
-    session = HttpxSession(httpx.Client(transport=httpx.MockTransport(handler)))
-    session.send(make_request())
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with HttpxSession(client) as session:
+        session.send(make_request())
     assert seen[0].headers.get_list("accept") == ["a", "b"]

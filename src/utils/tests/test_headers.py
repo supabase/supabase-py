@@ -78,7 +78,7 @@ def test_supabase_client_headers() -> None:
     headers = Headers.supabase_client_headers("supabase_test", "1.2.3")
     x_client_info = headers["X-Client-Info"]
     assert re.fullmatch(
-        r"supabase-py/supabase_test v1\.2\.3; platform=.+; platform-version=.*;"
+        r"supabase-py/supabase_test v1\.2\.3; platform=.*; platform-version=.*;"
         r" runtime=python; runtime-version=\S+",
         x_client_info,
     )

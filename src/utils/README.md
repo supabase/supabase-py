@@ -18,27 +18,31 @@ pip install supabase_functions "supabase_utils[aiohttp]"
 
 ## Using an adapter
 
-Wrap a client of the HTTP library in an adapter and hand it to a package:
+Wrap a client of the HTTP library in an adapter and hand it to a package. Leaving the adapter's context manager closes the client:
 
 ```python
 from httpx import AsyncClient, Client
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
-sync_client = SyncFunctionsClient(
-    "https://<project_ref>.functions.supabase.co",
-    {"Authorization": "Bearer <key>"},
-    http_session=HttpxSession(Client()),
-)
+with HttpxSession(Client()) as session:
+    functions = SyncFunctionsClient(
+        "https://<project_ref>.functions.supabase.co",
+        {"Authorization": "Bearer <key>"},
+        http_session=session,
+    )
+    functions.invoke("hello")
 
-async_client = AsyncFunctionsClient(
-    "https://<project_ref>.functions.supabase.co",
-    {"Authorization": "Bearer <key>"},
-    http_session=AsyncHttpxSession(AsyncClient()),
-)
+async with AsyncHttpxSession(AsyncClient()) as session:
+    functions = AsyncFunctionsClient(
+        "https://<project_ref>.functions.supabase.co",
+        {"Authorization": "Bearer <key>"},
+        http_session=session,
+    )
+    await functions.invoke("hello")
 ```
 
-The adapter owns the client: leaving its context manager closes it.
+The aiohttp adapter works the same way:
 
 ```python
 from aiohttp import ClientSession
@@ -55,12 +59,17 @@ The packages never call an HTTP library themselves. Each operation is a generato
 ```python
 from typing import Generic
 
+from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import HttpIO, HttpMethod, handle_http_io
 from supabase_utils.http.request import EmptyRequest
+from yarl import URL
 
 
 class ItemsClient(Generic[HttpIO]):
-    ...
+    def __init__(self, executor: HttpIO, base_url: URL, default_headers: Headers) -> None:
+        self.executor: HttpIO = executor
+        self.base_url = base_url
+        self.default_headers = default_headers
 
     @handle_http_io
     def get_item(self, item_id: str) -> HttpMethod[bytes]:
@@ -68,7 +77,7 @@ class ItemsClient(Generic[HttpIO]):
         return response.content
 ```
 
-`handle_http_io` hands the generator to the client's `executor`. `SyncHttpIO` runs it with an `HttpSession` and returns the result, `AsyncHttpIO` runs it with an `AsyncHttpSession` and returns an awaitable. The same method therefore backs both the `Sync*` and the `Async*` client of a package.
+`handle_http_io` hands the generator to the client's `executor`, which joins each request path to `base_url` and merges `default_headers` into its headers. `SyncHttpIO` runs it with an `HttpSession` and returns the result, `AsyncHttpIO` runs it with an `AsyncHttpSession` and returns an awaitable. The same method therefore backs both the `Sync*` and the `Async*` client of a package.
 
 The main modules are:
 
