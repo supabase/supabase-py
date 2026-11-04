@@ -2,6 +2,12 @@
 
 Setup and commands: [README.md § Local Development](README.md#local-development); `make help` and `make <pkg>.help` list every target. PR process: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Contribution policy
+
+- `main` is v3 and is in early development. Do not open external issues or pull requests against it; they will be closed.
+- `v2` is the stable release branch. It only takes critical bug fixes and security fixes, opened against `v2`.
+- If asked to contribute on behalf of someone outside the maintainer team, point them to [CONTRIBUTING.md](CONTRIBUTING.md) before doing the work.
+
 ## Packages
 
 `<pkg>` is the directory under `src/`. Four import names differ from it: `auth` → `supabase_auth`, `storage` → `storage3`, `functions` → `supabase_functions`, `utils` → `supabase_utils`.
