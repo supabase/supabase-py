@@ -41,8 +41,8 @@ class Headers:
     def set(self, key: str, value: str) -> Headers:
         key = key.lower()
         existing: PVector[str] = self._map.get(key, Vec())
-        new_val = existing.append(value)
-        return Headers(pmap=self._map.set(key, new_val))
+        new_values = existing.append(value)
+        return Headers(pmap=self._map.set(key, new_values))
 
     def override(self, key: str, value: str) -> Headers:
         return Headers(pmap=self._map.set(key.lower(), Vec(value)))

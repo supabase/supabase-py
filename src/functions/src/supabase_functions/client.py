@@ -66,7 +66,7 @@ class FunctionsClient(Generic[HttpIO]):
         method: HTTPRequestMethod,
     ) -> ToRequest:
         if not is_valid_string_argument(function_name):
-            raise ValueError("function_name must a valid string value.")
+            raise ValueError("function_name must be a valid string value.")
 
         path = [function_name]
         new_headers = Headers.from_mapping(headers) if headers else Headers.empty()

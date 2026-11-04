@@ -40,7 +40,7 @@ def test_function_region_values() -> None:
         ({}, False),
     ],
 )
-def test_is_valid_str_arg(test_input: Any, expected: bool) -> None:
+def test_is_valid_string_argument(test_input: Any, expected: bool) -> None:
     assert is_valid_string_argument(test_input) == expected
 
 

@@ -113,7 +113,7 @@ def test_parse_response_api_version_invalid_date() -> None:
     assert result is None
 
 
-def test_validate_exp_with_expired_exp() -> None:
+def test_validate_expiration_with_expired_timestamp() -> None:
     # Set expiry to 1 hour ago
     exp = int(datetime.now().timestamp()) - 3600
 
@@ -121,7 +121,7 @@ def test_validate_exp_with_expired_exp() -> None:
         validate_expiration(exp)
 
 
-def test_validate_exp_with_valid_exp() -> None:
+def test_validate_expiration_with_valid_timestamp() -> None:
     # Set expiry to 1 hour in the future
     exp = int(datetime.now().timestamp()) + 3600
 

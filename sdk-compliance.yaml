@@ -1388,7 +1388,7 @@ supporting_symbols:
   - AuthUnknownError
   - AuthWeakPasswordError
   - CustomAuthError
-  - UserDoesntExist
+  - UserDoesNotExistError
   - WeakPasswordReasons
   - RawApiError
   - RawApiError.get_error_message
