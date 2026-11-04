@@ -40,7 +40,7 @@ def test_filter_special_characters(
     filter_request_builder: BaseFilterRequestBuilder,
     col_name: str,
     expected_query_prefix: str,
-):
+) -> None:
     builder = filter_request_builder.filter(col_name, "eq", "val")
 
     assert builder.request.query.get(sanitize_param(col_name)) == "eq.val"
@@ -54,13 +54,13 @@ def test_multivalued_param(
     assert builder.request.query.get_list("x") == ["lte.a", "gte.b"]
 
 
-def test_match(filter_request_builder: BaseFilterRequestBuilder):
+def test_match(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.match({"id": "1", "done": "false"})
     assert builder.request.query.get("id") == "eq.1"
     assert builder.request.query.get("done") == "eq.false"
 
 
-def test_equals(filter_request_builder: BaseFilterRequestBuilder):
+def test_equals(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.eq("x", "a")
 
     assert builder.request.query.get("x") == "eq.a"
@@ -110,13 +110,13 @@ def test_comparison_filters_serialize_values(
     assert builder.request.query.get("x") == f"{method}.{expected}"
 
 
-def test_not_equal(filter_request_builder: BaseFilterRequestBuilder):
+def test_not_equal(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.neq("x", "a")
 
     assert builder.request.query.get("x") == "neq.a"
 
 
-def test_greater_than(filter_request_builder: BaseFilterRequestBuilder):
+def test_greater_than(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.gt("x", "a")
 
     assert builder.request.query.get("x") == "gt.a"
@@ -124,26 +124,26 @@ def test_greater_than(filter_request_builder: BaseFilterRequestBuilder):
 
 def test_greater_than_or_equals_to(
     filter_request_builder: BaseFilterRequestBuilder,
-):
+) -> None:
     builder = filter_request_builder.gte("x", "a")
 
     assert builder.request.query.get("x") == "gte.a"
 
 
-def test_contains(filter_request_builder: BaseFilterRequestBuilder):
+def test_contains(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.contains("x", "a")
 
     assert builder.request.query.get("x") == "cs.a"
 
 
-def test_contains_dictionary(filter_request_builder: BaseFilterRequestBuilder):
+def test_contains_dictionary(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.contains("x", {"a": "b"})
 
     # {"a":"b"}
     assert builder.request.query.get("x") == 'cs.{"a": "b"}'
 
 
-def test_contains_any_item(filter_request_builder: BaseFilterRequestBuilder):
+def test_contains_any_item(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.contains("x", ["a", "b"])
 
     # {a,b}
@@ -186,7 +186,7 @@ def test_overlaps_non_string_items(
     assert builder.request.query.get("x") == "ov.{1,2,3}"
 
 
-def test_contains_in_list(filter_request_builder: BaseFilterRequestBuilder):
+def test_contains_in_list(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.contains("x", '[{"a": "b"}]')
 
     # [{"a":+"b"}] (the + represents the space)
@@ -195,7 +195,7 @@ def test_contains_in_list(filter_request_builder: BaseFilterRequestBuilder):
 
 def test_contained_by_mixed_items(
     filter_request_builder: BaseFilterRequestBuilder,
-):
+) -> None:
     builder = filter_request_builder.contained_by("x", ["a", '["b", "c"]'])
 
     assert builder.request.query.get("x") == 'cd.{a,"[\\"b\\", \\"c\\"]"}'
@@ -241,7 +241,7 @@ def test_contains_quotes_braces_quotes_whitespace_empty_and_null(
     assert builder.request.query.get("x") == 'cs.{"a}b","x\\"y","a b","","NULL"}'
 
 
-def test_range_greater_than(filter_request_builder: BaseFilterRequestBuilder):
+def test_range_greater_than(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.range_gt(
         "x", "2000-01-02 08:30", "2000-01-02 09:30"
     )
@@ -251,7 +251,7 @@ def test_range_greater_than(filter_request_builder: BaseFilterRequestBuilder):
 
 def test_range_greater_than_or_equal_to(
     filter_request_builder: BaseFilterRequestBuilder,
-):
+) -> None:
     builder = filter_request_builder.range_gte(
         "x", "2000-01-02 08:30", "2000-01-02 09:30"
     )
@@ -260,7 +260,7 @@ def test_range_greater_than_or_equal_to(
     assert builder.request.query.get("x") == "nxl.(2000-01-02 08:30,2000-01-02 09:30)"
 
 
-def test_range_less_than(filter_request_builder: BaseFilterRequestBuilder):
+def test_range_less_than(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.range_lt(
         "x", "2000-01-02 08:30", "2000-01-02 09:30"
     )
@@ -271,7 +271,7 @@ def test_range_less_than(filter_request_builder: BaseFilterRequestBuilder):
 
 def test_range_less_than_or_equal_to(
     filter_request_builder: BaseFilterRequestBuilder,
-):
+) -> None:
     builder = filter_request_builder.range_lte(
         "x", "2000-01-02 08:30", "2000-01-02 09:30"
     )
@@ -280,7 +280,7 @@ def test_range_less_than_or_equal_to(
     assert builder.request.query.get("x") == "nxr.(2000-01-02 08:30,2000-01-02 09:30)"
 
 
-def test_range_adjacent(filter_request_builder: BaseFilterRequestBuilder):
+def test_range_adjacent(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.range_adjacent(
         "x", "2000-01-02 08:30", "2000-01-02 09:30"
     )
@@ -289,7 +289,7 @@ def test_range_adjacent(filter_request_builder: BaseFilterRequestBuilder):
     assert builder.request.query.get("x") == "adj.(2000-01-02 08:30,2000-01-02 09:30)"
 
 
-def test_overlaps(filter_request_builder: BaseFilterRequestBuilder):
+def test_overlaps(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.overlaps("x", ["is:closed", "severity:high"])
 
     # {a,["b",+"c"]}
@@ -298,7 +298,7 @@ def test_overlaps(filter_request_builder: BaseFilterRequestBuilder):
 
 def test_overlaps_with_timestamp_range(
     filter_request_builder: BaseFilterRequestBuilder,
-):
+) -> None:
     builder = filter_request_builder.overlaps(
         "x", "[2000-01-01 12:45, 2000-01-01 13:15)"
     )
@@ -307,43 +307,43 @@ def test_overlaps_with_timestamp_range(
     assert builder.request.query.get("x") == "ov.[2000-01-01 12:45, 2000-01-01 13:15)"
 
 
-def test_like(filter_request_builder: BaseFilterRequestBuilder):
+def test_like(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.like("x", "%a%")
 
     assert builder.request.query.get("x") == "like.%a%"
 
 
-def test_ilike(filter_request_builder: BaseFilterRequestBuilder):
+def test_ilike(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.ilike("x", "%a%")
 
     assert builder.request.query.get("x") == "ilike.%a%"
 
 
-def test_like_all_of(filter_request_builder: BaseFilterRequestBuilder):
+def test_like_all_of(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.like_all_of("x", "A*,*b")
 
     assert builder.request.query.get("x") == "like(all).{A*,*b}"
 
 
-def test_like_any_of(filter_request_builder: BaseFilterRequestBuilder):
+def test_like_any_of(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.like_any_of("x", "a*,*b")
 
     assert builder.request.query.get("x") == "like(any).{a*,*b}"
 
 
-def test_ilike_all_of(filter_request_builder: BaseFilterRequestBuilder):
+def test_ilike_all_of(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.ilike_all_of("x", "A*,*b")
 
     assert builder.request.query.get("x") == "ilike(all).{A*,*b}"
 
 
-def test_ilike_any_of(filter_request_builder: BaseFilterRequestBuilder):
+def test_ilike_any_of(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.ilike_any_of("x", "A*,*b")
 
     assert builder.request.query.get("x") == "ilike(any).{A*,*b}"
 
 
-def test_is_(filter_request_builder: BaseFilterRequestBuilder):
+def test_is_(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.is_("x", "a")
 
     assert builder.request.query.get("x") == "is.a"
@@ -367,13 +367,13 @@ def test_is_none(filter_request_builder: BaseFilterRequestBuilder) -> None:
     assert builder.request.query.get("x") == "is.null"
 
 
-def test_in_(filter_request_builder: BaseFilterRequestBuilder):
+def test_in_(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.in_("x", ["a", "b"])
 
     assert builder.request.query.get("x") == "in.(a,b)"
 
 
-def test_or_(filter_request_builder: BaseFilterRequestBuilder):
+def test_or_(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.or_("x.eq.1")
 
     assert builder.request.query.get("or") == "(x.eq.1)"
@@ -391,13 +391,13 @@ def test_not_or_(filter_request_builder: BaseFilterRequestBuilder) -> None:
     assert not foreign.negate_next
 
 
-def test_or_in_contain(filter_request_builder: BaseFilterRequestBuilder):
+def test_or_in_contain(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.or_("id.in.(5,6,7), arraycol.cs.{'a','b'}")
 
     assert builder.request.query.get("or") == "(id.in.(5,6,7), arraycol.cs.{'a','b'})"
 
 
-def test_max_affected(filter_request_builder: BaseFilterRequestBuilder):
+def test_max_affected(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.max_affected(5)
 
     assert builder.request.headers.get_list("prefer") == [
@@ -408,7 +408,7 @@ def test_max_affected(filter_request_builder: BaseFilterRequestBuilder):
 
 def test_max_affected_with_existing_prefer_header(
     filter_request_builder: BaseFilterRequestBuilder,
-):
+) -> None:
     # Set an existing prefer header
     filter_request_builder.request.headers = filter_request_builder.request.headers.set(
         "prefer", "return=representation"
@@ -424,7 +424,7 @@ def test_max_affected_with_existing_prefer_header(
 
 def test_max_affected_with_existing_handling_strict(
     filter_request_builder: BaseFilterRequestBuilder,
-):
+) -> None:
     # Set an existing prefer header with handling=strict
     filter_request_builder.request.headers = filter_request_builder.request.headers.set(
         "prefer", "handling=strict,return=minimal"

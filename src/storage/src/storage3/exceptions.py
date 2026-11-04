@@ -3,6 +3,7 @@ from typing import TypeVar
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.dataclasses import dataclass
 from supabase_utils.http.request import Response
+from typing_extensions import override
 
 
 class StorageException(Exception):
@@ -33,9 +34,11 @@ class StorageApiError(StorageException):
     code: str
     status: int | str
 
+    @override
     def __repr__(self) -> str:
         return str(self)
 
+    @override
     def __str__(self) -> str:
         return f"StorageApiError(message='{self.message}', code={self.code}, status='{self.status}')"
 

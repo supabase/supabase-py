@@ -2,17 +2,17 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
-tests: mypy pytest
+tests: pyrefly pytest
 help::
 	@echo "  tests          -- run all tests for supabase_auth"
 
 pytest: start-infra
 	uv run --package supabase_auth pytest --cov=./ --cov-report=xml --cov-report=html -vv
 
-mypy:
-	uv run --package supabase_auth mypy src/supabase_auth tests
+pyrefly:
+	uv run --package supabase_auth pyrefly check
 help::
-	@echo "  mypy           -- run mypy on supabase_auth"
+	@echo "  pyrefly        -- run pyrefly on supabase_auth"
 
 include ../../infra.mk
 
@@ -45,7 +45,7 @@ help::
 	@echo "  build-sync     -- generate _sync from _async code"
 
 clean:
-	rm -rf htmlcov .pytest_cache .mypy_cache .ruff_cache
+	rm -rf htmlcov .pytest_cache .ruff_cache
 	rm -f .coverage coverage.xml
 help::
 	@echo "  clean          -- clean intermediary files"

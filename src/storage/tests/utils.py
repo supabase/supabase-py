@@ -11,7 +11,8 @@ from storage3 import AsyncStorageClient, SyncStorageClient
 class AsyncFinalizerFactory:
     def __init__(self, finalizer: Callable[[], Coroutine[Any, Any, None]]) -> None:
         def func() -> Any:
-            event_loop = asyncio.get_event_loop_policy().get_event_loop()
+            policy = asyncio.get_event_loop_policy()  # pyrefly: ignore[deprecated]
+            event_loop = policy.get_event_loop()
             return event_loop.run_until_complete(finalizer())
 
         self.finalizer = func

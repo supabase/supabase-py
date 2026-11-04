@@ -10,7 +10,9 @@ fake = Faker()
 _test_failed_incremental: Dict[str, Dict[Tuple[int, ...], str]] = {}
 
 
-def pytest_runtest_makereport(item, call) -> None:
+def pytest_runtest_makereport(
+    item: pytest.Function, call: pytest.CallInfo[None]
+) -> None:
     if "incremental" in item.keywords:
         # incremental marker is used
         if call.excinfo is not None:
@@ -32,7 +34,7 @@ def pytest_runtest_makereport(item, call) -> None:
             )
 
 
-def pytest_runtest_setup(item) -> None:
+def pytest_runtest_setup(item: pytest.Function) -> None:
     if "incremental" in item.keywords:
         # retrieve the class name of the test
         cls_name = str(item.cls)

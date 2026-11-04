@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import os
+from types import TracebackType
 from typing import AsyncIterator
 
 import aiohttp
@@ -57,7 +58,7 @@ def reply_ack(topic: str, ref: str) -> str:
 
 
 class RealtimeServer:
-    def __init__(self, url: str, port: int):
+    def __init__(self, url: str, port: int) -> None:
         self.url = url
         self.port = port
 
@@ -70,10 +71,15 @@ class RealtimeServer:
         await self.ws_server.__aenter__()
         return self
 
-    async def __aexit__(self, type, exc_value, traceback):
-        await self.ws_server.__aexit__(type, exc_value, traceback)
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        await self.ws_server.__aexit__(exc_type, exc_value, traceback)
 
-    async def close(self):
+    async def close(self) -> None:
         self.ws_server.close()
         await self.ws_server.wait_closed()
 
@@ -91,6 +97,8 @@ class RealtimeServer:
                     await connection.send(reply_ack(topic, ref))
                 case ChannelLeaveMessage(topic=topic, ref=ref):
                     await connection.send(reply_ack(topic, ref))
+                case _:
+                    pass
 
 
 @pytest.fixture
@@ -140,7 +148,7 @@ async def test_raises_on_listen_message(server: RealtimeServer) -> None:
 
 
 async def test_automatic_reconnection(server: RealtimeServer) -> None:
-    async def restart_server_after_2_seconds():
+    async def restart_server_after_2_seconds() -> None:
         await asyncio.sleep(2)
         await server.start()
 
@@ -173,7 +181,7 @@ async def test_automatic_reconnection_calls_callback_when_connected(
 ) -> None:
     called_twice = False
 
-    async def restart_server_after_1_second():
+    async def restart_server_after_1_second() -> None:
         await asyncio.sleep(1)
         await server.start()
 

@@ -19,6 +19,7 @@ from typing import (
 
 import websockets
 from supabase_utils.types import JSON
+from yarl import URL
 
 from .message import (
     BroadcastMessage,
@@ -27,7 +28,6 @@ from .message import (
     HeartbeatMessage,
     Message,
     PostgresChangesMessage,
-    PostgresChangesPayload,
     PostgresRowChange,
     PresenceDiffMessage,
     PresenceStateMessage,
@@ -47,6 +47,7 @@ from .types import (
     ChannelStates,
     PostgresChangesBinding,
     PostgresChangesData,
+    PostgresChangesPayload,
     RealtimeAcknowledgementStatus,
     RealtimeChannelBroadcastConfig,
     RealtimeChannelConfig,
@@ -228,7 +229,7 @@ class RealtimeChannel:
         await self.subscribe()
         return self
 
-    async def __aexit__(self, *args) -> None:
+    async def __aexit__(self, *args: object) -> None:
         try:
             await self.unsubscribe()
         except websockets.ConnectionClosed:
@@ -365,7 +366,7 @@ class RealtimeChannel:
 
     # Internal methods
 
-    def _broadcast_endpoint_url(self):
+    def _broadcast_endpoint_url(self) -> URL:
         return self.socket.http_endpoint.joinpath("api", "broadcast")
 
     async def send_presence(self, event: str, data: JSON) -> ReplyMessage:

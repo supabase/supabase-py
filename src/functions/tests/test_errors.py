@@ -46,7 +46,7 @@ def test_error_initialization(
     test_message = "Test error message"
     if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
         error: FunctionsError = error_class(test_message)
-    elif error_class is FunctionsError:
+    else:
         error = error_class(test_message, expected_name, expected_status)
 
     assert str(error) == test_message
@@ -71,7 +71,7 @@ def test_error_to_dict(
 
     if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
         error: FunctionsError = error_class(test_message)
-    elif error_class is FunctionsError:
+    else:
         error = error_class(test_message, expected_name, expected_status)
 
     error_dict = error.to_dict()

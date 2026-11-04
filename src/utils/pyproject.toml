@@ -35,18 +35,17 @@ repository = "https://github.com/supabase/supabase-py"
 documentation = "https://github.com/supabase/supabase-py/tree/main/src/utils"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
-[tool.mypy]
-check_untyped_defs = true
-allow_redefinition = true
-follow_untyped_imports = true # for deprecation module that does not have stubs
-
-no_warn_no_return = true
-warn_return_any = true
-warn_unused_configs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-strict = true
+[dependency-groups]
+lints = [
+    "pyrefly >=1.4.0,<2.0.0",
+]
+dev = [{ include-group = "lints" }]
 
 [build-system]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.pyrefly]
+extends = "../../pyrefly.toml"
+project-includes = ["src"]
+search-path = ["src"]

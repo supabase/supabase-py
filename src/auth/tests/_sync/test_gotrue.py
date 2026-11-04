@@ -4,7 +4,9 @@ from uuid import uuid4
 import pytest
 from httpx import Client, MockTransport, Request, Response
 from jwt import encode
+from pytest_mock import MockerFixture
 from supabase_utils.http.adapters.httpx import HttpxSession
+from supabase_utils.types import JSON
 
 from supabase_auth import SyncSupabaseAuthClient
 from supabase_auth.errors import (
@@ -37,7 +39,7 @@ def test_get_claims_returns_none_when_session_is_none(
 
 
 def test_get_claims_calls_get_user_if_symmetric_jwt(
-    mocker, auth_client: SyncSupabaseAuthClient
+    mocker: MockerFixture, auth_client: SyncSupabaseAuthClient
 ) -> None:
     spy = mocker.spy(auth_client.session_manager, "_get_user")
     credentials = mock_user_credentials()
@@ -59,7 +61,7 @@ def test_get_claims_calls_get_user_if_symmetric_jwt(
 
 
 def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(
-    mocker, auth_client_with_asymmetric_session: SyncSupabaseAuthClient
+    mocker: MockerFixture, auth_client_with_asymmetric_session: SyncSupabaseAuthClient
 ) -> None:
     credentials = mock_user_credentials()
     options = SignUpWithPassword.email(
@@ -83,7 +85,7 @@ def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(
 
 
 def test_jwks_ttl_cache_behavior(
-    mocker, auth_client_with_asymmetric_session: SyncSupabaseAuthClient
+    mocker: MockerFixture, auth_client_with_asymmetric_session: SyncSupabaseAuthClient
 ) -> None:
     spy = mocker.spy(auth_client_with_asymmetric_session.executor.session, "send")
 
@@ -423,7 +425,7 @@ def test_sign_in_with_oauth_does_not_mutate_query_params(
 
 
 def test_initialize_from_storage_keeps_refreshed_session() -> None:
-    user = {
+    user: dict[str, JSON] = {
         "id": str(uuid4()),
         "aud": "authenticated",
         "app_metadata": {},

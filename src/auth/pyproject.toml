@@ -19,6 +19,7 @@ requires-python = ">=3.11"
 dependencies = [
   "pydantic >=2,<3",
   "pyjwt[crypto] >=2.12.0",
+  "typing-extensions >=4.15.0",
   "supabase_utils == 3.0.0a1", # x-release-please-version
 ]
 
@@ -47,7 +48,7 @@ lints = [
   "ruff >=0.12.1",
   "unasync >= 0.6.0",
   "python-lsp-server (>=1.12.2,<2.0.0)",
-  "pylsp-mypy (>=0.7.0,<0.8.0)",
+  "pyrefly >=1.4.0,<2.0.0",
   "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
 dev = [{ include-group = "lints" }, {include-group = "tests" }]
@@ -77,14 +78,7 @@ ignore = ["E712", "E501", "E402", "UP006", "UP035"]
 requires = ["uv_build>=0.8.3,<0.9.0"]
 build-backend = "uv_build"
 
-[tool.mypy]
-python_version = "3.11"
-check_untyped_defs = true
-allow_redefinition = true
-follow_untyped_imports = true # for deprecation module that does not have stubs
-
-no_warn_no_return = true
-warn_return_any = true
-warn_unused_configs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
+[tool.pyrefly]
+extends = "../../pyrefly.toml"
+project-includes = ["src", "tests"]
+search-path = ["src", "."]

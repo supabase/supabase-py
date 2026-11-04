@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Callable, Generic, Literal
+from typing import Any, Callable, Generic, Literal, TypeVar
 from uuid import uuid4
 
 from jwt import get_algorithm_by_name
@@ -21,6 +21,7 @@ from supabase_utils.http.io import (
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest, Response
 from supabase_utils.types import JSON
+from typing_extensions import override
 from yarl import URL
 
 from .errors import (
@@ -116,12 +117,15 @@ def _strip_password_recovery_suffix(code_verifier: str) -> str:
     return code_verifier.split("/", 1)[0]
 
 
+SessionManager = TypeVar("SessionManager", bound=_SessionManagerCommon[Any])
+
+
 @dataclass
-class SupabaseAuthHttpClient(Generic[HttpIO]):
+class SupabaseAuthHttpClient(Generic[HttpIO, SessionManager]):
     executor: HttpIO
     base_url: URL
     default_headers: Headers
-    session_manager: _SessionManagerCommon[HttpIO]
+    session_manager: SessionManager
     _jwks: JWKSet
     flow_type: AuthFlowType = "implicit"
     _jwks_ttl: float = 600  # 10 minutes
@@ -635,7 +639,9 @@ class SupabaseAuthHttpClient(Generic[HttpIO]):
         return ClaimsResponse(claims=payload, headers=header, signature=signature)
 
 
-class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
+class AsyncSupabaseAuthClient(
+    SupabaseAuthHttpClient[AsyncHttpIO, _AsyncSessionManager]
+):
     def __init__(
         self,
         url: str,
@@ -653,7 +659,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         default_headers = supabase_headers.update(user_headers)
         executor = AsyncHttpIO(session=http_session)
-        self.session_manager: _AsyncSessionManager = _AsyncSessionManager(
+        self.session_manager = _AsyncSessionManager(
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
@@ -684,8 +690,8 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
 
     async def __aexit__(
         self,
-        exc_type: type[Exception] | None,
-        exc: Exception | None,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
         await self.executor.session.__aexit__(exc_type, exc, tb)
@@ -1043,6 +1049,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
             )
             self.session_manager.notify_all_subscribers("SIGNED_OUT", None)
 
+    @override
     def on_auth_state_change(
         self,
         callback: Callable[[AuthChangeEvent, Session | None], None],
@@ -1074,7 +1081,7 @@ class AsyncSupabaseAuthClient(SupabaseAuthHttpClient[AsyncHttpIO]):
         return await self._get_claims(jwt, jwks)
 
 
-class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
+class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionManager]):
     def __init__(
         self,
         url: str,
@@ -1092,7 +1099,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         default_headers = supabase_headers.update(user_headers)
         executor = SyncHttpIO(session=http_session)
-        self.session_manager: _SyncSessionManager = _SyncSessionManager(
+        self.session_manager = _SyncSessionManager(
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
@@ -1123,8 +1130,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
 
     def __exit__(
         self,
-        exc_type: type[Exception] | None,
-        exc: Exception | None,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
         self.executor.session.__exit__(exc_type, exc, tb)
@@ -1466,6 +1473,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO]):
             self.session_manager.storage.remove_item(self._code_verifier_storage_key)
             self.session_manager.notify_all_subscribers("SIGNED_OUT", None)
 
+    @override
     def on_auth_state_change(
         self,
         callback: Callable[[AuthChangeEvent, Session | None], None],

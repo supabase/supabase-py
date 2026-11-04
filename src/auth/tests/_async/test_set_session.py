@@ -5,11 +5,12 @@ from typing import Any
 
 from httpx import AsyncClient, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
+from supabase_utils.types import JSON
 
 from supabase_auth import AsyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent
 
-USER = {
+USER: dict[str, JSON] = {
     "id": "11111111-1111-1111-1111-111111111111",
     "aud": "authenticated",
     "app_metadata": {},

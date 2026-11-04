@@ -108,7 +108,7 @@ async def realtime_send(
 
 
 @pytest.mark.asyncio
-async def test_broadcast_events(socket: RealtimeClient):
+async def test_broadcast_events(socket: RealtimeClient) -> None:
     channel_options = (
         RealtimeChannelOptions()
         .broadcast(listen_self=True, ack=True)
@@ -138,7 +138,7 @@ async def test_broadcast_events(socket: RealtimeClient):
 
 
 @pytest.mark.asyncio
-async def test_postgrest_changes(socket: RealtimeClient):
+async def test_postgrest_changes(socket: RealtimeClient) -> None:
     token = await access_token()
     await socket.set_auth(token)
 
@@ -175,21 +175,25 @@ async def test_postgrest_changes(socket: RealtimeClient):
         delete = await message_stream.__anext__()
         assert isinstance(delete, PostgresChangesMessage)
 
-    assert insert.payload["data"]["record"] is not None
-    assert insert.payload["data"]["record"]["id"] == created_todo_id
-    assert insert.payload["data"]["record"]["description"] == "Test todo"
-    assert not insert.payload["data"]["record"]["is_completed"]
+    insert_record = insert.payload["data"].get("record")
+    assert insert_record is not None
+    assert insert_record["id"] == created_todo_id
+    assert insert_record["description"] == "Test todo"
+    assert not insert_record["is_completed"]
 
-    assert update.payload["data"]["record"] is not None
-    assert update.payload["data"]["record"]["id"] == created_todo_id
-    assert update.payload["data"]["record"]["description"] == "Updated todo"
-    assert update.payload["data"]["record"]["is_completed"]
+    update_record = update.payload["data"].get("record")
+    assert update_record is not None
+    assert update_record["id"] == created_todo_id
+    assert update_record["description"] == "Updated todo"
+    assert update_record["is_completed"]
 
-    assert delete.payload["data"]["old_record"]["id"] == created_todo_id
+    delete_record = delete.payload["data"].get("old_record")
+    assert delete_record is not None
+    assert delete_record["id"] == created_todo_id
 
 
 @pytest.mark.asyncio
-async def test_postgrest_changes_on_different_tables(socket: RealtimeClient):
+async def test_postgrest_changes_on_different_tables(socket: RealtimeClient) -> None:
     token = await access_token()
 
     await socket.set_auth(token)
@@ -217,24 +221,24 @@ async def test_postgrest_changes_on_different_tables(socket: RealtimeClient):
         insert_message = await message_stream.__anext__()
         assert isinstance(insert_message, PostgresChangesMessage)
 
-    assert insert_todo.payload["data"]["record"] is not None
-    assert insert_todo.payload["data"]["record"]["id"] == created_todo_id
-    assert insert_todo.payload["data"]["record"]["description"] == "Test todo"
-    assert insert_todo.payload["data"]["record"]["is_completed"] is False
+    insert_todo_record = insert_todo.payload["data"].get("record")
+    assert insert_todo_record is not None
+    assert insert_todo_record["id"] == created_todo_id
+    assert insert_todo_record["description"] == "Test todo"
+    assert insert_todo_record["is_completed"] is False
 
-    assert insert_message.payload["data"]["record"] is not None
-    assert insert_message.payload["data"]["record"]["id"] == created_message_id
-    assert insert_message.payload["data"]["record"]["title"] == "Test message"
-    assert (
-        insert_message.payload["data"]["record"]["message"] == "This is a test message"
-    )
+    insert_message_record = insert_message.payload["data"].get("record")
+    assert insert_message_record is not None
+    assert insert_message_record["id"] == created_message_id
+    assert insert_message_record["title"] == "Test message"
+    assert insert_message_record["message"] == "This is a test message"
 
 
 class CreateTodoResponse(BaseModel):
     id: str
 
 
-async def create_todo(access_token: str, todo: dict) -> str:
+async def create_todo(access_token: str, todo: dict[str, object]) -> str:
     url = f"{SUPABASE_URL}/rest/v1/todos?select=id"
     headers = {
         "apikey": PUBLISHABLE_KEY,
@@ -256,7 +260,7 @@ async def create_todo(access_token: str, todo: dict) -> str:
                 raise Exception(f"Failed to create todo. Status: {response.status}")
 
 
-async def update_todo(access_token: str, id: str, todo: dict):
+async def update_todo(access_token: str, id: str, todo: dict[str, object]) -> None:
     url = f"{SUPABASE_URL}/rest/v1/todos?id=eq.{id}"
     headers = {
         "apikey": PUBLISHABLE_KEY,
@@ -274,7 +278,7 @@ class CreateMsgResponse(BaseModel):
     id: int
 
 
-async def create_message(access_token: str, message: dict) -> int:
+async def create_message(access_token: str, message: dict[str, object]) -> int:
     url = f"{SUPABASE_URL}/rest/v1/messages?select=id"
     headers = {
         "apikey": PUBLISHABLE_KEY,
@@ -296,7 +300,7 @@ async def create_message(access_token: str, message: dict) -> int:
                 raise Exception(f"Failed to create message. Status: {response.status}")
 
 
-async def delete_todo(access_token: str, id: str):
+async def delete_todo(access_token: str, id: str) -> None:
     url = f"{SUPABASE_URL}/rest/v1/todos?id=eq.{id}"
     headers = {
         "apikey": PUBLISHABLE_KEY,
@@ -313,7 +317,7 @@ async def delete_todo(access_token: str, id: str):
 @pytest.mark.asyncio
 async def test_subscribe_to_private_channel_with_broadcast_replay(
     socket: RealtimeClient,
-):
+) -> None:
     """Test that channel subscription sends correct payload with broadcast replay configuration."""
     token = await access_token()
 
@@ -343,8 +347,9 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
             broadcast = await message_stream.__anext__()
             assert isinstance(broadcast, BroadcastMessage)
             assert broadcast.payload["payload"]["i"] == str(i)
-            assert broadcast.payload["meta"]
-            assert broadcast.payload["meta"]["replayed"]
+            meta = broadcast.payload.get("meta")
+            assert meta
+            assert meta.get("replayed")
 
 
 def test_normalize_url_includes_connection_params() -> None:

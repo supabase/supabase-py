@@ -414,8 +414,8 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
 
     def __exit__(
         self,
-        exc_type: type[Exception] | None,
-        exc: Exception | None,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
         self.executor.session.__exit__(exc_type, exc, tb)
@@ -443,8 +443,8 @@ class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
 
     async def __aexit__(
         self,
-        exc_type: type[Exception] | None,
-        exc: Exception | None,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
         await self.executor.session.__aexit__(exc_type, exc, tb)

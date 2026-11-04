@@ -8,6 +8,7 @@ from typing import (
 )
 
 from pydantic import BaseModel
+from typing_extensions import override
 from yarl import URL
 
 from ..types import JSON, JSONParser
@@ -76,6 +77,7 @@ class EmptyRequest:
 class BytesRequest(EmptyRequest):
     body: bytes
 
+    @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         headers = self._headers_with_content_type(
             default_headers, "application/octet-stream"
@@ -94,6 +96,7 @@ class JSONRequest(EmptyRequest):
     body: JSON | BaseModel
     exclude_none: bool = True
 
+    @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         headers = self._headers_with_content_type(default_headers, "application/json")
         if isinstance(self.body, BaseModel):
@@ -115,6 +118,7 @@ class JSONRequest(EmptyRequest):
 class TextRequest(EmptyRequest):
     text: str
 
+    @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         headers = self._headers_with_content_type(
             default_headers, "text/plain; charset=utf-8"
@@ -202,6 +206,7 @@ def encode_multipart_formdata(fields: list[PartField]) -> tuple[bytes, str]:
 class MultipartFormDataRequest(EmptyRequest):
     fields: list[PartField]
 
+    @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         content, content_type = encode_multipart_formdata(fields=self.fields)
         headers = default_headers.update(self.headers).override(

@@ -8,7 +8,7 @@ from supabase.aiohttp import create_aclient as create_asyncio_client
 from supabase.httpx import create_aclient as create_httpx_client
 
 
-def pytest_configure(config) -> None:
+def pytest_configure(config: pytest.Config) -> None:
     from dotenv import load_dotenv
 
     load_dotenv(dotenv_path="tests/tests.env")

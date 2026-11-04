@@ -34,8 +34,8 @@ class AsyncAiohttpSession:
 
     async def __aexit__(
         self,
-        exc_type: type[Exception] | None,
-        exc: Exception | None,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
         await self.client.__aexit__(exc_type, exc, tb)
