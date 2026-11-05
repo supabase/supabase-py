@@ -27,7 +27,7 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 
 ## Public API
 
-Adding or renaming a public symbol means updating [sdk-compliance.yaml](sdk-compliance.yaml) with both the `Async*` and `Sync*` names. [validate-capabilities.yml](.github/workflows/validate-capabilities.yml) checks it against the [supabase/sdk](https://github.com/supabase/sdk) capability registry.
+Adding or renaming a public symbol means updating [sdk-compliance.yaml](sdk-compliance.yaml) with both the `Async*` and `Sync*` names. A method defined once on a generic base, like `PostgrestClient.rpc` or `SupabaseClient.rpc`, is listed under the base name, because the check does not see inherited methods on the subclasses. [validate-capabilities.yml](.github/workflows/validate-capabilities.yml) checks it against the [supabase/sdk](https://github.com/supabase/sdk) capability registry.
 
 ## Service compatibility
 

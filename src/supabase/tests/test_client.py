@@ -9,7 +9,14 @@ from supabase import AsyncClient, Client, SupabaseException
 URL = "https://example.supabase.co"
 KEY = "publishable-key"
 
-INVALID_URLS = ["", "example.supabase.co", "ftp://example.supabase.co", "https://"]
+INVALID_URLS = [
+    "",
+    "example.supabase.co",
+    "ftp://example.supabase.co",
+    "https://",
+    "http://[::1",
+    "https://example.supabase.co:99999",
+]
 
 
 def test_supabase_exception_aliases_are_one_class() -> None:

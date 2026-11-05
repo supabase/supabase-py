@@ -135,9 +135,12 @@ class SupabaseClient(ABC, Generic[HttpIO, Options]):
         if not supabase_key:
             raise SupabaseException("supabase_key is required")
 
-        self.supabase_url = URL(
-            supabase_url if supabase_url.endswith("/") else supabase_url + "/"
-        )
+        try:
+            self.supabase_url = URL(
+                supabase_url if supabase_url.endswith("/") else supabase_url + "/"
+            )
+        except ValueError as error:
+            raise SupabaseException(f"Invalid URL: {supabase_url}") from error
         if self.supabase_url.scheme not in ("http", "https") or not (
             self.supabase_url.host
         ):
