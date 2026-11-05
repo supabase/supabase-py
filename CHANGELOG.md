@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.34.1](https://github.com/supabase/supabase-py/compare/v2.34.0...v2.34.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **storage:** reject invalid escapes and dot segments in object keys ([#1988](https://github.com/supabase/supabase-py/issues/1988)) ([a308cde](https://github.com/supabase/supabase-py/commit/a308cdea528d2359467db1978908367871b69709))
+* **storage:** stop parsing object keys as URLs ([#1986](https://github.com/supabase/supabase-py/issues/1986)) ([49de162](https://github.com/supabase/supabase-py/commit/49de162087598b637276ca075d832544edb7cffc))
+
 ## [2.34.0](https://github.com/supabase/supabase-py/compare/v2.33.0...v2.34.0) (2026-11-03)
 
 
