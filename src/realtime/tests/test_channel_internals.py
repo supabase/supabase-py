@@ -376,6 +376,7 @@ async def test_send_on_abnormal_close_triggers_connect_error_handling() -> None:
     )
     channel = socket.channel("room")
     channel._joined_once = True
+    channel.state = ChannelStates.JOINED
 
     with patch("realtime._async.push.AsyncPush.start_timeout"):
         await channel.push("event", {})

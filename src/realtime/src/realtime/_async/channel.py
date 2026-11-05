@@ -713,7 +713,7 @@ class AsyncRealtimeChannel:
         await self.join_push.resend()
 
     def _can_push(self) -> bool:
-        return self.socket.is_connected and self._joined_once
+        return self.socket.is_connected and self.is_joined
 
     async def send_presence(self, event: str, data: Any) -> None:
         await self.push(ChannelEvents.presence, {"event": event, "payload": data})
