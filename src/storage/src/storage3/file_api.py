@@ -59,6 +59,8 @@ def relative_path_to_parts(path: str) -> tuple[str, ...]:
 
 
 def _bool_header(value: bool) -> str:
+    if not isinstance(value, bool):
+        raise TypeError(f"upsert must be a bool, not {type(value).__name__}")
     return "true" if value else "false"
 
 
@@ -545,8 +547,8 @@ class StorageFileApiClient(Generic[HttpIO]):
             The bucket must already exist before attempting to upload.
         file
             The File object to be stored in the bucket. or a async generator of chunks
-        file_options
-            HTTP headers.
+        upsert
+            Sent as the `x-upsert` header, or left out when `None`.
         """
 
         http_headers = Headers.empty()

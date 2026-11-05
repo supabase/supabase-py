@@ -26,3 +26,15 @@ Abbreviated and contracted public names are spelled out. Wire formats do not cha
 | `supabase_utils`     | `URLQuery.set(key, val)`                                         | `URLQuery.set(key, value)`                                                            |
 
 Names that mirror a wire format keep their wire spelling, for example the JWT claims on `JWTPayload` and the realtime `ref` and `join_ref` message fields. Acronyms such as `JWT`, `MFA`, `OTP`, `SSO` and `URL`, the PostgREST filter operators, and Python idioms such as `params` and `kwargs` are unchanged.
+
+## Storage `upsert` is a `bool`
+
+`upsert` is a keyword argument that takes a `bool`. It is sent as the `x-upsert` header. Passing a string raises `TypeError`.
+
+| Before                                                       | After                                         |
+| ------------------------------------------------------------ | --------------------------------------------- |
+| `upload(path, file, file_options={"upsert": "true"})`        | `upload(path, file, upsert=True)`             |
+| `create_signed_upload_url(path, options={"upsert": "true"})` | `create_signed_upload_url(path, upsert=True)` |
+| `update(path, file, file_options={"upsert": "true"})`        | `update(path, file)`                          |
+
+`update()` no longer takes `upsert`. It never sent the header, so the option had no effect.

@@ -147,6 +147,19 @@ async def test_create_signed_upload_url_sends_upsert_header(
     assert request.headers.get_list("x-upsert") == expected
 
 
+STRING_UPSERT_ACTIONS: list[FileAction] = [
+    lambda b: b.upload("file.txt", b"hello", upsert="false"),
+    lambda b: b.create_signed_upload_url("file.txt", upsert="false"),
+]
+
+
+@use_async
+@pytest.mark.parametrize("action", STRING_UPSERT_ACTIONS)
+async def test_upsert_rejects_non_bool(use_async: bool, action: FileAction) -> None:
+    with pytest.raises(TypeError, match="upsert must be a bool, not str"):
+        await run(use_async, action)
+
+
 @use_async
 async def test_upload_headers_override_defaults(use_async: bool) -> None:
     request = await run(
