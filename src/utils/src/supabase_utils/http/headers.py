@@ -38,14 +38,14 @@ class Headers:
             }
         )
 
-    def set(self, key: str, val: str) -> Headers:
+    def set(self, key: str, value: str) -> Headers:
         key = key.lower()
         existing: PVector[str] = self._map.get(key, Vec())
-        new_val = existing.append(val)
-        return Headers(pmap=self._map.set(key, new_val))
+        new_values = existing.append(value)
+        return Headers(pmap=self._map.set(key, new_values))
 
-    def override(self, key: str, val: str) -> Headers:
-        return Headers(pmap=self._map.set(key.lower(), Vec(val)))
+    def override(self, key: str, value: str) -> Headers:
+        return Headers(pmap=self._map.set(key.lower(), Vec(value)))
 
     def get(self, key: str) -> str | None:
         if vals := self._map.get(key.lower(), None):

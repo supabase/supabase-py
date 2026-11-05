@@ -5,7 +5,7 @@ import pytest
 
 from supabase_functions.utils import (
     FunctionRegion,
-    is_valid_str_arg,
+    is_valid_string_argument,
 )
 
 
@@ -40,8 +40,8 @@ def test_function_region_values() -> None:
         ({}, False),
     ],
 )
-def test_is_valid_str_arg(test_input: Any, expected: bool) -> None:
-    assert is_valid_str_arg(test_input) == expected
+def test_is_valid_string_argument(test_input: Any, expected: bool) -> None:
+    assert is_valid_string_argument(test_input) == expected
 
 
 def test_function_region_is_str_enum() -> None:

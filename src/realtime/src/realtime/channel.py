@@ -178,17 +178,17 @@ class RealtimeChannel:
         self,
         socket: RealtimeClient,
         topic: str,
-        params: RealtimeChannelOptions | None = None,
+        options: RealtimeChannelOptions | None = None,
     ) -> None:
         """
         Initialize the Channel object.
 
         :param socket: RealtimeClient object
         :param topic: Topic that it subscribes to on the realtime server
-        :param params: Optional parameters for connection.
+        :param options: Optional channel options.
         """
         self.socket = socket
-        self.params = params or RealtimeChannelOptions()
+        self.options = options or RealtimeChannelOptions()
         self.topic = topic
         self.presence: RealtimePresence = RealtimePresence()
         self.state = ChannelStates.CLOSED
@@ -219,10 +219,10 @@ class RealtimeChannel:
             )
         while not self.message_stream.empty():
             self.message_stream.get_nowait()
-        params = self.params
+        options = self.options
         if self.socket.last_token is not None:
-            params = replace(params, token=self.socket.last_token)
-        payload = params.to_payload()
+            options = replace(options, token=self.socket.last_token)
+        payload = options.to_payload()
         join_ref = self.socket._make_ref()
         message = Message(
             topic=self.topic,
@@ -333,7 +333,7 @@ class RealtimeChannel:
         :param data: The payload to broadcast
         """
         payload = {"type": "broadcast", "event": event, "payload": data}
-        if self.params.broadcast_ack:
+        if self.options.broadcast_ack:
             return await self._send_event(ChannelEvents.broadcast, payload)
         else:
             await self._send_event_no_wait(ChannelEvents.broadcast, payload)

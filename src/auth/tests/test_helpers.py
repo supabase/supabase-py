@@ -23,7 +23,7 @@ from supabase_auth.helpers import (
     generate_pkce_verifier,
     parse_link_identity_response,
     parse_response_api_version,
-    validate_exp,
+    validate_expiration,
 )
 from supabase_auth.types import AMREntry, JWTPayload
 
@@ -113,20 +113,20 @@ def test_parse_response_api_version_invalid_date() -> None:
     assert result is None
 
 
-def test_validate_exp_with_expired_exp() -> None:
+def test_validate_expiration_with_expired_timestamp() -> None:
     # Set expiry to 1 hour ago
     exp = int(datetime.now().timestamp()) - 3600
 
     with pytest.raises(AuthInvalidJwtError, match="JWT has expired"):
-        validate_exp(exp)
+        validate_expiration(exp)
 
 
-def test_validate_exp_with_valid_exp() -> None:
+def test_validate_expiration_with_valid_timestamp() -> None:
     # Set expiry to 1 hour in the future
     exp = int(datetime.now().timestamp()) + 3600
 
     # Should not raise an exception
-    validate_exp(exp)
+    validate_expiration(exp)
 
 
 def test_is_http_url() -> None:

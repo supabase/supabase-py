@@ -26,7 +26,7 @@ from yarl import URL
 from .errors import _is_relay_error, _on_error_response
 from .utils import (
     FunctionRegion,
-    is_valid_str_arg,
+    is_valid_string_argument,
 )
 from .version import __version__
 
@@ -65,8 +65,8 @@ class FunctionsClient(Generic[HttpIO]):
         headers: dict[str, str] | None,
         method: HTTPRequestMethod,
     ) -> ToRequest:
-        if not is_valid_str_arg(function_name):
-            raise ValueError("function_name must a valid string value.")
+        if not is_valid_string_argument(function_name):
+            raise ValueError("function_name must be a valid string value.")
 
         path = [function_name]
         new_headers = Headers.from_mapping(headers) if headers else Headers.empty()

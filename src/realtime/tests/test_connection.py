@@ -112,7 +112,7 @@ async def test_broadcast_events(socket: RealtimeClient) -> None:
     )
     async with socket.channel(
         "test-broadcast",
-        params=channel_options,
+        options=channel_options,
     ) as chan:
         # Send 3 broadcast events
         for i in range(3):
@@ -200,7 +200,7 @@ async def test_postgrest_changes_on_different_tables(socket: RealtimeClient) -> 
         .postgres_changes(RealtimePostgresChangesListenEvent.Insert, table="messages")
     )
     async with socket.channel(
-        "test-postgres-changes", params=channel_options
+        "test-postgres-changes", options=channel_options
     ) as channel:
         message_stream = channel.messages
         system_msg = await message_stream.__anext__()
@@ -337,7 +337,7 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
     for i in range(messages):
         await realtime_send(token, topic, event, {"i": str(i)})
 
-    async with socket.channel(topic, params=channel_options) as chan:
+    async with socket.channel(topic, options=channel_options) as chan:
         message_stream = chan.messages
         for i in range(messages):
             broadcast = await message_stream.__anext__()

@@ -14,7 +14,7 @@ from .errors import (
     AuthWeakPasswordError,
     CustomAuthError,
     ErrorCode,
-    UserDoesntExist,
+    UserDoesNotExistError,
 )
 from .session import (
     AsyncMemoryStorage,
@@ -136,7 +136,7 @@ __all__ = [
     "AuthWeakPasswordError",
     "CustomAuthError",
     "ErrorCode",
-    "UserDoesntExist",
+    "UserDoesNotExistError",
     "AsyncMemoryStorage",
     "AsyncSupportedStorage",
     "SyncMemoryStorage",

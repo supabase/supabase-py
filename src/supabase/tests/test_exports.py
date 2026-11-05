@@ -49,7 +49,7 @@ def test_package_declares_all(name: str) -> None:
                 "AuthUnknownError",
                 "AuthWeakPasswordError",
                 "CustomAuthError",
-                "UserDoesntExist",
+                "UserDoesNotExistError",
             ],
         ),
         (

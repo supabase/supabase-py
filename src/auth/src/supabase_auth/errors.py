@@ -146,7 +146,7 @@ class CustomAuthError(AuthError):
     status: int
 
 
-class UserDoesntExist(CustomAuthError):
+class UserDoesNotExistError(CustomAuthError):
     def __init__(self) -> None:
         CustomAuthError.__init__(
             self,

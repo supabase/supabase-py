@@ -64,7 +64,9 @@ class TestClientOptions:
         assert new_options.storage.get_item("key") == "new_value"
 
     def test_replace_honors_falsy_values(self) -> None:
-        options = ClientOptions(headers={"key": "value"}, realtime={"hb_interval": 1})
+        options = ClientOptions(
+            headers={"key": "value"}, realtime={"heartbeat_interval": 1}
+        )
 
         actual = options.replace(
             auto_refresh_token=False, persist_session=False, headers={}, realtime={}
@@ -76,9 +78,9 @@ class TestClientOptions:
         assert actual.realtime == {}
 
     def test_replace_keeps_realtime_options(self) -> None:
-        options = ClientOptions(realtime={"hb_interval": 1})
+        options = ClientOptions(realtime={"heartbeat_interval": 1})
 
-        assert options.replace(schema="other").realtime == {"hb_interval": 1}
-        assert AClientOptions(realtime={"hb_interval": 1}).replace(
+        assert options.replace(schema="other").realtime == {"heartbeat_interval": 1}
+        assert AClientOptions(realtime={"heartbeat_interval": 1}).replace(
             schema="other"
-        ).realtime == {"hb_interval": 1}
+        ).realtime == {"heartbeat_interval": 1}

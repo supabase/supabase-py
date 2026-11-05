@@ -14,7 +14,7 @@ from .message import Message, ReplyMessage
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
     PHOENIX_CHANNEL,
-    VSN,
+    PROTOCOL_VERSION,
     ChannelEvents,
 )
 
@@ -24,7 +24,11 @@ logger = logging.getLogger(__name__)
 def normalize_url(url: URL, token: str | None) -> URL:
     if url.scheme not in {"ws", "wss", "http", "https"}:
         raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
-    url = url.joinpath("websocket").with_query(url.query).update_query(vsn=VSN)
+    url = (
+        url.joinpath("websocket")
+        .with_query(url.query)
+        .update_query(vsn=PROTOCOL_VERSION)
+    )
     if token:
         url = url.update_query(apikey=token)
     if url.scheme in {"ws", "wss"}:
@@ -39,15 +43,15 @@ class connect_once:
         self,
         url: str,
         token_callback: Callable[[], Awaitable[str | None]] | None = None,
-        hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
-        hb_timeout: int = 5,
+        heartbeat_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
+        heartbeat_timeout: int = 5,
     ) -> None:
         self.url = URL(url)
         self.get_access_token = token_callback
         self.listen_task: asyncio.Task[None] | None = None
         self.heartbeat_task: asyncio.Task[None] | None = None
-        self.hb_interval = hb_interval
-        self.hb_timeout = hb_timeout
+        self.heartbeat_interval = heartbeat_interval
+        self.heartbeat_timeout = heartbeat_timeout
 
     def __await__(self) -> Generator[None, None, "RealtimeClient"]:
         return self.__await_impl__().__await__()
@@ -58,13 +62,13 @@ class connect_once:
             url = normalize_url(self.url, token)
         else:
             url = normalize_url(self.url, None)
-        self.ws = await websockets.connect(str(url))
+        self.websocket = await websockets.connect(str(url))
         self.client = RealtimeClient(
             self.url,
-            self.ws,
+            self.websocket,
             self.get_access_token,
-            hb_interval=self.hb_interval,
-            hb_timeout=self.hb_timeout,
+            heartbeat_interval=self.heartbeat_interval,
+            heartbeat_timeout=self.heartbeat_timeout,
         )
         self.listen_task = asyncio.create_task(self.client.listen())
         self.heartbeat_task = asyncio.create_task(self.client.heartbeat())
@@ -132,25 +136,25 @@ class RealtimeClient:
     def __init__(
         self,
         url: URL,
-        ws_connection: ClientConnection,
+        websocket_connection: ClientConnection,
         token_callback: Callable[[], Awaitable[str | None]] | None = None,
-        hb_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
-        hb_timeout: int = 5,
+        heartbeat_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
+        heartbeat_timeout: int = 5,
     ) -> None:
         self.url = url
         self.last_token: str | None = None
         self.get_access_token = token_callback
         self.http_endpoint = url.with_scheme("https").with_path("")
 
-        self._ws_connection: ClientConnection = ws_connection
+        self._ws_connection: ClientConnection = websocket_connection
 
         self.ref = 0
         self.channels: dict[str, RealtimeChannel] = {}
         self.message_refs: dict[str, asyncio.Future[Message]] = {}
         self._connection_failure: asyncio.Future[Message] = asyncio.Future()
 
-        self.hb_interval = hb_interval
-        self.heartbeat_timeout = hb_timeout
+        self.heartbeat_interval = heartbeat_interval
+        self.heartbeat_timeout = heartbeat_timeout
 
     async def listen(self) -> None:
         """
@@ -220,7 +224,7 @@ class RealtimeClient:
                 )
                 logger.info(f"heartbeat response: {res!r}")
                 await self.set_auth()
-                await asyncio.sleep(max(self.hb_interval, 15))
+                await asyncio.sleep(max(self.heartbeat_interval, 15))
         except asyncio.CancelledError:
             return
         except (TimeoutError, websockets.ConnectionClosed) as exc:
@@ -231,7 +235,7 @@ class RealtimeClient:
                 self._connection_failure.set_exception(exc)
 
     def channel(
-        self, topic: str, params: RealtimeChannelOptions | None = None
+        self, topic: str, options: RealtimeChannelOptions | None = None
     ) -> RealtimeChannel:
         """
         Initialize a channel and create a two-way association with the socket.
@@ -242,18 +246,18 @@ class RealtimeClient:
         channel.
 
         :param topic: The topic to subscribe to
-        :param params: Optional channel parameters
+        :param options: Optional channel options
         :return: RealtimeChannel instance
         """
         topic = f"realtime:{topic}"
         if existing := self.channels.get(topic):
-            if params is not None and params != existing.params:
+            if options is not None and options != existing.options:
                 warn(
                     f"channel {topic!r} already exists, so the given options are ignored",
                     stacklevel=2,
                 )
             return existing
-        chan = RealtimeChannel(self, topic, params)
+        chan = RealtimeChannel(self, topic, options)
         self.channels[topic] = chan
         return chan
 
