@@ -15,7 +15,7 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 ## Async and sync clients
 
 - `functions`, `auth`, `postgrest` and `storage` define their `Async*` and `Sync*` clients side by side in the same modules, over the shared HTTP layer in `utils`. Change both when you change one.
-- `supabase` keeps hand-written `_async/` and `_sync/` clients. Edit both.
+- `supabase` defines `AsyncClient` and the sync `Client` in `client.py`. Shared behavior lives in their generic `SupabaseClient` base. The subclasses only build the concrete sub-clients and hold what differs, like `create`, the context managers and realtime.
 - `auth` tests are the only generated code: edit `tests/_async/`, run `make auth.build-sync`, then `make ruff`, and commit both test trees.
 - `realtime` is async-only.
 

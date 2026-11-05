@@ -457,10 +457,8 @@ features:
     symbols:
       - PostgrestClient.from_
       - PostgrestClient.table
-      - AsyncClient.from_
-      - AsyncClient.table
-      - Client.from_
-      - Client.table
+      - SupabaseClient.from_
+      - SupabaseClient.table
     supporting_symbols:
       - RequestBuilder
   database.query.select:
@@ -484,8 +482,7 @@ features:
     status: implemented
     symbols:
       - PostgrestClient.rpc
-      - AsyncClient.rpc
-      - Client.rpc
+      - SupabaseClient.rpc
     supporting_symbols:
       - BaseRPCRequestBuilder
       - BaseRPCRequestBuilder.select
@@ -1341,14 +1338,21 @@ features:
     no_public_symbols: true
 
 supporting_symbols:
+  - SupabaseClient
+  - SupabaseClient.auth
+  - SupabaseClient.postgrest
+  - SupabaseClient.storage
+  - SupabaseClient.functions
   - AsyncClient
   - AsyncClient.create
+  - AsyncClient.auth
   - AsyncClient.postgrest
   - AsyncClient.storage
   - AsyncClient.functions
   - AsyncClient.realtime
   - Client
   - Client.create
+  - Client.auth
   - Client.postgrest
   - Client.storage
   - Client.functions

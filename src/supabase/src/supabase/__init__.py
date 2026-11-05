@@ -23,13 +23,11 @@ from supabase_functions import (
     FunctionsRelayError,
 )
 
-# Async Client
-from ._async.client import AsyncClient
-from ._async.client import AsyncClient as AClient
-from ._async.client import SupabaseException as ASupabaseException
-from ._async.client import SupabaseException as AsyncSupabaseException
-from ._sync.client import Client
-from ._sync.client import SupabaseException as SyncSupabaseException
+from .client import AsyncClient, Client, SupabaseException
+from .client import AsyncClient as AClient
+from .client import SupabaseException as ASupabaseException
+from .client import SupabaseException as AsyncSupabaseException
+from .client import SupabaseException as SyncSupabaseException
 
 # Lib
 from .lib.client_options import AsyncClientOptions
@@ -70,6 +68,7 @@ __all__ = [
     "FunctionsError",
     "AuthorizationError",
     "NotConnectedError",
+    "SupabaseException",
     "ASupabaseException",
     "AsyncSupabaseException",
     "SyncSupabaseException",

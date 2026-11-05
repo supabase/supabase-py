@@ -1,7 +1,7 @@
 from aiohttp import ClientSession
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 
-from ._async.client import AsyncClient
+from .client import AsyncClient
 from .lib.client_options import AsyncClientOptions
 
 

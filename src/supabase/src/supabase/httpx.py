@@ -2,8 +2,7 @@ from httpx import AsyncClient as AsyncHttpxClient
 from httpx import Client as SyncHttpxClient
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
-from ._async.client import AsyncClient
-from ._sync.client import Client
+from .client import AsyncClient, Client
 from .lib.client_options import AsyncClientOptions, SyncClientOptions
 
 

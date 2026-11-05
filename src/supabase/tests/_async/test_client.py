@@ -67,11 +67,14 @@ async def test_schema_update(create_async_client: AsyncClientCallable) -> None:
         assert client.schema("new_schema")
 
 
-async def test_auth_client_is_built_once(
+async def test_sub_clients_are_built_once(
     create_async_client: AsyncClientCallable,
 ) -> None:
     async with create_async_client(url, key) as client:
         assert client.auth is client.auth
+        assert client.postgrest is client.postgrest
+        assert client.storage is client.storage
+        assert client.functions is client.functions
 
 
 @pytest.mark.parametrize("event", SESSION_EVENTS)
@@ -79,11 +82,17 @@ async def test_auth_events_with_a_session_use_its_access_token(
     create_async_client: AsyncClientCallable, event: AuthChangeEvent
 ) -> None:
     async with create_async_client(url, key) as client:
+        postgrest = client.postgrest
+        storage = client.storage
+        functions = client.functions
         session = MagicMock(access_token="secretuserjwt")
 
         client.auth.session_manager.notify_all_subscribers(event, session)
 
         authorization = "Bearer secretuserjwt"
+        assert client.postgrest is postgrest
+        assert client.storage is storage
+        assert client.functions is functions
         assert client.options.headers.get("apiKey") == key
         assert client.options.headers.get("Authorization") == authorization
         assert client.postgrest.default_headers.get("Authorization") == authorization

@@ -38,3 +38,18 @@ Names that mirror a wire format keep their wire spelling, for example the JWT cl
 | `update(path, file, file_options={"upsert": "true"})`        | `update(path, file)`                          |
 
 `update()` no longer takes `upsert`. It never sent the header, so the option had no effect.
+
+## One implementation for `AsyncClient` and `Client`
+
+`AsyncClient` and `Client` are defined in `supabase.client` over a shared base. The `supabase._async` and `supabase._sync` modules are removed.
+
+| Before                                           | After                                                 |
+| ------------------------------------------------ | ----------------------------------------------------- |
+| `from supabase._async.client import AsyncClient` | `from supabase import AsyncClient`                    |
+| `from supabase._sync.client import Client`       | `from supabase import Client`                         |
+| `client.rpc("fn", {"a": 1}, CountMethod.exact)`  | `client.rpc("fn", {"a": 1}, count=CountMethod.exact)` |
+| `client.rpc("fn", {"a": 1}, None, True)`         | `client.rpc("fn", {"a": 1}, head=True)`               |
+
+`rpc` takes `head`, `count` and `get` as keyword arguments, like `PostgrestClient.rpc`. `params` stays the second positional argument.
+
+`SupabaseException` is one class. `ASupabaseException`, `AsyncSupabaseException` and `SyncSupabaseException` are aliases of it, so `except SupabaseException` also catches errors raised by `AsyncClient`.

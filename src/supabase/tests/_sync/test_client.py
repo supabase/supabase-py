@@ -59,6 +59,14 @@ def test_uses_key_as_authorization_header_by_default(
         assert client.storage.default_headers.get("Authorization") == f"Bearer {key}"
 
 
+def test_sub_clients_are_built_once(create_client: SyncClientCallable) -> None:
+    with create_client(url, key) as client:
+        assert client.auth is client.auth
+        assert client.postgrest is client.postgrest
+        assert client.storage is client.storage
+        assert client.functions is client.functions
+
+
 def test_schema_update(create_client: SyncClientCallable) -> None:
     with create_client(url, key) as client:
         assert client.postgrest
@@ -101,13 +109,17 @@ def test_auth_events_with_a_session_use_its_access_token(
     create_client: SyncClientCallable, event: AuthChangeEvent
 ) -> None:
     with create_client(url, key) as client:
-        initial_postgrest = client.postgrest
+        postgrest = client.postgrest
+        storage = client.storage
+        functions = client.functions
         session = MagicMock(access_token="secretuserjwt")
 
         client.auth.session_manager.notify_all_subscribers(event, session)
 
         authorization = "Bearer secretuserjwt"
-        assert client.postgrest is not initial_postgrest
+        assert client.postgrest is postgrest
+        assert client.storage is storage
+        assert client.functions is functions
         assert client.options.headers.get("apiKey") == key
         assert client.options.headers.get("Authorization") == authorization
         assert client.postgrest.default_headers.get("Authorization") == authorization
