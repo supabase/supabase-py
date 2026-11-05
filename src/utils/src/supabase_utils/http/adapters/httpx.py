@@ -21,7 +21,7 @@ def to_httpx_request(req: Request) -> HttpxRequest:
 
 def _request_auth(client: Client | AsyncClient, request: HttpxRequest) -> Auth | None:
     if "Authorization" in request.headers:
-        return None
+        return Auth()
     return client.auth
 
 

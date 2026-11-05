@@ -314,10 +314,8 @@ def test_sync_session_does_not_resend_credentials_after_leaving_origin() -> None
     assert "authorization" not in seen[2].headers
 
 
-def request_with_headers(headers: Headers) -> Request:
-    return Request(
-        url=BASE_URL, method="GET", headers=headers, content=None, delay=None
-    )
+def request_with_headers(headers: Headers, url: URL = BASE_URL) -> Request:
+    return Request(url=url, method="GET", headers=headers, content=None, delay=None)
 
 
 def test_sync_session_keeps_request_authorization_over_client_auth() -> None:
@@ -362,3 +360,21 @@ async def test_async_session_keeps_request_authorization_over_client_auth() -> N
         await session.send(request_with_headers(Headers.empty()))
     assert seen[0].headers.get_list("authorization") == ["Bearer user-jwt"]
     assert seen[1].headers["authorization"] == "Basic dHJhbnNwb3J0OnNlY3JldA=="
+
+
+def test_sync_session_keeps_request_authorization_over_url_credentials() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with HttpxSession(client) as session:
+        session.send(
+            request_with_headers(
+                Headers.from_mapping({"Authorization": "Bearer user-jwt"}),
+                URL("https://user:password@example.com/api"),
+            )
+        )
+    assert seen[0].headers.get_list("authorization") == ["Bearer user-jwt"]
