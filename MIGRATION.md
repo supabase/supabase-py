@@ -63,3 +63,16 @@ Names that mirror a wire format keep their wire spelling, for example the JWT cl
 `rpc` takes `head`, `count` and `get` as keyword arguments, like `PostgrestClient.rpc`. `params` stays the second positional argument.
 
 `SupabaseException` is one class, so `except SupabaseException` also catches errors raised by `AsyncClient`.
+
+## Options are dataclasses instead of dictionaries
+
+The remaining option `TypedDict`s are dataclasses. Fields you leave out use the same defaults as before.
+
+| Package    | Before                                                       | After                                                                       |
+| ---------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `supabase` | `AsyncClientOptions(realtime={"heartbeat_interval": 30})`    | `AsyncClientOptions(realtime=RealtimeClientOptions(heartbeat_interval=30))` |
+| `storage3` | `list_v2(sort_by={"column": "created_at", "order": "desc"})` | `list_v2(sort_by=SortByV2(column="created_at", order="desc"))`              |
+
+`RealtimeClientOptions` is exported from `supabase`, and `SortByV2` from `storage3.types`. `ClientOptions.realtime` and `AsyncClientOptions.realtime` default to `RealtimeClientOptions()` instead of `None`.
+
+The unused `storage3.types.SearchV2Options` and `storage3.types.UploadData` are removed.

@@ -46,8 +46,8 @@ class _ClientOptionsBase(Generic[Storage]):
     persist_session: bool = True
     """Whether to persist a logged in session to storage."""
 
-    realtime: RealtimeClientOptions | None = None
-    """Options passed to the realtime-py instance"""
+    realtime: RealtimeClientOptions = field(default_factory=RealtimeClientOptions)
+    """Options for the realtime connections."""
 
     flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""

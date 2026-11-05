@@ -403,7 +403,8 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
         return connect_once(
             str(self.realtime_url),
             token_callback=self._realtime_access_token,
-            **(self.options.realtime or {}),
+            heartbeat_interval=self.options.realtime.heartbeat_interval,
+            heartbeat_timeout=self.options.realtime.heartbeat_timeout,
         )
 
 

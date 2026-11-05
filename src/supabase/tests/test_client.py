@@ -11,6 +11,7 @@ from supabase import (
     AsyncClientOptions,
     Client,
     ClientOptions,
+    RealtimeClientOptions,
     SupabaseException,
 )
 
@@ -69,6 +70,19 @@ async def test_async_client_keeps_a_lowercase_authorization_header() -> None:
     assert "authorization" not in client.options.headers
     assert client.options.headers["Authorization"] == "Bearer userjwt"
     assert client.postgrest.default_headers.get("Authorization") == "Bearer userjwt"
+
+
+async def test_async_client_passes_realtime_options_to_connections() -> None:
+    options = AsyncClientOptions(
+        realtime=RealtimeClientOptions(heartbeat_interval=30, heartbeat_timeout=10)
+    )
+    async with AsyncHttpxClient() as http_client:
+        client = AsyncClient(URL, KEY, AsyncHttpxSession(client=http_client), options)
+
+    connection = client.realtime
+
+    assert connection.heartbeat_interval == 30
+    assert connection.heartbeat_timeout == 10
 
 
 def test_sync_create_does_not_replace_a_lowercase_authorization_header() -> None:

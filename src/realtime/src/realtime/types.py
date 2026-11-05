@@ -13,6 +13,7 @@ DEFAULT_TIMEOUT = 10
 PHOENIX_CHANNEL = "phoenix"
 PROTOCOL_VERSION = "1.0.0"
 DEFAULT_HEARTBEAT_INTERVAL = 25
+DEFAULT_HEARTBEAT_TIMEOUT = 5
 
 # Type variables and custom types
 T_ParamSpec = ParamSpec("T_ParamSpec")

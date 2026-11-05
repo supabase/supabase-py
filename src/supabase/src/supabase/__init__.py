@@ -25,6 +25,7 @@ from .client import AsyncClient, Client, SupabaseException
 
 # Lib
 from .lib.client_options import AsyncClientOptions, ClientOptions
+from .types import RealtimeClientOptions
 
 # Version
 from .version import __version__
@@ -34,6 +35,7 @@ __all__ = [
     "AsyncClientOptions",
     "Client",
     "ClientOptions",
+    "RealtimeClientOptions",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
     "StorageApiError",

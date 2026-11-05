@@ -1,3 +1,4 @@
+import json
 import re
 from collections.abc import Callable
 from typing import Any
@@ -9,6 +10,7 @@ from supabase_utils.types import JSON
 
 from storage3 import StorageFileApiClient
 from storage3.exceptions import StorageApiError
+from storage3.types import SortByV2
 
 from .utils import STORAGE_URL, call_with_client, use_async
 
@@ -298,3 +300,32 @@ async def test_get_public_url_rejects_dot_segments(path: str) -> None:
         await call_with_client(
             False, handler, lambda client: client.from_("bucket").get_public_url(path)
         )
+
+
+@use_async
+@pytest.mark.parametrize(
+    ("sort_by", "expected"),
+    [
+        (
+            SortByV2(column="created_at", order="desc"),
+            {"column": "created_at", "order": "desc"},
+        ),
+        (SortByV2(), {"column": "name", "order": "asc"}),
+    ],
+)
+async def test_list_v2_sends_sort_by(
+    use_async: bool, sort_by: SortByV2, expected: dict[str, str]
+) -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json={"hasNext": False, "folders": [], "objects": []})
+
+    await call_with_client(
+        use_async,
+        handler,
+        lambda client: client.from_("bucket").list_v2(sort_by=sort_by),
+    )
+
+    assert json.loads(requests[0].content) == {"sortBy": expected}
