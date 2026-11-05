@@ -10,7 +10,7 @@ from supabase_utils.types import JSON
 from storage3 import StorageFileApiClient
 from storage3.exceptions import StorageApiError
 
-from .utils import call_with_client, use_async
+from .utils import STORAGE_URL, call_with_client, use_async
 
 FileAction = Callable[[StorageFileApiClient[Any]], Any]
 
@@ -193,3 +193,40 @@ async def test_list_v2_allows_null_object_metadata(use_async: bool) -> None:
     assert result.objects[0].name == "file-without-metadata.txt"
     assert result.objects[0].metadata is None
     assert result.objects[1].metadata == {"mimetype": "text/plain"}
+
+
+OBJECT_KEYS = [
+    ("file.png", "file.png"),
+    ("folder/file.png", "folder/file.png"),
+    ("/folder/file.png", "folder/file.png"),
+    ("//folder/file.png", "folder/file.png"),
+    ("backup-2024-01-01T10:00:00.sql", "backup-2024-01-01T10:00:00.sql"),
+    ("user:42/avatar.png", "user:42/avatar.png"),
+    ("folder/x:y.png", "folder/x:y.png"),
+    ("what?.txt", "what%3F.txt"),
+    ("report#1.pdf", "report%231.pdf"),
+    ("a b.png", "a%20b.png"),
+    ("a%20b.png", "a%20b.png"),
+]
+
+
+@use_async
+@pytest.mark.parametrize(("path", "expected"), OBJECT_KEYS)
+async def test_upload_sends_the_whole_object_key(
+    use_async: bool, path: str, expected: str
+) -> None:
+    request = await run(use_async, lambda b: b.upload(path, b"hello"))
+    assert request.url.raw_path.decode() == f"/storage/v1/object/bucket/{expected}"
+
+
+@pytest.mark.parametrize(("path", "expected"), OBJECT_KEYS)
+async def test_get_public_url_keeps_the_whole_object_key(
+    path: str, expected: str
+) -> None:
+    def handler(request: Request) -> Response:
+        raise AssertionError("get_public_url must not send a request")
+
+    url = await call_with_client(
+        False, handler, lambda client: client.from_("bucket").get_public_url(path)
+    )
+    assert url == f"{STORAGE_URL}object/public/bucket/{expected}"
