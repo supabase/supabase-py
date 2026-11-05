@@ -378,18 +378,18 @@ def test_postgres_changes_binding_includes_select_only_when_set() -> None:
         )
     )
 
-    payload = options.to_payload().model_dump(exclude_none=True)
+    payload = options.to_payload().model_dump(mode="json", exclude_none=True)
 
     assert payload["config"]["postgres_changes"] == [
         {
-            "event": RealtimePostgresChangesListenEvent.Insert,
+            "event": "INSERT",
             "schema": "public",
             "table": "todos",
             "filter": "id=eq.1",
             "select": ["id", "description"],
         },
         {
-            "event": RealtimePostgresChangesListenEvent.All,
+            "event": "*",
             "schema": "public",
             "table": "todos",
         },

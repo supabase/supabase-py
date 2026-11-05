@@ -1,5 +1,6 @@
 import dataclasses
 import platform
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Generic, Self, TypeVar
 
@@ -29,7 +30,7 @@ DEFAULT_HEADERS = {
 Storage = TypeVar("Storage", AsyncSupportedStorage, SyncSupportedStorage)
 
 
-@dataclass
+@dataclass(frozen=True)
 class _ClientOptionsBase(Generic[Storage]):
     schema: str = "public"
     """
@@ -37,7 +38,7 @@ class _ClientOptionsBase(Generic[Storage]):
     Must be on the list of exposed schemas in Supabase. Defaults to 'public'.
     """
 
-    headers: dict[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
+    headers: Mapping[str, str] = field(default_factory=DEFAULT_HEADERS.copy)
     """Optional headers for initializing the client."""
 
     auto_refresh_token: bool = True
@@ -52,11 +53,14 @@ class _ClientOptionsBase(Generic[Storage]):
     flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "headers", dict(self.headers))
+
     def replace(
         self,
         *,
         schema: str | None = None,
-        headers: dict[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
         auto_refresh_token: bool | None = None,
         persist_session: bool | None = None,
         storage: Storage | None = None,
@@ -78,7 +82,7 @@ class _ClientOptionsBase(Generic[Storage]):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class AsyncClientOptions(_ClientOptionsBase[AsyncSupportedStorage]):
     """Options for `AsyncClient`."""
 
@@ -86,7 +90,7 @@ class AsyncClientOptions(_ClientOptionsBase[AsyncSupportedStorage]):
     """A storage provider. Used to store the logged in session."""
 
 
-@dataclass
+@dataclass(frozen=True)
 class ClientOptions(_ClientOptionsBase[SyncSupportedStorage]):
     """Options for the sync `Client`."""
 

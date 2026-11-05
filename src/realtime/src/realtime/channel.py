@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Mapping
-from dataclasses import dataclass, field, replace
+from collections.abc import AsyncIterator, Mapping, Sequence
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import websockets
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class RealtimeChannelOptions:
     broadcast_ack: bool = False
     broadcast_self: bool = False
@@ -53,9 +53,12 @@ class RealtimeChannelOptions:
     presence_enabled: bool = False
     is_private: bool = False
     token: str | None = None
-    postgres_changes_bindings: list[PostgresChangesBinding] = field(
-        default_factory=list
-    )
+    postgres_changes_bindings: Sequence[PostgresChangesBinding] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "postgres_changes_bindings", tuple(self.postgres_changes_bindings)
+        )
 
     def broadcast(
         self,
@@ -73,21 +76,20 @@ class RealtimeChannelOptions:
             changes. Its payload ``status`` is ``"ok"`` on success or ``"error"`` if the
             connection is not ready in time.
         """
-        self.broadcast_ack = ack
-        self.broadcast_self = listen_self
-        self.broadcast_replay_since = replay_since
-        self.broadcast_replay_limit = replay_limit
-        self.broadcast_replication_ready = replication_ready
-        return self
+        return replace(
+            self,
+            broadcast_ack=ack,
+            broadcast_self=listen_self,
+            broadcast_replay_since=replay_since,
+            broadcast_replay_limit=replay_limit,
+            broadcast_replication_ready=replication_ready,
+        )
 
     def presence(self, key: str = "", enabled: bool = False) -> RealtimeChannelOptions:
-        self.presence_key = key
-        self.presence_enabled = enabled
-        return self
+        return replace(self, presence_key=key, presence_enabled=enabled)
 
     def private(self, private: bool = False) -> RealtimeChannelOptions:
-        self.is_private = private
-        return self
+        return replace(self, is_private=private)
 
     def postgres_changes(
         self,
@@ -96,7 +98,7 @@ class RealtimeChannelOptions:
         schema: str | None = None,
         filter: str | None = None,
         id: int | None = None,
-        select: list[str] | None = None,
+        select: Sequence[str] | None = None,
     ) -> RealtimeChannelOptions:
         """
         Listen for Postgres database changes.
@@ -125,8 +127,9 @@ class RealtimeChannelOptions:
             select=select,
             id=id,
         )
-        self.postgres_changes_bindings.append(binding)
-        return self
+        return replace(
+            self, postgres_changes_bindings=(*self.postgres_changes_bindings, binding)
+        )
 
     def to_payload(self) -> RealtimeChannelOptionsPayload:
         replay = (
@@ -151,7 +154,7 @@ class RealtimeChannelOptions:
                     key=self.presence_key,
                     enabled=self.presence_enabled,
                 ),
-                postgres_changes=self.postgres_changes_bindings,
+                postgres_changes=list(self.postgres_changes_bindings),
             ),
         )
         return payload

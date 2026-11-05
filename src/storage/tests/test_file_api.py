@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import re
 from collections.abc import Callable
@@ -10,7 +11,7 @@ from supabase_utils.types import JSON
 
 from storage3 import StorageFileApiClient
 from storage3.exceptions import StorageApiError
-from storage3.types import SortByV2
+from storage3.types import SortByType, SortByV2, TransformOptions
 
 from .utils import STORAGE_URL, call_with_client, use_async
 
@@ -329,3 +330,9 @@ async def test_list_v2_sends_sort_by(
     )
 
     assert json.loads(requests[0].content) == {"sortBy": expected}
+
+
+@pytest.mark.parametrize("options", [SortByType(), SortByV2(), TransformOptions()])
+def test_option_types_are_frozen(options: object) -> None:
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        options.order = "desc"  # pyrefly: ignore[missing-attribute]

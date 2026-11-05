@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Mapping
 from types import TracebackType
 from typing import Generic
 
@@ -41,7 +42,7 @@ class StorageClient(Generic[HttpIO]):
         self,
         url: str,
         executor: HttpIO,
-        headers: dict[str, str],
+        headers: Mapping[str, str],
     ) -> None:
         supabase_headers = Headers.supabase_client_headers("storage3", __version__)
         user_headers = Headers.from_mapping(headers)
@@ -210,7 +211,7 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
     def __init__(
         self,
         url: str,
-        headers: dict[str, str],
+        headers: Mapping[str, str],
         http_session: AsyncHttpSession,
         timeout: int | None = None,
     ) -> None:
@@ -238,7 +239,7 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
     def __init__(
         self,
         url: str,
-        headers: dict[str, str],
+        headers: Mapping[str, str],
         http_session: HttpSession,
         timeout: int | None = None,
     ) -> None:

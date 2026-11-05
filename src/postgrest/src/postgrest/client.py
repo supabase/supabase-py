@@ -247,7 +247,7 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
         self,
         base_url: str,
         http_session: AsyncHttpSession,
-        headers: dict[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
         schema: str = "public",
     ) -> None:
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
@@ -286,7 +286,7 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
         self,
         base_url: str,
         http_session: HttpSession,
-        headers: dict[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
         *,
         schema: str = "public",
     ) -> None:
