@@ -1,6 +1,6 @@
 from types import TracebackType
 
-from httpx import AsyncClient, Client, TooManyRedirects
+from httpx import AsyncClient, Auth, Client, TooManyRedirects
 from httpx import Request as HttpxRequest
 from httpx import Response as HttpxResponse
 from yarl import URL
@@ -17,6 +17,12 @@ def to_httpx_request(req: Request) -> HttpxRequest:
         headers=req.headers.iter_items(),
         content=req.content,
     )
+
+
+def _request_auth(client: Client | AsyncClient, request: HttpxRequest) -> Auth | None:
+    if "Authorization" in request.headers:
+        return None
+    return client.auth
 
 
 def to_supabase_response(req: Request, resp: HttpxResponse) -> Response:
@@ -44,7 +50,12 @@ class HttpxSession:
         self.client = client
 
     def send(self, request: Request) -> Response:
-        response = self.client.send(to_httpx_request(request), follow_redirects=False)
+        httpx_request = to_httpx_request(request)
+        response = self.client.send(
+            httpx_request,
+            auth=_request_auth(self.client, httpx_request),
+            follow_redirects=False,
+        )
         redirects = 0
         while self.client.follow_redirects and (next_request := response.next_request):
             redirects += 1
@@ -74,8 +85,11 @@ class AsyncHttpxSession:
         self.client = client
 
     async def send(self, request: Request) -> Response:
+        httpx_request = to_httpx_request(request)
         response = await self.client.send(
-            to_httpx_request(request), follow_redirects=False
+            httpx_request,
+            auth=_request_auth(self.client, httpx_request),
+            follow_redirects=False,
         )
         redirects = 0
         while self.client.follow_redirects and (next_request := response.next_request):
