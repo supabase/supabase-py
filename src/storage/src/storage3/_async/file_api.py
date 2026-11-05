@@ -41,10 +41,13 @@ __all__ = ["AsyncBucket"]
 
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
-    return tuple(
+    parts = tuple(
         urllib.parse.unquote(part, errors="strict")
         for part in path.lstrip("/").split("/")
     )
+    if any(part in {".", ".."} for part in parts):
+        raise ValueError(f"Object keys must not contain dot segments: {path!r}")
+    return parts
 
 
 class AsyncBucketActionsMixin:
