@@ -41,10 +41,7 @@ __all__ = ["AsyncBucket"]
 
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
-    url = URL(path)
-    if url.absolute or url.parts[0] == "/":
-        return url.parts[1:]
-    return url.parts
+    return tuple(urllib.parse.unquote(part) for part in path.lstrip("/").split("/"))
 
 
 class AsyncBucketActionsMixin:
