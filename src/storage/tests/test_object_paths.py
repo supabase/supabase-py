@@ -17,6 +17,7 @@ PATHS = [
     ("report#1.pdf", "report%231.pdf"),
     ("a b.png", "a%20b.png"),
     ("a%20b.png", "a%20b.png"),
+    ("a%2Fb.png", "a/b.png"),
 ]
 
 
@@ -62,3 +63,38 @@ async def test_get_public_url_keeps_the_whole_object_key(
 
     assert await async_client.from_("bucket").get_public_url(path) == public_url
     assert sync_client.from_("bucket").get_public_url(path) == public_url
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
+@pytest.mark.parametrize("path", ["report%FF.txt", "folder/report%FE.txt"])
+async def test_invalid_percent_escapes_in_object_key_raise(
+    use_async: bool, path: str
+) -> None:
+    with pytest.raises(UnicodeDecodeError):
+        await _requested_path(use_async, path)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "folder/../report.txt",
+        "folder?/../report.txt",
+        "../../auth",
+        "a/./b.png",
+        "folder/%2E%2E/report.txt",
+        "folder?/..%2Freport.txt",
+        "folder/.%2Freport.txt",
+    ],
+)
+async def test_dot_segments_in_object_key_raise(use_async: bool, path: str) -> None:
+    with pytest.raises(ValueError, match="dot segments"):
+        await _requested_path(use_async, path)
+
+
+@pytest.mark.parametrize("path", ["folder/../report.txt", "a/./b.png"])
+def test_get_public_url_rejects_dot_segments(path: str) -> None:
+    with pytest.raises(ValueError, match="dot segments"):
+        SyncStorageClient(URL, HEADERS).from_("bucket").get_public_url(path)
