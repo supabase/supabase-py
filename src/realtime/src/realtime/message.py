@@ -181,7 +181,7 @@ class ChannelLeaveMessage(BaseModel):
     ref: str
 
 
-type ServerMessage = Annotated[
+ServerMessage = Annotated[
     SystemMessage
     | BroadcastMessage
     | PresenceStateMessage
@@ -193,7 +193,7 @@ type ServerMessage = Annotated[
 ]
 ServerMessageAdapter: TypeAdapter[ServerMessage] = TypeAdapter(ServerMessage)
 
-type ClientMessage = (
+ClientMessage = (
     JoinMessage
     | HeartbeatMessage
     | BroadcastMessage

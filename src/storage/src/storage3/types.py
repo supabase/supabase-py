@@ -176,7 +176,7 @@ class SignedUrlsJsonItem(BaseModel, extra="ignore"):
 
 SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
 
-type DistanceMetric = Literal["cosine", "euclidean"]
+DistanceMetric = Literal["cosine", "euclidean"]
 
 
 class MetadataConfiguration(BaseModel, extra="ignore"):

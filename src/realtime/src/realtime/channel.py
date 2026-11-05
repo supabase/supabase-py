@@ -160,7 +160,7 @@ class RealtimeChannelOptions:
         return payload
 
 
-type ChannelMessage = (
+ChannelMessage = (
     SystemMessage
     | BroadcastMessage
     | PostgresChangesMessage
