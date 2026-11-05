@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from websockets.asyncio.client import ClientConnection
 from yarl import URL
 
+from ._redact import RedactingLoggerAdapter
 from .channel import RealtimeChannel, RealtimeChannelOptions
 from .message import Message, ReplyMessage
 from .types import (
@@ -18,7 +19,8 @@ from .types import (
     ChannelEvents,
 )
 
-logger = logging.getLogger(__name__)
+logger = RedactingLoggerAdapter(logging.getLogger(__name__))
+websockets_logger = RedactingLoggerAdapter(logging.getLogger("websockets.client"))
 
 
 def normalize_url(url: URL, token: str | None) -> URL:
@@ -62,7 +64,7 @@ class connect_once:
             url = normalize_url(self.url, token)
         else:
             url = normalize_url(self.url, None)
-        self.websocket = await websockets.connect(str(url))
+        self.websocket = await websockets.connect(str(url), logger=websockets_logger)
         self.client = RealtimeClient(
             self.url,
             self.websocket,
@@ -335,7 +337,7 @@ class RealtimeClient:
         assert message.ref, "Cannot wait for reponse on a message without ref"
 
         message_str = message.model_dump_json()
-        logger.debug(f"sending: {message_str}")
+        logger.debug("sending: %s", message_str)
 
         receive: asyncio.Future[Message] = asyncio.Future()
         self.message_refs[message.ref] = receive
@@ -350,7 +352,7 @@ class RealtimeClient:
 
     async def _send_no_wait(self, message: Message) -> None:
         message_str = message.model_dump_json()
-        logger.debug(f"sending: {message_str}")
+        logger.debug("sending: %s", message_str)
         await self._ws_connection.send(message_str)
 
     def endpoint_url(self) -> str:
