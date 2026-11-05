@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from io import BufferedReader, FileIO
 from pathlib import Path
 from typing import Any, Generic, Literal
-from urllib.parse import unquote
 
 from pydantic import TypeAdapter
 from supabase_utils.http.headers import Headers
@@ -53,10 +52,10 @@ __all__ = ["StorageFileApiClient"]
 
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
-    parts = unquote(path, errors="strict").lstrip("/").split("/")
-    if "." in parts or ".." in parts:
+    parts = tuple(path.lstrip("/").split("/"))
+    if {".", ".."} & set(parts):
         raise ValueError(f"Object keys must not contain dot segments: {path!r}")
-    return tuple(parts)
+    return parts
 
 
 def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:

@@ -206,8 +206,9 @@ OBJECT_KEYS = [
     ("what?.txt", "what%3F.txt"),
     ("report#1.pdf", "report%231.pdf"),
     ("a b.png", "a%20b.png"),
-    ("a%20b.png", "a%20b.png"),
-    ("a%2Fb.png", "a/b.png"),
+    ("a%20b.png", "a%2520b.png"),
+    ("a%2Fb.png", "a%252Fb.png"),
+    ("folder/%2E%2E/report.txt", "folder/%252E%252E/report.txt"),
 ]
 
 
@@ -234,15 +235,6 @@ async def test_get_public_url_keeps_the_whole_object_key(
 
 
 @use_async
-@pytest.mark.parametrize("path", ["report%FF.txt", "folder/report%FE.txt"])
-async def test_invalid_percent_escapes_in_object_key_raise(
-    use_async: bool, path: str
-) -> None:
-    with pytest.raises(UnicodeDecodeError):
-        await run(use_async, lambda b: b.upload(path, b"hello"))
-
-
-@use_async
 @pytest.mark.parametrize(
     "path",
     [
@@ -250,9 +242,7 @@ async def test_invalid_percent_escapes_in_object_key_raise(
         "folder?/../report.txt",
         "../../auth",
         "a/./b.png",
-        "folder/%2E%2E/report.txt",
-        "folder?/..%2Freport.txt",
-        "folder/.%2Freport.txt",
+        ".",
     ],
 )
 async def test_dot_segments_in_object_key_raise(use_async: bool, path: str) -> None:
