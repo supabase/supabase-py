@@ -1,7 +1,7 @@
 import dataclasses
 import platform
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import Generic, Self, TypeVar
 
 from supabase_auth import (
     AsyncMemoryStorage,
@@ -26,11 +26,11 @@ DEFAULT_HEADERS = {
 }
 
 
-_ClientOptions = TypeVar("_ClientOptions", bound="ClientOptions")
+Storage = TypeVar("Storage", AsyncSupportedStorage, SyncSupportedStorage)
 
 
 @dataclass
-class ClientOptions:
+class _ClientOptionsBase(Generic[Storage]):
     schema: str = "public"
     """
     The Postgres schema which your tables belong to.
@@ -52,63 +52,43 @@ class ClientOptions:
     flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""
 
-    def _replace(self: _ClientOptions, **changes: Any) -> _ClientOptions:
+    def replace(
+        self,
+        *,
+        schema: str | None = None,
+        headers: dict[str, str] | None = None,
+        auto_refresh_token: bool | None = None,
+        persist_session: bool | None = None,
+        storage: Storage | None = None,
+        realtime: RealtimeClientOptions | None = None,
+        flow_type: AuthFlowType | None = None,
+    ) -> Self:
+        """Create a copy with the given options changed. Options left as None keep their value."""
+        changes = {
+            "schema": schema,
+            "headers": headers,
+            "auto_refresh_token": auto_refresh_token,
+            "persist_session": persist_session,
+            "storage": storage,
+            "realtime": realtime,
+            "flow_type": flow_type,
+        }
         return dataclasses.replace(
             self, **{key: value for key, value in changes.items() if value is not None}
         )
 
 
 @dataclass
-class AsyncClientOptions(ClientOptions):
+class AsyncClientOptions(_ClientOptionsBase[AsyncSupportedStorage]):
+    """Options for `AsyncClient`."""
+
     storage: AsyncSupportedStorage = field(default_factory=AsyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
 
-    def replace(
-        self,
-        *,
-        schema: str | None = None,
-        headers: dict[str, str] | None = None,
-        auto_refresh_token: bool | None = None,
-        persist_session: bool | None = None,
-        storage: AsyncSupportedStorage | None = None,
-        realtime: RealtimeClientOptions | None = None,
-        flow_type: AuthFlowType | None = None,
-    ) -> "AsyncClientOptions":
-        """Create a new SupabaseClientOptions with changes"""
-        return self._replace(
-            schema=schema,
-            headers=headers,
-            auto_refresh_token=auto_refresh_token,
-            persist_session=persist_session,
-            storage=storage,
-            realtime=realtime,
-            flow_type=flow_type,
-        )
-
 
 @dataclass
-class SyncClientOptions(ClientOptions):
+class ClientOptions(_ClientOptionsBase[SyncSupportedStorage]):
+    """Options for the sync `Client`."""
+
     storage: SyncSupportedStorage = field(default_factory=SyncMemoryStorage)
     """A storage provider. Used to store the logged in session."""
-
-    def replace(
-        self,
-        *,
-        schema: str | None = None,
-        headers: dict[str, str] | None = None,
-        auto_refresh_token: bool | None = None,
-        persist_session: bool | None = None,
-        storage: SyncSupportedStorage | None = None,
-        realtime: RealtimeClientOptions | None = None,
-        flow_type: AuthFlowType | None = None,
-    ) -> "SyncClientOptions":
-        """Create a new SupabaseClientOptions with changes"""
-        return self._replace(
-            schema=schema,
-            headers=headers,
-            auto_refresh_token=auto_refresh_token,
-            persist_session=persist_session,
-            storage=storage,
-            realtime=realtime,
-            flow_type=flow_type,
-        )

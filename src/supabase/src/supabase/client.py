@@ -25,8 +25,6 @@ from storage3 import (
     SyncStorageClient,
     VectorBucketException,
 )
-from storage3 import AsyncStorageClient as AsyncSupabaseStorageClient
-from storage3 import SyncStorageClient as SupabaseStorageClient
 from storage3.client import StorageClient
 from supabase_auth import (
     AsyncSupabaseAuthClient,
@@ -64,21 +62,16 @@ from supabase_utils.types import JSON
 from typing_extensions import override
 from yarl import URL
 
-from .lib.client_options import AsyncClientOptions, SyncClientOptions
-from .lib.client_options import AsyncClientOptions as AClientOptions
-from .lib.client_options import SyncClientOptions as ClientOptions
+from .lib.client_options import AsyncClientOptions, ClientOptions
 from .version import __version__
 
 __all__ = [
-    "AClientOptions",
     "AsyncClient",
     "AsyncClientOptions",
-    "AsyncSupabaseStorageClient",
     "Client",
     "ClientOptions",
     "SupabaseClient",
     "SupabaseException",
-    "SupabaseStorageClient",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
     "StorageApiError",
@@ -112,7 +105,7 @@ class SupabaseException(Exception):
         super().__init__(self.message)
 
 
-Options = TypeVar("Options", AsyncClientOptions, SyncClientOptions)
+Options = TypeVar("Options", AsyncClientOptions, ClientOptions)
 
 
 class SupabaseClient(ABC, Generic[HttpIO, Options]):
@@ -152,7 +145,7 @@ class SupabaseClient(ABC, Generic[HttpIO, Options]):
             **options.headers,
             **self._get_auth_headers(),
         }
-        self.auth_access_token = supabase_key
+        self._access_token = supabase_key
 
         self.rest_url = self.supabase_url.joinpath("rest", "v1")
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
@@ -273,7 +266,7 @@ class SupabaseClient(ABC, Generic[HttpIO, Options]):
     def _set_access_token(self, access_token: str) -> None:
         authorization = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = authorization
-        self.auth_access_token = access_token
+        self._access_token = access_token
         self.auth.default_headers = self.auth.default_headers.override(
             "Authorization", authorization
         )
@@ -385,20 +378,20 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
         """
         return self.postgrest.schema(schema)
 
-    async def realtime_get_token_callback(self) -> str | None:
-        return self.auth_access_token
+    async def _realtime_access_token(self) -> str | None:
+        return self._access_token
 
     @property
     def realtime(self) -> connect_once:
         """Create a realtime connection that uses the client's access token."""
         return connect_once(
             str(self.realtime_url),
-            token_callback=self.realtime_get_token_callback,
+            token_callback=self._realtime_access_token,
             **(self.options.realtime or {}),
         )
 
 
-class Client(SupabaseClient[SyncHttpIO, SyncClientOptions]):
+class Client(SupabaseClient[SyncHttpIO, ClientOptions]):
     """Sync Supabase client."""
 
     def __init__(
@@ -406,10 +399,10 @@ class Client(SupabaseClient[SyncHttpIO, SyncClientOptions]):
         supabase_url: str,
         supabase_key: str,
         http_session: HttpSession,
-        options: SyncClientOptions | None = None,
+        options: ClientOptions | None = None,
     ) -> None:
         self.http_session = http_session
-        super().__init__(supabase_url, supabase_key, options or SyncClientOptions())
+        super().__init__(supabase_url, supabase_key, options or ClientOptions())
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
@@ -418,7 +411,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncClientOptions]):
         supabase_url: str,
         supabase_key: str,
         http_session: HttpSession,
-        options: SyncClientOptions | None = None,
+        options: ClientOptions | None = None,
     ) -> Client:
         auth_header = options.headers.get("Authorization") if options else None
         client = cls(supabase_url, supabase_key, http_session, options)

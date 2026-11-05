@@ -3,7 +3,6 @@ from httpx import AsyncClient as AsyncHttpxClient
 from httpx import Client as SyncHttpxClient
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
-import supabase
 from supabase import AsyncClient, Client, SupabaseException
 
 URL = "https://example.supabase.co"
@@ -17,12 +16,6 @@ INVALID_URLS = [
     "http://[::1",
     "https://example.supabase.co:99999",
 ]
-
-
-def test_supabase_exception_aliases_are_one_class() -> None:
-    assert supabase.ASupabaseException is SupabaseException
-    assert supabase.AsyncSupabaseException is SupabaseException
-    assert supabase.SyncSupabaseException is SupabaseException
 
 
 @pytest.mark.parametrize("url", INVALID_URLS)

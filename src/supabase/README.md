@@ -51,12 +51,15 @@ Init client:
 
 ```python
 import os
-from supabase import create_client, Client
+from supabase import Client
+from supabase.httpx import create_client
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+url: str = os.environ["SUPABASE_URL"]
+key: str = os.environ["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 ```
+
+For the async client, use `create_async_client` from `supabase.httpx` or `supabase.aiohttp`, which returns an `AsyncClient`.
 
 Use the supabase client to interface with your database.
 

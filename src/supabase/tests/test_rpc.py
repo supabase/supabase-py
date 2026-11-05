@@ -4,7 +4,7 @@ from postgrest.request_builder import RPCCountRequestBuilder, RPCFilterRequestBu
 from postgrest.types import CountMethod
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 
-from supabase.httpx import create_aclient, create_client
+from supabase.httpx import create_async_client, create_client
 
 URL = "https://example.supabase.co"
 KEY = "publishable-key"
@@ -37,7 +37,7 @@ def test_sync_rpc_call_shapes() -> None:
 
 
 async def test_async_rpc_call_shapes() -> None:
-    async with create_aclient(URL, KEY) as client:
+    async with create_async_client(URL, KEY) as client:
         no_params = client.rpc("fn")
         assert_type(no_params, RPCFilterRequestBuilder[AsyncHttpIO])
         assert no_params.request.method == "POST"

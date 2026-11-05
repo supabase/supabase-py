@@ -17,6 +17,13 @@ from .conftest import AsyncClientCallable
 url = os.environ["SUPABASE_TEST_URL"]
 key = os.environ["SUPABASE_TEST_KEY"]
 
+
+async def realtime_access_token(client: AsyncClient) -> str | None:
+    token_callback = client.realtime.get_access_token
+    assert token_callback is not None
+    return await token_callback()
+
+
 SESSION_EVENTS: list[AuthChangeEvent] = [
     "SIGNED_IN",
     "TOKEN_REFRESHED",
@@ -99,7 +106,7 @@ async def test_auth_events_with_a_session_use_its_access_token(
         assert client.storage.default_headers.get("Authorization") == authorization
         assert client.functions.default_headers.get("Authorization") == authorization
         assert client.auth.default_headers.get("Authorization") == authorization
-        assert await client.realtime_get_token_callback() == "secretuserjwt"
+        assert await realtime_access_token(client) == "secretuserjwt"
 
 
 async def test_auth_events_without_a_session_use_the_key(
@@ -118,7 +125,7 @@ async def test_auth_events_without_a_session_use_the_key(
         assert client.storage.default_headers.get("Authorization") == authorization
         assert client.functions.default_headers.get("Authorization") == authorization
         assert client.auth.default_headers.get("Authorization") == authorization
-        assert await client.realtime_get_token_callback() == key
+        assert await realtime_access_token(client) == key
 
 
 async def test_create_uses_the_stored_session_token() -> None:
@@ -135,7 +142,7 @@ async def test_create_uses_the_stored_session_token() -> None:
         assert client.options.headers.get("Authorization") == authorization
         assert client.postgrest.default_headers.get("Authorization") == authorization
         assert client.auth.default_headers.get("Authorization") == authorization
-        assert await client.realtime_get_token_callback() == "secretuserjwt"
+        assert await realtime_access_token(client) == "secretuserjwt"
 
 
 async def test_supports_setting_a_global_authorization_header(

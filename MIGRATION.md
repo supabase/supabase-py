@@ -16,6 +16,10 @@ Abbreviated and contracted public names are spelled out. Wire formats do not cha
 | `realtime`           | `PresenceOpts`                                                   | `PresenceOptions`                                                                     |
 | `realtime`           | `VSN`                                                            | `PROTOCOL_VERSION`                                                                    |
 | `supabase`           | `RealtimeClientOptions` keys `hb_interval`, `hb_timeout`         | `heartbeat_interval`, `heartbeat_timeout`                                             |
+| `supabase`           | `AClient`, `AClientOptions`                                      | `AsyncClient`, `AsyncClientOptions`                                                   |
+| `supabase`           | `ASupabaseException`                                             | `SupabaseException`                                                                   |
+| `supabase`           | `ASupabaseStorageClient`                                         | `storage3.AsyncStorageClient`                                                         |
+| `supabase`           | `httpx.create_aclient`, `aiohttp.create_aclient`                 | `httpx.create_async_client`, `aiohttp.create_async_client`                            |
 | `supabase_auth`      | `UserDoesntExist`                                                | `UserDoesNotExistError`                                                               |
 | `supabase_auth`      | `helpers.validate_exp(exp)`                                      | `helpers.validate_expiration(expires_at)`                                             |
 | `supabase_auth`      | `admin.get_user_by_id(uid)`                                      | `admin.get_user_by_id(user_id)`                                                       |
@@ -41,15 +45,21 @@ Names that mirror a wire format keep their wire spelling, for example the JWT cl
 
 ## One implementation for `AsyncClient` and `Client`
 
-`AsyncClient` and `Client` are defined in `supabase.client` over a shared base. The `supabase._async` and `supabase._sync` modules are removed.
+`AsyncClient` and `Client` are defined in `supabase.client` over a shared base. The `supabase._async` and `supabase._sync` modules are removed, and so are the extra names that pointed at the same classes.
 
-| Before                                           | After                                                 |
-| ------------------------------------------------ | ----------------------------------------------------- |
-| `from supabase._async.client import AsyncClient` | `from supabase import AsyncClient`                    |
-| `from supabase._sync.client import Client`       | `from supabase import Client`                         |
-| `client.rpc("fn", {"a": 1}, CountMethod.exact)`  | `client.rpc("fn", {"a": 1}, count=CountMethod.exact)` |
-| `client.rpc("fn", {"a": 1}, None, True)`         | `client.rpc("fn", {"a": 1}, head=True)`               |
+| Before                                            | After                                                 |
+| ------------------------------------------------- | ----------------------------------------------------- |
+| `from supabase._async.client import AsyncClient`  | `from supabase import AsyncClient`                    |
+| `from supabase._sync.client import Client`        | `from supabase import Client`                         |
+| `AsyncSupabaseException`, `SyncSupabaseException` | `SupabaseException`                                   |
+| `SyncClientOptions`                               | `ClientOptions`                                       |
+| `supabase.SupabaseStorageClient`                  | `storage3.SyncStorageClient`                          |
+| `supabase.client.AsyncSupabaseStorageClient`      | `storage3.AsyncStorageClient`                         |
+| `client.rpc("fn", {"a": 1}, CountMethod.exact)`   | `client.rpc("fn", {"a": 1}, count=CountMethod.exact)` |
+| `client.rpc("fn", {"a": 1}, None, True)`          | `client.rpc("fn", {"a": 1}, head=True)`               |
+
+`ClientOptions` configures `Client` and `AsyncClientOptions` configures `AsyncClient`. `supabase.lib.client_options.ClientOptions` used to be their shared base class and is now the sync options class as well.
 
 `rpc` takes `head`, `count` and `get` as keyword arguments, like `PostgrestClient.rpc`. `params` stays the second positional argument.
 
-`SupabaseException` is one class. `ASupabaseException`, `AsyncSupabaseException` and `SyncSupabaseException` are aliases of it, so `except SupabaseException` also catches errors raised by `AsyncClient`.
+`SupabaseException` is one class, so `except SupabaseException` also catches errors raised by `AsyncClient`.

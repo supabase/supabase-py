@@ -5,7 +5,7 @@ from .client import AsyncClient
 from .lib.client_options import AsyncClientOptions
 
 
-def create_aclient(
+def create_async_client(
     supabase_url: str,
     supabase_key: str,
     http_client: ClientSession | None = None,
