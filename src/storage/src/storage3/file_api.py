@@ -58,6 +58,12 @@ def relative_path_to_parts(path: str) -> tuple[str, ...]:
     return parts
 
 
+def _bool_header(value: bool) -> str:
+    if not isinstance(value, bool):
+        raise TypeError(f"upsert must be a bool, not {type(value).__name__}")
+    return "true" if value else "false"
+
+
 def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:
     if isinstance(file, (BufferedReader, FileIO)):
         # bytes or byte-stream-like object received
@@ -101,7 +107,7 @@ class StorageFileApiClient(Generic[HttpIO]):
     def create_signed_upload_url(
         self,
         path: str,
-        upsert: str | None = None,
+        upsert: bool | None = None,
     ) -> HttpMethod[SignedUploadURL]:
         """
         Creates a signed upload URL.
@@ -110,12 +116,13 @@ class StorageFileApiClient(Generic[HttpIO]):
         ----------
         path
             The file path, including the file name. For example `folder/image.png`.
-        options
-            Additional options for the upload url creation.
+        upsert
+            Whether a later upload with the returned token may overwrite an
+            existing file. The server default applies when omitted.
         """
         headers = Headers.empty()
-        if upsert:
-            headers = headers.set("x-upsert", upsert)
+        if upsert is not None:
+            headers = headers.set("x-upsert", _bool_header(upsert))
 
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
         response = yield EmptyRequest(
@@ -526,7 +533,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         file: BufferedReader | bytes | FileIO | str | Path,
         cache_control: str,
         content_type: str,
-        upsert: str,
+        upsert: bool | None,
         metadata: dict[str, Any] | None,
         headers: dict[str, str] | None,
     ) -> HttpMethod[UploadResponse]:
@@ -540,15 +547,13 @@ class StorageFileApiClient(Generic[HttpIO]):
             The bucket must already exist before attempting to upload.
         file
             The File object to be stored in the bucket. or a async generator of chunks
-        file_options
-            HTTP headers.
+        upsert
+            Sent as the `x-upsert` header, or left out when `None`.
         """
 
         http_headers = Headers.empty()
-
-        # Only include x-upsert on a POST method
-        if method == "POST":
-            http_headers = http_headers.set("x-upsert", upsert)
+        if upsert is not None:
+            http_headers = http_headers.set("x-upsert", _bool_header(upsert))
 
         if headers:
             http_headers = http_headers.update(Headers.from_mapping(headers))
@@ -588,7 +593,7 @@ class StorageFileApiClient(Generic[HttpIO]):
         file: BufferedReader | bytes | FileIO | str | Path,
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
-        upsert: str = "false",
+        upsert: bool = False,
         metadata: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
     ) -> HttpMethod[UploadResponse]:
@@ -602,8 +607,8 @@ class StorageFileApiClient(Generic[HttpIO]):
             The bucket must already exist before attempting to upload.
         file
             The File object to be stored in the bucket. or a async generator of chunks
-        file_options
-            HTTP headers.
+        upsert
+            Whether to overwrite the file if it already exists.
         """
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(
@@ -624,7 +629,6 @@ class StorageFileApiClient(Generic[HttpIO]):
         file: BufferedReader | bytes | FileIO | str | Path,
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
-        upsert: str = "false",
         metadata: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
     ) -> HttpMethod[UploadResponse]:
@@ -635,7 +639,7 @@ class StorageFileApiClient(Generic[HttpIO]):
             file=file,
             cache_control=cache_control,
             content_type=content_type,
-            upsert=upsert,
+            upsert=None,
             metadata=metadata,
             headers=headers,
         )
