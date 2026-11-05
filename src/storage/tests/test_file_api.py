@@ -122,6 +122,32 @@ async def test_upload_to_signed_url_forwards_all_file_options(
 
 
 @use_async
+@pytest.mark.parametrize(("upsert", "expected"), [(True, "true"), (False, "false")])
+async def test_upload_sends_upsert_header(
+    use_async: bool, upsert: bool, expected: str
+) -> None:
+    request = await run(
+        use_async, lambda b: b.upload("file.txt", b"hello", upsert=upsert)
+    )
+    assert request.headers.get_list("x-upsert") == [expected]
+
+
+@use_async
+@pytest.mark.parametrize(
+    ("upsert", "expected"), [(None, []), (True, ["true"]), (False, ["false"])]
+)
+async def test_create_signed_upload_url_sends_upsert_header(
+    use_async: bool, upsert: bool | None, expected: list[str]
+) -> None:
+    request = await run(
+        use_async,
+        lambda b: b.create_signed_upload_url("file.txt", upsert=upsert),
+        content=b'{"url": "/object/upload/sign/bucket/file.txt?token=t", "token": "t"}',
+    )
+    assert request.headers.get_list("x-upsert") == expected
+
+
+@use_async
 async def test_upload_headers_override_defaults(use_async: bool) -> None:
     request = await run(
         use_async,
