@@ -105,6 +105,13 @@ class SupabaseException(Exception):
         super().__init__(self.message)
 
 
+def _find_authorization(headers: Mapping[str, str]) -> str | None:
+    return next(
+        (value for key, value in headers.items() if key.lower() == "authorization"),
+        None,
+    )
+
+
 Options = TypeVar("Options", AsyncClientOptions, ClientOptions)
 
 
@@ -142,7 +149,11 @@ class SupabaseClient(ABC, Generic[HttpIO, Options]):
         self.supabase_key = supabase_key
         self.options: Options = copy.copy(options)
         self.options.headers = {
-            **options.headers,
+            **{
+                key: value
+                for key, value in options.headers.items()
+                if key.lower() not in ("apikey", "authorization")
+            },
             **self._get_auth_headers(),
         }
         self._access_token = supabase_key
@@ -250,9 +261,9 @@ class SupabaseClient(ABC, Generic[HttpIO, Options]):
         return f"Bearer {token}"
 
     def _get_auth_headers(self) -> dict[str, str]:
-        authorization = self.options.headers.get(
-            "Authorization", self._create_auth_header(self.supabase_key)
-        )
+        authorization = _find_authorization(
+            self.options.headers
+        ) or self._create_auth_header(self.supabase_key)
         return {
             "apiKey": self.supabase_key,
             "Authorization": authorization,
@@ -306,7 +317,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
         http_session: AsyncHttpSession,
         options: AsyncClientOptions | None = None,
     ) -> AsyncClient:
-        auth_header = options.headers.get("Authorization") if options else None
+        auth_header = _find_authorization(options.headers) if options else None
         client = cls(supabase_url, supabase_key, http_session, options)
 
         if auth_header is None:
@@ -413,7 +424,7 @@ class Client(SupabaseClient[SyncHttpIO, ClientOptions]):
         http_session: HttpSession,
         options: ClientOptions | None = None,
     ) -> Client:
-        auth_header = options.headers.get("Authorization") if options else None
+        auth_header = _find_authorization(options.headers) if options else None
         client = cls(supabase_url, supabase_key, http_session, options)
 
         if auth_header is None:
