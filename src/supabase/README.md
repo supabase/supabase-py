@@ -9,18 +9,20 @@ Python client for [Supabase](https://supabase.com)
 
 ### PyPI installation
 
-Install the package (for Python >= 3.11):
+Install the package (for Python >= 3.11) with the HTTP library the client should use. The `httpx` extra supports both the sync and the async client, and the `aiohttp` extra supports the async client:
 
 ```bash
 # with pip
-pip install supabase
+pip install "supabase[httpx]"
 
 # with uv
-uv add supabase
+uv add "supabase[httpx]"
 
 # with conda
-conda install -c conda-forge supabase
+conda install -c conda-forge supabase httpx h2
 ```
+
+Use `supabase[aiohttp]` instead to run the async client on aiohttp.
 
 ## Supabase Service Compatibility
 

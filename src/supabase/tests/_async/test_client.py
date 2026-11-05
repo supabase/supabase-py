@@ -165,6 +165,17 @@ async def test_supports_setting_a_global_authorization_header(
         assert client.storage.default_headers.get("apiKey") == key
         assert client.storage.default_headers.get("Authorization") == authorization
 
+        assert await realtime_access_token(client) == "secretuserjwt"
+
+
+async def test_realtime_uses_the_key_with_a_non_bearer_authorization_header(
+    create_async_client: AsyncClientCallable,
+) -> None:
+    options = AsyncClientOptions(headers={"Authorization": "Basic dXNlcjpwYXNz"})
+
+    async with create_async_client(url, key, options) as client:
+        assert await realtime_access_token(client) == key
+
 
 async def test_mutable_headers_issue(create_async_client: AsyncClientCallable) -> None:
     shared_options = AsyncClientOptions(

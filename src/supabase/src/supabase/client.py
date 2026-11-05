@@ -156,7 +156,12 @@ class SupabaseClient(ABC, Generic[HttpIO, Options]):
             },
             **self._get_auth_headers(),
         }
-        self._access_token = supabase_key
+        authorization = self.options.headers["Authorization"]
+        self._access_token = (
+            authorization.removeprefix("Bearer ")
+            if authorization.startswith("Bearer ")
+            else supabase_key
+        )
 
         self.rest_url = self.supabase_url.joinpath("rest", "v1")
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
