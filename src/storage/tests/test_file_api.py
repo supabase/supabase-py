@@ -230,3 +230,12 @@ async def test_get_public_url_keeps_the_whole_object_key(
         False, handler, lambda client: client.from_("bucket").get_public_url(path)
     )
     assert url == f"{STORAGE_URL}object/public/bucket/{expected}"
+
+
+@use_async
+@pytest.mark.parametrize("path", ["report%FF.txt", "folder/report%FE.txt"])
+async def test_invalid_percent_escapes_in_object_key_raise(
+    use_async: bool, path: str
+) -> None:
+    with pytest.raises(UnicodeDecodeError):
+        await run(use_async, lambda b: b.upload(path, b"hello"))

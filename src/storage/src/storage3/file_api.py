@@ -53,7 +53,7 @@ __all__ = ["StorageFileApiClient"]
 
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
-    return tuple(unquote(part) for part in path.lstrip("/").split("/"))
+    return tuple(unquote(part, errors="strict") for part in path.lstrip("/").split("/"))
 
 
 def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:
