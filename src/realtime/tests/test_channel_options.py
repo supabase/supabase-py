@@ -3,7 +3,7 @@ import dataclasses
 import pytest
 
 from realtime.channel import RealtimeChannelOptions
-from realtime.types import RealtimePostgresChangesListenEvent
+from realtime.types import PostgresChangesBinding, RealtimePostgresChangesListenEvent
 
 
 def test_builders_return_new_options_and_keep_the_original() -> None:
@@ -50,3 +50,22 @@ def test_options_are_frozen() -> None:
 
     with pytest.raises(dataclasses.FrozenInstanceError):
         options.is_private = True  # pyrefly: ignore[read-only]
+
+
+def test_given_sequences_are_copied() -> None:
+    columns = ["id"]
+    binding = PostgresChangesBinding(
+        event=RealtimePostgresChangesListenEvent.Insert,
+        table="todos",
+        schema="public",
+        filter=None,
+        select=columns,
+    )
+    bindings = [binding]
+    options = RealtimeChannelOptions(postgres_changes_bindings=bindings)
+
+    columns.append("secret")
+    bindings.append(binding)
+
+    assert binding.select == ("id",)
+    assert options.postgres_changes_bindings == (binding,)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, Any, Literal, TypeAlias, TypeVar
@@ -105,8 +105,12 @@ class PostgresChangesBinding:
     table: str | None
     schema: str | None
     filter: str | None
-    select: list[str] | None = None
+    select: Sequence[str] | None = None
     id: Annotated[int | None, Field(exclude=True)] = None
+
+    def __post_init__(self) -> None:
+        if self.select is not None:
+            object.__setattr__(self, "select", tuple(self.select))
 
 
 class PostgresChangesPayload(BaseModel):

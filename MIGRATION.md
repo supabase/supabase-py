@@ -92,7 +92,6 @@ This covers `ClientOptions`, `AsyncClientOptions`, `RealtimeClientOptions`, `rea
 
 `ClientOptions.headers` is typed as a read-only `Mapping`. The options copy the headers they are given, so changing the original dictionary later has no effect. The client no longer changes the options it is given. When the session changes it replaces `client.options` with a copy that has the new `Authorization` header.
 
-The `RealtimeChannelOptions` builder methods return a new copy and leave the original unchanged, so chained calls keep working. `postgres_changes_bindings` is a tuple.
+The `RealtimeChannelOptions` builder methods return a new copy and leave the original unchanged, so chained calls keep working. `postgres_changes_bindings` and `PostgresChangesBinding.select` are stored as tuples.
 
 The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabase_functions` accept any `Mapping` for `headers`, not only a `dict`.
-

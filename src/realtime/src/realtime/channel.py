@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, TypeAlias
 
@@ -53,7 +53,12 @@ class RealtimeChannelOptions:
     presence_enabled: bool = False
     is_private: bool = False
     token: str | None = None
-    postgres_changes_bindings: tuple[PostgresChangesBinding, ...] = ()
+    postgres_changes_bindings: Sequence[PostgresChangesBinding] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "postgres_changes_bindings", tuple(self.postgres_changes_bindings)
+        )
 
     def broadcast(
         self,
@@ -93,7 +98,7 @@ class RealtimeChannelOptions:
         schema: str | None = None,
         filter: str | None = None,
         id: int | None = None,
-        select: list[str] | None = None,
+        select: Sequence[str] | None = None,
     ) -> RealtimeChannelOptions:
         """
         Listen for Postgres database changes.
