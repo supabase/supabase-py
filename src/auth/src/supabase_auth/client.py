@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import TracebackType
 from typing import Any, Generic, Literal, TypeVar
@@ -648,7 +648,7 @@ class AsyncSupabaseAuthClient(
         url: str,
         http_session: AsyncHttpSession,
         *,
-        headers: dict[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
         storage_key: str | None = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,
@@ -1088,7 +1088,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         url: str,
         http_session: HttpSession,
         *,
-        headers: dict[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
         storage_key: str | None = None,
         auto_refresh_token: bool = True,
         persist_session: bool = True,

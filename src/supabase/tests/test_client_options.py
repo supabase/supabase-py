@@ -1,3 +1,6 @@
+import dataclasses
+
+import pytest
 from supabase_auth import AsyncMemoryStorage, SyncMemoryStorage
 
 from supabase import AsyncClientOptions, ClientOptions, RealtimeClientOptions
@@ -96,3 +99,17 @@ class TestClientOptions:
         assert ClientOptions().realtime == RealtimeClientOptions(
             heartbeat_interval=25, heartbeat_timeout=5
         )
+
+    def test_options_are_frozen(self) -> None:
+        options = ClientOptions()
+
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            options.schema = "other"  # pyrefly: ignore[read-only]
+
+    def test_options_copy_the_given_headers(self) -> None:
+        headers = {"key": "value"}
+        options = ClientOptions(headers=headers)
+
+        headers["key"] = "changed"
+
+        assert options.headers == {"key": "value"}

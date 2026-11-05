@@ -186,9 +186,10 @@ async def test_mutable_headers_issue(create_async_client: AsyncClientCallable) -
         create_async_client(url, key, shared_options) as client1,
         create_async_client(url, key, shared_options) as client2,
     ):
-        client1.options.headers["Authorization"] = "Bearer modified-token"
+        client1._set_access_token("modified-token")
         assert client2.options.headers["Authorization"] == "Bearer initial-token"
         assert client1.options.headers["Authorization"] == "Bearer modified-token"
+        assert shared_options.headers["Authorization"] == "Bearer initial-token"
 
 
 async def test_global_authorization_header_issue(
@@ -217,22 +218,14 @@ async def test_custom_headers(create_async_client: AsyncClientCallable) -> None:
 async def test_custom_headers_immutable(
     create_async_client: AsyncClientCallable,
 ) -> None:
-    options = AsyncClientOptions(
-        headers={
-            "x-app-name": "apple",
-            "x-version": "1.0",
-        }
-    )
+    headers = {"x-app-name": "apple", "x-version": "1.0"}
+    options = AsyncClientOptions(headers=headers)
+    headers["x-app-name"] = "grapes"
 
-    async with (
-        create_async_client(url, key, options) as client1,
-        create_async_client(url, key, options) as client2,
-    ):
-        client1.options.headers["x-app-name"] = "grapes"
-
-        assert client1.options.headers.get("x-app-name") == "grapes"
-        assert client1.options.headers.get("x-version") == "1.0"
-        assert client2.options.headers.get("x-app-name") == "apple"
+    async with create_async_client(url, key, options) as client:
+        assert client.options.headers.get("x-app-name") == "apple"
+        assert client.options.headers.get("x-version") == "1.0"
+        assert options.headers.get("x-app-name") == "apple"
 
 
 async def test_httpx_client_base_url_isolation(

@@ -29,7 +29,7 @@ class BucketName(BaseModel, extra="ignore"):
 
 
 # used in bucket.list method's option parameter
-@dataclass
+@dataclass(frozen=True)
 class SortByType:
     column: str = "name"
     order: Literal["asc", "desc"] = "asc"
@@ -54,7 +54,7 @@ class SignedUploadURL:
     token: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class TransformOptions:
     height: int | None = None
     width: int | None = None
@@ -105,7 +105,7 @@ class FileObject(BaseModel):
     etag: str | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class SortByV2:
     column: Literal["name", "updated_at", "created_at"] = "name"
     order: Literal["asc", "desc"] = "asc"

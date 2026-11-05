@@ -76,3 +76,23 @@ The remaining option `TypedDict`s are dataclasses. Fields you leave out use the 
 `RealtimeClientOptions` is exported from `supabase`, and `SortByV2` from `storage3.types`. `ClientOptions.realtime` and `AsyncClientOptions.realtime` default to `RealtimeClientOptions()` instead of `None`.
 
 The unused `storage3.types.SearchV2Options` and `storage3.types.UploadData` are removed.
+
+## Options are frozen
+
+Option and parameter dataclasses are frozen. Setting a field raises `dataclasses.FrozenInstanceError`. Build a changed copy instead, with `replace()` on the client options or with `dataclasses.replace` on the others.
+
+This covers `ClientOptions`, `AsyncClientOptions`, `RealtimeClientOptions`, `realtime.RealtimeChannelOptions`, `realtime.PostgresChangesBinding`, the `storage3.types` `SortByType`, `SortByV2` and `TransformOptions`, and the `supabase_auth` credential and parameter classes such as `SignUpWithEmailAndPasswordCredentials` and `VerifyEmailOtpParams`.
+
+| Before                                                 | After                                                                  |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `options.headers["x-app"] = "1"`                       | `options = options.replace(headers={**options.headers, "x-app": "1"})` |
+| `options.schema = "other"`                             | `options = options.replace(schema="other")`                            |
+| `options.broadcast(ack=True)` without using the result | `options = options.broadcast(ack=True)`                                |
+| `options.postgres_changes_bindings.append(binding)`    | `options = options.postgres_changes(...)`                              |
+
+`ClientOptions.headers` is typed as a read-only `Mapping`. The options copy the headers they are given, so changing the original dictionary later has no effect. The client no longer changes the options it is given. When the session changes it replaces `client.options` with a copy that has the new `Authorization` header.
+
+The `RealtimeChannelOptions` builder methods return a new copy and leave the original unchanged, so chained calls keep working. `postgres_changes_bindings` is a tuple.
+
+The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabase_functions` accept any `Mapping` for `headers`, not only a `dict`.
+

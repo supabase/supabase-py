@@ -99,7 +99,7 @@ class PostgresChangesData(BaseModel):
     old_record: dict[str, Any] | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class PostgresChangesBinding:
     event: RealtimePostgresChangesListenEvent
     table: str | None

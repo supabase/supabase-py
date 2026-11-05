@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from functools import cached_property
@@ -147,15 +146,16 @@ class SupabaseClient(ABC, Generic[HttpIO, Options]):
             raise SupabaseException(f"Invalid URL: {supabase_url}")
 
         self.supabase_key = supabase_key
-        self.options: Options = copy.copy(options)
-        self.options.headers = {
-            **{
-                key: value
-                for key, value in options.headers.items()
-                if key.lower() not in ("apikey", "authorization")
-            },
-            **self._get_auth_headers(),
-        }
+        self.options: Options = options.replace(
+            headers={
+                **{
+                    key: value
+                    for key, value in options.headers.items()
+                    if key.lower() not in ("apikey", "authorization")
+                },
+                **self._get_auth_headers(options.headers),
+            }
+        )
         authorization = self.options.headers["Authorization"]
         self._access_token = (
             authorization.removeprefix("Bearer ")
@@ -265,10 +265,10 @@ class SupabaseClient(ABC, Generic[HttpIO, Options]):
     def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
-    def _get_auth_headers(self) -> dict[str, str]:
-        authorization = _find_authorization(
-            self.options.headers
-        ) or self._create_auth_header(self.supabase_key)
+    def _get_auth_headers(self, headers: Mapping[str, str]) -> dict[str, str]:
+        authorization = _find_authorization(headers) or self._create_auth_header(
+            self.supabase_key
+        )
         return {
             "apiKey": self.supabase_key,
             "Authorization": authorization,
@@ -281,7 +281,9 @@ class SupabaseClient(ABC, Generic[HttpIO, Options]):
 
     def _set_access_token(self, access_token: str) -> None:
         authorization = self._create_auth_header(access_token)
-        self.options.headers["Authorization"] = authorization
+        self.options = self.options.replace(
+            headers={**self.options.headers, "Authorization": authorization}
+        )
         self._access_token = access_token
         self.auth.default_headers = self.auth.default_headers.override(
             "Authorization", authorization

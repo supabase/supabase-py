@@ -289,7 +289,7 @@ class SignUpWithEmailAndPasswordBody(WithCaptchaToken):
     data: JSON | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class SignUpWithEmailAndPasswordCredentials:
     body: SignUpWithEmailAndPasswordBody
     redirect_to: str | None = None
@@ -302,7 +302,7 @@ class SignUpWithPhoneAndPasswordBody(WithCaptchaToken):
     channel: Literal["sms", "whatsapp"] = "sms"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SignUpWithPhoneAndPasswordCredentials:
     body: SignUpWithPhoneAndPasswordBody
 
@@ -397,13 +397,13 @@ class SignInWithPhoneAndPasswordlessBody(WithCaptchaToken):
     channel: Literal["sms", "whatsapp"] = "sms"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SignInWithEmailAndPasswordlessCredentials:
     body: SignInWithEmailAndPasswordlessBody
     email_redirect_to: str | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class SignInWithPhoneAndPasswordlessCredentials:
     body: SignInWithPhoneAndPasswordlessBody
 
@@ -456,7 +456,7 @@ class ResendEmailBody(WithCaptchaToken):
     email: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class ResendEmailCredentials:
     body: ResendEmailBody
     email_redirect_to: str | None = None
@@ -467,7 +467,7 @@ class ResendPhoneBody(WithCaptchaToken):
     phone: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class ResendPhoneCredentials:
     body: ResendPhoneBody
 
@@ -558,7 +558,7 @@ class VerifyEmailOtpBody(WithCaptchaToken):
     type: EmailOtpType
 
 
-@dataclass
+@dataclass(frozen=True)
 class VerifyEmailOtpParams:
     body: VerifyEmailOtpBody
     redirect_to: str | None = None
@@ -573,7 +573,7 @@ class VerifyMobileOtpBody(WithCaptchaToken):
     ]
 
 
-@dataclass
+@dataclass(frozen=True)
 class VerifyMobileOtpParams:
     body: VerifyMobileOtpBody
     redirect_to: str | None = None
@@ -584,7 +584,7 @@ class VerifyTokenHashBody(BaseModel):
     type: EmailOtpType
 
 
-@dataclass
+@dataclass(frozen=True)
 class VerifyTokenHashParams:
     body: VerifyTokenHashBody
 
