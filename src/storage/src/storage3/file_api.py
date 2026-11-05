@@ -53,7 +53,12 @@ __all__ = ["StorageFileApiClient"]
 
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
-    return tuple(unquote(part, errors="strict") for part in path.lstrip("/").split("/"))
+    parts = tuple(
+        unquote(part, errors="strict") for part in path.lstrip("/").split("/")
+    )
+    if any(part in {".", ".."} for part in parts):
+        raise ValueError(f"Object keys must not contain dot segments: {path!r}")
+    return parts
 
 
 def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:

@@ -239,3 +239,30 @@ async def test_invalid_percent_escapes_in_object_key_raise(
 ) -> None:
     with pytest.raises(UnicodeDecodeError):
         await run(use_async, lambda b: b.upload(path, b"hello"))
+
+
+@use_async
+@pytest.mark.parametrize(
+    "path",
+    [
+        "folder/../report.txt",
+        "folder?/../report.txt",
+        "../../auth",
+        "a/./b.png",
+        "folder/%2E%2E/report.txt",
+    ],
+)
+async def test_dot_segments_in_object_key_raise(use_async: bool, path: str) -> None:
+    with pytest.raises(ValueError, match="dot segments"):
+        await run(use_async, lambda b: b.upload(path, b"hello"))
+
+
+@pytest.mark.parametrize("path", ["folder/../report.txt", "a/./b.png"])
+async def test_get_public_url_rejects_dot_segments(path: str) -> None:
+    def handler(request: Request) -> Response:
+        raise AssertionError("get_public_url must not send a request")
+
+    with pytest.raises(ValueError, match="dot segments"):
+        await call_with_client(
+            False, handler, lambda client: client.from_("bucket").get_public_url(path)
+        )
