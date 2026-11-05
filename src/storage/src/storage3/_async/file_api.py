@@ -42,6 +42,9 @@ __all__ = ["AsyncBucket"]
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
     url = URL(path)
+    if url.scheme and not url.absolute:
+        # A colon in the first segment is part of the key, not a URL scheme.
+        url = URL(f"/{path}")
     if url.absolute or url.parts[0] == "/":
         return url.parts[1:]
     return url.parts
