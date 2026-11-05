@@ -4,10 +4,10 @@ from io import BytesIO
 from typing import (
     Literal,
     Protocol,
+    override,
 )
 
 from pydantic import BaseModel
-from typing_extensions import override
 from yarl import URL
 
 from ..types import JSON, JSONParser

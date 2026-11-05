@@ -5,12 +5,10 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Generic
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
-    HttpIO,
     HttpMethod,
     SyncHttpIO,
     handle_http_io,
@@ -67,7 +65,7 @@ class AsyncMemoryStorage(AsyncSupportedStorage):
 
 
 @dataclass
-class _SessionManagerCommon(Generic[HttpIO]):
+class _SessionManagerCommon[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     """
     Common methods shared between sync and async implementations
     of the session manager.

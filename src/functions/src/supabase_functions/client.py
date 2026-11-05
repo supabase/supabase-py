@@ -1,11 +1,10 @@
 from collections.abc import Mapping
-from typing import Generic, Literal, cast, overload
+from typing import Literal, cast, overload
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
-    HttpIO,
     HttpMethod,
     HttpSession,
     SyncHttpIO,
@@ -32,7 +31,7 @@ from .utils import (
 from .version import __version__
 
 
-class FunctionsClient(Generic[HttpIO]):
+class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def __init__(self, url: URL, headers: Mapping[str, str], executor: HttpIO) -> None:
         if not (url.scheme == "http" or url.scheme == "https"):
             raise ValueError("url must be a valid HTTP URL string")

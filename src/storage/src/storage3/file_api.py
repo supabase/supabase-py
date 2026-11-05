@@ -4,13 +4,14 @@ import builtins
 from dataclasses import dataclass
 from io import BufferedReader, FileIO
 from pathlib import Path
-from typing import Any, Generic, Literal
+from typing import Any, Literal
 
 from pydantic import TypeAdapter
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
-    HttpIO,
+    AsyncHttpIO,
     HttpMethod,
+    SyncHttpIO,
     handle_http_io,
 )
 from supabase_utils.http.query import URLQuery
@@ -81,7 +82,7 @@ ListFileObjectsAdapter = TypeAdapter(list[ListFileObject])
 
 
 @dataclass
-class StorageFileApiClient(Generic[HttpIO]):
+class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     """Functions needed to access the file API."""
 
     id: str

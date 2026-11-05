@@ -2,7 +2,7 @@ import dataclasses
 import platform
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Generic, Self, TypeVar
+from typing import Self
 
 from supabase_auth import (
     AsyncMemoryStorage,
@@ -27,11 +27,8 @@ DEFAULT_HEADERS = {
 }
 
 
-Storage = TypeVar("Storage", AsyncSupportedStorage, SyncSupportedStorage)
-
-
 @dataclass(frozen=True)
-class _ClientOptionsBase(Generic[Storage]):
+class _ClientOptionsBase[Storage: (AsyncSupportedStorage, SyncSupportedStorage)]:
     schema: str = "public"
     """
     The Postgres schema which your tables belong to.

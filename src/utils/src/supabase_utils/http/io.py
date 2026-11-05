@@ -8,30 +8,21 @@ from types import TracebackType
 from typing import (
     Any,
     Concatenate,
-    Generic,
     Protocol,
     Self,
-    TypeAlias,
-    TypeVar,
     overload,
 )
 
-from typing_extensions import ParamSpec
 from yarl import URL
 
 from .headers import Headers
 from .request import Request, Response, ToRequest
 
-T = TypeVar("T", covariant=True)
-
-Success = TypeVar("Success", covariant=True)
-
-
-HttpMethod: TypeAlias = Generator[ToRequest, Response, Success]
+type HttpMethod[Success] = Generator[ToRequest, Response, Success]
 
 
 @dataclass
-class LoopReturnValue(Generic[Success]):
+class LoopReturnValue[Success]:
     iterable: HttpMethod[Success]
 
     def __iter__(self) -> HttpMethod[Success]:
@@ -65,7 +56,7 @@ class SyncHttpIO:
     def __init__(self, session: HttpSession) -> None:
         self.session = session
 
-    def communicate(
+    def communicate[Success](
         self,
         base_url: URL,
         default_headers: Headers,
@@ -89,7 +80,7 @@ class AsyncHttpIO:
     def __init__(self, session: AsyncHttpSession) -> None:
         self.session = session
 
-    async def communicate(
+    async def communicate[Success](
         self,
         base_url: URL,
         default_headers: Headers,
@@ -109,18 +100,14 @@ class AsyncHttpIO:
             return return_value_iterator.return_value
 
 
-Params = ParamSpec("Params")
-HttpIO = TypeVar("HttpIO", SyncHttpIO, AsyncHttpIO)
-
-
-class HasExecutor(Protocol[HttpIO]):
+class HasExecutor[HttpIO: (SyncHttpIO, AsyncHttpIO)](Protocol):
     executor: HttpIO
     base_url: URL
     default_headers: Headers
 
 
 @dataclass
-class handle_http_io(Generic[Params, Success]):
+class handle_http_io[**Params, Success]:
     method: Callable[Concatenate[Any, Params], HttpMethod[Success]]
 
     @overload
@@ -134,7 +121,9 @@ class handle_http_io(Generic[Params, Success]):
     ) -> Callable[Params, Awaitable[Success]]: ...
 
     def __get__(
-        self, obj: HasExecutor[HttpIO], objtype: type | None = None
+        self,
+        obj: HasExecutor[SyncHttpIO] | HasExecutor[AsyncHttpIO],
+        objtype: type | None = None,
     ) -> Callable[Params, Success | Awaitable[Success]]:
         def bound_method(
             *args: Params.args, **kwargs: Params.kwargs

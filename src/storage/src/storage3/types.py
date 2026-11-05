@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
@@ -176,7 +176,7 @@ class SignedUrlsJsonItem(BaseModel, extra="ignore"):
 
 SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
 
-DistanceMetric: TypeAlias = Literal["cosine", "euclidean"]
+type DistanceMetric = Literal["cosine", "euclidean"]
 
 
 class MetadataConfiguration(BaseModel, extra="ignore"):

@@ -1,9 +1,8 @@
-from typing import TypeVar
+from typing import override
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.dataclasses import dataclass
 from supabase_utils.http.request import Response
-from typing_extensions import override
 
 
 class StorageException(Exception):
@@ -63,19 +62,15 @@ def parse_api_error(response: Response) -> StorageApiError:
     )
 
 
-Inner = TypeVar("Inner")
-
-
-def _validate_adapter(response: Response, type_adapter: TypeAdapter[Inner]) -> Inner:
+def _validate_adapter[Inner](
+    response: Response, type_adapter: TypeAdapter[Inner]
+) -> Inner:
     if response.is_success:
         return type_adapter.validate_json(response.content)
     raise parse_api_error(response)
 
 
-Model = TypeVar("Model", bound=BaseModel)
-
-
-def _validate_model(response: Response, model: type[Model]) -> Model:
+def _validate_model[Model: BaseModel](response: Response, model: type[Model]) -> Model:
     if response.is_success:
         return model.model_validate_json(response.content)
     raise parse_api_error(response)

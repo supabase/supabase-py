@@ -29,7 +29,7 @@ Relevant links:
 
 ### Python
 
-We support every Python version that has not yet reached end of life, as listed in the [Python version status page](https://devguide.python.org/versions/). The currently supported versions are the ones tested in [CI](.github/workflows/ci.yml).
+We support Python 3.12 and every later version that has not yet reached end of life, as listed in the [Python version status page](https://devguide.python.org/versions/). The currently supported versions are the ones tested in [CI](.github/workflows/ci.yml).
 
 Once a Python version reaches end of life, support for it may be dropped in a **minor release**, and **this won't be considered a breaking change**. For instance, Python 3.9 reached end of life in October 2025, so it can be removed in a minor update.
 

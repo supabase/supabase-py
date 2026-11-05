@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import builtins
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic
+from typing import TYPE_CHECKING
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
-    HttpIO,
+    AsyncHttpIO,
     HttpMethod,
+    SyncHttpIO,
     handle_http_io,
 )
 from supabase_utils.http.query import URLQuery
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class StorageAnalyticsClient(Generic[HttpIO]):
+class StorageAnalyticsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     default_headers: Headers
     base_url: URL
     executor: HttpIO

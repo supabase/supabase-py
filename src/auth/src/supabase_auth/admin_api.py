@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Generic
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
-    HttpIO,
     HttpMethod,
     HttpSession,
     SyncHttpIO,
@@ -48,7 +46,7 @@ from .version import __version__
 
 
 @dataclass
-class SupabaseAuthAdminMFA(Generic[HttpIO]):
+class SupabaseAuthAdminMFA[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     """
     Contains the full multi-factor authentication administration API.
     """
@@ -90,7 +88,7 @@ class SupabaseAuthAdminMFA(Generic[HttpIO]):
 
 
 @dataclass
-class SupabaseAuthAdminOAuth(Generic[HttpIO]):
+class SupabaseAuthAdminOAuth[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     """
     Contains all OAuth client administration methods.
     Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
@@ -248,7 +246,7 @@ class SupabaseAuthAdminOAuth(Generic[HttpIO]):
         return OAuthClientResponse(client=_validate_model(response, OAuthClient))
 
 
-class SupabaseAuthAdmin(Generic[HttpIO]):
+class SupabaseAuthAdmin[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def __init__(
         self, executor: HttpIO, base_url: URL, default_headers: Headers
     ) -> None:
