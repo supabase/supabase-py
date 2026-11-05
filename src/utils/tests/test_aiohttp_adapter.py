@@ -108,14 +108,18 @@ async def record_credentials(request: web.Request) -> web.Response:
     )
 
 
+BOUNCE_TARGETS = web.AppKey("bounce_targets", list[URL])
+
+
 @pytest.fixture
 async def other_origin() -> AsyncIterator[TestServer]:
     async def bounce(request: web.Request) -> web.Response:
-        raise web.HTTPFound(URL(request.query["to"]))
+        raise web.HTTPFound(request.app[BOUNCE_TARGETS][0])
 
     app = web.Application()
     app.router.add_route("*", "/final", record_credentials)
     app.router.add_route("*", "/bounce", bounce)
+    app[BOUNCE_TARGETS] = []
     test_server = TestServer(app)
     await test_server.start_server()
     yield test_server
@@ -131,8 +135,7 @@ async def redirect_server(other_origin: TestServer) -> AsyncIterator[TestServer]
         raise web.HTTPFound("/final")
 
     async def bounce_back(request: web.Request) -> web.Response:
-        back = str(request.url.with_path("/final").with_query(None))
-        raise web.HTTPFound(other_origin.make_url("/bounce").with_query(to=back))
+        raise web.HTTPFound(other_origin.make_url("/bounce"))
 
     app = web.Application()
     app.router.add_route("*", "/cross-origin", cross_origin)
@@ -141,6 +144,7 @@ async def redirect_server(other_origin: TestServer) -> AsyncIterator[TestServer]
     app.router.add_route("*", "/final", record_credentials)
     test_server = TestServer(app)
     await test_server.start_server()
+    other_origin.app[BOUNCE_TARGETS].append(test_server.make_url("/final"))
     yield test_server
     await test_server.close()
 
