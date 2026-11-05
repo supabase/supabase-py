@@ -52,6 +52,8 @@ async with AsyncAiohttpSession(ClientSession()) as session:
     ...
 ```
 
+Both adapters follow redirects as the client is configured to, but drop the `apikey` and `Authorization` headers from every redirect that leaves the scheme, host and port of the original request, so a redirect to another host never receives the project key.
+
 ## How it works
 
 The packages never call an HTTP library themselves. Each operation is a generator that yields a description of the request it wants to send, receives the `Response`, and returns its result:
