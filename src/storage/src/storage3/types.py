@@ -6,7 +6,6 @@ from typing import Any, Literal, TypeAlias
 from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
 from supabase_utils.types import JSON
-from typing_extensions import TypedDict
 
 RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
 
@@ -106,17 +105,10 @@ class FileObject(BaseModel):
     etag: str | None = None
 
 
-class SortByV2(TypedDict, total=False):
-    column: Literal["name", "updated_at", "created_at"]
-    order: Literal["asc", "desc"]
-
-
-class SearchV2Options(TypedDict, total=False):
-    limit: int
-    prefix: str
-    cursor: str
-    with_delimiter: bool
-    sortBy: SortByV2
+@dataclass
+class SortByV2:
+    column: Literal["name", "updated_at", "created_at"] = "name"
+    order: Literal["asc", "desc"] = "asc"
 
 
 class SearchV2Object(BaseModel):
@@ -159,11 +151,6 @@ class ListFileObject(BaseModel):
     created_at: datetime
     metadata: dict[str, Any]
     buckets: Bucket | None = None
-
-
-class UploadData(TypedDict, total=False):
-    Id: str
-    Key: str
 
 
 class UploadResponse(BaseModel):

@@ -1031,7 +1031,6 @@ features:
     symbols:
       - StorageFileApiClient.upload
     supporting_symbols:
-      - UploadData
       - UploadResponse
   storage.file_buckets.download:
     status: implemented
@@ -1048,7 +1047,6 @@ features:
       - SearchV2Body
       - SearchV2Folder
       - SearchV2Object
-      - SearchV2Options
       - SearchV2Result
       - SortByType
       - SortByV2

@@ -1,6 +1,6 @@
 from supabase_auth import AsyncMemoryStorage, SyncMemoryStorage
 
-from supabase import AsyncClientOptions, ClientOptions
+from supabase import AsyncClientOptions, ClientOptions, RealtimeClientOptions
 
 
 class TestClientOptions:
@@ -64,23 +64,35 @@ class TestClientOptions:
         assert new_options.storage.get_item("key") == "new_value"
 
     def test_replace_honors_falsy_values(self) -> None:
-        options = ClientOptions(
-            headers={"key": "value"}, realtime={"heartbeat_interval": 1}
-        )
+        options = ClientOptions(headers={"key": "value"})
 
         actual = options.replace(
-            auto_refresh_token=False, persist_session=False, headers={}, realtime={}
+            auto_refresh_token=False, persist_session=False, headers={}
         )
 
         assert actual.auto_refresh_token is False
         assert actual.persist_session is False
         assert actual.headers == {}
-        assert actual.realtime == {}
 
     def test_replace_keeps_realtime_options(self) -> None:
-        options = ClientOptions(realtime={"heartbeat_interval": 1})
+        realtime = RealtimeClientOptions(heartbeat_interval=1)
 
-        assert options.replace(schema="other").realtime == {"heartbeat_interval": 1}
-        assert AsyncClientOptions(realtime={"heartbeat_interval": 1}).replace(
-            schema="other"
-        ).realtime == {"heartbeat_interval": 1}
+        assert (
+            ClientOptions(realtime=realtime).replace(schema="other").realtime
+            == realtime
+        )
+        assert (
+            AsyncClientOptions(realtime=realtime).replace(schema="other").realtime
+            == realtime
+        )
+
+    def test_replace_updates_realtime_options(self) -> None:
+        options = ClientOptions(realtime=RealtimeClientOptions(heartbeat_interval=1))
+        realtime = RealtimeClientOptions(heartbeat_timeout=10)
+
+        assert options.replace(realtime=realtime).realtime == realtime
+
+    def test_realtime_options_default_to_realtime_defaults(self) -> None:
+        assert ClientOptions().realtime == RealtimeClientOptions(
+            heartbeat_interval=25, heartbeat_timeout=5
+        )
