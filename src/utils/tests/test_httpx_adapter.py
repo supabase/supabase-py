@@ -1,4 +1,7 @@
+from collections.abc import Callable
+
 import httpx
+import pytest
 from supabase_utils.http.adapters.httpx import (
     AsyncHttpxSession,
     HttpxSession,
@@ -111,3 +114,201 @@ def test_sync_session_sends_headers() -> None:
     with HttpxSession(client) as session:
         session.send(make_request())
     assert seen[0].headers.get_list("accept") == ["a", "b"]
+
+
+def redirecting_handler(
+    location: str, seen: list[httpx.Request]
+) -> Callable[[httpx.Request], httpx.Response]:
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/api/items":
+            return httpx.Response(302, headers={"Location": location})
+        return httpx.Response(200, content=b"done")
+
+    return handler
+
+
+def make_credential_request() -> Request:
+    return Request(
+        url=URL("https://project.supabase.co/api/items"),
+        method="GET",
+        headers=Headers.from_mapping(
+            {"apikey": "service-role-key", "Authorization": "Bearer jwt"}
+        ),
+        content=None,
+        delay=None,
+    )
+
+
+CROSS_ORIGIN_LOCATIONS = [
+    "https://attacker.example/final",
+    "http://project.supabase.co/final",
+    "https://project.supabase.co:8443/final",
+]
+
+
+@pytest.mark.parametrize("location", CROSS_ORIGIN_LOCATIONS)
+def test_sync_session_drops_credentials_on_cross_origin_redirect(
+    location: str,
+) -> None:
+    seen: list[httpx.Request] = []
+    client = httpx.Client(
+        transport=httpx.MockTransport(redirecting_handler(location, seen)),
+        follow_redirects=True,
+    )
+    with HttpxSession(client) as session:
+        response = session.send(make_credential_request())
+    assert response.status == 200
+    assert str(seen[1].url) == location
+    assert "apikey" not in seen[1].headers
+    assert "authorization" not in seen[1].headers
+
+
+@pytest.mark.parametrize("location", CROSS_ORIGIN_LOCATIONS)
+async def test_async_session_drops_credentials_on_cross_origin_redirect(
+    location: str,
+) -> None:
+    seen: list[httpx.Request] = []
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(redirecting_handler(location, seen)),
+        follow_redirects=True,
+    )
+    async with AsyncHttpxSession(client) as session:
+        response = await session.send(make_credential_request())
+    assert response.status == 200
+    assert str(seen[1].url) == location
+    assert "apikey" not in seen[1].headers
+    assert "authorization" not in seen[1].headers
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "https://project.supabase.co/final",
+        "https://PROJECT.supabase.co:443/final",
+        "/final",
+    ],
+)
+def test_sync_session_keeps_credentials_on_same_origin_redirect(
+    location: str,
+) -> None:
+    seen: list[httpx.Request] = []
+    client = httpx.Client(
+        transport=httpx.MockTransport(redirecting_handler(location, seen)),
+        follow_redirects=True,
+    )
+    with HttpxSession(client) as session:
+        session.send(make_credential_request())
+    assert seen[1].url.path == "/final"
+    assert seen[1].headers.get("apikey") == "service-role-key"
+    assert seen[1].headers.get("authorization") == "Bearer jwt"
+
+
+async def test_async_session_keeps_credentials_on_same_origin_redirect() -> None:
+    seen: list[httpx.Request] = []
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            redirecting_handler("https://project.supabase.co/final", seen)
+        ),
+        follow_redirects=True,
+    )
+    async with AsyncHttpxSession(client) as session:
+        await session.send(make_credential_request())
+    assert seen[1].headers.get("apikey") == "service-role-key"
+    assert seen[1].headers.get("authorization") == "Bearer jwt"
+
+
+def test_sync_session_returns_redirect_when_client_does_not_follow() -> None:
+    seen: list[httpx.Request] = []
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            redirecting_handler("https://attacker.example/final", seen)
+        )
+    )
+    with HttpxSession(client) as session:
+        response = session.send(make_credential_request())
+    assert response.status == 302
+    assert len(seen) == 1
+
+
+def test_sync_session_respects_max_redirects() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(302, headers={"Location": "/again"})
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(handler),
+        follow_redirects=True,
+        max_redirects=2,
+    )
+    with HttpxSession(client) as session, pytest.raises(httpx.TooManyRedirects):
+        session.send(make_credential_request())
+
+
+async def test_async_session_respects_max_redirects() -> None:
+    sent: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return httpx.Response(302, headers={"Location": "/again"})
+
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(handler),
+        follow_redirects=True,
+        max_redirects=2,
+    )
+    async with AsyncHttpxSession(client) as session:
+        with pytest.raises(httpx.TooManyRedirects):
+            await session.send(make_credential_request())
+    assert len(sent) == 3
+
+
+def test_sync_session_does_not_reapply_client_auth_on_cross_origin_redirect() -> None:
+    seen: list[httpx.Request] = []
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            redirecting_handler("https://attacker.example/final", seen)
+        ),
+        auth=httpx.BasicAuth("user", "secret"),
+        follow_redirects=True,
+    )
+    with HttpxSession(client) as session:
+        session.send(make_credential_request())
+    assert "authorization" in seen[0].headers
+    assert "authorization" not in seen[1].headers
+
+
+async def test_async_session_keeps_client_auth_on_same_origin_redirect() -> None:
+    seen: list[httpx.Request] = []
+    client = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            redirecting_handler("https://project.supabase.co/final", seen)
+        ),
+        auth=httpx.BasicAuth("user", "secret"),
+        follow_redirects=True,
+    )
+    async with AsyncHttpxSession(client) as session:
+        await session.send(make_credential_request())
+    assert seen[1].headers.get("authorization") == seen[0].headers.get("authorization")
+
+
+def test_sync_session_does_not_resend_credentials_after_leaving_origin() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.host == "attacker.example":
+            return httpx.Response(
+                302, headers={"Location": "https://project.supabase.co/chosen"}
+            )
+        if request.url.path == "/api/items":
+            return httpx.Response(
+                302, headers={"Location": "https://attacker.example/bounce"}
+            )
+        return httpx.Response(200)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=True)
+    with HttpxSession(client) as session:
+        session.send(make_credential_request())
+    assert str(seen[2].url) == "https://project.supabase.co/chosen"
+    assert "apikey" not in seen[2].headers
+    assert "authorization" not in seen[2].headers

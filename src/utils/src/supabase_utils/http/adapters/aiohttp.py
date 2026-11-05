@@ -1,9 +1,16 @@
 from types import TracebackType
 
+from aiohttp import (
+    ClientHandlerType,
+    ClientMiddlewareType,
+    ClientRequest,
+    ClientSession,
+)
 from aiohttp import ClientResponse as AioResponse
-from aiohttp import ClientSession
+from yarl import URL
 
 from ..headers import Headers
+from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import Request, Response
 
 
@@ -16,6 +23,22 @@ async def to_supabase_response(req: Request, resp: AioResponse) -> Response:
     )
 
 
+def strip_cross_origin_credentials(origin: URL) -> ClientMiddlewareType:
+    left_origin = False
+
+    async def middleware(
+        request: ClientRequest, handler: ClientHandlerType
+    ) -> AioResponse:
+        nonlocal left_origin
+        left_origin = left_origin or not keeps_credentials(origin, request.url)
+        if left_origin:
+            for name in CREDENTIAL_HEADERS:
+                request.headers.popall(name, None)
+        return await handler(request)
+
+    return middleware
+
+
 class AsyncAiohttpSession:
     def __init__(self, client: ClientSession) -> None:
         self.client = client
@@ -26,6 +49,11 @@ class AsyncAiohttpSession:
             url=str(request.url),
             data=request.content,
             headers=dict(request.headers),
+            middlewares=(
+                # Per request middlewares replace the session ones, so keep those.
+                *self.client._middlewares,
+                strip_cross_origin_credentials(request.url),
+            ),
         )
         return await to_supabase_response(request, response)
 
