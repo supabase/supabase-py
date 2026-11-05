@@ -303,28 +303,19 @@ async def test_get_public_url_rejects_dot_segments(path: str) -> None:
 
 
 @use_async
-async def test_list_v2_sends_sort_by(use_async: bool) -> None:
-    requests: list[Request] = []
-
-    def handler(request: Request) -> Response:
-        requests.append(request)
-        return Response(200, json={"hasNext": False, "folders": [], "objects": []})
-
-    await call_with_client(
-        use_async,
-        handler,
-        lambda client: client.from_("bucket").list_v2(
-            sort_by=SortByV2(column="created_at", order="desc")
+@pytest.mark.parametrize(
+    ("sort_by", "expected"),
+    [
+        (
+            SortByV2(column="created_at", order="desc"),
+            {"column": "created_at", "order": "desc"},
         ),
-    )
-
-    assert json.loads(requests[0].content) == {
-        "sortBy": {"column": "created_at", "order": "desc"}
-    }
-
-
-@use_async
-async def test_list_v2_sort_by_defaults_to_name_ascending(use_async: bool) -> None:
+        (SortByV2(), {"column": "name", "order": "asc"}),
+    ],
+)
+async def test_list_v2_sends_sort_by(
+    use_async: bool, sort_by: SortByV2, expected: dict[str, str]
+) -> None:
     requests: list[Request] = []
 
     def handler(request: Request) -> Response:
@@ -334,9 +325,7 @@ async def test_list_v2_sort_by_defaults_to_name_ascending(use_async: bool) -> No
     await call_with_client(
         use_async,
         handler,
-        lambda client: client.from_("bucket").list_v2(sort_by=SortByV2()),
+        lambda client: client.from_("bucket").list_v2(sort_by=sort_by),
     )
 
-    assert json.loads(requests[0].content) == {
-        "sortBy": {"column": "name", "order": "asc"}
-    }
+    assert json.loads(requests[0].content) == {"sortBy": expected}

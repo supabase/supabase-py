@@ -14,6 +14,7 @@ from .channel import RealtimeChannel, RealtimeChannelOptions
 from .message import Message, ReplyMessage
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
+    DEFAULT_HEARTBEAT_TIMEOUT,
     PHOENIX_CHANNEL,
     PROTOCOL_VERSION,
     ChannelEvents,
@@ -46,7 +47,7 @@ class connect_once:
         url: str,
         token_callback: Callable[[], Awaitable[str | None]] | None = None,
         heartbeat_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
-        heartbeat_timeout: int = 5,
+        heartbeat_timeout: int = DEFAULT_HEARTBEAT_TIMEOUT,
     ) -> None:
         self.url = URL(url)
         self.get_access_token = token_callback
@@ -141,7 +142,7 @@ class RealtimeClient:
         websocket_connection: ClientConnection,
         token_callback: Callable[[], Awaitable[str | None]] | None = None,
         heartbeat_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
-        heartbeat_timeout: int = 5,
+        heartbeat_timeout: int = DEFAULT_HEARTBEAT_TIMEOUT,
     ) -> None:
         self.url = url
         self.last_token: str | None = None
