@@ -3010,6 +3010,7 @@ iceberg = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pyiceberg", extra = ["pyarrow"] },
     { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -3037,6 +3038,7 @@ lints = [
     { name = "unasync" },
 ]
 tests = [
+    { name = "pyiceberg", extra = ["pyarrow"] },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -3059,6 +3061,7 @@ provides-extras = ["iceberg"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pyiceberg", extras = ["pyarrow"], specifier = ">=0.11.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
@@ -3086,6 +3089,7 @@ lints = [
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 tests = [
+    { name = "pyiceberg", extras = ["pyarrow"], specifier = ">=0.11.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=6.2.1" },

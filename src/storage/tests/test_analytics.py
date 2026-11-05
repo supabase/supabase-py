@@ -2,9 +2,10 @@ import json
 from io import BytesIO
 from typing import Any
 from unittest.mock import patch
+from urllib.parse import urlparse
 
-import pytest
-from httpx import Client, MockTransport, Request, Response
+import requests
+from httpx import Client, Request, Response
 from supabase_utils.http.adapters.httpx import HttpxSession
 
 from storage3 import SyncStorageClient
@@ -43,9 +44,6 @@ async def test_analytics_list_sends_camel_case_sort_params(use_async: bool) -> N
 
 
 def test_analytics_catalog_loads_table() -> None:
-    pytest.importorskip("pyiceberg")
-    import requests
-
     table_metadata: dict[str, Any] = {
         "format-version": 2,
         "table-uuid": "75d23c05-b7dd-45f1-aabd-c3898e28e0a0",
@@ -71,31 +69,29 @@ def test_analytics_catalog_loads_table() -> None:
         "snapshot-log": [],
         "metadata-log": [],
     }
-    payloads: list[dict[str, Any]] = [
-        {"defaults": {}, "overrides": {"prefix": "warehouse"}},
-        {
+    payloads: dict[str, dict[str, Any]] = {
+        "/storage/v1/iceberg/v1/config": {
+            "defaults": {},
+            "overrides": {"prefix": "warehouse"},
+        },
+        "/storage/v1/iceberg/v1/warehouse/namespaces/analytics/tables/events": {
             "metadata-location": "s3://warehouse/table/metadata/v1.metadata.json",
             "metadata": table_metadata,
         },
-    ]
-    responses = []
-    for data in payloads:
+    }
+
+    def get(url: str, **_: Any) -> requests.Response:
         response = requests.Response()
         response.status_code = 200
-        response.raw = BytesIO(json.dumps(data).encode())
-        responses.append(response)
+        response.raw = BytesIO(json.dumps(payloads[urlparse(url).path]).encode())
+        return response
 
-    http_session = HttpxSession(
-        Client(transport=MockTransport(lambda _: Response(404)))
+    client = SyncStorageClient(
+        STORAGE_URL, {"apiKey": "service-key"}, http_session=HttpxSession(Client())
     )
-    with SyncStorageClient(
-        STORAGE_URL, {"apiKey": "service-key"}, http_session=http_session
-    ) as client:
-        with patch("requests.sessions.Session.get", side_effect=responses):
-            catalog = client.analytics().catalog(
-                "warehouse", "access-key", "secret-key"
-            )
-            table = catalog.load_table(("analytics", "events"))
+    with patch("requests.sessions.Session.get", side_effect=get):
+        catalog = client.analytics().catalog("warehouse", "access-key", "secret-key")
+        table = catalog.load_table(("analytics", "events"))
 
     assert table.name() == ("analytics", "events")
     assert table.schema().find_field("id").field_id == 1
