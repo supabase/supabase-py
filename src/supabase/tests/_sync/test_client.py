@@ -1,11 +1,14 @@
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-from supabase_auth import SyncMemoryStorage
+from httpx import Client as SyncHttpxClient
+from supabase_auth import SyncMemoryStorage, SyncSupabaseAuthClient
 from supabase_auth.types import AuthChangeEvent
+from supabase_utils.http.adapters.httpx import HttpxSession
 
 from supabase import (
+    Client,
     ClientOptions,
 )
 
@@ -128,6 +131,20 @@ def test_auth_events_without_a_session_use_the_key(
         assert client.postgrest.default_headers.get("Authorization") == authorization
         assert client.storage.default_headers.get("Authorization") == authorization
         assert client.functions.default_headers.get("Authorization") == authorization
+        assert client.auth.default_headers.get("Authorization") == authorization
+
+
+def test_create_uses_the_stored_session_token() -> None:
+    session = MagicMock(access_token="secretuserjwt")
+    with SyncHttpxClient() as http_client:
+        with patch.object(
+            SyncSupabaseAuthClient, "get_session", MagicMock(return_value=session)
+        ):
+            client = Client.create(url, key, HttpxSession(client=http_client))
+
+        authorization = "Bearer secretuserjwt"
+        assert client.options.headers.get("Authorization") == authorization
+        assert client.postgrest.default_headers.get("Authorization") == authorization
         assert client.auth.default_headers.get("Authorization") == authorization
 
 
