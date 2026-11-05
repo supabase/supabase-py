@@ -10,7 +10,7 @@ from aiohttp import ClientResponse as AioResponse
 from yarl import URL
 
 from ..headers import Headers
-from ..redirects import CREDENTIAL_HEADERS, is_same_origin
+from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import Request, Response
 
 
@@ -24,10 +24,14 @@ async def to_supabase_response(req: Request, resp: AioResponse) -> Response:
 
 
 def strip_cross_origin_credentials(origin: URL) -> ClientMiddlewareType:
+    left_origin = False
+
     async def middleware(
         request: ClientRequest, handler: ClientHandlerType
     ) -> AioResponse:
-        if not is_same_origin(origin, request.url):
+        nonlocal left_origin
+        left_origin = left_origin or not keeps_credentials(origin, request.url)
+        if left_origin:
             for name in CREDENTIAL_HEADERS:
                 request.headers.popall(name, None)
         return await handler(request)

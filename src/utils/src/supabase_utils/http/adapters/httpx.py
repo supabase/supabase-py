@@ -6,7 +6,7 @@ from httpx import Response as HttpxResponse
 from yarl import URL
 
 from ..headers import Headers
-from ..redirects import CREDENTIAL_HEADERS, is_same_origin
+from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import Request, Response
 
 
@@ -33,7 +33,7 @@ def redirect_request(
 ) -> HttpxRequest:
     if redirects > max_redirects:
         raise TooManyRedirects("Exceeded maximum allowed redirects.", request=request)
-    if not is_same_origin(origin, URL(str(request.url))):
+    if not keeps_credentials(origin, URL(str(request.url))):
         for name in CREDENTIAL_HEADERS:
             request.headers.pop(name, None)
     return request
@@ -52,6 +52,7 @@ class HttpxSession:
                 redirect_request(
                     request.url, next_request, redirects, self.client.max_redirects
                 ),
+                auth=None,
                 follow_redirects=False,
             )
         return to_supabase_response(request, response)
@@ -83,6 +84,7 @@ class AsyncHttpxSession:
                 redirect_request(
                     request.url, next_request, redirects, self.client.max_redirects
                 ),
+                auth=None,
                 follow_redirects=False,
             )
         return to_supabase_response(request, response)

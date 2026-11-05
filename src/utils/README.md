@@ -52,7 +52,7 @@ async with AsyncAiohttpSession(ClientSession()) as session:
     ...
 ```
 
-Both adapters follow redirects as the client is configured to, but drop the `apikey` and `Authorization` headers from every redirect that leaves the scheme, host and port of the original request, so a redirect to another host never receives the project key.
+Both adapters follow redirects as the client is configured to, but drop the `apikey` and `Authorization` headers once a redirect leaves the scheme, host and port of the original request (an upgrade from `http` to `https` on the same host keeps them), so a redirect to another host never receives the project key.
 
 ## How it works
 

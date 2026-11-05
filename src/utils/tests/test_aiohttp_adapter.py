@@ -110,8 +110,12 @@ async def record_credentials(request: web.Request) -> web.Response:
 
 @pytest.fixture
 async def other_origin() -> AsyncIterator[TestServer]:
+    async def bounce(request: web.Request) -> web.Response:
+        raise web.HTTPFound(URL(request.query["to"]))
+
     app = web.Application()
     app.router.add_route("*", "/final", record_credentials)
+    app.router.add_route("*", "/bounce", bounce)
     test_server = TestServer(app)
     await test_server.start_server()
     yield test_server
@@ -126,9 +130,14 @@ async def redirect_server(other_origin: TestServer) -> AsyncIterator[TestServer]
     async def same_origin(request: web.Request) -> web.Response:
         raise web.HTTPFound("/final")
 
+    async def bounce_back(request: web.Request) -> web.Response:
+        back = str(request.url.with_path("/final").with_query(None))
+        raise web.HTTPFound(other_origin.make_url("/bounce").with_query(to=back))
+
     app = web.Application()
     app.router.add_route("*", "/cross-origin", cross_origin)
     app.router.add_route("*", "/same-origin", same_origin)
+    app.router.add_route("*", "/bounce-back", bounce_back)
     app.router.add_route("*", "/final", record_credentials)
     test_server = TestServer(app)
     await test_server.start_server()
@@ -185,3 +194,15 @@ async def test_keeps_session_middlewares(redirect_server: TestServer) -> None:
     async with AsyncAiohttpSession(client) as session:
         await session.send(credential_request(redirect_server, "/same-origin"))
     assert [url.path for url in seen] == ["/same-origin", "/final"]
+
+
+async def test_does_not_resend_credentials_after_leaving_origin(
+    redirect_server: TestServer,
+) -> None:
+    async with AsyncAiohttpSession(aiohttp.ClientSession()) as session:
+        response = await session.send(
+            credential_request(redirect_server, "/bounce-back")
+        )
+    assert response.status == 200
+    assert response.headers.get("x-apikey") == ""
+    assert response.headers.get("x-authorization") == ""
