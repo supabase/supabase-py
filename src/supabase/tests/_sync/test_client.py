@@ -1,7 +1,9 @@
 import os
 from unittest.mock import MagicMock
 
+import pytest
 from supabase_auth import SyncMemoryStorage
+from supabase_auth.types import AuthChangeEvent
 
 from supabase import (
     ClientOptions,
@@ -11,6 +13,14 @@ from .conftest import SyncClientCallable
 
 url = os.environ["SUPABASE_TEST_URL"]
 key = os.environ["SUPABASE_TEST_KEY"]
+
+SESSION_EVENTS: list[AuthChangeEvent] = [
+    "SIGNED_IN",
+    "TOKEN_REFRESHED",
+    "USER_UPDATED",
+    "PASSWORD_RECOVERY",
+    "MFA_CHALLENGE_VERIFIED",
+]
 
 
 def test_postgrest_client(create_client: SyncClientCallable) -> None:
@@ -81,6 +91,44 @@ def test_updates_the_authorization_header_on_auth_events(
         assert (
             client.storage.default_headers.get("Authorization") == updated_authorization
         )
+
+
+@pytest.mark.parametrize("event", SESSION_EVENTS)
+def test_auth_events_with_a_session_use_its_access_token(
+    create_client: SyncClientCallable, event: AuthChangeEvent
+) -> None:
+    with create_client(url, key) as client:
+        initial_postgrest = client.postgrest
+        session = MagicMock(access_token="secretuserjwt")
+
+        client.auth.session_manager.notify_all_subscribers(event, session)
+
+        authorization = "Bearer secretuserjwt"
+        assert client.postgrest is not initial_postgrest
+        assert client.options.headers.get("apiKey") == key
+        assert client.options.headers.get("Authorization") == authorization
+        assert client.postgrest.default_headers.get("Authorization") == authorization
+        assert client.storage.default_headers.get("Authorization") == authorization
+        assert client.functions.default_headers.get("Authorization") == authorization
+        assert client.auth.default_headers.get("Authorization") == authorization
+
+
+def test_auth_events_without_a_session_use_the_key(
+    create_client: SyncClientCallable,
+) -> None:
+    with create_client(url, key) as client:
+        client.auth.session_manager.notify_all_subscribers(
+            "SIGNED_IN", MagicMock(access_token="secretuserjwt")
+        )
+
+        client.auth.session_manager.notify_all_subscribers("SIGNED_OUT", None)
+
+        authorization = f"Bearer {key}"
+        assert client.options.headers.get("Authorization") == authorization
+        assert client.postgrest.default_headers.get("Authorization") == authorization
+        assert client.storage.default_headers.get("Authorization") == authorization
+        assert client.functions.default_headers.get("Authorization") == authorization
+        assert client.auth.default_headers.get("Authorization") == authorization
 
 
 def test_supports_setting_a_global_authorization_header(
