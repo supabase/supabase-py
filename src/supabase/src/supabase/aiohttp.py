@@ -1,11 +1,11 @@
 from aiohttp import ClientSession
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 
-from ._async.client import AsyncClient
+from .client import AsyncClient
 from .lib.client_options import AsyncClientOptions
 
 
-def create_aclient(
+def create_async_client(
     supabase_url: str,
     supabase_key: str,
     http_client: ClientSession | None = None,

@@ -15,7 +15,7 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 ## Async and sync clients
 
 - `functions`, `auth`, `postgrest` and `storage` define their `Async*` and `Sync*` clients side by side in the same modules, over the shared HTTP layer in `utils`. Change both when you change one.
-- `supabase` keeps hand-written `_async/` and `_sync/` clients. Edit both.
+- `supabase` defines `AsyncClient` and the sync `Client` in `client.py`. Shared behavior lives in their generic `SupabaseClient` base. The subclasses only build the concrete sub-clients and hold what differs, like `create`, the context managers and realtime.
 - `auth` tests are the only generated code: edit `tests/_async/`, run `make auth.build-sync`, then `make ruff`, and commit both test trees.
 - `realtime` is async-only.
 
@@ -27,7 +27,7 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 
 ## Public API
 
-Adding or renaming a public symbol means updating [sdk-compliance.yaml](sdk-compliance.yaml) with both the `Async*` and `Sync*` names. [validate-capabilities.yml](.github/workflows/validate-capabilities.yml) checks it against the [supabase/sdk](https://github.com/supabase/sdk) capability registry.
+Adding or renaming a public symbol means updating [sdk-compliance.yaml](sdk-compliance.yaml) with both the `Async*` and `Sync*` names. A method defined once on a generic base, like `PostgrestClient.rpc` or `SupabaseClient.rpc`, is listed under the base name, because the check does not see inherited methods on the subclasses. [validate-capabilities.yml](.github/workflows/validate-capabilities.yml) checks it against the [supabase/sdk](https://github.com/supabase/sdk) capability registry.
 
 ## Service compatibility
 

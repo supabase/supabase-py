@@ -5,8 +5,8 @@ import pytest
 
 from supabase import AsyncClient as AsyncSupabaseClient
 from supabase import AsyncClientOptions
-from supabase.aiohttp import create_aclient as create_asyncio_client
-from supabase.httpx import create_aclient as create_httpx_client
+from supabase.aiohttp import create_async_client as create_aiohttp_client
+from supabase.httpx import create_async_client as create_httpx_client
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -27,7 +27,7 @@ def httpx(
 def aiohttp(
     supabase_key: str, supabase_url: str, options: AsyncClientOptions | None = None
 ) -> AsyncSupabaseClient:
-    return create_asyncio_client(supabase_key, supabase_url, options=options)
+    return create_aiohttp_client(supabase_key, supabase_url, options=options)
 
 
 class AsyncClientCallable(Protocol):

@@ -2,16 +2,15 @@ from httpx import AsyncClient as AsyncHttpxClient
 from httpx import Client as SyncHttpxClient
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
-from ._async.client import AsyncClient
-from ._sync.client import Client
-from .lib.client_options import AsyncClientOptions, SyncClientOptions
+from .client import AsyncClient, Client
+from .lib.client_options import AsyncClientOptions, ClientOptions
 
 
 def create_client(
     supabase_url: str,
     supabase_key: str,
     http_client: SyncHttpxClient | None = None,
-    options: SyncClientOptions | None = None,
+    options: ClientOptions | None = None,
 ) -> Client:
     client = http_client or SyncHttpxClient(
         http2=True,
@@ -26,7 +25,7 @@ def create_client(
     )
 
 
-def create_aclient(
+def create_async_client(
     supabase_url: str,
     supabase_key: str,
     http_client: AsyncHttpxClient | None = None,

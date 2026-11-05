@@ -1,13 +1,13 @@
 from supabase_auth import AsyncMemoryStorage, SyncMemoryStorage
 
-from supabase import AClientOptions, ClientOptions
+from supabase import AsyncClientOptions, ClientOptions
 
 
 class TestClientOptions:
-    async def test_replace_returns_updated_aclient_options(self) -> None:
+    async def test_replace_returns_updated_async_client_options(self) -> None:
         storage = AsyncMemoryStorage()
         await storage.set_item("key", "value")
-        options = AClientOptions(
+        options = AsyncClientOptions(
             schema="schema",
             headers={"key": "value"},
             auto_refresh_token=False,
@@ -16,7 +16,7 @@ class TestClientOptions:
         )
 
         actual = options.replace(schema="new schema")
-        expected = AClientOptions(
+        expected = AsyncClientOptions(
             schema="new schema",
             headers={"key": "value"},
             auto_refresh_token=False,
@@ -81,6 +81,6 @@ class TestClientOptions:
         options = ClientOptions(realtime={"heartbeat_interval": 1})
 
         assert options.replace(schema="other").realtime == {"heartbeat_interval": 1}
-        assert AClientOptions(realtime={"heartbeat_interval": 1}).replace(
+        assert AsyncClientOptions(realtime={"heartbeat_interval": 1}).replace(
             schema="other"
         ).realtime == {"heartbeat_interval": 1}

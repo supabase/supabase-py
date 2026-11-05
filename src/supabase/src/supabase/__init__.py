@@ -1,9 +1,7 @@
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from realtime import AuthorizationError, NotConnectedError
-from storage3 import AsyncStorageClient as ASupabaseStorageClient
 from storage3 import StorageApiError, StorageException, VectorBucketException
-from storage3 import SyncStorageClient as SupabaseStorageClient
 from supabase_auth import (
     AuthApiError,
     AuthError,
@@ -23,30 +21,18 @@ from supabase_functions import (
     FunctionsRelayError,
 )
 
-# Async Client
-from ._async.client import AsyncClient
-from ._async.client import AsyncClient as AClient
-from ._async.client import SupabaseException as ASupabaseException
-from ._async.client import SupabaseException as AsyncSupabaseException
-from ._sync.client import Client
-from ._sync.client import SupabaseException as SyncSupabaseException
+from .client import AsyncClient, Client, SupabaseException
 
 # Lib
-from .lib.client_options import AsyncClientOptions
-from .lib.client_options import AsyncClientOptions as AClientOptions
-from .lib.client_options import SyncClientOptions as ClientOptions
+from .lib.client_options import AsyncClientOptions, ClientOptions
 
 # Version
 from .version import __version__
 
 __all__ = [
-    "AClient",
-    "ASupabaseStorageClient",
-    "AClientOptions",
     "AsyncClient",
     "AsyncClientOptions",
     "Client",
-    "SupabaseStorageClient",
     "ClientOptions",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
@@ -70,7 +56,5 @@ __all__ = [
     "FunctionsError",
     "AuthorizationError",
     "NotConnectedError",
-    "ASupabaseException",
-    "AsyncSupabaseException",
-    "SyncSupabaseException",
+    "SupabaseException",
 ]
