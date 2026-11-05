@@ -41,7 +41,10 @@ __all__ = ["SyncBucket"]
 
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
-    return tuple(urllib.parse.unquote(part) for part in path.lstrip("/").split("/"))
+    return tuple(
+        urllib.parse.unquote(part, errors="strict")
+        for part in path.lstrip("/").split("/")
+    )
 
 
 class SyncBucketActionsMixin:

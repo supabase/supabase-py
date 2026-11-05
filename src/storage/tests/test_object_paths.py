@@ -62,3 +62,13 @@ async def test_get_public_url_keeps_the_whole_object_key(
 
     assert await async_client.from_("bucket").get_public_url(path) == public_url
     assert sync_client.from_("bucket").get_public_url(path) == public_url
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
+@pytest.mark.parametrize("path", ["report%FF.txt", "folder/report%FE.txt"])
+async def test_invalid_percent_escapes_in_object_key_raise(
+    use_async: bool, path: str
+) -> None:
+    with pytest.raises(UnicodeDecodeError):
+        await _requested_path(use_async, path)
