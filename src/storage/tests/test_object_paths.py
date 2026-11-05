@@ -17,6 +17,7 @@ PATHS = [
     ("report#1.pdf", "report%231.pdf"),
     ("a b.png", "a%20b.png"),
     ("a%20b.png", "a%20b.png"),
+    ("a%2Fb.png", "a/b.png"),
 ]
 
 
@@ -84,6 +85,8 @@ async def test_invalid_percent_escapes_in_object_key_raise(
         "../../auth",
         "a/./b.png",
         "folder/%2E%2E/report.txt",
+        "folder?/..%2Freport.txt",
+        "folder/.%2Freport.txt",
     ],
 )
 async def test_dot_segments_in_object_key_raise(use_async: bool, path: str) -> None:
