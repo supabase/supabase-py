@@ -19,7 +19,6 @@ PACKAGES = [
     "supabase",
     "utils",
 ]
-PACKAGES_WITHOUT_COVERAGE = {"utils"}
 IMPORT_NAMES = {
     "functions": "supabase_functions",
     "realtime": "realtime",
@@ -101,11 +100,7 @@ def main() -> None:
             [line.strip() for line in sys.stdin if line.strip()]
         )
     entries = matrix_entries(packages)
-    coverage_flags = [
-        flag_name(entry)
-        for entry in matrix_entries(set(PACKAGES))
-        if entry["package"] not in PACKAGES_WITHOUT_COVERAGE
-    ]
+    coverage_flags = [flag_name(entry) for entry in matrix_entries(set(PACKAGES))]
     print(f"matrix={json.dumps({'include': entries})}")
     print(f"has-tests={'true' if entries else 'false'}")
     print(f"coverage-flags={','.join(coverage_flags)}")

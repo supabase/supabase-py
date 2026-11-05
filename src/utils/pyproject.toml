@@ -41,10 +41,22 @@ documentation = "https://github.com/supabase/supabase-py/tree/main/src/utils"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [dependency-groups]
+tests = [
+    "pytest >=9.0.3",
+    "pytest-cov >=6.2.1",
+    "pytest-asyncio >=1.3.0",
+]
 lints = [
     "pyrefly >=1.4.0,<2.0.0",
 ]
-dev = [{ include-group = "lints" }, "supabase_utils[all]"]
+dev = [{ include-group = "lints" }, { include-group = "tests" }, "supabase_utils[all]"]
+
+[tool.uv]
+default-groups = [ "dev" ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "tests"
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]
@@ -52,5 +64,5 @@ build-backend = "uv_build"
 
 [tool.pyrefly]
 extends = "../../pyrefly.toml"
-project-includes = ["src"]
-search-path = ["src"]
+project-includes = ["src", "tests"]
+search-path = ["src", "."]

@@ -2,9 +2,14 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
-tests: pyrefly
+tests: pyrefly pytest
 help::
 	@echo "  tests          -- run all tests for supabase_utils package"
+
+pytest:
+	uv run --package supabase_utils pytest --cov=./ --cov-report=xml --cov-report=html -vv
+help::
+	@echo "  pytest         -- run pytest on supabase_utils package"
 
 pyrefly:
 	uv run --package supabase_utils pyrefly check
