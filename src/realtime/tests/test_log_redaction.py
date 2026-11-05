@@ -44,12 +44,14 @@ async def server_url() -> AsyncIterator[str]:
         yield f"http://{HOST}:{port}"
 
 
+@pytest.mark.parametrize("max_log_size", [Frame.MAX_LOG_SIZE, 10_000])
 async def test_tokens_are_not_logged(
     server_url: str,
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
+    max_log_size: int,
 ) -> None:
-    monkeypatch.setattr(Frame, "MAX_LOG_SIZE", 10_000)
+    monkeypatch.setattr(Frame, "MAX_LOG_SIZE", max_log_size)
 
     async def get_token() -> str:
         return URL_TOKEN
@@ -70,6 +72,11 @@ async def test_tokens_are_not_logged(
     assert '"event":"phx_join"' in client_logs
     assert URL_TOKEN not in client_logs
     assert REFRESHED_TOKEN not in client_logs
+    assert {
+        record.filename
+        for record in caplog.records
+        if record.name in {"realtime.client", "websockets.client"}
+    }.isdisjoint({"_redact.py", "__init__.py"})
 
 
 @pytest.mark.parametrize(
@@ -91,6 +98,23 @@ async def test_tokens_are_not_logged(
             '{"payload":{"access_token": "secret"}}',
             '{"payload":{"access_token": "<redacted>"}}',
         ),
+        (
+            "/websocket?APIKey=secret",
+            "/websocket?APIKey=<redacted>",
+        ),
+        (
+            "{'access_token': 'secret'}",
+            "{'access_token': '<redacted>'}",
+        ),
+        (
+            "RealtimeChannelOptionsPayload(access_token='secret')",
+            "RealtimeChannelOptionsPayload(access_token='<redacted>')",
+        ),
+        (
+            '{"event":"access_token","payload":{}}',
+            '{"event":"access_token","payload":{}}',
+        ),
+        ("x_apikey=public", "x_apikey=public"),
         ("no secrets here", "no secrets here"),
     ],
 )

@@ -4,13 +4,13 @@ from dataclasses import replace
 from typing import Any
 
 from typing_extensions import override
-from websockets.frames import Frame, Opcode
+from websockets.frames import Frame
 
 REDACTED = "<redacted>"
 
 _SECRET_PATTERNS = (
-    re.compile(r"(apikey=)[^&\s]*"),
-    re.compile(r'("access_token"\s*:\s*")[^"]*'),
+    re.compile(r"(\bapikey=)[^&\s]*", re.IGNORECASE),
+    re.compile(r"""(\baccess_token\b["']?\s*[:=]\s*["'])[^"']*"""),
 )
 
 
@@ -23,12 +23,15 @@ def redact(text: str) -> str:
 def _redact_argument(argument: object) -> object:
     if isinstance(argument, str):
         return redact(argument)
-    if isinstance(argument, Frame) and argument.opcode is Opcode.TEXT:
+    if isinstance(argument, Frame):
         try:
             text = bytes(argument.data).decode()
         except UnicodeDecodeError:
             return argument
-        return str(replace(argument, data=redact(text).encode()))
+        redacted = redact(text)
+        if redacted == text:
+            return argument
+        return str(replace(argument, data=redacted.encode()))
     return argument
 
 
@@ -43,5 +46,6 @@ class RedactingLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     ) -> None:
         if not self.isEnabledFor(level):
             return
+        kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + 1
         redacted_args = tuple(_redact_argument(argument) for argument in args)
         super().log(level, redact(str(msg)), *redacted_args, **kwargs)
