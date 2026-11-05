@@ -400,7 +400,7 @@ features:
   client.authentication_integration.third_party_auth: not_implemented
   client.authentication_integration.cross_client_token_sync:
     status: partially_implemented
-    note: "On SIGNED_IN, TOKEN_REFRESHED, and SIGNED_OUT events the sync Client updates the Authorization header used by postgrest, storage and functions; it has no realtime client. AsyncClient.auth builds a new auth client on every access, so the listener registered at construction never receives events and neither the other clients nor realtime get the new token."
+    note: "Every auth event that carries a session sets the Authorization header used by auth, postgrest, storage and functions to that session's access token, and an event without a session resets it to the project key. AsyncClient also passes the token to realtime. The sync Client has no realtime client."
   client.authentication_integration.oauth_flow_type:
     status: implemented
     note: "flow_type option on ClientOptions and the auth client constructor."
@@ -1343,7 +1343,6 @@ features:
 supporting_symbols:
   - AsyncClient
   - AsyncClient.create
-  - AsyncClient.auth
   - AsyncClient.postgrest
   - AsyncClient.storage
   - AsyncClient.functions

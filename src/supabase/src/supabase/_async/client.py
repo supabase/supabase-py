@@ -86,6 +86,11 @@ class AsyncClient:
 
         self.auth_access_token = supabase_key
 
+        self.auth = self._init_supabase_auth_client(
+            auth_url=str(self.auth_url),
+            client_options=self.options,
+            http_session=self.http_session,
+        )
         self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     async def __aenter__(self) -> "AsyncClient":
@@ -113,17 +118,10 @@ class AsyncClient:
         if auth_header is None:
             try:
                 session = await client.auth.get_session()
-                session_access_token = (
-                    client._create_auth_header(session.access_token)
-                    if session
-                    else None
-                )
             except Exception:
-                session_access_token = None
-
-            client.options.headers.update(
-                client._get_auth_headers(session_access_token)
-            )
+                session = None
+            if session:
+                client._set_access_token(session.access_token)
 
         return client
 
@@ -205,14 +203,6 @@ class AsyncClient:
         if params is None:
             params = {}
         return self.postgrest.rpc(fn, params, count=count, head=head, get=get)
-
-    @property
-    def auth(self) -> AsyncSupabaseAuthClient:
-        return self._init_supabase_auth_client(
-            auth_url=str(self.auth_url),
-            client_options=self.options,
-            http_session=self.http_session,
-        )
 
     @property
     def postgrest(self) -> AsyncPostgrestClient:
@@ -315,9 +305,9 @@ class AsyncClient:
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Session | None
     ) -> None:
-        access_token = self.supabase_key
-        if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
-            access_token = session.access_token if session else self.supabase_key
+        self._set_access_token(session.access_token if session else self.supabase_key)
+
+    def _set_access_token(self, access_token: str) -> None:
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
         self.auth.default_headers = self.auth.default_headers.override(

@@ -1,8 +1,14 @@
 import os
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from supabase_auth import AsyncMemoryStorage
+import pytest
+from httpx import AsyncClient as AsyncHttpxClient
+from supabase_auth import AsyncMemoryStorage, AsyncSupabaseAuthClient
+from supabase_auth.types import AuthChangeEvent
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
 from supabase import (
+    AsyncClient,
     AsyncClientOptions,
 )
 
@@ -10,6 +16,14 @@ from .conftest import AsyncClientCallable
 
 url = os.environ["SUPABASE_TEST_URL"]
 key = os.environ["SUPABASE_TEST_KEY"]
+
+SESSION_EVENTS: list[AuthChangeEvent] = [
+    "SIGNED_IN",
+    "TOKEN_REFRESHED",
+    "USER_UPDATED",
+    "PASSWORD_RECOVERY",
+    "MFA_CHALLENGE_VERIFIED",
+]
 
 
 async def test_postgrest_client(create_async_client: AsyncClientCallable) -> None:
@@ -51,6 +65,68 @@ async def test_schema_update(create_async_client: AsyncClientCallable) -> None:
     async with create_async_client(url, key) as client:
         assert client.postgrest
         assert client.schema("new_schema")
+
+
+async def test_auth_client_is_built_once(
+    create_async_client: AsyncClientCallable,
+) -> None:
+    async with create_async_client(url, key) as client:
+        assert client.auth is client.auth
+
+
+@pytest.mark.parametrize("event", SESSION_EVENTS)
+async def test_auth_events_with_a_session_use_its_access_token(
+    create_async_client: AsyncClientCallable, event: AuthChangeEvent
+) -> None:
+    async with create_async_client(url, key) as client:
+        session = MagicMock(access_token="secretuserjwt")
+
+        client.auth.session_manager.notify_all_subscribers(event, session)
+
+        authorization = "Bearer secretuserjwt"
+        assert client.options.headers.get("apiKey") == key
+        assert client.options.headers.get("Authorization") == authorization
+        assert client.postgrest.default_headers.get("Authorization") == authorization
+        assert client.storage.default_headers.get("Authorization") == authorization
+        assert client.functions.default_headers.get("Authorization") == authorization
+        assert client.auth.default_headers.get("Authorization") == authorization
+        assert await client.realtime_get_token_callback() == "secretuserjwt"
+
+
+async def test_auth_events_without_a_session_use_the_key(
+    create_async_client: AsyncClientCallable,
+) -> None:
+    async with create_async_client(url, key) as client:
+        client.auth.session_manager.notify_all_subscribers(
+            "SIGNED_IN", MagicMock(access_token="secretuserjwt")
+        )
+
+        client.auth.session_manager.notify_all_subscribers("SIGNED_OUT", None)
+
+        authorization = f"Bearer {key}"
+        assert client.options.headers.get("Authorization") == authorization
+        assert client.postgrest.default_headers.get("Authorization") == authorization
+        assert client.storage.default_headers.get("Authorization") == authorization
+        assert client.functions.default_headers.get("Authorization") == authorization
+        assert client.auth.default_headers.get("Authorization") == authorization
+        assert await client.realtime_get_token_callback() == key
+
+
+async def test_create_uses_the_stored_session_token() -> None:
+    session = MagicMock(access_token="secretuserjwt")
+    async with AsyncHttpxClient() as http_client:
+        with patch.object(
+            AsyncSupabaseAuthClient, "get_session", AsyncMock(return_value=session)
+        ):
+            client = await AsyncClient.create(
+                url, key, AsyncHttpxSession(client=http_client)
+            )
+
+        authorization = "Bearer secretuserjwt"
+        assert client.options.headers.get("Authorization") == authorization
+        assert client.postgrest.default_headers.get("Authorization") == authorization
+        assert client.auth.default_headers.get("Authorization") == authorization
+        assert await client.realtime_get_token_callback() == "secretuserjwt"
 
 
 async def test_supports_setting_a_global_authorization_header(

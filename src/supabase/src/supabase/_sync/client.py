@@ -104,17 +104,10 @@ class Client:
         if auth_header is None:
             try:
                 session = client.auth.get_session()
-                session_access_token = (
-                    client._create_auth_header(session.access_token)
-                    if session
-                    else None
-                )
             except Exception:
-                session_access_token = None
-
-            client.options.headers.update(
-                client._get_auth_headers(session_access_token)
-            )
+                session = None
+            if session:
+                client._set_access_token(session.access_token)
 
         return client
 
@@ -284,13 +277,12 @@ class Client:
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Session | None
     ) -> None:
-        access_token = self.supabase_key
-        if event in ["SIGNED_IN", "TOKEN_REFRESHED", "SIGNED_OUT"]:
-            # reset postgrest and storage instance on event change
-            self._postgrest = None
-            self._storage = None
-            self._functions = None
-            access_token = session.access_token if session else self.supabase_key
+        self._set_access_token(session.access_token if session else self.supabase_key)
+
+    def _set_access_token(self, access_token: str) -> None:
+        self._postgrest = None
+        self._storage = None
+        self._functions = None
         auth_header = self._create_auth_header(access_token)
         self.options.headers["Authorization"] = auth_header
         self.auth.default_headers = self.auth.default_headers.override(
