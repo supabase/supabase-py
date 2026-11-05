@@ -6,6 +6,7 @@ from subscribe_helpers import start_subscribe
 
 from realtime import AsyncRealtimeClient
 from realtime._async.channel import AsyncRealtimeChannel
+from realtime.message import ReplyPostgresChanges
 from realtime.types import ChannelStates, RealtimeAcknowledgementStatus
 
 URL = "ws://localhost/realtime/v1"
@@ -217,4 +218,31 @@ async def test_reconnect_rejoins_once_after_a_failed_reconnect() -> None:
         await socket._reconnect(ConnectionError())
 
     rejoin.assert_awaited_once()
+    await socket.close()
+
+
+@pytest.mark.asyncio
+async def test_push_while_rejoining_is_buffered_until_join_reply() -> None:
+    socket = await connected_socket()
+    channel = await joining_channel(socket)
+    channel.join_push.trigger(
+        RealtimeAcknowledgementStatus.Ok, ReplyPostgresChanges(postgres_changes=[])
+    )
+    channel.on_error({})
+    channel.rejoin_timer.reset()
+    assert socket.is_connected and channel.is_errored
+
+    with patch.object(socket, "send", new=AsyncMock()) as send:
+        await channel.send_broadcast("tick", {"n": 1})
+        send.assert_not_awaited()
+
+        with patch.object(channel.join_push, "start_timeout"):
+            await channel._rejoin()
+        channel.join_push.trigger(
+            RealtimeAcknowledgementStatus.Ok, ReplyPostgresChanges(postgres_changes=[])
+        )
+        await asyncio.sleep(0)
+
+    events = [call.args[0].event for call in send.await_args_list]
+    assert events == ["phx_join", "broadcast"]
     await socket.close()
