@@ -8,8 +8,8 @@ from supabase_auth.types import AuthChangeEvent
 from supabase_utils.http.adapters.httpx import HttpxSession
 
 from supabase import (
+    AuthClientOptions,
     Client,
-    ClientOptions,
 )
 
 from .conftest import SyncClientCallable
@@ -46,8 +46,8 @@ def test_uses_key_as_authorization_header_by_default(
     create_client: SyncClientCallable,
 ) -> None:
     with create_client(url, key) as client:
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == f"Bearer {key}"
+        assert client.headers.get("apiKey") == key
+        assert client.headers.get("Authorization") == f"Bearer {key}"
 
         assert client.postgrest.default_headers.get("apiKey") == key
         assert client.postgrest.default_headers.get("Authorization") == f"Bearer {key}"
@@ -77,8 +77,8 @@ def test_updates_the_authorization_header_on_auth_events(
     create_client: SyncClientCallable,
 ) -> None:
     with create_client(url, key) as client:
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == f"Bearer {key}"
+        assert client.headers.get("apiKey") == key
+        assert client.headers.get("Authorization") == f"Bearer {key}"
 
         access_token = "secretuserjwt"
         mock_session = MagicMock(access_token=access_token)
@@ -87,8 +87,8 @@ def test_updates_the_authorization_header_on_auth_events(
 
         updated_authorization = f"Bearer {access_token}"
 
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == updated_authorization
+        assert client.headers.get("apiKey") == key
+        assert client.headers.get("Authorization") == updated_authorization
 
         assert client.postgrest.default_headers.get("apiKey") == key
         assert (
@@ -121,8 +121,8 @@ def test_auth_events_with_a_session_use_its_access_token(
         assert client.postgrest is postgrest
         assert client.storage is storage
         assert client.functions is functions
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == authorization
+        assert client.headers.get("apiKey") == key
+        assert client.headers.get("Authorization") == authorization
         assert client.postgrest.default_headers.get("Authorization") == authorization
         assert client.storage.default_headers.get("Authorization") == authorization
         assert client.functions.default_headers.get("Authorization") == authorization
@@ -140,7 +140,7 @@ def test_auth_events_without_a_session_use_the_key(
         client.auth.session_manager.notify_all_subscribers("SIGNED_OUT", None)
 
         authorization = f"Bearer {key}"
-        assert client.options.headers.get("Authorization") == authorization
+        assert client.headers.get("Authorization") == authorization
         assert client.postgrest.default_headers.get("Authorization") == authorization
         assert client.storage.default_headers.get("Authorization") == authorization
         assert client.functions.default_headers.get("Authorization") == authorization
@@ -156,7 +156,7 @@ def test_create_uses_the_stored_session_token() -> None:
             client = Client.create(url, key, HttpxSession(client=http_client))
 
         authorization = "Bearer secretuserjwt"
-        assert client.options.headers.get("Authorization") == authorization
+        assert client.headers.get("Authorization") == authorization
         assert client.postgrest.default_headers.get("Authorization") == authorization
         assert client.auth.default_headers.get("Authorization") == authorization
 
@@ -166,11 +166,9 @@ def test_supports_setting_a_global_authorization_header(
 ) -> None:
     authorization = "Bearer secretuserjwt"
 
-    options = ClientOptions(headers={"Authorization": authorization})
-
-    with create_client(url, key, options) as client:
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == authorization
+    with create_client(url, key, headers={"Authorization": authorization}) as client:
+        assert client.headers.get("apiKey") == key
+        assert client.headers.get("Authorization") == authorization
 
         assert client.postgrest.default_headers.get("apiKey") == key
         assert client.postgrest.default_headers.get("Authorization") == authorization
@@ -183,50 +181,40 @@ def test_supports_setting_a_global_authorization_header(
 
 
 def test_mutable_headers_issue(create_client: SyncClientCallable) -> None:
-    shared_options = ClientOptions(
-        storage=SyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
-    )
+    shared_headers = {"Authorization": "Bearer initial-token"}
+    shared_auth = AuthClientOptions(session_storage=SyncMemoryStorage())
 
     with (
-        create_client(url, key, shared_options) as client1,
-        create_client(url, key, shared_options) as client2,
+        create_client(url, key, headers=shared_headers, auth=shared_auth) as client1,
+        create_client(url, key, headers=shared_headers, auth=shared_auth) as client2,
     ):
         client1._set_access_token("modified-token")
-        assert client2.options.headers["Authorization"] == "Bearer initial-token"
-        assert client1.options.headers["Authorization"] == "Bearer modified-token"
-        assert shared_options.headers["Authorization"] == "Bearer initial-token"
+        assert client2.headers["Authorization"] == "Bearer initial-token"
+        assert client1.headers["Authorization"] == "Bearer modified-token"
+        assert shared_headers["Authorization"] == "Bearer initial-token"
 
 
 def test_global_authorization_header_issue(create_client: SyncClientCallable) -> None:
     authorization = "Bearer secretuserjwt"
-    options = ClientOptions(headers={"Authorization": authorization})
-
-    with create_client(url, key, options) as client:
-        assert client.options.headers.get("apiKey") == key
+    with create_client(url, key, headers={"Authorization": authorization}) as client:
+        assert client.headers.get("apiKey") == key
 
 
 def test_custom_headers(create_client: SyncClientCallable) -> None:
-    options = ClientOptions(
-        headers={
-            "x-app-name": "apple",
-            "x-version": "1.0",
-        }
-    )
+    headers = {"x-app-name": "apple", "x-version": "1.0"}
 
-    with create_client(url, key, options) as client:
-        assert client.options.headers.get("x-app-name") == "apple"
-        assert client.options.headers.get("x-version") == "1.0"
+    with create_client(url, key, headers=headers) as client:
+        assert client.headers.get("x-app-name") == "apple"
+        assert client.headers.get("x-version") == "1.0"
 
 
 def test_custom_headers_immutable(create_client: SyncClientCallable) -> None:
     headers = {"x-app-name": "apple", "x-version": "1.0"}
-    options = ClientOptions(headers=headers)
-    headers["x-app-name"] = "grapes"
+    with create_client(url, key, headers=headers) as client:
+        headers["x-app-name"] = "grapes"
 
-    with create_client(url, key, options) as client:
-        assert client.options.headers.get("x-app-name") == "apple"
-        assert client.options.headers.get("x-version") == "1.0"
-        assert options.headers.get("x-app-name") == "apple"
+        assert client.headers.get("x-app-name") == "apple"
+        assert client.headers.get("x-version") == "1.0"
 
 
 def test_httpx_client_base_url_isolation(create_client: SyncClientCallable) -> None:
@@ -236,8 +224,7 @@ def test_httpx_client_base_url_isolation(create_client: SyncClientCallable) -> N
     See: https://github.com/supabase/supabase-py/issues/1244
     """
     # Create client with shared httpx instance
-    options = ClientOptions()
-    with create_client(url, key, options) as client:
+    with create_client(url, key) as client:
         # Access storage and capture its base_url
         storage = client.storage
         storage_base_url = str(storage.base_url).rstrip("/")
