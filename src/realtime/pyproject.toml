@@ -1,6 +1,6 @@
 [project]
 name = "realtime"
-version = "3.0.0-a1" # {x-release-please-version}
+version = "3.0.0-a2" # {x-release-please-version}
 description = "Supabase Realtime client for Python."
 authors = [
     { name = "Joel Lee", email="joel@joellee.org"},
@@ -21,7 +21,7 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-  "supabase_utils==3.0.0-a1", # x-release-please-version
+  "supabase_utils==3.0.0-a2", # x-release-please-version
   "websockets >=14,<18",
   "pydantic (>=2.11.7,<3.0.0)",
   "yarl>=1.22.0",

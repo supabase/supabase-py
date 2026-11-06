@@ -1,5 +1,61 @@
 # Changelog
 
+## [3.0.0-a2](https://github.com/supabase/supabase-py/compare/v3.0.0-a1...v3.0.0-a2) (2026-11-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* add configurable request timeouts for every service ([#2010](https://github.com/supabase/supabase-py/issues/2010))
+* **realtime:** raise send failures instead of writing to a failed connection ([#2007](https://github.com/supabase/supabase-py/issues/2007))
+* **realtime:** honor heartbeat intervals below 15 seconds and accept float durations ([#2006](https://github.com/supabase/supabase-py/issues/2006))
+* raise the minimum python version to 3.12 ([#2002](https://github.com/supabase/supabase-py/issues/2002))
+* **supabase:** freeze the option and parameter dataclasses ([#2000](https://github.com/supabase/supabase-py/issues/2000))
+* **supabase:** share one client implementation between AsyncClient and Client ([#1998](https://github.com/supabase/supabase-py/issues/1998))
+* **storage:** take upsert as a bool in upload and create_signed_upload_url ([#1997](https://github.com/supabase/supabase-py/issues/1997))
+* **storage:** treat object keys as literal strings ([#1987](https://github.com/supabase/supabase-py/issues/1987))
+* spell out abbreviations in public names ([#1981](https://github.com/supabase/supabase-py/issues/1981))
+* **functions,postgrest:** stop importing httpx outside the httpx adapter ([#1977](https://github.com/supabase/supabase-py/issues/1977))
+
+### Features
+
+* add configurable request timeouts for every service ([#2010](https://github.com/supabase/supabase-py/issues/2010)) ([50354b6](https://github.com/supabase/supabase-py/commit/50354b63c65d8e395f7de3c18e61eb90779dad8d))
+
+
+### Bug Fixes
+
+* **auth:** make the sync test generator reproduce the committed sync tests ([#1971](https://github.com/supabase/supabase-py/issues/1971)) ([5523e0b](https://github.com/supabase/supabase-py/commit/5523e0b141bf7f3a207211c7c6e68312aa2ace8b))
+* **auth:** start refresh token retry backoff at 200 milliseconds ([#1978](https://github.com/supabase/supabase-py/issues/1978)) ([394a690](https://github.com/supabase/supabase-py/commit/394a69020f8135746f78931178ba06a258cd715e))
+* **deps:** raise the pyjwt floor to 2.15.1 and install pyiceberg with pyarrow ([#1993](https://github.com/supabase/supabase-py/issues/1993)) ([14e4d9a](https://github.com/supabase/supabase-py/commit/14e4d9a1501e96a95501c207b36bdb0573cd3e63))
+* **functions,postgrest:** stop importing httpx outside the httpx adapter ([#1977](https://github.com/supabase/supabase-py/issues/1977)) ([5331957](https://github.com/supabase/supabase-py/commit/533195702a4e61bca4f19aae9680d7b13d85437d))
+* **realtime:** honor heartbeat intervals below 15 seconds and accept float durations ([#2006](https://github.com/supabase/supabase-py/issues/2006)) ([c66e48e](https://github.com/supabase/supabase-py/commit/c66e48edb6c1d0ff02237472fd5468933755a760))
+* **realtime:** raise send failures instead of writing to a failed connection ([#2007](https://github.com/supabase/supabase-py/issues/2007)) ([7f6add1](https://github.com/supabase/supabase-py/commit/7f6add13ebf4790fe225068986a85a4cf1fc4592))
+* **realtime:** redact API keys and access tokens from debug logs ([#1992](https://github.com/supabase/supabase-py/issues/1992)) ([2b20207](https://github.com/supabase/supabase-py/commit/2b202075f15129283ae69bcfa64b42a2df0d72b7))
+* **storage:** take upsert as a bool in upload and create_signed_upload_url ([#1997](https://github.com/supabase/supabase-py/issues/1997)) ([0331c57](https://github.com/supabase/supabase-py/commit/0331c57eff1569cd0ea69250a3bafc752b6d50e6)), closes [#1996](https://github.com/supabase/supabase-py/issues/1996)
+* **storage:** treat object keys as literal strings ([#1987](https://github.com/supabase/supabase-py/issues/1987)) ([b54cba4](https://github.com/supabase/supabase-py/commit/b54cba4ff061cdcdd0b0d7cb1e38395aac1bf5ce))
+* **supabase:** freeze the option and parameter dataclasses ([#2000](https://github.com/supabase/supabase-py/issues/2000)) ([7bcf067](https://github.com/supabase/supabase-py/commit/7bcf067c8a8d7f5bd65ba141392eb3d140b7314b))
+* **supabase:** keep the session token on every auth event that has one ([#1989](https://github.com/supabase/supabase-py/issues/1989)) ([0c07c58](https://github.com/supabase/supabase-py/commit/0c07c5860180dff7549154a38b899e5c0fc0e337))
+* **supabase:** share one client implementation between AsyncClient and Client ([#1998](https://github.com/supabase/supabase-py/issues/1998)) ([76f31e2](https://github.com/supabase/supabase-py/commit/76f31e2431771024c09ff1b193a1fcedf4590ce9))
+* **supabase:** stop sending new-format api keys as bearer to edge functions ([#2005](https://github.com/supabase/supabase-py/issues/2005)) ([213ae34](https://github.com/supabase/supabase-py/commit/213ae34a1433ab4aa7f7fa7512ebf232c3bdbf90))
+* **utils:** drop credential headers on cross origin redirects ([#1994](https://github.com/supabase/supabase-py/issues/1994)) ([72bf760](https://github.com/supabase/supabase-py/commit/72bf76061090ce3ec539a6ec2f812f13ed7e9643))
+* **utils:** keep name, docstring and signature of handle_http_io methods ([#1976](https://github.com/supabase/supabase-py/issues/1976)) ([68cb2b8](https://github.com/supabase/supabase-py/commit/68cb2b8d423eeea2fe8b731f24de9ce1e2345364))
+* **utils:** keep the request's Authorization header over injected httpx client auth ([#1990](https://github.com/supabase/supabase-py/issues/1990)) ([8b6b049](https://github.com/supabase/supabase-py/commit/8b6b0490b173c687728d89f5388ab76e294f6e25))
+
+
+### Documentation
+
+* clarify contribution policy for v3 and v2 ([#1958](https://github.com/supabase/supabase-py/issues/1958)) ([84b919e](https://github.com/supabase/supabase-py/commit/84b919e4c4e767bad1b3e682aca0b887b9dd2fa8))
+* restore support policy and service compatibility from v2 ([#1964](https://github.com/supabase/supabase-py/issues/1964)) ([05fa93e](https://github.com/supabase/supabase-py/commit/05fa93e44542d77997faeeeface85db617cc3e5f))
+
+
+### Miscellaneous Chores
+
+* raise the minimum python version to 3.12 ([#2002](https://github.com/supabase/supabase-py/issues/2002)) ([1333baa](https://github.com/supabase/supabase-py/commit/1333baae19584b0d85a52a08e8b2c454b749c648))
+
+
+### Code Refactoring
+
+* spell out abbreviations in public names ([#1981](https://github.com/supabase/supabase-py/issues/1981)) ([cdd399f](https://github.com/supabase/supabase-py/commit/cdd399fa4f8381da27e432fbbd59b8123b319a56))
+
 ## [2.31.0](https://github.com/supabase/supabase-py/compare/v2.30.1...v2.31.0) (2026-06-04)
 
 
