@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from unittest.mock import AsyncMock
 
 import pytest
-from websockets.asyncio.server import ServerConnection, serve
+from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
 from realtime.channel import RealtimeChannel, RealtimeChannelOptions
@@ -25,7 +25,8 @@ async def get_token() -> str:
 
 class FakeServer:
     def __init__(self) -> None:
-        self.received: list[Message] = []
+        self.ws_server: Server | None = None
+        self.url = ""
         self.connections: list[ServerConnection] = []
 
     async def __aenter__(self) -> "FakeServer":
@@ -36,6 +37,7 @@ class FakeServer:
         return self
 
     async def __aexit__(self, *exc: object) -> None:
+        assert self.ws_server is not None
         self.ws_server.close()
         await self.ws_server.wait_closed()
 
@@ -43,7 +45,6 @@ class FakeServer:
         self.connections.append(connection)
         async for raw in connection:
             message = Message.model_validate_json(raw)
-            self.received.append(message)
             if message.ref is None:
                 continue
             reply = ReplyMessage(
