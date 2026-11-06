@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, Mock, patch
@@ -8,22 +7,18 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient as HttpxClient
-from supabase_utils.http.io import AsyncHttpIO
 from supabase_utils.http.request import Response
 
-from storage3 import AsyncStorageClient, StorageFileApiClient
-from storage3.exceptions import StorageApiError, StorageException
+from storage3.exceptions import StorageApiError
 from storage3.types import TransformOptions
 
-from ..utils import AsyncFinalizerFactory
-
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import AsyncGenerator, Callable
     from pathlib import Path
 
+    from supabase_utils.http.io import AsyncHttpIO
 
-# Global variable to track the ids from the buckets created in the tests run
-temp_test_buckets_ids: list[str] = []
+    from storage3 import AsyncStorageClient, StorageFileApiClient
 
 
 @pytest.fixture
@@ -36,37 +31,11 @@ def uuid_factory() -> Callable[[], str]:
 
 
 @pytest.fixture
-def delete_left_buckets(
-    request: pytest.FixtureRequest,
-    storage: AsyncStorageClient,
-) -> None:
-    """Ensures no test buckets are left when a test that created a bucket fails"""
-
-    async def afinalizer() -> None:
-        for bucket_id in temp_test_buckets_ids:
-            try:
-                await storage.empty_bucket(bucket_id)
-                await storage.delete_bucket(bucket_id)
-            except StorageException as e:
-                # Ignore 404 responses since they mean the bucket was already deleted
-                response = e.args[0]
-                if response["statusCode"] != 404:
-                    raise e
-                continue
-
-    request.addfinalizer(AsyncFinalizerFactory(afinalizer).finalizer)
-
-
-@pytest.fixture
 async def bucket(
     storage: AsyncStorageClient, uuid_factory: Callable[[], str]
 ) -> AsyncGenerator[str]:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
-
-    # Store bucket_id in global list
-    global temp_test_buckets_ids
-    temp_test_buckets_ids.append(bucket_id)
 
     await storage.create_bucket(id=bucket_id)
 
@@ -74,8 +43,6 @@ async def bucket(
 
     await storage.empty_bucket(bucket_id)
     await storage.delete_bucket(bucket_id)
-
-    temp_test_buckets_ids.remove(bucket_id)
 
 
 @pytest.fixture
@@ -85,10 +52,6 @@ async def public_bucket(
     """Creates a test public bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
 
-    # Store bucket_id in global list
-    global temp_test_buckets_ids
-    temp_test_buckets_ids.append(bucket_id)
-
     await storage.create_bucket(id=bucket_id, public=True)
 
     yield bucket_id
@@ -96,23 +59,21 @@ async def public_bucket(
     await storage.empty_bucket(bucket_id)
     await storage.delete_bucket(bucket_id)
 
-    temp_test_buckets_ids.remove(bucket_id)
-
 
 @pytest.fixture
 def storage_file_client(
     storage: AsyncStorageClient, bucket: str
-) -> Generator[StorageFileApiClient[AsyncHttpIO]]:
+) -> StorageFileApiClient[AsyncHttpIO]:
     """Creates the storage file client for the whole storage tests run"""
-    yield storage.from_(bucket)
+    return storage.from_(bucket)
 
 
 @pytest.fixture
 def storage_file_client_public(
     storage: AsyncStorageClient, public_bucket: str
-) -> Generator[StorageFileApiClient[AsyncHttpIO]]:
+) -> StorageFileApiClient[AsyncHttpIO]:
     """Creates the storage file client for the whole storage tests run"""
-    yield storage.from_(public_bucket)
+    return storage.from_(public_bucket)
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 import pytest
 from aiohttp import ClientSession
@@ -11,6 +11,9 @@ from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
 from storage3 import AsyncStorageClient
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 
 def pytest_configure(config: pytest.Config) -> None:

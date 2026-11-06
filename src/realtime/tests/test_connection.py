@@ -63,18 +63,17 @@ async def access_token() -> str:
         "password": os.getenv("SUPABASE_TEST_PASSWORD") or "test.123",
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=data) as response:
-            if response.status == 200:
-                response_content = await response.read()
-                signup_response = SignupMessageResponse.model_validate_json(
-                    response_content
-                )
-                return signup_response.access_token
-            else:
-                raise Exception(
-                    f"Failed to get access token. Status: {response.status}"
-                )
+    async with (
+        aiohttp.ClientSession() as session,
+        session.post(url, headers=headers, json=data) as response,
+    ):
+        if response.status == 200:
+            response_content = await response.read()
+            signup_response = SignupMessageResponse.model_validate_json(
+                response_content
+            )
+            return signup_response.access_token
+        raise Exception(f"Failed to get access token. Status: {response.status}")
 
 
 async def realtime_send(
@@ -98,9 +97,11 @@ async def realtime_send(
         "private": True,
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=data) as response:
-            response.raise_for_status()
+    async with (
+        aiohttp.ClientSession() as session,
+        session.post(url, headers=headers, json=data) as response,
+    ):
+        response.raise_for_status()
 
 
 @pytest.mark.asyncio
@@ -244,16 +245,17 @@ async def create_todo(access_token: str, todo: dict[str, object]) -> str:
         "Prefer": "return=representation",
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=todo) as response:
-            if response.status == 201:
-                response_content = await response.read()
-                create_todo_response = CreateTodoResponse.model_validate_json(
-                    response_content
-                )
-                return create_todo_response.id
-            else:
-                raise Exception(f"Failed to create todo. Status: {response.status}")
+    async with (
+        aiohttp.ClientSession() as session,
+        session.post(url, headers=headers, json=todo) as response,
+    ):
+        if response.status == 201:
+            response_content = await response.read()
+            create_todo_response = CreateTodoResponse.model_validate_json(
+                response_content
+            )
+            return create_todo_response.id
+        raise Exception(f"Failed to create todo. Status: {response.status}")
 
 
 async def update_todo(access_token: str, id: str, todo: dict[str, object]) -> None:
@@ -264,10 +266,12 @@ async def update_todo(access_token: str, id: str, todo: dict[str, object]) -> No
         "Content-Type": "application/json",
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.patch(url, headers=headers, json=todo) as response:
-            if response.status != 204:
-                raise Exception(f"Failed to update todo. Status: {response.status}")
+    async with (
+        aiohttp.ClientSession() as session,
+        session.patch(url, headers=headers, json=todo) as response,
+    ):
+        if response.status != 204:
+            raise Exception(f"Failed to update todo. Status: {response.status}")
 
 
 class CreateMsgResponse(BaseModel):
@@ -284,16 +288,17 @@ async def create_message(access_token: str, message: dict[str, object]) -> int:
         "Prefer": "return=representation",
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=message) as response:
-            if response.status == 201:
-                response_content = await response.read()
-                create_msg_response = CreateMsgResponse.model_validate_json(
-                    response_content
-                )
-                return create_msg_response.id
-            else:
-                raise Exception(f"Failed to create message. Status: {response.status}")
+    async with (
+        aiohttp.ClientSession() as session,
+        session.post(url, headers=headers, json=message) as response,
+    ):
+        if response.status == 201:
+            response_content = await response.read()
+            create_msg_response = CreateMsgResponse.model_validate_json(
+                response_content
+            )
+            return create_msg_response.id
+        raise Exception(f"Failed to create message. Status: {response.status}")
 
 
 async def delete_todo(access_token: str, id: str) -> None:
@@ -304,10 +309,12 @@ async def delete_todo(access_token: str, id: str) -> None:
         "Content-Type": "application/json",
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.delete(url, headers=headers) as response:
-            if response.status != 204:
-                raise Exception(f"Failed to delete todo. Status: {response.status}")
+    async with (
+        aiohttp.ClientSession() as session,
+        session.delete(url, headers=headers) as response,
+    ):
+        if response.status != 204:
+            raise Exception(f"Failed to delete todo. Status: {response.status}")
 
 
 @pytest.mark.asyncio
@@ -498,12 +505,12 @@ async def test_channel_warns_when_options_for_existing_topic_differ() -> None:
     client, _ = fake_client()
     client.channel("room")
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match="already exists"):
         client.channel("room", RealtimeChannelOptions().private(True))
 
 
 async def test_remove_channel_ignores_a_replaced_channel() -> None:
-    client, sent = fake_client()
+    client, _sent = fake_client()
 
     first = client.channel("room")
     await first.subscribe()

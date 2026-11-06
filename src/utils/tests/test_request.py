@@ -43,7 +43,7 @@ def make_response(status: int) -> Response:
 
 
 @pytest.mark.parametrize(
-    "status,is_success,is_error",
+    ("status", "is_success", "is_error"),
     [
         (199, False, False),
         (200, True, False),

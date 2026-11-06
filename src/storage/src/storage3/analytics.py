@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import builtins
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -28,6 +27,8 @@ from .types import (
 )
 
 if TYPE_CHECKING:
+    import builtins
+
     from pyiceberg.catalog.rest import RestCatalog
 
 
@@ -56,13 +57,13 @@ class StorageAnalyticsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         sort_order: SortOrder | None = None,
         search: str | None = None,
     ) -> HttpMethod[builtins.list[AnalyticsBucket]]:
-        params = dict(
-            limit=limit,
-            offset=offset,
-            sortColumn=sort_column,
-            sortOrder=sort_order,
-            search=search,
-        )
+        params = {
+            "limit": limit,
+            "offset": offset,
+            "sortColumn": sort_column,
+            "sortOrder": sort_order,
+            "search": search,
+        }
         filtered_params = URLQuery.from_mapping(
             {k: v for k, v in params.items() if v is not None}
         )

@@ -86,7 +86,7 @@ class SystemMessage(BaseModel):
     event: Literal[ChannelEvents.system]
     topic: str
     payload: SuccessSystemPayload | ErrorSystemPayload
-    ref: Literal[None]
+    ref: None
 
 
 class HeartbeatPayload(BaseModel):
@@ -108,7 +108,7 @@ class AccessTokenMessage(BaseModel):
     event: Literal[ChannelEvents.access_token]
     topic: str
     payload: AccessTokenPayload
-    ref: Literal[None]
+    ref: None
 
 
 class PostgresChangesMessage(BaseModel):
@@ -117,7 +117,7 @@ class PostgresChangesMessage(BaseModel):
     event: Literal[ChannelEvents.postgres_changes]
     topic: str
     payload: PostgresChangesPayload
-    ref: Literal[None]
+    ref: None
 
 
 class BroadcastMessage(BaseModel):
@@ -126,14 +126,14 @@ class BroadcastMessage(BaseModel):
     event: Literal[ChannelEvents.broadcast]
     topic: str
     payload: BroadcastPayload
-    ref: Literal[None]
+    ref: None
 
 
 class PresenceMessage(BaseModel):
     event: Literal[ChannelEvents.presence]
     topic: str
     payload: dict[str, JSON]
-    ref: Literal[None]
+    ref: None
 
 
 class PresenceStateMessage(BaseModel):
@@ -142,7 +142,7 @@ class PresenceStateMessage(BaseModel):
     event: Literal[ChannelEvents.presence_state]
     topic: str
     payload: RawPresenceState
-    ref: Literal[None]
+    ref: None
 
 
 class PresenceDiffMessage(BaseModel):
@@ -151,7 +151,7 @@ class PresenceDiffMessage(BaseModel):
     event: Literal[ChannelEvents.presence_diff]
     topic: str
     payload: RawPresenceDiff
-    ref: Literal[None]
+    ref: None
 
 
 class ChannelErrorMessage(BaseModel):

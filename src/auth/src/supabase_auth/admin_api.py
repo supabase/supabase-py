@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import TracebackType
+from typing import TYPE_CHECKING, Self
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -14,7 +14,6 @@ from supabase_utils.http.io import (
 )
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest
-from supabase_utils.types import JSON
 from yarl import URL
 
 from .helpers import (
@@ -43,6 +42,11 @@ from .types import (
     UserResponse,
 )
 from .version import __version__
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from supabase_utils.types import JSON
 
 
 @dataclass
@@ -406,7 +410,7 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
             else Headers.empty(),
         )
 
-    def __enter__(self) -> SyncSupabaseAuthAdmin:
+    def __enter__(self) -> Self:
         self.executor.session.__enter__()
         return self
 
@@ -435,7 +439,7 @@ class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
             else Headers.empty(),
         )
 
-    async def __aenter__(self) -> AsyncSupabaseAuthAdmin:
+    async def __aenter__(self) -> Self:
         await self.executor.session.__aenter__()
         return self
 

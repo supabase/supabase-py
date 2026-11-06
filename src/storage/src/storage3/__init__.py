@@ -11,12 +11,12 @@ from storage3.file_api import StorageFileApiClient
 from storage3.version import __version__
 
 __all__ = [
-    "__version__",
     "AsyncStorageClient",
-    "SyncStorageClient",
-    "StorageFileApiClient",
     "StorageApiError",
     "StorageApiErrorMessage",
     "StorageException",
+    "StorageFileApiClient",
+    "SyncStorageClient",
     "VectorBucketException",
+    "__version__",
 ]

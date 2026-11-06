@@ -1,4 +1,5 @@
 import time
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import pytest
@@ -6,7 +7,6 @@ from httpx import AsyncClient, MockTransport, Request, Response
 from jwt import encode
 from pytest_mock import MockerFixture
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
-from supabase_utils.types import JSON
 
 from supabase_auth import AsyncSupabaseAuthClient
 from supabase_auth.constants import EXPIRY_MARGIN
@@ -30,6 +30,9 @@ from .conftest import (
     mock_access_token,
     mock_user_credentials,
 )
+
+if TYPE_CHECKING:
+    from supabase_utils.types import JSON
 
 
 async def test_get_claims_returns_none_when_session_is_none(

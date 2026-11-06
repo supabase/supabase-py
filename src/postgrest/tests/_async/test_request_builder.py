@@ -142,9 +142,11 @@ class TestInsert:
             {"key1": "val1", "key2": "val2"},
             {"key3": "val3"},
         ]
-        assert set(builder.request.query["columns"].split(",")) == set(
-            '"key1","key2","key3"'.split(",")
-        )
+        assert set(builder.request.query["columns"].split(",")) == {
+            '"key1"',
+            '"key2"',
+            '"key3"',
+        }
 
     def test_upsert(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
         builder = request_builder.upsert({"key1": "val1"})
@@ -222,9 +224,11 @@ class TestInsert:
             {"key1": "val1", "key2": "val2"},
             {"key3": "val3"},
         ]
-        assert set(builder.request.query["columns"].split(",")) == set(
-            '"key1","key2","key3"'.split(",")
-        )
+        assert set(builder.request.query["columns"].split(",")) == {
+            '"key1"',
+            '"key2"',
+            '"key3"',
+        }
 
 
 class TestUpdate:
@@ -362,7 +366,7 @@ class TestTextSearch:
         assert builder.request.query["select"] == "id"
 
     @pytest.mark.parametrize(
-        "mode,operator",
+        ("mode", "operator"),
         [
             (None, "fts"),
             ("plain", "plfts"),

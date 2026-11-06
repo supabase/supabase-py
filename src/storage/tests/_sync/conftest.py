@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Generator
+from typing import TYPE_CHECKING
 
 import pytest
 from dotenv import load_dotenv
@@ -9,6 +9,9 @@ from httpx import Client
 from supabase_utils.http.adapters.httpx import HttpxSession
 
 from storage3 import SyncStorageClient
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 def pytest_configure(config: pytest.Config) -> None:

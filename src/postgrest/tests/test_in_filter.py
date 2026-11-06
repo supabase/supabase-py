@@ -7,7 +7,7 @@ from postgrest import AsyncPostgrestClient, SyncPostgrestClient
 
 @pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
 @pytest.mark.parametrize(
-    "values, expected",
+    ("values", "expected"),
     [
         (
             ['ACME, "Pro"', r"C:\Reports,2026"],

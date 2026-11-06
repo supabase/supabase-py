@@ -6,7 +6,7 @@ from postgrest import SyncPostgrestClient
 
 
 @pytest.mark.parametrize(
-    "single, expected",
+    ("single", "expected"),
     [
         (False, "application/vnd.pgrst.array+json;nulls=stripped"),
         (True, "application/vnd.pgrst.object+json;nulls=stripped"),
@@ -35,7 +35,7 @@ def test_strip_nulls_rejects_csv() -> None:
         )
         query = client.from_("users").select("*")
         query.request.headers = query.request.headers.set("Accept", "text/csv")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="cannot be used with Accept: text/csv"):
             query.strip_nulls()
 
 
@@ -45,5 +45,5 @@ def test_strip_nulls_rejects_csv_set_after_strip_nulls() -> None:
             "https://example.com", http_session=HttpxSession(client=http)
         )
         query = client.from_("users").select("*").strip_nulls().csv()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="cannot be used with Accept: text/csv"):
             query.execute()

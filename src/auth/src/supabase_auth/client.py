@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from types import TracebackType
-from typing import Any, Literal, override
+from typing import TYPE_CHECKING, Any, Literal, Self, override
 from uuid import uuid4
 
 from jwt import get_algorithm_by_name
@@ -20,7 +18,6 @@ from supabase_utils.http.io import (
 )
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest, Response
-from supabase_utils.types import JSON
 from yarl import URL
 
 from .errors import (
@@ -83,6 +80,12 @@ from .types import (
     VerifyTokenHashParams,
 )
 from .version import __version__
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+    from types import TracebackType
+
+    from supabase_utils.types import JSON
 
 
 def _is_implicit_grant_flow(url: URL) -> bool:
@@ -416,7 +419,7 @@ class SupabaseAuthHttpClient[
                 has_expired = exp <= time_now
         if has_expired:
             if not refresh_token:
-                raise AuthSessionMissingError()
+                raise AuthSessionMissingError
             response = yield from self.session_manager._refresh_access_token(
                 refresh_token
             )
@@ -426,7 +429,7 @@ class SupabaseAuthHttpClient[
         else:
             user_response = yield from self.session_manager._get_user(access_token)
             if user_response is None:
-                raise UserDoesNotExistError()
+                raise UserDoesNotExistError
             session = Session(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -522,7 +525,7 @@ class SupabaseAuthHttpClient[
         expires_at = time_now + int(expires_in)
         user = yield from self.session_manager._get_user(access_token)
         if user is None:
-            raise UserDoesNotExistError()
+            raise UserDoesNotExistError
         session = Session(
             provider_token=provider_token,
             provider_refresh_token=provider_refresh_token,
@@ -682,7 +685,7 @@ class AsyncSupabaseAuthClient(
             session_manager=self.session_manager,
         )
 
-    async def __aenter__(self) -> AsyncSupabaseAuthClient:
+    async def __aenter__(self) -> Self:
         await self.executor.session.__aenter__()
         await self.session_manager.__aenter__()
         return self
@@ -875,7 +878,7 @@ class AsyncSupabaseAuthClient(
     async def get_user_identities(self) -> IdentitiesResponse:
         response = await self.get_user()
         if not response:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         return IdentitiesResponse(identities=response.user.identities or [])
 
     async def unlink_identity(self, identity: UserIdentity) -> Response:
@@ -1023,7 +1026,7 @@ class AsyncSupabaseAuthClient(
             if session:
                 refresh_token = session.refresh_token
         if not refresh_token:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         session = await self.session_manager.call_refresh_token(refresh_token)
         return AuthResponse(session=session, user=session.user)
 
@@ -1122,7 +1125,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             session_manager=self.session_manager,
         )
 
-    def __enter__(self) -> SyncSupabaseAuthClient:
+    def __enter__(self) -> Self:
         self.executor.session.__enter__()
         self.session_manager.__enter__()
         return self
@@ -1307,7 +1310,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
     def get_user_identities(self) -> IdentitiesResponse:
         response = self.get_user()
         if not response:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         return IdentitiesResponse(identities=response.user.identities or [])
 
     def unlink_identity(self, identity: UserIdentity) -> Response:
@@ -1449,7 +1452,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             if session:
                 refresh_token = session.refresh_token
         if not refresh_token:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         session = self.session_manager.call_refresh_token(refresh_token)
         return AuthResponse(session=session, user=session.user)
 

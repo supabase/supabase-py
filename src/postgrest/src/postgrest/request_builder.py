@@ -49,8 +49,7 @@ class QueryArgs(NamedTuple):
 
 def _unique_columns(json: list[JSON]) -> str:
     unique_keys = {key for row in json if isinstance(row, Mapping) for key in row}
-    columns = ",".join([f'"{k}"' for k in unique_keys])
-    return columns
+    return ",".join([f'"{k}"' for k in unique_keys])
 
 
 def _serialize_filter_value(value: Any) -> str:
@@ -628,7 +627,7 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         Returns:
             :class:`BaseSelectRequestBuilder`
         """
-        method, params, headers, json = pre_select(*columns, count=None)
+        _method, params, _headers, _json = pre_select(*columns, count=None)
         self.request.query = self.request.query.merge(params)
         self.request.headers = self.request.headers.set(
             "Prefer", "return=representation"
@@ -719,8 +718,8 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
             raise _api_error(r)
         try:
             return APIResponse.from_http_request_response(r)
-        except ValidationError:
-            raise APIError(generate_default_error_message(r))
+        except ValidationError as e:
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
@@ -787,8 +786,8 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         if response.is_success:
             try:
                 parsed = APIResponse.from_http_request_response(response)
-            except ValidationError:
-                raise APIError(generate_default_error_message(response))
+            except ValidationError as e:
+                raise APIError(generate_default_error_message(response)) from e
             if len(parsed.data) == 0:
                 return None
             if len(parsed.data) == 1:
@@ -858,8 +857,8 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             raise _api_error(r)
         try:
             return APIResponse.from_http_request_response(r)
-        except ValidationError:
-            raise APIError(generate_default_error_message(r))
+        except ValidationError as e:
+            raise APIError(generate_default_error_message(r)) from e
 
 
 class RPCCountRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
@@ -915,8 +914,10 @@ class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         )
 
     def text_search(
-        self: Self, column: str, query: str, options: dict[str, Any] = {}
+        self: Self, column: str, query: str, options: dict[str, Any] | None = None
     ) -> Self:
+        if options is None:
+            options = {}
         type_ = options.get("type")
         type_part = ""
         if type_ == "plain":
@@ -992,13 +993,12 @@ class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
                 default_headers=self.default_headers,
                 request=self.request,
             )
-        else:
-            return QueryRequestBuilder(
-                executor=self.executor,
-                base_url=self.base_url,
-                default_headers=self.default_headers,
-                request=self.request,
-            )
+        return QueryRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=self.request,
+        )
 
 
 class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #

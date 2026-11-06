@@ -1,11 +1,14 @@
 import json
+from typing import TYPE_CHECKING
 
 from httpx import Request, Response
-from supabase_utils.types import JSON
 
 from storage3.types import VectorData, VectorObject
 
 from .utils import call_with_client, use_async
+
+if TYPE_CHECKING:
+    from supabase_utils.types import JSON
 
 
 @use_async

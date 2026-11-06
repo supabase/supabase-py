@@ -10,11 +10,11 @@ import uuid
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from supabase_utils.http.query import URLQuery
-from supabase_utils.http.request import Response
 
 from .constants import (
     API_VERSION_HEADER_NAME,
@@ -44,6 +44,9 @@ from .types import (
     User,
     UserResponse,
 )
+
+if TYPE_CHECKING:
+    from supabase_utils.http.request import Response
 
 
 def parse_auth_response(response: Response) -> AuthResponse:
@@ -77,8 +80,7 @@ def parse_user_response(response: Response) -> UserResponse:
     if response.is_success:
         parsed = UserParser.validate_json(response.content)
         return UserResponse(user=parsed) if isinstance(parsed, User) else parsed
-    else:
-        raise _handle_error_response(response)
+    raise _handle_error_response(response)
 
 
 def parse_sso_response(response: Response) -> SSOResponse:
@@ -99,15 +101,13 @@ def parse_jwks(response: Response) -> JWKSet:
 def _validate_model[Model: BaseModel](response: Response, model: type[Model]) -> Model:
     if response.is_success:
         return model.model_validate_json(response.content)
-    else:
-        raise _handle_error_response(response)
+    raise _handle_error_response(response)
 
 
 def _validate_adapter[Inner](response: Response, adapter: TypeAdapter[Inner]) -> Inner:
     if response.is_success:
         return adapter.validate_json(response.content)
-    else:
-        raise _handle_error_response(response)
+    raise _handle_error_response(response)
 
 
 def _handle_error_response(response: Response) -> AuthError:
@@ -146,7 +146,7 @@ def _handle_error_response(response: Response) -> AuthError:
             status=response.status,
             reasons=raw_error.weak_password.reasons,
         )
-    elif error_code == "weak_password":
+    if error_code == "weak_password":
         return AuthWeakPasswordError(
             raw_error.get_error_message(),
             status=response.status,
@@ -237,8 +237,7 @@ def parse_response_api_version(response: Response) -> datetime | None:
         return None
 
     try:
-        dt = datetime.strptime(api_version, "%Y-%m-%d")
-        return dt
+        return datetime.strptime(api_version, "%Y-%m-%d")
     except Exception:
         return None
 

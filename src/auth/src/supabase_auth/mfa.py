@@ -329,7 +329,7 @@ class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
         """
         session = self.session_manager.get_session()
         if not session:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         return self._unenroll(session, factor_id)
 
     def list_factors(self) -> AuthMFAListFactorsResponse:

@@ -21,10 +21,7 @@ def httpx_client() -> AsyncClient:
         ),
     )
     headers = {"x-user-agent": "my-app/0.0.1"}
-    http_client = AsyncClient(
-        transport=transport, headers=headers, http2=True, verify=True
-    )
-    return http_client
+    return AsyncClient(transport=transport, headers=headers, http2=True, verify=True)
 
 
 def httpx() -> AsyncHttpxSession:

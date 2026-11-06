@@ -1,21 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
 from functools import cached_property
-from types import TracebackType
-from typing import Any, Literal, overload, override
+from typing import TYPE_CHECKING, Any, Literal, Self, overload, override
 
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
-from postgrest.client import PostgrestClient
-from postgrest.request_builder import (
-    RequestBuilder,
-    RPCCountRequestBuilder,
-    RPCFilterRequestBuilder,
-)
-from postgrest.types import CountMethod
 from realtime import AuthorizationError, NotConnectedError, connect_once
 from storage3 import (
     AsyncStorageClient,
@@ -24,7 +15,6 @@ from storage3 import (
     SyncStorageClient,
     VectorBucketException,
 )
-from storage3.client import StorageClient
 from supabase_auth import (
     AsyncSupabaseAuthClient,
     AuthApiError,
@@ -40,8 +30,6 @@ from supabase_auth import (
     SyncSupabaseAuthClient,
     UserDoesNotExistError,
 )
-from supabase_auth.client import SupabaseAuthHttpClient
-from supabase_auth.types import AuthChangeEvent, Session
 from supabase_functions import (
     AsyncFunctionsClient,
     FunctionsError,
@@ -49,32 +37,37 @@ from supabase_functions import (
     FunctionsRelayError,
     SyncFunctionsClient,
 )
-from supabase_functions.client import FunctionsClient
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
     HttpSession,
     SyncHttpIO,
 )
-from supabase_utils.types import JSON
 from yarl import URL
 
 from .lib.client_options import AsyncClientOptions, ClientOptions
 from .version import __version__
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from types import TracebackType
+
+    from postgrest.client import PostgrestClient
+    from postgrest.request_builder import (
+        RequestBuilder,
+        RPCCountRequestBuilder,
+        RPCFilterRequestBuilder,
+    )
+    from postgrest.types import CountMethod
+    from storage3.client import StorageClient
+    from supabase_auth.client import SupabaseAuthHttpClient
+    from supabase_auth.types import AuthChangeEvent, Session
+    from supabase_functions.client import FunctionsClient
+    from supabase_utils.types import JSON
+
 __all__ = [
     "AsyncClient",
     "AsyncClientOptions",
-    "Client",
-    "ClientOptions",
-    "SupabaseClient",
-    "SupabaseException",
-    "PostgrestAPIError",
-    "PostgrestAPIResponse",
-    "StorageApiError",
-    "StorageException",
-    "VectorBucketException",
-    "__version__",
     "AuthApiError",
     "AuthError",
     "AuthImplicitGrantRedirectError",
@@ -82,15 +75,25 @@ __all__ = [
     "AuthInvalidJwtError",
     "AuthRetryableError",
     "AuthSessionMissingError",
-    "AuthWeakPasswordError",
     "AuthUnknownError",
+    "AuthWeakPasswordError",
+    "AuthorizationError",
+    "Client",
+    "ClientOptions",
     "CustomAuthError",
-    "UserDoesNotExistError",
+    "FunctionsError",
     "FunctionsHttpError",
     "FunctionsRelayError",
-    "FunctionsError",
-    "AuthorizationError",
     "NotConnectedError",
+    "PostgrestAPIError",
+    "PostgrestAPIResponse",
+    "StorageApiError",
+    "StorageException",
+    "SupabaseClient",
+    "SupabaseException",
+    "UserDoesNotExistError",
+    "VectorBucketException",
+    "__version__",
 ]
 
 
@@ -360,7 +363,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
 
         return client
 
-    async def __aenter__(self) -> AsyncClient:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(
@@ -468,7 +471,7 @@ class Client(SupabaseClient[SyncHttpIO, ClientOptions]):
 
         return client
 
-    def __enter__(self) -> Client:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

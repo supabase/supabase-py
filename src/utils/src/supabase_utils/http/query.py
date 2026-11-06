@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 from pyrsistent import PMap, PVector
 from pyrsistent import m as Map
 from pyrsistent import v as Vec
-from yarl import Query
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from yarl import Query
 
 QueryValue = str | int | float | bool
 

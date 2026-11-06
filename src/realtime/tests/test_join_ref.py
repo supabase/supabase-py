@@ -83,26 +83,28 @@ async def server() -> AsyncIterator[RecordingServer]:
 async def test_join_carries_join_ref_equal_to_its_own_ref(
     server: RecordingServer,
 ) -> None:
-    async with connect_once(server.url, get_token) as client:
-        async with client.channel("test-join-ref") as channel:
-            [join_message] = server.events("phx_join")
-            assert join_message.join_ref == join_message.ref
-            assert join_message.join_ref == channel.join_ref
+    async with (
+        connect_once(server.url, get_token) as client,
+        client.channel("test-join-ref") as channel,
+    ):
+        [join_message] = server.events("phx_join")
+        assert join_message.join_ref == join_message.ref
+        assert join_message.join_ref == channel.join_ref
 
 
 @pytest.mark.asyncio
 async def test_broadcast_push_carries_channel_join_ref(server: RecordingServer) -> None:
     options = RealtimeChannelOptions().broadcast(ack=True)
-    async with connect_once(server.url, get_token) as client:
-        async with client.channel(
-            "test-join-ref-broadcast", options=options
-        ) as channel:
-            await channel.send_broadcast("cursor", {"x": 1})
+    async with (
+        connect_once(server.url, get_token) as client,
+        client.channel("test-join-ref-broadcast", options=options) as channel,
+    ):
+        await channel.send_broadcast("cursor", {"x": 1})
 
-            [join_message] = server.events("phx_join")
-            [broadcast_message] = server.events("broadcast")
-            assert broadcast_message.join_ref == join_message.ref
-            assert broadcast_message.join_ref is not None
+        [join_message] = server.events("phx_join")
+        [broadcast_message] = server.events("broadcast")
+        assert broadcast_message.join_ref == join_message.ref
+        assert broadcast_message.join_ref is not None
 
 
 @pytest.mark.asyncio
@@ -110,18 +112,20 @@ async def test_presence_track_and_untrack_carry_channel_join_ref(
     server: RecordingServer,
 ) -> None:
     options = RealtimeChannelOptions().presence(enabled=True)
-    async with connect_once(server.url, get_token) as client:
-        async with client.channel("test-join-ref-presence", options=options) as channel:
-            await channel.track({"id": 123})
-            await channel.untrack()
+    async with (
+        connect_once(server.url, get_token) as client,
+        client.channel("test-join-ref-presence", options=options) as channel,
+    ):
+        await channel.track({"id": 123})
+        await channel.untrack()
 
-            [join_message] = server.events("phx_join")
-            track_message, untrack_message = server.events("presence")
-            assert track_message.payload["event"] == "track"
-            assert track_message.join_ref == join_message.ref
+        [join_message] = server.events("phx_join")
+        track_message, untrack_message = server.events("presence")
+        assert track_message.payload["event"] == "track"
+        assert track_message.join_ref == join_message.ref
 
-            assert untrack_message.payload["event"] == "untrack"
-            assert untrack_message.join_ref == join_message.ref
+        assert untrack_message.payload["event"] == "untrack"
+        assert untrack_message.join_ref == join_message.ref
 
 
 @pytest.mark.asyncio

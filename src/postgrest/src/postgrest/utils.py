@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from yarl import URL
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from yarl import URL
 
 
 def sanitize_param(param: Any) -> str:

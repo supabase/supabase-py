@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 from collections.abc import AsyncIterator
 
 import pytest
@@ -69,7 +70,7 @@ async def test_heartbeat_interval_below_fifteen_seconds_is_honored(
         await asyncio.wait_for(server.received_expected.wait(), timeout=5)
 
     times = server.heartbeat_times
-    gaps = [later - earlier for earlier, later in zip(times, times[1:])]
+    gaps = [later - earlier for earlier, later in itertools.pairwise(times)]
     assert len(times) >= 3
     assert all(gap >= interval * 0.8 for gap in gaps)
 

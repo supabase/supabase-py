@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
@@ -9,21 +8,17 @@ from uuid import uuid4
 import pytest
 from httpx import Client as HttpxClient
 from httpx import Response
-from supabase_utils.http.io import SyncHttpIO
 
-from storage3 import StorageFileApiClient, SyncStorageClient
-from storage3.exceptions import StorageApiError, StorageException
+from storage3.exceptions import StorageApiError
 from storage3.types import TransformOptions
 
-from ..utils import SyncFinalizerFactory
-
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
     from pathlib import Path
 
+    from supabase_utils.http.io import SyncHttpIO
 
-# Global variable to track the ids from the buckets created in the tests run
-temp_test_buckets_ids: list[str] = []
+    from storage3 import StorageFileApiClient, SyncStorageClient
 
 
 @pytest.fixture
@@ -36,37 +31,11 @@ def uuid_factory() -> Callable[[], str]:
 
 
 @pytest.fixture
-def delete_left_buckets(
-    request: pytest.FixtureRequest,
-    storage: SyncStorageClient,
-) -> None:
-    """Ensures no test buckets are left when a test that created a bucket fails"""
-
-    def afinalizer() -> None:
-        for bucket_id in temp_test_buckets_ids:
-            try:
-                storage.empty_bucket(bucket_id)
-                storage.delete_bucket(bucket_id)
-            except StorageException as e:
-                # Ignore 404 responses since they mean the bucket was already deleted
-                response = e.args[0]
-                if response["statusCode"] != 404:
-                    raise e
-                continue
-
-    request.addfinalizer(SyncFinalizerFactory(afinalizer).finalizer)
-
-
-@pytest.fixture
 def bucket(
     storage: SyncStorageClient, uuid_factory: Callable[[], str]
 ) -> Generator[str]:
     """Creates a test bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
-
-    # Store bucket_id in global list
-    global temp_test_buckets_ids
-    temp_test_buckets_ids.append(bucket_id)
 
     storage.create_bucket(id=bucket_id)
 
@@ -74,8 +43,6 @@ def bucket(
 
     storage.empty_bucket(bucket_id)
     storage.delete_bucket(bucket_id)
-
-    temp_test_buckets_ids.remove(bucket_id)
 
 
 @pytest.fixture
@@ -85,10 +52,6 @@ def public_bucket(
     """Creates a test public bucket which will be used in the whole storage tests run and deleted at the end"""
     bucket_id = uuid_factory()
 
-    # Store bucket_id in global list
-    global temp_test_buckets_ids
-    temp_test_buckets_ids.append(bucket_id)
-
     storage.create_bucket(id=bucket_id, public=True)
 
     yield bucket_id
@@ -96,23 +59,21 @@ def public_bucket(
     storage.empty_bucket(bucket_id)
     storage.delete_bucket(bucket_id)
 
-    temp_test_buckets_ids.remove(bucket_id)
-
 
 @pytest.fixture
 def storage_file_client(
     storage: SyncStorageClient, bucket: str
-) -> Generator[StorageFileApiClient[SyncHttpIO]]:
+) -> StorageFileApiClient[SyncHttpIO]:
     """Creates the storage file client for the whole storage tests run"""
-    yield storage.from_(bucket)
+    return storage.from_(bucket)
 
 
 @pytest.fixture
 def storage_file_client_public(
     storage: SyncStorageClient, public_bucket: str
-) -> Generator[StorageFileApiClient[SyncHttpIO]]:
+) -> StorageFileApiClient[SyncHttpIO]:
     """Creates the storage file client for the whole storage tests run"""
-    yield storage.from_(public_bucket)
+    return storage.from_(public_bucket)
 
 
 @dataclass

@@ -10,7 +10,7 @@ AUTH_CASES = [
 ]
 
 
-@pytest.mark.parametrize("token, expected_authorization", AUTH_CASES)
+@pytest.mark.parametrize(("token", "expected_authorization"), AUTH_CASES)
 def test_sync_injected_client_auth(
     token: str | None, expected_authorization: str
 ) -> None:
@@ -36,7 +36,7 @@ def test_sync_injected_client_auth(
     assert requests[0].headers.get_list("Authorization") == [expected_authorization]
 
 
-@pytest.mark.parametrize("token, expected_authorization", AUTH_CASES)
+@pytest.mark.parametrize(("token", "expected_authorization"), AUTH_CASES)
 async def test_async_injected_client_auth(
     token: str | None, expected_authorization: str
 ) -> None:

@@ -11,13 +11,13 @@ from .utils import FunctionRegion
 from .version import __version__
 
 __all__ = [
-    "__version__",
-    "create_client",
-    "FunctionRegion",
     "AsyncFunctionsClient",
-    "SyncFunctionsClient",
+    "FunctionRegion",
     "FunctionsApiErrorDict",
     "FunctionsError",
     "FunctionsHttpError",
     "FunctionsRelayError",
+    "SyncFunctionsClient",
+    "__version__",
+    "create_client",
 ]

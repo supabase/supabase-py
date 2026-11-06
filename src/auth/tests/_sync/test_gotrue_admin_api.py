@@ -64,7 +64,7 @@ def test_list_users_should_return_registered_users(
         SyncSupabaseAuthAdmin, User, Credentials
     ],
 ) -> None:
-    (admin_client, user, credentials) = admin_client_with_user_and_credentials
+    (admin_client, _user, credentials) = admin_client_with_user_and_credentials
     users = admin_client.list_users()
     assert users
     emails = [user.email for user in users]
@@ -88,7 +88,7 @@ def test_modify_email_using_update_user_by_id(
         SyncSupabaseAuthAdmin, User, Credentials
     ],
 ) -> None:
-    (admin_client, user, credentials) = admin_client_with_user_and_credentials
+    (admin_client, user, _credentials) = admin_client_with_user_and_credentials
     response = admin_client.update_user_by_id(
         user.id,
         AdminUserAttributes(
@@ -103,7 +103,7 @@ def test_modify_user_metadata_using_update_user_by_id(
         SyncSupabaseAuthAdmin, User, Credentials
     ],
 ) -> None:
-    (admin_client, user, credentials) = admin_client_with_user_and_credentials
+    (admin_client, user, _credentials) = admin_client_with_user_and_credentials
     user_metadata = {"favorite_color": "yellow"}
     response = admin_client.update_user_by_id(
         user.id,
@@ -120,7 +120,7 @@ def test_modify_app_metadata_using_update_user_by_id(
         SyncSupabaseAuthAdmin, User, Credentials
     ],
 ) -> None:
-    (admin_client, user, credentials) = admin_client_with_user_and_credentials
+    (admin_client, user, _credentials) = admin_client_with_user_and_credentials
     app_metadata = {"roles": ["admin", "publisher"]}
     response = admin_client.update_user_by_id(
         user.id,
@@ -257,7 +257,7 @@ def test_invite_user_by_email_creates_a_new_user_with_an_invited_at_timestamp(
         SyncSupabaseAuthAdmin, User, Credentials
     ],
 ) -> None:
-    (admin_client, user, credentials) = admin_client_with_user_and_credentials
+    (admin_client, _user, credentials) = admin_client_with_user_and_credentials
     credentials = mock_user_credentials()
     redirect_to = "http://localhost:9999/welcome"
     user_metadata = {"status": "alpha"}

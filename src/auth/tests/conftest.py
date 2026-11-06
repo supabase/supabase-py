@@ -11,25 +11,21 @@ _test_failed_incremental: dict[str, dict[tuple[int, ...], str]] = {}
 def pytest_runtest_makereport(
     item: pytest.Function, call: pytest.CallInfo[None]
 ) -> None:
-    if "incremental" in item.keywords:
-        # incremental marker is used
-        if call.excinfo is not None:
-            # the test has failed
-            # retrieve the class name of the test
-            cls_name = str(item.cls)
-            # retrieve the index of the test (if parametrize is used
-            # in combination with incremental)
-            parametrize_index = (
-                tuple(item.callspec.indices.values())
-                if hasattr(item, "callspec")
-                else ()
-            )
-            # retrieve the name of the test function
-            test_name = item.originalname or item.name
-            # store in _test_failed_incremental the original name of the failed test
-            _test_failed_incremental.setdefault(cls_name, {}).setdefault(
-                parametrize_index, test_name
-            )
+    if "incremental" in item.keywords and call.excinfo is not None:
+        # the test has failed
+        # retrieve the class name of the test
+        cls_name = str(item.cls)
+        # retrieve the index of the test (if parametrize is used
+        # in combination with incremental)
+        parametrize_index = (
+            tuple(item.callspec.indices.values()) if hasattr(item, "callspec") else ()
+        )
+        # retrieve the name of the test function
+        test_name = item.originalname or item.name
+        # store in _test_failed_incremental the original name of the failed test
+        _test_failed_incremental.setdefault(cls_name, {}).setdefault(
+            parametrize_index, test_name
+        )
 
 
 def pytest_runtest_setup(item: pytest.Function) -> None:

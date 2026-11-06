@@ -1,5 +1,4 @@
-import asyncio
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -7,22 +6,6 @@ from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
 from storage3 import AsyncStorageClient, SyncStorageClient
-
-
-class AsyncFinalizerFactory:
-    def __init__(self, finalizer: Callable[[], Coroutine[Any, Any, None]]) -> None:
-        def func() -> Any:
-            policy = asyncio.get_event_loop_policy()  # pyrefly: ignore[deprecated]
-            event_loop = policy.get_event_loop()
-            return event_loop.run_until_complete(finalizer())
-
-        self.finalizer = func
-
-
-class SyncFinalizerFactory:
-    def __init__(self, finalizer: Callable[[], None]) -> None:
-        self.finalizer = finalizer
-
 
 STORAGE_URL = "https://example.supabase.co/storage/v1/"
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from pydantic import ValidationError
-from supabase_utils.http.request import Response
 from supabase_utils.types import JSONParser
+
+if TYPE_CHECKING:
+    from supabase_utils.http.request import Response
 
 
 class FunctionsApiErrorDict(TypedDict):
