@@ -50,7 +50,7 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self.executor: HttpIO = executor
         if url and url[-1] != "/":
             warnings.warn(
-                "Storage endpoint URL should have a trailing slash.", stacklevel=2
+                "Storage endpoint URL should have a trailing slash.", stacklevel=3
             )
             url += "/"
         self.base_url = URL(url)
