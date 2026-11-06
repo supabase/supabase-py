@@ -3,6 +3,7 @@ from collections.abc import Mapping
 from aiohttp import ClientSession
 from supabase_auth import AsyncSupportedStorage
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
+from supabase_utils.http.request import validate_request_timeout
 
 from .client import AsyncClient
 from .types import (
@@ -32,6 +33,7 @@ def create_async_client(
     `http_client` defaults to a new aiohttp client. See `AsyncClient` for the
     other arguments.
     """
+    validate_request_timeout(request_timeout)
     client = http_client or ClientSession()
     return AsyncClient(
         supabase_url,

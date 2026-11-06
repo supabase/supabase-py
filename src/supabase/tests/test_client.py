@@ -12,6 +12,8 @@ from supabase_auth import (
 )
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
+import supabase.aiohttp
+import supabase.httpx
 from supabase import (
     AsyncClient,
     AuthClientOptions,
@@ -426,3 +428,25 @@ def test_client_headers_follow_the_session() -> None:
         )
 
     assert headers["Authorization"] == "Bearer userjwt"
+
+
+@pytest.mark.parametrize("request_timeout", [0, -1, float("nan"), float("inf")])
+def test_factories_reject_an_invalid_request_timeout_before_creating_a_session(
+    request_timeout: float,
+) -> None:
+    factories = [
+        supabase.httpx.create_client,
+        supabase.httpx.create_async_client,
+        supabase.aiohttp.create_async_client,
+    ]
+    for factory in factories:
+        with (
+            patch("supabase.aiohttp.ClientSession") as aiohttp_session,
+            patch("supabase.httpx.SyncHttpxClient") as sync_httpx_client,
+            patch("supabase.httpx.AsyncHttpxClient") as async_httpx_client,
+            pytest.raises(ValueError, match="positive number of seconds"),
+        ):
+            factory(URL, KEY, request_timeout=request_timeout)
+        aiohttp_session.assert_not_called()
+        sync_httpx_client.assert_not_called()
+        async_httpx_client.assert_not_called()

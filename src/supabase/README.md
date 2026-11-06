@@ -63,7 +63,7 @@ supabase: Client = create_client(url, key)
 
 For the async client, use `create_async_client` from `supabase.httpx` or `supabase.aiohttp`, which returns an `AsyncClient`.
 
-Settings are keyword arguments. `headers` and `request_timeout` apply to every service. The settings of one service are grouped in an options class:
+Settings are keyword arguments. `headers` and `request_timeout` apply to the database, auth, storage and edge functions, not to the realtime connection of `AsyncClient`. The settings of one service are grouped in an options class:
 
 ```python
 from supabase import AuthClientOptions, PostgrestClientOptions, StorageClientOptions
