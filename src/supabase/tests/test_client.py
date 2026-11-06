@@ -18,7 +18,7 @@ from supabase import (
 
 URL = "https://example.supabase.co"
 KEY = "publishable-key"
-NEW_KEYS = ["sb_publishable_abc123", "sb_secret_abc123"]
+NEW_KEYS = ["sb_publishable_abc123", "sb_secret_abc123", "sb_futuretype_abc123"]
 LEGACY_KEY = "header.payload.signature"
 
 INVALID_URLS = [
@@ -122,26 +122,6 @@ def recording_transport(requests: list[httpx.Request]) -> httpx.MockTransport:
         return httpx.Response(200, json={})
 
     return httpx.MockTransport(handler)
-
-
-@pytest.mark.parametrize("key", ["sb_unknown_abc123", "sb_futuretype_secretvalue"])
-def test_sync_client_rejects_unrecognized_new_format_keys(key: str) -> None:
-    with (
-        SyncHttpxClient() as http_client,
-        pytest.raises(SupabaseException, match="Unrecognized") as error,
-    ):
-        Client(URL, key, HttpxSession(client=http_client))
-
-    assert key not in str(error.value)
-
-
-@pytest.mark.parametrize("key", ["sb_unknown_abc123", "sb_futuretype_secretvalue"])
-async def test_async_client_rejects_unrecognized_new_format_keys(key: str) -> None:
-    async with AsyncHttpxClient() as http_client:
-        with pytest.raises(SupabaseException, match="Unrecognized") as error:
-            AsyncClient(URL, key, AsyncHttpxSession(client=http_client))
-
-    assert key not in str(error.value)
 
 
 @pytest.mark.parametrize("key", NEW_KEYS)

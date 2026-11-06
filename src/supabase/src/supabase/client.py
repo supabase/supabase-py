@@ -110,7 +110,7 @@ def _find_authorization(headers: Mapping[str, str]) -> str | None:
 
 
 def _is_new_api_key(key: str) -> bool:
-    return key.startswith(("sb_publishable_", "sb_secret_"))
+    return key.startswith("sb_")
 
 
 class SupabaseClient[
@@ -135,12 +135,6 @@ class SupabaseClient[
             raise SupabaseException("supabase_url is required")
         if not supabase_key:
             raise SupabaseException("supabase_key is required")
-        if supabase_key.startswith("sb_") and not _is_new_api_key(supabase_key):
-            raise SupabaseException(
-                "Unrecognized Supabase API key format. Expected a legacy JWT key or a"
-                " new-format key (sb_publishable_... or sb_secret_...). Upgrade supabase"
-                " to a version that supports this key type."
-            )
 
         try:
             self.supabase_url = URL(
@@ -282,18 +276,21 @@ class SupabaseClient[
             "Authorization": authorization,
         }
 
-    def _is_api_key_bearer_for_functions(self, authorization: str) -> bool:
-        return _is_new_api_key(self.supabase_key) and (
+    def _functions_authorization(self, authorization: str) -> str | None:
+        if _is_new_api_key(self.supabase_key) and (
             authorization == self._create_auth_header(self.supabase_key)
-        )
+        ):
+            return None
+        return authorization
 
     def _functions_headers(self) -> dict[str, str]:
-        return {
-            key: value
-            for key, value in self.options.headers.items()
-            if key != "Authorization"
-            or not self._is_api_key_bearer_for_functions(value)
-        }
+        headers = dict(self.options.headers)
+        authorization = self._functions_authorization(headers.pop("Authorization"))
+        return (
+            headers
+            if authorization is None
+            else {**headers, "Authorization": authorization}
+        )
 
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Session | None
@@ -315,10 +312,13 @@ class SupabaseClient[
         self.storage.default_headers = self.storage.default_headers.override(
             "Authorization", authorization
         )
+        functions_authorization = self._functions_authorization(authorization)
         self.functions.default_headers = (
             self.functions.default_headers.remove("Authorization")
-            if self._is_api_key_bearer_for_functions(authorization)
-            else self.functions.default_headers.override("Authorization", authorization)
+            if functions_authorization is None
+            else self.functions.default_headers.override(
+                "Authorization", functions_authorization
+            )
         )
 
 
