@@ -63,7 +63,7 @@ Names that mirror a wire format keep their wire spelling, for example the JWT cl
 
 ## Client options are keyword arguments
 
-`ClientOptions`, `AsyncClientOptions` and the `supabase.lib.client_options` module are removed. `create_client`, `create_async_client`, `Client`, `AsyncClient` and their `create` methods take the settings as keyword-only arguments. Settings that apply to every service are arguments of their own. The settings of one service are grouped in an options class, passed in the argument named after the service.
+`ClientOptions`, `AsyncClientOptions`, their v2 names `SyncClientOptions` and `AClientOptions`, and the `supabase.lib.client_options` module are removed. `create_client`, `create_async_client`, `Client`, `AsyncClient` and their `create` methods take the settings as keyword-only arguments. Settings that apply to every service are arguments of their own. The settings of one service are grouped in an options class, passed in the argument named after the service.
 
 ```python
 client = create_client(
@@ -77,23 +77,23 @@ client = create_client(
 )
 ```
 
-| Before                                                         | After                                                |
-| -------------------------------------------------------------- | ---------------------------------------------------- |
-| `create_client(url, key, http_client)`                         | `create_client(url, key, http_client=http_client)`   |
-| `ClientOptions(headers={"x-app": "1"})`                        | `headers={"x-app": "1"}`                             |
-| `ClientOptions(request_timeout=30)`                            | `request_timeout=30`                                 |
-| `ClientOptions(schema="private")`                              | `postgrest=PostgrestClientOptions(schema="private")` |
-| `ClientOptions(auto_refresh_token=False)`                      | `auth=AuthClientOptions(auto_refresh_token=False)`   |
-| `ClientOptions(storage=my_storage)`                            | `auth=AuthClientOptions(session_storage=my_storage)` |
-| `ClientOptions(flow_type="implicit")`                          | `auth=AuthClientOptions(flow_type="implicit")`       |
-| `ClientOptions(persist_session=False)`                         | Leave it out                                         |
-| `ClientOptions(postgrest_options=PostgrestClientOptions(...))` | `postgrest=PostgrestClientOptions(...)`              |
-| `ClientOptions(auth_options=AuthClientOptions(...))`           | `auth=AuthClientOptions(...)`                        |
-| `ClientOptions(storage_options=StorageClientOptions(...))`     | `storage=StorageClientOptions(...)`                  |
-| `ClientOptions(functions_options=FunctionsClientOptions(...))` | `functions=FunctionsClientOptions(...)`              |
-| `AsyncClientOptions(realtime=RealtimeClientOptions(...))`      | `realtime=RealtimeClientOptions(...)`                |
-| `client.options.headers`                                       | `client.headers`                                     |
-| `options.replace(schema="other")`                              | `dataclasses.replace(options, schema="other")`       |
+| Before                                                         | After                                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `create_client(url, key, http_client)`                         | `create_client(url, key, http_client=http_client)`                 |
+| `ClientOptions(headers={"x-app": "1"})`                        | `headers={"x-app": "1"}`                                           |
+| `ClientOptions(request_timeout=30)`                            | `request_timeout=30`                                               |
+| `ClientOptions(schema="private")`                              | `postgrest=PostgrestClientOptions(schema="private")`               |
+| `ClientOptions(auto_refresh_token=False)`                      | `auth=AuthClientOptions(auto_refresh_token=False)`                 |
+| `ClientOptions(storage=my_storage)`                            | `auth=AuthClientOptions(session_storage=my_storage)`               |
+| `ClientOptions(flow_type="implicit")`                          | `auth=AuthClientOptions(flow_type="implicit")`                     |
+| `ClientOptions(persist_session=False)`                         | Leave it out                                                       |
+| `ClientOptions(postgrest_options=PostgrestClientOptions(...))` | `postgrest=PostgrestClientOptions(...)`                            |
+| `ClientOptions(auth_options=AuthClientOptions(...))`           | `auth=AuthClientOptions(...)`                                      |
+| `ClientOptions(storage_options=StorageClientOptions(...))`     | `storage=StorageClientOptions(...)`                                |
+| `ClientOptions(functions_options=FunctionsClientOptions(...))` | `functions=FunctionsClientOptions(...)`                            |
+| `AsyncClientOptions(realtime=RealtimeClientOptions(...))`      | `realtime=RealtimeClientOptions(...)`                              |
+| `client.options.headers`                                       | `client.headers`                                                   |
+| `options.replace(schema="other")`                              | `postgrest=dataclasses.replace(postgrest_options, schema="other")` |
 
 `AuthClientOptions.session_storage` takes an `AsyncSupportedStorage` for `AsyncClient` and a `SyncSupportedStorage` for `Client`. It used to be called `storage`, which clashed with the storage service. Left out, the session is kept in memory.
 
@@ -103,7 +103,7 @@ client = create_client(
 
 `client.headers` is a read-only view of the headers sent with every request. Its `Authorization` header follows the session. The headers you pass are copied, so changing the original dictionary later has no effect.
 
-The options classes take keyword arguments only.
+`PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions` and `FunctionsClientOptions` take keyword arguments only.
 
 ## Options are dataclasses instead of dictionaries
 

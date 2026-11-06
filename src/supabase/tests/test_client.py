@@ -414,3 +414,15 @@ def test_client_headers_are_read_only() -> None:
 
     with pytest.raises(TypeError):
         client.headers["x-app"] = "1"  # pyrefly: ignore[unsupported-operation]
+
+
+def test_client_headers_follow_the_session() -> None:
+    with SyncHttpxClient() as http_client:
+        client = Client(URL, KEY, HttpxSession(client=http_client))
+        headers = client.headers
+
+        client.auth.session_manager.notify_all_subscribers(
+            "SIGNED_IN", MagicMock(access_token="userjwt")
+        )
+
+    assert headers["Authorization"] == "Bearer userjwt"

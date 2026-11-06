@@ -379,7 +379,7 @@ class SupabaseClient[
 
     def _set_access_token(self, access_token: str) -> None:
         authorization = self._create_auth_header(access_token)
-        self._headers = {**self._headers, "Authorization": authorization}
+        self._headers["Authorization"] = authorization
         self._access_token = access_token
         self.auth.default_headers = self.auth.default_headers.override(
             "Authorization", authorization

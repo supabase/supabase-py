@@ -482,6 +482,8 @@ features:
       - SyncPostgrestClient.schema
       - AsyncClient.schema
       - Client.schema
+    supporting_symbols:
+      - PostgrestClientOptions
   database.query.rpc:
     status: implemented
     symbols:
