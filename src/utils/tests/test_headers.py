@@ -33,10 +33,17 @@ def test_override_replaces_values() -> None:
     assert overridden.get_list("accept") == ["application/json"]
 
 
+def test_remove_drops_every_value() -> None:
+    headers = Headers.empty().set("Accept", "text/plain").set("Accept", "text/html")
+    assert "accept" not in headers.remove("ACCEPT")
+    assert headers.remove("missing").get_list("accept") == ["text/plain", "text/html"]
+
+
 def test_headers_are_immutable() -> None:
     original = Headers.from_mapping({"a": "1"})
     original.set("a", "2")
     original.override("a", "3")
+    original.remove("a")
     original.update(Headers.from_mapping({"b": "4"}))
     assert original.get_list("a") == ["1"]
     assert "b" not in original

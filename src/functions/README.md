@@ -38,7 +38,7 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 async def run_func():
     # Initialize the client with your project URL and optional headers
     headers = {
-        "Authorization": "Bearer your-publishable-key",
+        "apikey": "your-publishable-key",
         # Add any other headers you might need
     }
     
@@ -68,7 +68,7 @@ from supabase_functions import SyncFunctionsClient
 from supabase_utils.http.adapters.httpx import HttpxSession
 
 # Initialize the client
-headers = {"Authorization": "Bearer your-publishable-key"}
+headers = {"apikey": "your-publishable-key"}
 fc = SyncFunctionsClient(
     "https://<project_ref>.functions.supabase.co",
     headers,

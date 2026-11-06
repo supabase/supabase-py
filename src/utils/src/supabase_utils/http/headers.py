@@ -47,6 +47,9 @@ class Headers:
     def override(self, key: str, value: str) -> Headers:
         return Headers(pmap=self._map.set(key.lower(), Vec(value)))
 
+    def remove(self, key: str) -> Headers:
+        return Headers(pmap=self._map.discard(key.lower()))
+
     def get(self, key: str) -> str | None:
         if vals := self._map.get(key.lower(), None):
             return ", ".join(vals)

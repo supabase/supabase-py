@@ -109,6 +109,10 @@ def _find_authorization(headers: Mapping[str, str]) -> str | None:
     )
 
 
+def _is_new_api_key(key: str) -> bool:
+    return key.startswith("sb_")
+
+
 class SupabaseClient[
     HttpIO: (SyncHttpIO, AsyncHttpIO),
     Options: (AsyncClientOptions, ClientOptions),
@@ -272,6 +276,22 @@ class SupabaseClient[
             "Authorization": authorization,
         }
 
+    def _functions_authorization(self, authorization: str) -> str | None:
+        if _is_new_api_key(self.supabase_key) and (
+            authorization == self._create_auth_header(self.supabase_key)
+        ):
+            return None
+        return authorization
+
+    def _functions_headers(self) -> dict[str, str]:
+        headers = dict(self.options.headers)
+        authorization = self._functions_authorization(headers.pop("Authorization"))
+        return (
+            headers
+            if authorization is None
+            else {**headers, "Authorization": authorization}
+        )
+
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Session | None
     ) -> None:
@@ -292,8 +312,13 @@ class SupabaseClient[
         self.storage.default_headers = self.storage.default_headers.override(
             "Authorization", authorization
         )
-        self.functions.default_headers = self.functions.default_headers.override(
-            "Authorization", authorization
+        functions_authorization = self._functions_authorization(authorization)
+        self.functions.default_headers = (
+            self.functions.default_headers.remove("Authorization")
+            if functions_authorization is None
+            else self.functions.default_headers.override(
+                "Authorization", functions_authorization
+            )
         )
 
 
@@ -383,7 +408,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
     def functions(self) -> AsyncFunctionsClient:
         return AsyncFunctionsClient(
             url=str(self.functions_url),
-            headers=self.options.headers,
+            headers=self._functions_headers(),
             http_session=self.http_session,
         )
 
@@ -491,7 +516,7 @@ class Client(SupabaseClient[SyncHttpIO, ClientOptions]):
     def functions(self) -> SyncFunctionsClient:
         return SyncFunctionsClient(
             url=str(self.functions_url),
-            headers=self.options.headers,
+            headers=self._functions_headers(),
             http_session=self.http_session,
         )
 
