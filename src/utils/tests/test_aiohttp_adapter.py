@@ -247,12 +247,23 @@ async def test_session_timeout_raises_request_timeout_error(
             )
 
 
-async def test_request_timeout_overrides_session_timeout(
+async def test_request_timeout_overrides_session_read_timeout(
     server: TestServer,
 ) -> None:
-    client = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=0.05))
+    client = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(sock_read=0.05))
     async with AsyncAiohttpSession(client) as session:
         response = await AsyncHttpIO(session, request_timeout=5).communicate(
             base_url(server), Headers.empty(), get_slow(None)
         )
     assert response.status == 200
+
+
+async def test_request_timeout_keeps_session_total() -> None:
+    client = aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=30, ceil_threshold=2)
+    )
+    async with AsyncAiohttpSession(client) as session:
+        assert session._timeout(None) is client.timeout
+        assert session._timeout(4) == aiohttp.ClientTimeout(
+            total=30, connect=4, sock_connect=4, sock_read=4, ceil_threshold=2
+        )

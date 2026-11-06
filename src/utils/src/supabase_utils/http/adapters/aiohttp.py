@@ -45,6 +45,18 @@ class AsyncAiohttpSession:
     def __init__(self, client: ClientSession) -> None:
         self.client = client
 
+    def _timeout(self, request_timeout: float | None) -> ClientTimeout:
+        session_timeout = self.client.timeout
+        if request_timeout is None:
+            return session_timeout
+        return ClientTimeout(
+            total=session_timeout.total,
+            connect=request_timeout,
+            sock_connect=request_timeout,
+            sock_read=request_timeout,
+            ceil_threshold=session_timeout.ceil_threshold,
+        )
+
     async def send(self, request: Request) -> Response:
         try:
             response = await self.client.request(
@@ -52,13 +64,7 @@ class AsyncAiohttpSession:
                 url=str(request.url),
                 data=request.content,
                 headers=dict(request.headers),
-                timeout=self.client.timeout
-                if request.timeout is None
-                else ClientTimeout(
-                    connect=request.timeout,
-                    sock_connect=request.timeout,
-                    sock_read=request.timeout,
-                ),
+                timeout=self._timeout(request.timeout),
                 middlewares=(
                     # Per request middlewares replace the session ones, so keep those.
                     *self.client._middlewares,

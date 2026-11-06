@@ -66,12 +66,7 @@ if TYPE_CHECKING:
     from supabase_functions.client import FunctionsClient
     from supabase_utils.types import JSON
 
-    from .types import (
-        AuthClientOptions,
-        FunctionsClientOptions,
-        PostgrestClientOptions,
-        StorageClientOptions,
-    )
+    from .types import _ServiceClientOptions
 
 __all__ = [
     "AsyncClient",
@@ -276,13 +271,7 @@ class SupabaseClient[
         """
         return self.postgrest.rpc(fn, params or {}, head=head, count=count, get=get)
 
-    def _request_timeout(
-        self,
-        service_options: PostgrestClientOptions
-        | AuthClientOptions
-        | StorageClientOptions
-        | FunctionsClientOptions,
-    ) -> float | None:
+    def _request_timeout(self, service_options: _ServiceClientOptions) -> float | None:
         if service_options.request_timeout is not None:
             return service_options.request_timeout
         return self.options.request_timeout

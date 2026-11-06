@@ -217,7 +217,7 @@ def test_communicate_without_request_timeout_leaves_it_to_the_session() -> None:
     assert [r.timeout for r in session.requests] == [None, 2.5]
 
 
-@pytest.mark.parametrize("timeout", [0, -1, float("nan")])
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
 def test_invalid_request_timeout_is_rejected(timeout: float) -> None:
     with pytest.raises(ValueError, match="positive number of seconds"):
         SyncHttpIO(FakeSession([]), request_timeout=timeout)

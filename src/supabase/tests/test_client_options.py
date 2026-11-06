@@ -176,6 +176,11 @@ class TestClientOptions:
         assert updated.auth_options.request_timeout == 6
         assert updated.functions_options.request_timeout == 7
 
+    def test_replace_clears_request_timeout_with_none(self) -> None:
+        options = ClientOptions(request_timeout=10)
+
+        assert options.replace(request_timeout=None).request_timeout is None
+
     @pytest.mark.parametrize(
         "options_class",
         [
@@ -187,7 +192,7 @@ class TestClientOptions:
             AsyncClientOptions,
         ],
     )
-    @pytest.mark.parametrize("timeout", [0, -1, float("nan")])
+    @pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
     def test_request_timeout_must_be_positive(
         self, options_class: type, timeout: float
     ) -> None:

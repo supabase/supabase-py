@@ -1,3 +1,4 @@
+import math
 import os
 from dataclasses import dataclass, field
 from io import BytesIO
@@ -48,7 +49,7 @@ class ToRequest(Protocol):
 
 
 def validate_request_timeout(timeout: float | None) -> None:
-    if timeout is not None and not timeout > 0:
+    if timeout is not None and not (math.isfinite(timeout) and timeout > 0):
         raise ValueError(
             f"Request timeout must be a positive number of seconds, not {timeout!r}"
         )

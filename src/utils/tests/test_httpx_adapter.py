@@ -1,3 +1,4 @@
+import pickle
 from collections.abc import Callable
 
 import httpx
@@ -436,3 +437,11 @@ async def test_async_session_raises_request_timeout_error() -> None:
                 BASE_URL, Headers.empty(), get_items()
             )
     assert isinstance(error.value.__cause__, httpx.ReadTimeout)
+
+
+def test_request_timeout_error_can_be_pickled() -> None:
+    error = RequestTimeoutError(make_request())
+    copy = pickle.loads(pickle.dumps(error))
+    assert str(copy) == str(error)
+    assert copy.request.url == error.request.url
+    assert copy.request.method == error.request.method

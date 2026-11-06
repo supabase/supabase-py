@@ -23,44 +23,31 @@ class RealtimeClientOptions:
 
 
 @dataclass(frozen=True)
-class PostgrestClientOptions:
-    """Options for the database client."""
+class _ServiceClientOptions:
+    """Options shared by the database, auth, storage and edge functions clients."""
 
     request_timeout: float | None = None
-    """Seconds a request to the database may go without progress before it fails with `RequestTimeoutError`. Overrides `request_timeout` of the client options when set. Use `request_timeout()` on a query to override it for that query."""
+    """Seconds a request to the service may go without progress before it fails with `RequestTimeoutError`. Overrides `request_timeout` of the client options when set."""
 
     def __post_init__(self) -> None:
         validate_request_timeout(self.request_timeout)
 
 
 @dataclass(frozen=True)
-class AuthClientOptions:
+class PostgrestClientOptions(_ServiceClientOptions):
+    """Options for the database client. Use `request_timeout()` on a query to override its timeout for that query."""
+
+
+@dataclass(frozen=True)
+class AuthClientOptions(_ServiceClientOptions):
     """Options for the auth client."""
 
-    request_timeout: float | None = None
-    """Seconds a request to auth may go without progress before it fails with `RequestTimeoutError`. Overrides `request_timeout` of the client options when set."""
-
-    def __post_init__(self) -> None:
-        validate_request_timeout(self.request_timeout)
-
 
 @dataclass(frozen=True)
-class StorageClientOptions:
+class StorageClientOptions(_ServiceClientOptions):
     """Options for the storage client."""
 
-    request_timeout: float | None = None
-    """Seconds a request to storage may go without progress before it fails with `RequestTimeoutError`. Overrides `request_timeout` of the client options when set."""
-
-    def __post_init__(self) -> None:
-        validate_request_timeout(self.request_timeout)
-
 
 @dataclass(frozen=True)
-class FunctionsClientOptions:
-    """Options for the edge functions client."""
-
-    request_timeout: float | None = None
-    """Seconds a request to edge functions may go without progress before it fails with `RequestTimeoutError`. Overrides `request_timeout` of the client options when set. Use the `request_timeout` argument of `invoke()` to override it for one invocation."""
-
-    def __post_init__(self) -> None:
-        validate_request_timeout(self.request_timeout)
+class FunctionsClientOptions(_ServiceClientOptions):
+    """Options for the edge functions client. Use the `request_timeout` argument of `invoke()` to override its timeout for one invocation."""

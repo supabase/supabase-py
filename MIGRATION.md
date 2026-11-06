@@ -101,3 +101,15 @@ The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabas
 `heartbeat_interval` was raised to 15 seconds when it was lower. It is now used as given, so an interval below 15 seconds sends heartbeats more often than before. To keep the old timing, pass 15 or more.
 
 `heartbeat_interval` and `heartbeat_timeout` are typed `float` and are in seconds. `connect_once`, `RealtimeClient` and `RealtimeClientOptions` raise `ValueError` when either one is not positive.
+
+## Request timeouts
+
+`AsyncStorageClient` and `SyncStorageClient` no longer take a `timeout` parameter. It was ignored. Pass `request_timeout` as a keyword argument instead.
+
+| Before                                         | After                                                          |
+| ---------------------------------------------- | -------------------------------------------------------------- |
+| `SyncStorageClient(url, headers, session, 20)` | `SyncStorageClient(url, headers, session, request_timeout=20)` |
+
+`request_timeout` is in seconds and limits how long a request may go without progress. Set it on `ClientOptions` for every service, on `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions` or `FunctionsClientOptions` for one service, with `request_timeout()` on a database query, or with the `request_timeout` argument of `functions.invoke()`. None, the default, leaves the timeout to the HTTP client.
+
+A timed-out request raises `supabase.RequestTimeoutError`, a subclass of the built-in `TimeoutError`, instead of an httpx or aiohttp exception. This also applies to timeouts configured on the HTTP client.
