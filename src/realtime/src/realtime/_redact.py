@@ -47,4 +47,11 @@ class RedactingLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
             return
         kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + 1
         redacted_args = tuple(_redact_argument(argument) for argument in args)
-        super().log(level, redact(str(msg)), *redacted_args, **kwargs)
+        try:
+            message = logging.LogRecord(
+                self.logger.name, level, "", 0, msg, redacted_args, None
+            ).getMessage()
+        except (TypeError, ValueError, KeyError):
+            super().log(level, redact(str(msg)), *redacted_args, **kwargs)
+            return
+        super().log(level, redact(message), **kwargs)

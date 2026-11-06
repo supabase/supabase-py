@@ -64,6 +64,7 @@ class connect_once:
         self.get_access_token = token_callback
         self.listen_task: asyncio.Task[None] | None = None
         self.heartbeat_task: asyncio.Task[None] | None = None
+        self.websocket: ClientConnection | None = None
         self.client: RealtimeClient | None = None
         self.heartbeat_interval = heartbeat_interval
         self.heartbeat_timeout = heartbeat_timeout
@@ -78,6 +79,7 @@ class connect_once:
         else:
             url = normalize_url(self.url, None)
         websocket = await websockets.connect(str(url), logger=websockets_logger)
+        self.websocket = websocket
         client = RealtimeClient(
             self.url,
             websocket,
