@@ -2,7 +2,7 @@ import asyncio
 import inspect
 import time
 from collections.abc import Awaitable, Callable, Generator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property, update_wrapper
 from types import TracebackType
 from typing import (
@@ -24,9 +24,10 @@ type HttpMethod[Success] = Generator[ToRequest, Response, Success]
 @dataclass
 class LoopReturnValue[Success]:
     iterable: HttpMethod[Success]
+    return_value: Success = field(init=False)
 
     def __iter__(self) -> HttpMethod[Success]:
-        self.return_value: Success = yield from self.iterable
+        self.return_value = yield from self.iterable
         return self.return_value
 
 

@@ -3,7 +3,7 @@ import itertools
 from collections.abc import AsyncIterator
 
 import pytest
-from websockets.asyncio.server import ServerConnection, serve
+from websockets.asyncio.server import Server, ServerConnection, serve
 
 from realtime.client import connect_once
 from realtime.message import (
@@ -21,6 +21,8 @@ class HeartbeatServer:
     """Acks every heartbeat and records when each one arrives."""
 
     def __init__(self, expected_heartbeats: int) -> None:
+        self.ws_server: Server | None = None
+        self.url = ""
         self.expected_heartbeats = expected_heartbeats
         self.heartbeat_times: list[float] = []
         self.received_expected = asyncio.Event()
@@ -33,6 +35,7 @@ class HeartbeatServer:
         return self
 
     async def __aexit__(self, *exc: object) -> None:
+        assert self.ws_server is not None
         self.ws_server.close()
         await self.ws_server.wait_closed()
 

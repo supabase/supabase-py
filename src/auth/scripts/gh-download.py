@@ -79,7 +79,7 @@ def usage() -> None:
     print("usage: gh-download --repo=repo --branch=branch --folder=folder")
 
 
-def main(argv) -> None:
+def main(argv: list[str]) -> None:
     """
     Main function block
     """

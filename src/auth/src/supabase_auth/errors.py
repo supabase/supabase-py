@@ -148,8 +148,7 @@ class CustomAuthError(AuthError):
 
 class UserDoesNotExistError(CustomAuthError):
     def __init__(self) -> None:
-        CustomAuthError.__init__(
-            self,
+        super().__init__(
             message="User does not exist for the provided access token",
             status=404,
             code="user_not_found",
@@ -158,8 +157,7 @@ class UserDoesNotExistError(CustomAuthError):
 
 class AuthSessionMissingError(CustomAuthError):
     def __init__(self) -> None:
-        CustomAuthError.__init__(
-            self,
+        super().__init__(
             message="Auth session missing!",
             status=400,
             code=None,
@@ -168,8 +166,7 @@ class AuthSessionMissingError(CustomAuthError):
 
 class AuthInvalidCredentialsError(CustomAuthError):
     def __init__(self, message: str) -> None:
-        CustomAuthError.__init__(
-            self,
+        super().__init__(
             message=message,
             status=400,
             code=None,
@@ -183,8 +180,7 @@ class AuthImplicitGrantRedirectError(CustomAuthError):
         error: str | None = None,
         code: str | None = None,
     ) -> None:
-        CustomAuthError.__init__(
-            self,
+        super().__init__(
             message=message,
             status=500,
             code=None,
@@ -195,8 +191,7 @@ class AuthImplicitGrantRedirectError(CustomAuthError):
 
 class AuthRetryableError(CustomAuthError):
     def __init__(self, message: str, status: int) -> None:
-        CustomAuthError.__init__(
-            self,
+        super().__init__(
             message,
             status=status,
             code=None,
@@ -205,8 +200,7 @@ class AuthRetryableError(CustomAuthError):
 
 class AuthWeakPasswordError(CustomAuthError):
     def __init__(self, message: str, status: int, reasons: list[str]) -> None:
-        CustomAuthError.__init__(
-            self,
+        super().__init__(
             message=message,
             status=status,
             code="weak_password",
@@ -216,8 +210,7 @@ class AuthWeakPasswordError(CustomAuthError):
 
 class AuthInvalidJwtError(CustomAuthError):
     def __init__(self, message: str) -> None:
-        CustomAuthError.__init__(
-            self,
+        super().__init__(
             message=message,
             status=400,
             code="invalid_jwt",

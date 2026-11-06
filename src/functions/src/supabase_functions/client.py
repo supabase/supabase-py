@@ -147,8 +147,7 @@ class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
         headers: Mapping[str, str],
         http_session: AsyncHttpSession,
     ) -> None:
-        FunctionsClient.__init__(
-            self,
+        super().__init__(
             url=URL(url),
             executor=AsyncHttpIO(session=http_session),
             headers=headers,
@@ -162,8 +161,7 @@ class SyncFunctionsClient(FunctionsClient[SyncHttpIO]):
         headers: Mapping[str, str],
         http_session: HttpSession,
     ) -> None:
-        FunctionsClient.__init__(
-            self,
+        super().__init__(
             url=URL(url),
             executor=SyncHttpIO(session=http_session),
             headers=headers,

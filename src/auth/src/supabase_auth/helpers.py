@@ -9,7 +9,7 @@ import string
 import uuid
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -237,7 +237,7 @@ def parse_response_api_version(response: Response) -> datetime | None:
         return None
 
     try:
-        return datetime.strptime(api_version, "%Y-%m-%d")
+        return datetime.strptime(api_version, "%Y-%m-%d").replace(tzinfo=UTC)
     except Exception:
         return None
 
@@ -250,7 +250,7 @@ def validate_expiration(expires_at: int | None) -> None:
     if not expires_at:
         raise AuthInvalidJwtError("JWT has no expiration time")
 
-    time_now = datetime.now().timestamp()
+    time_now = datetime.now(UTC).timestamp()
     if expires_at <= time_now:
         raise AuthInvalidJwtError("JWT has expired")
 

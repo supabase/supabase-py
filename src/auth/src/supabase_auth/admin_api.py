@@ -401,8 +401,7 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
         http_session: HttpSession,
         default_headers: dict[str, str] | None = None,
     ) -> None:
-        SupabaseAuthAdmin.__init__(
-            self,
+        super().__init__(
             executor=SyncHttpIO(session=http_session),
             base_url=URL(url),
             default_headers=Headers.from_mapping(default_headers)
@@ -430,8 +429,7 @@ class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
         http_session: AsyncHttpSession,
         default_headers: dict[str, str] | None = None,
     ) -> None:
-        SupabaseAuthAdmin.__init__(
-            self,
+        super().__init__(
             executor=AsyncHttpIO(session=http_session),
             base_url=URL(url),
             default_headers=Headers.from_mapping(default_headers)

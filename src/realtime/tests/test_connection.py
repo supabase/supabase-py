@@ -59,7 +59,7 @@ async def access_token() -> str:
     headers = {"apikey": PUBLISHABLE_KEY, "Content-Type": "application/json"}
     data = {
         "email": os.getenv("SUPABASE_TEST_EMAIL")
-        or f"test_{datetime.datetime.now().strftime('%Y%m%d%H%M%S.%f')}@example.com",
+        or f"test_{datetime.datetime.now(datetime.UTC).strftime('%Y%m%d%H%M%S.%f')}@example.com",
         "password": os.getenv("SUPABASE_TEST_PASSWORD") or "test.123",
     }
 
@@ -152,14 +152,11 @@ async def test_postgrest_changes(socket: RealtimeClient) -> None:
         system_msg = await message_stream.__anext__()
         assert isinstance(system_msg, SystemMessage)
         assert system_msg.payload.status == "ok"
-        print("received system message")
         created_todo_id = await create_todo(
             token, {"description": "Test todo", "is_completed": False}
         )
-        print("created todo")
         insert = await message_stream.__anext__()
         assert isinstance(insert, PostgresChangesMessage)
-        print("received insert")
         await update_todo(
             token,
             created_todo_id,
@@ -332,7 +329,7 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
     event = "broadcast"
 
     # Calculate replay timestamp
-    ten_mins_ago = datetime.datetime.now() - datetime.timedelta(minutes=10)
+    ten_mins_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=10)
     ten_mins_ago_ms = int(ten_mins_ago.timestamp() * 1000)
 
     channel_options = (
@@ -435,7 +432,7 @@ def fake_client() -> tuple[RealtimeClient, list[Message]]:
             )
             client.message_refs[message.ref].set_result(reply)
 
-    ws.send.side_effect = send
+    ws.configure_mock(send=AsyncMock(side_effect=send))
     return client, sent
 
 

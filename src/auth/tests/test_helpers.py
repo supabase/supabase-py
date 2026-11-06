@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -49,9 +49,7 @@ def test_parse_response_api_version_with_valid_date() -> None:
     )
     api_ver = parse_response_api_version(response)
     assert api_ver
-    assert datetime.timestamp(api_ver) == datetime.timestamp(
-        datetime.strptime("2024-01-01", "%Y-%m-%d")
-    )
+    assert api_ver == datetime(2024, 1, 1, tzinfo=UTC)
 
 
 def test_parse_response_api_version_with_invalid_dates() -> None:
@@ -115,7 +113,7 @@ def test_parse_response_api_version_invalid_date() -> None:
 
 def test_validate_expiration_with_expired_timestamp() -> None:
     # Set expiry to 1 hour ago
-    exp = int(datetime.now().timestamp()) - 3600
+    exp = int(datetime.now(UTC).timestamp()) - 3600
 
     with pytest.raises(AuthInvalidJwtError, match="JWT has expired"):
         validate_expiration(exp)
@@ -123,7 +121,7 @@ def test_validate_expiration_with_expired_timestamp() -> None:
 
 def test_validate_expiration_with_valid_timestamp() -> None:
     # Set expiry to 1 hour in the future
-    exp = int(datetime.now().timestamp()) + 3600
+    exp = int(datetime.now(UTC).timestamp()) + 3600
 
     # Should not raise an exception
     validate_expiration(exp)

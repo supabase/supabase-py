@@ -64,6 +64,7 @@ class connect_once:
         self.get_access_token = token_callback
         self.listen_task: asyncio.Task[None] | None = None
         self.heartbeat_task: asyncio.Task[None] | None = None
+        self.client: RealtimeClient | None = None
         self.heartbeat_interval = heartbeat_interval
         self.heartbeat_timeout = heartbeat_timeout
 
@@ -76,17 +77,18 @@ class connect_once:
             url = normalize_url(self.url, token)
         else:
             url = normalize_url(self.url, None)
-        self.websocket = await websockets.connect(str(url), logger=websockets_logger)
-        self.client = RealtimeClient(
+        websocket = await websockets.connect(str(url), logger=websockets_logger)
+        client = RealtimeClient(
             self.url,
-            self.websocket,
+            websocket,
             self.get_access_token,
             heartbeat_interval=self.heartbeat_interval,
             heartbeat_timeout=self.heartbeat_timeout,
         )
-        self.listen_task = asyncio.create_task(self.client.listen())
-        self.heartbeat_task = asyncio.create_task(self.client.heartbeat())
-        return self.client
+        self.client = client
+        self.listen_task = asyncio.create_task(client.listen())
+        self.heartbeat_task = asyncio.create_task(client.heartbeat())
+        return client
 
     async def __aenter__(self) -> "RealtimeClient":
         return await self
@@ -101,6 +103,7 @@ class connect_once:
         self.listen_task.cancel()
         assert self.heartbeat_task, "Connection should never exit without hearbeat_task"
         self.heartbeat_task.cancel()
+        assert self.client, "Connection should never exit without client"
         await self.client.close()
 
 
@@ -181,18 +184,18 @@ class RealtimeClient:
                 try:
                     message = Message.model_validate_json(msg)
                 except ValidationError as e:
-                    logger.error(f"Unrecognized message format {msg!r}\n{e}")
+                    logger.error("Unrecognized message format %r\n%s", msg, e)
                     continue
                 if message.ref is not None and (
                     fut := self.message_refs.get(message.ref)
                 ):
                     fut.set_result(message)
                 elif message.event == ChannelEvents.reply:
-                    logger.info(f"Ignoring reply nobody is waiting on: {message!r}")
+                    logger.info("Ignoring reply nobody is waiting on: %r", message)
                 elif channel := self.channels.get(message.topic):
                     await channel.message_stream.put(message)
                 else:
-                    logger.info(f"Ignoring message: {message!r}")
+                    logger.info("Ignoring message: %r", message)
         except Exception as exc:
             if (
                 not self._connection_failure.done()
@@ -236,7 +239,7 @@ class RealtimeClient:
                 res = await asyncio.wait_for(
                     self._send(data), timeout=self.heartbeat_timeout
                 )
-                logger.info(f"heartbeat response: {res!r}")
+                logger.info("heartbeat response: %r", res)
                 await self.set_auth()
                 await asyncio.sleep(self.heartbeat_interval)
         except asyncio.CancelledError:
@@ -297,7 +300,7 @@ class RealtimeClient:
         )
         for result in results:
             if isinstance(result, Exception):
-                logger.warning(f"failed to unsubscribe a channel: {result!r}")
+                logger.warning("failed to unsubscribe a channel: %r", result)
 
     async def set_auth(self, token: str | None = None) -> None:
         """
@@ -338,7 +341,7 @@ class RealtimeClient:
         )
         for result in results:
             if isinstance(result, Exception):
-                logger.warning(f"failed to send the access token: {result!r}")
+                logger.warning("failed to send the access token: %r", result)
         self.last_token = token
 
     def _make_ref(self) -> str:
@@ -355,7 +358,7 @@ class RealtimeClient:
         self.message_refs[message.ref] = receive
         try:
             await self._ws_connection.send(message_str)
-            logger.debug(f"waiting for ref='{message.ref}'")
+            logger.debug("waiting for ref=%r", message.ref)
             response = await self._get_message_or_raise(receive)
         finally:
             del self.message_refs[message.ref]

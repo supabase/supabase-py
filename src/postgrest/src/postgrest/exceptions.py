@@ -41,7 +41,7 @@ class APIError(Exception):
         self.code = error.get("code")
         self.hint = error.get("hint")
         self.details = error.get("details")
-        Exception.__init__(self, str(self))
+        super().__init__(str(self))
 
     @override
     def __repr__(self) -> str:

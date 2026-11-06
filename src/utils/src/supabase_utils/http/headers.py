@@ -81,7 +81,7 @@ class Headers:
         return iter(self.keys())
 
     def update(self, other: Headers) -> Headers:
-        new = self._map.update(other._map)
+        new: PMap[str, PVector[str]] = self._map.update(other._map)
         return Headers(new)
 
     def iter_items(self) -> list[tuple[str, str]]:

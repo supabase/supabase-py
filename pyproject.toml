@@ -36,7 +36,8 @@ select = [
   "B",
   # isort
   "I",
-  # missing return type annotations
+  # missing argument and return type annotations
+  "ANN001",
   "ANN2",
   # pylint errors and warnings
   "PLE",
@@ -69,8 +70,20 @@ select = [
   "PERF",
   # Ruff-specific rules
   "RUF",
+  # flake8-logging-format
+  "G",
+  # flake8-datetimez
+  "DTZ",
+  # flake8-print
+  "T20",
+  # flake8-fixme
+  "FIX",
 ]
 ignore = ["E501", "E402"]
+
+[tool.ruff.lint.per-file-ignores]
+".github/scripts/*" = ["T20"]
+"src/*/scripts/*" = ["T20"]
 
 [tool.ruff.lint.flake8-type-checking]
 runtime-evaluated-base-classes = ["pydantic.BaseModel"]

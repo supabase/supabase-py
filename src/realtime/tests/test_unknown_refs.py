@@ -2,7 +2,7 @@ import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
-from websockets.asyncio.server import ServerConnection, serve
+from websockets.asyncio.server import Server, ServerConnection, serve
 
 from realtime.client import connect_once
 from realtime.message import (
@@ -35,6 +35,8 @@ class FakeServer:
     """Acks every ref'd message, closes channels on leave and can delay join replies."""
 
     def __init__(self) -> None:
+        self.ws_server: Server | None = None
+        self.url = ""
         self.join_reply_delay = 0.0
 
     async def __aenter__(self) -> "FakeServer":
@@ -45,6 +47,7 @@ class FakeServer:
         return self
 
     async def __aexit__(self, *exc: object) -> None:
+        assert self.ws_server is not None
         self.ws_server.close()
         await self.ws_server.wait_closed()
 

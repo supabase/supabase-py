@@ -235,7 +235,7 @@ class RealtimeChannel:
             join_ref=join_ref,
         )
         msg = await self.socket._send(message)
-        logger.info(f"Subscribe reply: {msg!r}")
+        logger.info("Subscribe reply: %r", msg)
         if msg.payload.status != "ok":
             raise Exception(
                 f"error while subscribing to channel: {msg.payload.response!r}"

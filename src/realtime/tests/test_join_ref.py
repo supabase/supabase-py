@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 from pydantic import TypeAdapter
-from websockets.asyncio.server import ServerConnection, serve
+from websockets.asyncio.server import Server, ServerConnection, serve
 
 from realtime.channel import RealtimeChannelOptions
 from realtime.client import connect_once
@@ -45,6 +45,8 @@ class RecordingServer:
     """A local websocket server that acks every ref'd message and records what it received."""
 
     def __init__(self) -> None:
+        self.ws_server: Server | None = None
+        self.url = ""
         self.received: list[Message] = []
 
     async def start(self) -> None:
@@ -58,6 +60,7 @@ class RecordingServer:
         return self
 
     async def __aexit__(self, *exc: object) -> None:
+        assert self.ws_server is not None
         self.ws_server.close()
         await self.ws_server.wait_closed()
 
