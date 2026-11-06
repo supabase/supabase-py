@@ -18,6 +18,7 @@ from .types import (
     PHOENIX_CHANNEL,
     PROTOCOL_VERSION,
     ChannelEvents,
+    validate_heartbeat,
 )
 
 logger = RedactingLoggerAdapter(logging.getLogger(__name__))
@@ -42,13 +43,23 @@ def normalize_url(url: URL, token: str | None) -> URL:
 
 
 class connect_once:
+    """
+    Open a realtime connection when awaited or entered as an async context manager.
+
+    :param url: The realtime URL of the project
+    :param token_callback: Returns the access token, awaited on connect and on every heartbeat
+    :param heartbeat_interval: Seconds between heartbeats, must be positive
+    :param heartbeat_timeout: Seconds to wait for a heartbeat reply before the connection is considered lost, must be positive
+    """
+
     def __init__(
         self,
         url: str,
         token_callback: Callable[[], Awaitable[str | None]] | None = None,
-        heartbeat_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
-        heartbeat_timeout: int = DEFAULT_HEARTBEAT_TIMEOUT,
+        heartbeat_interval: float = DEFAULT_HEARTBEAT_INTERVAL,
+        heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT,
     ) -> None:
+        validate_heartbeat(heartbeat_interval, heartbeat_timeout)
         self.url = URL(url)
         self.get_access_token = token_callback
         self.listen_task: asyncio.Task[None] | None = None
@@ -141,9 +152,10 @@ class RealtimeClient:
         url: URL,
         websocket_connection: ClientConnection,
         token_callback: Callable[[], Awaitable[str | None]] | None = None,
-        heartbeat_interval: int = DEFAULT_HEARTBEAT_INTERVAL,
-        heartbeat_timeout: int = DEFAULT_HEARTBEAT_TIMEOUT,
+        heartbeat_interval: float = DEFAULT_HEARTBEAT_INTERVAL,
+        heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT,
     ) -> None:
+        validate_heartbeat(heartbeat_interval, heartbeat_timeout)
         self.url = url
         self.last_token: str | None = None
         self.get_access_token = token_callback
@@ -227,7 +239,7 @@ class RealtimeClient:
                 )
                 logger.info(f"heartbeat response: {res!r}")
                 await self.set_auth()
-                await asyncio.sleep(max(self.heartbeat_interval, 15))
+                await asyncio.sleep(self.heartbeat_interval)
         except asyncio.CancelledError:
             return
         except (TimeoutError, websockets.ConnectionClosed) as exc:

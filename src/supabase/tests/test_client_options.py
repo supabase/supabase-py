@@ -100,6 +100,29 @@ class TestClientOptions:
             heartbeat_interval=25, heartbeat_timeout=5
         )
 
+    def test_realtime_options_accept_fractional_seconds(self) -> None:
+        realtime = RealtimeClientOptions(heartbeat_interval=7.5, heartbeat_timeout=2.5)
+
+        assert realtime.heartbeat_interval == 7.5
+        assert realtime.heartbeat_timeout == 2.5
+
+    @pytest.mark.parametrize(
+        ("heartbeat_interval", "heartbeat_timeout", "message"),
+        [
+            (0, 5, "heartbeat_interval must be positive"),
+            (25, -1, "heartbeat_timeout must be positive"),
+            (float("nan"), 5, "heartbeat_interval must be positive"),
+        ],
+    )
+    def test_realtime_options_reject_non_positive_durations(
+        self, heartbeat_interval: float, heartbeat_timeout: float, message: str
+    ) -> None:
+        with pytest.raises(ValueError, match=message):
+            RealtimeClientOptions(
+                heartbeat_interval=heartbeat_interval,
+                heartbeat_timeout=heartbeat_timeout,
+            )
+
     def test_options_are_frozen(self) -> None:
         options = ClientOptions()
 

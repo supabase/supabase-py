@@ -975,11 +975,12 @@ features:
       - exponential_delay
   realtime.configuration.heartbeat_interval:
     status: implemented
-    note: "heartbeat_interval parameter (in seconds) on connect_once, and RealtimeClientOptions on the supabase client. Intervals below 15 seconds are raised to 15."
+    note: "heartbeat_interval and heartbeat_timeout parameters (float seconds) on connect_once, and RealtimeClientOptions on the supabase client. Values must be positive."
     symbols:
       - connect_once
     supporting_symbols:
       - RealtimeClientOptions
+      - validate_heartbeat
   realtime.configuration.access_token_callback:
     status: implemented
     note: "token_callback parameter on connect_once, awaited on connect and on each heartbeat. AsyncClient.realtime passes a callback that returns the access token of the current session, or the project key when there is none (see cross_client_token_sync)."

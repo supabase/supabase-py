@@ -95,3 +95,9 @@ This covers `ClientOptions`, `AsyncClientOptions`, `RealtimeClientOptions`, `rea
 The `RealtimeChannelOptions` builder methods return a new copy and leave the original unchanged, so chained calls keep working. `postgres_changes_bindings` and `PostgresChangesBinding.select` are stored as tuples.
 
 The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabase_functions` accept any `Mapping` for `headers`, not only a `dict`.
+
+## Realtime heartbeat intervals are used as given
+
+`heartbeat_interval` was raised to 15 seconds when it was lower. It is now used as given, so an interval below 15 seconds sends heartbeats more often than before. To keep the old timing, pass 15 or more.
+
+`heartbeat_interval` and `heartbeat_timeout` are typed `float` and are in seconds. `connect_once`, `RealtimeClient` and `RealtimeClientOptions` raise `ValueError` when either one is not positive.

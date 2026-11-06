@@ -14,6 +14,15 @@ PROTOCOL_VERSION = "1.0.0"
 DEFAULT_HEARTBEAT_INTERVAL = 25
 DEFAULT_HEARTBEAT_TIMEOUT = 5
 
+
+def validate_heartbeat(interval: float, timeout: float) -> None:
+    """Raise `ValueError` unless both heartbeat durations are positive seconds."""
+    if not interval > 0:
+        raise ValueError(f"heartbeat_interval must be positive, got {interval}")
+    if not timeout > 0:
+        raise ValueError(f"heartbeat_timeout must be positive, got {timeout}")
+
+
 # Type variables and custom types
 type Callback[**T_ParamSpec, T_Retval] = Callable[T_ParamSpec, T_Retval]
 
