@@ -225,3 +225,44 @@ def test_invalid_request_timeout_is_rejected(timeout: float) -> None:
         AsyncHttpIO(AsyncFakeSession([]), request_timeout=timeout)
     with pytest.raises(ValueError, match="positive number of seconds"):
         EmptyRequest(path=[], method="GET", timeout=timeout)
+    with pytest.raises(ValueError, match="positive number of seconds"):
+        Request(
+            url=BASE_URL,
+            method="GET",
+            headers=Headers.empty(),
+            content=None,
+            delay=None,
+            timeout=timeout,
+        )
+
+
+class SharedRequest:
+    def __init__(self) -> None:
+        self.request = Request(
+            url=BASE_URL,
+            method="GET",
+            headers=Headers.empty(),
+            content=None,
+            delay=None,
+        )
+
+    def finalize(self, base_url: URL, default_headers: Headers) -> Request:
+        return self.request
+
+
+def test_communicate_does_not_change_the_finalized_request() -> None:
+    shared = SharedRequest()
+
+    def send_shared() -> HttpMethod[None]:
+        yield shared
+
+    first = FakeSession([200])
+    second = FakeSession([200])
+    SyncHttpIO(first, request_timeout=10).communicate(
+        BASE_URL, DEFAULT_HEADERS, send_shared()
+    )
+    SyncHttpIO(second, request_timeout=20).communicate(
+        BASE_URL, DEFAULT_HEADERS, send_shared()
+    )
+    assert shared.request.timeout is None
+    assert [first.requests[0].timeout, second.requests[0].timeout] == [10, 20]

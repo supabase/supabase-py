@@ -2,7 +2,7 @@ import asyncio
 import inspect
 import time
 from collections.abc import Awaitable, Callable, Generator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cached_property, update_wrapper
 from types import TracebackType
 from typing import (
@@ -73,8 +73,8 @@ class SyncHttpIO:
             http_request = next(iterator)
             while True:
                 request = http_request.finalize(base_url, default_headers)
-                if request.timeout is None:
-                    request.timeout = self.request_timeout
+                if request.timeout is None and self.request_timeout is not None:
+                    request = replace(request, timeout=self.request_timeout)
                 if request.delay:
                     time.sleep(request.delay)
                 response = self.session.send(request)
@@ -103,8 +103,8 @@ class AsyncHttpIO:
             http_request = next(iterator)
             while True:
                 request = http_request.finalize(base_url, default_headers)
-                if request.timeout is None:
-                    request.timeout = self.request_timeout
+                if request.timeout is None and self.request_timeout is not None:
+                    request = replace(request, timeout=self.request_timeout)
                 if request.delay:
                     await asyncio.sleep(request.delay)
                 response = await self.session.send(request)

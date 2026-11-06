@@ -18,6 +18,13 @@ from .query import URLQuery
 HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
 
 
+def validate_request_timeout(timeout: float | None) -> None:
+    if timeout is not None and not (math.isfinite(timeout) and timeout > 0):
+        raise ValueError(
+            f"Request timeout must be a positive number of seconds, not {timeout!r}"
+        )
+
+
 @dataclass
 class Request:
     url: URL
@@ -26,6 +33,9 @@ class Request:
     content: bytes | None
     delay: float | None
     timeout: float | None = None
+
+    def __post_init__(self) -> None:
+        validate_request_timeout(self.timeout)
 
 
 @dataclass
@@ -46,13 +56,6 @@ class Response:
 
 class ToRequest(Protocol):
     def finalize(self, base_url: URL, default_headers: Headers) -> Request: ...
-
-
-def validate_request_timeout(timeout: float | None) -> None:
-    if timeout is not None and not (math.isfinite(timeout) and timeout > 0):
-        raise ValueError(
-            f"Request timeout must be a positive number of seconds, not {timeout!r}"
-        )
 
 
 @dataclass
