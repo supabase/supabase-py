@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 
-from realtime.client import validate_heartbeat
-from realtime.types import DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_HEARTBEAT_TIMEOUT
+from realtime.types import (
+    DEFAULT_HEARTBEAT_INTERVAL,
+    DEFAULT_HEARTBEAT_TIMEOUT,
+    validate_heartbeat,
+)
 
 
 @dataclass(frozen=True)

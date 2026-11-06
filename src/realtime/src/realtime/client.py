@@ -18,6 +18,7 @@ from .types import (
     PHOENIX_CHANNEL,
     PROTOCOL_VERSION,
     ChannelEvents,
+    validate_heartbeat,
 )
 
 logger = RedactingLoggerAdapter(logging.getLogger(__name__))
@@ -39,13 +40,6 @@ def normalize_url(url: URL, token: str | None) -> URL:
     if url.scheme == "https":
         return url.with_scheme("wss")
     return url.with_scheme("ws")
-
-
-def validate_heartbeat(interval: float, timeout: float) -> None:
-    if interval <= 0:
-        raise ValueError(f"heartbeat_interval must be positive, got {interval}")
-    if timeout <= 0:
-        raise ValueError(f"heartbeat_timeout must be positive, got {timeout}")
 
 
 class connect_once:

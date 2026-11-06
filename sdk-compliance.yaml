@@ -980,6 +980,7 @@ features:
       - connect_once
     supporting_symbols:
       - RealtimeClientOptions
+      - validate_heartbeat
   realtime.configuration.access_token_callback:
     status: implemented
     note: "token_callback parameter on connect_once, awaited on connect and on each heartbeat. AsyncClient.realtime passes a callback that returns the access token of the current session, or the project key when there is none (see cross_client_token_sync)."

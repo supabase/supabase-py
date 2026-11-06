@@ -36,8 +36,8 @@ class HeartbeatServer:
         await self.ws_server.wait_closed()
 
     async def handler(self, connection: ServerConnection) -> None:
-        while True:
-            message = Message.model_validate_json(await connection.recv(decode=False))
+        async for raw in connection:
+            message = Message.model_validate_json(raw)
             if message.event != ChannelEvents.heartbeat or message.ref is None:
                 continue
             reply = ReplyMessage(
@@ -76,6 +76,8 @@ async def test_heartbeat_interval_below_fifteen_seconds_is_honored(
         (-1.5, 5, "heartbeat_interval must be positive"),
         (25, 0, "heartbeat_timeout must be positive"),
         (25, -0.5, "heartbeat_timeout must be positive"),
+        (float("nan"), 5, "heartbeat_interval must be positive"),
+        (25, float("nan"), "heartbeat_timeout must be positive"),
     ],
 )
 def test_connect_once_rejects_non_positive_heartbeat_durations(
