@@ -321,8 +321,8 @@ class RealtimeClient:
             websockets.ConnectionClosed: If the connection is closed. The token is
                 not stored, so calling this method again with the same token sends
                 it again.
-            TimeoutError: If the connection already failed because a heartbeat
-                timed out.
+            Exception: If the connection already failed, the exception that failed
+                it, such as a TimeoutError when a heartbeat timed out.
         """
         if token is None:
             if self.get_access_token is not None and (
@@ -352,10 +352,10 @@ class RealtimeClient:
     async def _send(self, message: Message) -> ReplyMessage:
         assert message.ref, "Cannot wait for reponse on a message without ref"
 
+        self._raise_connection_failure()
         message_str = message.model_dump_json()
         logger.debug("sending: %s", message_str)
 
-        self._raise_connection_failure()
         receive: asyncio.Future[Message] = asyncio.Future()
         self.message_refs[message.ref] = receive
         try:
@@ -368,14 +368,15 @@ class RealtimeClient:
         return ReplyMessage.model_validate(response)
 
     async def _send_no_wait(self, message: Message) -> None:
+        self._raise_connection_failure()
         message_str = message.model_dump_json()
         logger.debug("sending: %s", message_str)
-        self._raise_connection_failure()
         await self._ws_connection.send(message_str)
 
     def _raise_connection_failure(self) -> None:
-        if self._connection_failure.done():
-            self._connection_failure.result()
+        failure = self._connection_failure
+        if failure.done() and not failure.cancelled():
+            failure.result()
 
     def endpoint_url(self) -> str:
         return str(normalize_url(self.url, self.last_token))

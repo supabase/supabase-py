@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
+from unittest.mock import AsyncMock
 
 import pytest
 from websockets.asyncio.server import ServerConnection, serve
@@ -97,19 +98,21 @@ async def test_send_raises_when_the_connection_is_closed(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("send", SENDS.values(), ids=SENDS.keys())
 async def test_send_raises_when_the_connection_already_failed(
-    server: FakeServer, send: Callable[[RealtimeChannel], Awaitable[object]]
+    server: FakeServer,
+    send: Callable[[RealtimeChannel], Awaitable[object]],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async with connect_once(server.url, get_token) as client:
         channel = client.channel("room")
         await channel.subscribe()
-        received_before = len(server.received)
+        ws_send = AsyncMock()
+        monkeypatch.setattr(client._ws_connection, "send", ws_send)
 
         client._connection_failure.set_exception(TimeoutError())
         with pytest.raises(TimeoutError):
             await send(channel)
 
-        await asyncio.sleep(0.1)
-        assert len(server.received) == received_before
+        ws_send.assert_not_awaited()
 
 
 @pytest.mark.asyncio
