@@ -332,8 +332,14 @@ class RealtimeChannel:
         """
         Send a broadcast message through this channel.
 
+        Without ``broadcast_ack``, returning means the message was written to the
+        connection, not that the server received it.
+
         :param event: The name of the broadcast event
         :param data: The payload to broadcast
+        :raises websockets.ConnectionClosed: If the connection is closed.
+        :raises TimeoutError: If the connection already failed because a heartbeat
+            timed out.
         """
         payload = {"type": "broadcast", "event": event, "payload": data}
         if self.options.broadcast_ack:
