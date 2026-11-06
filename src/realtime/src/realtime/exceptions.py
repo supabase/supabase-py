@@ -7,6 +7,7 @@ class NotConnectedError(Exception):
     """
 
     def __init__(self, func_name: str) -> None:
+        super().__init__(func_name)
         self.offending_func_name: str = func_name
 
     @override
@@ -21,6 +22,7 @@ class AuthorizationError(Exception):
 
     def __init__(self, message: str | None = None) -> None:
         self.message: str = message or "Authorization failed for private channel"
+        super().__init__(self.message)
 
     @override
     def __str__(self) -> str:

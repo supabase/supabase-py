@@ -17,7 +17,7 @@ from .utils import STORAGE_URL, call_with_client, use_async
 if TYPE_CHECKING:
     from supabase_utils.types import JSON
 
-FileAction = Callable[[StorageFileApiClient[Any]], Any]
+FileAction = Callable[[Any], Any]
 
 
 def form_fields(request: Request) -> dict[str, bytes]:

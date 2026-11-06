@@ -80,11 +80,12 @@ def test_updates_the_authorization_header_on_auth_events(
         assert client.options.headers.get("apiKey") == key
         assert client.options.headers.get("Authorization") == f"Bearer {key}"
 
-        mock_session = MagicMock(access_token="secretuserjwt")
+        access_token = "secretuserjwt"
+        mock_session = MagicMock(access_token=access_token)
 
         client._listen_to_auth_events("SIGNED_IN", mock_session)
 
-        updated_authorization = f"Bearer {mock_session.access_token}"
+        updated_authorization = f"Bearer {access_token}"
 
         assert client.options.headers.get("apiKey") == key
         assert client.options.headers.get("Authorization") == updated_authorization

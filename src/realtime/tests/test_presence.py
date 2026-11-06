@@ -54,8 +54,14 @@ async def socket() -> AsyncIterator[RealtimeClient]:
 
 @pytest.mark.asyncio
 async def test_presence(socket: RealtimeClient) -> None:
-    user1 = {"user_id": "1", "online_at": datetime.datetime.now().isoformat()}
-    user2 = {"user_id": "2", "online_at": datetime.datetime.now().isoformat()}
+    user1 = {
+        "user_id": "1",
+        "online_at": datetime.datetime.now(datetime.UTC).isoformat(),
+    }
+    user2 = {
+        "user_id": "2",
+        "online_at": datetime.datetime.now(datetime.UTC).isoformat(),
+    }
 
     async with socket.channel("room") as chan:
         await chan.track(user1)

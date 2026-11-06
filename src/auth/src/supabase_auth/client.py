@@ -669,8 +669,7 @@ class AsyncSupabaseAuthClient(
             state_change_emitters={},
             auto_refresh_token=auto_refresh_token,
         )
-        SupabaseAuthHttpClient.__init__(
-            self,
+        super().__init__(
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
@@ -1109,8 +1108,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             state_change_emitters={},
             auto_refresh_token=auto_refresh_token,
         )
-        SupabaseAuthHttpClient.__init__(
-            self,
+        super().__init__(
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,

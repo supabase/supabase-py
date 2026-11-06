@@ -54,7 +54,7 @@ class SuccessReplyMessage(BaseModel):
 
 class ErrorReplyMessage(BaseModel):
     status: Literal["error"]
-    response: dict[str, JSON]  # TODO: what goes in here?
+    response: dict[str, JSON]
 
 
 class ReplyMessage(BaseModel):

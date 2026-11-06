@@ -56,7 +56,7 @@ class URLQuery:
         return {key: list(vals) for key, vals in self._map.items()}
 
     def merge(self, other: URLQuery) -> URLQuery:
-        new = self._map.update(other._map)
+        new: PMap[str, PVector[QueryValue]] = self._map.update(other._map)
         return URLQuery(new)
 
     def __len__(self) -> int:

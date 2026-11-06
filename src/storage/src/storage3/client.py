@@ -218,8 +218,7 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
         http_session: AsyncHttpSession,
         timeout: int | None = None,
     ) -> None:
-        StorageClient.__init__(
-            self,
+        super().__init__(
             url=url,
             headers=headers,
             executor=AsyncHttpIO(session=http_session),
@@ -246,8 +245,7 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
         http_session: HttpSession,
         timeout: int | None = None,
     ) -> None:
-        StorageClient.__init__(
-            self,
+        super().__init__(
             url=url,
             headers=headers,
             executor=SyncHttpIO(session=http_session),

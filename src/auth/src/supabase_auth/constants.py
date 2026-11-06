@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 GOTRUE_URL = "http://localhost:9999"
 EXPIRY_MARGIN = 10  # seconds
@@ -10,8 +10,6 @@ RETRY_MAX_DELAY = 30  # seconds
 STORAGE_KEY = "supabase.auth.token"
 
 API_VERSION_HEADER_NAME = "X-Supabase-Api-Version"
-API_VERSIONS_2024_01_01_TIMESTAMP = datetime.timestamp(
-    datetime.strptime("2024-01-01", "%Y-%m-%d")
-)
+API_VERSIONS_2024_01_01_TIMESTAMP = datetime(2024, 1, 1, tzinfo=UTC).timestamp()
 API_VERSIONS_2024_01_01_NAME = "2024-01-01"
 BASE64URL_REGEX = r"^([a-z0-9_-]{4})*($|[a-z0-9_-]{3}$|[a-z0-9_-]{2}$)$"

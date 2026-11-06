@@ -253,8 +253,7 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
         schema: str = "public",
     ) -> None:
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
-        PostgrestClient.__init__(
-            self,
+        super().__init__(
             executor=AsyncHttpIO(session=http_session),
             base_url=URL(base_url),
             default_headers=user_headers,
@@ -293,8 +292,7 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
         schema: str = "public",
     ) -> None:
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
-        PostgrestClient.__init__(
-            self,
+        super().__init__(
             executor=SyncHttpIO(session=http_session),
             base_url=URL(base_url),
             default_headers=user_headers,

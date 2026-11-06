@@ -6,7 +6,7 @@ from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 from websockets.frames import Frame
 
-from realtime._redact import redact
+from realtime._redact import RedactingLoggerAdapter, redact
 from realtime.client import connect_once
 from realtime.message import Message, ReplyMessage, SuccessReplyMessage
 from realtime.types import ChannelEvents
@@ -120,3 +120,17 @@ async def test_tokens_are_not_logged(
 )
 def test_redact(text: str, expected: str) -> None:
     assert redact(text) == expected
+
+
+def test_adapter_redacts_arguments_that_are_not_strings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    logger = RedactingLoggerAdapter(logging.getLogger("realtime.test"))
+    raw = b'{"payload":{"access_token":"secret"}}'
+
+    with caplog.at_level(logging.ERROR, logger="realtime.test"):
+        logger.error("Unrecognized message %r\n%s", raw, ValueError(raw.decode()))
+
+    [record] = caplog.records
+    assert "secret" not in record.getMessage()
+    assert record.getMessage().count('"access_token":"<redacted>"') == 2

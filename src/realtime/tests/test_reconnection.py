@@ -5,7 +5,7 @@ from types import TracebackType
 
 import pytest
 from pydantic import TypeAdapter
-from websockets.asyncio.server import ServerConnection, serve
+from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosedOK
 
 from realtime import (
@@ -46,6 +46,7 @@ def reply_ack(topic: str, ref: str) -> str:
 
 class RealtimeServer:
     def __init__(self) -> None:
+        self.ws_server: Server | None = None
         self.port = 0
 
     @property
@@ -59,6 +60,7 @@ class RealtimeServer:
 
     async def __aenter__(self) -> "RealtimeServer":
         await self.start()
+        assert self.ws_server is not None
         await self.ws_server.__aenter__()
         return self
 
@@ -68,9 +70,11 @@ class RealtimeServer:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        assert self.ws_server is not None
         await self.ws_server.__aexit__(exc_type, exc_value, traceback)
 
     async def close(self) -> None:
+        assert self.ws_server is not None
         self.ws_server.close()
         await self.ws_server.wait_closed()
 
