@@ -1,8 +1,8 @@
-from typing import Protocol
+from typing import Any, Protocol
 
 import pytest
 
-from supabase import Client, ClientOptions
+from supabase import Client
 from supabase.httpx import create_client as create_httpx_client
 
 
@@ -15,15 +15,13 @@ def pytest_configure(config: pytest.Config) -> None:
 REST_URL = "http://127.0.0.1:3000"
 
 
-def httpx(
-    supabase_key: str, supabase_url: str, options: ClientOptions | None = None
-) -> Client:
-    return create_httpx_client(supabase_key, supabase_url, options=options)
+def httpx(supabase_url: str, supabase_key: str, **kwargs: Any) -> Client:
+    return create_httpx_client(supabase_url, supabase_key, **kwargs)
 
 
 class SyncClientCallable(Protocol):
     def __call__(
-        self, supabase_key: str, supabase_url: str, options: ClientOptions | None = None
+        self, supabase_url: str, supabase_key: str, **kwargs: Any
     ) -> Client: ...
 
 

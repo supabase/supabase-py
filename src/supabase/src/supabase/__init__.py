@@ -23,9 +23,6 @@ from supabase_functions import (
 from supabase_utils.http.errors import RequestTimeoutError
 
 from .client import AsyncClient, Client, SupabaseException
-
-# Lib
-from .lib.client_options import AsyncClientOptions, ClientOptions
 from .types import (
     AuthClientOptions,
     FunctionsClientOptions,
@@ -39,7 +36,6 @@ from .version import __version__
 
 __all__ = [
     "AsyncClient",
-    "AsyncClientOptions",
     "AuthApiError",
     "AuthClientOptions",
     "AuthError",
@@ -52,7 +48,6 @@ __all__ = [
     "AuthWeakPasswordError",
     "AuthorizationError",
     "Client",
-    "ClientOptions",
     "CustomAuthError",
     "FunctionsClientOptions",
     "FunctionsError",

@@ -403,18 +403,18 @@ features:
     note: "Every auth event that carries a session sets the Authorization header used by auth, postgrest, storage and functions to that session's access token, and an event without a session resets it to the project key. AsyncClient also passes the token to realtime. The sync Client has no realtime client."
   client.authentication_integration.oauth_flow_type:
     status: implemented
-    note: "flow_type option on ClientOptions and the auth client constructor."
+    note: "flow_type of AuthClientOptions, passed as the auth argument of the supabase client, and of the auth client constructor."
     symbols:
-      - AsyncClientOptions
-      - ClientOptions
+      - AuthClientOptions
   client.authentication_integration.session_url_detection: not_implemented
 
   client.session_management.custom_storage:
     status: implemented
-    note: "storage option on AsyncClientOptions/ClientOptions and the auth client constructor accepts a custom storage backend."
+    note: "session_storage of AuthClientOptions, passed as the auth argument of the supabase client, and storage of the auth client constructor accept a custom storage backend."
     symbols:
       - AsyncSupportedStorage
       - SyncSupportedStorage
+      - AuthClientOptions
     supporting_symbols:
       - AsyncSupportedStorage.get_item
       - AsyncSupportedStorage.remove_item
@@ -432,7 +432,7 @@ features:
       - SyncMemoryStorage.set_item
   client.session_management.persist_session:
     status: not_implemented
-    note: "persist_session is accepted by ClientOptions and the auth client constructors but is not forwarded to the session manager, so sessions are always written to storage."
+    note: "The supabase client has no persist_session setting. The session is kept in session_storage of AuthClientOptions, which defaults to memory. The auth client constructors accept persist_session but do not forward it to the session manager, so sessions are always written to storage."
 
   client.request_configuration.custom_http_client:
     status: implemented
@@ -442,10 +442,14 @@ features:
       - create_async_client
   client.request_configuration.global_headers:
     status: implemented
-    note: "headers option on ClientOptions, accepted by all sub-client constructors."
+    note: "headers argument of create_client, create_async_client and the supabase client constructors, accepted by all sub-client constructors. They are sent on top of the default X-Client-Info header. SupabaseClient.headers is a read-only view of the current headers."
     symbols:
-      - AsyncClientOptions
-      - ClientOptions
+      - create_client
+      - create_async_client
+      - AsyncClient
+      - Client
+    supporting_symbols:
+      - SupabaseClient.headers
 
   client.observability.trace_propagation: not_implemented
   client.observability.diagnostic_logging: not_implemented
@@ -750,15 +754,15 @@ features:
       - BaseRequestClient
   database.configuration.request_timeout:
     status: implemented
-    note: "request_timeout (float seconds) on the PostgREST client constructors, and PostgrestClientOptions or the global request_timeout of ClientOptions on the supabase client. request_timeout() on a query overrides it for that query. It bounds how long a request may go without progress, and a timed-out request raises RequestTimeoutError. None (the default) leaves the timeout to the HTTP client."
+    note: "request_timeout (float seconds) on the PostgREST client constructors, and PostgrestClientOptions or the global request_timeout argument of the supabase client. request_timeout() on a query overrides it for that query. It bounds how long a request may go without progress, and a timed-out request raises RequestTimeoutError. None (the default) leaves the timeout to the HTTP client."
     symbols:
       - AsyncPostgrestClient
       - SyncPostgrestClient
       - BaseRequestClient.request_timeout
     supporting_symbols:
       - PostgrestClientOptions
-      - ClientOptions
-      - AsyncClientOptions
+      - AsyncClient
+      - Client
   database.configuration.access_token:
     status: partially_implemented
     note: "set_auth(token) sets the bearer token on the client in place; there is no per-request access token option."
@@ -803,7 +807,7 @@ features:
     no_public_symbols: true
   functions.invocation.timeout:
     status: implemented
-    note: "request_timeout argument (float seconds) of invoke(), overriding request_timeout of the functions client constructors, and FunctionsClientOptions or the global request_timeout of ClientOptions on the supabase client. It bounds how long the invocation may go without progress, and a timed-out invocation raises RequestTimeoutError. None (the default) leaves the timeout to the HTTP client."
+    note: "request_timeout argument (float seconds) of invoke(), overriding request_timeout of the functions client constructors, and FunctionsClientOptions or the global request_timeout argument of the supabase client. It bounds how long the invocation may go without progress, and a timed-out invocation raises RequestTimeoutError. None (the default) leaves the timeout to the HTTP client."
     symbols:
       - FunctionsClient.invoke
     supporting_symbols:
@@ -1365,8 +1369,6 @@ supporting_symbols:
   - Client.postgrest
   - Client.storage
   - Client.functions
-  - ClientOptions
-  - AsyncClientOptions
   - AuthClientOptions
   - StorageClientOptions
   - SupabaseException

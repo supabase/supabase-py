@@ -9,7 +9,7 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
 from supabase import (
     AsyncClient,
-    AsyncClientOptions,
+    AuthClientOptions,
 )
 
 from .conftest import AsyncClientCallable
@@ -55,8 +55,8 @@ async def test_uses_key_as_authorization_header_by_default(
     create_async_client: AsyncClientCallable,
 ) -> None:
     async with create_async_client(url, key) as client:
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == f"Bearer {key}"
+        assert client.headers.get("apiKey") == key
+        assert client.headers.get("Authorization") == f"Bearer {key}"
 
         assert client.postgrest.default_headers.get("apiKey") == key
         assert client.postgrest.default_headers.get("Authorization") == f"Bearer {key}"
@@ -100,8 +100,8 @@ async def test_auth_events_with_a_session_use_its_access_token(
         assert client.postgrest is postgrest
         assert client.storage is storage
         assert client.functions is functions
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == authorization
+        assert client.headers.get("apiKey") == key
+        assert client.headers.get("Authorization") == authorization
         assert client.postgrest.default_headers.get("Authorization") == authorization
         assert client.storage.default_headers.get("Authorization") == authorization
         assert client.functions.default_headers.get("Authorization") == authorization
@@ -120,7 +120,7 @@ async def test_auth_events_without_a_session_use_the_key(
         client.auth.session_manager.notify_all_subscribers("SIGNED_OUT", None)
 
         authorization = f"Bearer {key}"
-        assert client.options.headers.get("Authorization") == authorization
+        assert client.headers.get("Authorization") == authorization
         assert client.postgrest.default_headers.get("Authorization") == authorization
         assert client.storage.default_headers.get("Authorization") == authorization
         assert client.functions.default_headers.get("Authorization") == authorization
@@ -139,7 +139,7 @@ async def test_create_uses_the_stored_session_token() -> None:
             )
 
         authorization = "Bearer secretuserjwt"
-        assert client.options.headers.get("Authorization") == authorization
+        assert client.headers.get("Authorization") == authorization
         assert client.postgrest.default_headers.get("Authorization") == authorization
         assert client.auth.default_headers.get("Authorization") == authorization
         assert await realtime_access_token(client) == "secretuserjwt"
@@ -150,11 +150,11 @@ async def test_supports_setting_a_global_authorization_header(
 ) -> None:
     authorization = "Bearer secretuserjwt"
 
-    options = AsyncClientOptions(headers={"Authorization": authorization})
-
-    async with create_async_client(url, key, options) as client:
-        assert client.options.headers.get("apiKey") == key
-        assert client.options.headers.get("Authorization") == authorization
+    async with create_async_client(
+        url, key, headers={"Authorization": authorization}
+    ) as client:
+        assert client.headers.get("apiKey") == key
+        assert client.headers.get("Authorization") == authorization
 
         assert client.postgrest.default_headers.get("apiKey") == key
         assert client.postgrest.default_headers.get("Authorization") == authorization
@@ -171,61 +171,57 @@ async def test_supports_setting_a_global_authorization_header(
 async def test_realtime_uses_the_key_with_a_non_bearer_authorization_header(
     create_async_client: AsyncClientCallable,
 ) -> None:
-    options = AsyncClientOptions(headers={"Authorization": "Basic dXNlcjpwYXNz"})
-
-    async with create_async_client(url, key, options) as client:
+    async with create_async_client(
+        url, key, headers={"Authorization": "Basic dXNlcjpwYXNz"}
+    ) as client:
         assert await realtime_access_token(client) == key
 
 
 async def test_mutable_headers_issue(create_async_client: AsyncClientCallable) -> None:
-    shared_options = AsyncClientOptions(
-        storage=AsyncMemoryStorage(), headers={"Authorization": "Bearer initial-token"}
-    )
+    shared_headers = {"Authorization": "Bearer initial-token"}
+    shared_auth = AuthClientOptions(session_storage=AsyncMemoryStorage())
 
     async with (
-        create_async_client(url, key, shared_options) as client1,
-        create_async_client(url, key, shared_options) as client2,
+        create_async_client(
+            url, key, headers=shared_headers, auth=shared_auth
+        ) as client1,
+        create_async_client(
+            url, key, headers=shared_headers, auth=shared_auth
+        ) as client2,
     ):
         client1._set_access_token("modified-token")
-        assert client2.options.headers["Authorization"] == "Bearer initial-token"
-        assert client1.options.headers["Authorization"] == "Bearer modified-token"
-        assert shared_options.headers["Authorization"] == "Bearer initial-token"
+        assert client2.headers["Authorization"] == "Bearer initial-token"
+        assert client1.headers["Authorization"] == "Bearer modified-token"
+        assert shared_headers["Authorization"] == "Bearer initial-token"
 
 
 async def test_global_authorization_header_issue(
     create_async_client: AsyncClientCallable,
 ) -> None:
     authorization = "Bearer secretuserjwt"
-    options = AsyncClientOptions(headers={"Authorization": authorization})
-
-    async with create_async_client(url, key, options) as client:
-        assert client.options.headers.get("apiKey") == key
+    async with create_async_client(
+        url, key, headers={"Authorization": authorization}
+    ) as client:
+        assert client.headers.get("apiKey") == key
 
 
 async def test_custom_headers(create_async_client: AsyncClientCallable) -> None:
-    options = AsyncClientOptions(
-        headers={
-            "x-app-name": "apple",
-            "x-version": "1.0",
-        }
-    )
+    headers = {"x-app-name": "apple", "x-version": "1.0"}
 
-    async with create_async_client(url, key, options) as client:
-        assert client.options.headers.get("x-app-name") == "apple"
-        assert client.options.headers.get("x-version") == "1.0"
+    async with create_async_client(url, key, headers=headers) as client:
+        assert client.headers.get("x-app-name") == "apple"
+        assert client.headers.get("x-version") == "1.0"
 
 
 async def test_custom_headers_immutable(
     create_async_client: AsyncClientCallable,
 ) -> None:
     headers = {"x-app-name": "apple", "x-version": "1.0"}
-    options = AsyncClientOptions(headers=headers)
-    headers["x-app-name"] = "grapes"
+    async with create_async_client(url, key, headers=headers) as client:
+        headers["x-app-name"] = "grapes"
 
-    async with create_async_client(url, key, options) as client:
-        assert client.options.headers.get("x-app-name") == "apple"
-        assert client.options.headers.get("x-version") == "1.0"
-        assert options.headers.get("x-app-name") == "apple"
+        assert client.headers.get("x-app-name") == "apple"
+        assert client.headers.get("x-version") == "1.0"
 
 
 async def test_httpx_client_base_url_isolation(
@@ -237,8 +233,7 @@ async def test_httpx_client_base_url_isolation(
     See: https://github.com/supabase/supabase-py/issues/1244
     """
     # Create client with shared httpx instance
-    options = AsyncClientOptions()
-    async with create_async_client(url, key, options) as client:
+    async with create_async_client(url, key) as client:
         # Access storage and capture its base_url
         storage = client.storage
         storage_base_url = str(storage.base_url).rstrip("/")
