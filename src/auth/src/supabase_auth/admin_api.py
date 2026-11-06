@@ -400,9 +400,11 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
         url: str,
         http_session: HttpSession,
         default_headers: dict[str, str] | None = None,
+        *,
+        request_timeout: float | None = None,
     ) -> None:
         super().__init__(
-            executor=SyncHttpIO(session=http_session),
+            executor=SyncHttpIO(session=http_session, request_timeout=request_timeout),
             base_url=URL(url),
             default_headers=Headers.from_mapping(default_headers)
             if default_headers
@@ -428,9 +430,11 @@ class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
         url: str,
         http_session: AsyncHttpSession,
         default_headers: dict[str, str] | None = None,
+        *,
+        request_timeout: float | None = None,
     ) -> None:
         super().__init__(
-            executor=AsyncHttpIO(session=http_session),
+            executor=AsyncHttpIO(session=http_session, request_timeout=request_timeout),
             base_url=URL(url),
             default_headers=Headers.from_mapping(default_headers)
             if default_headers

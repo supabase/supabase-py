@@ -11,8 +11,15 @@ from supabase_auth import (
     SyncMemoryStorage,
     SyncSupportedStorage,
 )
+from supabase_utils.http.request import validate_request_timeout
 
-from supabase.types import RealtimeClientOptions
+from supabase.types import (
+    AuthClientOptions,
+    FunctionsClientOptions,
+    PostgrestClientOptions,
+    RealtimeClientOptions,
+    StorageClientOptions,
+)
 
 from ..version import __version__
 
@@ -50,7 +57,34 @@ class _ClientOptionsBase[Storage: (AsyncSupportedStorage, SyncSupportedStorage)]
     flow_type: AuthFlowType = "pkce"
     """flow type to use for authentication"""
 
+    request_timeout: float | None = None
+    """
+    Seconds a request to the database, auth, storage or edge functions may go
+    without progress before it fails with `RequestTimeoutError`. The timer
+    restarts whenever data is sent or received, so a large transfer that keeps
+    moving is not cut short. None (the default) leaves the timeout to the HTTP
+    client. The `request_timeout` of a service's options overrides it for that
+    service.
+    """
+
+    postgrest_options: PostgrestClientOptions = field(
+        default_factory=PostgrestClientOptions
+    )
+    """Options for the database client."""
+
+    auth_options: AuthClientOptions = field(default_factory=AuthClientOptions)
+    """Options for the auth client."""
+
+    storage_options: StorageClientOptions = field(default_factory=StorageClientOptions)
+    """Options for the storage client."""
+
+    functions_options: FunctionsClientOptions = field(
+        default_factory=FunctionsClientOptions
+    )
+    """Options for the edge functions client."""
+
     def __post_init__(self) -> None:
+        validate_request_timeout(self.request_timeout)
         object.__setattr__(self, "headers", dict(self.headers))
 
     def replace(
@@ -63,6 +97,11 @@ class _ClientOptionsBase[Storage: (AsyncSupportedStorage, SyncSupportedStorage)]
         storage: Storage | None = None,
         realtime: RealtimeClientOptions | None = None,
         flow_type: AuthFlowType | None = None,
+        request_timeout: float | None = None,
+        postgrest_options: PostgrestClientOptions | None = None,
+        auth_options: AuthClientOptions | None = None,
+        storage_options: StorageClientOptions | None = None,
+        functions_options: FunctionsClientOptions | None = None,
     ) -> Self:
         """Create a copy with the given options changed. Options left as None keep their value."""
         changes = {
@@ -73,6 +112,11 @@ class _ClientOptionsBase[Storage: (AsyncSupportedStorage, SyncSupportedStorage)]
             "storage": storage,
             "realtime": realtime,
             "flow_type": flow_type,
+            "request_timeout": request_timeout,
+            "postgrest_options": postgrest_options,
+            "auth_options": auth_options,
+            "storage_options": storage_options,
+            "functions_options": functions_options,
         }
         return dataclasses.replace(
             self, **{key: value for key, value in changes.items() if value is not None}

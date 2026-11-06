@@ -1,10 +1,13 @@
 import inspect
 import re
+from types import TracebackType
+from typing import Self
 
 import pytest
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpSession, HttpSession
-from supabase_utils.http.request import JSONRequest
+from supabase_utils.http.request import JSONRequest, Request, Response
+from supabase_utils.types import JSON
 from yarl import URL
 
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient, create_client
@@ -148,4 +151,62 @@ def test_invoke_keeps_wrapped_method_metadata(
         "region",
         "headers",
         "method",
+        "request_timeout",
     ]
+
+
+class RecordingSession:
+    def __init__(self) -> None:
+        self.requests: list[Request] = []
+
+    def send(self, request: Request) -> Response:
+        self.requests.append(request)
+        return Response(
+            headers=Headers.empty(), content=b"", status=200, request=request
+        )
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        pass
+
+
+@pytest.mark.parametrize("body", [None, "text", b"bytes", {"json": True}])
+def test_invoke_uses_client_request_timeout(
+    body: str | bytes | dict[str, JSON] | None, valid_url: str
+) -> None:
+    session = RecordingSession()
+    client = create_client(
+        url=valid_url,
+        headers={},
+        http_session=session,
+        is_async=False,
+        request_timeout=30,
+    )
+    client.invoke("hello", body=body)
+    client.invoke("hello", body=body, request_timeout=90)
+    assert [request.timeout for request in session.requests] == [30, 90]
+
+
+def test_invoke_without_request_timeout_leaves_it_to_the_http_client(
+    valid_url: str,
+) -> None:
+    session = RecordingSession()
+    SyncFunctionsClient(url=valid_url, headers={}, http_session=session).invoke("hello")
+    assert session.requests[0].timeout is None
+
+
+def test_invalid_request_timeout_is_rejected(valid_url: str) -> None:
+    with pytest.raises(ValueError, match="positive number of seconds"):
+        SyncFunctionsClient(
+            url=valid_url,
+            headers={},
+            http_session=RecordingSession(),
+            request_timeout=0,
+        )

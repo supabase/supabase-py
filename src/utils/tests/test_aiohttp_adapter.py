@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 
 import aiohttp
@@ -5,6 +6,7 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
+from supabase_utils.http.errors import RequestTimeoutError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpIO, HttpMethod
 from supabase_utils.http.query import URLQuery
@@ -30,11 +32,17 @@ async def not_found(request: web.Request) -> web.Response:
     return web.Response(status=404, text="missing")
 
 
+async def slow(request: web.Request) -> web.Response:
+    await asyncio.sleep(1)
+    return web.Response()
+
+
 @pytest.fixture
 async def server() -> AsyncIterator[TestServer]:
     app = web.Application()
     app.router.add_route("*", "/api/items", echo)
     app.router.add_route("*", "/api/missing", not_found)
+    app.router.add_route("*", "/api/slow", slow)
     test_server = TestServer(app)
     await test_server.start_server()
     yield test_server
@@ -210,3 +218,41 @@ async def test_does_not_resend_credentials_after_leaving_origin(
     assert response.status == 200
     assert response.headers.get("x-apikey") == ""
     assert response.headers.get("x-authorization") == ""
+
+
+def get_slow(timeout: float | None) -> HttpMethod[Response]:
+    return (yield EmptyRequest(path=["slow"], method="GET", timeout=timeout))
+
+
+async def test_request_timeout_raises_request_timeout_error(
+    server: TestServer,
+) -> None:
+    async with AsyncAiohttpSession(aiohttp.ClientSession()) as session:
+        with pytest.raises(RequestTimeoutError) as error:
+            await AsyncHttpIO(session).communicate(
+                base_url(server), Headers.empty(), get_slow(0.05)
+            )
+    assert isinstance(error.value.__cause__, TimeoutError)
+    assert error.value.request.timeout == 0.05
+
+
+async def test_session_timeout_raises_request_timeout_error(
+    server: TestServer,
+) -> None:
+    client = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=0.05))
+    async with AsyncAiohttpSession(client) as session:
+        with pytest.raises(RequestTimeoutError):
+            await AsyncHttpIO(session).communicate(
+                base_url(server), Headers.empty(), get_slow(None)
+            )
+
+
+async def test_request_timeout_overrides_session_timeout(
+    server: TestServer,
+) -> None:
+    client = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=0.05))
+    async with AsyncAiohttpSession(client) as session:
+        response = await AsyncHttpIO(session, request_timeout=5).communicate(
+            base_url(server), Headers.empty(), get_slow(None)
+        )
+    assert response.status == 200

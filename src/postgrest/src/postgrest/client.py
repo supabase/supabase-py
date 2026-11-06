@@ -251,10 +251,24 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
         http_session: AsyncHttpSession,
         headers: Mapping[str, str] | None = None,
         schema: str = "public",
+        *,
+        request_timeout: float | None = None,
     ) -> None:
+        """Create a PostgREST client.
+
+        Args:
+            base_url: The URL of the PostgREST service.
+            http_session: The HTTP session that sends the requests.
+            headers: Headers sent with every request.
+            schema: The Postgres schema to query.
+            request_timeout: Seconds a request may go without progress before
+                it fails with `RequestTimeoutError`. None leaves the timeout to
+                the HTTP client. Use `request_timeout()` on a query to override
+                it for that query.
+        """
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         super().__init__(
-            executor=AsyncHttpIO(session=http_session),
+            executor=AsyncHttpIO(session=http_session, request_timeout=request_timeout),
             base_url=URL(base_url),
             default_headers=user_headers,
             schema=schema,
@@ -267,6 +281,7 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
             base_url=str(self.base_url),
             headers=dict(self.default_headers),
             schema=schema,
+            request_timeout=self.executor.request_timeout,
         )
 
     async def __aenter__(self) -> Self:
@@ -290,10 +305,23 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
         headers: Mapping[str, str] | None = None,
         *,
         schema: str = "public",
+        request_timeout: float | None = None,
     ) -> None:
+        """Create a PostgREST client.
+
+        Args:
+            base_url: The URL of the PostgREST service.
+            http_session: The HTTP session that sends the requests.
+            headers: Headers sent with every request.
+            schema: The Postgres schema to query.
+            request_timeout: Seconds a request may go without progress before
+                it fails with `RequestTimeoutError`. None leaves the timeout to
+                the HTTP client. Use `request_timeout()` on a query to override
+                it for that query.
+        """
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         super().__init__(
-            executor=SyncHttpIO(session=http_session),
+            executor=SyncHttpIO(session=http_session, request_timeout=request_timeout),
             base_url=URL(base_url),
             default_headers=user_headers,
             schema=schema,
@@ -318,4 +346,5 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
             headers=dict(self.default_headers),
             schema=schema,
             http_session=self.executor.session,
+            request_timeout=self.executor.request_timeout,
         )

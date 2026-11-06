@@ -24,6 +24,7 @@ class Request:
     headers: Headers
     content: bytes | None
     delay: float | None
+    timeout: float | None = None
 
 
 @dataclass
@@ -46,13 +47,24 @@ class ToRequest(Protocol):
     def finalize(self, base_url: URL, default_headers: Headers) -> Request: ...
 
 
+def validate_request_timeout(timeout: float | None) -> None:
+    if timeout is not None and not timeout > 0:
+        raise ValueError(
+            f"Request timeout must be a positive number of seconds, not {timeout!r}"
+        )
+
+
 @dataclass
 class EmptyRequest:
     path: list[str]
     method: HTTPRequestMethod
     delay: float | None = field(default=None, kw_only=True)
+    timeout: float | None = field(default=None, kw_only=True)
     headers: Headers = field(default_factory=Headers.empty, kw_only=True)
     query: URLQuery = field(default_factory=URLQuery.empty, kw_only=True)
+
+    def __post_init__(self) -> None:
+        validate_request_timeout(self.timeout)
 
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         return Request(
@@ -61,6 +73,7 @@ class EmptyRequest:
             headers=default_headers.update(self.headers),
             content=None,
             delay=self.delay,
+            timeout=self.timeout,
         )
 
     def _headers_with_content_type(
@@ -87,6 +100,7 @@ class BytesRequest(EmptyRequest):
             headers=headers,
             content=self.body,
             delay=self.delay,
+            timeout=self.timeout,
         )
 
 
@@ -110,6 +124,7 @@ class JSONRequest(EmptyRequest):
             headers=headers,
             content=content,
             delay=self.delay,
+            timeout=self.timeout,
         )
 
 
@@ -128,6 +143,7 @@ class TextRequest(EmptyRequest):
             headers=headers,
             content=self.text.encode("utf-8"),
             delay=self.delay,
+            timeout=self.timeout,
         )
 
 
@@ -217,4 +233,5 @@ class MultipartFormDataRequest(EmptyRequest):
             headers=headers,
             content=content,
             delay=self.delay,
+            timeout=self.timeout,
         )

@@ -5,10 +5,12 @@ from aiohttp import (
     ClientMiddlewareType,
     ClientRequest,
     ClientSession,
+    ClientTimeout,
 )
 from aiohttp import ClientResponse as AioResponse
 from yarl import URL
 
+from ..errors import RequestTimeoutError
 from ..headers import Headers
 from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import Request, Response
@@ -44,18 +46,28 @@ class AsyncAiohttpSession:
         self.client = client
 
     async def send(self, request: Request) -> Response:
-        response = await self.client.request(
-            method=request.method,
-            url=str(request.url),
-            data=request.content,
-            headers=dict(request.headers),
-            middlewares=(
-                # Per request middlewares replace the session ones, so keep those.
-                *self.client._middlewares,
-                strip_cross_origin_credentials(request.url),
-            ),
-        )
-        return await to_supabase_response(request, response)
+        try:
+            response = await self.client.request(
+                method=request.method,
+                url=str(request.url),
+                data=request.content,
+                headers=dict(request.headers),
+                timeout=self.client.timeout
+                if request.timeout is None
+                else ClientTimeout(
+                    connect=request.timeout,
+                    sock_connect=request.timeout,
+                    sock_read=request.timeout,
+                ),
+                middlewares=(
+                    # Per request middlewares replace the session ones, so keep those.
+                    *self.client._middlewares,
+                    strip_cross_origin_credentials(request.url),
+                ),
+            )
+            return await to_supabase_response(request, response)
+        except TimeoutError as error:
+            raise RequestTimeoutError(request) from error
 
     async def __aenter__(self) -> "AsyncAiohttpSession":
         return self

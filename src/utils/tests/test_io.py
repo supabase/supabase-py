@@ -188,3 +188,40 @@ def test_handle_http_io_keeps_metadata() -> None:
     signature = inspect.signature(method)
     assert list(signature.parameters) == ["item_id", "select"]
     assert signature.return_annotation is inspect.Signature.empty
+
+
+def two_requests() -> HttpMethod[None]:
+    yield EmptyRequest(path=["items"], method="GET")
+    yield EmptyRequest(path=["items"], method="GET", timeout=2.5)
+
+
+def test_sync_communicate_applies_request_timeout() -> None:
+    session = FakeSession([200, 200])
+    SyncHttpIO(session, request_timeout=10).communicate(
+        BASE_URL, DEFAULT_HEADERS, two_requests()
+    )
+    assert [r.timeout for r in session.requests] == [10, 2.5]
+
+
+async def test_async_communicate_applies_request_timeout() -> None:
+    session = AsyncFakeSession([200, 200])
+    await AsyncHttpIO(session, request_timeout=10).communicate(
+        BASE_URL, DEFAULT_HEADERS, two_requests()
+    )
+    assert [r.timeout for r in session.requests] == [10, 2.5]
+
+
+def test_communicate_without_request_timeout_leaves_it_to_the_session() -> None:
+    session = FakeSession([200, 200])
+    SyncHttpIO(session).communicate(BASE_URL, DEFAULT_HEADERS, two_requests())
+    assert [r.timeout for r in session.requests] == [None, 2.5]
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan")])
+def test_invalid_request_timeout_is_rejected(timeout: float) -> None:
+    with pytest.raises(ValueError, match="positive number of seconds"):
+        SyncHttpIO(FakeSession([]), request_timeout=timeout)
+    with pytest.raises(ValueError, match="positive number of seconds"):
+        AsyncHttpIO(AsyncFakeSession([]), request_timeout=timeout)
+    with pytest.raises(ValueError, match="positive number of seconds"):
+        EmptyRequest(path=[], method="GET", timeout=timeout)

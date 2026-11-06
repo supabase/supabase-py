@@ -16,7 +16,7 @@ from typing import (
 from yarl import URL
 
 from .headers import Headers
-from .request import Request, Response, ToRequest
+from .request import Request, Response, ToRequest, validate_request_timeout
 
 type HttpMethod[Success] = Generator[ToRequest, Response, Success]
 
@@ -54,8 +54,12 @@ class AsyncHttpSession(Protocol):
 
 
 class SyncHttpIO:
-    def __init__(self, session: HttpSession) -> None:
+    def __init__(
+        self, session: HttpSession, request_timeout: float | None = None
+    ) -> None:
+        validate_request_timeout(request_timeout)
         self.session = session
+        self.request_timeout = request_timeout
 
     def communicate[Success](
         self,
@@ -69,6 +73,8 @@ class SyncHttpIO:
             http_request = next(iterator)
             while True:
                 request = http_request.finalize(base_url, default_headers)
+                if request.timeout is None:
+                    request.timeout = self.request_timeout
                 if request.delay:
                     time.sleep(request.delay)
                 response = self.session.send(request)
@@ -78,8 +84,12 @@ class SyncHttpIO:
 
 
 class AsyncHttpIO:
-    def __init__(self, session: AsyncHttpSession) -> None:
+    def __init__(
+        self, session: AsyncHttpSession, request_timeout: float | None = None
+    ) -> None:
+        validate_request_timeout(request_timeout)
         self.session = session
+        self.request_timeout = request_timeout
 
     async def communicate[Success](
         self,
@@ -93,6 +103,8 @@ class AsyncHttpIO:
             http_request = next(iterator)
             while True:
                 request = http_request.finalize(base_url, default_headers)
+                if request.timeout is None:
+                    request.timeout = self.request_timeout
                 if request.delay:
                     await asyncio.sleep(request.delay)
                 response = await self.session.send(request)
