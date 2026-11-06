@@ -17,11 +17,11 @@ HOST = "127.0.0.1"
 
 
 class HeartbeatServer:
-    """Acks every heartbeat and counts them."""
+    """Acks every heartbeat and records when each one arrives."""
 
     def __init__(self, expected_heartbeats: int) -> None:
         self.expected_heartbeats = expected_heartbeats
-        self.heartbeats = 0
+        self.heartbeat_times: list[float] = []
         self.received_expected = asyncio.Event()
 
     async def __aenter__(self) -> "HeartbeatServer":
@@ -48,9 +48,9 @@ class HeartbeatServer:
                     status="ok", response=ReplyPostgresChanges()
                 ),
             )
+            self.heartbeat_times.append(asyncio.get_running_loop().time())
             await connection.send(reply.model_dump_json())
-            self.heartbeats += 1
-            if self.heartbeats >= self.expected_heartbeats:
+            if len(self.heartbeat_times) >= self.expected_heartbeats:
                 self.received_expected.set()
 
 
@@ -63,10 +63,15 @@ async def server() -> AsyncIterator[HeartbeatServer]:
 async def test_heartbeat_interval_below_fifteen_seconds_is_honored(
     server: HeartbeatServer,
 ) -> None:
-    async with connect_once(server.url, heartbeat_interval=0.05):
+    interval = 0.05
+
+    async with connect_once(server.url, heartbeat_interval=interval):
         await asyncio.wait_for(server.received_expected.wait(), timeout=5)
 
-    assert server.heartbeats >= 3
+    times = server.heartbeat_times
+    gaps = [later - earlier for earlier, later in zip(times, times[1:])]
+    assert len(times) >= 3
+    assert all(gap >= interval * 0.8 for gap in gaps)
 
 
 @pytest.mark.parametrize(
