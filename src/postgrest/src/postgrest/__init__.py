@@ -12,13 +12,13 @@ from .types import (
 from .version import __version__
 
 __all__ = [
-    "AsyncPostgrestClient",
-    "SyncPostgrestClient",
-    "APIResponse",
     "APIError",
+    "APIResponse",
+    "AsyncPostgrestClient",
     "CountMethod",
     "Filters",
     "RequestMethod",
     "ReturnMethod",
+    "SyncPostgrestClient",
     "__version__",
 ]

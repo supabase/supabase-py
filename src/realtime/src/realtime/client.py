@@ -114,8 +114,7 @@ class MaxRetriesExceeded(Exception):
 def exponential_delay(max_retries: int, retry_count: int) -> float | None:
     if retry_count >= max_retries:
         return None
-    else:
-        return float(min(2**retry_count, MAX_RECONNECT_DELAY))
+    return float(min(2**retry_count, MAX_RECONNECT_DELAY))
 
 
 async def automatically_reconnect(
@@ -133,7 +132,7 @@ async def automatically_reconnect(
                 connected_at = loop.time()
                 await client_handler(client)
                 break
-        except (websockets.ConnectionClosed, TimeoutError, OSError):
+        except (websockets.ConnectionClosed, TimeoutError, OSError) as e:
             if (
                 connected_at is not None
                 and loop.time() - connected_at >= MAX_RECONNECT_DELAY
@@ -142,7 +141,7 @@ async def automatically_reconnect(
             retries += 1
             delay = exponential_delay(max_retries, retries)
             if delay is None:
-                raise MaxRetriesExceeded(retries)
+                raise MaxRetriesExceeded(retries) from e
             await asyncio.sleep(delay)
 
 
@@ -215,7 +214,7 @@ class RealtimeClient:
         await self._ws_connection.close()
 
     async def _get_message_or_raise(self, fut: asyncio.Future[Message]) -> Message:
-        done, pending = await asyncio.wait(
+        done, _pending = await asyncio.wait(
             (fut, self._connection_failure), return_when=asyncio.FIRST_COMPLETED
         )
         if self._connection_failure in done:

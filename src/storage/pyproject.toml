@@ -78,22 +78,8 @@ filterwarnings = [
     "ignore::DeprecationWarning", # ignore deprecation warnings globally
 ]
 
-[tool.ruff.lint]
-select = [
-  # pycodestyle
-  "E",
-  # Pyflakes
-  "F",
-  # pyupgrade
-  "UP",
-  # flake8-bugbear
-  # "B",
-  # flake8-simplify
-  # "SIM",
-  # isort
-  "I",
-]
-ignore = ["E712", "E501", "E402"]
+[tool.ruff]
+extend = "../../pyproject.toml"
 
 [tool.uv]
 default-groups = [ "dev" ]

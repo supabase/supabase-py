@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from typing import Any
 
 import pytest
@@ -10,7 +9,7 @@ from postgrest.utils import sanitize_param
 
 
 @pytest.fixture
-def filter_request_builder() -> Iterable[BaseFilterRequestBuilder]:
+def filter_request_builder() -> BaseFilterRequestBuilder:
     request = PostgrestRequest(
         path=["example_table"],
         method="GET",
@@ -18,7 +17,7 @@ def filter_request_builder() -> Iterable[BaseFilterRequestBuilder]:
         query=URLQuery.empty(),
         body={},
     )
-    yield BaseFilterRequestBuilder(
+    return BaseFilterRequestBuilder(
         request=request,
         negate_next=False,
     )
@@ -31,7 +30,7 @@ def test_filter(filter_request_builder: BaseFilterRequestBuilder) -> None:
 
 
 @pytest.mark.parametrize(
-    "col_name, expected_query_prefix",
+    ("col_name", "expected_query_prefix"),
     [
         ("col:name", "%22col%3Aname%22"),
         ("col.name", "col.name"),
@@ -68,7 +67,7 @@ def test_equals(filter_request_builder: BaseFilterRequestBuilder) -> None:
 
 
 @pytest.mark.parametrize(
-    "value, expected",
+    ("value", "expected"),
     [
         (None, "eq.null"),
         (True, "eq.true"),
@@ -89,7 +88,7 @@ def test_eq_serializes_values(
 
 @pytest.mark.parametrize("method", ["neq", "gt", "gte", "lt", "lte"])
 @pytest.mark.parametrize(
-    "value, expected",
+    ("value", "expected"),
     [
         (None, "null"),
         (True, "true"),

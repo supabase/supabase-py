@@ -18,7 +18,7 @@ def client_headers(sdk_auth: str | None) -> dict[str, str]:
 
 
 @pytest.mark.parametrize("endpoint", ENDPOINTS)
-@pytest.mark.parametrize("sdk_auth, expected_authorization", AUTH_CASES)
+@pytest.mark.parametrize(("sdk_auth", "expected_authorization"), AUTH_CASES)
 def test_sync_injected_client_auth(
     endpoint: str, sdk_auth: str | None, expected_authorization: str
 ) -> None:
@@ -52,7 +52,7 @@ def test_sync_injected_client_auth(
 
 
 @pytest.mark.parametrize("endpoint", ENDPOINTS)
-@pytest.mark.parametrize("sdk_auth, expected_authorization", AUTH_CASES)
+@pytest.mark.parametrize(("sdk_auth", "expected_authorization"), AUTH_CASES)
 async def test_async_injected_client_auth(
     endpoint: str, sdk_auth: str | None, expected_authorization: str
 ) -> None:

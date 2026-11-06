@@ -69,7 +69,7 @@ class AMREntry(BaseModel):
     identity and at what time.
     """
 
-    method: Literal["password", "otp", "oauth", "mfa/totp"] | str
+    method: Literal["password", "otp", "oauth", "mfa/totp"] | str  # noqa: PYI051
     """
     Authentication method name.
     """
@@ -179,7 +179,7 @@ class Factor(BaseModel):
     """
     Friendly name of the factor, useful to disambiguate between multiple factors.
     """
-    factor_type: Literal["totp", "phone"] | str
+    factor_type: Literal["totp", "phone"] | str  # noqa: PYI051
     """
     Type of factor. Only `totp` supported with this version but may change in
     future versions.

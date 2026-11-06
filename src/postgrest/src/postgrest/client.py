@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from base64 import b64encode
-from collections.abc import Mapping
-from types import TracebackType
-from typing import Literal, Self, overload
+from typing import TYPE_CHECKING, Literal, Self, overload
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -13,8 +11,6 @@ from supabase_utils.http.io import (
     SyncHttpIO,
 )
 from supabase_utils.http.query import URLQuery
-from supabase_utils.http.request import HTTPRequestMethod
-from supabase_utils.types import JSON
 from yarl import URL
 
 from .request_builder import (
@@ -23,9 +19,17 @@ from .request_builder import (
     RPCCountRequestBuilder,
     RPCFilterRequestBuilder,
 )
-from .types import CountMethod
 from .utils import _rpc_query_param
 from .version import __version__
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from types import TracebackType
+
+    from supabase_utils.http.request import HTTPRequestMethod
+    from supabase_utils.types import JSON
+
+    from .types import CountMethod
 
 
 class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
@@ -232,13 +236,12 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 default_headers=self.default_headers,
                 request=request,
             )
-        else:
-            return RPCCountRequestBuilder(
-                executor=self.executor,
-                base_url=self.base_url,
-                default_headers=self.default_headers,
-                request=request,
-            )
+        return RPCCountRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=request,
+        )
 
 
 class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
@@ -267,7 +270,7 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
             schema=schema,
         )
 
-    async def __aenter__(self) -> AsyncPostgrestClient:
+    async def __aenter__(self) -> Self:
         await self.executor.session.__aenter__()
         return self
 
@@ -298,7 +301,7 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
             schema=schema,
         )
 
-    def __enter__(self) -> SyncPostgrestClient:
+    def __enter__(self) -> Self:
         self.executor.session.__enter__()
         return self
 

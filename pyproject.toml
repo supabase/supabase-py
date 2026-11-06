@@ -34,11 +34,43 @@ select = [
   "UP",
   # flake8-bugbear
   "B",
-  # flake8-simplify
-  # "SIM",
   # isort
   "I",
-  "ANN2"
+  # missing return type annotations
+  "ANN2",
+  # pylint errors and warnings
+  "PLE",
+  "PLW",
+  # flake8-pie
+  "PIE",
+  # flake8-logging
+  "LOG",
+  # flynt
+  "FLY",
+  # flake8-2020
+  "YTT",
+  # flake8-async
+  "ASYNC",
+  # flake8-comprehensions
+  "C4",
+  # flake8-raise
+  "RSE",
+  # flake8-simplify
+  "SIM",
+  # flake8-return
+  "RET",
+  # flake8-pyi
+  "PYI",
+  # flake8-pytest-style
+  "PT",
+  # flake8-type-checking
+  "TC",
+  # Perflint
+  "PERF",
+  # Ruff-specific rules
+  "RUF",
 ]
 ignore = ["E501", "E402"]
 
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]

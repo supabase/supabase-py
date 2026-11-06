@@ -8,7 +8,7 @@ from postgrest import APIError, SyncPostgrestClient
 
 
 @pytest.mark.parametrize(
-    "body, message, details",
+    ("body", "message", "details"),
     [
         (b'{"message": "JWT expired"}', "JWT expired", None),
         (

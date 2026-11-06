@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Mapping
-from types import TracebackType
+from typing import TYPE_CHECKING, Self
 
 from pydantic import TypeAdapter
 from supabase_utils.http.headers import Headers
@@ -23,6 +22,10 @@ from .file_api import StorageFileApiClient
 from .types import Bucket, BucketName, CreateOrUpdateBucketBody, MessageResponse
 from .vectors import StorageVectorsClient
 from .version import __version__
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from types import TracebackType
 
 DEFAULT_TIMEOUT = 20
 
@@ -46,7 +49,9 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         user_headers = Headers.from_mapping(headers)
         self.executor: HttpIO = executor
         if url and url[-1] != "/":
-            warnings.warn("Storage endpoint URL should have a trailing slash.")
+            warnings.warn(
+                "Storage endpoint URL should have a trailing slash.", stacklevel=2
+            )
             url += "/"
         self.base_url = URL(url)
         self.default_headers = supabase_headers.update(user_headers)
@@ -220,7 +225,7 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
             executor=AsyncHttpIO(session=http_session),
         )
 
-    async def __aenter__(self) -> AsyncStorageClient:
+    async def __aenter__(self) -> Self:
         await self.executor.session.__aenter__()
         return self
 
@@ -248,7 +253,7 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
             executor=SyncHttpIO(session=http_session),
         )
 
-    def __enter__(self) -> SyncStorageClient:
+    def __enter__(self) -> Self:
         self.executor.session.__enter__()
         return self
 

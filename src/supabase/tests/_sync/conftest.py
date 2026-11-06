@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from typing import Protocol
 
 import pytest
@@ -31,5 +30,6 @@ class SyncClientCallable(Protocol):
 @pytest.fixture(params=[httpx])
 def create_client(
     request: pytest.FixtureRequest,
-) -> Iterable[SyncClientCallable]:
-    yield request.param  # just immediatly yield the `create_client` function
+) -> SyncClientCallable:
+    client_factory: SyncClientCallable = request.param
+    return client_factory

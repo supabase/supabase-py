@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, KeysView, Mapping
+from typing import TYPE_CHECKING
 
 from pyrsistent import PMap, PVector
 from pyrsistent import m as Map
 from pyrsistent import v as Vec
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, KeysView, Mapping
 
 
 class Headers:

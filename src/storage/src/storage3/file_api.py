@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import builtins
 from dataclasses import dataclass
 from io import BufferedReader, FileIO
-from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import TypeAdapter
 from supabase_utils.http.headers import Headers
@@ -49,6 +47,10 @@ from .types import (
     transform_to_dict,
 )
 
+if TYPE_CHECKING:
+    import builtins
+    from pathlib import Path
+
 __all__ = ["StorageFileApiClient"]
 
 
@@ -69,12 +71,11 @@ def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> byte
     if isinstance(file, (BufferedReader, FileIO)):
         # bytes or byte-stream-like object received
         return file.read()
-    elif isinstance(file, bytes):
+    if isinstance(file, bytes):
         return file
-    else:
-        # str or pathlib.path received
-        with open(file, "rb") as f:
-            return f.read()
+    # str or pathlib.path received
+    with open(file, "rb") as f:
+        return f.read()
 
 
 FileObjectsAdapter = TypeAdapter(list[FileObject])
@@ -319,7 +320,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             )
 
         render_path = ["render", "image"] if transform else ["object"]
-        transformation = transform_to_dict(transform) if transform else dict()
+        transformation = transform_to_dict(transform) if transform else {}
 
         path_parts = relative_path_to_parts(path)
         url = (

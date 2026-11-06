@@ -1,14 +1,16 @@
 import base64
 import json
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from httpx import AsyncClient, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 from supabase_utils.types import JSON
 
 from supabase_auth import AsyncSupabaseAuthClient
-from supabase_auth.types import AuthChangeEvent
+
+if TYPE_CHECKING:
+    from supabase_auth.types import AuthChangeEvent
 
 USER: dict[str, JSON] = {
     "id": "11111111-1111-1111-1111-111111111111",

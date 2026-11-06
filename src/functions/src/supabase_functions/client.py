@@ -198,5 +198,7 @@ def create_client(
     is_async: bool,
 ) -> AsyncFunctionsClient | SyncFunctionsClient:
     if is_async:
-        return AsyncFunctionsClient(url, headers, cast(AsyncHttpSession, http_session))
-    return SyncFunctionsClient(url, headers, cast(HttpSession, http_session))
+        return AsyncFunctionsClient(
+            url, headers, cast("AsyncHttpSession", http_session)
+        )
+    return SyncFunctionsClient(url, headers, cast("HttpSession", http_session))

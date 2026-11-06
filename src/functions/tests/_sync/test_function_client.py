@@ -157,7 +157,9 @@ def test_invoke_relay_error_on_non_2xx_status() -> None:
 
 def test_invoke_invalid_function_name() -> None:
     client = client_returning(content=b'{"message": "success"}', status=200)
-    with pytest.raises(ValueError, match="function_name must be a valid string value."):
+    with pytest.raises(
+        ValueError, match=r"function_name must be a valid string value\."
+    ):
         client.invoke("")
 
 

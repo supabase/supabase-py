@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
-from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 import websockets
-from supabase_utils.types import JSON
-from yarl import URL
 
 from .message import (
     BroadcastMessage,
@@ -37,6 +35,11 @@ from .types import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Mapping, Sequence
+
+    from supabase_utils.types import JSON
+    from yarl import URL
+
     from .client import RealtimeClient
 
 logger = logging.getLogger(__name__)
@@ -140,7 +143,7 @@ class RealtimeChannelOptions:
             if self.broadcast_replay_since is not None
             else None
         )
-        payload = RealtimeChannelOptionsPayload(
+        return RealtimeChannelOptionsPayload(
             access_token=self.token,
             config=RealtimeChannelConfig(
                 private=self.is_private,
@@ -157,7 +160,6 @@ class RealtimeChannelOptions:
                 postgres_changes=list(self.postgres_changes_bindings),
             ),
         )
-        return payload
 
 
 ChannelMessage = (
@@ -203,16 +205,13 @@ class RealtimeChannel:
     def joined(self) -> bool:
         return self.state == ChannelStates.JOINED
 
-    async def __aenter__(self) -> RealtimeChannel:
+    async def __aenter__(self) -> Self:
         await self.subscribe()
         return self
 
     async def __aexit__(self, *args: object) -> None:
-        try:
+        with contextlib.suppress(websockets.ConnectionClosed):
             await self.unsubscribe()
-        except websockets.ConnectionClosed:
-            # in the case of disconnect, we cannot guarantee that an unsubscribe message can be sent
-            pass
 
     async def subscribe(self) -> ReplyMessage:
         owner = self.socket.channels.setdefault(self.topic, self)
@@ -338,9 +337,8 @@ class RealtimeChannel:
         payload = {"type": "broadcast", "event": event, "payload": data}
         if self.options.broadcast_ack:
             return await self._send_event(ChannelEvents.broadcast, payload)
-        else:
-            await self._send_event_no_wait(ChannelEvents.broadcast, payload)
-            return None
+        await self._send_event_no_wait(ChannelEvents.broadcast, payload)
+        return None
 
     # Internal methods
 

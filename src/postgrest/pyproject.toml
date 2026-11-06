@@ -59,23 +59,8 @@ dev = [ { include-group = "lints" }, { include-group="test" }]
 [tool.uv]
 default-groups = [ "dev" ]
 
-[tool.ruff.lint]
-select = [
-  # pycodestyle
-  "E",
-  # Pyflakes
-  "F",
-  # pyupgrade
-  "UP",
-  # flake8-bugbear
-  # "B",
-  # flake8-simplify
-  # "SIM",
-  # isort
-  "I",
-]
-ignore = ["E712", "E501", "E402"]
-
+[tool.ruff]
+extend = "../../pyproject.toml"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

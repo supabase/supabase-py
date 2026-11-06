@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from typing import Protocol
 
 import pytest
@@ -42,5 +41,6 @@ class AsyncClientCallable(Protocol):
 @pytest.fixture(params=[httpx, aiohttp])
 def create_async_client(
     request: pytest.FixtureRequest,
-) -> Iterable[AsyncClientCallable]:
-    yield request.param  # just immediatly yield the `create_client` function
+) -> AsyncClientCallable:
+    client_factory: AsyncClientCallable = request.param
+    return client_factory

@@ -2,18 +2,20 @@ import dataclasses
 import json
 import re
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from httpx import Request, Response
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
-from supabase_utils.types import JSON
 
 from storage3 import StorageFileApiClient
 from storage3.exceptions import StorageApiError
 from storage3.types import SortByType, SortByV2, TransformOptions
 
 from .utils import STORAGE_URL, call_with_client, use_async
+
+if TYPE_CHECKING:
+    from supabase_utils.types import JSON
 
 FileAction = Callable[[StorageFileApiClient[Any]], Any]
 

@@ -60,22 +60,8 @@ filterwarnings = [
     "ignore::DeprecationWarning", # ignore deprecation warnings globally
 ]
 
-[tool.ruff.lint]
-select = [
-  # pycodestyle
-  "E",
-  # Pyflakes
-  "F",
-  # pyupgrade
-  "UP",
-  # flake8-bugbear
-  # "B",
-  # flake8-simplify
-  # "SIM",
-  # isort
-  "I",
-]
-ignore = ["E712", "E501", "E402"]
+[tool.ruff]
+extend = "../../pyproject.toml"
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]

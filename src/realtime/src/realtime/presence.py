@@ -115,14 +115,14 @@ class RealtimePresence:
             if new_presences:
                 yield PresenceJoin(key, current_presences, new_presences)
 
-        for key, left_presences in leaves.items():
+        for key, leaving_presences in leaves.items():
             current_presences = self.state.get(key, [])
             current_presence_refs = {
                 presence.presence_ref for presence in current_presences
             }
             left_presences = [
                 presence
-                for presence in left_presences
+                for presence in leaving_presences
                 if presence.presence_ref in current_presence_refs
             ]
             if not left_presences:

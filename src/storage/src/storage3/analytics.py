@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import builtins
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
     HttpMethod,
@@ -16,7 +14,6 @@ from supabase_utils.http.request import (
     EmptyRequest,
     JSONRequest,
 )
-from yarl import URL
 
 from .exceptions import _validate_adapter, _validate_model
 from .types import (
@@ -28,7 +25,11 @@ from .types import (
 )
 
 if TYPE_CHECKING:
+    import builtins
+
     from pyiceberg.catalog.rest import RestCatalog
+    from supabase_utils.http.headers import Headers
+    from yarl import URL
 
 
 @dataclass
@@ -56,13 +57,13 @@ class StorageAnalyticsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         sort_order: SortOrder | None = None,
         search: str | None = None,
     ) -> HttpMethod[builtins.list[AnalyticsBucket]]:
-        params = dict(
-            limit=limit,
-            offset=offset,
-            sortColumn=sort_column,
-            sortOrder=sort_order,
-            search=search,
-        )
+        params = {
+            "limit": limit,
+            "offset": offset,
+            "sortColumn": sort_column,
+            "sortOrder": sort_order,
+            "search": search,
+        }
         filtered_params = URLQuery.from_mapping(
             {k: v for k, v in params.items() if v is not None}
         )

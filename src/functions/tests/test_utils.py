@@ -28,7 +28,7 @@ def test_function_region_values() -> None:
 
 
 @pytest.mark.parametrize(
-    "test_input,expected",
+    ("test_input", "expected"),
     [
         ("valid_string", True),
         ("  spaced_string  ", True),

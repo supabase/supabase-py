@@ -143,13 +143,13 @@ class Presence(BaseModel):
 
 
 class PresenceEvents:
-    def __init__(self, state: str, diff: str):
+    def __init__(self, state: str, diff: str) -> None:
         self.state = state
         self.diff = diff
 
 
 class PresenceOptions:
-    def __init__(self, events: PresenceEvents):
+    def __init__(self, events: PresenceEvents) -> None:
         self.events = events
 
 

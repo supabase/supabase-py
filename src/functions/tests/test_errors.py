@@ -31,7 +31,7 @@ def make_response(
 
 
 @pytest.mark.parametrize(
-    "error_class,expected_name,expected_status",
+    ("error_class", "expected_name", "expected_status"),
     [
         (FunctionsError, "test_error", 500),
         (FunctionsHttpError, "FunctionsHttpError", 400),
@@ -55,7 +55,7 @@ def test_error_initialization(
 
 
 @pytest.mark.parametrize(
-    "error_class,expected_name,expected_status",
+    ("error_class", "expected_name", "expected_status"),
     [
         (FunctionsError, "test_error", 500),
         (FunctionsHttpError, "FunctionsHttpError", 400),
@@ -129,7 +129,7 @@ def test_error_message_types() -> None:
 
 
 @pytest.mark.parametrize(
-    "content,expected",
+    ("content", "expected"),
     [
         (b'{"error": "boom"}', "boom"),
         (b'{"detail": "boom"}', '{"detail": "boom"}'),

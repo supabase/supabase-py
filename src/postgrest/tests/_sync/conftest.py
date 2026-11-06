@@ -19,8 +19,7 @@ def httpx_client() -> Client:
         ),
     )
     headers = {"x-user-agent": "my-app/0.0.1"}
-    http_client = Client(transport=transport, headers=headers, http2=True, verify=True)
-    return http_client
+    return Client(transport=transport, headers=headers, http2=True, verify=True)
 
 
 def httpx() -> HttpxSession:

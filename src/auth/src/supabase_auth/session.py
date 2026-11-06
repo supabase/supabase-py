@@ -4,7 +4,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from types import TracebackType
+from typing import TYPE_CHECKING, Self
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -15,7 +15,6 @@ from supabase_utils.http.io import (
 )
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest
-from yarl import URL
 
 from .constants import (
     EXPIRY_MARGIN,
@@ -28,6 +27,11 @@ from .errors import AuthRetryableError, AuthSessionMissingError
 from .helpers import parse_auth_response, parse_user_response
 from .timer import _AsyncTimer, _SyncTimer
 from .types import AuthChangeEvent, AuthResponse, Session, Subscription, UserResponse
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from yarl import URL
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +156,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         if self.refresh_token_timer:
             self.refresh_token_timer.cancel()
 
-    async def __aenter__(self) -> _AsyncSessionManager:
+    async def __aenter__(self) -> Self:
         return self
 
     async def remove_session(self) -> None:
@@ -166,10 +170,10 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
 
     async def call_refresh_token(self, refresh_token: str) -> Session:
         if not refresh_token:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         response = await self.refresh_access_token(refresh_token)
         if not response.session:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         await self.save_session(response.session)
         self.notify_all_subscribers("TOKEN_REFRESHED", response.session)
         return response.session
@@ -205,7 +209,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
     async def get_session_or_raise(self) -> Session:
         session = await self.get_session()
         if not session:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         return session
 
     async def save_session(self, session: Session) -> None:
@@ -322,7 +326,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         if self.refresh_token_timer:
             self.refresh_token_timer.cancel()
 
-    def __enter__(self) -> _SyncSessionManager:
+    def __enter__(self) -> Self:
         return self
 
     def remove_session(self) -> None:
@@ -336,10 +340,10 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
 
     def call_refresh_token(self, refresh_token: str) -> Session:
         if not refresh_token:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         response = self.refresh_access_token(refresh_token)
         if not response.session:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         self.save_session(response.session)
         self.notify_all_subscribers("TOKEN_REFRESHED", response.session)
         return response.session
@@ -375,7 +379,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
     def get_session_or_raise(self) -> Session:
         session = self.get_session()
         if not session:
-            raise AuthSessionMissingError()
+            raise AuthSessionMissingError
         return session
 
     def save_session(self, session: Session) -> None:

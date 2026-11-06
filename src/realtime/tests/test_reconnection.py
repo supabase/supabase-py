@@ -131,7 +131,7 @@ async def test_raises_on_listen_message(server: RealtimeServer) -> None:
     ):
         await server.close()
         try:
-            async for msg in channel.messages:
+            async for _msg in channel.messages:
                 pass
         except ConnectionClosedOK:
             return
@@ -147,8 +147,9 @@ async def test_automatic_reconnection(server: RealtimeServer) -> None:
         return
 
     await server.close()
-    asyncio.create_task(restart_server_after_2_seconds())
+    restart = asyncio.create_task(restart_server_after_2_seconds())
     await automatically_reconnect(server.url, get_token, client_callback, max_retries=3)
+    await restart
 
 
 async def test_automatic_reconnection_fails_after_max_retries() -> None:
@@ -171,22 +172,25 @@ async def test_automatic_reconnection_calls_callback_when_connected(
     server: RealtimeServer,
 ) -> None:
     called_twice = False
+    restart: asyncio.Task[None] | None = None
 
     async def restart_server_after_1_second() -> None:
         await asyncio.sleep(1)
         await server.start()
 
     async def client_callback(client: RealtimeClient) -> None:
-        nonlocal called_twice
+        nonlocal called_twice, restart
         if called_twice:
             return
         called_twice = True
         await server.close()
         # reschedule server to re-start 1 second later
-        asyncio.create_task(restart_server_after_1_second())
+        restart = asyncio.create_task(restart_server_after_1_second())
         # this should raise when the server is offline
         async with client.channel("test-channel"):
             pass
 
     await automatically_reconnect(server.url, get_token, client_callback, max_retries=3)
     assert called_twice
+    assert restart is not None
+    await restart
