@@ -108,7 +108,7 @@ class AccessTokenMessage(BaseModel):
     event: Literal[ChannelEvents.access_token]
     topic: str
     payload: AccessTokenPayload
-    ref: None
+    ref: str | None
 
 
 class PostgresChangesMessage(BaseModel):
