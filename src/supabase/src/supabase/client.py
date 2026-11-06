@@ -109,6 +109,10 @@ def _find_authorization(headers: Mapping[str, str]) -> str | None:
     )
 
 
+def _is_new_api_key(key: str) -> bool:
+    return key.startswith(("sb_publishable_", "sb_secret_"))
+
+
 class SupabaseClient[
     HttpIO: (SyncHttpIO, AsyncHttpIO),
     Options: (AsyncClientOptions, ClientOptions),
@@ -131,6 +135,12 @@ class SupabaseClient[
             raise SupabaseException("supabase_url is required")
         if not supabase_key:
             raise SupabaseException("supabase_key is required")
+        if supabase_key.startswith("sb_") and not _is_new_api_key(supabase_key):
+            raise SupabaseException(
+                "Unrecognized Supabase API key format. Expected a legacy JWT key or a"
+                " new-format key (sb_publishable_... or sb_secret_...). Upgrade supabase"
+                " to a version that supports this key type."
+            )
 
         try:
             self.supabase_url = URL(
@@ -272,6 +282,19 @@ class SupabaseClient[
             "Authorization": authorization,
         }
 
+    def _is_api_key_bearer_for_functions(self, authorization: str) -> bool:
+        return _is_new_api_key(self.supabase_key) and (
+            authorization == self._create_auth_header(self.supabase_key)
+        )
+
+    def _functions_headers(self) -> dict[str, str]:
+        return {
+            key: value
+            for key, value in self.options.headers.items()
+            if key != "Authorization"
+            or not self._is_api_key_bearer_for_functions(value)
+        }
+
     def _listen_to_auth_events(
         self, event: AuthChangeEvent, session: Session | None
     ) -> None:
@@ -292,8 +315,10 @@ class SupabaseClient[
         self.storage.default_headers = self.storage.default_headers.override(
             "Authorization", authorization
         )
-        self.functions.default_headers = self.functions.default_headers.override(
-            "Authorization", authorization
+        self.functions.default_headers = (
+            self.functions.default_headers.remove("Authorization")
+            if self._is_api_key_bearer_for_functions(authorization)
+            else self.functions.default_headers.override("Authorization", authorization)
         )
 
 
@@ -383,7 +408,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
     def functions(self) -> AsyncFunctionsClient:
         return AsyncFunctionsClient(
             url=str(self.functions_url),
-            headers=self.options.headers,
+            headers=self._functions_headers(),
             http_session=self.http_session,
         )
 
@@ -491,7 +516,7 @@ class Client(SupabaseClient[SyncHttpIO, ClientOptions]):
     def functions(self) -> SyncFunctionsClient:
         return SyncFunctionsClient(
             url=str(self.functions_url),
-            headers=self.options.headers,
+            headers=self._functions_headers(),
             http_session=self.http_session,
         )
 
