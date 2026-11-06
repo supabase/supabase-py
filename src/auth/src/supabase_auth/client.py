@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Literal, override
 from uuid import uuid4
 
 from jwt import get_algorithm_by_name
@@ -13,7 +13,6 @@ from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
-    HttpIO,
     HttpMethod,
     HttpSession,
     SyncHttpIO,
@@ -22,7 +21,6 @@ from supabase_utils.http.io import (
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest, Response
 from supabase_utils.types import JSON
-from typing_extensions import override
 from yarl import URL
 
 from .errors import (
@@ -118,11 +116,11 @@ def _strip_password_recovery_suffix(code_verifier: str) -> str:
     return code_verifier.split("/", 1)[0]
 
 
-SessionManager = TypeVar("SessionManager", bound=_SessionManagerCommon[Any])
-
-
 @dataclass
-class SupabaseAuthHttpClient(Generic[HttpIO, SessionManager]):
+class SupabaseAuthHttpClient[
+    HttpIO: (SyncHttpIO, AsyncHttpIO),
+    SessionManager: _SessionManagerCommon[Any],
+]:
     executor: HttpIO
     base_url: URL
     default_headers: Headers

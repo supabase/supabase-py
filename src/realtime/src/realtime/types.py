@@ -3,10 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Annotated, Any, Literal, TypeAlias, TypeVar
+from typing import Annotated, Any, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing_extensions import ParamSpec
 
 # Constants
 DEFAULT_TIMEOUT = 10
@@ -16,9 +15,7 @@ DEFAULT_HEARTBEAT_INTERVAL = 25
 DEFAULT_HEARTBEAT_TIMEOUT = 5
 
 # Type variables and custom types
-T_ParamSpec = ParamSpec("T_ParamSpec")
-T_Retval = TypeVar("T_Retval")
-Callback: TypeAlias = Callable[T_ParamSpec, T_Retval]
+type Callback[**T_ParamSpec, T_Retval] = Callable[T_ParamSpec, T_Retval]
 
 
 # Enums

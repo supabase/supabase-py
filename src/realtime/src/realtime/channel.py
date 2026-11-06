@@ -4,7 +4,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 import websockets
 from supabase_utils.types import JSON
@@ -160,7 +160,7 @@ class RealtimeChannelOptions:
         return payload
 
 
-ChannelMessage: TypeAlias = (
+ChannelMessage = (
     SystemMessage
     | BroadcastMessage
     | PostgresChangesMessage

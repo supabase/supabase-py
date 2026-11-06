@@ -10,7 +10,6 @@ import uuid
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TypeVar
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -97,20 +96,14 @@ def parse_jwks(response: Response) -> JWKSet:
     return jwk
 
 
-Model = TypeVar("Model", bound=BaseModel)
-
-
-def _validate_model(response: Response, model: type[Model]) -> Model:
+def _validate_model[Model: BaseModel](response: Response, model: type[Model]) -> Model:
     if response.is_success:
         return model.model_validate_json(response.content)
     else:
         raise _handle_error_response(response)
 
 
-Inner = TypeVar("Inner")
-
-
-def _validate_adapter(response: Response, adapter: TypeAdapter[Inner]) -> Inner:
+def _validate_adapter[Inner](response: Response, adapter: TypeAdapter[Inner]) -> Inner:
     if response.is_success:
         return adapter.validate_json(response.content)
     else:

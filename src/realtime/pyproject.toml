@@ -13,18 +13,16 @@ license = "MIT"
 readme = "README.md"
 classifiers = [
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: 3.15",
   "Operating System :: OS Independent",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
   "supabase_utils==3.0.0-a1", # x-release-please-version
   "websockets >=14,<18",
-  "typing-extensions >=4.14.0",
   "pydantic (>=2.11.7,<3.0.0)",
   "yarl>=1.22.0",
 ]

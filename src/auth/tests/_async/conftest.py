@@ -1,11 +1,11 @@
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from random import random
 from time import time
-from typing import NotRequired
+from typing import NotRequired, TypedDict
 
 import pytest
 from jwt import encode
-from typing_extensions import AsyncGenerator, TypedDict
 
 from supabase_auth import AsyncSupabaseAuthAdmin, AsyncSupabaseAuthClient
 from supabase_auth.types import (

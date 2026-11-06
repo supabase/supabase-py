@@ -7,18 +7,19 @@ from dataclasses import dataclass
 from re import search
 from typing import (
     Any,
-    Generic,
     Literal,
     NamedTuple,
     Self,
     overload,
+    override,
 )
 
 from pydantic import TypeAdapter, ValidationError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
-    HttpIO,
+    AsyncHttpIO,
     HttpMethod,
+    SyncHttpIO,
     handle_http_io,
 )
 from supabase_utils.http.query import URLQuery
@@ -29,7 +30,6 @@ from supabase_utils.http.request import (
     Response,
 )
 from supabase_utils.types import JSON
-from typing_extensions import override
 from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
@@ -643,7 +643,7 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
 
 
 @dataclass
-class BaseRequestClient(Generic[HttpIO]):
+class BaseRequestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     executor: HttpIO
     base_url: URL
     default_headers: Headers
@@ -685,7 +685,7 @@ def send_with_retry(req: PostgrestRequest) -> HttpMethod[Response]:
     return resp
 
 
-class QueryRequestBuilder(BaseRequestClient[HttpIO]):
+class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[HttpIO]):
     def select(self, *columns: str) -> Self:
         _, params, _, _ = pre_select(*columns, count=None)
         self.request.query = self.request.query.set("select", params["select"])
@@ -723,7 +723,9 @@ class QueryRequestBuilder(BaseRequestClient[HttpIO]):
             raise APIError(generate_default_error_message(r))
 
 
-class SingleRequestBuilder(BaseRequestClient[HttpIO]):
+class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
+    BaseRequestClient[HttpIO]
+):
     @handle_http_io
     def execute(self) -> HttpMethod[SingleAPIResponse]:
         """Execute the query.
@@ -744,7 +746,7 @@ class SingleRequestBuilder(BaseRequestClient[HttpIO]):
             raise _api_error(response)
 
 
-class TextRequestBuilder(BaseRequestClient[HttpIO]):
+class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[HttpIO]):
     @handle_http_io
     def execute(self) -> HttpMethod[str]:
         """Execute the query.
@@ -765,7 +767,9 @@ class TextRequestBuilder(BaseRequestClient[HttpIO]):
             raise _api_error(response)
 
 
-class ExplainRequestBuilder(BaseRequestClient[HttpIO]):
+class ExplainRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
+    BaseRequestClient[HttpIO]
+):
     @handle_http_io
     def execute(self) -> HttpMethod[str]:
         r = yield from send_with_retry(self.request)
@@ -774,7 +778,9 @@ class ExplainRequestBuilder(BaseRequestClient[HttpIO]):
         return r.content.decode("utf-8")
 
 
-class MaybeSingleRequestBuilder(BaseRequestClient[HttpIO]):
+class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
+    BaseRequestClient[HttpIO]
+):
     @handle_http_io
     def execute(self) -> HttpMethod[SingleAPIResponse | None]:
         response = yield from send_with_retry(self.request)
@@ -800,11 +806,15 @@ class MaybeSingleRequestBuilder(BaseRequestClient[HttpIO]):
             raise _api_error(response)
 
 
-class FilterRequestBuilder(QueryRequestBuilder[HttpIO], BaseFilterRequestBuilder):
+class FilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
+    QueryRequestBuilder[HttpIO], BaseFilterRequestBuilder
+):
     pass
 
 
-class RPCFilterRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
+class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
+    BaseRequestClient[HttpIO], BaseRPCRequestBuilder
+):
     def single(self) -> SingleRequestBuilder[HttpIO]:
         """Specify that the query will only return a single row in response.
 
@@ -852,7 +862,9 @@ class RPCFilterRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
             raise APIError(generate_default_error_message(r))
 
 
-class RPCCountRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
+class RPCCountRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
+    BaseRequestClient[HttpIO], BaseRPCRequestBuilder
+):
     @handle_http_io
     def execute(self) -> HttpMethod[int | None]:
         """Execute the query.
@@ -874,7 +886,9 @@ class RPCCountRequestBuilder(BaseRequestClient[HttpIO], BaseRPCRequestBuilder):
             raise _api_error(response)
 
 
-class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder):
+class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
+    QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
+):
     def single(self) -> SingleRequestBuilder[HttpIO]:
         """Specify that the query will only return a single row in response.
 
@@ -987,7 +1001,7 @@ class SelectRequestBuilder(QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
             )
 
 
-class RequestBuilder(Generic[HttpIO]):  #
+class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #
     def __init__(
         self,
         executor: HttpIO,

@@ -1,9 +1,8 @@
 import logging
 import re
 from dataclasses import replace
-from typing import Any
+from typing import Any, override
 
-from typing_extensions import override
 from websockets.frames import Frame
 
 REDACTED = "<redacted>"

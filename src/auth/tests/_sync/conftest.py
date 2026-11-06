@@ -1,11 +1,11 @@
+from collections.abc import Generator
 from dataclasses import dataclass
 from random import random
 from time import time
-from typing import NotRequired
+from typing import NotRequired, TypedDict
 
 import pytest
 from jwt import encode
-from typing_extensions import Generator, TypedDict
 
 from supabase_auth import SyncSupabaseAuthAdmin, SyncSupabaseAuthClient
 from supabase_auth.types import (

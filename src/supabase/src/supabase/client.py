@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from functools import cached_property
 from types import TracebackType
-from typing import Any, Generic, Literal, TypeVar, overload
+from typing import Any, Literal, overload, override
 
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
@@ -53,12 +53,10 @@ from supabase_functions.client import FunctionsClient
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
-    HttpIO,
     HttpSession,
     SyncHttpIO,
 )
 from supabase_utils.types import JSON
-from typing_extensions import override
 from yarl import URL
 
 from .lib.client_options import AsyncClientOptions, ClientOptions
@@ -111,10 +109,10 @@ def _find_authorization(headers: Mapping[str, str]) -> str | None:
     )
 
 
-Options = TypeVar("Options", AsyncClientOptions, ClientOptions)
-
-
-class SupabaseClient(ABC, Generic[HttpIO, Options]):
+class SupabaseClient[
+    HttpIO: (SyncHttpIO, AsyncHttpIO),
+    Options: (AsyncClientOptions, ClientOptions),
+](ABC):
     """Behavior shared by the async and the sync Supabase client."""
 
     def __init__(self, supabase_url: str, supabase_key: str, options: Options) -> None:

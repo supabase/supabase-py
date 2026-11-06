@@ -3,14 +3,12 @@ from __future__ import annotations
 import warnings
 from collections.abc import Mapping
 from types import TracebackType
-from typing import Generic
 
 from pydantic import TypeAdapter
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
-    HttpIO,
     HttpMethod,
     HttpSession,
     SyncHttpIO,
@@ -35,7 +33,7 @@ __all__ = [
 ListBucketAdapter = TypeAdapter(list[Bucket])
 
 
-class StorageClient(Generic[HttpIO]):
+class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     """Manage storage buckets and files."""
 
     def __init__(

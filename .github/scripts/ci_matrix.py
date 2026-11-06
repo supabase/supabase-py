@@ -8,7 +8,7 @@ import fnmatch
 import json
 import sys
 
-PYTHON_VERSIONS = ["3.11", "3.12", "3.13", "3.14", "3.15"]
+PYTHON_VERSIONS = ["3.12", "3.13", "3.14", "3.15"]
 LOWEST_PYTHON_VERSION = PYTHON_VERSIONS[0]
 PACKAGES = [
     "functions",

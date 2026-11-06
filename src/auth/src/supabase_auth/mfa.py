@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, Literal
+from typing import Literal
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
-    HttpIO,
     HttpMethod,
     SyncHttpIO,
     handle_http_io,
@@ -34,7 +33,7 @@ from .types import (
 
 
 @dataclass
-class SupabaseAuthMFAHttpClient(Generic[HttpIO]):
+class SupabaseAuthMFAHttpClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     """
     Contains the full multi-factor authentication API http calls
     """

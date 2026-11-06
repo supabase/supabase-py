@@ -59,15 +59,13 @@ Both adapters follow redirects as the client is configured to, but drop the `api
 The packages never call an HTTP library themselves. Each operation is a generator that yields a description of the request it wants to send, receives the `Response`, and returns its result:
 
 ```python
-from typing import Generic
-
 from supabase_utils.http.headers import Headers
-from supabase_utils.http.io import HttpIO, HttpMethod, handle_http_io
+from supabase_utils.http.io import AsyncHttpIO, HttpMethod, SyncHttpIO, handle_http_io
 from supabase_utils.http.request import EmptyRequest
 from yarl import URL
 
 
-class ItemsClient(Generic[HttpIO]):
+class ItemsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def __init__(self, executor: HttpIO, base_url: URL, default_headers: Headers) -> None:
         self.executor: HttpIO = executor
         self.base_url = base_url

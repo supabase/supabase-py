@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from supabase_utils.types import JSON
@@ -181,7 +181,7 @@ class ChannelLeaveMessage(BaseModel):
     ref: str
 
 
-ServerMessage: TypeAlias = Annotated[
+ServerMessage = Annotated[
     SystemMessage
     | BroadcastMessage
     | PresenceStateMessage
@@ -193,7 +193,7 @@ ServerMessage: TypeAlias = Annotated[
 ]
 ServerMessageAdapter: TypeAdapter[ServerMessage] = TypeAdapter(ServerMessage)
 
-ClientMessage: TypeAlias = (
+ClientMessage = (
     JoinMessage
     | HeartbeatMessage
     | BroadcastMessage

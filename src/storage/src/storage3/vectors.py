@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import builtins
 from dataclasses import dataclass
-from typing import Generic
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
-    HttpIO,
+    AsyncHttpIO,
     HttpMethod,
+    SyncHttpIO,
     handle_http_io,
 )
 from supabase_utils.http.request import JSONRequest
@@ -38,7 +38,7 @@ def remove_none(**kwargs: JSON) -> JSON:
 
 
 @dataclass
-class VectorBucketScope(Generic[HttpIO]):
+class VectorBucketScope[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     base_url: URL
     default_headers: Headers
     bucket_name: str
@@ -123,7 +123,7 @@ class VectorBucketScope(Generic[HttpIO]):
 
 
 @dataclass
-class VectorIndexScope(Generic[HttpIO]):
+class VectorIndexScope[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     executor: HttpIO
     bucket_name: str
     index_name: str
@@ -229,7 +229,7 @@ class VectorIndexScope(Generic[HttpIO]):
 
 
 @dataclass
-class StorageVectorsClient(Generic[HttpIO]):
+class StorageVectorsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     base_url: URL
     default_headers: Headers
     executor: HttpIO

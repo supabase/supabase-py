@@ -1,13 +1,11 @@
 import inspect
 from types import SimpleNamespace, TracebackType
-from typing import Generic
 
 import pytest
 from supabase_utils.http import io
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
-    HttpIO,
     HttpMethod,
     SyncHttpIO,
     handle_http_io,
@@ -154,7 +152,7 @@ async def test_async_communicate_propagates_errors() -> None:
         )
 
 
-class Client(Generic[HttpIO]):
+class Client[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def __init__(self, executor: HttpIO) -> None:
         self.executor: HttpIO = executor
         self.base_url = BASE_URL

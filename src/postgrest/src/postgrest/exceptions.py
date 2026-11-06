@@ -1,8 +1,7 @@
-from typing import Any
+from typing import Any, override
 
 from pydantic import BaseModel
 from supabase_utils.http.request import Response
-from typing_extensions import override
 
 
 class APIErrorFromJSON(BaseModel):

@@ -3,13 +3,12 @@ from __future__ import annotations
 from base64 import b64encode
 from collections.abc import Mapping
 from types import TracebackType
-from typing import Generic, Literal, Self, overload
+from typing import Literal, Self, overload
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
-    HttpIO,
     HttpSession,
     SyncHttpIO,
 )
@@ -29,7 +28,7 @@ from .utils import _rpc_query_param
 from .version import __version__
 
 
-class PostgrestClient(Generic[HttpIO]):
+class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     """PostgREST client."""
 
     def __init__(

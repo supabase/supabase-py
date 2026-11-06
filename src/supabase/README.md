@@ -9,7 +9,7 @@ Python client for [Supabase](https://supabase.com)
 
 ### PyPI installation
 
-Install the package (for Python >= 3.11) with the HTTP library the client should use. The `httpx` extra supports both the sync and the async client, and the `aiohttp` extra supports the async client:
+Install the package (for Python >= 3.12) with the HTTP library the client should use. The `httpx` extra supports both the sync and the async client, and the `aiohttp` extra supports the async client:
 
 ```bash
 # with pip
