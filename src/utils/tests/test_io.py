@@ -188,3 +188,81 @@ def test_handle_http_io_keeps_metadata() -> None:
     signature = inspect.signature(method)
     assert list(signature.parameters) == ["item_id", "select"]
     assert signature.return_annotation is inspect.Signature.empty
+
+
+def two_requests() -> HttpMethod[None]:
+    yield EmptyRequest(path=["items"], method="GET")
+    yield EmptyRequest(path=["items"], method="GET", timeout=2.5)
+
+
+def test_sync_communicate_applies_request_timeout() -> None:
+    session = FakeSession([200, 200])
+    SyncHttpIO(session, request_timeout=10).communicate(
+        BASE_URL, DEFAULT_HEADERS, two_requests()
+    )
+    assert [r.timeout for r in session.requests] == [10, 2.5]
+
+
+async def test_async_communicate_applies_request_timeout() -> None:
+    session = AsyncFakeSession([200, 200])
+    await AsyncHttpIO(session, request_timeout=10).communicate(
+        BASE_URL, DEFAULT_HEADERS, two_requests()
+    )
+    assert [r.timeout for r in session.requests] == [10, 2.5]
+
+
+def test_communicate_without_request_timeout_leaves_it_to_the_session() -> None:
+    session = FakeSession([200, 200])
+    SyncHttpIO(session).communicate(BASE_URL, DEFAULT_HEADERS, two_requests())
+    assert [r.timeout for r in session.requests] == [None, 2.5]
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
+def test_invalid_request_timeout_is_rejected(timeout: float) -> None:
+    with pytest.raises(ValueError, match="positive number of seconds"):
+        SyncHttpIO(FakeSession([]), request_timeout=timeout)
+    with pytest.raises(ValueError, match="positive number of seconds"):
+        AsyncHttpIO(AsyncFakeSession([]), request_timeout=timeout)
+    with pytest.raises(ValueError, match="positive number of seconds"):
+        EmptyRequest(path=[], method="GET", timeout=timeout)
+    with pytest.raises(ValueError, match="positive number of seconds"):
+        Request(
+            url=BASE_URL,
+            method="GET",
+            headers=Headers.empty(),
+            content=None,
+            delay=None,
+            timeout=timeout,
+        )
+
+
+class SharedRequest:
+    def __init__(self) -> None:
+        self.request = Request(
+            url=BASE_URL,
+            method="GET",
+            headers=Headers.empty(),
+            content=None,
+            delay=None,
+        )
+
+    def finalize(self, base_url: URL, default_headers: Headers) -> Request:
+        return self.request
+
+
+def test_communicate_does_not_change_the_finalized_request() -> None:
+    shared = SharedRequest()
+
+    def send_shared() -> HttpMethod[None]:
+        yield shared
+
+    first = FakeSession([200])
+    second = FakeSession([200])
+    SyncHttpIO(first, request_timeout=10).communicate(
+        BASE_URL, DEFAULT_HEADERS, send_shared()
+    )
+    SyncHttpIO(second, request_timeout=20).communicate(
+        BASE_URL, DEFAULT_HEADERS, send_shared()
+    )
+    assert shared.request.timeout is None
+    assert [first.requests[0].timeout, second.requests[0].timeout] == [10, 20]

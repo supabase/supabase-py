@@ -37,6 +37,7 @@ from supabase_functions import (
     FunctionsRelayError,
     SyncFunctionsClient,
 )
+from supabase_utils.http.errors import RequestTimeoutError
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
@@ -65,6 +66,8 @@ if TYPE_CHECKING:
     from supabase_functions.client import FunctionsClient
     from supabase_utils.types import JSON
 
+    from .types import _ServiceClientOptions
+
 __all__ = [
     "AsyncClient",
     "AsyncClientOptions",
@@ -87,6 +90,7 @@ __all__ = [
     "NotConnectedError",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
+    "RequestTimeoutError",
     "StorageApiError",
     "StorageException",
     "SupabaseClient",
@@ -267,6 +271,11 @@ class SupabaseClient[
         """
         return self.postgrest.rpc(fn, params or {}, head=head, count=count, get=get)
 
+    def _request_timeout(self, service_options: _ServiceClientOptions) -> float | None:
+        if service_options.request_timeout is not None:
+            return service_options.request_timeout
+        return self.options.request_timeout
+
     def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
@@ -385,6 +394,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
             storage=self.options.storage,
             headers=self.options.headers,
             flow_type=self.options.flow_type,
+            request_timeout=self._request_timeout(self.options.auth_options),
         )
 
     @cached_property
@@ -395,6 +405,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
             http_session=self.http_session,
             headers=self.options.headers,
             schema=self.options.schema,
+            request_timeout=self._request_timeout(self.options.postgrest_options),
         )
 
     @cached_property
@@ -404,6 +415,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
             url=str(self.storage_url),
             headers=self.options.headers,
             http_session=self.http_session,
+            request_timeout=self._request_timeout(self.options.storage_options),
         )
 
     @cached_property
@@ -413,6 +425,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncClientOptions]):
             url=str(self.functions_url),
             headers=self._functions_headers(),
             http_session=self.http_session,
+            request_timeout=self._request_timeout(self.options.functions_options),
         )
 
     def schema(self, schema: str) -> AsyncPostgrestClient:
@@ -493,6 +506,7 @@ class Client(SupabaseClient[SyncHttpIO, ClientOptions]):
             storage=self.options.storage,
             headers=self.options.headers,
             flow_type=self.options.flow_type,
+            request_timeout=self._request_timeout(self.options.auth_options),
         )
 
     @cached_property
@@ -503,6 +517,7 @@ class Client(SupabaseClient[SyncHttpIO, ClientOptions]):
             http_session=self.http_session,
             headers=self.options.headers,
             schema=self.options.schema,
+            request_timeout=self._request_timeout(self.options.postgrest_options),
         )
 
     @cached_property
@@ -512,6 +527,7 @@ class Client(SupabaseClient[SyncHttpIO, ClientOptions]):
             url=str(self.storage_url),
             headers=self.options.headers,
             http_session=self.http_session,
+            request_timeout=self._request_timeout(self.options.storage_options),
         )
 
     @cached_property
@@ -521,6 +537,7 @@ class Client(SupabaseClient[SyncHttpIO, ClientOptions]):
             url=str(self.functions_url),
             headers=self._functions_headers(),
             http_session=self.http_session,
+            request_timeout=self._request_timeout(self.options.functions_options),
         )
 
     def schema(self, schema: str) -> SyncPostgrestClient:

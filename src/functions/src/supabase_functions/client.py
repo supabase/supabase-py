@@ -64,6 +64,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         region: FunctionRegion | str | None,
         headers: dict[str, str] | None,
         method: HTTPRequestMethod,
+        request_timeout: float | None,
     ) -> ToRequest:
         if not is_valid_string_argument(function_name):
             raise ValueError("function_name must be a valid string value.")
@@ -82,7 +83,11 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query_params = query_params.set("forceFunctionRegion", resolved.value)
         if body is None:
             return EmptyRequest(
-                method=method, path=path, headers=new_headers, query=query_params
+                method=method,
+                path=path,
+                headers=new_headers,
+                query=query_params,
+                timeout=request_timeout,
             )
         if isinstance(body, str):
             return TextRequest(
@@ -91,6 +96,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 path=path,
                 headers=new_headers,
                 query=query_params,
+                timeout=request_timeout,
             )
         if isinstance(body, (bytes, bytearray)):
             return BytesRequest(
@@ -99,6 +105,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 path=path,
                 headers=new_headers,
                 query=query_params,
+                timeout=request_timeout,
             )
         if isinstance(body, (dict, list)):
             return JSONRequest(
@@ -107,6 +114,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 path=path,
                 headers=new_headers,
                 query=query_params,
+                timeout=request_timeout,
             )
         raise TypeError(
             f"body must be str, bytes, dict, list or None, not {type(body).__name__}"
@@ -120,6 +128,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         region: FunctionRegion | str | None = None,
         headers: dict[str, str] | None = None,
         method: HTTPRequestMethod = "POST",
+        request_timeout: float | None = None,
     ) -> HttpMethod[Response]:
         """Invokes a function
 
@@ -131,9 +140,11 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         region : the region to invoke the function in
         headers : extra headers to send with the request
         method : the HTTP method to use, POST by default
+        request_timeout : seconds the invocation may go without progress,
+            overriding the timeout of the client
         """
         response = yield self._invoke_options_to_request(
-            function_name, body, region, headers, method
+            function_name, body, region, headers, method, request_timeout
         )
         if _is_relay_error(response) or not response.is_success:
             raise _on_error_response(response)
@@ -146,10 +157,23 @@ class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
         url: str,
         headers: Mapping[str, str],
         http_session: AsyncHttpSession,
+        *,
+        request_timeout: float | None = None,
     ) -> None:
+        """Create a functions client.
+
+        Parameters
+        ----------
+        url : the URL of the functions service
+        headers : headers sent with every invocation
+        http_session : the HTTP session that sends the requests
+        request_timeout : seconds an invocation may go without progress before
+            it fails with `RequestTimeoutError`. None leaves the timeout to the
+            HTTP client.
+        """
         super().__init__(
             url=URL(url),
-            executor=AsyncHttpIO(session=http_session),
+            executor=AsyncHttpIO(session=http_session, request_timeout=request_timeout),
             headers=headers,
         )
 
@@ -160,10 +184,23 @@ class SyncFunctionsClient(FunctionsClient[SyncHttpIO]):
         url: str,
         headers: Mapping[str, str],
         http_session: HttpSession,
+        *,
+        request_timeout: float | None = None,
     ) -> None:
+        """Create a functions client.
+
+        Parameters
+        ----------
+        url : the URL of the functions service
+        headers : headers sent with every invocation
+        http_session : the HTTP session that sends the requests
+        request_timeout : seconds an invocation may go without progress before
+            it fails with `RequestTimeoutError`. None leaves the timeout to the
+            HTTP client.
+        """
         super().__init__(
             url=URL(url),
-            executor=SyncHttpIO(session=http_session),
+            executor=SyncHttpIO(session=http_session, request_timeout=request_timeout),
             headers=headers,
         )
 
@@ -175,6 +212,7 @@ def create_client(
     *,
     http_session: AsyncHttpSession,
     is_async: Literal[True],
+    request_timeout: float | None = None,
 ) -> AsyncFunctionsClient: ...
 
 
@@ -185,6 +223,7 @@ def create_client(
     *,
     http_session: HttpSession,
     is_async: Literal[False],
+    request_timeout: float | None = None,
 ) -> SyncFunctionsClient: ...
 
 
@@ -194,9 +233,18 @@ def create_client(
     *,
     http_session: AsyncHttpSession | HttpSession,
     is_async: bool,
+    request_timeout: float | None = None,
 ) -> AsyncFunctionsClient | SyncFunctionsClient:
     if is_async:
         return AsyncFunctionsClient(
-            url, headers, cast("AsyncHttpSession", http_session)
+            url,
+            headers,
+            cast("AsyncHttpSession", http_session),
+            request_timeout=request_timeout,
         )
-    return SyncFunctionsClient(url, headers, cast("HttpSession", http_session))
+    return SyncFunctionsClient(
+        url,
+        headers,
+        cast("HttpSession", http_session),
+        request_timeout=request_timeout,
+    )

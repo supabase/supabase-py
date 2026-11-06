@@ -1,10 +1,11 @@
 from types import TracebackType
 
-from httpx import AsyncClient, Auth, Client, TooManyRedirects
+from httpx import AsyncClient, Auth, Client, Timeout, TimeoutException, TooManyRedirects
 from httpx import Request as HttpxRequest
 from httpx import Response as HttpxResponse
 from yarl import URL
 
+from ..errors import RequestTimeoutError
 from ..headers import Headers
 from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import Request, Response
@@ -16,6 +17,9 @@ def to_httpx_request(req: Request) -> HttpxRequest:
         url=str(req.url),
         headers=req.headers.iter_items(),
         content=req.content,
+        extensions={}
+        if req.timeout is None
+        else {"timeout": Timeout(req.timeout).as_dict()},
     )
 
 
@@ -50,6 +54,12 @@ class HttpxSession:
         self.client = client
 
     def send(self, request: Request) -> Response:
+        try:
+            return self._send(request)
+        except TimeoutException as error:
+            raise RequestTimeoutError(request) from error
+
+    def _send(self, request: Request) -> Response:
         httpx_request = to_httpx_request(request)
         response = self.client.send(
             httpx_request,
@@ -85,6 +95,12 @@ class AsyncHttpxSession:
         self.client = client
 
     async def send(self, request: Request) -> Response:
+        try:
+            return await self._send(request)
+        except TimeoutException as error:
+            raise RequestTimeoutError(request) from error
+
+    async def _send(self, request: Request) -> Response:
         httpx_request = to_httpx_request(request)
         response = await self.client.send(
             httpx_request,

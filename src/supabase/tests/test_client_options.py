@@ -3,7 +3,15 @@ import dataclasses
 import pytest
 from supabase_auth import AsyncMemoryStorage, SyncMemoryStorage
 
-from supabase import AsyncClientOptions, ClientOptions, RealtimeClientOptions
+from supabase import (
+    AsyncClientOptions,
+    AuthClientOptions,
+    ClientOptions,
+    FunctionsClientOptions,
+    PostgrestClientOptions,
+    RealtimeClientOptions,
+    StorageClientOptions,
+)
 
 
 class TestClientOptions:
@@ -136,3 +144,57 @@ class TestClientOptions:
         headers["key"] = "changed"
 
         assert options.headers == {"key": "value"}
+
+    def test_request_timeouts_default_to_none(self) -> None:
+        options = ClientOptions()
+
+        assert options.request_timeout is None
+        assert options.postgrest_options.request_timeout is None
+        assert options.auth_options.request_timeout is None
+        assert options.storage_options.request_timeout is None
+        assert options.functions_options.request_timeout is None
+
+    def test_replace_keeps_and_updates_request_timeouts(self) -> None:
+        options = AsyncClientOptions(
+            request_timeout=10,
+            storage_options=StorageClientOptions(request_timeout=120),
+        )
+
+        kept = options.replace(schema="other")
+        updated = options.replace(
+            request_timeout=20,
+            postgrest_options=PostgrestClientOptions(request_timeout=5),
+            auth_options=AuthClientOptions(request_timeout=6),
+            functions_options=FunctionsClientOptions(request_timeout=7),
+        )
+
+        assert kept.request_timeout == 10
+        assert kept.storage_options.request_timeout == 120
+        assert updated.request_timeout == 20
+        assert updated.storage_options.request_timeout == 120
+        assert updated.postgrest_options.request_timeout == 5
+        assert updated.auth_options.request_timeout == 6
+        assert updated.functions_options.request_timeout == 7
+
+    def test_replace_clears_request_timeout_with_none(self) -> None:
+        options = ClientOptions(request_timeout=10)
+
+        assert options.replace(request_timeout=None).request_timeout is None
+
+    @pytest.mark.parametrize(
+        "options_class",
+        [
+            PostgrestClientOptions,
+            AuthClientOptions,
+            StorageClientOptions,
+            FunctionsClientOptions,
+            ClientOptions,
+            AsyncClientOptions,
+        ],
+    )
+    @pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
+    def test_request_timeout_must_be_positive(
+        self, options_class: type, timeout: float
+    ) -> None:
+        with pytest.raises(ValueError, match="positive number of seconds"):
+            options_class(request_timeout=timeout)

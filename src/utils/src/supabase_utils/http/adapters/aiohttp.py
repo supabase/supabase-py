@@ -5,10 +5,12 @@ from aiohttp import (
     ClientMiddlewareType,
     ClientRequest,
     ClientSession,
+    ClientTimeout,
 )
 from aiohttp import ClientResponse as AioResponse
 from yarl import URL
 
+from ..errors import RequestTimeoutError
 from ..headers import Headers
 from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import Request, Response
@@ -43,19 +45,35 @@ class AsyncAiohttpSession:
     def __init__(self, client: ClientSession) -> None:
         self.client = client
 
-    async def send(self, request: Request) -> Response:
-        response = await self.client.request(
-            method=request.method,
-            url=str(request.url),
-            data=request.content,
-            headers=dict(request.headers),
-            middlewares=(
-                # Per request middlewares replace the session ones, so keep those.
-                *self.client._middlewares,
-                strip_cross_origin_credentials(request.url),
-            ),
+    def _timeout(self, request_timeout: float | None) -> ClientTimeout:
+        session_timeout = self.client.timeout
+        if request_timeout is None:
+            return session_timeout
+        return ClientTimeout(
+            total=session_timeout.total,
+            connect=request_timeout,
+            sock_connect=request_timeout,
+            sock_read=request_timeout,
+            ceil_threshold=session_timeout.ceil_threshold,
         )
-        return await to_supabase_response(request, response)
+
+    async def send(self, request: Request) -> Response:
+        try:
+            response = await self.client.request(
+                method=request.method,
+                url=str(request.url),
+                data=request.content,
+                headers=dict(request.headers),
+                timeout=self._timeout(request.timeout),
+                middlewares=(
+                    # Per request middlewares replace the session ones, so keep those.
+                    *self.client._middlewares,
+                    strip_cross_origin_credentials(request.url),
+                ),
+            )
+            return await to_supabase_response(request, response)
+        except TimeoutError as error:
+            raise RequestTimeoutError(request) from error
 
     async def __aenter__(self) -> "AsyncAiohttpSession":
         return self

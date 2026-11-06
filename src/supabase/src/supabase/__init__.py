@@ -20,12 +20,19 @@ from supabase_functions import (
     FunctionsHttpError,
     FunctionsRelayError,
 )
+from supabase_utils.http.errors import RequestTimeoutError
 
 from .client import AsyncClient, Client, SupabaseException
 
 # Lib
 from .lib.client_options import AsyncClientOptions, ClientOptions
-from .types import RealtimeClientOptions
+from .types import (
+    AuthClientOptions,
+    FunctionsClientOptions,
+    PostgrestClientOptions,
+    RealtimeClientOptions,
+    StorageClientOptions,
+)
 
 # Version
 from .version import __version__
@@ -34,6 +41,7 @@ __all__ = [
     "AsyncClient",
     "AsyncClientOptions",
     "AuthApiError",
+    "AuthClientOptions",
     "AuthError",
     "AuthImplicitGrantRedirectError",
     "AuthInvalidCredentialsError",
@@ -46,14 +54,18 @@ __all__ = [
     "Client",
     "ClientOptions",
     "CustomAuthError",
+    "FunctionsClientOptions",
     "FunctionsError",
     "FunctionsHttpError",
     "FunctionsRelayError",
     "NotConnectedError",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
+    "PostgrestClientOptions",
     "RealtimeClientOptions",
+    "RequestTimeoutError",
     "StorageApiError",
+    "StorageClientOptions",
     "StorageException",
     "SupabaseException",
     "UserDoesNotExistError",

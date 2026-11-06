@@ -85,6 +85,21 @@ def test_empty_request_defaults() -> None:
     assert request.url == BASE_URL
     assert len(request.headers) == 0
     assert request.delay is None
+    assert request.timeout is None
+
+
+@pytest.mark.parametrize(
+    "to_request",
+    [
+        EmptyRequest(path=[], method="GET", timeout=3),
+        BytesRequest(path=[], method="POST", body=b"x", timeout=3),
+        JSONRequest(path=[], method="POST", body={}, timeout=3),
+        TextRequest(path=[], method="POST", text="x", timeout=3),
+        MultipartFormDataRequest(path=[], method="POST", fields=[], timeout=3),
+    ],
+)
+def test_finalize_keeps_timeout(to_request: EmptyRequest) -> None:
+    assert to_request.finalize(BASE_URL, Headers.empty()).timeout == 3
 
 
 def test_path_segments_are_encoded() -> None:

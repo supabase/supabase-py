@@ -7,6 +7,7 @@ import realtime
 import storage3
 import supabase_auth
 import supabase_functions
+from supabase_utils.http.errors import RequestTimeoutError
 
 import supabase
 import supabase.client
@@ -76,3 +77,8 @@ def test_errors_are_exported_from_package_and_supabase(
 
 def test_postgrest_error_is_exported_from_supabase() -> None:
     assert supabase.PostgrestAPIError is postgrest.APIError
+
+
+def test_request_timeout_error_is_exported_from_supabase() -> None:
+    assert supabase.RequestTimeoutError is RequestTimeoutError
+    assert supabase.client.RequestTimeoutError is RequestTimeoutError

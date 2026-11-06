@@ -28,6 +28,7 @@ from supabase_utils.http.request import (
     JSONRequest,
     Request,
     Response,
+    validate_request_timeout,
 )
 from supabase_utils.types import JSON
 from yarl import URL
@@ -651,6 +652,13 @@ class BaseRequestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def retry(self, enabled: bool) -> Self:
         """Enable or disable retrying GET and HEAD requests on 503 and 520."""
         self.request.retry = enabled
+        return self
+
+    def request_timeout(self, seconds: float) -> Self:
+        """Fail with `RequestTimeoutError` once a request of this query goes
+        `seconds` without progress, overriding the timeout of the client."""
+        validate_request_timeout(seconds)
+        self.request.timeout = seconds
         return self
 
 

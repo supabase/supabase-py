@@ -27,8 +27,6 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from types import TracebackType
 
-DEFAULT_TIMEOUT = 20
-
 __all__ = [
     "StorageClient",
 ]
@@ -216,12 +214,27 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
         url: str,
         headers: Mapping[str, str],
         http_session: AsyncHttpSession,
-        timeout: int | None = None,
+        *,
+        request_timeout: float | None = None,
     ) -> None:
+        """Create a storage client.
+
+        Parameters
+        ----------
+        url
+            The URL of the storage service, ending with a slash.
+        headers
+            Headers sent with every request.
+        http_session
+            The HTTP session that sends the requests.
+        request_timeout
+            Seconds a request may go without progress before it fails with
+            `RequestTimeoutError`. None leaves the timeout to the HTTP client.
+        """
         super().__init__(
             url=url,
             headers=headers,
-            executor=AsyncHttpIO(session=http_session),
+            executor=AsyncHttpIO(session=http_session, request_timeout=request_timeout),
         )
 
     async def __aenter__(self) -> Self:
@@ -243,12 +256,27 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
         url: str,
         headers: Mapping[str, str],
         http_session: HttpSession,
-        timeout: int | None = None,
+        *,
+        request_timeout: float | None = None,
     ) -> None:
+        """Create a storage client.
+
+        Parameters
+        ----------
+        url
+            The URL of the storage service, ending with a slash.
+        headers
+            Headers sent with every request.
+        http_session
+            The HTTP session that sends the requests.
+        request_timeout
+            Seconds a request may go without progress before it fails with
+            `RequestTimeoutError`. None leaves the timeout to the HTTP client.
+        """
         super().__init__(
             url=url,
             headers=headers,
-            executor=SyncHttpIO(session=http_session),
+            executor=SyncHttpIO(session=http_session, request_timeout=request_timeout),
         )
 
     def __enter__(self) -> Self:

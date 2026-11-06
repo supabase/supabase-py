@@ -750,8 +750,15 @@ features:
       - BaseRequestClient
   database.configuration.request_timeout:
     status: implemented
-    note: "No timeout parameter. Configure the timeout on the httpx client passed in through http_session, or wrap async calls in asyncio.wait_for or asyncio.timeout."
-    no_public_symbols: true
+    note: "request_timeout (float seconds) on the PostgREST client constructors, and PostgrestClientOptions or the global request_timeout of ClientOptions on the supabase client. request_timeout() on a query overrides it for that query. It bounds how long a request may go without progress, and a timed-out request raises RequestTimeoutError. None (the default) leaves the timeout to the HTTP client."
+    symbols:
+      - AsyncPostgrestClient
+      - SyncPostgrestClient
+      - BaseRequestClient.request_timeout
+    supporting_symbols:
+      - PostgrestClientOptions
+      - ClientOptions
+      - AsyncClientOptions
   database.configuration.access_token:
     status: partially_implemented
     note: "set_auth(token) sets the bearer token on the client in place; there is no per-request access token option."
@@ -796,8 +803,13 @@ features:
     no_public_symbols: true
   functions.invocation.timeout:
     status: implemented
-    note: "No timeout parameter. Configure the timeout on the httpx client passed in as http_client, or wrap async calls in asyncio.wait_for or asyncio.timeout."
-    no_public_symbols: true
+    note: "request_timeout argument (float seconds) of invoke(), overriding request_timeout of the functions client constructors, and FunctionsClientOptions or the global request_timeout of ClientOptions on the supabase client. It bounds how long the invocation may go without progress, and a timed-out invocation raises RequestTimeoutError. None (the default) leaves the timeout to the HTTP client."
+    symbols:
+      - FunctionsClient.invoke
+    supporting_symbols:
+      - AsyncFunctionsClient
+      - SyncFunctionsClient
+      - FunctionsClientOptions
 
   # ── Realtime ───────────────────────────────────────────────────────────────
 
@@ -1355,6 +1367,8 @@ supporting_symbols:
   - Client.functions
   - ClientOptions
   - AsyncClientOptions
+  - AuthClientOptions
+  - StorageClientOptions
   - SupabaseException
   - validate_expiration
   - is_valid_string_argument

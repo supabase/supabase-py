@@ -1,3 +1,4 @@
+import pickle
 from collections.abc import Callable
 
 import httpx
@@ -8,10 +9,11 @@ from supabase_utils.http.adapters.httpx import (
     to_httpx_request,
     to_supabase_response,
 )
+from supabase_utils.http.errors import RequestTimeoutError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpIO, HttpMethod, SyncHttpIO
 from supabase_utils.http.query import URLQuery
-from supabase_utils.http.request import JSONRequest, Request, Response
+from supabase_utils.http.request import EmptyRequest, JSONRequest, Request, Response
 from yarl import URL
 
 BASE_URL = URL("https://example.com/api")
@@ -378,3 +380,68 @@ def test_sync_session_keeps_request_authorization_over_url_credentials() -> None
             )
         )
     assert seen[0].headers.get_list("authorization") == ["Bearer user-jwt"]
+
+
+def test_to_httpx_request_sets_timeout() -> None:
+    request = make_request()
+    request.timeout = 2.5
+    assert to_httpx_request(request).extensions["timeout"] == {
+        "connect": 2.5,
+        "read": 2.5,
+        "write": 2.5,
+        "pool": 2.5,
+    }
+
+
+def test_sync_session_without_timeout_uses_client_timeout() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler), timeout=7)
+    with HttpxSession(client) as session:
+        session.send(make_request())
+    assert seen[0].extensions["timeout"]["read"] == 7
+
+
+def get_items() -> HttpMethod[Response]:
+    return (yield EmptyRequest(path=["items"], method="GET"))
+
+
+def time_out(request: httpx.Request) -> httpx.Response:
+    raise httpx.ReadTimeout("timed out", request=request)
+
+
+def test_sync_session_raises_request_timeout_error() -> None:
+    client = httpx.Client(transport=httpx.MockTransport(time_out))
+    with (
+        HttpxSession(client) as session,
+        pytest.raises(RequestTimeoutError) as error,
+    ):
+        SyncHttpIO(session, request_timeout=1).communicate(
+            BASE_URL, Headers.empty(), get_items()
+        )
+    assert isinstance(error.value, TimeoutError)
+    assert isinstance(error.value.__cause__, httpx.ReadTimeout)
+    assert str(error.value) == "GET https://example.com/api/items timed out"
+    assert error.value.request.timeout == 1
+
+
+async def test_async_session_raises_request_timeout_error() -> None:
+    client = httpx.AsyncClient(transport=httpx.MockTransport(time_out))
+    async with AsyncHttpxSession(client) as session:
+        with pytest.raises(RequestTimeoutError) as error:
+            await AsyncHttpIO(session).communicate(
+                BASE_URL, Headers.empty(), get_items()
+            )
+    assert isinstance(error.value.__cause__, httpx.ReadTimeout)
+
+
+def test_request_timeout_error_can_be_pickled() -> None:
+    error = RequestTimeoutError(make_request())
+    copy = pickle.loads(pickle.dumps(error))
+    assert str(copy) == str(error)
+    assert copy.request.url == error.request.url
+    assert copy.request.method == error.request.method

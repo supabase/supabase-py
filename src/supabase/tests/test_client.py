@@ -12,7 +12,10 @@ from supabase import (
     AsyncClientOptions,
     Client,
     ClientOptions,
+    FunctionsClientOptions,
+    PostgrestClientOptions,
     RealtimeClientOptions,
+    StorageClientOptions,
     SupabaseException,
 )
 
@@ -238,3 +241,29 @@ async def test_async_functions_send_a_custom_authorization_header_with_a_new_for
         await client.functions.invoke("hello")
 
     assert requests[0].headers.get("authorization") == "Bearer customjwt"
+
+
+def test_sync_client_passes_request_timeouts_to_sub_clients() -> None:
+    options = ClientOptions(
+        request_timeout=10,
+        postgrest_options=PostgrestClientOptions(request_timeout=3),
+        storage_options=StorageClientOptions(request_timeout=120),
+    )
+    with SyncHttpxClient() as http_client:
+        client = Client(URL, KEY, HttpxSession(client=http_client), options)
+        assert client.postgrest.executor.request_timeout == 3
+        assert client.storage.executor.request_timeout == 120
+        assert client.auth.executor.request_timeout == 10
+        assert client.functions.executor.request_timeout == 10
+
+
+async def test_async_client_passes_request_timeouts_to_sub_clients() -> None:
+    options = AsyncClientOptions(
+        functions_options=FunctionsClientOptions(request_timeout=60),
+    )
+    async with AsyncHttpxClient() as http_client:
+        client = AsyncClient(URL, KEY, AsyncHttpxSession(client=http_client), options)
+        assert client.functions.executor.request_timeout == 60
+        assert client.postgrest.executor.request_timeout is None
+        assert client.storage.executor.request_timeout is None
+        assert client.auth.executor.request_timeout is None
