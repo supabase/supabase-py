@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
+from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
     HttpMethod,
@@ -10,12 +11,14 @@ from supabase_utils.http.io import (
     handle_http_io,
 )
 from supabase_utils.http.request import EmptyRequest, JSONRequest
+from yarl import URL
 
 from .errors import AuthSessionMissingError
 from .helpers import (
     _validate_model,
     decode_jwt,
 )
+from .session import _AsyncSessionManager, _SyncSessionManager
 from .types import (
     AuthMFAChallengeResponse,
     AuthMFAEnrollResponse,
@@ -27,12 +30,6 @@ from .types import (
     Session,
     UserResponse,
 )
-
-if TYPE_CHECKING:
-    from supabase_utils.http.headers import Headers
-    from yarl import URL
-
-    from .session import _AsyncSessionManager, _SyncSessionManager
 
 
 @dataclass

@@ -74,4 +74,4 @@ ignore = ["E501", "E402"]
 
 [tool.ruff.lint.flake8-type-checking]
 runtime-evaluated-base-classes = ["pydantic.BaseModel"]
-runtime-evaluated-decorators = ["pydantic.dataclasses.dataclass"]
+runtime-evaluated-decorators = ["dataclasses.dataclass", "pydantic.dataclasses.dataclass"]

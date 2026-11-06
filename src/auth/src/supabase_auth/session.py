@@ -15,6 +15,7 @@ from supabase_utils.http.io import (
 )
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest
+from yarl import URL
 
 from .constants import (
     EXPIRY_MARGIN,
@@ -31,7 +32,6 @@ from .types import AuthChangeEvent, AuthResponse, Session, Subscription, UserRes
 if TYPE_CHECKING:
     from types import TracebackType
 
-    from yarl import URL
 
 logger = logging.getLogger(__name__)
 

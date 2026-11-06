@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
     HttpMethod,
@@ -10,6 +11,7 @@ from supabase_utils.http.io import (
     handle_http_io,
 )
 from supabase_utils.http.request import JSONRequest
+from yarl import URL
 
 from .exceptions import VectorBucketException, _validate_model, parse_api_error
 from .types import (
@@ -30,9 +32,7 @@ from .types import (
 if TYPE_CHECKING:
     import builtins
 
-    from supabase_utils.http.headers import Headers
     from supabase_utils.types import JSON
-    from yarl import URL
 
 
 # used to not send non-required values as `null`

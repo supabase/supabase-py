@@ -6,7 +6,6 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from re import search
 from typing import (
-    TYPE_CHECKING,
     Any,
     Literal,
     NamedTuple,
@@ -31,13 +30,11 @@ from supabase_utils.http.request import (
     Response,
 )
 from supabase_utils.types import JSON
+from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .types import CountMethod, Filters, FilterValue, ReturnMethod
 from .utils import _sanitize_array_param, sanitize_param
-
-if TYPE_CHECKING:
-    from yarl import URL
 
 MAX_RETRIES = 3
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
     HttpMethod,
@@ -14,6 +15,7 @@ from supabase_utils.http.request import (
     EmptyRequest,
     JSONRequest,
 )
+from yarl import URL
 
 from .exceptions import _validate_adapter, _validate_model
 from .types import (
@@ -28,8 +30,6 @@ if TYPE_CHECKING:
     import builtins
 
     from pyiceberg.catalog.rest import RestCatalog
-    from supabase_utils.http.headers import Headers
-    from yarl import URL
 
 
 @dataclass
