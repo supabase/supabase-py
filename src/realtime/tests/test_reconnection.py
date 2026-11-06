@@ -13,10 +13,12 @@ from realtime import (
 )
 from realtime.client import MaxRetriesExceeded, automatically_reconnect, connect_once
 from realtime.message import (
+    AccessTokenMessage,
     ChannelLeaveMessage,
     ClientMessage,
     HeartbeatMessage,
     JoinMessage,
+    Message,
     ReplyMessage,
     ReplyPostgresChanges,
     SuccessReplyMessage,
@@ -94,6 +96,20 @@ class RealtimeServer:
                     await connection.send(reply_ack(topic, ref))
                 case _:
                     pass
+
+
+def test_parses_the_access_token_message_the_client_sends() -> None:
+    message = Message(
+        topic="realtime:test-channel",
+        event=ChannelEvents.access_token,
+        payload={"access_token": "token"},
+        ref="3",
+    )
+
+    parsed = MessageParser.validate_json(message.model_dump_json())
+
+    assert isinstance(parsed, AccessTokenMessage)
+    assert parsed.ref == "3"
 
 
 @pytest.fixture
