@@ -890,6 +890,7 @@ features:
     symbols:
       - RealtimeChannel.send_broadcast
   realtime.channel.broadcast_http: not_implemented
+  realtime.channel.broadcast_persist: not_implemented
 
   realtime.subscriptions.broadcast:
     status: implemented
@@ -1011,6 +1012,12 @@ features:
   realtime.configuration.deferred_disconnect: not_implemented
   realtime.configuration.custom_logger: not_applicable
   realtime.configuration.binary_protocol: not_implemented
+  realtime.configuration.foreground_liveness_probe:
+    status: not_applicable
+    note: "Python has no app foreground lifecycle to hook into. Dropped connections are detected by the heartbeat timeout."
+  realtime.configuration.network_path_wake:
+    status: not_applicable
+    note: "Python has no platform network reachability notification to hook into. Reconnects follow the backoff schedule."
 
   # ── Storage ────────────────────────────────────────────────────────────────
 
