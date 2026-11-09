@@ -111,7 +111,7 @@ An adapter connects another HTTP library. It implements one of two protocols fro
 
 It returns a `Response` with the status code, the body as `bytes`, the response headers and the request it answers. `send` must not raise for error statuses: the packages read `response.status` and raise their own errors. `timeout` limits each step of a request, such as connecting or reading, not the whole request. Raise `RequestTimeoutError` from `supabase_utils.http.errors` for every timeout, whether `timeout` or the client's own limit elapsed, so every adapter reports a timeout the same way. A library without a client-level timeout needs a default in the adapter, or `None` waits forever. Other errors of the transport itself, such as a refused connection, should propagate.
 
-If the library follows redirects, apply the rule from [Using an adapter](#using-an-adapter): drop the headers in `CREDENTIAL_HEADERS` from `supabase_utils.http.redirects` once `keeps_credentials(request.url, URL(location))` is false, with the redirect target as a `yarl.URL`. The simplest way to stay safe is to not follow redirects at all.
+If the library follows redirects, apply the rule from [Using an adapter](#using-an-adapter): drop the headers in `CREDENTIAL_HEADERS` from `supabase_utils.http.redirects` once `keeps_credentials(request.url, target)` is false. `target` is the `Location` header resolved against the URL of the response that sent it, as in `response_url.join(URL(location))`, since a relative location has no host of its own. The simplest way to stay safe is to not follow redirects at all.
 
 Leaving the context manager should close the underlying client.
 
