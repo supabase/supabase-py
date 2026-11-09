@@ -107,11 +107,11 @@ An adapter connects another HTTP library. It implements one of two protocols fro
 | `headers` | `Headers`       | The headers to send. `iter_items()` yields each value of a repeated header. |
 | `content` | `bytes \| None` | The body, already encoded, or `None` for no body.                           |
 | `delay`   | `float \| None` | Seconds to wait before sending. The executor waits, not the adapter.        |
-| `timeout` | `float \| None` | Seconds the request may take. `None` leaves it to the client's own timeout. |
+| `timeout` | `float \| None` | Seconds a request may go without progress. `None` leaves it to the client.  |
 
-It returns a `Response` with the status code, the body as `bytes`, the response headers and the request it answers. `send` must not raise for error statuses: the packages read `response.status` and raise their own errors. When `timeout` elapses, raise `RequestTimeoutError` from `supabase_utils.http.errors`, so every adapter reports a timeout the same way. Other errors of the transport itself, such as a refused connection, should propagate.
+It returns a `Response` with the status code, the body as `bytes`, the response headers and the request it answers. `send` must not raise for error statuses: the packages read `response.status` and raise their own errors. `timeout` limits each step of a request, such as connecting or reading, not the whole request. Raise `RequestTimeoutError` from `supabase_utils.http.errors` for every timeout, whether `timeout` or the client's own limit elapsed, so every adapter reports a timeout the same way. A library without a client-level timeout needs a default in the adapter, or `None` waits forever. Other errors of the transport itself, such as a refused connection, should propagate.
 
-If the library follows redirects, drop the headers in `CREDENTIAL_HEADERS` from `supabase_utils.http.redirects` once `keeps_credentials(request.url, next_url)` is false, as the built-in adapters do, so a redirect to another host never receives the project key. The simplest way to stay safe is to not follow redirects at all.
+If the library follows redirects, apply the rule from [Using an adapter](#using-an-adapter): drop the headers in `CREDENTIAL_HEADERS` from `supabase_utils.http.redirects` once `keeps_credentials(request.url, URL(location))` is false, with the redirect target as a `yarl.URL`. The simplest way to stay safe is to not follow redirects at all.
 
 Leaving the context manager should close the underlying client.
 
@@ -137,7 +137,7 @@ class RequestsSession:
                 url=str(request.url),
                 headers=dict(request.headers),
                 data=request.content,
-                timeout=request.timeout,
+                timeout=request.timeout or 60,
                 allow_redirects=False,
             )
         except requests.Timeout as error:
@@ -161,7 +161,7 @@ class RequestsSession:
         self.session.close()
 ```
 
-`dict(request.headers)` joins the values of a repeated header with `, `. Pass `request.headers.iter_items()` instead if the library accepts a list of pairs, as httpx does. The adapter does not follow redirects, so it never forwards credentials to another host.
+`dict(request.headers)` joins the values of a repeated header with `, `. Pass `request.headers.iter_items()` instead if the library accepts a list of pairs, as httpx does. `requests` has no client-level timeout, so the example falls back to 60 seconds. `allow_redirects=False` keeps it out of the redirect rule above.
 
 The adapters in [`src/supabase_utils/http/adapters`](src/supabase_utils/http/adapters) are complete examples.
 
