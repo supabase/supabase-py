@@ -431,8 +431,12 @@ features:
       - SyncMemoryStorage.remove_item
       - SyncMemoryStorage.set_item
   client.session_management.persist_session:
-    status: not_implemented
-    note: "The supabase client has no persist_session setting. The session is kept in session_storage of AuthClientOptions, which defaults to memory. The auth client constructors accept persist_session but do not forward it to the session manager, so sessions are always written to storage."
+    status: implemented
+    note: "The supabase client keeps the session in memory unless session_storage is set on AuthClientOptions. The auth client constructors take persist_session: when False, the session and the PKCE code verifier stay in memory and the storage passed in is not used. They also take a storage_key to keep clients that share a storage backend apart."
+    symbols:
+      - AuthClientOptions
+      - AsyncSupabaseAuthClient
+      - SyncSupabaseAuthClient
 
   client.request_configuration.custom_http_client:
     status: implemented
