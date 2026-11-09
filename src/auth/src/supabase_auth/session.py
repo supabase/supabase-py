@@ -80,9 +80,7 @@ class _SessionManagerCommon[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     default_headers: Headers
     state_change_emitters: dict[str, Subscription]
     storage_key: str = field(default=STORAGE_KEY, kw_only=True)
-    persist_session: bool = field(default=True, kw_only=True)
     network_retries: int = field(default=0, kw_only=True)
-    in_memory_session: Session | None = field(default=None, kw_only=True)
     auto_refresh_token: bool = field(default=True, kw_only=True)
 
     def _refresh_access_token(self, refresh_token: str) -> HttpMethod[AuthResponse]:
@@ -160,10 +158,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         return self
 
     async def remove_session(self) -> None:
-        if self.persist_session:
-            await self.storage.remove_item(self.storage_key)
-        else:
-            self.in_memory_session = None
+        await self.storage.remove_item(self.storage_key)
         if self.refresh_token_timer:
             self.refresh_token_timer.cancel()
             self.refresh_token_timer = None
@@ -185,16 +180,10 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         The session returned can be null if the session is not detected which
         can happen in the event a user is not signed-in or has logged out.
         """
-        current_session: Session | None = None
-        if self.persist_session:
-            maybe_session = await self.storage.get_item(self.storage_key)
-            current_session = self.parse_valid_session(maybe_session)
-            if not current_session:
-                await self.remove_session()
-        else:
-            current_session = self.in_memory_session
-
+        maybe_session = await self.storage.get_item(self.storage_key)
+        current_session = self.parse_valid_session(maybe_session)
         if not current_session:
+            await self.remove_session()
             return None
         time_now = round(time.time())
         has_expired = (
@@ -213,8 +202,6 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         return session
 
     async def save_session(self, session: Session) -> None:
-        if not self.persist_session:
-            self.in_memory_session = session
         expire_at = session.expires_at
         if expire_at:
             time_now = round(time.time())
@@ -223,7 +210,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
                 EXPIRY_MARGIN if expire_in > EXPIRY_MARGIN else 0.5
             )
             self.start_auto_refresh_token(expire_in - refresh_duration_before_expires)
-        if self.persist_session and session.expires_at:
+        if session.expires_at:
             await self.storage.set_item(self.storage_key, session.model_dump_json())
 
     async def recover_and_refresh(self) -> None:
@@ -258,8 +245,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
                         return
             await self.remove_session()
             return
-        if self.persist_session:
-            await self.save_session(current_session)
+        await self.save_session(current_session)
         self.notify_all_subscribers("SIGNED_IN", current_session)
 
     async def refresh_token_function(self) -> None:
@@ -330,10 +316,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         return self
 
     def remove_session(self) -> None:
-        if self.persist_session:
-            self.storage.remove_item(self.storage_key)
-        else:
-            self.in_memory_session = None
+        self.storage.remove_item(self.storage_key)
         if self.refresh_token_timer:
             self.refresh_token_timer.cancel()
             self.refresh_token_timer = None
@@ -355,16 +338,10 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         The session returned can be null if the session is not detected which
         can happen in the event a user is not signed-in or has logged out.
         """
-        current_session: Session | None = None
-        if self.persist_session:
-            maybe_session = self.storage.get_item(self.storage_key)
-            current_session = self.parse_valid_session(maybe_session)
-            if not current_session:
-                self.remove_session()
-        else:
-            current_session = self.in_memory_session
-
+        maybe_session = self.storage.get_item(self.storage_key)
+        current_session = self.parse_valid_session(maybe_session)
         if not current_session:
+            self.remove_session()
             return None
         time_now = round(time.time())
         has_expired = (
@@ -383,8 +360,6 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         return session
 
     def save_session(self, session: Session) -> None:
-        if not self.persist_session:
-            self.in_memory_session = session
         expire_at = session.expires_at
         if expire_at:
             time_now = round(time.time())
@@ -393,7 +368,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
                 EXPIRY_MARGIN if expire_in > EXPIRY_MARGIN else 0.5
             )
             self.start_auto_refresh_token(expire_in - refresh_duration_before_expires)
-        if self.persist_session and session.expires_at:
+        if session.expires_at:
             self.storage.set_item(self.storage_key, session.model_dump_json())
 
     def refresh_token_function(self) -> None:
@@ -439,8 +414,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
                         return
             self.remove_session()
             return
-        if self.persist_session:
-            self.save_session(current_session)
+        self.save_session(current_session)
         self.notify_all_subscribers("SIGNED_IN", current_session)
 
     def start_auto_refresh_token(self, seconds: float) -> None:

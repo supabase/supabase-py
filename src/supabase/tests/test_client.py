@@ -10,6 +10,7 @@ from supabase_auth import (
     SyncMemoryStorage,
     SyncSupabaseAuthClient,
 )
+from supabase_auth.constants import STORAGE_KEY
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
 import supabase.aiohttp
@@ -344,11 +345,13 @@ def test_sync_client_passes_service_options_to_sub_clients() -> None:
             auth=AuthClientOptions(
                 auto_refresh_token=False,
                 session_storage=session_storage,
+                storage_key="custom-key",
                 flow_type="implicit",
             ),
         )
         assert client.postgrest.default_headers.get("Accept-Profile") == "private"
         assert client.auth.session_manager.storage is session_storage
+        assert client.auth.session_manager.storage_key == "custom-key"
         assert client.auth.session_manager.auto_refresh_token is False
         assert client.auth.flow_type == "implicit"
 
@@ -364,11 +367,13 @@ async def test_async_client_passes_service_options_to_sub_clients() -> None:
             auth=AuthClientOptions(
                 auto_refresh_token=False,
                 session_storage=session_storage,
+                storage_key="custom-key",
                 flow_type="implicit",
             ),
         )
         assert client.postgrest.default_headers.get("Accept-Profile") == "private"
         assert client.auth.session_manager.storage is session_storage
+        assert client.auth.session_manager.storage_key == "custom-key"
         assert client.auth.session_manager.auto_refresh_token is False
         assert client.auth.flow_type == "implicit"
 
@@ -378,6 +383,7 @@ def test_sync_client_uses_service_defaults() -> None:
         client = Client(URL, KEY, HttpxSession(client=http_client))
         assert client.postgrest.default_headers.get("Accept-Profile") == "public"
         assert isinstance(client.auth.session_manager.storage, SyncMemoryStorage)
+        assert client.auth.session_manager.storage_key == STORAGE_KEY
         assert client.auth.session_manager.auto_refresh_token is True
         assert client.auth.flow_type == "pkce"
 

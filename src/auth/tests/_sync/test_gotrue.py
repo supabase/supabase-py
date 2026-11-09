@@ -8,8 +8,8 @@ from jwt import encode
 from pytest_mock import MockerFixture
 from supabase_utils.http.adapters.httpx import HttpxSession
 
-from supabase_auth import SyncSupabaseAuthClient
-from supabase_auth.constants import EXPIRY_MARGIN
+from supabase_auth import SyncMemoryStorage, SyncSupabaseAuthClient
+from supabase_auth.constants import EXPIRY_MARGIN, STORAGE_KEY
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -489,31 +489,97 @@ def test_initialize_from_storage_keeps_refreshed_session() -> None:
     manager.refresh_token_timer.cancel()
 
 
+def mock_session(access_token: str) -> Session:
+    return Session(
+        access_token=access_token,
+        refresh_token="refresh-token",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) + 3600,
+        user=User.model_validate(
+            {
+                "id": str(uuid4()),
+                "aud": "authenticated",
+                "app_metadata": {},
+                "user_metadata": {},
+                "created_at": "2024-01-01T00:00:00Z",
+            }
+        ),
+    )
+
+
 def test_save_session_schedules_refresh_in_seconds() -> None:
     client = SyncSupabaseAuthClient(
         url="http://auth.test",
         http_session=HttpxSession(client=Client()),
     )
     manager = client.session_manager
-    user: dict[str, JSON] = {
-        "id": str(uuid4()),
-        "aud": "authenticated",
-        "app_metadata": {},
-        "user_metadata": {},
-        "created_at": "2024-01-01T00:00:00Z",
-    }
-    session = Session(
-        access_token="access-token",
-        refresh_token="refresh-token",
-        token_type="bearer",
-        expires_in=3600,
-        expires_at=round(time.time()) + 3600,
-        user=User.model_validate(user),
-    )
 
-    manager.save_session(session)
+    manager.save_session(mock_session("access-token"))
 
     timer = manager.refresh_token_timer
     assert timer is not None
     timer.cancel()
     assert 3600 - EXPIRY_MARGIN - 5 <= timer._seconds <= 3600 - EXPIRY_MARGIN
+
+
+def test_save_session_writes_session_to_default_storage_key() -> None:
+    storage = SyncMemoryStorage()
+    client = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client()),
+        auto_refresh_token=False,
+        storage=storage,
+    )
+    session = mock_session("access-token")
+
+    client.session_manager.save_session(session)
+
+    assert list(storage.storage) == [STORAGE_KEY]
+    assert client.get_session() == session
+
+
+def test_storage_key_separates_clients_sharing_a_storage() -> None:
+    storage = SyncMemoryStorage()
+    first = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client()),
+        auto_refresh_token=False,
+        storage=storage,
+        storage_key="first",
+    )
+    second = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client()),
+        auto_refresh_token=False,
+        storage=storage,
+        storage_key="second",
+    )
+    first_session = mock_session("first-access-token")
+    second_session = mock_session("second-access-token")
+
+    first.session_manager.save_session(first_session)
+    second.session_manager.save_session(second_session)
+
+    assert sorted(storage.storage) == ["first", "second"]
+    assert first.get_session() == first_session
+    assert second.get_session() == second_session
+
+
+def test_clients_without_storage_do_not_share_sessions() -> None:
+    first = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client()),
+        auto_refresh_token=False,
+    )
+    second = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client()),
+        auto_refresh_token=False,
+    )
+    session = mock_session("access-token")
+
+    first.session_manager.save_session(session)
+
+    assert first.get_session() == session
+    assert second.get_session() is None

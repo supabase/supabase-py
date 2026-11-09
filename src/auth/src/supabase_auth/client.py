@@ -20,6 +20,7 @@ from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest, Response
 from yarl import URL
 
+from .constants import STORAGE_KEY
 from .errors import (
     AuthImplicitGrantRedirectError,
     AuthInvalidJwtError,
@@ -650,9 +651,8 @@ class AsyncSupabaseAuthClient(
         http_session: AsyncHttpSession,
         *,
         headers: Mapping[str, str] | None = None,
-        storage_key: str | None = None,
+        storage_key: str = STORAGE_KEY,
         auto_refresh_token: bool = True,
-        persist_session: bool = True,
         storage: AsyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
         request_timeout: float | None = None,
@@ -666,8 +666,9 @@ class AsyncSupabaseAuthClient(
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
-            storage=storage or AsyncMemoryStorage(),
+            storage=storage if storage is not None else AsyncMemoryStorage(),
             state_change_emitters={},
+            storage_key=storage_key,
             auto_refresh_token=auto_refresh_token,
         )
         super().__init__(
@@ -1090,9 +1091,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         http_session: HttpSession,
         *,
         headers: Mapping[str, str] | None = None,
-        storage_key: str | None = None,
+        storage_key: str = STORAGE_KEY,
         auto_refresh_token: bool = True,
-        persist_session: bool = True,
         storage: SyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
         request_timeout: float | None = None,
@@ -1106,8 +1106,9 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
-            storage=storage or SyncMemoryStorage(),
+            storage=storage if storage is not None else SyncMemoryStorage(),
             state_change_emitters={},
+            storage_key=storage_key,
             auto_refresh_token=auto_refresh_token,
         )
         super().__init__(

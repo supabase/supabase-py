@@ -8,8 +8,8 @@ from jwt import encode
 from pytest_mock import MockerFixture
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
-from supabase_auth import AsyncSupabaseAuthClient
-from supabase_auth.constants import EXPIRY_MARGIN
+from supabase_auth import AsyncMemoryStorage, AsyncSupabaseAuthClient
+from supabase_auth.constants import EXPIRY_MARGIN, STORAGE_KEY
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -493,31 +493,97 @@ async def test_initialize_from_storage_keeps_refreshed_session() -> None:
     manager.refresh_token_timer.cancel()
 
 
+def mock_session(access_token: str) -> Session:
+    return Session(
+        access_token=access_token,
+        refresh_token="refresh-token",
+        token_type="bearer",
+        expires_in=3600,
+        expires_at=round(time.time()) + 3600,
+        user=User.model_validate(
+            {
+                "id": str(uuid4()),
+                "aud": "authenticated",
+                "app_metadata": {},
+                "user_metadata": {},
+                "created_at": "2024-01-01T00:00:00Z",
+            }
+        ),
+    )
+
+
 async def test_save_session_schedules_refresh_in_seconds() -> None:
     client = AsyncSupabaseAuthClient(
         url="http://auth.test",
         http_session=AsyncHttpxSession(client=AsyncClient()),
     )
     manager = client.session_manager
-    user: dict[str, JSON] = {
-        "id": str(uuid4()),
-        "aud": "authenticated",
-        "app_metadata": {},
-        "user_metadata": {},
-        "created_at": "2024-01-01T00:00:00Z",
-    }
-    session = Session(
-        access_token="access-token",
-        refresh_token="refresh-token",
-        token_type="bearer",
-        expires_in=3600,
-        expires_at=round(time.time()) + 3600,
-        user=User.model_validate(user),
-    )
 
-    await manager.save_session(session)
+    await manager.save_session(mock_session("access-token"))
 
     timer = manager.refresh_token_timer
     assert timer is not None
     timer.cancel()
     assert 3600 - EXPIRY_MARGIN - 5 <= timer._seconds <= 3600 - EXPIRY_MARGIN
+
+
+async def test_save_session_writes_session_to_default_storage_key() -> None:
+    storage = AsyncMemoryStorage()
+    client = AsyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=AsyncHttpxSession(client=AsyncClient()),
+        auto_refresh_token=False,
+        storage=storage,
+    )
+    session = mock_session("access-token")
+
+    await client.session_manager.save_session(session)
+
+    assert list(storage.storage) == [STORAGE_KEY]
+    assert await client.get_session() == session
+
+
+async def test_storage_key_separates_clients_sharing_a_storage() -> None:
+    storage = AsyncMemoryStorage()
+    first = AsyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=AsyncHttpxSession(client=AsyncClient()),
+        auto_refresh_token=False,
+        storage=storage,
+        storage_key="first",
+    )
+    second = AsyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=AsyncHttpxSession(client=AsyncClient()),
+        auto_refresh_token=False,
+        storage=storage,
+        storage_key="second",
+    )
+    first_session = mock_session("first-access-token")
+    second_session = mock_session("second-access-token")
+
+    await first.session_manager.save_session(first_session)
+    await second.session_manager.save_session(second_session)
+
+    assert sorted(storage.storage) == ["first", "second"]
+    assert await first.get_session() == first_session
+    assert await second.get_session() == second_session
+
+
+async def test_clients_without_storage_do_not_share_sessions() -> None:
+    first = AsyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=AsyncHttpxSession(client=AsyncClient()),
+        auto_refresh_token=False,
+    )
+    second = AsyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=AsyncHttpxSession(client=AsyncClient()),
+        auto_refresh_token=False,
+    )
+    session = mock_session("access-token")
+
+    await first.session_manager.save_session(session)
+
+    assert await first.get_session() == session
+    assert await second.get_session() is None
