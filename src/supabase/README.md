@@ -142,11 +142,10 @@ data = supabase.table("countries").delete().eq("id", 1).execute()
 ```python
 def test_func():
   try:
-    resp = supabase.functions.invoke("hello-world", invoke_options={'body':{}})
+    resp = supabase.functions.invoke("hello-world", body={})
     return resp
   except (FunctionsRelayError, FunctionsHttpError) as exception:
-    err = exception.to_dict()
-    print(err.get("message"))
+    print(exception.status, exception.message)
 ```
 
 ### Download a file from Storage

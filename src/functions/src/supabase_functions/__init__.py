@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from .client import AsyncFunctionsClient, SyncFunctionsClient, create_client
 from .errors import (
-    FunctionsApiErrorDict,
     FunctionsError,
     FunctionsHttpError,
     FunctionsRelayError,
@@ -13,7 +12,6 @@ from .version import __version__
 __all__ = [
     "AsyncFunctionsClient",
     "FunctionRegion",
-    "FunctionsApiErrorDict",
     "FunctionsError",
     "FunctionsHttpError",
     "FunctionsRelayError",

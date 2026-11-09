@@ -4,7 +4,6 @@ from supabase_utils.http.request import Request, Response
 from yarl import URL
 
 from supabase_functions.errors import (
-    FunctionsApiErrorDict,
     FunctionsError,
     FunctionsHttpError,
     FunctionsRelayError,
@@ -54,38 +53,6 @@ def test_error_initialization(
     assert isinstance(error, Exception)
 
 
-@pytest.mark.parametrize(
-    ("error_class", "expected_name", "expected_status"),
-    [
-        (FunctionsError, "test_error", 500),
-        (FunctionsHttpError, "FunctionsHttpError", 400),
-        (FunctionsRelayError, "FunctionsRelayError", 400),
-    ],
-)
-def test_error_to_dict(
-    error_class: type[FunctionsError], expected_name: str, expected_status: int
-) -> None:
-    test_message = "Test error message"
-
-    if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
-        error: FunctionsError = error_class(test_message)
-    else:
-        error = error_class(test_message, expected_name, expected_status)
-
-    error_dict = error.to_dict()
-
-    assert isinstance(error_dict, dict)
-    assert error_dict["message"] == test_message
-    assert error_dict["name"] == expected_name
-    assert error_dict["status"] == expected_status
-
-    # Verify the dict matches the TypedDict structure
-    typed_dict: FunctionsApiErrorDict = error_dict
-    assert isinstance(typed_dict["name"], str)
-    assert isinstance(typed_dict["message"], str)
-    assert isinstance(typed_dict["status"], int)
-
-
 def test_functions_error_inheritance() -> None:
     # Test that all error classes inherit from FunctionsError
     assert issubclass(FunctionsHttpError, FunctionsError)
@@ -125,7 +92,6 @@ def test_error_message_types() -> None:
     for message in test_cases:
         error = FunctionsError(message, "test", 500)
         assert error.message == message
-        assert error.to_dict()["message"] == message
 
 
 @pytest.mark.parametrize(
