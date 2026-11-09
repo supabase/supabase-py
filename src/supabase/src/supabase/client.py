@@ -499,6 +499,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             headers=self._headers,
             auto_refresh_token=self._auth_options.auto_refresh_token,
             storage=self._auth_options.session_storage,
+            storage_key=self._auth_options.storage_key,
             flow_type=self._auth_options.flow_type,
             request_timeout=self._timeout_for(self._auth_options),
         )
@@ -647,6 +648,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             headers=self._headers,
             auto_refresh_token=self._auth_options.auto_refresh_token,
             storage=self._auth_options.session_storage,
+            storage_key=self._auth_options.storage_key,
             flow_type=self._auth_options.flow_type,
             request_timeout=self._timeout_for(self._auth_options),
         )

@@ -6,6 +6,7 @@ from realtime.types import (
     validate_heartbeat,
 )
 from supabase_auth import AsyncSupportedStorage, AuthFlowType, SyncSupportedStorage
+from supabase_auth.constants import STORAGE_KEY
 from supabase_utils.http.request import validate_request_timeout
 
 
@@ -57,6 +58,9 @@ class AuthClientOptions[Storage: (AsyncSupportedStorage, SyncSupportedStorage)](
 
     session_storage: Storage | None = None
     """Where the logged in session is stored. None (the default) keeps it in memory."""
+
+    storage_key: str = STORAGE_KEY
+    """The key the session is stored under in `session_storage`. Give clients that share a `session_storage` different keys so they do not overwrite each other's session."""
 
     flow_type: AuthFlowType = "pkce"
     """The flow type to use for authentication."""
