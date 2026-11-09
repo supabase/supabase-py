@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 from supabase_utils.types import JSONParser
@@ -9,25 +9,12 @@ if TYPE_CHECKING:
     from supabase_utils.http.request import Response
 
 
-class FunctionsApiErrorDict(TypedDict):
-    name: str
-    message: str
-    status: int
-
-
 class FunctionsError(Exception):
     def __init__(self, message: str, name: str, status: int) -> None:
         super().__init__(message)
         self.message = message
         self.name = name
         self.status = status
-
-    def to_dict(self) -> FunctionsApiErrorDict:
-        return {
-            "name": self.name,
-            "message": self.message,
-            "status": self.status,
-        }
 
 
 class FunctionsHttpError(FunctionsError):
