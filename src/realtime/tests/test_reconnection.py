@@ -9,9 +9,10 @@ from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosedOK
 
 from realtime import (
+    MaxRetriesExceeded,
     RealtimeClient,
 )
-from realtime.client import MaxRetriesExceeded, automatically_reconnect, connect_once
+from realtime.client import automatically_reconnect, connect_once
 from realtime.message import (
     AccessTokenMessage,
     ChannelLeaveMessage,

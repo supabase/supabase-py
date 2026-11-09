@@ -115,15 +115,27 @@ def _handle_error_response(response: Response) -> AuthError:
         raw_error = RawApiError.model_validate_json(response.content)
     except ValidationError:
         return AuthUnknownError(
-            message="Unexpected error: Unable to parse API error",
+            "Unexpected error: Unable to parse API error",
+            status_code=response.status,
             code="unexpected_failure",
-            status=response.status,
-            data=response.content,
+            response=response,
         )
-    if not response.is_error:
-        return AuthRetryableError(raw_error.get_error_message(), response.status)
-    if response.status in {502, 503, 504, 520, 521, 522, 523, 524, 530}:
-        return AuthRetryableError(raw_error.get_error_message(), response.status)
+    if not response.is_error or response.status in {
+        502,
+        503,
+        504,
+        520,
+        521,
+        522,
+        523,
+        524,
+        530,
+    }:
+        return AuthRetryableError(
+            raw_error.get_error_message(),
+            status_code=response.status,
+            response=response,
+        )
     error_code = None
     response_api_version = parse_response_api_version(response)
 
@@ -142,21 +154,24 @@ def _handle_error_response(response: Response) -> AuthError:
         and raw_error.weak_password.reasons
     ):
         return AuthWeakPasswordError(
-            message=raw_error.get_error_message(),
-            status=response.status,
+            raw_error.get_error_message(),
+            status_code=response.status,
             reasons=raw_error.weak_password.reasons,
+            response=response,
         )
     if error_code == "weak_password":
         return AuthWeakPasswordError(
             raw_error.get_error_message(),
-            status=response.status,
+            status_code=response.status,
             reasons=raw_error.weak_password.reasons if raw_error.weak_password else [],
+            response=response,
         )
 
     return AuthApiError(
         raw_error.get_error_message(),
-        status=response.status or 500,
+        status_code=response.status or 500,
         code=error_code,
+        response=response,
     )
 
 

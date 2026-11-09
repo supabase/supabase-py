@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Self
 
 import websockets
 
+from .exceptions import RealtimeError
 from .message import (
     BroadcastMessage,
     ChannelCloseMessage,
@@ -237,7 +238,7 @@ class RealtimeChannel:
         msg = await self.socket._send(message)
         logger.info("Subscribe reply: %r", msg)
         if msg.payload.status != "ok":
-            raise Exception(
+            raise RealtimeError(
                 f"error while subscribing to channel: {msg.payload.response!r}"
             )
         self.join_ref = join_ref

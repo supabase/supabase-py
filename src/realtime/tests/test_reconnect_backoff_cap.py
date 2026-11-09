@@ -1,12 +1,13 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from supabase_utils.http.errors import SupabaseTransportError
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.request import Request
+from yarl import URL
 
-from realtime.client import (
-    MaxRetriesExceeded,
-    automatically_reconnect,
-    exponential_delay,
-)
+from realtime import MaxRetriesExceeded
+from realtime.client import automatically_reconnect, exponential_delay
 
 
 def test_exponential_delay_caps_each_retry_at_sixty_seconds() -> None:
@@ -42,3 +43,34 @@ async def test_automatically_reconnect_caps_each_retry_delay_at_sixty_seconds() 
         60,
         60,
     ]
+
+
+async def test_automatically_reconnect_retries_transport_errors_of_the_token_callback() -> (
+    None
+):
+    request = Request(
+        url=URL("https://example.com/auth/v1/token"),
+        method="POST",
+        headers=Headers.empty(),
+        content=None,
+        delay=None,
+    )
+
+    async def get_token() -> str:
+        raise SupabaseTransportError(request)
+
+    async def client_handler(client: object) -> None:
+        return
+
+    sleep = AsyncMock()
+
+    with (
+        patch("realtime.client.asyncio.sleep", sleep),
+        pytest.raises(MaxRetriesExceeded) as error,
+    ):
+        await automatically_reconnect(
+            "ws://localhost/realtime/v1", get_token, client_handler, max_retries=2
+        )
+
+    assert isinstance(error.value.__cause__, SupabaseTransportError)
+    assert [call.args[0] for call in sleep.await_args_list] == [2]

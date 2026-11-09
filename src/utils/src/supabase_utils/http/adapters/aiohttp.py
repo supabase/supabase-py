@@ -1,6 +1,7 @@
 from types import TracebackType
 
 from aiohttp import (
+    ClientError,
     ClientHandlerType,
     ClientMiddlewareType,
     ClientRequest,
@@ -10,7 +11,7 @@ from aiohttp import (
 from aiohttp import ClientResponse as AioResponse
 from yarl import URL
 
-from ..errors import RequestTimeoutError
+from ..errors import RequestTimeoutError, SupabaseTransportError
 from ..headers import Headers
 from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import Request, Response
@@ -65,6 +66,9 @@ class AsyncAiohttpSession:
                 data=request.content,
                 headers=dict(request.headers),
                 timeout=self._timeout(request.timeout),
+                # The packages read the status themselves, so an error status
+                # must come back as a response even on a session that raises.
+                raise_for_status=False,
                 middlewares=(
                     # Per request middlewares replace the session ones, so keep those.
                     *self.client._middlewares,
@@ -74,6 +78,8 @@ class AsyncAiohttpSession:
             return await to_supabase_response(request, response)
         except TimeoutError as error:
             raise RequestTimeoutError(request) from error
+        except ClientError as error:
+            raise SupabaseTransportError(request) from error
 
     async def __aenter__(self) -> "AsyncAiohttpSession":
         return self

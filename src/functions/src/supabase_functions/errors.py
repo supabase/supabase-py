@@ -3,27 +3,25 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
+from supabase_utils.errors import SupabaseError
+from supabase_utils.http.errors import SupabaseAPIError
 from supabase_utils.types import JSONParser
 
 if TYPE_CHECKING:
     from supabase_utils.http.request import Response
 
 
-class FunctionsError(Exception):
-    def __init__(self, message: str, name: str, status: int) -> None:
-        super().__init__(message)
-        self.message = message
-        self.name = name
-        self.status = status
+class FunctionsError(SupabaseError):
+    """Raised when invoking an edge function fails."""
 
 
-class FunctionsHttpError(FunctionsError):
-    def __init__(self, message: str, code: int | None = None) -> None:
-        super().__init__(
-            message,
-            "FunctionsHttpError",
-            400 if code is None else code,
-        )
+class FunctionsHttpError(FunctionsError, SupabaseAPIError):
+    """Raised when the edge function answered with an error status."""
+
+
+class FunctionsRelayError(FunctionsError, SupabaseAPIError):
+    """Raised when the relay in front of the edge function answered with an
+    error, marked by the `x-relay-error` header."""
 
 
 def _is_relay_error(response: Response) -> bool:
@@ -47,22 +45,14 @@ def _error_message_from(response: Response) -> str | None:
 def _on_error_response(response: Response) -> FunctionsHttpError | FunctionsRelayError:
     if _is_relay_error(response):
         return FunctionsRelayError(
-            response.content.decode("utf-8", errors="replace"), code=response.status
+            response.content.decode("utf-8", errors="replace"),
+            status_code=response.status,
+            response=response,
         )
     return FunctionsHttpError(
         _error_message_from(response)
         or "An error occurred while requesting your edge function at "
         f"{str(response.request.url)!r}.",
-        response.status,
+        status_code=response.status,
+        response=response,
     )
-
-
-class FunctionsRelayError(FunctionsError):
-    """Base exception for relay errors."""
-
-    def __init__(self, message: str, code: int | None = None) -> None:
-        super().__init__(
-            message,
-            "FunctionsRelayError",
-            400 if code is None else code,
-        )

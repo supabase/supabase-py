@@ -7,7 +7,12 @@ from realtime.version import __version__
 
 from .channel import RealtimeChannel, RealtimeChannelOptions
 from .client import RealtimeClient, connect_once
-from .exceptions import AuthorizationError, NotConnectedError
+from .exceptions import (
+    AuthorizationError,
+    MaxRetriesExceeded,
+    NotConnectedError,
+    RealtimeError,
+)
 from .message import (
     AccessTokenMessage,
     AccessTokenPayload,
@@ -96,6 +101,7 @@ __all__ = [
     "HeartbeatMessage",
     "HeartbeatPayload",
     "JoinMessage",
+    "MaxRetriesExceeded",
     "Message",
     "NotConnectedError",
     "Payload",
@@ -124,6 +130,7 @@ __all__ = [
     "RealtimeChannelOptionsPayload",
     "RealtimeChannelPresenceConfig",
     "RealtimeClient",
+    "RealtimeError",
     "RealtimePostgresChangesListenEvent",
     "RealtimePresence",
     "RealtimePresenceJoinPayload",

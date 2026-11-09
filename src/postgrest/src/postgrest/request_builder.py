@@ -666,8 +666,18 @@ def _api_error(response: Response) -> APIError:
     try:
         json_obj = APIErrorFromJSON.model_validate_json(response.content)
     except ValidationError:
-        return APIError(generate_default_error_message(response))
-    return APIError(dict(json_obj))
+        error = generate_default_error_message(response)
+    else:
+        error = dict(json_obj)
+    return APIError(error, status_code=response.status, response=response)
+
+
+def _invalid_response_error(response: Response) -> APIError:
+    return APIError(
+        generate_default_error_message(response),
+        status_code=response.status,
+        response=response,
+    )
 
 
 def _can_retry(resp: Response, retry_enabled: bool, attempt_count: int) -> bool:
@@ -727,7 +737,7 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
         try:
             return APIResponse.from_http_request_response(r)
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r)) from e
+            raise _invalid_response_error(r) from e
 
 
 class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
@@ -747,10 +757,12 @@ class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             :class:`APIError` If the API raised an error.
         """
         response = yield from send_with_retry(self.request)
-        if response.is_success:
-            return SingleAPIResponse.from_http_request_response(response)
-        else:
+        if not response.is_success:
             raise _api_error(response)
+        try:
+            return SingleAPIResponse.from_http_request_response(response)
+        except ValidationError as e:
+            raise _invalid_response_error(response) from e
 
 
 class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[HttpIO]):
@@ -795,7 +807,7 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             try:
                 parsed = APIResponse.from_http_request_response(response)
             except ValidationError as e:
-                raise APIError(generate_default_error_message(response)) from e
+                raise _invalid_response_error(response) from e
             if len(parsed.data) == 0:
                 return None
             if len(parsed.data) == 1:
@@ -807,7 +819,8 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
                         "code": "406",
                         "hint": "Please check traceback of the code",
                         "details": "The result contains more than one row.",
-                    }
+                    },
+                    status_code=406,
                 )
         else:
             raise _api_error(response)
@@ -866,7 +879,7 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         try:
             return APIResponse.from_http_request_response(r)
         except ValidationError as e:
-            raise APIError(generate_default_error_message(r)) from e
+            raise _invalid_response_error(r) from e
 
 
 class RPCCountRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](

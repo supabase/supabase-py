@@ -145,7 +145,7 @@ def test_func():
     resp = supabase.functions.invoke("hello-world", body={})
     return resp
   except (FunctionsRelayError, FunctionsHttpError) as exception:
-    print(exception.status, exception.message)
+    print(exception.status_code, exception.message)
 ```
 
 ### Download a file from Storage
@@ -190,6 +190,52 @@ new_file_path: str = "important/revenue.png"
 
 data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 ```
+
+## Error handling
+
+Every exception the client raises inherits from `SupabaseError`, so one clause catches them all:
+
+```python
+from supabase import SupabaseAPIError, SupabaseError, SupabaseTransportError
+
+try:
+    data = supabase.table("countries").select("*").execute()
+except SupabaseAPIError as error:
+    # A service answered with an error.
+    print(error.status_code, error.code, error.message)
+except SupabaseTransportError as error:
+    # No response could be read. The httpx or aiohttp exception is the cause.
+    print(error.__cause__)
+except SupabaseError as error:
+    # The client failed on its own, such as a missing session.
+    print(error.message)
+```
+
+Every error has a `message`, also returned by `str(error)`, and a `code` that is the identifier of the failure when the service or the client named it, such as `weak_password` or `PGRST116`. A `SupabaseAPIError` adds the `status_code` and the `response` of the failed request, whose headers carry the `sb-request-id` to quote when asking for support. A `SupabaseTransportError` adds the `request` that was sent. It is raised when the connection failed, the request timed out, or the HTTP client gave up, as on a redirect loop. The outcome of such a request is unknown, since it may have reached the service.
+
+```
+SupabaseError
+├── SupabaseAPIError                A service answered with an error.
+│   ├── AuthApiError                   ├── AuthRetryableError, AuthWeakPasswordError
+│   ├── AuthUnknownError               The auth error body could not be parsed.
+│   ├── PostgrestAPIError              message, code, hint and details of the PostgREST error.
+│   ├── StorageApiError
+│   ├── FunctionsHttpError
+│   └── FunctionsRelayError
+├── SupabaseTransportError          No response could be read. The HTTP client's exception is `__cause__`.
+│   └── RequestTimeoutError            Also a built-in `TimeoutError`.
+├── AuthError                       Root of the auth errors. Raised by the auth client itself as
+│                                   AuthSessionMissingError, AuthInvalidCredentialsError,
+│                                   AuthInvalidJwtError, AuthImplicitGrantRedirectError,
+│                                   UserDoesNotExistError
+├── StorageException                Root of the storage errors: VectorBucketException
+├── FunctionsError                  Root of the functions errors.
+├── RealtimeError                   Root of the realtime errors: NotConnectedError,
+│                                   AuthorizationError, MaxRetriesExceeded
+└── SupabaseException               The client was created with an invalid URL or key.
+```
+
+The response errors inherit both from the root of their package and from `SupabaseAPIError`, so `except AuthApiError` and `except AuthError` keep working. Arguments the client rejects before sending a request raise the built-in `ValueError` or `TypeError`, as they do everywhere in Python, except for a vector batch of the wrong size, which raises `VectorBucketException`. A lost realtime connection is reported as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, not as a `SupabaseError`.
 
 ## Important: Proper Client Shutdown
 

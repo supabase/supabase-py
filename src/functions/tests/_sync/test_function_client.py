@@ -115,7 +115,7 @@ def test_invoke_with_http_error() -> None:
     client = client_returning(content=b'{"error": "Custom error message"}', status=400)
     with pytest.raises(FunctionsHttpError, match="Custom error message") as exc_info:
         client.invoke("test-function")
-    assert exc_info.value.status == 400
+    assert exc_info.value.status_code == 400
 
 
 def test_invoke_http_error_with_non_json_body() -> None:
@@ -130,7 +130,7 @@ def test_invoke_http_error_with_empty_body() -> None:
         FunctionsHttpError, match="An error occurred while requesting"
     ) as exc_info:
         client.invoke("test-function")
-    assert exc_info.value.status == 500
+    assert exc_info.value.status_code == 500
 
 
 def test_invoke_with_relay_error() -> None:
@@ -152,7 +152,7 @@ def test_invoke_relay_error_on_non_2xx_status() -> None:
     with pytest.raises(FunctionsRelayError, match="relay exploded") as exc_info:
         client.invoke("test-function")
     assert not isinstance(exc_info.value, FunctionsHttpError)
-    assert exc_info.value.status == 546
+    assert exc_info.value.status_code == 546
 
 
 def test_invoke_invalid_function_name() -> None:

@@ -6,11 +6,13 @@ from warnings import warn
 
 import websockets
 from pydantic import ValidationError
+from supabase_utils.http.errors import SupabaseTransportError
 from websockets.asyncio.client import ClientConnection
 from yarl import URL
 
 from ._redact import RedactingLoggerAdapter
 from .channel import RealtimeChannel, RealtimeChannelOptions
+from .exceptions import MaxRetriesExceeded
 from .message import Message, ReplyMessage
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
@@ -112,10 +114,6 @@ class connect_once:
 MAX_RECONNECT_DELAY = 60
 
 
-class MaxRetriesExceeded(Exception):
-    pass
-
-
 def exponential_delay(max_retries: int, retry_count: int) -> float | None:
     if retry_count >= max_retries:
         return None
@@ -137,7 +135,12 @@ async def automatically_reconnect(
                 connected_at = loop.time()
                 await client_handler(client)
                 break
-        except (websockets.ConnectionClosed, TimeoutError, OSError) as e:
+        except (
+            websockets.ConnectionClosed,
+            TimeoutError,
+            OSError,
+            SupabaseTransportError,
+        ) as e:
             if (
                 connected_at is not None
                 and loop.time() - connected_at >= MAX_RECONNECT_DELAY

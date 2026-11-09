@@ -160,3 +160,30 @@ The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabas
 `request_timeout` is in seconds and limits how long a request may go without progress. Set it with the `request_timeout` argument of the client for every service, on `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions` or `FunctionsClientOptions` for one service, with `request_timeout()` on a database query, or with the `request_timeout` argument of `functions.invoke()`. None, the default, leaves the timeout to the HTTP client.
 
 A timed-out request raises `supabase.RequestTimeoutError`, a subclass of the built-in `TimeoutError`, instead of an httpx or aiohttp exception. This also applies to timeouts configured on the HTTP client.
+
+## One exception hierarchy
+
+Every exception the packages raise themselves inherits from `supabase_utils.errors.SupabaseError`, re-exported as `supabase.SupabaseError`, so `except SupabaseError` catches any failure the SDK reports. The hierarchy is described in the [error handling](src/supabase/README.md#error-handling) section of the README. The realtime connection is the exception: a lost websocket still surfaces as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, as before.
+
+Errors a service answered with inherit from `SupabaseAPIError` and expose the HTTP status as `status_code`, with the `response` next to it. The `status` attributes are renamed and the constructors take the status as a keyword argument.
+
+| Package              | Before                                                      | After                                                                                                                                |
+| -------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `supabase_auth`      | `AuthApiError.status`                                       | `AuthApiError.status_code`                                                                                                           |
+| `supabase_auth`      | `AuthUnknownError.status`, `AuthUnknownError.data`          | `AuthUnknownError.status_code`, `AuthUnknownError.response.content`                                                                  |
+| `supabase_auth`      | `AuthRetryableError(message, status)`                       | `AuthRetryableError(message, status_code=...)`, a subclass of `AuthApiError`                                                         |
+| `supabase_auth`      | `AuthWeakPasswordError(message, status, reasons)`           | `AuthWeakPasswordError(message, status_code=..., reasons=...)`, a subclass of `AuthApiError`                                         |
+| `supabase_auth`      | `CustomAuthError`, `.status` on its subclasses              | Removed. `AuthSessionMissingError` and the other errors the client raises on its own inherit `AuthError` directly and have no status |
+| `postgrest`          | `APIError(error)`                                           | `APIError(error, status_code=..., response=...)`, with `status_code` and `response` attributes                                       |
+| `postgrest`          | `str(error)` was the error dictionary                       | `str(error)` is the error message, `error.json()` is the dictionary                                                                  |
+| `storage3`           | `StorageApiError(message=..., code=..., status=...)`        | `StorageApiError(message, status_code=..., code=..., response=...)`                                                                  |
+| `storage3`           | `StorageApiError.status`                                    | `StorageApiError.status_code`                                                                                                        |
+| `supabase_functions` | `FunctionsError(message, name, status)`, `.name`, `.status` | `FunctionsError(message)`. Use `type(error).__name__` for the name; the status lives on the response errors                          |
+| `supabase_functions` | `FunctionsHttpError(message, code)`, `.status`              | `FunctionsHttpError(message, status_code=..., response=...)`, `.status_code`                                                         |
+| `supabase_functions` | `FunctionsRelayError(message, code)`, `.status`             | `FunctionsRelayError(message, status_code=..., response=...)`, `.status_code`                                                        |
+| `realtime`           | `realtime.client.MaxRetriesExceeded`, an `Exception`        | `realtime.MaxRetriesExceeded`, a `RealtimeError` with a `retries` attribute                                                          |
+| `realtime`           | A failed `subscribe()` raised `Exception`                   | It raises `RealtimeError`                                                                                                            |
+
+The auth errors are no longer dataclasses. `str(error)` returns the message for every error, as it does for the built-in exceptions, and `==` compares identity.
+
+A request that fails before a response can be read, because the connection failed, the request timed out or the HTTP client gave up on a redirect loop, raises `supabase.SupabaseTransportError` instead of an httpx or aiohttp exception, with that exception chained as `__cause__`. `RequestTimeoutError` is a subclass of it, and still a subclass of the built-in `TimeoutError`. Code that caught `httpx.ConnectError` or `aiohttp.ClientConnectorError` around a call of the SDK should catch `SupabaseTransportError` instead. The outcome of such a request is unknown, since it may have reached the service.
