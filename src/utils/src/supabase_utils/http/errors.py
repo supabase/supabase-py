@@ -40,8 +40,9 @@ class SupabaseAPIError(SupabaseError):
 
 
 class SupabaseTransportError(SupabaseError):
-    """Raised when a request to a Supabase service never received a response,
-    because the connection failed or the request timed out.
+    """Raised when a request to a Supabase service failed before a response
+    could be read, because the connection failed, the request timed out, or
+    the HTTP client gave up, as on a redirect loop.
 
     The exception of the HTTP client is chained as `__cause__`. The request
     may still have reached the service, so the outcome of an operation that

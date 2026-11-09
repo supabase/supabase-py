@@ -18,7 +18,8 @@ class SupabaseError(Exception):
     A plain `SupabaseError` is a failure a client raised on its own, without
     or before a request, such as a missing session or an invalid URL. A
     failure a service answered with is a `SupabaseAPIError`, and a request
-    that never received a response is a `SupabaseTransportError`, both in
+    that failed before a response could be read is a `SupabaseTransportError`,
+    both in
     `supabase_utils.http.errors`.
 
     The roots of the packages all inherit from it: `AuthError`,

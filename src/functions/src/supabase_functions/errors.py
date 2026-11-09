@@ -18,20 +18,10 @@ class FunctionsError(SupabaseError):
 class FunctionsHttpError(FunctionsError, SupabaseAPIError):
     """Raised when the edge function answered with an error status."""
 
-    def __init__(
-        self, message: str, *, status_code: int, response: Response | None = None
-    ) -> None:
-        super().__init__(message, status_code=status_code, response=response)
-
 
 class FunctionsRelayError(FunctionsError, SupabaseAPIError):
     """Raised when the relay in front of the edge function answered with an
     error, marked by the `x-relay-error` header."""
-
-    def __init__(
-        self, message: str, *, status_code: int, response: Response | None = None
-    ) -> None:
-        super().__init__(message, status_code=status_code, response=response)
 
 
 def _is_relay_error(response: Response) -> bool:

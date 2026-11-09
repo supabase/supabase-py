@@ -819,7 +819,6 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
                         "details": "The result contains more than one row.",
                     },
                     status_code=406,
-                    response=response,
                 )
         else:
             raise _api_error(response)

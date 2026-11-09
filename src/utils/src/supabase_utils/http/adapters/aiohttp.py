@@ -66,6 +66,9 @@ class AsyncAiohttpSession:
                 data=request.content,
                 headers=dict(request.headers),
                 timeout=self._timeout(request.timeout),
+                # The packages read the status themselves, so an error status
+                # must come back as a response even on a session that raises.
+                raise_for_status=False,
                 middlewares=(
                     # Per request middlewares replace the session ones, so keep those.
                     *self.client._middlewares,

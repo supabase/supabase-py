@@ -203,16 +203,15 @@ try:
 except SupabaseAPIError as error:
     # A service answered with an error.
     print(error.status_code, error.code, error.message)
-    print(error.response.headers.get("sb-request-id"))
 except SupabaseTransportError as error:
-    # The request never received a response. The httpx or aiohttp exception is the cause.
+    # No response could be read. The httpx or aiohttp exception is the cause.
     print(error.__cause__)
 except SupabaseError as error:
     # The client failed on its own, such as a missing session.
     print(error.message)
 ```
 
-Every error has a `message`, also returned by `str(error)`, and a `code` that is the identifier of the failure when the service or the client named it, such as `weak_password` or `PGRST116`. A `SupabaseAPIError` adds the `status_code` and the `response` of the failed request. A `SupabaseTransportError` adds the `request` that was sent. The outcome of a request that failed with a transport error is unknown, since it may have reached the service.
+Every error has a `message`, also returned by `str(error)`, and a `code` that is the identifier of the failure when the service or the client named it, such as `weak_password` or `PGRST116`. A `SupabaseAPIError` adds the `status_code` and the `response` of the failed request, whose headers carry the `sb-request-id` to quote when asking for support. A `SupabaseTransportError` adds the `request` that was sent. It is raised when the connection failed, the request timed out, or the HTTP client gave up, as on a redirect loop. The outcome of such a request is unknown, since it may have reached the service.
 
 ```
 SupabaseError
@@ -223,7 +222,7 @@ SupabaseError
 │   ├── StorageApiError
 │   ├── FunctionsHttpError
 │   └── FunctionsRelayError
-├── SupabaseTransportError          No response. The HTTP client's exception is `__cause__`.
+├── SupabaseTransportError          No response could be read. The HTTP client's exception is `__cause__`.
 │   └── RequestTimeoutError            Also a built-in `TimeoutError`.
 ├── AuthError                       Root of the auth errors.
 │   └── CustomAuthError                Raised by the auth client itself: AuthSessionMissingError,
@@ -236,7 +235,7 @@ SupabaseError
 └── SupabaseException               The client was created with an invalid URL or key.
 ```
 
-The response errors inherit both from the root of their package and from `SupabaseAPIError`, so `except AuthApiError` and `except AuthError` keep working. Invalid arguments raise the built-in `ValueError` or `TypeError`, as they do everywhere in Python.
+The response errors inherit both from the root of their package and from `SupabaseAPIError`, so `except AuthApiError` and `except AuthError` keep working. Arguments the client rejects before sending a request raise the built-in `ValueError` or `TypeError`, as they do everywhere in Python, except for a vector batch of the wrong size, which raises `VectorBucketException`.
 
 ## Important: Proper Client Shutdown
 

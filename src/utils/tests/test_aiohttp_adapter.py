@@ -247,6 +247,18 @@ async def test_session_timeout_raises_request_timeout_error(
             )
 
 
+async def test_error_status_is_returned_on_a_session_that_raises(
+    server: TestServer,
+) -> None:
+    client = aiohttp.ClientSession(raise_for_status=True)
+    async with AsyncAiohttpSession(client) as session:
+        response = await AsyncHttpIO(session).communicate(
+            base_url(server), Headers.empty(), get_missing()
+        )
+    assert response.status == 404
+    assert response.content == b"missing"
+
+
 async def test_connection_failure_raises_transport_error(server: TestServer) -> None:
     unreachable = server.make_url("/api").with_port(1)
     async with AsyncAiohttpSession(aiohttp.ClientSession()) as session:
