@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, TypeAdapter, ValidationError, field_validator
+from supabase_utils.errors import SupabaseError
+from supabase_utils.http.errors import SupabaseAPIError
+
+if TYPE_CHECKING:
+    from supabase_utils.http.request import Response
 
 ErrorCode = Literal[
     "unexpected_failure",
@@ -124,53 +128,69 @@ class RawApiError(BaseModel):
         )
 
 
-@dataclass
-class AuthError(Exception):
-    message: str
-    code: ErrorCode | None
+class AuthError(SupabaseError):
+    """Raised when an auth operation fails.
+
+    A plain `AuthError` is a failure the client raised on its own, such as a
+    missing session. A failure the auth service reported is an `AuthApiError`.
+    `code` is one of `ErrorCode` when the service named the failure, see
+    https://supabase.com/docs/guides/auth/debugging/error-codes.
+    """
 
 
-@dataclass
-class AuthApiError(AuthError):
-    status: int
+class AuthApiError(AuthError, SupabaseAPIError):
+    """Raised when the auth service answered a request with an error."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int,
+        code: ErrorCode | None = None,
+        response: Response | None = None,
+    ) -> None:
+        super().__init__(message, status_code=status_code, code=code, response=response)
 
 
-@dataclass
-class AuthUnknownError(AuthError):
-    data: bytes
-    status: int
+class AuthUnknownError(AuthError, SupabaseAPIError):
+    """Raised when the auth service answered with an error that could not be
+    parsed. The body is `response.content`."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int,
+        code: ErrorCode | None = None,
+        response: Response | None = None,
+    ) -> None:
+        super().__init__(message, status_code=status_code, code=code, response=response)
 
 
-@dataclass
 class CustomAuthError(AuthError):
-    status: int
+    """Base class of the errors the auth client raises on its own, without a
+    response from the auth service."""
+
+    def __init__(self, message: str, *, code: ErrorCode | None = None) -> None:
+        super().__init__(message, code=code)
 
 
 class UserDoesNotExistError(CustomAuthError):
     def __init__(self) -> None:
         super().__init__(
-            message="User does not exist for the provided access token",
-            status=404,
+            "User does not exist for the provided access token",
             code="user_not_found",
         )
 
 
 class AuthSessionMissingError(CustomAuthError):
     def __init__(self) -> None:
-        super().__init__(
-            message="Auth session missing!",
-            status=400,
-            code=None,
-        )
+        super().__init__("Auth session missing!")
 
 
 class AuthInvalidCredentialsError(CustomAuthError):
     def __init__(self, message: str) -> None:
-        super().__init__(
-            message=message,
-            status=400,
-            code=None,
-        )
+        super().__init__(message)
 
 
 class AuthImplicitGrantRedirectError(CustomAuthError):
@@ -180,38 +200,43 @@ class AuthImplicitGrantRedirectError(CustomAuthError):
         error: str | None = None,
         code: str | None = None,
     ) -> None:
-        super().__init__(
-            message=message,
-            status=500,
-            code=None,
-        )
+        super().__init__(message)
         self.detail_error = error
         self.detail_code = code
 
 
-class AuthRetryableError(CustomAuthError):
-    def __init__(self, message: str, status: int) -> None:
-        super().__init__(
-            message,
-            status=status,
-            code=None,
-        )
+class AuthRetryableError(AuthApiError):
+    """Raised when the auth service answered with a status that is worth
+    retrying, such as a gateway error."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int,
+        response: Response | None = None,
+    ) -> None:
+        super().__init__(message, status_code=status_code, response=response)
 
 
-class AuthWeakPasswordError(CustomAuthError):
-    def __init__(self, message: str, status: int, reasons: list[str]) -> None:
+class AuthWeakPasswordError(AuthApiError):
+    """Raised when the auth service rejected a password. `reasons` lists what
+    it lacked."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int,
+        reasons: list[str],
+        response: Response | None = None,
+    ) -> None:
         super().__init__(
-            message=message,
-            status=status,
-            code="weak_password",
+            message, status_code=status_code, code="weak_password", response=response
         )
         self.reasons = reasons
 
 
 class AuthInvalidJwtError(CustomAuthError):
     def __init__(self, message: str) -> None:
-        super().__init__(
-            message=message,
-            status=400,
-            code="invalid_jwt",
-        )
+        super().__init__(message, code="invalid_jwt")

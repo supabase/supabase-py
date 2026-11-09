@@ -1,18 +1,25 @@
-from typing import override
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
-from pydantic.dataclasses import dataclass
-from supabase_utils.http.request import Response
+from supabase_utils.errors import SupabaseError
+from supabase_utils.http.errors import SupabaseAPIError
+
+if TYPE_CHECKING:
+    from supabase_utils.http.request import Response
 
 
-class StorageException(Exception):
-    """Error raised when an operation on the storage API fails."""
+class StorageException(SupabaseError):
+    """Raised when a storage operation fails.
+
+    A plain `StorageException` is a failure the client raised on its own. A
+    failure the storage service reported is a `StorageApiError`.
+    """
 
 
 class VectorBucketException(StorageException):
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
-        self.message = message
+    """Raised when a vector bucket operation is given invalid input."""
 
 
 class StorageApiErrorMessage(BaseModel):
@@ -28,19 +35,19 @@ class StorageApiErrorMessage(BaseModel):
 VectorBucketErrorMessage = StorageApiErrorMessage
 
 
-@dataclass
-class StorageApiError(StorageException):
-    message: str
-    code: str
-    status: int | str
+class StorageApiError(StorageException, SupabaseAPIError):
+    """Raised when the storage service answered a request with an error.
+    `code` is the error code of the service, such as `NoSuchKey`."""
 
-    @override
-    def __repr__(self) -> str:
-        return str(self)
-
-    @override
-    def __str__(self) -> str:
-        return f"StorageApiError(message='{self.message}', code={self.code}, status='{self.status}')"
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int,
+        code: str,
+        response: Response | None = None,
+    ) -> None:
+        super().__init__(message, status_code=status_code, code=code, response=response)
 
 
 StorageApiErrorParser = TypeAdapter(StorageApiErrorMessage)
@@ -53,12 +60,16 @@ def parse_api_error(response: Response) -> StorageApiError:
         body = response.content.decode("utf-8", errors="replace")
         message = f"Unable to parse error message: {body}"
         return StorageApiError(
-            message=message, code="InternalError", status=response.status
+            message,
+            status_code=response.status,
+            code="InternalError",
+            response=response,
         )
     return StorageApiError(
-        message=parsed.message,
+        parsed.message,
+        status_code=response.status,
         code=parsed.code or parsed.error,
-        status=response.status,
+        response=response,
     )
 
 

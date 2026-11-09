@@ -9,7 +9,7 @@ from supabase_utils.http.adapters.httpx import (
     to_httpx_request,
     to_supabase_response,
 )
-from supabase_utils.http.errors import RequestTimeoutError
+from supabase_utils.http.errors import RequestTimeoutError, SupabaseTransportError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpIO, HttpMethod, SyncHttpIO
 from supabase_utils.http.query import URLQuery
@@ -242,8 +242,12 @@ def test_sync_session_respects_max_redirects() -> None:
         follow_redirects=True,
         max_redirects=2,
     )
-    with HttpxSession(client) as session, pytest.raises(httpx.TooManyRedirects):
+    with (
+        HttpxSession(client) as session,
+        pytest.raises(SupabaseTransportError) as error,
+    ):
         session.send(make_credential_request())
+    assert isinstance(error.value.__cause__, httpx.TooManyRedirects)
 
 
 async def test_async_session_respects_max_redirects() -> None:
@@ -259,8 +263,9 @@ async def test_async_session_respects_max_redirects() -> None:
         max_redirects=2,
     )
     async with AsyncHttpxSession(client) as session:
-        with pytest.raises(httpx.TooManyRedirects):
+        with pytest.raises(SupabaseTransportError) as error:
             await session.send(make_credential_request())
+    assert isinstance(error.value.__cause__, httpx.TooManyRedirects)
     assert len(sent) == 3
 
 
@@ -445,3 +450,32 @@ def test_request_timeout_error_can_be_pickled() -> None:
     assert str(copy) == str(error)
     assert copy.request.url == error.request.url
     assert copy.request.method == error.request.method
+
+
+def refuse(request: httpx.Request) -> httpx.Response:
+    raise httpx.ConnectError("[Errno 61] Connection refused", request=request)
+
+
+def test_sync_session_wraps_transport_errors() -> None:
+    client = httpx.Client(transport=httpx.MockTransport(refuse))
+    with (
+        HttpxSession(client) as session,
+        pytest.raises(SupabaseTransportError) as error,
+    ):
+        SyncHttpIO(session).communicate(BASE_URL, Headers.empty(), get_items())
+    assert not isinstance(error.value, RequestTimeoutError)
+    assert isinstance(error.value.__cause__, httpx.ConnectError)
+    assert str(error.value) == (
+        "GET https://example.com/api/items failed: [Errno 61] Connection refused"
+    )
+    assert error.value.request.method == "GET"
+
+
+async def test_async_session_wraps_transport_errors() -> None:
+    client = httpx.AsyncClient(transport=httpx.MockTransport(refuse))
+    async with AsyncHttpxSession(client) as session:
+        with pytest.raises(SupabaseTransportError) as error:
+            await AsyncHttpIO(session).communicate(
+                BASE_URL, Headers.empty(), get_items()
+            )
+    assert isinstance(error.value.__cause__, httpx.ConnectError)

@@ -11,6 +11,7 @@ from yarl import URL
 
 from ._redact import RedactingLoggerAdapter
 from .channel import RealtimeChannel, RealtimeChannelOptions
+from .exceptions import MaxRetriesExceeded
 from .message import Message, ReplyMessage
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
@@ -110,10 +111,6 @@ class connect_once:
 
 
 MAX_RECONNECT_DELAY = 60
-
-
-class MaxRetriesExceeded(Exception):
-    pass
 
 
 def exponential_delay(max_retries: int, retry_count: int) -> float | None:

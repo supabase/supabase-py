@@ -1,7 +1,12 @@
-from typing import Any, override
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, override
 
 from pydantic import BaseModel
-from supabase_utils.http.request import Response
+from supabase_utils.http.errors import SupabaseAPIError
+
+if TYPE_CHECKING:
+    from supabase_utils.http.request import Response
 
 
 class APIErrorFromJSON(BaseModel):
@@ -20,28 +25,35 @@ class APIErrorFromJSON(BaseModel):
     """The error details."""
 
 
-class APIError(Exception):
-    """
-    Base exception for all API errors.
+class APIError(SupabaseAPIError):
+    """Raised when PostgREST answered a request with an error.
+
+    `message`, `code`, `hint` and `details` are the fields of the error body,
+    see https://postgrest.org/en/stable/references/errors.html.
     """
 
     _raw_error: dict[str, Any]
-    message: str | None
-    """The error message."""
-    code: str | None
-    """The error code."""
     hint: str | None
     """The error hint."""
     details: Any
     """The error details."""
 
-    def __init__(self, error: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        error: dict[str, Any],
+        *,
+        status_code: int,
+        response: Response | None = None,
+    ) -> None:
         self._raw_error = error
-        self.message = error.get("message")
-        self.code = error.get("code")
         self.hint = error.get("hint")
         self.details = error.get("details")
-        super().__init__(str(self))
+        super().__init__(
+            error.get("message") or "Unknown error",
+            status_code=status_code,
+            code=error.get("code"),
+            response=response,
+        )
 
     @override
     def __repr__(self) -> str:

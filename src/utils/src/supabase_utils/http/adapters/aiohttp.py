@@ -1,6 +1,7 @@
 from types import TracebackType
 
 from aiohttp import (
+    ClientError,
     ClientHandlerType,
     ClientMiddlewareType,
     ClientRequest,
@@ -10,7 +11,7 @@ from aiohttp import (
 from aiohttp import ClientResponse as AioResponse
 from yarl import URL
 
-from ..errors import RequestTimeoutError
+from ..errors import RequestTimeoutError, SupabaseTransportError
 from ..headers import Headers
 from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import Request, Response
@@ -74,6 +75,8 @@ class AsyncAiohttpSession:
             return await to_supabase_response(request, response)
         except TimeoutError as error:
             raise RequestTimeoutError(request) from error
+        except ClientError as error:
+            raise SupabaseTransportError(request, f"failed: {error}") from error
 
     async def __aenter__(self) -> "AsyncAiohttpSession":
         return self

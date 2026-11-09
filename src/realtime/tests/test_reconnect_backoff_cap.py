@@ -2,11 +2,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from realtime.client import (
-    MaxRetriesExceeded,
-    automatically_reconnect,
-    exponential_delay,
-)
+from realtime import MaxRetriesExceeded
+from realtime.client import automatically_reconnect, exponential_delay
 
 
 def test_exponential_delay_caps_each_retry_at_sixty_seconds() -> None:

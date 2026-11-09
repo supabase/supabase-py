@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING, Any, Literal, Self, overload, override
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
-from realtime import AuthorizationError, NotConnectedError, connect_once
+from realtime import (
+    AuthorizationError,
+    MaxRetriesExceeded,
+    NotConnectedError,
+    RealtimeError,
+    connect_once,
+)
 from storage3 import (
     AsyncStorageClient,
     StorageApiError,
@@ -41,7 +47,12 @@ from supabase_functions import (
     FunctionsRelayError,
     SyncFunctionsClient,
 )
-from supabase_utils.http.errors import RequestTimeoutError
+from supabase_utils.errors import SupabaseError
+from supabase_utils.http.errors import (
+    RequestTimeoutError,
+    SupabaseAPIError,
+    SupabaseTransportError,
+)
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
@@ -96,14 +107,19 @@ __all__ = [
     "FunctionsError",
     "FunctionsHttpError",
     "FunctionsRelayError",
+    "MaxRetriesExceeded",
     "NotConnectedError",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
+    "RealtimeError",
     "RequestTimeoutError",
     "StorageApiError",
     "StorageException",
+    "SupabaseAPIError",
     "SupabaseClient",
+    "SupabaseError",
     "SupabaseException",
+    "SupabaseTransportError",
     "UserDoesNotExistError",
     "VectorBucketException",
     "__version__",
@@ -121,12 +137,8 @@ _DEFAULT_HEADERS = {
 }
 
 
-class SupabaseException(Exception):
+class SupabaseException(SupabaseError):
     """Raised when the client is created with a missing or invalid URL or key."""
-
-    def __init__(self, message: str) -> None:
-        self.message = message
-        super().__init__(self.message)
 
 
 def _find_authorization(headers: Mapping[str, str]) -> str | None:

@@ -165,7 +165,7 @@ def test_handle_error_response_legacy_weak_password_without_error_code() -> None
 
     assert isinstance(result, AuthWeakPasswordError)
     assert result.message == "Password too weak"
-    assert result.status == 422
+    assert result.status_code == 422
     assert result.reasons == ["length", "characters"]
 
 
@@ -192,7 +192,7 @@ def test_handle_error_response_legacy_weak_password_ignores_malformed_reasons(
     assert isinstance(result, AuthApiError)
     assert not isinstance(result, AuthWeakPasswordError)
     assert result.message == "Password too weak"
-    assert result.status == 422
+    assert result.status_code == 422
 
 
 def test_handle_error_response_weak_password_with_error_code() -> None:

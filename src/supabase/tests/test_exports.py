@@ -7,7 +7,12 @@ import realtime
 import storage3
 import supabase_auth
 import supabase_functions
-from supabase_utils.http.errors import RequestTimeoutError
+from supabase_utils.errors import SupabaseError
+from supabase_utils.http.errors import (
+    RequestTimeoutError,
+    SupabaseAPIError,
+    SupabaseTransportError,
+)
 
 import supabase
 import supabase.client
@@ -61,7 +66,15 @@ def test_package_declares_all(name: str) -> None:
             supabase_functions,
             ["FunctionsError", "FunctionsHttpError", "FunctionsRelayError"],
         ),
-        (realtime, ["AuthorizationError", "NotConnectedError"]),
+        (
+            realtime,
+            [
+                "AuthorizationError",
+                "MaxRetriesExceeded",
+                "NotConnectedError",
+                "RealtimeError",
+            ],
+        ),
     ],
 )
 def test_errors_are_exported_from_package_and_supabase(
@@ -79,6 +92,26 @@ def test_postgrest_error_is_exported_from_supabase() -> None:
     assert supabase.PostgrestAPIError is postgrest.APIError
 
 
-def test_request_timeout_error_is_exported_from_supabase() -> None:
-    assert supabase.RequestTimeoutError is RequestTimeoutError
-    assert supabase.client.RequestTimeoutError is RequestTimeoutError
+@pytest.mark.parametrize(
+    ("name", "error"),
+    [
+        ("RequestTimeoutError", RequestTimeoutError),
+        ("SupabaseAPIError", SupabaseAPIError),
+        ("SupabaseError", SupabaseError),
+        ("SupabaseTransportError", SupabaseTransportError),
+    ],
+)
+def test_shared_errors_are_exported_from_supabase(
+    name: str, error: type[SupabaseError]
+) -> None:
+    assert name in supabase.__all__
+    assert getattr(supabase, name) is error
+    assert name in supabase.client.__all__
+    assert getattr(supabase.client, name) is error
+
+
+def test_every_exported_error_is_a_supabase_error() -> None:
+    for name in supabase.__all__:
+        symbol = getattr(supabase, name)
+        if isinstance(symbol, type) and issubclass(symbol, BaseException):
+            assert issubclass(symbol, SupabaseError), name

@@ -548,7 +548,7 @@ def test_client_info_with_error(
     err = exc_info.value
     assert err.message == "File not found"
     assert err.code == "Custom error message"
-    assert err.status == 404
+    assert err.status_code == 404
 
 
 def test_client_exists(

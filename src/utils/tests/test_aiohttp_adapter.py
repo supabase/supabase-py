@@ -6,7 +6,7 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
-from supabase_utils.http.errors import RequestTimeoutError
+from supabase_utils.http.errors import RequestTimeoutError, SupabaseTransportError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpIO, HttpMethod
 from supabase_utils.http.query import URLQuery
@@ -245,6 +245,19 @@ async def test_session_timeout_raises_request_timeout_error(
             await AsyncHttpIO(session).communicate(
                 base_url(server), Headers.empty(), get_slow(None)
             )
+
+
+async def test_connection_failure_raises_transport_error(server: TestServer) -> None:
+    unreachable = server.make_url("/api").with_port(1)
+    async with AsyncAiohttpSession(aiohttp.ClientSession()) as session:
+        with pytest.raises(SupabaseTransportError) as error:
+            await AsyncHttpIO(session).communicate(
+                unreachable, Headers.empty(), get_missing()
+            )
+    assert not isinstance(error.value, RequestTimeoutError)
+    assert isinstance(error.value.__cause__, aiohttp.ClientConnectorError)
+    assert str(error.value).startswith(f"GET {unreachable}/missing failed: ")
+    assert error.value.request.method == "GET"
 
 
 async def test_request_timeout_overrides_session_read_timeout(

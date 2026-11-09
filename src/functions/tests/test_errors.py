@@ -1,4 +1,8 @@
+import pickle
+
 import pytest
+from supabase_utils.errors import SupabaseError
+from supabase_utils.http.errors import SupabaseAPIError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
 from yarl import URL
@@ -29,54 +33,43 @@ def make_response(
     )
 
 
-@pytest.mark.parametrize(
-    ("error_class", "expected_name", "expected_status"),
-    [
-        (FunctionsError, "test_error", 500),
-        (FunctionsHttpError, "FunctionsHttpError", 400),
-        (FunctionsRelayError, "FunctionsRelayError", 400),
-    ],
-)
-def test_error_initialization(
-    error_class: type[FunctionsError], expected_name: str, expected_status: int
+def test_functions_error_is_a_supabase_error() -> None:
+    error = FunctionsError("boom", code="x")
+    assert isinstance(error, SupabaseError)
+    assert not isinstance(error, SupabaseAPIError)
+    assert str(error) == "boom"
+    assert error.message == "boom"
+    assert error.code == "x"
+
+
+@pytest.mark.parametrize("error_class", [FunctionsHttpError, FunctionsRelayError])
+def test_response_errors_are_api_errors(
+    error_class: type[FunctionsHttpError | FunctionsRelayError],
 ) -> None:
-    test_message = "Test error message"
-    if issubclass(error_class, (FunctionsHttpError, FunctionsRelayError)):
-        error: FunctionsError = error_class(test_message)
-    else:
-        error = error_class(test_message, expected_name, expected_status)
-
-    assert str(error) == test_message
-    assert error.message == test_message
-    assert error.name == expected_name
-    assert error.status == expected_status
-    assert isinstance(error, Exception)
+    response = make_response(b"nope", status=502)
+    error = error_class("Test error message", status_code=502, response=response)
+    assert isinstance(error, FunctionsError)
+    assert isinstance(error, SupabaseAPIError)
+    assert str(error) == "Test error message"
+    assert error.message == "Test error message"
+    assert error.status_code == 502
+    assert error.code is None
+    assert error.response is response
 
 
-def test_functions_error_inheritance() -> None:
-    # Test that all error classes inherit from FunctionsError
-    assert issubclass(FunctionsHttpError, FunctionsError)
-    assert issubclass(FunctionsRelayError, FunctionsError)
+def test_relay_error_is_not_an_http_error() -> None:
+    assert not issubclass(FunctionsRelayError, FunctionsHttpError)
+    assert not issubclass(FunctionsHttpError, FunctionsRelayError)
 
 
-def test_error_as_exception() -> None:
-    # Test that errors can be raised and caught
-    test_message = "Test exception"
-
-    # Test base error
-    with pytest.raises(FunctionsError) as exc_info:
-        raise FunctionsError(test_message, "test_error", 500)
-    assert str(exc_info.value) == test_message
-
-    # Test HTTP error
-    with pytest.raises(FunctionsHttpError) as exc_info:
-        raise FunctionsHttpError(test_message)
-    assert str(exc_info.value) == test_message
-
-    # Test Relay error
-    with pytest.raises(FunctionsRelayError) as exc_info:
-        raise FunctionsRelayError(test_message)
-    assert str(exc_info.value) == test_message
+def test_errors_can_be_pickled() -> None:
+    error = FunctionsHttpError("boom", status_code=404, response=make_response(b""))
+    copy = pickle.loads(pickle.dumps(error))
+    assert isinstance(copy, FunctionsHttpError)
+    assert str(copy) == "boom"
+    assert copy.status_code == 404
+    assert copy.response is not None
+    assert copy.response.status == 500
 
 
 def test_error_message_types() -> None:
@@ -90,7 +83,7 @@ def test_error_message_types() -> None:
     ]
 
     for message in test_cases:
-        error = FunctionsError(message, "test", 500)
+        error = FunctionsError(message)
         assert error.message == message
 
 
@@ -117,7 +110,9 @@ def test_on_error_response_http_error() -> None:
     error = _on_error_response(make_response(b'{"error": "boom"}', status=404))
     assert isinstance(error, FunctionsHttpError)
     assert error.message == "boom"
-    assert error.status == 404
+    assert error.status_code == 404
+    assert error.response is not None
+    assert error.response.status == 404
 
 
 def test_on_error_response_http_error_fallback_message() -> None:
@@ -136,4 +131,4 @@ def test_on_error_response_relay_error_keeps_raw_text() -> None:
     )
     assert isinstance(error, FunctionsRelayError)
     assert error.message == '{"error": "relay"}'
-    assert error.status == 546
+    assert error.status_code == 546

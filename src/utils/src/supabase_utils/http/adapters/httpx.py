@@ -1,11 +1,19 @@
 from types import TracebackType
 
-from httpx import AsyncClient, Auth, Client, Timeout, TimeoutException, TooManyRedirects
+from httpx import (
+    AsyncClient,
+    Auth,
+    Client,
+    RequestError,
+    Timeout,
+    TimeoutException,
+    TooManyRedirects,
+)
 from httpx import Request as HttpxRequest
 from httpx import Response as HttpxResponse
 from yarl import URL
 
-from ..errors import RequestTimeoutError
+from ..errors import RequestTimeoutError, SupabaseTransportError
 from ..headers import Headers
 from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import Request, Response
@@ -58,6 +66,8 @@ class HttpxSession:
             return self._send(request)
         except TimeoutException as error:
             raise RequestTimeoutError(request) from error
+        except RequestError as error:
+            raise SupabaseTransportError(request, f"failed: {error}") from error
 
     def _send(self, request: Request) -> Response:
         httpx_request = to_httpx_request(request)
@@ -99,6 +109,8 @@ class AsyncHttpxSession:
             return await self._send(request)
         except TimeoutException as error:
             raise RequestTimeoutError(request) from error
+        except RequestError as error:
+            raise SupabaseTransportError(request, f"failed: {error}") from error
 
     async def _send(self, request: Request) -> Response:
         httpx_request = to_httpx_request(request)
