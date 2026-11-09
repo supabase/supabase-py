@@ -67,7 +67,7 @@ class HttpxSession:
         except TimeoutException as error:
             raise RequestTimeoutError(request) from error
         except RequestError as error:
-            raise SupabaseTransportError(request, f"failed: {error}") from error
+            raise SupabaseTransportError(request) from error
 
     def _send(self, request: Request) -> Response:
         httpx_request = to_httpx_request(request)
@@ -110,7 +110,7 @@ class AsyncHttpxSession:
         except TimeoutException as error:
             raise RequestTimeoutError(request) from error
         except RequestError as error:
-            raise SupabaseTransportError(request, f"failed: {error}") from error
+            raise SupabaseTransportError(request) from error
 
     async def _send(self, request: Request) -> Response:
         httpx_request = to_httpx_request(request)

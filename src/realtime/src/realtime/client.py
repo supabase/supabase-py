@@ -6,6 +6,7 @@ from warnings import warn
 
 import websockets
 from pydantic import ValidationError
+from supabase_utils.http.errors import SupabaseTransportError
 from websockets.asyncio.client import ClientConnection
 from yarl import URL
 
@@ -134,7 +135,12 @@ async def automatically_reconnect(
                 connected_at = loop.time()
                 await client_handler(client)
                 break
-        except (websockets.ConnectionClosed, TimeoutError, OSError) as e:
+        except (
+            websockets.ConnectionClosed,
+            TimeoutError,
+            OSError,
+            SupabaseTransportError,
+        ) as e:
             if (
                 connected_at is not None
                 and loop.time() - connected_at >= MAX_RECONNECT_DELAY

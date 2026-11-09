@@ -100,3 +100,21 @@ def test_api_error_can_be_pickled() -> None:
     assert clone.hint == "h"
     assert clone.status_code == 400
     assert clone.json() == error.json()
+
+
+def test_single_with_invalid_body_raises_api_error() -> None:
+    def handler(request: Request) -> Response:
+        return Response(200, content=b"not json")
+
+    with Client(transport=MockTransport(handler)) as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        with pytest.raises(APIError) as exc_info:
+            client.from_("test").select("a").single().execute()
+
+    error = exc_info.value
+    assert error.status_code == 200
+    assert error.message == "JSON could not be generated"
+    assert error.response is not None
+    assert error.response.content == b"not json"

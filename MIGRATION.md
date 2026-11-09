@@ -163,7 +163,7 @@ A timed-out request raises `supabase.RequestTimeoutError`, a subclass of the bui
 
 ## One exception hierarchy
 
-Every exception the packages raise inherits from `supabase_utils.errors.SupabaseError`, re-exported as `supabase.SupabaseError`, so `except SupabaseError` catches any failure of the SDK. The hierarchy is described in the [error handling](src/supabase/README.md#error-handling) section of the README.
+Every exception the packages raise themselves inherits from `supabase_utils.errors.SupabaseError`, re-exported as `supabase.SupabaseError`, so `except SupabaseError` catches any failure the SDK reports. The hierarchy is described in the [error handling](src/supabase/README.md#error-handling) section of the README. The realtime connection is the exception: a lost websocket still surfaces as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, as before.
 
 Errors a service answered with inherit from `SupabaseAPIError` and expose the HTTP status as `status_code`, with the `response` next to it. The `status` attributes are renamed and the constructors take the status as a keyword argument.
 

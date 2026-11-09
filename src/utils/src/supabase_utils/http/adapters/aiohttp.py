@@ -79,7 +79,7 @@ class AsyncAiohttpSession:
         except TimeoutError as error:
             raise RequestTimeoutError(request) from error
         except ClientError as error:
-            raise SupabaseTransportError(request, f"failed: {error}") from error
+            raise SupabaseTransportError(request) from error
 
     async def __aenter__(self) -> "AsyncAiohttpSession":
         return self

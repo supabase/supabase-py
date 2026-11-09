@@ -465,9 +465,7 @@ def test_sync_session_wraps_transport_errors() -> None:
         SyncHttpIO(session).communicate(BASE_URL, Headers.empty(), get_items())
     assert not isinstance(error.value, RequestTimeoutError)
     assert isinstance(error.value.__cause__, httpx.ConnectError)
-    assert str(error.value) == (
-        "GET https://example.com/api/items failed: [Errno 61] Connection refused"
-    )
+    assert str(error.value) == "GET https://example.com/api/items failed"
     assert error.value.request.method == "GET"
 
 

@@ -757,10 +757,12 @@ class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             :class:`APIError` If the API raised an error.
         """
         response = yield from send_with_retry(self.request)
-        if response.is_success:
-            return SingleAPIResponse.from_http_request_response(response)
-        else:
+        if not response.is_success:
             raise _api_error(response)
+        try:
+            return SingleAPIResponse.from_http_request_response(response)
+        except ValidationError as e:
+            raise _invalid_response_error(response) from e
 
 
 class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[HttpIO]):

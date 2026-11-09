@@ -44,9 +44,10 @@ class SupabaseTransportError(SupabaseError):
     could be read, because the connection failed, the request timed out, or
     the HTTP client gave up, as on a redirect loop.
 
-    The exception of the HTTP client is chained as `__cause__`. The request
-    may still have reached the service, so the outcome of an operation that
-    is not idempotent is unknown.
+    The exception of the HTTP client is chained as `__cause__`. Its text is
+    not copied into the message, since it can quote the URL of the request
+    with the token of a signed URL. The request may still have reached the
+    service, so the outcome of an operation that is not idempotent is unknown.
 
     ```python
     try:

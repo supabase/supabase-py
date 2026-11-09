@@ -268,7 +268,7 @@ async def test_connection_failure_raises_transport_error(server: TestServer) -> 
             )
     assert not isinstance(error.value, RequestTimeoutError)
     assert isinstance(error.value.__cause__, aiohttp.ClientConnectorError)
-    assert str(error.value).startswith(f"GET {unreachable}/missing failed: ")
+    assert str(error.value) == f"GET {unreachable}/missing failed"
     assert error.value.request.method == "GET"
 
 
