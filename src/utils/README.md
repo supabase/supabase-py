@@ -124,6 +124,7 @@ import requests
 from supabase_utils.http.errors import RequestTimeoutError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
+from urllib3.exceptions import ReadTimeoutError
 
 
 class RequestsSession:
@@ -142,6 +143,10 @@ class RequestsSession:
             )
         except requests.Timeout as error:
             raise RequestTimeoutError(request) from error
+        except requests.ConnectionError as error:
+            if isinstance(error.args[0], ReadTimeoutError):
+                raise RequestTimeoutError(request) from error
+            raise
         return Response(
             status=response.status_code,
             content=response.content,
@@ -161,7 +166,7 @@ class RequestsSession:
         self.session.close()
 ```
 
-`dict(request.headers)` joins the values of a repeated header with `, `. Pass `request.headers.iter_items()` instead if the library accepts a list of pairs, as httpx does. `requests` has no client-level timeout, so the example falls back to 60 seconds. `allow_redirects=False` keeps it out of the redirect rule above.
+`dict(request.headers)` joins the values of a repeated header with `, `. Pass `request.headers.iter_items()` instead if the library accepts a list of pairs, as httpx does. `requests` has no client-level timeout, so the example falls back to 60 seconds. It reports a stall while reading the body as `ConnectionError` around a `ReadTimeoutError` rather than as `requests.Timeout`, so the example translates that case too. `allow_redirects=False` keeps it out of the redirect rule above.
 
 The adapters in [`src/supabase_utils/http/adapters`](src/supabase_utils/http/adapters) are complete examples.
 
