@@ -16,7 +16,7 @@ Abbreviated and contracted public names are spelled out. Wire formats do not cha
 | `realtime`           | `PresenceOpts`                                                   | `PresenceOptions`                                                                     |
 | `realtime`           | `VSN`                                                            | `PROTOCOL_VERSION`                                                                    |
 | `supabase`           | `RealtimeClientOptions` keys `hb_interval`, `hb_timeout`         | `heartbeat_interval`, `heartbeat_timeout`                                             |
-| `supabase`           | `AClient`, `AClientOptions`                                      | `AsyncClient`, `AsyncClientOptions`                                                   |
+| `supabase`           | `AClient`                                                        | `AsyncClient`                                                                         |
 | `supabase`           | `ASupabaseException`                                             | `SupabaseException`                                                                   |
 | `supabase`           | `ASupabaseStorageClient`                                         | `storage3.AsyncStorageClient`                                                         |
 | `supabase`           | `httpx.create_aclient`, `aiohttp.create_aclient`                 | `httpx.create_async_client`, `aiohttp.create_async_client`                            |
@@ -52,45 +52,83 @@ Names that mirror a wire format keep their wire spelling, for example the JWT cl
 | `from supabase._async.client import AsyncClient`  | `from supabase import AsyncClient`                    |
 | `from supabase._sync.client import Client`        | `from supabase import Client`                         |
 | `AsyncSupabaseException`, `SyncSupabaseException` | `SupabaseException`                                   |
-| `SyncClientOptions`                               | `ClientOptions`                                       |
 | `supabase.SupabaseStorageClient`                  | `storage3.SyncStorageClient`                          |
 | `supabase.client.AsyncSupabaseStorageClient`      | `storage3.AsyncStorageClient`                         |
 | `client.rpc("fn", {"a": 1}, CountMethod.exact)`   | `client.rpc("fn", {"a": 1}, count=CountMethod.exact)` |
 | `client.rpc("fn", {"a": 1}, None, True)`          | `client.rpc("fn", {"a": 1}, head=True)`               |
 
-`ClientOptions` configures `Client` and `AsyncClientOptions` configures `AsyncClient`. `supabase.lib.client_options.ClientOptions` used to be their shared base class and is now the sync options class as well.
-
 `rpc` takes `head`, `count` and `get` as keyword arguments, like `PostgrestClient.rpc`. `params` stays the second positional argument.
 
 `SupabaseException` is one class, so `except SupabaseException` also catches errors raised by `AsyncClient`.
+
+## Client options are keyword arguments
+
+`ClientOptions`, `AsyncClientOptions`, their v2 names `SyncClientOptions` and `AClientOptions`, and the `supabase.lib.client_options` module are removed. `create_client`, `create_async_client`, `Client`, `AsyncClient` and their `create` methods take the settings as keyword-only arguments. Settings that apply to every service are arguments of their own. The settings of one service are grouped in an options class, passed in the argument named after the service.
+
+```python
+client = create_client(
+    url,
+    key,
+    headers={"x-app": "1"},
+    request_timeout=30,
+    postgrest=PostgrestClientOptions(schema="private"),
+    auth=AuthClientOptions(flow_type="implicit", session_storage=my_storage),
+    storage=StorageClientOptions(request_timeout=120),
+)
+```
+
+| Before                                                         | After                                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `create_client(url, key, http_client)`                         | `create_client(url, key, http_client=http_client)`                 |
+| `ClientOptions(headers={"x-app": "1"})`                        | `headers={"x-app": "1"}`                                           |
+| `ClientOptions(request_timeout=30)`                            | `request_timeout=30`                                               |
+| `ClientOptions(schema="private")`                              | `postgrest=PostgrestClientOptions(schema="private")`               |
+| `ClientOptions(auto_refresh_token=False)`                      | `auth=AuthClientOptions(auto_refresh_token=False)`                 |
+| `ClientOptions(storage=my_storage)`                            | `auth=AuthClientOptions(session_storage=my_storage)`               |
+| `ClientOptions(flow_type="implicit")`                          | `auth=AuthClientOptions(flow_type="implicit")`                     |
+| `ClientOptions(persist_session=False)`                         | Leave it out                                                       |
+| `ClientOptions(postgrest_options=PostgrestClientOptions(...))` | `postgrest=PostgrestClientOptions(...)`                            |
+| `ClientOptions(auth_options=AuthClientOptions(...))`           | `auth=AuthClientOptions(...)`                                      |
+| `ClientOptions(storage_options=StorageClientOptions(...))`     | `storage=StorageClientOptions(...)`                                |
+| `ClientOptions(functions_options=FunctionsClientOptions(...))` | `functions=FunctionsClientOptions(...)`                            |
+| `AsyncClientOptions(realtime=RealtimeClientOptions(...))`      | `realtime=RealtimeClientOptions(...)`                              |
+| `client.options.headers`                                       | `client.headers`                                                   |
+| `options.replace(schema="other")`                              | `postgrest=dataclasses.replace(postgrest_options, schema="other")` |
+
+`AuthClientOptions.session_storage` takes an `AsyncSupportedStorage` for `AsyncClient` and a `SyncSupportedStorage` for `Client`. It used to be called `storage`, which clashed with the storage service. Left out, the session is kept in memory.
+
+`persist_session` is removed. It was never passed on to the session manager, so it had no effect. To keep the session only in memory, leave `session_storage` out.
+
+`headers` are sent on top of the default `X-Client-Info` header instead of replacing it. A header you pass with the same name, in any case, still replaces the default one.
+
+`client.headers` is a read-only view of the headers sent with every request. Its `Authorization` header follows the session. The headers you pass are copied, so changing the original dictionary later has no effect.
+
+`PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions` and `FunctionsClientOptions` take keyword arguments only.
 
 ## Options are dataclasses instead of dictionaries
 
 The remaining option `TypedDict`s are dataclasses. Fields you leave out use the same defaults as before.
 
-| Package    | Before                                                       | After                                                                       |
-| ---------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| `supabase` | `AsyncClientOptions(realtime={"heartbeat_interval": 30})`    | `AsyncClientOptions(realtime=RealtimeClientOptions(heartbeat_interval=30))` |
-| `storage3` | `list_v2(sort_by={"column": "created_at", "order": "desc"})` | `list_v2(sort_by=SortByV2(column="created_at", order="desc"))`              |
+| Package    | Before                                                       | After                                                                                  |
+| ---------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `supabase` | `AsyncClientOptions(realtime={"heartbeat_interval": 30})`    | `create_async_client(url, key, realtime=RealtimeClientOptions(heartbeat_interval=30))` |
+| `storage3` | `list_v2(sort_by={"column": "created_at", "order": "desc"})` | `list_v2(sort_by=SortByV2(column="created_at", order="desc"))`                         |
 
-`RealtimeClientOptions` is exported from `supabase`, and `SortByV2` from `storage3.types`. `ClientOptions.realtime` and `AsyncClientOptions.realtime` default to `RealtimeClientOptions()` instead of `None`.
+`RealtimeClientOptions` is exported from `supabase`, and `SortByV2` from `storage3.types`.
 
 The unused `storage3.types.SearchV2Options` and `storage3.types.UploadData` are removed.
 
 ## Options are frozen
 
-Option and parameter dataclasses are frozen. Setting a field raises `dataclasses.FrozenInstanceError`. Build a changed copy instead, with `replace()` on the client options or with `dataclasses.replace` on the others.
+Option and parameter dataclasses are frozen. Setting a field raises `dataclasses.FrozenInstanceError`. Build a changed copy with `dataclasses.replace` instead.
 
-This covers `ClientOptions`, `AsyncClientOptions`, `RealtimeClientOptions`, `realtime.RealtimeChannelOptions`, `realtime.PostgresChangesBinding`, the `storage3.types` `SortByType`, `SortByV2` and `TransformOptions`, and the `supabase_auth` credential and parameter classes such as `SignUpWithEmailAndPasswordCredentials` and `VerifyEmailOtpParams`.
+This covers `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions`, `FunctionsClientOptions`, `RealtimeClientOptions`, `realtime.RealtimeChannelOptions`, `realtime.PostgresChangesBinding`, the `storage3.types` `SortByType`, `SortByV2` and `TransformOptions`, and the `supabase_auth` credential and parameter classes such as `SignUpWithEmailAndPasswordCredentials` and `VerifyEmailOtpParams`.
 
-| Before                                                 | After                                                                  |
-| ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| `options.headers["x-app"] = "1"`                       | `options = options.replace(headers={**options.headers, "x-app": "1"})` |
-| `options.schema = "other"`                             | `options = options.replace(schema="other")`                            |
-| `options.broadcast(ack=True)` without using the result | `options = options.broadcast(ack=True)`                                |
-| `options.postgres_changes_bindings.append(binding)`    | `options = options.postgres_changes(...)`                              |
-
-`ClientOptions.headers` is typed as a read-only `Mapping`. The options copy the headers they are given, so changing the original dictionary later has no effect. The client no longer changes the options it is given. When the session changes it replaces `client.options` with a copy that has the new `Authorization` header.
+| Before                                                 | After                                                    |
+| ------------------------------------------------------ | -------------------------------------------------------- |
+| `options.schema = "other"`                             | `options = dataclasses.replace(options, schema="other")` |
+| `options.broadcast(ack=True)` without using the result | `options = options.broadcast(ack=True)`                  |
+| `options.postgres_changes_bindings.append(binding)`    | `options = options.postgres_changes(...)`                |
 
 The `RealtimeChannelOptions` builder methods return a new copy and leave the original unchanged, so chained calls keep working. `postgres_changes_bindings` and `PostgresChangesBinding.select` are stored as tuples.
 
@@ -110,6 +148,6 @@ The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabas
 | ---------------------------------------------- | -------------------------------------------------------------- |
 | `SyncStorageClient(url, headers, session, 20)` | `SyncStorageClient(url, headers, session, request_timeout=20)` |
 
-`request_timeout` is in seconds and limits how long a request may go without progress. Set it on `ClientOptions` for every service, on `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions` or `FunctionsClientOptions` for one service, with `request_timeout()` on a database query, or with the `request_timeout` argument of `functions.invoke()`. None, the default, leaves the timeout to the HTTP client.
+`request_timeout` is in seconds and limits how long a request may go without progress. Set it with the `request_timeout` argument of the client for every service, on `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions` or `FunctionsClientOptions` for one service, with `request_timeout()` on a database query, or with the `request_timeout` argument of `functions.invoke()`. None, the default, leaves the timeout to the HTTP client.
 
 A timed-out request raises `supabase.RequestTimeoutError`, a subclass of the built-in `TimeoutError`, instead of an httpx or aiohttp exception. This also applies to timeouts configured on the HTTP client.
