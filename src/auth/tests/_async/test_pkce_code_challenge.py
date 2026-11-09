@@ -6,10 +6,8 @@ from typing import Any
 import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
-from yarl import URL
 
-from supabase_auth import AsyncMemoryStorage, AsyncSupabaseAuthClient
-from supabase_auth.constants import STORAGE_KEY
+from supabase_auth import AsyncSupabaseAuthClient
 from supabase_auth.errors import AuthError
 from supabase_auth.helpers import generate_pkce_challenge
 from supabase_auth.types import (
@@ -42,9 +40,6 @@ def mock_client(
     payload: Any,
     requests: list[Request],
     flow_type: AuthFlowType = "pkce",
-    *,
-    persist_session: bool = True,
-    storage: AsyncMemoryStorage | None = None,
 ) -> AsyncSupabaseAuthClient:
     def handler(request: Request) -> Response:
         requests.append(request)
@@ -56,8 +51,6 @@ def mock_client(
             client=AsyncClient(transport=MockTransport(handler))
         ),
         auto_refresh_token=False,
-        persist_session=persist_session,
-        storage=storage,
         flow_type=flow_type,
     )
 
@@ -211,22 +204,6 @@ async def test_exchange_code_uses_and_removes_stored_verifier() -> None:
 
     assert request_body(requests)["code_verifier"] == "stored-verifier"
     assert await stored_verifier(client) is None
-
-
-async def test_exchange_code_without_persistence_uses_verifier_kept_in_memory() -> None:
-    storage = AsyncMemoryStorage()
-    stale_verifier_key = f"{STORAGE_KEY}-code-verifier"
-    await storage.set_item(stale_verifier_key, "stale-verifier")
-    requests: list[Request] = []
-    client = mock_client(SESSION, requests, persist_session=False, storage=storage)
-
-    oauth_response = await client.sign_in_with_oauth("github")
-    await client.exchange_code_for_session("auth-code")
-
-    code_challenge = URL(oauth_response.url).query["code_challenge"]
-    verifier = request_body(requests)["code_verifier"]
-    assert generate_pkce_challenge(verifier) == code_challenge
-    assert storage.storage == {stale_verifier_key: "stale-verifier"}
 
 
 async def test_exchange_code_saves_session_and_signs_in() -> None:

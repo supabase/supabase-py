@@ -432,7 +432,7 @@ features:
       - SyncMemoryStorage.set_item
   client.session_management.persist_session:
     status: implemented
-    note: "The supabase client keeps the session in memory unless session_storage is set on AuthClientOptions. The auth client constructors take persist_session: when False, the session and the PKCE code verifier stay in memory and the storage passed in is not used. storage_key on AuthClientOptions and the auth client constructors keeps clients that share a storage backend apart."
+    note: "The session is kept in memory unless a storage is given, with session_storage on AuthClientOptions or storage on the auth client constructors. There is no persist_session flag, since leaving the storage out already keeps the session in memory. storage_key on AuthClientOptions and the auth client constructors keeps clients that share a storage apart."
     symbols:
       - AuthClientOptions
       - AsyncSupabaseAuthClient

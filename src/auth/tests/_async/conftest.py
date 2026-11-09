@@ -118,7 +118,6 @@ async def auth_client(
     async with AsyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
-        persist_session=True,
         http_session=request.param(),
     ) as client:
         yield client
@@ -131,7 +130,6 @@ async def auth_client_with_session(
     async with AsyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
-        persist_session=False,
         http_session=request.param(),
     ) as client:
         credentials = mock_user_credentials()
@@ -156,7 +154,6 @@ async def auth_client_with_asymmetric_session(
     async with AsyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_ASYMMETRIC_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
-        persist_session=False,
         http_session=request.param(),
     ) as client:
         yield client
@@ -169,7 +166,6 @@ async def auth_subscription_client(
     async with AsyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
-        persist_session=True,
         http_session=request.param(),
     ) as client:
         yield client
@@ -182,7 +178,6 @@ async def client_api_auto_confirm_enabled_client(
     async with AsyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
         auto_refresh_token=False,
-        persist_session=True,
         http_session=request.param(),
     ) as client:
         yield client
@@ -195,7 +190,6 @@ async def client_api_auto_confirm_off_signups_enabled_client(
     async with AsyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
-        persist_session=True,
         http_session=request.param(),
     ) as client:
         yield client
@@ -208,7 +202,6 @@ async def client_api_auto_confirm_disabled_client(
     async with AsyncSupabaseAuthClient(
         url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
         auto_refresh_token=False,
-        persist_session=True,
         http_session=request.param(),
     ) as client:
         yield client

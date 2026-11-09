@@ -523,24 +523,7 @@ def test_save_session_schedules_refresh_in_seconds() -> None:
     assert 3600 - EXPIRY_MARGIN - 5 <= timer._seconds <= 3600 - EXPIRY_MARGIN
 
 
-def test_persist_session_false_keeps_session_out_of_storage() -> None:
-    storage = SyncMemoryStorage()
-    client = SyncSupabaseAuthClient(
-        url="http://auth.test",
-        http_session=HttpxSession(client=Client()),
-        auto_refresh_token=False,
-        persist_session=False,
-        storage=storage,
-    )
-    session = mock_session("access-token")
-
-    client.session_manager.save_session(session)
-
-    assert storage.storage == {}
-    assert client.get_session() == session
-
-
-def test_persist_session_writes_session_to_default_storage_key() -> None:
+def test_save_session_writes_session_to_default_storage_key() -> None:
     storage = SyncMemoryStorage()
     client = SyncSupabaseAuthClient(
         url="http://auth.test",
@@ -583,35 +566,20 @@ def test_storage_key_separates_clients_sharing_a_storage() -> None:
     assert second.get_session() == second_session
 
 
-def test_persist_session_false_does_not_restore_session_from_storage() -> None:
-    storage = SyncMemoryStorage()
-    stored_session = mock_session("stored-access-token").model_dump_json()
-    storage.set_item(STORAGE_KEY, stored_session)
-    client = SyncSupabaseAuthClient(
+def test_clients_without_storage_do_not_share_sessions() -> None:
+    first = SyncSupabaseAuthClient(
         url="http://auth.test",
         http_session=HttpxSession(client=Client()),
         auto_refresh_token=False,
-        persist_session=False,
-        storage=storage,
     )
-
-    client.initialize_from_storage()
-
-    assert client.get_session() is None
-    assert storage.storage == {STORAGE_KEY: stored_session}
-
-
-def test_persist_session_false_keeps_code_verifier_out_of_storage() -> None:
-    storage = SyncMemoryStorage()
-    client = SyncSupabaseAuthClient(
+    second = SyncSupabaseAuthClient(
         url="http://auth.test",
         http_session=HttpxSession(client=Client()),
         auto_refresh_token=False,
-        persist_session=False,
-        storage=storage,
-        flow_type="pkce",
     )
+    session = mock_session("access-token")
 
-    client.sign_in_with_oauth("github")
+    first.session_manager.save_session(session)
 
-    assert storage.storage == {}
+    assert first.get_session() == session
+    assert second.get_session() is None

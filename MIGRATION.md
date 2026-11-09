@@ -140,13 +140,14 @@ The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabas
 
 `heartbeat_interval` and `heartbeat_timeout` are typed `float` and are in seconds. `connect_once`, `RealtimeClient` and `RealtimeClientOptions` raise `ValueError` when either one is not positive.
 
-## Auth `persist_session` and `storage_key` take effect
+## Auth `persist_session` is removed and `storage_key` takes effect
 
-`AsyncSupabaseAuthClient` and `SyncSupabaseAuthClient` accepted `persist_session` and `storage_key` but ignored them. Both are now used.
+`AsyncSupabaseAuthClient` and `SyncSupabaseAuthClient` no longer take `persist_session`. It was never passed on to the session manager, so it had no effect. To keep the session only in memory, leave `storage` out. Each client then gets its own memory storage, so clients created per request do not share a session.
 
-- With `persist_session=False`, the session and the PKCE code verifier are kept in memory. The `storage` you pass is not read or written, so a session saved there by an earlier run is not restored.
-- A custom `storage_key` is now the key the session is stored under, with the code verifier under `<storage_key>-code-verifier`. Sessions saved before the upgrade are under `supabase.auth.token`. Leave `storage_key` out to keep reading them.
-- `storage_key` is typed `str` and defaults to `"supabase.auth.token"`. Passing `None` is no longer accepted.
+`storage_key` was accepted but ignored as well. It is now the key the session is stored under, with the PKCE code verifier under `<storage_key>-code-verifier`. Set it on `AuthClientOptions` or on the auth client constructors to keep clients that share a storage apart.
+
+- Sessions saved before the upgrade are under `supabase.auth.token`, the default. Leave `storage_key` out to keep reading them.
+- `storage_key` is typed `str`. Passing `None` is no longer accepted.
 
 ## Request timeouts
 

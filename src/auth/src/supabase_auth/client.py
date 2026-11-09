@@ -653,7 +653,6 @@ class AsyncSupabaseAuthClient(
         headers: Mapping[str, str] | None = None,
         storage_key: str = STORAGE_KEY,
         auto_refresh_token: bool = True,
-        persist_session: bool = True,
         storage: AsyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
         request_timeout: float | None = None,
@@ -667,14 +666,9 @@ class AsyncSupabaseAuthClient(
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
-            storage=(
-                storage
-                if persist_session and storage is not None
-                else AsyncMemoryStorage()
-            ),
+            storage=storage if storage is not None else AsyncMemoryStorage(),
             state_change_emitters={},
             storage_key=storage_key,
-            persist_session=persist_session,
             auto_refresh_token=auto_refresh_token,
         )
         super().__init__(
@@ -1099,7 +1093,6 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         headers: Mapping[str, str] | None = None,
         storage_key: str = STORAGE_KEY,
         auto_refresh_token: bool = True,
-        persist_session: bool = True,
         storage: SyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
         request_timeout: float | None = None,
@@ -1113,14 +1106,9 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
-            storage=(
-                storage
-                if persist_session and storage is not None
-                else SyncMemoryStorage()
-            ),
+            storage=storage if storage is not None else SyncMemoryStorage(),
             state_change_emitters={},
             storage_key=storage_key,
-            persist_session=persist_session,
             auto_refresh_token=auto_refresh_token,
         )
         super().__init__(

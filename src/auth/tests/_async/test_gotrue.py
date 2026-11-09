@@ -527,24 +527,7 @@ async def test_save_session_schedules_refresh_in_seconds() -> None:
     assert 3600 - EXPIRY_MARGIN - 5 <= timer._seconds <= 3600 - EXPIRY_MARGIN
 
 
-async def test_persist_session_false_keeps_session_out_of_storage() -> None:
-    storage = AsyncMemoryStorage()
-    client = AsyncSupabaseAuthClient(
-        url="http://auth.test",
-        http_session=AsyncHttpxSession(client=AsyncClient()),
-        auto_refresh_token=False,
-        persist_session=False,
-        storage=storage,
-    )
-    session = mock_session("access-token")
-
-    await client.session_manager.save_session(session)
-
-    assert storage.storage == {}
-    assert await client.get_session() == session
-
-
-async def test_persist_session_writes_session_to_default_storage_key() -> None:
+async def test_save_session_writes_session_to_default_storage_key() -> None:
     storage = AsyncMemoryStorage()
     client = AsyncSupabaseAuthClient(
         url="http://auth.test",
@@ -587,35 +570,20 @@ async def test_storage_key_separates_clients_sharing_a_storage() -> None:
     assert await second.get_session() == second_session
 
 
-async def test_persist_session_false_does_not_restore_session_from_storage() -> None:
-    storage = AsyncMemoryStorage()
-    stored_session = mock_session("stored-access-token").model_dump_json()
-    await storage.set_item(STORAGE_KEY, stored_session)
-    client = AsyncSupabaseAuthClient(
+async def test_clients_without_storage_do_not_share_sessions() -> None:
+    first = AsyncSupabaseAuthClient(
         url="http://auth.test",
         http_session=AsyncHttpxSession(client=AsyncClient()),
         auto_refresh_token=False,
-        persist_session=False,
-        storage=storage,
     )
-
-    await client.initialize_from_storage()
-
-    assert await client.get_session() is None
-    assert storage.storage == {STORAGE_KEY: stored_session}
-
-
-async def test_persist_session_false_keeps_code_verifier_out_of_storage() -> None:
-    storage = AsyncMemoryStorage()
-    client = AsyncSupabaseAuthClient(
+    second = AsyncSupabaseAuthClient(
         url="http://auth.test",
         http_session=AsyncHttpxSession(client=AsyncClient()),
         auto_refresh_token=False,
-        persist_session=False,
-        storage=storage,
-        flow_type="pkce",
     )
+    session = mock_session("access-token")
 
-    await client.sign_in_with_oauth("github")
+    await first.session_manager.save_session(session)
 
-    assert storage.storage == {}
+    assert await first.get_session() == session
+    assert await second.get_session() is None
