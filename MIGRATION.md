@@ -167,22 +167,22 @@ Every exception the packages raise themselves inherits from `supabase_utils.erro
 
 Errors a service answered with inherit from `SupabaseAPIError` and expose the HTTP status as `status_code`, with the `response` next to it. The `status` attributes are renamed and the constructors take the status as a keyword argument.
 
-| Package              | Before                                                      | After                                                                                                                             |
-| -------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `supabase_auth`      | `AuthApiError.status`                                       | `AuthApiError.status_code`                                                                                                        |
-| `supabase_auth`      | `AuthUnknownError.status`, `AuthUnknownError.data`          | `AuthUnknownError.status_code`, `AuthUnknownError.response.content`                                                               |
-| `supabase_auth`      | `AuthRetryableError(message, status)`                       | `AuthRetryableError(message, status_code=...)`, a subclass of `AuthApiError`                                                      |
-| `supabase_auth`      | `AuthWeakPasswordError(message, status, reasons)`           | `AuthWeakPasswordError(message, status_code=..., reasons=...)`, a subclass of `AuthApiError`                                      |
-| `supabase_auth`      | `CustomAuthError(message, status, code)`, `.status`         | `CustomAuthError(message, code=...)`, no status: `AuthSessionMissingError` and the other client-side errors come from no response |
-| `postgrest`          | `APIError(error)`                                           | `APIError(error, status_code=..., response=...)`, with `status_code` and `response` attributes                                    |
-| `postgrest`          | `str(error)` was the error dictionary                       | `str(error)` is the error message, `error.json()` is the dictionary                                                               |
-| `storage3`           | `StorageApiError(message=..., code=..., status=...)`        | `StorageApiError(message, status_code=..., code=..., response=...)`                                                               |
-| `storage3`           | `StorageApiError.status`                                    | `StorageApiError.status_code`                                                                                                     |
-| `supabase_functions` | `FunctionsError(message, name, status)`, `.name`, `.status` | `FunctionsError(message)`. Use `type(error).__name__` for the name; the status lives on the response errors                       |
-| `supabase_functions` | `FunctionsHttpError(message, code)`, `.status`              | `FunctionsHttpError(message, status_code=..., response=...)`, `.status_code`                                                      |
-| `supabase_functions` | `FunctionsRelayError(message, code)`, `.status`             | `FunctionsRelayError(message, status_code=..., response=...)`, `.status_code`                                                     |
-| `realtime`           | `realtime.client.MaxRetriesExceeded`, an `Exception`        | `realtime.MaxRetriesExceeded`, a `RealtimeError` with a `retries` attribute                                                       |
-| `realtime`           | A failed `subscribe()` raised `Exception`                   | It raises `RealtimeError`                                                                                                         |
+| Package              | Before                                                      | After                                                                                                                                |
+| -------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `supabase_auth`      | `AuthApiError.status`                                       | `AuthApiError.status_code`                                                                                                           |
+| `supabase_auth`      | `AuthUnknownError.status`, `AuthUnknownError.data`          | `AuthUnknownError.status_code`, `AuthUnknownError.response.content`                                                                  |
+| `supabase_auth`      | `AuthRetryableError(message, status)`                       | `AuthRetryableError(message, status_code=...)`, a subclass of `AuthApiError`                                                         |
+| `supabase_auth`      | `AuthWeakPasswordError(message, status, reasons)`           | `AuthWeakPasswordError(message, status_code=..., reasons=...)`, a subclass of `AuthApiError`                                         |
+| `supabase_auth`      | `CustomAuthError`, `.status` on its subclasses              | Removed. `AuthSessionMissingError` and the other errors the client raises on its own inherit `AuthError` directly and have no status |
+| `postgrest`          | `APIError(error)`                                           | `APIError(error, status_code=..., response=...)`, with `status_code` and `response` attributes                                       |
+| `postgrest`          | `str(error)` was the error dictionary                       | `str(error)` is the error message, `error.json()` is the dictionary                                                                  |
+| `storage3`           | `StorageApiError(message=..., code=..., status=...)`        | `StorageApiError(message, status_code=..., code=..., response=...)`                                                                  |
+| `storage3`           | `StorageApiError.status`                                    | `StorageApiError.status_code`                                                                                                        |
+| `supabase_functions` | `FunctionsError(message, name, status)`, `.name`, `.status` | `FunctionsError(message)`. Use `type(error).__name__` for the name; the status lives on the response errors                          |
+| `supabase_functions` | `FunctionsHttpError(message, code)`, `.status`              | `FunctionsHttpError(message, status_code=..., response=...)`, `.status_code`                                                         |
+| `supabase_functions` | `FunctionsRelayError(message, code)`, `.status`             | `FunctionsRelayError(message, status_code=..., response=...)`, `.status_code`                                                        |
+| `realtime`           | `realtime.client.MaxRetriesExceeded`, an `Exception`        | `realtime.MaxRetriesExceeded`, a `RealtimeError` with a `retries` attribute                                                          |
+| `realtime`           | A failed `subscribe()` raised `Exception`                   | It raises `RealtimeError`                                                                                                            |
 
 The auth errors are no longer dataclasses. `str(error)` returns the message for every error, as it does for the built-in exceptions, and `==` compares identity.
 

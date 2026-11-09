@@ -16,7 +16,6 @@ from supabase_auth.errors import (
     AuthSessionMissingError,
     AuthUnknownError,
     AuthWeakPasswordError,
-    CustomAuthError,
     UserDoesNotExistError,
 )
 
@@ -58,7 +57,7 @@ def test_client_side_errors_are_not_api_errors() -> None:
         AuthInvalidJwtError("bad jwt"),
         UserDoesNotExistError(),
     ):
-        assert isinstance(error, CustomAuthError)
+        assert isinstance(error, AuthError)
         assert not isinstance(error, SupabaseAPIError)
         assert str(error) == error.message
 

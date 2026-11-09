@@ -167,15 +167,7 @@ class AuthUnknownError(AuthError, SupabaseAPIError):
         super().__init__(message, status_code=status_code, code=code, response=response)
 
 
-class CustomAuthError(AuthError):
-    """Base class of the errors the auth client raises on its own, without a
-    response from the auth service."""
-
-    def __init__(self, message: str, *, code: ErrorCode | None = None) -> None:
-        super().__init__(message, code=code)
-
-
-class UserDoesNotExistError(CustomAuthError):
+class UserDoesNotExistError(AuthError):
     def __init__(self) -> None:
         super().__init__(
             "User does not exist for the provided access token",
@@ -183,17 +175,17 @@ class UserDoesNotExistError(CustomAuthError):
         )
 
 
-class AuthSessionMissingError(CustomAuthError):
+class AuthSessionMissingError(AuthError):
     def __init__(self) -> None:
         super().__init__("Auth session missing!")
 
 
-class AuthInvalidCredentialsError(CustomAuthError):
+class AuthInvalidCredentialsError(AuthError):
     def __init__(self, message: str) -> None:
         super().__init__(message)
 
 
-class AuthImplicitGrantRedirectError(CustomAuthError):
+class AuthImplicitGrantRedirectError(AuthError):
     def __init__(
         self,
         message: str,
@@ -237,6 +229,6 @@ class AuthWeakPasswordError(AuthApiError):
         self.reasons = reasons
 
 
-class AuthInvalidJwtError(CustomAuthError):
+class AuthInvalidJwtError(AuthError):
     def __init__(self, message: str) -> None:
         super().__init__(message, code="invalid_jwt")

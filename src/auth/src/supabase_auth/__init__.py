@@ -12,7 +12,6 @@ from .errors import (
     AuthSessionMissingError,
     AuthUnknownError,
     AuthWeakPasswordError,
-    CustomAuthError,
     ErrorCode,
     UserDoesNotExistError,
 )
@@ -156,7 +155,6 @@ __all__ = [
     "CaptchaToken",
     "ClaimsResponse",
     "CreateOAuthClientParams",
-    "CustomAuthError",
     "EmailOtpType",
     "ErrorCode",
     "Factor",

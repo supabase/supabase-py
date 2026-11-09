@@ -1415,7 +1415,6 @@ supporting_symbols:
   - AuthSessionMissingError
   - AuthUnknownError
   - AuthWeakPasswordError
-  - CustomAuthError
   - UserDoesNotExistError
   - WeakPasswordReasons
   - RawApiError

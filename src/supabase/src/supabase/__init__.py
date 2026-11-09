@@ -17,7 +17,6 @@ from supabase_auth import (
     AuthSessionMissingError,
     AuthUnknownError,
     AuthWeakPasswordError,
-    CustomAuthError,
     UserDoesNotExistError,
 )
 from supabase_functions import (
@@ -58,7 +57,6 @@ __all__ = [
     "AuthWeakPasswordError",
     "AuthorizationError",
     "Client",
-    "CustomAuthError",
     "FunctionsClientOptions",
     "FunctionsError",
     "FunctionsHttpError",

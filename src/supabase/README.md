@@ -224,10 +224,10 @@ SupabaseError
 │   └── FunctionsRelayError
 ├── SupabaseTransportError          No response could be read. The HTTP client's exception is `__cause__`.
 │   └── RequestTimeoutError            Also a built-in `TimeoutError`.
-├── AuthError                       Root of the auth errors.
-│   └── CustomAuthError                Raised by the auth client itself: AuthSessionMissingError,
-│                                      AuthInvalidCredentialsError, AuthInvalidJwtError,
-│                                      AuthImplicitGrantRedirectError, UserDoesNotExistError
+├── AuthError                       Root of the auth errors. Raised by the auth client itself as
+│                                   AuthSessionMissingError, AuthInvalidCredentialsError,
+│                                   AuthInvalidJwtError, AuthImplicitGrantRedirectError,
+│                                   UserDoesNotExistError
 ├── StorageException                Root of the storage errors: VectorBucketException
 ├── FunctionsError                  Root of the functions errors.
 ├── RealtimeError                   Root of the realtime errors: NotConnectedError,
