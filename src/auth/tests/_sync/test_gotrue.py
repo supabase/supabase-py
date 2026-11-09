@@ -489,36 +489,6 @@ def test_initialize_from_storage_keeps_refreshed_session() -> None:
     manager.refresh_token_timer.cancel()
 
 
-def test_save_session_schedules_refresh_in_seconds() -> None:
-    client = SyncSupabaseAuthClient(
-        url="http://auth.test",
-        http_session=HttpxSession(client=Client()),
-    )
-    manager = client.session_manager
-    user: dict[str, JSON] = {
-        "id": str(uuid4()),
-        "aud": "authenticated",
-        "app_metadata": {},
-        "user_metadata": {},
-        "created_at": "2024-01-01T00:00:00Z",
-    }
-    session = Session(
-        access_token="access-token",
-        refresh_token="refresh-token",
-        token_type="bearer",
-        expires_in=3600,
-        expires_at=round(time.time()) + 3600,
-        user=User.model_validate(user),
-    )
-
-    manager.save_session(session)
-
-    timer = manager.refresh_token_timer
-    assert timer is not None
-    timer.cancel()
-    assert 3600 - EXPIRY_MARGIN - 5 <= timer._seconds <= 3600 - EXPIRY_MARGIN
-
-
 def mock_session(access_token: str) -> Session:
     return Session(
         access_token=access_token,
@@ -536,6 +506,21 @@ def mock_session(access_token: str) -> Session:
             }
         ),
     )
+
+
+def test_save_session_schedules_refresh_in_seconds() -> None:
+    client = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client()),
+    )
+    manager = client.session_manager
+
+    manager.save_session(mock_session("access-token"))
+
+    timer = manager.refresh_token_timer
+    assert timer is not None
+    timer.cancel()
+    assert 3600 - EXPIRY_MARGIN - 5 <= timer._seconds <= 3600 - EXPIRY_MARGIN
 
 
 def test_persist_session_false_keeps_session_out_of_storage() -> None:
@@ -596,3 +581,37 @@ def test_storage_key_separates_clients_sharing_a_storage() -> None:
     assert sorted(storage.storage) == ["first", "second"]
     assert first.get_session() == first_session
     assert second.get_session() == second_session
+
+
+def test_persist_session_false_does_not_restore_session_from_storage() -> None:
+    storage = SyncMemoryStorage()
+    stored_session = mock_session("stored-access-token").model_dump_json()
+    storage.set_item(STORAGE_KEY, stored_session)
+    client = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client()),
+        auto_refresh_token=False,
+        persist_session=False,
+        storage=storage,
+    )
+
+    client.initialize_from_storage()
+
+    assert client.get_session() is None
+    assert storage.storage == {STORAGE_KEY: stored_session}
+
+
+def test_persist_session_false_keeps_code_verifier_out_of_storage() -> None:
+    storage = SyncMemoryStorage()
+    client = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client()),
+        auto_refresh_token=False,
+        persist_session=False,
+        storage=storage,
+        flow_type="pkce",
+    )
+
+    client.sign_in_with_oauth("github")
+
+    assert storage.storage == {}
