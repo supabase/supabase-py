@@ -3314,14 +3314,15 @@ wheels = [
 
 [[package]]
 name = "urwid"
-version = "4.0.2"
+version = "4.0.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "typing-extensions" },
     { name = "wcwidth" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/98/b8/9ed1c288eb7e9236ee83a3f847d15dfa879841219b9a7d174c6c2ef33f53/urwid-4.0.2.tar.gz", hash = "sha256:6962bd04ab98002326b67a431c59b2fb35e8b5abe2e095feda3ee7d8ea8f1228", size = 861918, upload-time = "2026-06-02T18:20:41.867Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/82/2589665991b051a1c2170694a01300d8280901d0538472c310f666e5e516/urwid-4.0.7.tar.gz", hash = "sha256:c31aff787741428028b20bac3b0774fbe4f10de00ae00fe07722244d09462248", size = 878680, upload-time = "2026-07-24T10:41:29.902Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/a0/39d524fb8ed3a9facdd2aa4eeb1a2635b3b8689c300989f8cebb989624ba/urwid-4.0.2-py3-none-any.whl", hash = "sha256:ca5958eca20d55535da37810a2e62cbd81a2ce399ee2e93b04a2718a544029eb", size = 295760, upload-time = "2026-06-02T18:20:40.11Z" },
+    { url = "https://files.pythonhosted.org/packages/86/ab/49f2a47aff4e2cf30523d3ade26fbf5a8a19dbbd229aef40502b90dde553/urwid-4.0.7-py3-none-any.whl", hash = "sha256:b85618b42f48ce3028405002743238c511185439cb356c3c68190c44cde4778a", size = 305955, upload-time = "2026-07-24T10:41:27.988Z" },
 ]
 
 [[package]]
