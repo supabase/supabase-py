@@ -81,13 +81,15 @@ class ItemsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
 The main modules are:
 
-| Module                         | Contents                                                                                                                                        |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `supabase_utils.http.request`  | `Request` and `Response`, and the request builders `EmptyRequest`, `BytesRequest`, `JSONRequest`, `TextRequest` and `MultipartFormDataRequest`. |
-| `supabase_utils.http.headers`  | `Headers`, an immutable, case insensitive multi map of header values.                                                                           |
-| `supabase_utils.http.query`    | `URLQuery`, an immutable multi map of query parameters.                                                                                         |
-| `supabase_utils.http.io`       | The `HttpSession` and `AsyncHttpSession` protocols, the `SyncHttpIO` and `AsyncHttpIO` executors and `handle_http_io`.                          |
-| `supabase_utils.http.adapters` | The adapters for httpx and aiohttp.                                                                                                             |
+| Module                          | Contents                                                                                                                                        |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supabase_utils.http.request`   | `Request` and `Response`, and the request builders `EmptyRequest`, `BytesRequest`, `JSONRequest`, `TextRequest` and `MultipartFormDataRequest`. |
+| `supabase_utils.http.headers`   | `Headers`, an immutable, case insensitive multi map of header values.                                                                           |
+| `supabase_utils.http.query`     | `URLQuery`, an immutable multi map of query parameters.                                                                                         |
+| `supabase_utils.http.io`        | The `HttpSession` and `AsyncHttpSession` protocols, the `SyncHttpIO` and `AsyncHttpIO` executors and `handle_http_io`.                          |
+| `supabase_utils.http.errors`    | `RequestTimeoutError`, raised by an adapter when a request times out.                                                                           |
+| `supabase_utils.http.redirects` | `keeps_credentials` and `CREDENTIAL_HEADERS`, for adapters that follow redirects.                                                               |
+| `supabase_utils.http.adapters`  | The adapters for httpx and aiohttp.                                                                                                             |
 
 ## Writing an adapter
 
@@ -105,8 +107,11 @@ An adapter connects another HTTP library. It implements one of two protocols fro
 | `headers` | `Headers`       | The headers to send. `iter_items()` yields each value of a repeated header. |
 | `content` | `bytes \| None` | The body, already encoded, or `None` for no body.                           |
 | `delay`   | `float \| None` | Seconds to wait before sending. The executor waits, not the adapter.        |
+| `timeout` | `float \| None` | Seconds the request may take. `None` leaves it to the client's own timeout. |
 
-It returns a `Response` with the status code, the body as `bytes`, the response headers and the request it answers. `send` must not raise for error statuses: the packages read `response.status` and raise their own errors. Errors of the transport itself, such as a refused connection, should propagate.
+It returns a `Response` with the status code, the body as `bytes`, the response headers and the request it answers. `send` must not raise for error statuses: the packages read `response.status` and raise their own errors. When `timeout` elapses, raise `RequestTimeoutError` from `supabase_utils.http.errors`, so every adapter reports a timeout the same way. Other errors of the transport itself, such as a refused connection, should propagate.
+
+If the library follows redirects, drop the headers in `CREDENTIAL_HEADERS` from `supabase_utils.http.redirects` once `keeps_credentials(request.url, next_url)` is false, as the built-in adapters do, so a redirect to another host never receives the project key. The simplest way to stay safe is to not follow redirects at all.
 
 Leaving the context manager should close the underlying client.
 
@@ -116,6 +121,7 @@ A minimal adapter for the `requests` library:
 from types import TracebackType
 
 import requests
+from supabase_utils.http.errors import RequestTimeoutError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
 
@@ -125,12 +131,17 @@ class RequestsSession:
         self.session = session
 
     def send(self, request: Request) -> Response:
-        response = self.session.request(
-            method=request.method,
-            url=str(request.url),
-            headers=dict(request.headers),
-            data=request.content,
-        )
+        try:
+            response = self.session.request(
+                method=request.method,
+                url=str(request.url),
+                headers=dict(request.headers),
+                data=request.content,
+                timeout=request.timeout,
+                allow_redirects=False,
+            )
+        except requests.Timeout as error:
+            raise RequestTimeoutError(request) from error
         return Response(
             status=response.status_code,
             content=response.content,
@@ -150,7 +161,7 @@ class RequestsSession:
         self.session.close()
 ```
 
-`dict(request.headers)` joins the values of a repeated header with `, `. Pass `request.headers.iter_items()` instead if the library accepts a list of pairs, as httpx does.
+`dict(request.headers)` joins the values of a repeated header with `, `. Pass `request.headers.iter_items()` instead if the library accepts a list of pairs, as httpx does. The adapter does not follow redirects, so it never forwards credentials to another host.
 
 The adapters in [`src/supabase_utils/http/adapters`](src/supabase_utils/http/adapters) are complete examples.
 
