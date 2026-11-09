@@ -1,6 +1,0 @@
-# Exclude test directories and files from the public API surface parser
-src/*/tests/
-**/conftest.py
-
-# Internal helpers that are not part of the public API
-src/realtime/src/realtime/_redact.py
