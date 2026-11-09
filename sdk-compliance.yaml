@@ -1198,6 +1198,13 @@ features:
     supporting_symbols:
       - ListVectorBucketsItem
       - ListVectorBucketsResponse
+  storage.vector_buckets.get_vector_bucket:
+    status: implemented
+    symbols:
+      - StorageVectorsClient.get_bucket
+    supporting_symbols:
+      - GetVectorBucketResponse
+      - VectorBucket
   storage.vector_buckets.delete_vector_bucket:
     status: implemented
     symbols:
@@ -1213,7 +1220,6 @@ features:
       - StorageVectorsClient
       - VectorBucketScope
       - VectorIndexScope
-      - StorageVectorsClient.get_bucket
   storage.vector_buckets.create_index:
     status: implemented
     symbols:
