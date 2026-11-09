@@ -667,7 +667,11 @@ class AsyncSupabaseAuthClient(
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
-            storage=storage if persist_session and storage else AsyncMemoryStorage(),
+            storage=(
+                storage
+                if persist_session and storage is not None
+                else AsyncMemoryStorage()
+            ),
             state_change_emitters={},
             storage_key=storage_key,
             persist_session=persist_session,
@@ -1109,7 +1113,11 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             base_url=self.base_url,
             executor=executor,
             default_headers=default_headers,
-            storage=storage if persist_session and storage else SyncMemoryStorage(),
+            storage=(
+                storage
+                if persist_session and storage is not None
+                else SyncMemoryStorage()
+            ),
             state_change_emitters={},
             storage_key=storage_key,
             persist_session=persist_session,
