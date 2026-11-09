@@ -124,7 +124,14 @@ import requests
 from supabase_utils.http.errors import RequestTimeoutError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
-from urllib3.exceptions import ReadTimeoutError
+from urllib3.exceptions import MaxRetryError, ReadTimeoutError
+
+
+def is_read_timeout(error: requests.ConnectionError) -> bool:
+    reason = error.args[0] if error.args else None
+    if isinstance(reason, MaxRetryError):
+        reason = reason.reason
+    return isinstance(reason, ReadTimeoutError)
 
 
 class RequestsSession:
@@ -141,15 +148,16 @@ class RequestsSession:
                 timeout=request.timeout or 60,
                 allow_redirects=False,
             )
+            content = response.content
         except requests.Timeout as error:
             raise RequestTimeoutError(request) from error
         except requests.ConnectionError as error:
-            if isinstance(error.args[0], ReadTimeoutError):
+            if is_read_timeout(error):
                 raise RequestTimeoutError(request) from error
             raise
         return Response(
             status=response.status_code,
-            content=response.content,
+            content=content,
             headers=Headers.from_mapping(response.headers),
             request=request,
         )
@@ -166,7 +174,7 @@ class RequestsSession:
         self.session.close()
 ```
 
-`dict(request.headers)` joins the values of a repeated header with `, `. Pass `request.headers.iter_items()` instead if the library accepts a list of pairs, as httpx does. `requests` has no client-level timeout, so the example falls back to 60 seconds. It reports a stall while reading the body as `ConnectionError` around a `ReadTimeoutError` rather than as `requests.Timeout`, so the example translates that case too. `allow_redirects=False` keeps it out of the redirect rule above.
+`dict(request.headers)` joins the values of a repeated header with `, `. Pass `request.headers.iter_items()` instead if the library accepts a list of pairs, as httpx does. `requests` has no client-level timeout, so the example falls back to 60 seconds. It raises `requests.Timeout` for some read timeouts, but reports others as `ConnectionError` around a `ReadTimeoutError`, sometimes inside a `MaxRetryError`, so `is_read_timeout` translates those too. Reading `response.content` inside the `try` block covers a session that streams responses. `allow_redirects=False` keeps it out of the redirect rule above.
 
 The adapters in [`src/supabase_utils/http/adapters`](src/supabase_utils/http/adapters) are complete examples.
 
