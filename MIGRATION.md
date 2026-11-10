@@ -134,6 +134,26 @@ The `RealtimeChannelOptions` builder methods return a new copy and leave the ori
 
 The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabase_functions` accept any `Mapping` for `headers`, not only a `dict`.
 
+## PostgREST query builders are immutable
+
+Every method on a query builder returns a new builder and leaves the one it was called on unchanged. This includes `not_`, the methods that change the shape of the result such as `single`, `maybe_single`, `csv` and `explain`, and `retry`, `request_timeout`, `max_affected` and `strip_nulls`. A builder can be the base of several queries, and executing one builder twice sends the same request twice.
+
+```python
+accounts = client.table("items").select("*").eq("account_id", account_id)
+first = accounts.in_("id", ["1", "2", "3"]).execute()
+second = accounts.in_("id", ["4", "5", "6"]).execute()
+```
+
+Code that called a builder method without using the returned builder no longer changes the query.
+
+| Before                                            | After                                                     |
+| ------------------------------------------------- | --------------------------------------------------------- |
+| `query.eq("id", 1)` followed by `query.execute()` | `query = query.eq("id", 1)` followed by `query.execute()` |
+| `query.not_` followed by `query.eq("id", 1)`      | `query.not_.eq("id", 1)`                                  |
+| `query.single()` followed by `query.execute()`    | `query.single().execute()`                                |
+
+The builders, `postgrest.request_builder.PostgrestRequest`, and `supabase_utils.http.request.EmptyRequest` with its subclasses `BytesRequest`, `JSONRequest`, `TextRequest` and `MultipartFormDataRequest` are frozen dataclasses. Setting a field raises `dataclasses.FrozenInstanceError`. Build a changed copy with `dataclasses.replace` instead. The finalized `Request` stays mutable. The builder constructors take keyword arguments only.
+
 ## Realtime heartbeat intervals are used as given
 
 `heartbeat_interval` was raised to 15 seconds when it was lower. It is now used as given, so an interval below 15 seconds sends heartbeats more often than before. To keep the old timing, pass 15 or more.

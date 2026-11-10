@@ -69,6 +69,16 @@ r = await client.from_("countries").select("id", "name").execute()
 countries = r.data
 ```
 
+### Reuse a query
+
+Every builder method returns a new query and leaves the original unchanged, so one base query can branch into several requests. Each request sends only its own filters.
+
+```py
+asian_countries = client.from_("countries").select("id", "name").eq("continent", "Asia")
+large = await asian_countries.gte("population", 100_000_000).execute()
+small = await asian_countries.lt("population", 1_000_000).execute()
+```
+
 ### Update
 
 ```py

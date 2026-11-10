@@ -58,7 +58,7 @@ class ToRequest(Protocol):
     def finalize(self, base_url: URL, default_headers: Headers) -> Request: ...
 
 
-@dataclass
+@dataclass(frozen=True)
 class EmptyRequest:
     path: list[str]
     method: HTTPRequestMethod
@@ -89,7 +89,7 @@ class EmptyRequest:
         return headers.override("Content-Type", content_type)
 
 
-@dataclass
+@dataclass(frozen=True)
 class BytesRequest(EmptyRequest):
     body: bytes
 
@@ -108,7 +108,7 @@ class BytesRequest(EmptyRequest):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class JSONRequest(EmptyRequest):
     body: JSON | BaseModel
     exclude_none: bool = True
@@ -132,7 +132,7 @@ class JSONRequest(EmptyRequest):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class TextRequest(EmptyRequest):
     text: str
 
@@ -221,7 +221,7 @@ def encode_multipart_formdata(fields: list[PartField]) -> tuple[bytes, str]:
     return body.getvalue(), content_type
 
 
-@dataclass
+@dataclass(frozen=True)
 class MultipartFormDataRequest(EmptyRequest):
     fields: list[PartField]
 

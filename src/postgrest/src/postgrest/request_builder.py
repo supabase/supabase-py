@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import copy
 import json
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from re import search
 from typing import (
     Any,
@@ -233,6 +232,7 @@ class SingleAPIResponse:
         return SingleAPIResponse(data=data, count=count)
 
 
+@dataclass(frozen=True)
 class PostgrestRequest(JSONRequest):
     retry: bool = True
     strip_nulls: bool = False
@@ -255,19 +255,15 @@ class PostgrestRequest(JSONRequest):
         return request
 
 
+@dataclass(frozen=True, kw_only=True)
 class BaseFilterRequestBuilder:
     request: PostgrestRequest
     negate_next: bool = False
 
-    def __init__(self, request: PostgrestRequest, negate_next: bool = False) -> None:
-        self.request = request
-        self.negate_next = negate_next
-
     @property
     def not_(self: Self) -> Self:
-        """Whether the filter applied next should be negated."""
-        self.negate_next = True
-        return self
+        """A copy of this query that negates the filter applied next."""
+        return replace(self, negate_next=True)
 
     def filter(self: Self, column: str, operator: str, criteria: Any) -> Self:
         """Apply filters on a query.
@@ -277,13 +273,14 @@ class BaseFilterRequestBuilder:
             operator: The operator to use while filtering
             criteria: The value to filter by
         """
-        if self.negate_next is True:
-            self.negate_next = False
+        if self.negate_next:
             operator = f"{Filters.NOT}.{operator}"
         key = sanitize_param(column)
         val = f"{operator}.{_serialize_filter_value(criteria)}"
-        self.request.query = self.request.query.set(key, val)
-        return self
+        query = self.request.query.set(key, val)
+        return replace(
+            self, negate_next=False, request=replace(self.request, query=query)
+        )
 
     def eq(self: Self, column: str, value: Any) -> Self:
         """An 'equal to' filter.
@@ -414,10 +411,11 @@ class BaseFilterRequestBuilder:
             reference_table: Set this to filter on referenced tables instead of the parent table
         """
         op = "not.or" if self.negate_next else "or"
-        self.negate_next = False
         key = f"{sanitize_param(reference_table)}.{op}" if reference_table else op
-        self.request.query = self.request.query.set(key, f"({filters})")
-        return self
+        query = self.request.query.set(key, f"({filters})")
+        return replace(
+            self, negate_next=False, request=replace(self.request, query=query)
+        )
 
     def fts(self: Self, column: str, query: Any) -> Self:
         return self.filter(column, Filters.FTS, query)
@@ -518,7 +516,7 @@ class BaseFilterRequestBuilder:
             )
 
         for key, value in query.items():
-            updated_query = self.eq(key, value)
+            updated_query = updated_query.eq(key, value)
 
         return updated_query
 
@@ -530,13 +528,13 @@ class BaseFilterRequestBuilder:
         Args:
             value: The maximum number of rows that can be affected
         """
-        self.request.headers = self.request.headers.set(
-            "Prefer", "handling=strict"
-        ).set("Prefer", f"max-affected={value}")
+        headers = self.request.headers.set("Prefer", "handling=strict").set(
+            "Prefer", f"max-affected={value}"
+        )
+        return replace(self, request=replace(self.request, headers=headers))
 
-        return self
 
-
+@dataclass(frozen=True, kw_only=True)
 class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
     def order(
         self: Self,
@@ -564,8 +562,8 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
             else ""
         )
         val = f"{order}{nullsfirst_str}"
-        self.request.query = self.request.query.set(key, val)
-        return self
+        query = self.request.query.set(key, val)
+        return replace(self, request=replace(self.request, query=query))
 
     def strip_nulls(self: Self) -> Self:
         """Strip null values from the response data.
@@ -574,8 +572,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         """
         if self.request.headers.get("Accept") == "text/csv":
             raise ValueError("strip_nulls() cannot be used with Accept: text/csv")
-        self.request.strip_nulls = True
-        return self
+        return replace(self, request=replace(self.request, strip_nulls=True))
 
     def limit(self: Self, size: int, *, foreign_table: str | None = None) -> Self:
         """Limit the number of rows returned by a query.
@@ -586,36 +583,29 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         .. versionchanged:: 0.10.3
            Allow limiting results returned for foreign tables with the foreign_table parameter.
         """
-        self.request.query = self.request.query.set(
-            f"{foreign_table}.limit" if foreign_table else "limit",
-            size,
+        query = self.request.query.set(
+            f"{foreign_table}.limit" if foreign_table else "limit", size
         )
-        return self
+        return replace(self, request=replace(self.request, query=query))
 
     def offset(self: Self, size: int) -> Self:
         """Set the starting row index returned by a query.
         Args:
             size: The number of the row to start at
         """
-        self.request.query = self.request.query.set(
-            "offset",
-            size,
-        )
-        return self
+        query = self.request.query.set("offset", size)
+        return replace(self, request=replace(self.request, query=query))
 
     def range(
         self: Self, start: int, end: int, foreign_table: str | None = None
     ) -> Self:
-        self.request.query = self.request.query.set(
+        query = self.request.query.set(
             f"{foreign_table}.offset" if foreign_table else "offset", start
-        )
-        self.request.query = self.request.query.set(
-            f"{foreign_table}.limit" if foreign_table else "limit",
-            end - start + 1,
-        )
-        return self
+        ).set(f"{foreign_table}.limit" if foreign_table else "limit", end - start + 1)
+        return replace(self, request=replace(self.request, query=query))
 
 
+@dataclass(frozen=True, kw_only=True)
 class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
     def select(
         self,
@@ -629,20 +619,20 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
             :class:`BaseSelectRequestBuilder`
         """
         _method, params, _headers, _json = pre_select(*columns, count=None)
-        self.request.query = self.request.query.merge(params)
-        self.request.headers = self.request.headers.set(
-            "Prefer", "return=representation"
+        request = replace(
+            self.request,
+            query=self.request.query.merge(params),
+            headers=self.request.headers.set("Prefer", "return=representation"),
         )
-
-        return self
+        return replace(self, request=request)
 
     def csv(self) -> Self:
         """Specify that the query must retrieve data as a single CSV string."""
-        self.request.headers = self.request.headers.set("Accept", "text/csv")
-        return self
+        headers = self.request.headers.set("Accept", "text/csv")
+        return replace(self, request=replace(self.request, headers=headers))
 
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class BaseRequestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     executor: HttpIO
     base_url: URL
@@ -651,15 +641,13 @@ class BaseRequestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
     def retry(self, enabled: bool) -> Self:
         """Enable or disable retrying GET and HEAD requests on 503 and 520."""
-        self.request.retry = enabled
-        return self
+        return replace(self, request=replace(self.request, retry=enabled))
 
     def request_timeout(self, seconds: float) -> Self:
         """Fail with `RequestTimeoutError` once a request of this query goes
         `seconds` without progress, overriding the timeout of the client."""
         validate_request_timeout(seconds)
-        self.request.timeout = seconds
-        return self
+        return replace(self, request=replace(self.request, timeout=seconds))
 
 
 def _api_error(response: Response) -> APIError:
@@ -696,27 +684,28 @@ def send_with_retry(req: PostgrestRequest) -> HttpMethod[Response]:
         if resp.is_success or not _can_retry(resp, req.retry, attempt_count):
             break
         attempt_count += 1
-        attempt = copy.copy(req)
-        attempt.headers = req.headers.override("X-Retry-Count", str(attempt_count))
-        attempt.delay = min(2 ** (attempt_count - 1), 30)
+        attempt = replace(
+            req,
+            headers=req.headers.override("X-Retry-Count", str(attempt_count)),
+            delay=min(2 ** (attempt_count - 1), 30),
+        )
     return resp
 
 
+@dataclass(frozen=True, kw_only=True)
 class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[HttpIO]):
     def select(self, *columns: str) -> Self:
         _, params, _, _ = pre_select(*columns, count=None)
-        self.request.query = self.request.query.set("select", params["select"])
+        query = self.request.query.set("select", params["select"])
         if prefer_headers := self.request.headers.get_list("Prefer"):
             prefer_headers = [h for h in prefer_headers if not h.startswith("return=")]
             prefer_headers.append("return=representation")
-            self.request.headers = self.request.headers.override(
-                "Prefer", ",".join(prefer_headers)
-            )
+            headers = self.request.headers.override("Prefer", ",".join(prefer_headers))
         else:
-            self.request.headers = self.request.headers.set(
-                "Prefer", "return=representation"
-            )
-        return self
+            headers = self.request.headers.set("Prefer", "return=representation")
+        return replace(
+            self, request=replace(self.request, query=query, headers=headers)
+        )
 
     def single(self) -> SingleRequestBuilder[HttpIO]:
         """Specify that the query will only return a single row in response.
@@ -724,14 +713,14 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        self.request.headers = self.request.headers.set(
+        headers = self.request.headers.set(
             "Accept", "application/vnd.pgrst.object+json"
         )
         return SingleRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
-            request=self.request,
+            request=replace(self.request, headers=headers),
         )
 
     def maybe_single(self) -> MaybeSingleRequestBuilder[HttpIO]:
@@ -745,12 +734,12 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
 
     def csv(self) -> TextRequestBuilder[HttpIO]:
         """Specify that the query must retrieve data as a single CSV string."""
-        self.request.headers = self.request.headers.set("Accept", "text/csv")
+        headers = self.request.headers.set("Accept", "text/csv")
         return TextRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
-            request=self.request,
+            request=replace(self.request, headers=headers),
         )
 
     @overload
@@ -796,21 +785,22 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
             if key not in ["self", "format"] and value
         ]
         options_str = "|".join(options)
-        self.request.headers = self.request.headers.set(
+        headers = self.request.headers.set(
             "Accept", f"application/vnd.pgrst.plan+{format}; options={options_str}"
         )
+        request = replace(self.request, headers=headers)
         if format == "text":
             return ExplainRequestBuilder(
                 executor=self.executor,
                 base_url=self.base_url,
                 default_headers=self.default_headers,
-                request=self.request,
+                request=request,
             )
         return QueryRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
-            request=self.request,
+            request=request,
         )
 
     @handle_http_io
@@ -835,6 +825,7 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
             raise _invalid_response_error(r) from e
 
 
+@dataclass(frozen=True, kw_only=True)
 class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     BaseRequestClient[HttpIO]
 ):
@@ -860,6 +851,7 @@ class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             raise _invalid_response_error(response) from e
 
 
+@dataclass(frozen=True, kw_only=True)
 class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[HttpIO]):
     @handle_http_io
     def execute(self) -> HttpMethod[str]:
@@ -881,6 +873,7 @@ class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[Ht
             raise _api_error(response)
 
 
+@dataclass(frozen=True, kw_only=True)
 class ExplainRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     BaseRequestClient[HttpIO]
 ):
@@ -892,6 +885,7 @@ class ExplainRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         return r.content.decode("utf-8")
 
 
+@dataclass(frozen=True, kw_only=True)
 class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     BaseRequestClient[HttpIO]
 ):
@@ -921,12 +915,14 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             raise _api_error(response)
 
 
+@dataclass(frozen=True, kw_only=True)
 class FilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     QueryRequestBuilder[HttpIO], BaseFilterRequestBuilder
 ):
     pass
 
 
+@dataclass(frozen=True, kw_only=True)
 class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     BaseRequestClient[HttpIO], BaseRPCRequestBuilder
 ):
@@ -936,14 +932,14 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        self.request.headers = self.request.headers.set(
+        headers = self.request.headers.set(
             "Accept", "application/vnd.pgrst.object+json"
         )
         return SingleRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
-            request=self.request,
+            request=replace(self.request, headers=headers),
         )
 
     def maybe_single(self) -> MaybeSingleRequestBuilder[HttpIO]:
@@ -977,6 +973,7 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             raise _invalid_response_error(r) from e
 
 
+@dataclass(frozen=True, kw_only=True)
 class RPCCountRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     BaseRequestClient[HttpIO], BaseRPCRequestBuilder
 ):
@@ -1001,6 +998,7 @@ class RPCCountRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             raise _api_error(response)
 
 
+@dataclass(frozen=True, kw_only=True)
 class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
 ):
@@ -1018,20 +1016,14 @@ class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         elif type_ == "web_search":
             type_part = "w"
         config_part = f"({options.get('config')})" if options.get("config") else ""
-        self.filter(column, f"{type_part}fts{config_part}", query)
-        return self
+        return self.filter(column, f"{type_part}fts{config_part}", query)
 
 
-class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #
-    def __init__(
-        self,
-        executor: HttpIO,
-        base_url: URL,
-        default_headers: Headers,
-    ) -> None:
-        self.executor: HttpIO = executor
-        self.base_url = base_url
-        self.default_headers = default_headers
+@dataclass(frozen=True, kw_only=True)
+class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
+    executor: HttpIO
+    base_url: URL
+    default_headers: Headers
 
     def select(
         self,

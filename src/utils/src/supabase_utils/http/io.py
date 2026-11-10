@@ -113,10 +113,13 @@ class AsyncHttpIO:
             return return_value_iterator.return_value
 
 
-class HasExecutor[HttpIO: (SyncHttpIO, AsyncHttpIO)](Protocol):
-    executor: HttpIO
-    base_url: URL
-    default_headers: Headers
+class _HasExecutor[HttpIO: (SyncHttpIO, AsyncHttpIO)](Protocol):
+    @property
+    def executor(self) -> HttpIO: ...
+    @property
+    def base_url(self) -> URL: ...
+    @property
+    def default_headers(self) -> Headers: ...
 
 
 @dataclass
@@ -125,17 +128,17 @@ class handle_http_io[**Params, Success]:
 
     @overload
     def __get__(
-        self, obj: HasExecutor[SyncHttpIO], objtype: type | None = None
+        self, obj: _HasExecutor[SyncHttpIO], objtype: type | None = None
     ) -> Callable[Params, Success]: ...
 
     @overload
     def __get__(
-        self, obj: HasExecutor[AsyncHttpIO], objtype: type | None = None
+        self, obj: _HasExecutor[AsyncHttpIO], objtype: type | None = None
     ) -> Callable[Params, Awaitable[Success]]: ...
 
     def __get__(
         self,
-        obj: HasExecutor[SyncHttpIO] | HasExecutor[AsyncHttpIO],
+        obj: _HasExecutor[SyncHttpIO] | _HasExecutor[AsyncHttpIO],
         objtype: type | None = None,
     ) -> Callable[Params, Success | Awaitable[Success]]:
         def bound_method(

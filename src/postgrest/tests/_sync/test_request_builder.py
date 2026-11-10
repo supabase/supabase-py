@@ -438,9 +438,7 @@ class TestTextSearch:
         if config:
             expected_operator += f"({config})"
         assert builder.request.query["content"] == f"{expected_operator}.fat cat"
-        assert not selected.negate_next
-        selected.eq("published", "true")
-        assert builder.request.query["published"] == "eq.true"
+        assert builder.eq("published", "true").request.query["published"] == "eq.true"
 
     def test_text_search(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("catchphrase").text_search(
