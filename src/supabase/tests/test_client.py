@@ -11,6 +11,7 @@ from supabase_auth import (
     SyncSupabaseAuthClient,
 )
 from supabase_auth.constants import STORAGE_KEY
+from supabase_auth.types import AuthChangeEvent, AuthStateChange
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
 import supabase.aiohttp
@@ -204,10 +205,14 @@ def test_sync_functions_send_the_session_token_with_a_new_format_key(
     with SyncHttpxClient(transport=recording_transport(requests)) as http_client:
         client = Client(URL, key, HttpxSession(client=http_client))
         client.auth.session_manager.notify_all_subscribers(
-            "SIGNED_IN", MagicMock(access_token="userjwt")
+            AuthStateChange(
+                AuthChangeEvent.SIGNED_IN, MagicMock(access_token="userjwt")
+            )
         )
         client.functions.invoke("hello")
-        client.auth.session_manager.notify_all_subscribers("SIGNED_OUT", None)
+        client.auth.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.SIGNED_OUT)
+        )
         client.functions.invoke("hello")
 
     signed_in, signed_out = requests
@@ -226,10 +231,14 @@ async def test_async_functions_send_the_session_token_with_a_new_format_key(
     async with AsyncHttpxClient(transport=recording_transport(requests)) as http_client:
         client = AsyncClient(URL, key, AsyncHttpxSession(client=http_client))
         client.auth.session_manager.notify_all_subscribers(
-            "SIGNED_IN", MagicMock(access_token="userjwt")
+            AuthStateChange(
+                AuthChangeEvent.SIGNED_IN, MagicMock(access_token="userjwt")
+            )
         )
         await client.functions.invoke("hello")
-        client.auth.session_manager.notify_all_subscribers("SIGNED_OUT", None)
+        client.auth.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.SIGNED_OUT)
+        )
         await client.functions.invoke("hello")
 
     signed_in, signed_out = requests
@@ -430,7 +439,9 @@ def test_client_headers_follow_the_session() -> None:
         headers = client.headers
 
         client.auth.session_manager.notify_all_subscribers(
-            "SIGNED_IN", MagicMock(access_token="userjwt")
+            AuthStateChange(
+                AuthChangeEvent.SIGNED_IN, MagicMock(access_token="userjwt")
+            )
         )
 
     assert headers["Authorization"] == "Bearer userjwt"

@@ -16,10 +16,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from supabase_utils.http.query import URLQuery
 
-from .constants import (
-    API_VERSION_HEADER_NAME,
-    API_VERSIONS_2024_01_01_TIMESTAMP,
-)
+from .constants import API_VERSION_HEADER_NAME
 from .errors import (
     AuthApiError,
     AuthError,
@@ -27,7 +24,6 @@ from .errors import (
     AuthRetryableError,
     AuthUnknownError,
     AuthWeakPasswordError,
-    ErrorCodeAdapter,
     RawApiError,
 )
 from .types import (
@@ -84,7 +80,7 @@ def parse_user_response(response: Response) -> UserResponse:
 
 
 def parse_sso_response(response: Response) -> SSOResponse:
-    return SSOResponse.model_validate_json(response.content)
+    return _validate_model(response, SSOResponse)
 
 
 JWKSetParser = TypeAdapter(JWKSet)
@@ -110,6 +106,12 @@ def _validate_adapter[Inner](response: Response, adapter: TypeAdapter[Inner]) ->
     raise _handle_error_response(response)
 
 
+def _is_retryable_status(status: int) -> bool:
+    """A rate limit or a server or gateway error says nothing about the
+    request itself, so the same request may succeed later."""
+    return status == 429 or status >= 500
+
+
 def _handle_error_response(response: Response) -> AuthError:
     try:
         raw_error = RawApiError.model_validate_json(response.content)
@@ -120,33 +122,14 @@ def _handle_error_response(response: Response) -> AuthError:
             code="unexpected_failure",
             response=response,
         )
-    if not response.is_error or response.status in {
-        502,
-        503,
-        504,
-        520,
-        521,
-        522,
-        523,
-        524,
-        530,
-    }:
+    error_code = raw_error.error_code
+    if not response.is_error or _is_retryable_status(response.status):
         return AuthRetryableError(
             raw_error.get_error_message(),
             status_code=response.status,
+            code=error_code,
             response=response,
         )
-    error_code = None
-    response_api_version = parse_response_api_version(response)
-
-    if (
-        response_api_version
-        and datetime.timestamp(response_api_version)
-        >= API_VERSIONS_2024_01_01_TIMESTAMP
-    ):
-        error_code = ErrorCodeAdapter.validate_python(raw_error.error_code)
-    else:
-        error_code = raw_error.error_code
 
     if (
         error_code is None

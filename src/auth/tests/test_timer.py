@@ -58,3 +58,39 @@ def test_sync_timer_cancel_prevents_call() -> None:
 
     assert not called.wait(timeout=0.5)
     assert not timer.is_alive()
+
+
+async def test_async_timer_cancel_from_its_own_callback_lets_it_finish() -> None:
+    finished = asyncio.Event()
+    timer: _AsyncTimer
+
+    async def callback() -> None:
+        timer.cancel()
+        await asyncio.sleep(0)
+        finished.set()
+
+    timer = _AsyncTimer(seconds=0, function=callback)
+    timer.start()
+    await asyncio.wait_for(finished.wait(), timeout=1)
+
+    assert not timer.is_alive()
+
+
+async def test_async_timer_cancel_from_another_task_stops_the_callback() -> None:
+    started = asyncio.Event()
+    finished = False
+
+    async def callback() -> None:
+        nonlocal finished
+        started.set()
+        await asyncio.sleep(10)
+        finished = True
+
+    timer = _AsyncTimer(seconds=0, function=callback)
+    timer.start()
+    await asyncio.wait_for(started.wait(), timeout=1)
+    timer.cancel()
+    await asyncio.sleep(0)
+
+    assert not finished
+    assert not timer.is_alive()

@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, Self, override
-from uuid import uuid4
 
 from jwt import get_algorithm_by_name
 from pydantic import BaseModel
@@ -57,6 +56,7 @@ from .types import (
     AuthFlowType,
     AuthOtpResponse,
     AuthResponse,
+    AuthStateChange,
     ClaimsResponse,
     IdentitiesResponse,
     JWKSet,
@@ -69,6 +69,7 @@ from .types import (
     SignInWithPasswordCredentials,
     SignInWithPasswordlessCredentials,
     SignInWithSSOCredentials,
+    SignOutReason,
     SignOutScope,
     SignUpWithEmailAndPasswordCredentials,
     SignUpWithPasswordCredentials,
@@ -418,6 +419,7 @@ class SupabaseAuthHttpClient[
             exp = payload.exp
             if exp:
                 has_expired = exp <= time_now
+                expires_at = exp
         if has_expired:
             if not refresh_token:
                 raise AuthSessionMissingError
@@ -443,20 +445,16 @@ class SupabaseAuthHttpClient[
 
     def on_auth_state_change(
         self,
-        callback: Callable[[AuthChangeEvent, Session | None], None],
+        callback: Callable[[AuthStateChange], None],
     ) -> Subscription:
-        unique_id = str(uuid4())
+        """
+        Receive a notification every time the auth state changes.
 
-        def _unsubscribe() -> None:
-            self.session_manager.state_change_emitters.pop(unique_id, None)
-
-        subscription = Subscription(
-            id=unique_id,
-            callback=callback,
-            unsubscribe=_unsubscribe,
-        )
-        self.session_manager.state_change_emitters[unique_id] = subscription
-        return subscription
+        `callback` is first called with `INITIAL_SESSION` and the session the
+        client knows of, before this method returns. Call `initialize()` first
+        to have a persisted session recovered by then.
+        """
+        return self.session_manager.subscribe(callback)
 
     @handle_http_io
     def _reset_password_for_email(
@@ -716,21 +714,22 @@ class AsyncSupabaseAuthClient(
             if _is_implicit_grant_flow(URL(url)):
                 session, redirect_type = await self._get_session_from_url(url)
                 await self.session_manager.save_session(session)
-                self.session_manager.notify_all_subscribers("SIGNED_IN", session)
+                self.session_manager.notify_all_subscribers(
+                    AuthStateChange(AuthChangeEvent.SIGNED_IN, session)
+                )
                 if redirect_type == "recovery":
                     self.session_manager.notify_all_subscribers(
-                        "PASSWORD_RECOVERY", session
+                        AuthStateChange(AuthChangeEvent.PASSWORD_RECOVERY, session)
                     )
         except Exception as e:
             await self.session_manager.remove_session()
             raise e
 
     async def _save_session_and_sign_in(self, auth_response: AuthResponse) -> None:
-        await self.session_manager.remove_session()
         if auth_response.session:
             await self.session_manager.save_session(auth_response.session)
             self.session_manager.notify_all_subscribers(
-                "SIGNED_IN", auth_response.session
+                AuthStateChange(AuthChangeEvent.SIGNED_IN, auth_response.session)
             )
 
     async def _store_code_verifier(
@@ -853,7 +852,6 @@ class AsyncSupabaseAuthClient(
         """
         Log in an existing user via a third-party provider.
         """
-        await self.session_manager.remove_session()
         oauth_response, code_verifier = self._sign_in_with_oauth(
             provider, redirect_to, scopes, query_params
         )
@@ -902,7 +900,6 @@ class AsyncSupabaseAuthClient(
         If you're using phone sign-ins, only an OTP will be sent.
         You won't be able to send a magiclink for phone sign-ins.
         """
-        await self.session_manager.remove_session()
         code_verifier = (
             await self._prepare_code_verifier()
             if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials)
@@ -916,7 +913,6 @@ class AsyncSupabaseAuthClient(
         """
         Attempts a single-sign on using an enterprise Identity Provider.
         """
-        await self.session_manager.remove_session()
         code_verifier = await self._prepare_code_verifier()
         return await self._sign_in_with_sso(credentials, code_verifier)
 
@@ -985,7 +981,9 @@ class AsyncSupabaseAuthClient(
             session, attributes, email_redirect_to, code_verifier
         )
         await self.session_manager.save_session(session)
-        self.session_manager.notify_all_subscribers("USER_UPDATED", session)
+        self.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.USER_UPDATED, session)
+        )
         return user_response
 
     async def set_session(self, access_token: str, refresh_token: str) -> AuthResponse:
@@ -1006,12 +1004,14 @@ class AsyncSupabaseAuthClient(
         auth_response = await self._set_session(access_token, refresh_token)
         if auth_response.session:
             await self.session_manager.save_session(auth_response.session)
-            event: AuthChangeEvent = (
-                "SIGNED_IN"
+            event = (
+                AuthChangeEvent.SIGNED_IN
                 if auth_response.session.access_token == access_token
-                else "TOKEN_REFRESHED"
+                else AuthChangeEvent.TOKEN_REFRESHED
             )
-            self.session_manager.notify_all_subscribers(event, auth_response.session)
+            self.session_manager.notify_all_subscribers(
+                AuthStateChange(event, auth_response.session)
+            )
         return auth_response
 
     async def refresh_session(self, refresh_token: str | None = None) -> AuthResponse:
@@ -1023,7 +1023,7 @@ class AsyncSupabaseAuthClient(
         refresh token is invalid, an error will be thrown.
         """
         if not refresh_token:
-            session = await self.get_session()
+            session = await self.session_manager.load_session()
             if session:
                 refresh_token = session.refresh_token
         if not refresh_token:
@@ -1050,28 +1050,26 @@ class AsyncSupabaseAuthClient(
             await self.session_manager.storage.remove_item(
                 self._code_verifier_storage_key
             )
-            self.session_manager.notify_all_subscribers("SIGNED_OUT", None)
+            self.session_manager.notify_all_subscribers(
+                AuthStateChange(
+                    AuthChangeEvent.SIGNED_OUT,
+                    sign_out_reason=SignOutReason.USER_INITIATED,
+                )
+            )
 
     @override
     def on_auth_state_change(
         self,
-        callback: Callable[[AuthChangeEvent, Session | None], None],
+        callback: Callable[[AuthStateChange], None],
     ) -> Subscription:
         """
-        Receive a notification every time an auth event happens.
+        Receive a notification every time the auth state changes.
+
+        `callback` is first called with `INITIAL_SESSION` and the session the
+        client knows of, before this method returns. Call `initialize()` first
+        to have a persisted session recovered by then.
         """
-        unique_id = str(uuid4())
-
-        def _unsubscribe() -> None:
-            self.session_manager.state_change_emitters.pop(unique_id, None)
-
-        subscription = Subscription(
-            id=unique_id,
-            callback=callback,
-            unsubscribe=_unsubscribe,
-        )
-        self.session_manager.state_change_emitters[unique_id] = subscription
-        return subscription
+        return self.session_manager.subscribe(callback)
 
     async def get_claims(
         self, jwt: str | None = None, jwks: JWKSet | None = None
@@ -1156,21 +1154,22 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             if _is_implicit_grant_flow(URL(url)):
                 session, redirect_type = self._get_session_from_url(url)
                 self.session_manager.save_session(session)
-                self.session_manager.notify_all_subscribers("SIGNED_IN", session)
+                self.session_manager.notify_all_subscribers(
+                    AuthStateChange(AuthChangeEvent.SIGNED_IN, session)
+                )
                 if redirect_type == "recovery":
                     self.session_manager.notify_all_subscribers(
-                        "PASSWORD_RECOVERY", session
+                        AuthStateChange(AuthChangeEvent.PASSWORD_RECOVERY, session)
                     )
         except Exception as e:
             self.session_manager.remove_session()
             raise e
 
     def _save_session_and_sign_in(self, auth_response: AuthResponse) -> None:
-        self.session_manager.remove_session()
         if auth_response.session:
             self.session_manager.save_session(auth_response.session)
             self.session_manager.notify_all_subscribers(
-                "SIGNED_IN", auth_response.session
+                AuthStateChange(AuthChangeEvent.SIGNED_IN, auth_response.session)
             )
 
     def _store_code_verifier(
@@ -1285,7 +1284,6 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         """
         Log in an existing user via a third-party provider.
         """
-        self.session_manager.remove_session()
         oauth_response, code_verifier = self._sign_in_with_oauth(
             provider, redirect_to, scopes, query_params
         )
@@ -1334,7 +1332,6 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         If you're using phone sign-ins, only an OTP will be sent.
         You won't be able to send a magiclink for phone sign-ins.
         """
-        self.session_manager.remove_session()
         code_verifier = (
             self._prepare_code_verifier()
             if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials)
@@ -1346,7 +1343,6 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         """
         Attempts a single-sign on using an enterprise Identity Provider.
         """
-        self.session_manager.remove_session()
         code_verifier = self._prepare_code_verifier()
         return self._sign_in_with_sso(credentials, code_verifier)
 
@@ -1411,7 +1407,9 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             session, attributes, email_redirect_to, code_verifier
         )
         self.session_manager.save_session(session)
-        self.session_manager.notify_all_subscribers("USER_UPDATED", session)
+        self.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.USER_UPDATED, session)
+        )
         return user_response
 
     def set_session(self, access_token: str, refresh_token: str) -> AuthResponse:
@@ -1432,12 +1430,14 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         auth_response = self._set_session(access_token, refresh_token)
         if auth_response.session:
             self.session_manager.save_session(auth_response.session)
-            event: AuthChangeEvent = (
-                "SIGNED_IN"
+            event = (
+                AuthChangeEvent.SIGNED_IN
                 if auth_response.session.access_token == access_token
-                else "TOKEN_REFRESHED"
+                else AuthChangeEvent.TOKEN_REFRESHED
             )
-            self.session_manager.notify_all_subscribers(event, auth_response.session)
+            self.session_manager.notify_all_subscribers(
+                AuthStateChange(event, auth_response.session)
+            )
         return auth_response
 
     def refresh_session(self, refresh_token: str | None = None) -> AuthResponse:
@@ -1449,7 +1449,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         refresh token is invalid, an error will be thrown.
         """
         if not refresh_token:
-            session = self.get_session()
+            session = self.session_manager.load_session()
             if session:
                 refresh_token = session.refresh_token
         if not refresh_token:
@@ -1474,28 +1474,26 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         if scope != "others":
             self.session_manager.remove_session()
             self.session_manager.storage.remove_item(self._code_verifier_storage_key)
-            self.session_manager.notify_all_subscribers("SIGNED_OUT", None)
+            self.session_manager.notify_all_subscribers(
+                AuthStateChange(
+                    AuthChangeEvent.SIGNED_OUT,
+                    sign_out_reason=SignOutReason.USER_INITIATED,
+                )
+            )
 
     @override
     def on_auth_state_change(
         self,
-        callback: Callable[[AuthChangeEvent, Session | None], None],
+        callback: Callable[[AuthStateChange], None],
     ) -> Subscription:
         """
-        Receive a notification every time an auth event happens.
+        Receive a notification every time the auth state changes.
+
+        `callback` is first called with `INITIAL_SESSION` and the session the
+        client knows of, before this method returns. Call `initialize()` first
+        to have a persisted session recovered by then.
         """
-        unique_id = str(uuid4())
-
-        def _unsubscribe() -> None:
-            self.session_manager.state_change_emitters.pop(unique_id, None)
-
-        subscription = Subscription(
-            id=unique_id,
-            callback=callback,
-            unsubscribe=_unsubscribe,
-        )
-        self.session_manager.state_change_emitters[unique_id] = subscription
-        return subscription
+        return self.session_manager.subscribe(callback)
 
     def get_claims(
         self, jwt: str | None = None, jwks: JWKSet | None = None

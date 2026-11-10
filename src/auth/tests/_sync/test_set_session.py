@@ -1,16 +1,14 @@
 import base64
 import json
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from httpx import Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import HttpxSession
 from supabase_utils.types import JSON
 
 from supabase_auth import SyncSupabaseAuthClient
-
-if TYPE_CHECKING:
-    from supabase_auth.types import AuthChangeEvent
+from supabase_auth.types import AuthChangeEvent, AuthStateChange
 
 USER: dict[str, JSON] = {
     "id": "11111111-1111-1111-1111-111111111111",
@@ -33,8 +31,10 @@ def token(exp: int) -> str:
     return f"{header}.{payload}.{b64({'sig': 1})}"
 
 
-def mock_client() -> SyncSupabaseAuthClient:
+def mock_client(requests: list[Request] | None = None) -> SyncSupabaseAuthClient:
     def handler(request: Request) -> Response:
+        if requests is not None:
+            requests.append(request)
         if request.url.path.endswith("/token"):
             body = {
                 "access_token": "refreshed-access",
@@ -53,21 +53,49 @@ def mock_client() -> SyncSupabaseAuthClient:
     )
 
 
+def events(changes: list[AuthStateChange]) -> list[AuthChangeEvent]:
+    return [change.event for change in changes]
+
+
 def test_set_session_with_unexpired_token_notifies_signed_in() -> None:
     client = mock_client()
-    events: list[AuthChangeEvent] = []
-    client.on_auth_state_change(lambda event, session: events.append(event))
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
 
     client.set_session(token(int(time.time()) + 3600), "refresh-token")
 
-    assert events == ["SIGNED_IN"]
+    assert events(changes) == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.SIGNED_IN,
+    ]
 
 
 def test_set_session_with_expired_token_notifies_token_refreshed() -> None:
     client = mock_client()
-    events: list[AuthChangeEvent] = []
-    client.on_auth_state_change(lambda event, session: events.append(event))
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
 
     client.set_session(token(int(time.time()) - 3600), "refresh-token")
 
-    assert events == ["TOKEN_REFRESHED"]
+    assert events(changes) == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.TOKEN_REFRESHED,
+    ]
+
+
+def test_set_session_stores_the_expiry_of_the_access_token() -> None:
+    requests: list[Request] = []
+    client = mock_client(requests)
+    exp = int(time.time()) + 3600
+
+    response = client.set_session(token(exp), "refresh-token")
+
+    assert response.session is not None
+    assert response.session.expires_at == exp
+    assert 3590 <= response.session.expires_in <= 3600
+
+    session = client.get_session()
+
+    assert session is not None
+    assert session.access_token == token(exp)
+    assert [request.url.path for request in requests] == ["/user"]

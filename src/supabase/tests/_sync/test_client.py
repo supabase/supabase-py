@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import Client as SyncHttpxClient
 from supabase_auth import SyncMemoryStorage, SyncSupabaseAuthClient
-from supabase_auth.types import AuthChangeEvent
+from supabase_auth.types import AuthChangeEvent, AuthStateChange
 from supabase_utils.http.adapters.httpx import HttpxSession
 
 from supabase import (
@@ -17,12 +17,13 @@ from .conftest import SyncClientCallable
 url = os.environ["SUPABASE_TEST_URL"]
 key = os.environ["SUPABASE_TEST_KEY"]
 
-SESSION_EVENTS: list[AuthChangeEvent] = [
-    "SIGNED_IN",
-    "TOKEN_REFRESHED",
-    "USER_UPDATED",
-    "PASSWORD_RECOVERY",
-    "MFA_CHALLENGE_VERIFIED",
+SESSION_EVENTS = [
+    AuthChangeEvent.INITIAL_SESSION,
+    AuthChangeEvent.SIGNED_IN,
+    AuthChangeEvent.TOKEN_REFRESHED,
+    AuthChangeEvent.USER_UPDATED,
+    AuthChangeEvent.PASSWORD_RECOVERY,
+    AuthChangeEvent.MFA_CHALLENGE_VERIFIED,
 ]
 
 
@@ -83,7 +84,9 @@ def test_updates_the_authorization_header_on_auth_events(
         access_token = "secretuserjwt"
         mock_session = MagicMock(access_token=access_token)
 
-        client._listen_to_auth_events("SIGNED_IN", mock_session)
+        client._listen_to_auth_events(
+            AuthStateChange(AuthChangeEvent.SIGNED_IN, mock_session)
+        )
 
         updated_authorization = f"Bearer {access_token}"
 
@@ -115,7 +118,9 @@ def test_auth_events_with_a_session_use_its_access_token(
         functions = client.functions
         session = MagicMock(access_token="secretuserjwt")
 
-        client.auth.session_manager.notify_all_subscribers(event, session)
+        client.auth.session_manager.notify_all_subscribers(
+            AuthStateChange(event, session)
+        )
 
         authorization = "Bearer secretuserjwt"
         assert client.postgrest is postgrest
@@ -134,10 +139,14 @@ def test_auth_events_without_a_session_use_the_key(
 ) -> None:
     with create_client(url, key) as client:
         client.auth.session_manager.notify_all_subscribers(
-            "SIGNED_IN", MagicMock(access_token="secretuserjwt")
+            AuthStateChange(
+                AuthChangeEvent.SIGNED_IN, MagicMock(access_token="secretuserjwt")
+            )
         )
 
-        client.auth.session_manager.notify_all_subscribers("SIGNED_OUT", None)
+        client.auth.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.SIGNED_OUT)
+        )
 
         authorization = f"Bearer {key}"
         assert client.headers.get("Authorization") == authorization

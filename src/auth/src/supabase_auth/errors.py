@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import BaseModel, TypeAdapter, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError, field_validator
 from supabase_utils.errors import SupabaseError
 from supabase_utils.http.errors import SupabaseAPIError
 
@@ -20,6 +20,9 @@ ErrorCode = Literal[
     "no_authorization",
     "user_not_found",
     "session_not_found",
+    "session_expired",
+    "refresh_token_not_found",
+    "refresh_token_already_used",
     "flow_state_not_found",
     "flow_state_expired",
     "signup_disabled",
@@ -94,8 +97,6 @@ ErrorCode = Literal[
     "invalid_jwt",
 ]
 
-ErrorCodeAdapter: TypeAdapter[ErrorCode] = TypeAdapter(ErrorCode)
-
 
 class WeakPasswordReasons(BaseModel):
     reasons: list[str]
@@ -107,7 +108,8 @@ class RawApiError(BaseModel):
     error: str | None = None
     code: int | None = None
     error_description: str | None = None
-    error_code: ErrorCode | None = None
+    error_code: str | None = None
+    """One of `ErrorCode`, or a code this version of the SDK does not know."""
     weak_password: WeakPasswordReasons | None = None
 
     @field_validator("weak_password", mode="before")
@@ -134,7 +136,8 @@ class AuthError(SupabaseError):
     A plain `AuthError` is a failure the client raised on its own, such as a
     missing session. A failure the auth service reported is an `AuthApiError`.
     `code` is one of `ErrorCode` when the service named the failure, see
-    https://supabase.com/docs/guides/auth/debugging/error-codes.
+    https://supabase.com/docs/guides/auth/debugging/error-codes. A code the
+    service added after this version of the SDK is passed on as is.
     """
 
 
@@ -146,7 +149,7 @@ class AuthApiError(AuthError, SupabaseAPIError):
         message: str,
         *,
         status_code: int,
-        code: ErrorCode | None = None,
+        code: str | None = None,
         response: Response | None = None,
     ) -> None:
         super().__init__(message, status_code=status_code, code=code, response=response)
@@ -161,7 +164,7 @@ class AuthUnknownError(AuthError, SupabaseAPIError):
         message: str,
         *,
         status_code: int,
-        code: ErrorCode | None = None,
+        code: str | None = None,
         response: Response | None = None,
     ) -> None:
         super().__init__(message, status_code=status_code, code=code, response=response)
@@ -199,16 +202,20 @@ class AuthImplicitGrantRedirectError(AuthError):
 
 class AuthRetryableError(AuthApiError):
     """Raised when the auth service answered with a status that is worth
-    retrying, such as a gateway error."""
+    retrying: a rate limit (429) or a server or gateway error (5xx).
+
+    A session refresh that fails with it keeps the session and is retried
+    later, see `SignOutReason`."""
 
     def __init__(
         self,
         message: str,
         *,
         status_code: int,
+        code: str | None = None,
         response: Response | None = None,
     ) -> None:
-        super().__init__(message, status_code=status_code, response=response)
+        super().__init__(message, status_code=status_code, code=code, response=response)
 
 
 class AuthWeakPasswordError(AuthApiError):

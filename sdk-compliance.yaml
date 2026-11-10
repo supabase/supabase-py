@@ -178,11 +178,19 @@ features:
     supporting_symbols:
       - SupabaseAuthHttpClient.on_auth_state_change
       - Subscription
+      - AuthStateChange
+      - AuthChangeEvent
   auth.session.auto_refresh:
     status: implemented
     note: "Token refresh runs automatically as an internal background task controlled by the auto_refresh_token constructor option."
     no_public_symbols: true
-  auth.session.sign_out_reason: not_implemented
+  auth.session.sign_out_reason:
+    status: implemented
+    note: "SIGNED_OUT changes carry a SignOutReason in AuthStateChange.sign_out_reason."
+    symbols:
+      - SignOutReason
+    supporting_symbols:
+      - AuthStateChange
 
   auth.identities.link_identity:
     status: implemented
