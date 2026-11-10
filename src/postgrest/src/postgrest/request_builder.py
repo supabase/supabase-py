@@ -718,6 +718,101 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
             )
         return self
 
+    def single(self) -> SingleRequestBuilder[HttpIO]:
+        """Specify that the query will only return a single row in response.
+
+        .. caution::
+            The API will raise an error if the query returned more than one row.
+        """
+        self.request.headers = self.request.headers.set(
+            "Accept", "application/vnd.pgrst.object+json"
+        )
+        return SingleRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=self.request,
+        )
+
+    def maybe_single(self) -> MaybeSingleRequestBuilder[HttpIO]:
+        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
+        return MaybeSingleRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=self.request,
+        )
+
+    def csv(self) -> TextRequestBuilder[HttpIO]:
+        """Specify that the query must retrieve data as a single CSV string."""
+        self.request.headers = self.request.headers.set("Accept", "text/csv")
+        return TextRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=self.request,
+        )
+
+    @overload
+    def explain(self) -> ExplainRequestBuilder[HttpIO]: ...
+
+    @overload
+    def explain(
+        self,
+        *,
+        analyze: bool,
+        verbose: bool,
+        settings: bool,
+        buffers: bool,
+        wal: bool,
+        format: Literal["text"],
+    ) -> ExplainRequestBuilder[HttpIO]: ...
+
+    @overload
+    def explain(
+        self,
+        *,
+        analyze: bool,
+        verbose: bool,
+        settings: bool,
+        buffers: bool,
+        wal: bool,
+        format: Literal["json"],
+    ) -> QueryRequestBuilder[HttpIO]: ...
+
+    def explain(
+        self,
+        *,
+        analyze: bool = False,
+        verbose: bool = False,
+        settings: bool = False,
+        buffers: bool = False,
+        wal: bool = False,
+        format: Literal["text", "json"] = "text",
+    ) -> ExplainRequestBuilder[HttpIO] | QueryRequestBuilder[HttpIO]:
+        options = [
+            key
+            for key, value in locals().items()
+            if key not in ["self", "format"] and value
+        ]
+        options_str = "|".join(options)
+        self.request.headers = self.request.headers.set(
+            "Accept", f"application/vnd.pgrst.plan+{format}; options={options_str}"
+        )
+        if format == "text":
+            return ExplainRequestBuilder(
+                executor=self.executor,
+                base_url=self.base_url,
+                default_headers=self.default_headers,
+                request=self.request,
+            )
+        return QueryRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=self.request,
+        )
+
     @handle_http_io
     def execute(self) -> HttpMethod[APIResponse]:
         """Execute the query.
@@ -909,31 +1004,6 @@ class RPCCountRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
 class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
 ):
-    def single(self) -> SingleRequestBuilder[HttpIO]:
-        """Specify that the query will only return a single row in response.
-
-        .. caution::
-            The API will raise an error if the query returned more than one row.
-        """
-        self.request.headers = self.request.headers.set(
-            "Accept", "application/vnd.pgrst.object+json"
-        )
-        return SingleRequestBuilder(
-            executor=self.executor,
-            base_url=self.base_url,
-            default_headers=self.default_headers,
-            request=self.request,
-        )
-
-    def maybe_single(self) -> MaybeSingleRequestBuilder[HttpIO]:
-        """Retrieves at most one row from the result. Result must be at most one row (e.g. using `eq` on a UNIQUE column), otherwise this will result in an error."""
-        return MaybeSingleRequestBuilder(
-            executor=self.executor,
-            base_url=self.base_url,
-            default_headers=self.default_headers,
-            request=self.request,
-        )
-
     def text_search(
         self: Self, column: str, query: str, options: dict[str, Any] | None = None
     ) -> Self:
@@ -950,76 +1020,6 @@ class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         config_part = f"({options.get('config')})" if options.get("config") else ""
         self.filter(column, f"{type_part}fts{config_part}", query)
         return self
-
-    def csv(self) -> TextRequestBuilder[HttpIO]:
-        """Specify that the query must retrieve data as a single CSV string."""
-        self.request.headers = self.request.headers.set("Accept", "text/csv")
-        return TextRequestBuilder(
-            executor=self.executor,
-            base_url=self.base_url,
-            default_headers=self.default_headers,
-            request=self.request,
-        )
-
-    @overload
-    def explain(self) -> ExplainRequestBuilder[HttpIO]: ...
-
-    @overload
-    def explain(
-        self,
-        *,
-        analyze: bool,
-        verbose: bool,
-        settings: bool,
-        buffers: bool,
-        wal: bool,
-        format: Literal["text"],
-    ) -> ExplainRequestBuilder[HttpIO]: ...
-
-    @overload
-    def explain(
-        self,
-        *,
-        analyze: bool,
-        verbose: bool,
-        settings: bool,
-        buffers: bool,
-        wal: bool,
-        format: Literal["json"],
-    ) -> QueryRequestBuilder[HttpIO]: ...
-
-    def explain(
-        self,
-        *,
-        analyze: bool = False,
-        verbose: bool = False,
-        settings: bool = False,
-        buffers: bool = False,
-        wal: bool = False,
-        format: Literal["text", "json"] = "text",
-    ) -> ExplainRequestBuilder[HttpIO] | QueryRequestBuilder[HttpIO]:
-        options = [
-            key
-            for key, value in locals().items()
-            if key not in ["self", "format"] and value
-        ]
-        options_str = "|".join(options)
-        self.request.headers = self.request.headers.set(
-            "Accept", f"application/vnd.pgrst.plan+{format}; options={options_str}"
-        )
-        if format == "text":
-            return ExplainRequestBuilder(
-                executor=self.executor,
-                base_url=self.base_url,
-                default_headers=self.default_headers,
-                request=self.request,
-            )
-        return QueryRequestBuilder(
-            executor=self.executor,
-            base_url=self.base_url,
-            default_headers=self.default_headers,
-            request=self.request,
-        )
 
 
 class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #
@@ -1070,7 +1070,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #
         returning: ReturnMethod = ReturnMethod.representation,
         upsert: bool = False,
         default_to_null: bool = True,
-    ) -> SelectRequestBuilder[HttpIO]:
+    ) -> QueryRequestBuilder[HttpIO]:
         """Run an INSERT query.
 
         Args:
@@ -1082,7 +1082,10 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #
                 Otherwise, use the default value for the column.
                 Only applies for bulk inserts.
         Returns:
-            :class:`SelectRequestBuilder`
+            :class:`QueryRequestBuilder`. PostgREST ignores filters, ordering
+            and limits on an insert, so only the shape of the returned rows
+            can be changed, with `select`, `single`, `maybe_single`, `csv`
+            and `explain`.
         """
         method, params, headers, json = pre_insert(
             json,
@@ -1099,7 +1102,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #
             headers=headers,
             body=json,
         )
-        return SelectRequestBuilder(
+        return QueryRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
@@ -1115,7 +1118,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #
         ignore_duplicates: bool = False,
         on_conflict: str = "",
         default_to_null: bool = True,
-    ) -> SelectRequestBuilder[HttpIO]:
+    ) -> QueryRequestBuilder[HttpIO]:
         """Run an upsert (INSERT ... ON CONFLICT DO UPDATE) query.
 
         Args:
@@ -1129,7 +1132,10 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
         Returns:
-            :class:`SelectRequestBuilder`
+            :class:`QueryRequestBuilder`. PostgREST ignores filters, ordering
+            and limits on an upsert, so only the shape of the returned rows
+            can be changed, with `select`, `single`, `maybe_single`, `csv`
+            and `explain`.
         """
         method, params, headers, json = pre_upsert(
             json,
@@ -1146,7 +1152,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:  #
             headers=headers,
             body=json,
         )
-        return SelectRequestBuilder(
+        return QueryRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,

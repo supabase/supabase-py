@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, assert_type
 
 import pytest
 from httpx import Client
@@ -12,7 +12,9 @@ from yarl import URL
 
 from postgrest.request_builder import (
     APIResponse,
+    ExplainRequestBuilder,
     MaybeSingleRequestBuilder,
+    QueryRequestBuilder,
     RequestBuilder,
     SingleAPIResponse,
     SingleRequestBuilder,
@@ -206,6 +208,46 @@ class TestInsert:
         assert isinstance(builder, SingleRequestBuilder)
         assert builder.request.query["select"] == "id"
         assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert builder.request.method == "POST"
+
+    def test_insert_rejects_filters_and_transforms(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
+        builder = request_builder.insert({"key1": "val1"})
+
+        assert_type(builder, QueryRequestBuilder[SyncHttpIO])
+        with pytest.raises(AttributeError):
+            builder.eq("id", 1)  # pyrefly: ignore[missing-attribute]
+        with pytest.raises(AttributeError):
+            builder.order("id")  # pyrefly: ignore[missing-attribute]
+
+    def test_upsert_rejects_filters_and_transforms(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
+        builder = request_builder.upsert({"key1": "val1"})
+
+        assert_type(builder, QueryRequestBuilder[SyncHttpIO])
+        with pytest.raises(AttributeError):
+            builder.eq("id", 1)  # pyrefly: ignore[missing-attribute]
+        with pytest.raises(AttributeError):
+            builder.limit(1)  # pyrefly: ignore[missing-attribute]
+
+    def test_insert_with_csv(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
+        builder = request_builder.insert({"key1": "val1"}).csv()
+
+        assert isinstance(builder, TextRequestBuilder)
+        assert builder.request.headers["accept"] == "text/csv"
+        assert builder.request.method == "POST"
+
+    def test_insert_with_explain(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
+        builder = request_builder.insert({"key1": "val1"}).explain()
+
+        assert isinstance(builder, ExplainRequestBuilder)
+        assert "application/vnd.pgrst.plan" in str(
+            builder.request.headers.get("accept")
+        )
         assert builder.request.method == "POST"
 
     def test_bulk_upsert_with_default(
