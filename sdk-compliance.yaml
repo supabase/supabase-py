@@ -1429,6 +1429,7 @@ supporting_symbols:
   - AuthRetryableError
   - AuthSessionMissingError
   - AuthUnknownError
+  - ErrorCode
   - AuthWeakPasswordError
   - UserDoesNotExistError
   - WeakPasswordReasons
