@@ -232,25 +232,41 @@ class SingleAPIResponse:
         return SingleAPIResponse(data=data, count=count)
 
 
+_WRITE_OPERATIONS: dict[str, str] = {"PATCH": "update()", "DELETE": "delete()"}
+
+
+def _filters_embedded_resource(key: str) -> bool:
+    """Whether a filter key such as ``cities.name`` targets an embedded resource.
+
+    PostgREST applies such a filter to the embedded rows only, so it does not
+    narrow the rows an update or delete of the table affects. A quoted key is a
+    single column name, whatever it contains.
+    """
+    return not key.startswith('"') and "." in key
+
+
 @dataclass(frozen=True)
 class PostgrestRequest(JSONRequest):
     retry: bool = True
     strip_nulls: bool = False
     requires_filter: bool = False
-    """Refuse to send until a filter names the rows the request affects.
+    """Refuse to send until a filter on the table names the rows the request
+    affects.
 
     `update()` and `delete()` set it, so that a forgotten filter does not
-    write every row in the table. Any filter clears it, and so does `all()`.
+    write every row in the table. A filter on the table clears it, and so
+    does `all()`. A filter on an embedded resource does not, since PostgREST
+    applies it to the embedded rows only.
     """
 
     @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         if self.requires_filter:
-            operation = "update()" if self.method == "PATCH" else "delete()"
+            operation = _WRITE_OPERATIONS.get(self.method, "update() or delete()")
             raise ValueError(
-                f"{operation} has no filter, so it would affect every row in the "
-                "table. Add a filter such as eq(), or call all() to affect every "
-                "row on purpose."
+                f"{operation} has no filter that says which rows it affects. Add "
+                f"one, such as eq(), or call all() right after {operation} to run "
+                "it without a filter on purpose."
             )
         request = super().finalize(base_url, default_headers)
         if self.strip_nulls:
@@ -290,12 +306,13 @@ class BaseFilterRequestBuilder:
             operator = f"{Filters.NOT}.{operator}"
         key = sanitize_param(column)
         val = f"{operator}.{_serialize_filter_value(criteria)}"
-        query = self.request.query.set(key, val)
-        return replace(
-            self,
-            negate_next=False,
-            request=replace(self.request, query=query, requires_filter=False),
+        request = replace(
+            self.request,
+            query=self.request.query.set(key, val),
+            requires_filter=self.request.requires_filter
+            and _filters_embedded_resource(key),
         )
+        return replace(self, negate_next=False, request=request)
 
     def eq(self: Self, column: str, value: Any) -> Self:
         """An 'equal to' filter.
@@ -427,12 +444,13 @@ class BaseFilterRequestBuilder:
         """
         op = "not.or" if self.negate_next else "or"
         key = f"{sanitize_param(reference_table)}.{op}" if reference_table else op
-        query = self.request.query.set(key, f"({filters})")
-        return replace(
-            self,
-            negate_next=False,
-            request=replace(self.request, query=query, requires_filter=False),
+        request = replace(
+            self.request,
+            query=self.request.query.set(key, f"({filters})"),
+            requires_filter=self.request.requires_filter
+            and reference_table is not None,
         )
+        return replace(self, negate_next=False, request=request)
 
     def fts(self: Self, column: str, query: Any) -> Self:
         return self.filter(column, Filters.FTS, query)
@@ -1046,12 +1064,14 @@ class MutationRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     """
 
     def all(self) -> Self:
-        """Affect every row in the table on purpose.
+        """Run the request without a filter on purpose.
 
         An `update()` or `delete()` without a filter raises `ValueError`
-        instead of being sent. `all()` states that writing every row is
-        intended. It adds nothing to the request, and a filter applied before
-        or after it still applies.
+        instead of being sent, since without a limit it affects every row in
+        the table. `all()` states that this is intended. It adds nothing to
+        the request, and a filter applied before or after it still applies.
+        It is a method of this builder, so it comes before `single()`,
+        `maybe_single()`, `csv()` and `explain()`.
         """
         return replace(self, request=replace(self.request, requires_filter=False))
 

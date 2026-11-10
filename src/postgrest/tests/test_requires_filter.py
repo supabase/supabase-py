@@ -53,6 +53,7 @@ FINISHES: dict[str, Finish] = {
 
 SCOPES: dict[str, tuple[Scope, QueryParameters]] = {
     "eq": (lambda query: query.eq("id", 1), [("id", "eq.1")]),
+    "quoted_column": (lambda query: query.eq("a:b.c", 1), [('"a:b.c"', "eq.1")]),
     "not_eq": (lambda query: query.not_.eq("id", 1), [("id", "not.eq.1")]),
     "match": (lambda query: query.match({"id": 1}), [("id", "eq.1")]),
     "in_": (lambda query: query.in_("id", ["1", "2"]), [("id", "in.(1,2)")]),
@@ -60,6 +61,14 @@ SCOPES: dict[str, tuple[Scope, QueryParameters]] = {
     "all": (lambda query: query.all(), []),
     "all_then_eq": (lambda query: query.all().eq("id", 1), [("id", "eq.1")]),
     "eq_then_all": (lambda query: query.eq("id", 1).all(), [("id", "eq.1")]),
+}
+
+EMBEDDED_FILTERS: dict[str, Scope] = {
+    "dotted_column": lambda query: query.eq("cities.name", "Paris"),
+    "not_dotted_column": lambda query: query.not_.eq("cities.name", "Paris"),
+    "reference_table_or": lambda query: query.or_(
+        "name.eq.Paris,name.eq.Lyon", reference_table="cities"
+    ),
 }
 
 
@@ -91,6 +100,24 @@ def test_scoped_write_is_sent(
     assert [(request.method, query_parameters(request)) for request in seen] == [
         (method, expected)
     ]
+
+
+@pytest.mark.parametrize(("write", "method"), WRITES.values(), ids=WRITES)
+@pytest.mark.parametrize("embedded", EMBEDDED_FILTERS.values(), ids=EMBEDDED_FILTERS)
+def test_filter_on_an_embedded_resource_does_not_count(
+    write: Write, method: str, embedded: Scope
+) -> None:
+    seen: list[Request] = []
+    with recording_client(seen) as client:
+        query = embedded(write(client.table("countries")).select("*, cities(*)"))
+
+        with pytest.raises(ValueError, match="has no filter"):
+            query.execute()
+        query.eq("id", 1).execute()
+
+    assert [request.method for request in seen] == [method]
+    assert ("id", "eq.1") in query_parameters(seen[0])
+    assert any(key.startswith("cities.") for key, _ in query_parameters(seen[0]))
 
 
 def test_all_leaves_the_receiver_unchanged() -> None:
