@@ -159,6 +159,7 @@ The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabas
 | `event == "SIGNED_IN"`                                    | `change.event is AuthChangeEvent.SIGNED_IN`       |
 | `session`                                                 | `change.session`                                  |
 
+- The returned `Subscription` is a context manager. `with client.on_auth_state_change(callback):` listens for the duration of the block.
 - Every new listener first receives `INITIAL_SESSION` with the session the client knows of, before `on_auth_state_change` returns. Call `initialize()` first to have a persisted session recovered by then.
 - `SIGNED_OUT` carries `change.sign_out_reason`, a `SignOutReason`: `USER_INITIATED` after `sign_out()`, `SESSION_EXPIRED` when the auth service rejected the refresh token, and `SESSION_MISSING` when the stored session could not be read.
 - A refresh the auth service rejects with a 4xx other than 429 removes the session and notifies `SIGNED_OUT` before the error is raised. A network error, a timeout, a 429 or a 5xx keeps the session and raises; auto refresh retries it later.

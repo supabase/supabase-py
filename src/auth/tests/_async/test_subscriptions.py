@@ -69,3 +69,20 @@ async def test_auth_state_change_callback_can_unsubscribe_during_notification(
     ]
 
     subscription.unsubscribe()
+
+
+async def test_subscription_is_a_context_manager_that_unsubscribes(
+    auth_client: AsyncSupabaseAuthClient,
+) -> None:
+    changes: list[AuthStateChange] = []
+
+    with auth_client.on_auth_state_change(changes.append) as subscription:
+        await auth_client.sign_out()
+
+    await auth_client.sign_out()
+
+    assert subscription.id not in auth_client.session_manager.state_change_emitters
+    assert [change.event for change in changes] == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.SIGNED_OUT,
+    ]

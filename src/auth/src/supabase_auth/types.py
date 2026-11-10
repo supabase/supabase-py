@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from enum import StrEnum
 from time import time
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -17,6 +17,9 @@ from pydantic import (
 from pydantic.dataclasses import dataclass
 from supabase_utils.http.headers import Headers
 from supabase_utils.types import JSON
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 Provider = Literal[
     "apple",
@@ -306,6 +309,16 @@ class AuthStateChange:
 
 
 class Subscription(BaseModel):
+    """A registered `on_auth_state_change` listener.
+
+    Use it as a context manager to listen for the duration of a block:
+
+    ```python
+    with client.on_auth_state_change(on_change):
+        ...
+    ```
+    """
+
     id: str
     """
     The subscriber UUID. This will be set by the client.
@@ -318,6 +331,17 @@ class Subscription(BaseModel):
     """
     Call this to remove the listener.
     """
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.unsubscribe()
 
 
 class CaptchaToken(BaseModel):
