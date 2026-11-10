@@ -11,6 +11,7 @@ from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
     AuthWeakPasswordError,
+    ErrorCode,
 )
 from supabase_auth.helpers import (
     _handle_error_response,
@@ -175,3 +176,33 @@ def test_handle_error_response_weak_password_with_error_code() -> None:
 
     assert isinstance(result, AuthWeakPasswordError)
     assert result.reasons == ["length"]
+
+
+def test_handle_error_response_parses_a_known_error_code() -> None:
+    response = Response(
+        content=b'{"code": 400, "error_code": "refresh_token_not_found", "msg": "gone"}',
+        status=400,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthApiError)
+    assert error.code is ErrorCode.REFRESH_TOKEN_NOT_FOUND
+    assert error.code == "refresh_token_not_found"
+
+
+def test_handle_error_response_passes_an_unknown_error_code_through() -> None:
+    response = Response(
+        content=b'{"code": 400, "error_code": "brand_new_code", "msg": "new"}',
+        status=400,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthApiError)
+    assert not isinstance(error.code, ErrorCode)
+    assert error.code == "brand_new_code"

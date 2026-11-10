@@ -22,6 +22,7 @@ from .errors import (
     AuthRetryableError,
     AuthUnknownError,
     AuthWeakPasswordError,
+    ErrorCode,
     RawApiError,
 )
 from .types import (
@@ -104,6 +105,17 @@ def _validate_adapter[Inner](response: Response, adapter: TypeAdapter[Inner]) ->
     raise _handle_error_response(response)
 
 
+def _parse_error_code(value: str | None) -> ErrorCode | str | None:
+    """The `ErrorCode` for `value`, or `value` itself when this version of
+    the SDK does not know the code."""
+    if value is None:
+        return None
+    try:
+        return ErrorCode(value)
+    except ValueError:
+        return value
+
+
 def _is_retryable_status(status: int) -> bool:
     """A rate limit or a server or gateway error says nothing about the
     request itself, so the same request may succeed later."""
@@ -117,10 +129,10 @@ def _handle_error_response(response: Response) -> AuthError:
         return AuthUnknownError(
             "Unexpected error: Unable to parse API error",
             status_code=response.status,
-            code="unexpected_failure",
+            code=ErrorCode.UNEXPECTED_FAILURE,
             response=response,
         )
-    error_code = raw_error.error_code
+    error_code = _parse_error_code(raw_error.error_code)
     if not response.is_error or _is_retryable_status(response.status):
         return AuthRetryableError(
             raw_error.get_error_message(),
@@ -140,7 +152,7 @@ def _handle_error_response(response: Response) -> AuthError:
             reasons=raw_error.weak_password.reasons,
             response=response,
         )
-    if error_code == "weak_password":
+    if error_code is ErrorCode.WEAK_PASSWORD:
         return AuthWeakPasswordError(
             raw_error.get_error_message(),
             status_code=response.status,
