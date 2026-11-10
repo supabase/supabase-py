@@ -20,12 +20,14 @@ from .helpers import (
 )
 from .session import _AsyncSessionManager, _SyncSessionManager
 from .types import (
+    AuthChangeEvent,
     AuthMFAChallengeResponse,
     AuthMFAEnrollResponse,
     AuthMFAGetAuthenticatorAssuranceLevelResponse,
     AuthMFAListFactorsResponse,
     AuthMFAUnenrollResponse,
     AuthMFAVerifyResponse,
+    AuthStateChange,
     MFAEnrollParams,
     Session,
     UserResponse,
@@ -206,7 +208,9 @@ class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
         session = await self.session_manager.get_session_or_raise()
         response, session = await self._challenge_and_verify(session, factor_id, code)
         await self.session_manager.save_session(session)
-        self.session_manager.notify_all_subscribers("TOKEN_REFRESHED", session)
+        self.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.TOKEN_REFRESHED, session)
+        )
         return response
 
     async def verify(
@@ -219,7 +223,9 @@ class AsyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[AsyncHttpIO]):
         session = await self.session_manager.get_session_or_raise()
         response, session = await self._verify(session, factor_id, code, challenge_id)
         await self.session_manager.save_session(session)
-        self.session_manager.notify_all_subscribers("MFA_CHALLENGE_VERIFIED", session)
+        self.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.MFA_CHALLENGE_VERIFIED, session)
+        )
         return response
 
     async def unenroll(self, factor_id: str) -> AuthMFAUnenrollResponse:
@@ -305,7 +311,9 @@ class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
         session = self.session_manager.get_session_or_raise()
         response, session = self._challenge_and_verify(session, factor_id, code)
         self.session_manager.save_session(session)
-        self.session_manager.notify_all_subscribers("TOKEN_REFRESHED", session)
+        self.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.TOKEN_REFRESHED, session)
+        )
         return response
 
     def verify(
@@ -318,7 +326,9 @@ class SyncSupabaseAuthMFAClient(SupabaseAuthMFAHttpClient[SyncHttpIO]):
         session = self.session_manager.get_session_or_raise()
         response, session = self._verify(session, factor_id, code, challenge_id)
         self.session_manager.save_session(session)
-        self.session_manager.notify_all_subscribers("MFA_CHALLENGE_VERIFIED", session)
+        self.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.MFA_CHALLENGE_VERIFIED, session)
+        )
         return response
 
     def unenroll(self, factor_id: str) -> AuthMFAUnenrollResponse:

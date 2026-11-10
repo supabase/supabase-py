@@ -25,12 +25,22 @@ class _AsyncTimer:
         self._task.add_done_callback(cleanup)
 
     def cancel(self) -> None:
-        if self._task is not None:
-            self._task.cancel()
-            self._task = None
+        """Cancel the timer. A callback that is running keeps running, so it
+        can replace the timer that fired it and still finish its work."""
+        task, self._task = self._task, None
+        if task is None or task is _current_task():
+            return
+        task.cancel()
 
     def is_alive(self) -> bool:
         return self._task is not None
+
+
+def _current_task() -> asyncio.Task[object] | None:
+    try:
+        return asyncio.current_task()
+    except RuntimeError:
+        return None
 
 
 class _SyncTimer:

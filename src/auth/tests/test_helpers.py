@@ -1,20 +1,19 @@
 import json
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
 from yarl import URL
 
-from supabase_auth.constants import (
-    API_VERSION_HEADER_NAME,
-)
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
+    AuthRetryableError,
+    AuthUnknownError,
     AuthWeakPasswordError,
+    ErrorCode,
 )
 from supabase_auth.helpers import (
     _handle_error_response,
@@ -22,7 +21,6 @@ from supabase_auth.helpers import (
     generate_pkce_challenge,
     generate_pkce_verifier,
     parse_link_identity_response,
-    parse_response_api_version,
     validate_expiration,
 )
 from supabase_auth.types import AMREntry, JWTPayload
@@ -40,27 +38,6 @@ def valid_request() -> Request:
         content=None,
         delay=None,
     )
-
-
-def test_parse_response_api_version_with_valid_date() -> None:
-    headers = Headers.from_mapping({API_VERSION_HEADER_NAME: "2024-01-01"})
-    response = Response(
-        headers=headers, status=200, content=b"", request=valid_request()
-    )
-    api_ver = parse_response_api_version(response)
-    assert api_ver
-    assert api_ver == datetime(2024, 1, 1, tzinfo=UTC)
-
-
-def test_parse_response_api_version_with_invalid_dates() -> None:
-    dates = ["2024-01-32", "", "notadate", "Sat Feb 24 2024 17:59:17 GMT+0100"]
-    for date in dates:
-        headers = Headers.from_mapping({API_VERSION_HEADER_NAME: date})
-        response = Response(
-            headers=headers, status=200, content=b"", request=valid_request()
-        )
-        api_ver = parse_response_api_version(response)
-        assert api_ver is None
 
 
 def test_parse_link_identity_response() -> None:
@@ -101,14 +78,6 @@ def test_generate_pkce_verifier() -> None:
 def test_generate_pkce_challenge() -> None:
     pkce = generate_pkce_verifier(45)
     assert isinstance(generate_pkce_challenge(pkce), str)
-
-
-def test_parse_response_api_version_invalid_date() -> None:
-    mock_response = MagicMock(spec=Response)
-    mock_response.headers = {API_VERSION_HEADER_NAME: "2023-02-30"}  # Invalid date
-
-    result = parse_response_api_version(mock_response)
-    assert result is None
 
 
 def test_validate_expiration_with_expired_timestamp() -> None:
@@ -209,3 +178,64 @@ def test_handle_error_response_weak_password_with_error_code() -> None:
 
     assert isinstance(result, AuthWeakPasswordError)
     assert result.reasons == ["length"]
+
+
+def test_handle_error_response_parses_a_known_error_code() -> None:
+    response = Response(
+        content=b'{"code": 400, "error_code": "refresh_token_not_found", "msg": "gone"}',
+        status=400,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthApiError)
+    assert error.code is ErrorCode.REFRESH_TOKEN_NOT_FOUND
+    assert error.code == "refresh_token_not_found"
+
+
+def test_handle_error_response_passes_an_unknown_error_code_through() -> None:
+    response = Response(
+        content=b'{"code": 400, "error_code": "brand_new_code", "msg": "new"}',
+        status=400,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthApiError)
+    assert not isinstance(error.code, ErrorCode)
+    assert error.code == "brand_new_code"
+
+
+def test_handle_error_response_treats_an_unparsable_gateway_error_as_retryable() -> (
+    None
+):
+    response = Response(
+        content=b"<html>502 Bad Gateway</html>",
+        status=502,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthRetryableError)
+    assert error.status_code == 502
+    assert error.code is ErrorCode.UNEXPECTED_FAILURE
+
+
+def test_handle_error_response_keeps_an_unparsable_client_error_unknown() -> None:
+    response = Response(
+        content=b"<html>404 Not Found</html>",
+        status=404,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthUnknownError)
+    assert error.status_code == 404

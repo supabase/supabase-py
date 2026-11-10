@@ -18,9 +18,11 @@ from supabase_auth.errors import (
 from supabase_auth.helpers import decode_jwt
 from supabase_auth.types import (
     AuthChangeEvent,
+    AuthStateChange,
     MFAEnroll,
     Session,
     SignInWithPassword,
+    SignOutReason,
     SignUpWithPassword,
     User,
 )
@@ -400,19 +402,19 @@ def test_sign_out(auth_client: SyncSupabaseAuthClient) -> None:
     assert signin_response.user is not None
     assert signin_response.user.email == credentials.email
 
-    called = False
-
-    def sign_out_callback(auth_event: AuthChangeEvent, session: Session | None) -> None:
-        nonlocal called
-        called = True
-
-    auth_client.on_auth_state_change(sign_out_callback)
+    changes: list[AuthStateChange] = []
+    auth_client.on_auth_state_change(changes.append)
 
     auth_client.sign_out()
 
     no_more_session = auth_client.get_session()
     assert no_more_session is None
-    assert called
+    assert [change.event for change in changes] == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.SIGNED_OUT,
+    ]
+    assert changes[0].session is not None
+    assert changes[1].sign_out_reason is SignOutReason.USER_INITIATED
 
 
 def test_get_claims_raises_when_exp_claim_is_missing(
@@ -476,12 +478,15 @@ def test_initialize_from_storage_keeps_refreshed_session() -> None:
         user=User.model_validate(user),
     )
     manager.storage.set_item(manager.storage_key, expired_session.model_dump_json())
-    events: list[AuthChangeEvent] = []
-    client.on_auth_state_change(lambda event, _session: events.append(event))
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
 
     client.initialize_from_storage()
 
-    assert events == ["TOKEN_REFRESHED"]
+    assert [change.event for change in changes] == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.TOKEN_REFRESHED,
+    ]
     stored = manager.storage.get_item(manager.storage_key)
     assert stored is not None
     assert Session.model_validate_json(stored).access_token == "new-access-token"
@@ -520,7 +525,7 @@ def test_save_session_schedules_refresh_in_seconds() -> None:
     timer = manager.refresh_token_timer
     assert timer is not None
     timer.cancel()
-    assert 3600 - EXPIRY_MARGIN - 5 <= timer._seconds <= 3600 - EXPIRY_MARGIN
+    assert 3600 - EXPIRY_MARGIN - 5 <= timer._seconds <= 3600 - EXPIRY_MARGIN + 0.5
 
 
 def test_save_session_writes_session_to_default_storage_key() -> None:

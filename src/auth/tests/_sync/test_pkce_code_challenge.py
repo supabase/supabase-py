@@ -13,6 +13,7 @@ from supabase_auth.helpers import generate_pkce_challenge
 from supabase_auth.types import (
     AuthChangeEvent,
     AuthFlowType,
+    AuthStateChange,
     Session,
     SignInWithPasswordless,
     SignInWithSSO,
@@ -203,12 +204,15 @@ def test_exchange_code_uses_and_removes_stored_verifier() -> None:
 def test_exchange_code_saves_session_and_signs_in() -> None:
     requests: list[Request] = []
     client = mock_client(SESSION, requests)
-    events: list[AuthChangeEvent] = []
-    client.on_auth_state_change(lambda event, session: events.append(event))
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
     client.exchange_code_for_session("auth-code", code_verifier="verifier")
 
     assert client.session_manager.storage.get_item(client.session_manager.storage_key)
-    assert events == ["SIGNED_IN"]
+    assert [change.event for change in changes] == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.SIGNED_IN,
+    ]
 
 
 def test_autoconfirmed_email_sign_up_removes_verifier() -> None:
@@ -248,13 +252,16 @@ def test_sign_out_removes_stored_verifier() -> None:
 def test_raising_listener_does_not_stop_other_listeners() -> None:
     requests: list[Request] = []
     client = mock_client(SESSION, requests)
-    events: list[AuthChangeEvent] = []
+    changes: list[AuthStateChange] = []
 
-    def failing(event: AuthChangeEvent, session: Session | None) -> None:
+    def failing(change: AuthStateChange) -> None:
         raise RuntimeError("listener failed")
 
     client.on_auth_state_change(failing)
-    client.on_auth_state_change(lambda event, session: events.append(event))
+    client.on_auth_state_change(changes.append)
     client.exchange_code_for_session("auth-code", code_verifier="verifier")
 
-    assert events == ["SIGNED_IN"]
+    assert [change.event for change in changes] == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.SIGNED_IN,
+    ]

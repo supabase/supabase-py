@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Callable, Mapping
 from datetime import datetime
+from enum import StrEnum
 from time import time
-from typing import Literal
+from typing import TYPE_CHECKING, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -15,6 +17,9 @@ from pydantic import (
 from pydantic.dataclasses import dataclass
 from supabase_utils.http.headers import Headers
 from supabase_utils.types import JSON
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 Provider = Literal[
     "apple",
@@ -46,19 +51,34 @@ EmailOtpType = Literal[
     "signup", "invite", "magiclink", "recovery", "email_change", "email"
 ]
 
-AuthChangeEventMFA = Literal["MFA_CHALLENGE_VERIFIED"]
-
 AuthFlowType = Literal["pkce", "implicit"]
 
-AuthChangeEvent = Literal[
-    "PASSWORD_RECOVERY",
-    "SIGNED_IN",
-    "SIGNED_OUT",
-    "TOKEN_REFRESHED",
-    "USER_UPDATED",
-    "USER_DELETED",
-    AuthChangeEventMFA,
-]
+
+class AuthChangeEvent(StrEnum):
+    """The kind of change an `AuthStateChange` reports."""
+
+    INITIAL_SESSION = "INITIAL_SESSION"
+    """The first change every new listener receives, with the session the
+    client knows of at that moment, or none."""
+    SIGNED_IN = "SIGNED_IN"
+    SIGNED_OUT = "SIGNED_OUT"
+    TOKEN_REFRESHED = "TOKEN_REFRESHED"
+    USER_UPDATED = "USER_UPDATED"
+    PASSWORD_RECOVERY = "PASSWORD_RECOVERY"
+    MFA_CHALLENGE_VERIFIED = "MFA_CHALLENGE_VERIFIED"
+
+
+class SignOutReason(StrEnum):
+    """Why a `SIGNED_OUT` change happened."""
+
+    USER_INITIATED = "user_initiated"
+    """`sign_out()` was called."""
+    SESSION_EXPIRED = "session_expired"
+    """The auth service rejected the refresh token, so the session could not
+    be refreshed and was removed."""
+    SESSION_MISSING = "session_missing"
+    """The stored session could not be read or lacked a refresh token, so it
+    was removed."""
 
 
 class AMREntry(BaseModel):
@@ -147,7 +167,9 @@ class Session(BaseModel):
 
     @model_validator(mode="after")
     def validator(self) -> Session:
-        if self.expires_in and not self.expires_at:
+        if self.expires_at is None:
+            # A session without a lifetime expires now and is refreshed on
+            # its first use, instead of being dropped as unusable.
             self.expires_at = round(time()) + self.expires_in
         return self
 
@@ -260,19 +282,68 @@ class AdminUserAttributes(UserAttributes):
     """
 
 
+@dataclasses.dataclass(frozen=True)
+class AuthStateChange:
+    """A change of the auth state, delivered to `on_auth_state_change`
+    listeners.
+
+    ```python
+    def on_change(change: AuthStateChange) -> None:
+        match change.event:
+            case AuthChangeEvent.SIGNED_OUT:
+                if change.sign_out_reason is SignOutReason.SESSION_EXPIRED:
+                    show_session_expired()
+                else:
+                    show_login()
+            case _:
+                if change.session is not None:
+                    show_user(change.session.user)
+    ```
+    """
+
+    event: AuthChangeEvent
+    """The kind of change."""
+    session: Session | None = None
+    """The session after the change. None when there is no session, as after
+    a sign out."""
+    sign_out_reason: SignOutReason | None = None
+    """Why the user was signed out. Set only when `event` is `SIGNED_OUT`."""
+
+
 class Subscription(BaseModel):
+    """A registered `on_auth_state_change` listener.
+
+    Use it as a context manager to listen for the duration of a block:
+
+    ```python
+    with client.on_auth_state_change(on_change):
+        ...
+    ```
+    """
+
     id: str
     """
     The subscriber UUID. This will be set by the client.
     """
-    callback: Callable[[AuthChangeEvent, Session | None], None]
+    callback: Callable[[AuthStateChange], None]
     """
-    The function to call every time there is an event.
+    The function to call every time the auth state changes.
     """
     unsubscribe: Callable[[], None]
     """
     Call this to remove the listener.
     """
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.unsubscribe()
 
 
 class CaptchaToken(BaseModel):

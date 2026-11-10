@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
-import re
 import secrets
 import string
 import uuid
@@ -16,10 +15,6 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from supabase_utils.http.query import URLQuery
 
-from .constants import (
-    API_VERSION_HEADER_NAME,
-    API_VERSIONS_2024_01_01_TIMESTAMP,
-)
 from .errors import (
     AuthApiError,
     AuthError,
@@ -27,7 +22,7 @@ from .errors import (
     AuthRetryableError,
     AuthUnknownError,
     AuthWeakPasswordError,
-    ErrorCodeAdapter,
+    ErrorCode,
     RawApiError,
 )
 from .types import (
@@ -84,7 +79,7 @@ def parse_user_response(response: Response) -> UserResponse:
 
 
 def parse_sso_response(response: Response) -> SSOResponse:
-    return SSOResponse.model_validate_json(response.content)
+    return _validate_model(response, SSOResponse)
 
 
 JWKSetParser = TypeAdapter(JWKSet)
@@ -110,43 +105,50 @@ def _validate_adapter[Inner](response: Response, adapter: TypeAdapter[Inner]) ->
     raise _handle_error_response(response)
 
 
+def _parse_error_code(value: str | None) -> ErrorCode | str | None:
+    """The `ErrorCode` for `value`, or `value` itself when this version of
+    the SDK does not know the code."""
+    if value is None:
+        return None
+    try:
+        return ErrorCode(value)
+    except ValueError:
+        return value
+
+
+def _is_retryable_status(status: int) -> bool:
+    """A rate limit or a server or gateway error says nothing about the
+    request itself, so the same request may succeed later."""
+    return status == 429 or status >= 500
+
+
 def _handle_error_response(response: Response) -> AuthError:
     try:
         raw_error = RawApiError.model_validate_json(response.content)
     except ValidationError:
+        # A gateway or rate limiter answers with its own page, not with an
+        # auth error. The status still says the request may succeed later.
+        if _is_retryable_status(response.status):
+            return AuthRetryableError(
+                "Unexpected error: Unable to parse API error",
+                status_code=response.status,
+                code=ErrorCode.UNEXPECTED_FAILURE,
+                response=response,
+            )
         return AuthUnknownError(
             "Unexpected error: Unable to parse API error",
             status_code=response.status,
-            code="unexpected_failure",
+            code=ErrorCode.UNEXPECTED_FAILURE,
             response=response,
         )
-    if not response.is_error or response.status in {
-        502,
-        503,
-        504,
-        520,
-        521,
-        522,
-        523,
-        524,
-        530,
-    }:
+    error_code = _parse_error_code(raw_error.error_code)
+    if not response.is_error or _is_retryable_status(response.status):
         return AuthRetryableError(
             raw_error.get_error_message(),
             status_code=response.status,
+            code=error_code,
             response=response,
         )
-    error_code = None
-    response_api_version = parse_response_api_version(response)
-
-    if (
-        response_api_version
-        and datetime.timestamp(response_api_version)
-        >= API_VERSIONS_2024_01_01_TIMESTAMP
-    ):
-        error_code = ErrorCodeAdapter.validate_python(raw_error.error_code)
-    else:
-        error_code = raw_error.error_code
 
     if (
         error_code is None
@@ -159,7 +161,7 @@ def _handle_error_response(response: Response) -> AuthError:
             reasons=raw_error.weak_password.reasons,
             response=response,
         )
-    if error_code == "weak_password":
+    if error_code is ErrorCode.WEAK_PASSWORD:
         return AuthWeakPasswordError(
             raw_error.get_error_message(),
             status_code=response.status,
@@ -237,24 +239,6 @@ def generate_pkce_challenge(code_verifier: str) -> str:
     sha256_hash = hashlib.sha256(verifier_bytes).digest()
 
     return base64.urlsafe_b64encode(sha256_hash).rstrip(b"=").decode("utf-8")
-
-
-API_VERSION_REGEX = r"^2[0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])$"
-
-
-def parse_response_api_version(response: Response) -> datetime | None:
-    api_version = response.headers.get(API_VERSION_HEADER_NAME)
-
-    if not api_version:
-        return None
-
-    if re.search(API_VERSION_REGEX, api_version) is None:
-        return None
-
-    try:
-        return datetime.strptime(api_version, "%Y-%m-%d").replace(tzinfo=UTC)
-    except Exception:
-        return None
 
 
 def is_http_url(url: str) -> bool:

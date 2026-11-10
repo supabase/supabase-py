@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import AsyncClient as AsyncHttpxClient
 from supabase_auth import AsyncMemoryStorage, AsyncSupabaseAuthClient
-from supabase_auth.types import AuthChangeEvent
+from supabase_auth.types import AuthChangeEvent, AuthStateChange
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
 from supabase import (
@@ -24,12 +24,13 @@ async def realtime_access_token(client: AsyncClient) -> str | None:
     return await token_callback()
 
 
-SESSION_EVENTS: list[AuthChangeEvent] = [
-    "SIGNED_IN",
-    "TOKEN_REFRESHED",
-    "USER_UPDATED",
-    "PASSWORD_RECOVERY",
-    "MFA_CHALLENGE_VERIFIED",
+SESSION_EVENTS = [
+    AuthChangeEvent.INITIAL_SESSION,
+    AuthChangeEvent.SIGNED_IN,
+    AuthChangeEvent.TOKEN_REFRESHED,
+    AuthChangeEvent.USER_UPDATED,
+    AuthChangeEvent.PASSWORD_RECOVERY,
+    AuthChangeEvent.MFA_CHALLENGE_VERIFIED,
 ]
 
 
@@ -94,7 +95,9 @@ async def test_auth_events_with_a_session_use_its_access_token(
         functions = client.functions
         session = MagicMock(access_token="secretuserjwt")
 
-        client.auth.session_manager.notify_all_subscribers(event, session)
+        client.auth.session_manager.notify_all_subscribers(
+            AuthStateChange(event, session)
+        )
 
         authorization = "Bearer secretuserjwt"
         assert client.postgrest is postgrest
@@ -114,10 +117,14 @@ async def test_auth_events_without_a_session_use_the_key(
 ) -> None:
     async with create_async_client(url, key) as client:
         client.auth.session_manager.notify_all_subscribers(
-            "SIGNED_IN", MagicMock(access_token="secretuserjwt")
+            AuthStateChange(
+                AuthChangeEvent.SIGNED_IN, MagicMock(access_token="secretuserjwt")
+            )
         )
 
-        client.auth.session_manager.notify_all_subscribers("SIGNED_OUT", None)
+        client.auth.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.SIGNED_OUT)
+        )
 
         authorization = f"Bearer {key}"
         assert client.headers.get("Authorization") == authorization

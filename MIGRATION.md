@@ -149,6 +149,24 @@ The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabas
 - Sessions saved before the upgrade are under `supabase.auth.token`, the default. Leave `storage_key` out to keep reading them.
 - `storage_key` is typed `str`. Passing `None` is no longer accepted.
 
+## Auth state changes are objects
+
+`on_auth_state_change` callbacks take one `AuthStateChange` instead of an event string and a session. `AuthChangeEvent` is a `StrEnum`, so its members still compare equal to the old strings. `AuthChangeEventMFA` and the never emitted `USER_DELETED` event are removed.
+
+| Before                                                    | After                                             |
+| --------------------------------------------------------- | ------------------------------------------------- |
+| `client.on_auth_state_change(lambda event, session: ...)` | `client.on_auth_state_change(lambda change: ...)` |
+| `event == "SIGNED_IN"`                                    | `change.event is AuthChangeEvent.SIGNED_IN`       |
+| `session`                                                 | `change.session`                                  |
+
+- The returned `Subscription` is a context manager. `with client.on_auth_state_change(callback):` listens for the duration of the block.
+- Every new listener first receives `INITIAL_SESSION` with the session the client knows of, before `on_auth_state_change` returns. Call `initialize()` first to have a persisted session recovered by then.
+- `SIGNED_OUT` carries `change.sign_out_reason`, a `SignOutReason`: `USER_INITIATED` after `sign_out()`, `SESSION_EXPIRED` when the auth service rejected the refresh token, and `SESSION_MISSING` when the stored session could not be read.
+- A refresh the auth service rejects with a 4xx other than 429 removes the session and notifies `SIGNED_OUT` before the error is raised. A network error, a timeout, a 429 or a 5xx keeps the session and raises; auto refresh retries it later.
+- `AuthRetryableError` is raised for every 429 and 5xx response, not only for gateway errors and also when the body is not an auth error, and keeps the `code` the service sent.
+- `ErrorCode` is a `StrEnum`. `AuthError.code` is a member when the SDK knows the code the auth service sent, and the plain string otherwise, so a code added after this release is passed on instead of failing to parse. Members compare equal to their strings, so `error.code == "weak_password"` still works.
+- Starting a sign in with `sign_in_with_oauth`, `sign_in_with_otp` or `sign_in_with_sso`, and a `sign_up` or `verify_otp` that returns no session, keep the current session.
+
 ## Request timeouts
 
 `AsyncStorageClient` and `SyncStorageClient` no longer take a `timeout` parameter. It was ignored. Pass `request_timeout` as a keyword argument instead.

@@ -27,6 +27,7 @@ from supabase_auth import (
     AsyncSupabaseAuthClient,
     AsyncSupportedStorage,
     AuthApiError,
+    AuthChangeEvent,
     AuthError,
     AuthImplicitGrantRedirectError,
     AuthInvalidCredentialsError,
@@ -83,7 +84,7 @@ if TYPE_CHECKING:
     from postgrest.types import CountMethod
     from storage3.client import StorageClient
     from supabase_auth.client import SupabaseAuthHttpClient
-    from supabase_auth.types import AuthChangeEvent, Session
+    from supabase_auth.types import AuthStateChange
     from supabase_functions.client import FunctionsClient
     from supabase_utils.types import JSON
 
@@ -382,10 +383,11 @@ class SupabaseClient[
             else {**headers, "Authorization": authorization}
         )
 
-    def _listen_to_auth_events(
-        self, event: AuthChangeEvent, session: Session | None
-    ) -> None:
-        self._set_access_token(session.access_token if session else self.supabase_key)
+    def _listen_to_auth_events(self, change: AuthStateChange) -> None:
+        if change.session is not None:
+            self._set_access_token(change.session.access_token)
+        elif change.event is not AuthChangeEvent.INITIAL_SESSION:
+            self._set_access_token(self.supabase_key)
 
     def _set_access_token(self, access_token: str) -> None:
         authorization = self._create_auth_header(access_token)
