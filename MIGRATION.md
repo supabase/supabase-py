@@ -152,7 +152,7 @@ Code that called a builder method without using the returned builder no longer c
 | `query.not_` followed by `query.eq("id", 1)`      | `query.not_.eq("id", 1)`                                  |
 | `query.single()` followed by `query.execute()`    | `query.single().execute()`                                |
 
-The builders, `postgrest.request_builder.PostgrestRequest` and the request classes in `supabase_utils.http.request` are frozen dataclasses. Setting a field raises `dataclasses.FrozenInstanceError`. Build a changed copy with `dataclasses.replace` instead.
+The builders, `postgrest.request_builder.PostgrestRequest`, and `supabase_utils.http.request.EmptyRequest` with its subclasses `BytesRequest`, `JSONRequest`, `TextRequest` and `MultipartFormDataRequest` are frozen dataclasses. Setting a field raises `dataclasses.FrozenInstanceError`. Build a changed copy with `dataclasses.replace` instead. The finalized `Request` stays mutable. The builder constructors take keyword arguments only.
 
 ## Realtime heartbeat intervals are used as given
 

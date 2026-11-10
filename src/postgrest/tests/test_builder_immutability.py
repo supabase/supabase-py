@@ -11,7 +11,7 @@ from postgrest import AsyncPostgrestClient, SyncPostgrestClient
 OBJECT_ACCEPT = "application/vnd.pgrst.object+json"
 
 
-def handler_for(seen: list[Request], *, fail_first: bool = False) -> MockTransport:
+def transport_for(seen: list[Request], *, fail_first: bool = False) -> MockTransport:
     def handler(request: Request) -> Response:
         seen.append(request)
         if fail_first and len(seen) == 1:
@@ -24,26 +24,25 @@ def handler_for(seen: list[Request], *, fail_first: bool = False) -> MockTranspo
 def recording_client(
     seen: list[Request], *, fail_first: bool = False
 ) -> SyncPostgrestClient:
+    http_client = Client(transport=transport_for(seen, fail_first=fail_first))
     return SyncPostgrestClient(
-        "https://example.com",
-        http_session=HttpxSession(
-            client=Client(transport=handler_for(seen, fail_first=fail_first))
-        ),
+        "https://example.com", http_session=HttpxSession(client=http_client)
     )
 
 
-def params(request: Request) -> list[tuple[str, str]]:
+def query_parameters(request: Request) -> list[tuple[str, str]]:
     return sorted(request.url.params.multi_items())
 
 
 def test_queries_branched_from_one_base_send_only_their_own_filters() -> None:
     seen: list[Request] = []
-    base = recording_client(seen).table("items").select("*").eq("account_id", "abc")
+    with recording_client(seen) as client:
+        base = client.table("items").select("*").eq("account_id", "abc")
 
-    base.in_("id", ["1", "2", "3"]).execute()
-    base.in_("id", ["4", "5", "6"]).execute()
+        base.in_("id", ["1", "2", "3"]).execute()
+        base.in_("id", ["4", "5", "6"]).execute()
 
-    assert [params(request) for request in seen] == [
+    assert [query_parameters(request) for request in seen] == [
         [("account_id", "eq.abc"), ("id", "in.(1,2,3)"), ("select", "*")],
         [("account_id", "eq.abc"), ("id", "in.(4,5,6)"), ("select", "*")],
     ]
@@ -53,16 +52,16 @@ async def test_async_queries_branched_from_one_base_send_only_their_own_filters(
     None
 ):
     seen: list[Request] = []
-    async with AsyncClient(transport=handler_for(seen)) as http:
+    async with AsyncClient(transport=transport_for(seen)) as http_client:
         client = AsyncPostgrestClient(
-            "https://example.com", http_session=AsyncHttpxSession(client=http)
+            "https://example.com", http_session=AsyncHttpxSession(client=http_client)
         )
         base = client.table("items").select("*").eq("account_id", "abc")
 
         await base.in_("id", ["1", "2", "3"]).execute()
         await base.in_("id", ["4", "5", "6"]).execute()
 
-    assert [params(request) for request in seen] == [
+    assert [query_parameters(request) for request in seen] == [
         [("account_id", "eq.abc"), ("id", "in.(1,2,3)"), ("select", "*")],
         [("account_id", "eq.abc"), ("id", "in.(4,5,6)"), ("select", "*")],
     ]
@@ -70,12 +69,13 @@ async def test_async_queries_branched_from_one_base_send_only_their_own_filters(
 
 def test_range_in_a_loop_sends_one_offset_and_limit_pair_per_request() -> None:
     seen: list[Request] = []
-    base = recording_client(seen).table("items").select("*").order("id")
+    with recording_client(seen) as client:
+        base = client.table("items").select("*").order("id")
 
-    for page in range(3):
-        base.range(page * 10, page * 10 + 9).execute()
+        for page in range(3):
+            base.range(page * 10, page * 10 + 9).execute()
 
-    assert [params(request) for request in seen] == [
+    assert [query_parameters(request) for request in seen] == [
         [("limit", "10"), ("offset", "0"), ("order", "id.asc"), ("select", "*")],
         [("limit", "10"), ("offset", "10"), ("order", "id.asc"), ("select", "*")],
         [("limit", "10"), ("offset", "20"), ("order", "id.asc"), ("select", "*")],
@@ -84,14 +84,15 @@ def test_range_in_a_loop_sends_one_offset_and_limit_pair_per_request() -> None:
 
 def test_not_leaves_the_query_unchanged() -> None:
     seen: list[Request] = []
-    query = recording_client(seen).table("items").select("*")
-    negated = query.not_
+    with recording_client(seen) as client:
+        query = client.table("items").select("*")
+        negated = query.not_
 
-    query.eq("done", True).execute()
-    negated.eq("done", True).execute()
-    query.execute()
+        query.eq("done", True).execute()
+        negated.eq("done", True).execute()
+        query.execute()
 
-    assert [params(request) for request in seen] == [
+    assert [query_parameters(request) for request in seen] == [
         [("done", "eq.true"), ("select", "*")],
         [("done", "not.eq.true"), ("select", "*")],
         [("select", "*")],
@@ -100,10 +101,11 @@ def test_not_leaves_the_query_unchanged() -> None:
 
 def test_single_leaves_the_accept_header_unchanged() -> None:
     seen: list[Request] = []
-    query = recording_client(seen).table("items").select("*")
-    single = query.single()
+    with recording_client(seen) as client:
+        query = client.table("items").select("*")
+        single = query.single()
 
-    assert query.execute().data == []
+        assert query.execute().data == []
 
     assert "accept" not in query.request.headers
     assert single.request.headers.get("accept") == OBJECT_ACCEPT
@@ -116,11 +118,11 @@ def test_executing_one_builder_twice_sends_identical_requests(
     sleeps: list[float] = []
     monkeypatch.setattr(io, "time", SimpleNamespace(sleep=sleeps.append))
     seen: list[Request] = []
-    query = recording_client(seen, fail_first=True).table("items").select("*")
-    query = query.eq("id", 1).request_timeout(3)
+    with recording_client(seen, fail_first=True) as client:
+        query = client.table("items").select("*").eq("id", 1).request_timeout(3)
 
-    query.execute()
-    query.execute()
+        query.execute()
+        query.execute()
 
     first_attempt, retried_attempt, second_execution = seen
     assert retried_attempt.headers.get("x-retry-count") == "1"
@@ -133,19 +135,37 @@ def test_executing_one_builder_twice_sends_identical_requests(
     assert sleeps == [1]
 
 
-@pytest.mark.parametrize("method", ["csv", "explain", "single", "strip_nulls"])
-def test_result_shaping_methods_leave_the_receiver_unchanged(method: str) -> None:
-    query = recording_client([]).table("items").select("*")
+@pytest.mark.parametrize(
+    ("method", "accept"),
+    [
+        ("csv", "text/csv"),
+        ("explain", "application/vnd.pgrst.plan+text; options="),
+        ("single", OBJECT_ACCEPT),
+    ],
+)
+def test_result_shaping_methods_leave_the_receiver_unchanged(
+    method: str, accept: str
+) -> None:
+    with recording_client([]) as client:
+        query = client.table("items").select("*")
 
-    shaped = getattr(query, method)()
+        shaped = getattr(query, method)()
 
-    assert shaped.request != query.request
+    assert shaped.request.headers.get("accept") == accept
     assert "accept" not in query.request.headers
+
+
+def test_strip_nulls_leaves_the_receiver_unchanged() -> None:
+    with recording_client([]) as client:
+        query = client.table("items").select("*")
+
+    assert query.strip_nulls().request.strip_nulls is True
     assert query.request.strip_nulls is False
 
 
 def test_retry_and_request_timeout_return_copies() -> None:
-    query = recording_client([]).table("items").select("*")
+    with recording_client([]) as client:
+        query = client.table("items").select("*")
 
     assert query.request_timeout(3).request.timeout == 3
     assert query.retry(False).request.retry is False
@@ -154,9 +174,9 @@ def test_retry_and_request_timeout_return_copies() -> None:
 
 
 def test_mutation_builders_return_copies() -> None:
-    client = recording_client([])
-    insert = client.table("items").insert({"name": "x"})
-    update = client.table("items").update({"name": "x"})
+    with recording_client([]) as client:
+        insert = client.table("items").insert({"name": "x"})
+        update = client.table("items").update({"name": "x"})
 
     assert insert.select("id").request.query.get("select") == "id"
     assert update.max_affected(1).request.headers.get_list("prefer") == [
@@ -169,7 +189,8 @@ def test_mutation_builders_return_copies() -> None:
 
 
 def test_rpc_builders_return_copies() -> None:
-    rpc = recording_client([]).rpc("fn", {})
+    with recording_client([]) as client:
+        rpc = client.rpc("hello", {})
 
     assert rpc.select("id").request.query.get("select") == "id"
     assert rpc.csv().request.headers.get("accept") == "text/csv"
@@ -182,7 +203,8 @@ def test_rpc_builders_return_copies() -> None:
 
 
 def test_builders_reject_assignment() -> None:
-    query = recording_client([]).table("items").select("*")
+    with recording_client([]) as client:
+        query = client.table("items").select("*")
 
     with pytest.raises(FrozenInstanceError):
         query.request = query.single().request  # pyrefly: ignore[read-only]
