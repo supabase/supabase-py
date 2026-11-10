@@ -10,6 +10,8 @@ from yarl import URL
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
+    AuthRetryableError,
+    AuthUnknownError,
     AuthWeakPasswordError,
     ErrorCode,
 )
@@ -206,3 +208,34 @@ def test_handle_error_response_passes_an_unknown_error_code_through() -> None:
     assert isinstance(error, AuthApiError)
     assert not isinstance(error.code, ErrorCode)
     assert error.code == "brand_new_code"
+
+
+def test_handle_error_response_treats_an_unparsable_gateway_error_as_retryable() -> (
+    None
+):
+    response = Response(
+        content=b"<html>502 Bad Gateway</html>",
+        status=502,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthRetryableError)
+    assert error.status_code == 502
+    assert error.code is ErrorCode.UNEXPECTED_FAILURE
+
+
+def test_handle_error_response_keeps_an_unparsable_client_error_unknown() -> None:
+    response = Response(
+        content=b"<html>404 Not Found</html>",
+        status=404,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthUnknownError)
+    assert error.status_code == 404

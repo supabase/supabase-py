@@ -76,6 +76,10 @@ def html_not_found(request: Request) -> Response:
     return Response(404, text="<html>not found</html>")
 
 
+def html_bad_gateway(request: Request) -> Response:
+    return Response(502, text="<html>bad gateway</html>")
+
+
 def connection_refused(request: Request) -> Response:
     raise ConnectError("connection refused", request=request)
 
@@ -149,6 +153,7 @@ def test_a_rejected_refresh_removes_the_session_notifies_and_raises() -> None:
         (server_error, AuthRetryableError),
         (bad_gateway, AuthRetryableError),
         (html_not_found, AuthUnknownError),
+        (html_bad_gateway, AuthRetryableError),
         (connection_refused, SupabaseTransportError),
         (user_without_session, AuthUnknownError),
     ],

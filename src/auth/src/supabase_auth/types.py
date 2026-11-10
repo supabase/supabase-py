@@ -167,7 +167,9 @@ class Session(BaseModel):
 
     @model_validator(mode="after")
     def validator(self) -> Session:
-        if self.expires_in and not self.expires_at:
+        if self.expires_at is None:
+            # A session without a lifetime expires now and is refreshed on
+            # its first use, instead of being dropped as unusable.
             self.expires_at = round(time()) + self.expires_in
         return self
 

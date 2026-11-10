@@ -126,6 +126,15 @@ def _handle_error_response(response: Response) -> AuthError:
     try:
         raw_error = RawApiError.model_validate_json(response.content)
     except ValidationError:
+        # A gateway or rate limiter answers with its own page, not with an
+        # auth error. The status still says the request may succeed later.
+        if _is_retryable_status(response.status):
+            return AuthRetryableError(
+                "Unexpected error: Unable to parse API error",
+                status_code=response.status,
+                code=ErrorCode.UNEXPECTED_FAILURE,
+                response=response,
+            )
         return AuthUnknownError(
             "Unexpected error: Unable to parse API error",
             status_code=response.status,
