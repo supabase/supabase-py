@@ -14,6 +14,7 @@ from postgrest.request_builder import (
     APIResponse,
     ExplainRequestBuilder,
     MaybeSingleRequestBuilder,
+    MutationRequestBuilder,
     QueryRequestBuilder,
     RequestBuilder,
     SingleAPIResponse,
@@ -279,9 +280,11 @@ class TestUpdate:
     def test_update(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
         builder = request_builder.update({"key1": "val1"})
 
+        assert_type(builder, MutationRequestBuilder[AsyncHttpIO])
         assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "PATCH"
         assert builder.request.body == {"key1": "val1"}
+        assert builder.request.requires_filter
 
     def test_update_with_count(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -305,6 +308,7 @@ class TestUpdate:
         assert "return=representation" in builder.request.headers["prefer"]
         assert builder.request.method == "PATCH"
         assert builder.request.body == {"key1": "val1"}
+        assert builder.request.requires_filter
 
     def test_update_with_select(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -313,6 +317,7 @@ class TestUpdate:
 
         assert builder.request.query["id"] == "eq.1"
         assert builder.request.query["select"] == "id"
+        assert not builder.request.requires_filter
 
     def test_update_with_select_single(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -332,15 +337,26 @@ class TestUpdate:
         assert builder.request.query["order"] == "id.asc"
         assert builder.request.query["limit"] == "1"
         assert builder.request.method == "PATCH"
+        assert builder.request.requires_filter
+
+    def test_update_all(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
+        builder = request_builder.update({"key1": "val1"}).all()
+
+        assert not builder.request.requires_filter
+        assert len(builder.request.query) == 0
+        assert builder.request.method == "PATCH"
+        assert builder.request.body == {"key1": "val1"}
 
 
 class TestDelete:
     def test_delete(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
         builder = request_builder.delete()
 
+        assert_type(builder, MutationRequestBuilder[AsyncHttpIO])
         assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "DELETE"
         assert builder.request.body == {}
+        assert builder.request.requires_filter
 
     def test_delete_with_count(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -364,6 +380,7 @@ class TestDelete:
         assert "return=representation" in builder.request.headers["prefer"]
         assert builder.request.method == "DELETE"
         assert builder.request.body == {}
+        assert builder.request.requires_filter
 
     def test_delete_with_select(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -372,6 +389,7 @@ class TestDelete:
 
         assert builder.request.query["id"] == "eq.1"
         assert builder.request.query["select"] == "id"
+        assert not builder.request.requires_filter
 
     def test_delete_with_select_single(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -382,6 +400,14 @@ class TestDelete:
         assert builder.request.query["id"] == "eq.1"
         assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
         assert builder.request.method == "DELETE"
+
+    def test_delete_all(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
+        builder = request_builder.delete().all()
+
+        assert not builder.request.requires_filter
+        assert len(builder.request.query) == 0
+        assert builder.request.method == "DELETE"
+        assert builder.request.body == {}
 
 
 class TestTextSearch:

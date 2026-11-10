@@ -85,10 +85,17 @@ small = await asian_countries.lt("population", 1_000_000).execute()
 await client.from_("countries").update({"capital": "Hà Nội"}).eq("name", "Việt Nam").execute()
 ```
 
+An update or a delete without a filter would affect every row in the table, so executing one raises `ValueError` before anything is sent. To affect every row on purpose, call `all()`:
+
+```py
+await client.from_("countries").update({"visited": False}).all().execute()
+```
+
 ### Delete
 
 ```py
 await client.from_("countries").delete().eq("name", "Việt Nam").execute()
+await client.from_("countries").delete().all().execute()
 ```
 
 ### General filters
