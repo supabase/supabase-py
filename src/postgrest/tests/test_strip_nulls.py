@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 from httpx import Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import HttpxSession
@@ -34,7 +36,8 @@ def test_strip_nulls_rejects_csv() -> None:
             "https://example.com", http_session=HttpxSession(client=http)
         )
         query = client.from_("users").select("*")
-        query.request.headers = query.request.headers.set("Accept", "text/csv")
+        headers = query.request.headers.set("Accept", "text/csv")
+        query = replace(query, request=replace(query.request, headers=headers))
         with pytest.raises(ValueError, match="cannot be used with Accept: text/csv"):
             query.strip_nulls()
 

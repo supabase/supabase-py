@@ -113,6 +113,16 @@ data = supabase.table("countries").select("*").eq("country", "IL").execute()
 assert len(data.data) > 0
 ```
 
+### Reuse a query
+
+Every builder method returns a new query and leaves the original unchanged, so one base query can branch into several requests. Each request sends only its own filters.
+
+```python
+asian_countries = supabase.table("countries").select("id", "name").eq("continent", "Asia")
+large = asian_countries.gte("population", 100_000_000).execute()
+small = asian_countries.lt("population", 1_000_000).execute()
+```
+
 ### Update Data
 
 ```python

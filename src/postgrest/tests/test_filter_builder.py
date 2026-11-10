@@ -1,3 +1,4 @@
+from dataclasses import FrozenInstanceError, replace
 from typing import Any
 
 import pytest
@@ -384,11 +385,44 @@ def test_not_or_(filter_request_builder: BaseFilterRequestBuilder) -> None:
 
     assert builder.request.query.get("not.or") == "(x.eq.1)"
     assert "or" not in builder.request.query
-    assert not builder.negate_next
+    assert builder.eq("y", "2").request.query.get("y") == "eq.2"
 
     foreign = filter_request_builder.not_.or_("x.eq.1", reference_table="cities")
     assert foreign.request.query.get("cities.not.or") == "(x.eq.1)"
-    assert not foreign.negate_next
+    assert foreign.eq("y", "2").request.query.get("y") == "eq.2"
+
+
+def test_not_leaves_the_receiver_unchanged(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    negated = filter_request_builder.not_
+
+    assert negated.request == filter_request_builder.request
+    assert filter_request_builder.eq("x", "a").request.query.get("x") == "eq.a"
+    assert negated.eq("x", "a").request.query.get("x") == "not.eq.a"
+    assert negated.or_("x.eq.1").request.query.get("not.or") == "(x.eq.1)"
+
+
+def test_filters_branch_from_one_base(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    base = filter_request_builder.eq("account_id", "abc")
+    first = base.in_("id", ["1", "2", "3"])
+    second = base.in_("id", ["4", "5", "6"])
+
+    assert "id" not in base.request.query
+    assert first.request.query.get_list("id") == ["in.(1,2,3)"]
+    assert second.request.query.get_list("id") == ["in.(4,5,6)"]
+    assert "account_id" not in filter_request_builder.request.query
+
+
+def test_builders_are_frozen(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    with pytest.raises(FrozenInstanceError):
+        filter_request_builder.negate_next = True  # pyrefly: ignore[read-only]
+    with pytest.raises(FrozenInstanceError):
+        filter_request_builder.request.retry = False  # pyrefly: ignore[read-only]
 
 
 def test_or_in_contain(filter_request_builder: BaseFilterRequestBuilder) -> None:
@@ -404,16 +438,22 @@ def test_max_affected(filter_request_builder: BaseFilterRequestBuilder) -> None:
         "handling=strict",
         "max-affected=5",
     ]
+    assert "prefer" not in filter_request_builder.request.headers
+
+
+def with_prefer_header(
+    builder: BaseFilterRequestBuilder, prefer: str
+) -> BaseFilterRequestBuilder:
+    headers = builder.request.headers.set("prefer", prefer)
+    return replace(builder, request=replace(builder.request, headers=headers))
 
 
 def test_max_affected_with_existing_prefer_header(
     filter_request_builder: BaseFilterRequestBuilder,
 ) -> None:
-    # Set an existing prefer header
-    filter_request_builder.request.headers = filter_request_builder.request.headers.set(
-        "prefer", "return=representation"
-    )
-    builder = filter_request_builder.max_affected(10)
+    builder = with_prefer_header(
+        filter_request_builder, "return=representation"
+    ).max_affected(10)
 
     assert builder.request.headers.get_list("prefer") == [
         "return=representation",
@@ -425,11 +465,9 @@ def test_max_affected_with_existing_prefer_header(
 def test_max_affected_with_existing_handling_strict(
     filter_request_builder: BaseFilterRequestBuilder,
 ) -> None:
-    # Set an existing prefer header with handling=strict
-    filter_request_builder.request.headers = filter_request_builder.request.headers.set(
-        "prefer", "handling=strict,return=minimal"
-    )
-    builder = filter_request_builder.max_affected(3)
+    builder = with_prefer_header(
+        filter_request_builder, "handling=strict,return=minimal"
+    ).max_affected(3)
 
     assert builder.request.headers.get_list("prefer") == [
         "handling=strict,return=minimal",

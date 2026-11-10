@@ -114,9 +114,12 @@ class AsyncHttpIO:
 
 
 class HasExecutor[HttpIO: (SyncHttpIO, AsyncHttpIO)](Protocol):
-    executor: HttpIO
-    base_url: URL
-    default_headers: Headers
+    @property
+    def executor(self) -> HttpIO: ...
+    @property
+    def base_url(self) -> URL: ...
+    @property
+    def default_headers(self) -> Headers: ...
 
 
 @dataclass
