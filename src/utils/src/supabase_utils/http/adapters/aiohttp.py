@@ -60,7 +60,7 @@ class AsyncAiohttpSession:
 
     async def send(self, request: Request) -> Response:
         try:
-            response = await self.client.request(
+            async with self.client.request(
                 method=request.method,
                 url=str(request.url),
                 data=request.content,
@@ -74,8 +74,8 @@ class AsyncAiohttpSession:
                     *self.client._middlewares,
                     strip_cross_origin_credentials(request.url),
                 ),
-            )
-            return await to_supabase_response(request, response)
+            ) as resp:
+                return await to_supabase_response(request, resp)
         except TimeoutError as error:
             raise RequestTimeoutError(request) from error
         except ClientError as error:
