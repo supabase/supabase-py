@@ -710,7 +710,7 @@ features:
   database.using_modifiers.single_row:
     status: implemented
     symbols:
-      - SelectRequestBuilder.single
+      - QueryRequestBuilder.single
       - RPCFilterRequestBuilder.single
     supporting_symbols:
       - SingleRequestBuilder
@@ -720,7 +720,7 @@ features:
   database.using_modifiers.maybe_single_row:
     status: implemented
     symbols:
-      - SelectRequestBuilder.maybe_single
+      - QueryRequestBuilder.maybe_single
       - RPCFilterRequestBuilder.maybe_single
     supporting_symbols:
       - MaybeSingleRequestBuilder
@@ -732,7 +732,7 @@ features:
   database.using_modifiers.format_csv:
     status: implemented
     symbols:
-      - SelectRequestBuilder.csv
+      - QueryRequestBuilder.csv
       - BaseRPCRequestBuilder.csv
     supporting_symbols:
       - TextRequestBuilder
@@ -741,7 +741,7 @@ features:
   database.using_modifiers.explain:
     status: implemented
     symbols:
-      - SelectRequestBuilder.explain
+      - QueryRequestBuilder.explain
     supporting_symbols:
       - ExplainRequestBuilder
       - ExplainRequestBuilder.execute
