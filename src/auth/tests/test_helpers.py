@@ -1,16 +1,12 @@
 import json
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
 from yarl import URL
 
-from supabase_auth.constants import (
-    API_VERSION_HEADER_NAME,
-)
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -22,7 +18,6 @@ from supabase_auth.helpers import (
     generate_pkce_challenge,
     generate_pkce_verifier,
     parse_link_identity_response,
-    parse_response_api_version,
     validate_expiration,
 )
 from supabase_auth.types import AMREntry, JWTPayload
@@ -40,27 +35,6 @@ def valid_request() -> Request:
         content=None,
         delay=None,
     )
-
-
-def test_parse_response_api_version_with_valid_date() -> None:
-    headers = Headers.from_mapping({API_VERSION_HEADER_NAME: "2024-01-01"})
-    response = Response(
-        headers=headers, status=200, content=b"", request=valid_request()
-    )
-    api_ver = parse_response_api_version(response)
-    assert api_ver
-    assert api_ver == datetime(2024, 1, 1, tzinfo=UTC)
-
-
-def test_parse_response_api_version_with_invalid_dates() -> None:
-    dates = ["2024-01-32", "", "notadate", "Sat Feb 24 2024 17:59:17 GMT+0100"]
-    for date in dates:
-        headers = Headers.from_mapping({API_VERSION_HEADER_NAME: date})
-        response = Response(
-            headers=headers, status=200, content=b"", request=valid_request()
-        )
-        api_ver = parse_response_api_version(response)
-        assert api_ver is None
 
 
 def test_parse_link_identity_response() -> None:
@@ -101,14 +75,6 @@ def test_generate_pkce_verifier() -> None:
 def test_generate_pkce_challenge() -> None:
     pkce = generate_pkce_verifier(45)
     assert isinstance(generate_pkce_challenge(pkce), str)
-
-
-def test_parse_response_api_version_invalid_date() -> None:
-    mock_response = MagicMock(spec=Response)
-    mock_response.headers = {API_VERSION_HEADER_NAME: "2023-02-30"}  # Invalid date
-
-    result = parse_response_api_version(mock_response)
-    assert result is None
 
 
 def test_validate_expiration_with_expired_timestamp() -> None:

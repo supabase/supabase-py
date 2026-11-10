@@ -6,6 +6,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from functools import partial
 from typing import TYPE_CHECKING, Any, Self
 from uuid import uuid4
 
@@ -27,12 +28,16 @@ from .constants import (
     RETRY_MAX_DELAY,
     STORAGE_KEY,
 )
-from .errors import AuthApiError, AuthRetryableError, AuthSessionMissingError
+from .errors import (
+    AuthApiError,
+    AuthRetryableError,
+    AuthSessionMissingError,
+    AuthUnknownError,
+)
 from .helpers import parse_auth_response, parse_user_response
 from .timer import _AsyncTimer, _SyncTimer
 from .types import (
     AuthChangeEvent,
-    AuthResponse,
     AuthStateChange,
     Session,
     SignOutReason,
@@ -116,17 +121,24 @@ class _SessionManagerCommon[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     _failed_refreshes: int = field(default=0, init=False, repr=False)
     """Consecutive background refreshes that failed without a rejection."""
 
-    def _refresh_access_token(self, refresh_token: str) -> HttpMethod[AuthResponse]:
+    def _refresh_access_token(self, refresh_token: str) -> HttpMethod[Session]:
         response = yield JSONRequest(
             method="POST",
             path=["token"],
             query=URLQuery.from_mapping({"grant_type": "refresh_token"}),
             body={"refresh_token": refresh_token},
         )
-        return parse_auth_response(response)
+        session = parse_auth_response(response).session
+        if session is None:
+            raise AuthUnknownError(
+                "Unexpected error: the refreshed session is missing",
+                status_code=response.status,
+                response=response,
+            )
+        return session
 
     @handle_http_io
-    def refresh_access_token(self, refresh_token: str) -> HttpMethod[AuthResponse]:
+    def refresh_access_token(self, refresh_token: str) -> HttpMethod[Session]:
         return self._refresh_access_token(refresh_token)
 
     def _get_user(self, jwt: str) -> HttpMethod[UserResponse]:
@@ -249,8 +261,9 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         tb: TracebackType | None,
     ) -> None:
         self._cancel_refresh_timer()
-        if self._refresh_task is not None:
-            self._refresh_task.cancel()
+        task, self._refresh_task = self._refresh_task, None
+        if task is not None:
+            task.cancel()
 
     async def __aenter__(self) -> Self:
         return self
@@ -288,7 +301,7 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
             return session
         try:
             return await self._single_flight(
-                lambda: self._refresh_stored_session(only_if_expiring=True)
+                partial(self._refresh_stored_session, only_if_expiring=True)
             )
         except AuthSessionMissingError:
             return None
@@ -299,17 +312,25 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
             raise AuthSessionMissingError
         return session
 
+    async def refresh_session(self) -> Session:
+        """Refresh the stored session whether or not it is expiring, sharing
+        a refresh that is already in flight. Raises `AuthSessionMissingError`
+        when there is no stored session."""
+        return await self._single_flight(self._refresh_stored_session)
+
     async def call_refresh_token(self, refresh_token: str) -> Session:
         """Refresh the session with `refresh_token`, sharing a refresh that is
         already in flight."""
-        return await self._single_flight(lambda: self._refresh_with(refresh_token))
+        return await self._single_flight(partial(self._refresh_with, refresh_token))
 
     async def save_session(self, session: Session) -> None:
         if session.expires_at is None:
             return
         self._current_session = session
         await self.storage.set_item(self.storage_key, session.model_dump_json())
-        self._schedule_refresh(self._refresh_delay(session.expires_at))
+        self._schedule_refresh(
+            self._refresh_delay(session.expires_at), session.refresh_token
+        )
 
     async def remove_session(self) -> None:
         await self.storage.remove_item(self.storage_key)
@@ -348,11 +369,26 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
             task.add_done_callback(_consume_exception)
         return await asyncio.shield(task)
 
-    async def _refresh_stored_session(self, *, only_if_expiring: bool) -> Session:
+    async def _refresh_stored_session(
+        self, *, only_if_expiring: bool = False, scheduled_for: str | None = None
+    ) -> Session:
+        """Refresh the stored session with its own refresh token.
+
+        The stored session is read again first, so a caller that waited for
+        another refresh sees the session that refresh saved. It is returned
+        as is when it is not expiring and `only_if_expiring` is set, or when
+        its refresh token is no longer `scheduled_for`, the token the refresh
+        was scheduled for.
+        """
         session = await self.load_session()
         if session is None:
             raise AuthSessionMissingError
+        if not session.refresh_token:
+            await self._sign_out_locally(SignOutReason.SESSION_MISSING)
+            raise AuthSessionMissingError
         if only_if_expiring and not self._is_expiring(session):
+            return session
+        if scheduled_for is not None and session.refresh_token != scheduled_for:
             return session
         return await self._refresh_with(session.refresh_token)
 
@@ -360,43 +396,45 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         if not refresh_token:
             raise AuthSessionMissingError
         try:
-            response = await self.refresh_access_token(refresh_token)
+            session = await self.refresh_access_token(refresh_token)
         except Exception as error:
             if _is_terminal_refresh_error(error):
                 await self._sign_out_locally(SignOutReason.SESSION_EXPIRED)
             raise
-        if response.session is None:
-            raise AuthSessionMissingError
         self._failed_refreshes = 0
-        await self.save_session(response.session)
+        await self.save_session(session)
         self.notify_all_subscribers(
-            AuthStateChange(AuthChangeEvent.TOKEN_REFRESHED, response.session)
+            AuthStateChange(AuthChangeEvent.TOKEN_REFRESHED, session)
         )
-        return response.session
+        return session
 
-    async def _auto_refresh_tick(self) -> None:
+    async def _auto_refresh_tick(self, refresh_token: str | None) -> None:
         # The timer that fired is spent. Forgetting it here keeps the refresh
         # below from cancelling the very task that runs it.
         self.refresh_token_timer = None
-        await self._refresh_or_retry()
+        await self._refresh_or_retry(scheduled_for=refresh_token)
 
-    async def _refresh_or_retry(self) -> None:
+    async def _refresh_or_retry(self, *, scheduled_for: str | None = None) -> None:
         try:
             await self._single_flight(
-                lambda: self._refresh_stored_session(only_if_expiring=False)
+                partial(self._refresh_stored_session, scheduled_for=scheduled_for)
             )
         except AuthSessionMissingError:
             return
         except Exception as error:
             delay = self._retry_in(error)
             if delay is not None:
-                self._schedule_refresh(delay)
+                self._schedule_refresh(delay, None)
 
-    def _schedule_refresh(self, seconds: float) -> None:
+    def _schedule_refresh(self, seconds: float, refresh_token: str | None) -> None:
+        """Refresh the stored session in `seconds`, unless its refresh token
+        is no longer `refresh_token` by then. None refreshes it regardless."""
         self._cancel_refresh_timer()
         if seconds <= 0 or not self.auto_refresh_token:
             return
-        self.refresh_token_timer = _AsyncTimer(seconds, self._auto_refresh_tick)
+        self.refresh_token_timer = _AsyncTimer(
+            seconds, partial(self._auto_refresh_tick, refresh_token)
+        )
         self.refresh_token_timer.start()
 
     def _cancel_refresh_timer(self) -> None:
@@ -486,7 +524,7 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
             return session
         try:
             return self._single_flight(
-                lambda: self._refresh_stored_session(only_if_expiring=True)
+                partial(self._refresh_stored_session, only_if_expiring=True)
             )
         except AuthSessionMissingError:
             return None
@@ -497,17 +535,25 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
             raise AuthSessionMissingError
         return session
 
+    def refresh_session(self) -> Session:
+        """Refresh the stored session whether or not it is expiring, after a
+        refresh that is already running has finished. Raises
+        `AuthSessionMissingError` when there is no stored session."""
+        return self._single_flight(self._refresh_stored_session)
+
     def call_refresh_token(self, refresh_token: str) -> Session:
         """Refresh the session with `refresh_token`, after a refresh that is
         already running has finished."""
-        return self._single_flight(lambda: self._refresh_with(refresh_token))
+        return self._single_flight(partial(self._refresh_with, refresh_token))
 
     def save_session(self, session: Session) -> None:
         if session.expires_at is None:
             return
         self._current_session = session
         self.storage.set_item(self.storage_key, session.model_dump_json())
-        self._schedule_refresh(self._refresh_delay(session.expires_at))
+        self._schedule_refresh(
+            self._refresh_delay(session.expires_at), session.refresh_token
+        )
 
     def remove_session(self) -> None:
         self.storage.remove_item(self.storage_key)
@@ -541,11 +587,26 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         with self._refresh_lock:
             return refresh()
 
-    def _refresh_stored_session(self, *, only_if_expiring: bool) -> Session:
+    def _refresh_stored_session(
+        self, *, only_if_expiring: bool = False, scheduled_for: str | None = None
+    ) -> Session:
+        """Refresh the stored session with its own refresh token.
+
+        The stored session is read again first, so a caller that waited for
+        another refresh sees the session that refresh saved. It is returned
+        as is when it is not expiring and `only_if_expiring` is set, or when
+        its refresh token is no longer `scheduled_for`, the token the refresh
+        was scheduled for.
+        """
         session = self.load_session()
         if session is None:
             raise AuthSessionMissingError
+        if not session.refresh_token:
+            self._sign_out_locally(SignOutReason.SESSION_MISSING)
+            raise AuthSessionMissingError
         if only_if_expiring and not self._is_expiring(session):
+            return session
+        if scheduled_for is not None and session.refresh_token != scheduled_for:
             return session
         return self._refresh_with(session.refresh_token)
 
@@ -553,42 +614,44 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         if not refresh_token:
             raise AuthSessionMissingError
         try:
-            response = self.refresh_access_token(refresh_token)
+            session = self.refresh_access_token(refresh_token)
         except Exception as error:
             if _is_terminal_refresh_error(error):
                 self._sign_out_locally(SignOutReason.SESSION_EXPIRED)
             raise
-        if response.session is None:
-            raise AuthSessionMissingError
         self._failed_refreshes = 0
-        self.save_session(response.session)
+        self.save_session(session)
         self.notify_all_subscribers(
-            AuthStateChange(AuthChangeEvent.TOKEN_REFRESHED, response.session)
+            AuthStateChange(AuthChangeEvent.TOKEN_REFRESHED, session)
         )
-        return response.session
+        return session
 
-    def _auto_refresh_tick(self) -> None:
+    def _auto_refresh_tick(self, refresh_token: str | None) -> None:
         # The timer that fired is spent, like in the async manager.
         self.refresh_token_timer = None
-        self._refresh_or_retry()
+        self._refresh_or_retry(scheduled_for=refresh_token)
 
-    def _refresh_or_retry(self) -> None:
+    def _refresh_or_retry(self, *, scheduled_for: str | None = None) -> None:
         try:
             self._single_flight(
-                lambda: self._refresh_stored_session(only_if_expiring=False)
+                partial(self._refresh_stored_session, scheduled_for=scheduled_for)
             )
         except AuthSessionMissingError:
             return
         except Exception as error:
             delay = self._retry_in(error)
             if delay is not None:
-                self._schedule_refresh(delay)
+                self._schedule_refresh(delay, None)
 
-    def _schedule_refresh(self, seconds: float) -> None:
+    def _schedule_refresh(self, seconds: float, refresh_token: str | None) -> None:
+        """Refresh the stored session in `seconds`, unless its refresh token
+        is no longer `refresh_token` by then. None refreshes it regardless."""
         self._cancel_refresh_timer()
         if seconds <= 0 or not self.auto_refresh_token:
             return
-        self.refresh_token_timer = _SyncTimer(seconds, self._auto_refresh_tick)
+        self.refresh_token_timer = _SyncTimer(
+            seconds, partial(self._auto_refresh_tick, refresh_token)
+        )
         self.refresh_token_timer.start()
 
     def _cancel_refresh_timer(self) -> None:

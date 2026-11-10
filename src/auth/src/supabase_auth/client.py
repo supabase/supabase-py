@@ -423,12 +423,9 @@ class SupabaseAuthHttpClient[
         if has_expired:
             if not refresh_token:
                 raise AuthSessionMissingError
-            response = yield from self.session_manager._refresh_access_token(
+            session = yield from self.session_manager._refresh_access_token(
                 refresh_token
             )
-            if not response.session:
-                return AuthResponse()
-            session = response.session
         else:
             user_response = yield from self.session_manager._get_user(access_token)
             if user_response is None:
@@ -1022,13 +1019,11 @@ class AsyncSupabaseAuthClient(
         will attempt to retrieve it from getSession(). If the current session's
         refresh token is invalid, an error will be thrown.
         """
-        if not refresh_token:
-            session = await self.session_manager.load_session()
-            if session:
-                refresh_token = session.refresh_token
-        if not refresh_token:
-            raise AuthSessionMissingError
-        session = await self.session_manager.call_refresh_token(refresh_token)
+        session = (
+            await self.session_manager.call_refresh_token(refresh_token)
+            if refresh_token
+            else await self.session_manager.refresh_session()
+        )
         return AuthResponse(session=session, user=session.user)
 
     async def sign_out(self, scope: SignOutScope = "global") -> None:
@@ -1448,13 +1443,11 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         will attempt to retrieve it from getSession(). If the current session's
         refresh token is invalid, an error will be thrown.
         """
-        if not refresh_token:
-            session = self.session_manager.load_session()
-            if session:
-                refresh_token = session.refresh_token
-        if not refresh_token:
-            raise AuthSessionMissingError
-        session = self.session_manager.call_refresh_token(refresh_token)
+        session = (
+            self.session_manager.call_refresh_token(refresh_token)
+            if refresh_token
+            else self.session_manager.refresh_session()
+        )
         return AuthResponse(session=session, user=session.user)
 
     def sign_out(self, scope: SignOutScope = "global") -> None:

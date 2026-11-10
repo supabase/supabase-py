@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import binascii
 import hashlib
-import re
 import secrets
 import string
 import uuid
@@ -16,7 +15,6 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from supabase_utils.http.query import URLQuery
 
-from .constants import API_VERSION_HEADER_NAME
 from .errors import (
     AuthApiError,
     AuthError,
@@ -220,24 +218,6 @@ def generate_pkce_challenge(code_verifier: str) -> str:
     sha256_hash = hashlib.sha256(verifier_bytes).digest()
 
     return base64.urlsafe_b64encode(sha256_hash).rstrip(b"=").decode("utf-8")
-
-
-API_VERSION_REGEX = r"^2[0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|1[0-9]|2[0-9]|3[0-1])$"
-
-
-def parse_response_api_version(response: Response) -> datetime | None:
-    api_version = response.headers.get(API_VERSION_HEADER_NAME)
-
-    if not api_version:
-        return None
-
-    if re.search(API_VERSION_REGEX, api_version) is None:
-        return None
-
-    try:
-        return datetime.strptime(api_version, "%Y-%m-%d").replace(tzinfo=UTC)
-    except Exception:
-        return None
 
 
 def is_http_url(url: str) -> bool:

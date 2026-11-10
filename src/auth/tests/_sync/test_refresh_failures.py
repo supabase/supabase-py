@@ -80,6 +80,10 @@ def connection_refused(request: Request) -> Response:
     raise ConnectError("connection refused", request=request)
 
 
+def user_without_session(request: Request) -> Response:
+    return Response(200, json=USER)
+
+
 def expired_session() -> Session:
     return Session(
         access_token="old-access",
@@ -146,6 +150,7 @@ def test_a_rejected_refresh_removes_the_session_notifies_and_raises() -> None:
         (bad_gateway, AuthRetryableError),
         (html_not_found, AuthUnknownError),
         (connection_refused, SupabaseTransportError),
+        (user_without_session, AuthUnknownError),
     ],
 )
 def test_a_refresh_that_is_not_rejected_keeps_the_session(
@@ -265,3 +270,19 @@ def test_a_rejected_refresh_is_an_auth_error() -> None:
 
     with pytest.raises(AuthError):
         client.get_session()
+
+
+def test_get_session_removes_an_expired_session_without_refresh_token() -> None:
+    client, changes = client_with_expired_session(refreshed_session)
+    manager = client.session_manager
+    session = expired_session()
+    session.refresh_token = ""
+    manager.storage.set_item(manager.storage_key, session.model_dump_json())
+
+    assert client.get_session() is None
+
+    assert manager.storage.get_item(manager.storage_key) is None
+    assert changes[-1] == AuthStateChange(
+        AuthChangeEvent.SIGNED_OUT,
+        sign_out_reason=SignOutReason.SESSION_MISSING,
+    )

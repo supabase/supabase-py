@@ -1,4 +1,5 @@
 import asyncio
+import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -151,3 +152,65 @@ def test_concurrent_sync_get_session_calls_share_one_refresh() -> None:
 
     assert len(requests) == 1
     assert {session.access_token for session in sessions if session} == {"new-access"}
+
+
+def test_concurrent_sync_refresh_session_calls_never_reuse_a_rotated_token() -> None:
+    requests: list[dict[str, str]] = []
+    lock = threading.Lock()
+
+    def handler(request: Request) -> Response:
+        body: dict[str, str] = json.loads(request.content)
+        with lock:
+            requests.append(body)
+            rotation = len(requests)
+        time.sleep(0.05)
+        return Response(
+            200,
+            json={
+                "access_token": f"access-{rotation}",
+                "refresh_token": f"refresh-{rotation}",
+                "token_type": "bearer",
+                "expires_in": 3600,
+                "user": USER,
+            },
+        )
+
+    client = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client(transport=MockTransport(handler))),
+        auto_refresh_token=False,
+    )
+    client.session_manager.save_session(expired_session())
+
+    def refresh_session(_worker: int) -> Session | None:
+        return client.refresh_session().session
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        sessions = list(pool.map(refresh_session, range(3)))
+
+    sent = [body["refresh_token"] for body in requests]
+    assert sent == ["old-refresh", "refresh-1", "refresh-2"]
+    assert {session.access_token for session in sessions if session} == {
+        "access-1",
+        "access-2",
+        "access-3",
+    }
+
+
+async def test_get_session_after_closing_the_client_starts_a_new_refresh() -> None:
+    endpoint = AsyncRefreshGate()
+    client = endpoint.client()
+    manager = client.session_manager
+    await manager.save_session(expired_session())
+
+    waiter = asyncio.create_task(client.get_session())
+    await asyncio.wait_for(endpoint.started.wait(), timeout=1)
+    await manager.__aexit__(None, None, None)
+    await asyncio.gather(waiter, return_exceptions=True)
+    endpoint.gate.set()
+
+    assert waiter.cancelled()
+    session = await asyncio.wait_for(client.get_session(), timeout=1)
+    assert session is not None
+    assert session.access_token == "new-access"
+    assert len(endpoint.requests) == 2

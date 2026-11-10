@@ -153,11 +153,11 @@ The client constructors of `supabase_auth`, `postgrest`, `storage3` and `supabas
 
 `on_auth_state_change` callbacks take one `AuthStateChange` instead of an event string and a session. `AuthChangeEvent` is a `StrEnum`, so its members still compare equal to the old strings. `AuthChangeEventMFA` and the never emitted `USER_DELETED` event are removed.
 
-| Before                                                          | After                                                                                   |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `client.on_auth_state_change(lambda event, session: ...)`       | `client.on_auth_state_change(lambda change: ...)`                                       |
-| `event == "SIGNED_IN"`                                          | `change.event is AuthChangeEvent.SIGNED_IN`                                             |
-| `session`                                                       | `change.session`                                                                        |
+| Before                                                    | After                                             |
+| --------------------------------------------------------- | ------------------------------------------------- |
+| `client.on_auth_state_change(lambda event, session: ...)` | `client.on_auth_state_change(lambda change: ...)` |
+| `event == "SIGNED_IN"`                                    | `change.event is AuthChangeEvent.SIGNED_IN`       |
+| `session`                                                 | `change.session`                                  |
 
 - Every new listener first receives `INITIAL_SESSION` with the session the client knows of, before `on_auth_state_change` returns. Call `initialize()` first to have a persisted session recovered by then.
 - `SIGNED_OUT` carries `change.sign_out_reason`, a `SignOutReason`: `USER_INITIATED` after `sign_out()`, `SESSION_EXPIRED` when the auth service rejected the refresh token, and `SESSION_MISSING` when the stored session could not be read.
