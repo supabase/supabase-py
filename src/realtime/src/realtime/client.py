@@ -114,7 +114,7 @@ class connect_once:
         assert self.heartbeat_task, "Connection should never exit without hearbeat_task"
         self.heartbeat_task.cancel()
         assert self.client, "Connection should never exit without client"
-        await self.client.close()
+        await self.client.aclose()
 
 
 MAX_RECONNECT_DELAY = 60
@@ -216,15 +216,9 @@ class RealtimeClient:
             ):
                 self._connection_failure.set_exception(exc)
 
-    async def close(self) -> None:
+    async def aclose(self) -> None:
         """
         Close the WebSocket connection.
-
-        Returns:
-            None
-
-        Raises:
-            NotConnectedError: If the connection is not established when this method is called.
         """
 
         await self._ws_connection.close()

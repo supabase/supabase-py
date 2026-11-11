@@ -200,6 +200,10 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 `heartbeat_interval` and `heartbeat_timeout` are typed `float` and are in seconds. `connect_once`, `RealtimeClient` and `RealtimeClientOptions` raise `ValueError` when either one is not positive.
 
+## Realtime `close()` is `aclose()`
+
+`RealtimeClient.close()` is renamed to `aclose()`, the name Python uses for an async close, so `contextlib.aclosing(client)` works. `close()` is removed.
+
 ## Auth `persist_session` is removed and `storage_key` takes effect
 
 `AsyncSupabaseAuthClient` and `SyncSupabaseAuthClient` no longer take `persist_session`. It was never passed on to the session manager, so it had no effect. To keep the session only in memory, leave `storage` out. Each client then gets its own memory storage, so clients created per request do not share a session.
