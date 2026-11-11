@@ -119,6 +119,27 @@ supabase = create_client(
 supabase.table("countries").select("*").retry(False).execute()
 ```
 
+### One client per request on a server
+
+A server such as a FastAPI or Django app acts for the user who sent the request, so that row level security applies to them. Create one client when the app starts and call `with_token()` with the user's JWT in each request. It returns a client that shares the HTTP connections, headers and options of the first one, and only differs in the `Authorization` header. It does no I/O, so creating one per request is cheap. It never refreshes or replaces the token, and leaving it with `async with` does not close the shared connections. It has no auth client, so using its `auth` raises `SupabaseException`.
+
+```python
+import os
+
+from supabase.httpx import create_async_client
+
+shared = create_async_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+
+
+async def list_todos(access_token: str) -> object:
+    response = (
+        await shared.with_token(access_token).table("todos").select("*").execute()
+    )
+    return response.data
+```
+
+In FastAPI, read the token with the `HTTPBearer` security dependency, which parses the `Authorization` header and rejects a request without one, and create `shared` with `async with` in the lifespan of the app, so that it is closed when the app shuts down. To check the token, use `shared.auth.get_claims(access_token)`, which caches the signing keys of the project between requests.
+
 Use the supabase client to interface with your database.
 
 ### Sign-up
@@ -299,7 +320,8 @@ SupabaseError
 ├── FunctionsError                  Root of the functions errors.
 ├── RealtimeError                   Root of the realtime errors: NotConnectedError,
 │                                   AuthorizationError, MaxRetriesExceeded
-└── SupabaseException               The client was created with an invalid URL or key.
+└── SupabaseException               The client was created with an invalid URL or key, or `auth`
+                                    was used on a `with_token()` client.
 ```
 
 The response errors inherit both from the root of their package and from `SupabaseAPIError`, so `except AuthApiError` and `except AuthError` keep working. Arguments the client rejects before sending a request raise the built-in `ValueError` or `TypeError`, as they do everywhere in Python, except for a vector batch of the wrong size, which raises `VectorBucketException`. A lost realtime connection is reported as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, not as a `SupabaseError`.

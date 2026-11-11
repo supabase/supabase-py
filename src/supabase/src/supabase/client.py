@@ -87,6 +87,7 @@ if TYPE_CHECKING:
     from supabase_auth.client import SupabaseAuthHttpClient
     from supabase_auth.types import AuthStateChange
     from supabase_functions.client import FunctionsClient
+    from supabase_utils.http.request import Request, Response
     from supabase_utils.types import JSON
 
     from .types import _ServiceClientOptions
@@ -139,7 +140,8 @@ _DEFAULT_HEADERS = {
 
 
 class SupabaseException(SupabaseError):
-    """Raised when the client is created with a missing or invalid URL or key."""
+    """Raised when the client is created with a missing or invalid URL or key, or
+    when `auth` is used on a client returned by `with_token()`."""
 
 
 def _find_authorization(headers: Mapping[str, str]) -> str | None:
@@ -151,6 +153,48 @@ def _find_authorization(headers: Mapping[str, str]) -> str | None:
 
 def _is_new_api_key(key: str) -> bool:
     return key.startswith("sb_")
+
+
+class _SharedHttpSession:
+    """Sends the requests with a session that another client closes."""
+
+    def __init__(self, session: HttpSession) -> None:
+        self.session = session
+
+    def send(self, request: Request) -> Response:
+        return self.session.send(request)
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        pass
+
+
+class _SharedAsyncHttpSession:
+    """Sends the requests with a session that another client closes."""
+
+    def __init__(self, session: AsyncHttpSession) -> None:
+        self.session = session
+
+    async def send(self, request: Request) -> Response:
+        return await self.session.send(request)
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        pass
 
 
 class SupabaseClient[
@@ -257,6 +301,7 @@ class SupabaseClient[
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
         self.storage_url = self.supabase_url.joinpath("storage", "v1", "")
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
+        self._has_auth = True
 
     @property
     def headers(self) -> Mapping[str, str]:
@@ -266,6 +311,43 @@ class SupabaseClient[
         signed in user, or the API key when nobody is signed in.
         """
         return MappingProxyType(self._headers)
+
+    def with_token(self, access_token: str) -> Self:
+        """Return a client that makes its requests as the user of `access_token`.
+
+        Use it on a server to act for the user who sent a request, so row
+        level security applies to their JWT. Pass the JWT without the
+        `Bearer ` prefix.
+
+        The returned client shares the HTTP session, the headers and the
+        options of this client, and does no I/O, so creating one per request
+        is cheap. Leaving it or its services with `with` or `async with` does
+        not close the shared HTTP session.
+
+        `access_token` is sent as the `Authorization` header and is never
+        refreshed or replaced. The returned client has no auth client, so
+        using its `auth` raises `SupabaseException`. Use the `auth` of this
+        client instead, for example `auth.get_claims(access_token)` to verify
+        the JWT.
+        """
+        if not access_token:
+            raise ValueError("access_token is required")
+        client = self._with_headers(
+            {**self._headers, "Authorization": self._create_auth_header(access_token)}
+        )
+        client._has_auth = False
+        return client
+
+    @abstractmethod
+    def _with_headers(self, headers: Mapping[str, str]) -> Self: ...
+
+    def _check_has_auth(self) -> None:
+        if not self._has_auth:
+            raise SupabaseException(
+                "The client was created with with_token(), so it has no auth"
+                " client. Use the auth of the client that with_token() was"
+                " called on."
+            )
 
     @property
     @abstractmethod
@@ -454,6 +536,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         """
         self.http_session = http_session
         self._owns_http_session = False
+        self._auth: AsyncSupabaseAuthClient | None = None
         self._realtime_options = realtime or RealtimeClientOptions()
         super().__init__(
             supabase_url,
@@ -469,7 +552,6 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         self.realtime_url = self.supabase_url.joinpath("realtime", "v1").with_scheme(
             "wss" if self.supabase_url.scheme == "https" else "ws"
         )
-        self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
     async def create(
@@ -520,7 +602,8 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         connections opened from `realtime`, which close when their
         `async with` block ends. Closing the client more than once is safe.
         """
-        self.auth.session_manager.stop_auto_refresh()
+        if self._auth is not None:
+            self._auth.session_manager.stop_auto_refresh()
         if self._owns_http_session:
             await self.http_session.__aexit__(None, None, None)
 
@@ -535,20 +618,40 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
     ) -> None:
         await self.aclose()
 
-    @cached_property
+    @override
+    def _with_headers(self, headers: Mapping[str, str]) -> Self:
+        return type(self)(
+            str(self.supabase_url),
+            self.supabase_key,
+            _SharedAsyncHttpSession(self.http_session),
+            headers=headers,
+            request_timeout=self._request_timeout,
+            retry=self._retry,
+            postgrest=self._postgrest_options,
+            auth=self._auth_options,
+            storage=self._storage_options,
+            functions=self._functions_options,
+            realtime=self._realtime_options,
+        )
+
+    @property
     @override
     def auth(self) -> AsyncSupabaseAuthClient:
-        return AsyncSupabaseAuthClient(
-            url=str(self.auth_url),
-            http_session=self.http_session,
-            headers=self._headers,
-            auto_refresh_token=self._auth_options.auto_refresh_token,
-            storage=self._auth_options.session_storage,
-            storage_key=self._auth_options.storage_key,
-            flow_type=self._auth_options.flow_type,
-            request_timeout=self._timeout_for(self._auth_options),
-            retry=self._retry_for(self._auth_options),
-        )
+        if self._auth is None:
+            self._check_has_auth()
+            self._auth = AsyncSupabaseAuthClient(
+                url=str(self.auth_url),
+                http_session=self.http_session,
+                headers=self._headers,
+                auto_refresh_token=self._auth_options.auto_refresh_token,
+                storage=self._auth_options.session_storage,
+                storage_key=self._auth_options.storage_key,
+                flow_type=self._auth_options.flow_type,
+                request_timeout=self._timeout_for(self._auth_options),
+                retry=self._retry_for(self._auth_options),
+            )
+            self._auth.on_auth_state_change(self._listen_to_auth_events)
+        return self._auth
 
     @cached_property
     @override
@@ -629,6 +732,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         """
         self.http_session = http_session
         self._owns_http_session = False
+        self._auth: SyncSupabaseAuthClient | None = None
         super().__init__(
             supabase_url,
             supabase_key,
@@ -640,7 +744,6 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             storage=storage,
             functions=functions,
         )
-        self.auth.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
     def create(
@@ -688,7 +791,8 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         A session passed in by the caller is left open. Closing the client
         more than once is safe.
         """
-        self.auth.session_manager.stop_auto_refresh()
+        if self._auth is not None:
+            self._auth.session_manager.stop_auto_refresh()
         if self._owns_http_session:
             self.http_session.__exit__(None, None, None)
 
@@ -703,20 +807,39 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
     ) -> None:
         self.close()
 
-    @cached_property
+    @override
+    def _with_headers(self, headers: Mapping[str, str]) -> Self:
+        return type(self)(
+            str(self.supabase_url),
+            self.supabase_key,
+            _SharedHttpSession(self.http_session),
+            headers=headers,
+            request_timeout=self._request_timeout,
+            retry=self._retry,
+            postgrest=self._postgrest_options,
+            auth=self._auth_options,
+            storage=self._storage_options,
+            functions=self._functions_options,
+        )
+
+    @property
     @override
     def auth(self) -> SyncSupabaseAuthClient:
-        return SyncSupabaseAuthClient(
-            url=str(self.auth_url),
-            http_session=self.http_session,
-            headers=self._headers,
-            auto_refresh_token=self._auth_options.auto_refresh_token,
-            storage=self._auth_options.session_storage,
-            storage_key=self._auth_options.storage_key,
-            flow_type=self._auth_options.flow_type,
-            request_timeout=self._timeout_for(self._auth_options),
-            retry=self._retry_for(self._auth_options),
-        )
+        if self._auth is None:
+            self._check_has_auth()
+            self._auth = SyncSupabaseAuthClient(
+                url=str(self.auth_url),
+                http_session=self.http_session,
+                headers=self._headers,
+                auto_refresh_token=self._auth_options.auto_refresh_token,
+                storage=self._auth_options.session_storage,
+                storage_key=self._auth_options.storage_key,
+                flow_type=self._auth_options.flow_type,
+                request_timeout=self._timeout_for(self._auth_options),
+                retry=self._retry_for(self._auth_options),
+            )
+            self._auth.on_auth_state_change(self._listen_to_auth_events)
+        return self._auth
 
     @cached_property
     @override

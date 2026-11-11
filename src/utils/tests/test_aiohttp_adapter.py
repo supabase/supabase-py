@@ -292,3 +292,12 @@ async def test_request_timeout_keeps_session_total() -> None:
         assert session._timeout(4) == aiohttp.ClientTimeout(
             total=30, connect=4, sock_connect=4, sock_read=4, ceil_threshold=2
         )
+
+
+@pytest.mark.parametrize("owns_client", [True, False])
+async def test_session_closes_the_client_it_owns(owns_client: bool) -> None:
+    client = aiohttp.ClientSession()
+    async with AsyncAiohttpSession(client=client, owns_client=owns_client):
+        pass
+    assert client.closed is owns_client
+    await client.close()

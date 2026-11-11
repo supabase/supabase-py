@@ -408,7 +408,9 @@ features:
   client.authentication_integration.third_party_auth: not_implemented
   client.authentication_integration.cross_client_token_sync:
     status: partially_implemented
-    note: "Every auth event that carries a session sets the Authorization header used by auth, postgrest, storage and functions to that session's access token, and an event without a session resets it to the project key. AsyncClient also passes the token to realtime. The sync Client has no realtime client."
+    note: "Every auth event that carries a session sets the Authorization header used by auth, postgrest, storage and functions to that session's access token, and an event without a session resets it to the project key. AsyncClient also passes the token to realtime. The sync Client has no realtime client. SupabaseClient.with_token returns a client that shares the HTTP session and options and sends a given user JWT to every sub-client, for servers that act for one user per request. Like a supabase-js client with accessToken, it has no auth client: its auth raises."
+    symbols:
+      - SupabaseClient.with_token
   client.authentication_integration.oauth_flow_type:
     status: implemented
     note: "flow_type of AuthClientOptions, passed as the auth argument of the supabase client, and of the auth client constructor."
