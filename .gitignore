@@ -1,10 +1,7 @@
-.mypy_cache/
-__pycache__/
-tags
-
 # Swap
 [._]*.s[a-v][a-z]
-!*.svg  # comment out if you don't need vector files
+# comment out if you don't need vector files
+!*.svg
 [._]*.sw[a-p]
 [._]s[a-rt-v][a-z]
 [._]ss[a-gi-z]
