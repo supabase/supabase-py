@@ -7,8 +7,9 @@ from websockets.exceptions import ConnectionClosed
 from websockets.frames import Frame
 
 from realtime._redact import RedactingLoggerAdapter, redact
+from realtime._serializer import decode, encode
 from realtime.client import connect_once
-from realtime.message import Message, ReplyMessage, SuccessReplyMessage
+from realtime.message import Message
 from realtime.types import ChannelEvents
 
 HOST = "127.0.0.1"
@@ -19,20 +20,16 @@ REFRESHED_TOKEN = "refreshed-secret-token"
 async def handler(connection: ServerConnection) -> None:
     try:
         async for raw in connection:
-            message = Message.model_validate_json(raw)
+            message = decode(raw)
             if message.ref is None or message.event == ChannelEvents.access_token:
                 continue
-            reply = ReplyMessage.model_validate(
-                {
-                    "event": ChannelEvents.reply,
-                    "topic": message.topic,
-                    "ref": message.ref,
-                    "payload": SuccessReplyMessage.model_validate(
-                        {"status": "ok", "response": {}}
-                    ),
-                }
+            reply = Message(
+                event=ChannelEvents.reply,
+                topic=message.topic,
+                ref=message.ref,
+                payload={"status": "ok", "response": {}},
             )
-            await connection.send(reply.model_dump_json())
+            await connection.send(encode(reply))
     except ConnectionClosed:
         pass
 
@@ -68,8 +65,8 @@ async def test_tokens_are_not_logged(
         if not record.name.startswith("websockets.server")
     )
     assert "apikey=<redacted>" in client_logs
-    assert '"event":"access_token"' in client_logs
-    assert '"event":"phx_join"' in client_logs
+    assert '"access_token",{"access_token":"<redacted>"}' in client_logs
+    assert '"phx_join",{' in client_logs
     assert URL_TOKEN not in client_logs
     assert REFRESHED_TOKEN not in client_logs
     assert {

@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, Any, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, Strict
 
 # Constants
 DEFAULT_TIMEOUT = 10
 PHOENIX_CHANNEL = "phoenix"
-PROTOCOL_VERSION = "1.0.0"
+PROTOCOL_VERSION = "2.0.0"
 DEFAULT_HEARTBEAT_INTERVAL = 25
 DEFAULT_HEARTBEAT_TIMEOUT = 5
 
@@ -131,7 +131,7 @@ class BroadcastMeta(BaseModel):
 
 class BroadcastPayload(BaseModel):
     event: str
-    payload: dict[str, Any]
+    payload: dict[str, Any] | Annotated[bytes, Strict()]
     type: str | None = None
     meta: BroadcastMeta | None = None
 

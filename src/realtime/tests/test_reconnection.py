@@ -12,6 +12,7 @@ from realtime import (
     MaxRetriesExceeded,
     RealtimeClient,
 )
+from realtime._serializer import decode, encode
 from realtime.client import automatically_reconnect, connect_once
 from realtime.message import (
     AccessTokenMessage,
@@ -20,9 +21,6 @@ from realtime.message import (
     HeartbeatMessage,
     JoinMessage,
     Message,
-    ReplyMessage,
-    ReplyPostgresChanges,
-    SuccessReplyMessage,
 )
 from realtime.types import ChannelEvents
 
@@ -35,16 +33,15 @@ async def get_token() -> str:
     return PUBLISHABLE_KEY
 
 
-def reply_ack(topic: str, ref: str) -> str:
-    reply_msg = ReplyMessage(
-        event=ChannelEvents.reply,
-        topic=topic,
-        ref=ref,
-        payload=SuccessReplyMessage(
-            status="ok", response=ReplyPostgresChanges(postgres_changes=[])
-        ),
+def reply_ack(topic: str, ref: str) -> str | bytes:
+    return encode(
+        Message(
+            event=ChannelEvents.reply,
+            topic=topic,
+            ref=ref,
+            payload={"status": "ok", "response": {"postgres_changes": []}},
+        )
     )
-    return reply_msg.model_dump_json()
 
 
 class RealtimeServer:
@@ -84,10 +81,10 @@ class RealtimeServer:
     async def handler(self, connection: ServerConnection) -> None:
         while True:
             try:
-                message = await connection.recv(decode=False)
+                frame = await connection.recv()
             except ConnectionClosedOK:
                 break
-            msg = MessageParser.validate_json(message)
+            msg = MessageParser.validate_python(decode(frame).model_dump())
             match msg:
                 case HeartbeatMessage(topic=topic, ref=ref):
                     await connection.send(reply_ack(topic, ref))
@@ -107,7 +104,7 @@ def test_parses_the_access_token_message_the_client_sends() -> None:
         ref="3",
     )
 
-    parsed = MessageParser.validate_json(message.model_dump_json())
+    parsed = MessageParser.validate_python(decode(encode(message)).model_dump())
 
     assert isinstance(parsed, AccessTokenMessage)
     assert parsed.ref == "3"
