@@ -873,7 +873,7 @@ features:
   realtime.client.disconnect:
     status: implemented
     symbols:
-      - RealtimeClient.close
+      - RealtimeClient.aclose
   realtime.client.get_channels:
     status: implemented
     symbols:
