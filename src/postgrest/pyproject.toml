@@ -74,6 +74,4 @@ build-backend = "uv_build"
 [tool.pyrefly]
 extends = "../../pyrefly.toml"
 project-includes = ["src", "tests"]
-# The type-check fixtures hold errors on purpose; test_typecheck.py runs them.
-project-excludes = ["tests/typecheck/**"]
 search-path = ["src", "."]

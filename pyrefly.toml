@@ -2,6 +2,8 @@ required-version = ">=1.4.0,<2.0.0"
 preset = "strict"
 enabled-ignores = ["pyrefly"]
 python-version = "3.12"
+# The type-check fixtures hold errors on purpose; test_typecheck.py runs them.
+project-excludes = ["**/tests/typecheck/**"]
 
 [errors]
 deprecated = "error"

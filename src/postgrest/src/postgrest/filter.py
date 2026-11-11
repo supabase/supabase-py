@@ -107,6 +107,8 @@ class ColumnExpression(ABC, Generic[Row, Value]):
         An empty `values` matches no rows. `~Books.id.in_([1, 2])` renders
         `id=not.in.(1,2)`.
         """
+        if isinstance(values, (str, bytes)):
+            raise TypeError("in_() takes an iterable of values, not one string")
         return self._compare(FilterOperator.IN, tuple(values))
 
     def text_search(
@@ -152,7 +154,7 @@ class ColumnExpression(ABC, Generic[Row, Value]):
         operand is sent as written, so keep the filter out of any subtree
         beneath `|` or `~` unless it is valid inside `or=(…)`.
         """
-        return Filter(_Raw(self.expression, operand))
+        return Filter(_Raw(sanitize_param(self.expression), operand))
 
 
 @dataclass(frozen=True)
@@ -189,10 +191,13 @@ class _Or(Generic[Row]):
 
 @dataclass(frozen=True)
 class _Not(Generic[Row]):
-    inner: _Node[Row]
+    inner: _Negatable[Row]
 
 
-type _Node[Row] = _Comparison[Row] | _Raw[Row] | _And[Row] | _Or[Row] | _Not[Row]
+type _Negatable[Row] = _Comparison[Row] | _Raw[Row] | _And[Row] | _Or[Row]
+"""A node `~` wraps. A `_Not` is never one, since `~~x` is `x`."""
+
+type _Node[Row] = _Negatable[Row] | _Not[Row]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -248,15 +253,24 @@ class Filter(Generic[Row]):
 
     def __and__(self, other: Filter[Row]) -> Filter[Row]:
         """Only rows satisfying both this filter and `other`."""
+        if not isinstance(other, Filter):
+            return NotImplemented
         return Filter(_And((*_and_parts(self._node), *_and_parts(other._node))))
 
     def __or__(self, other: Filter[Row]) -> Filter[Row]:
         """Only rows satisfying this filter, `other`, or both."""
+        if not isinstance(other, Filter):
+            return NotImplemented
         return Filter(_Or((*_or_parts(self._node), *_or_parts(other._node))))
 
     def __invert__(self) -> Filter[Row]:
-        """Only rows that do not satisfy this filter."""
-        return Filter(_Not(self._node))
+        """Only rows that do not satisfy this filter. Negating twice gives the
+        filter back."""
+        match self._node:
+            case _Not():
+                return Filter(self._node.inner)
+            case _:
+                return Filter(_Not(self._node))
 
     @property
     def comparison(self) -> Comparison[Row] | None:
@@ -342,7 +356,7 @@ def _query_parameters(node: _Node[Row]) -> list[tuple[str, str]]:
             assert_never(node)
 
 
-def _negated_query_parameters(node: _Node[Row]) -> list[tuple[str, str]]:
+def _negated_query_parameters(node: _Negatable[Row]) -> list[tuple[str, str]]:
     match node:
         case _Comparison():
             return [(_key(node), f"not.{node.token}.{_operand(node)}")]
@@ -352,8 +366,6 @@ def _negated_query_parameters(node: _Node[Row]) -> list[tuple[str, str]]:
             return [("not.and", _group_list(node.children))]
         case _Or():
             return [("not.or", _group_list(node.children))]
-        case _Not():
-            return _query_parameters(node.inner)
         case _:
             assert_never(node)
 
@@ -364,9 +376,9 @@ def _group_list(children: tuple[_Node[Row], ...]) -> str:
 
 def _group(node: _Node[Row]) -> str:
     """A node in the comma-separated form used inside `or=(…)`: an `&` is
-    spelled `and(…)`, operands are escaped, a negated leaf puts `not.` after
-    the column (`id.not.eq.2`) while a negated group keeps it in front
-    (`not.and(…)`), and a double negation collapses."""
+    spelled `and(…)`, operands are escaped, and a negated leaf puts `not.`
+    after the column (`id.not.eq.2`) while a negated group keeps it in front
+    (`not.and(…)`)."""
     match node:
         case _Comparison():
             return f"{_key(node)}.{node.token}.{_group_operand(node)}"
@@ -382,7 +394,7 @@ def _group(node: _Node[Row]) -> str:
             assert_never(node)
 
 
-def _negated_group(node: _Node[Row]) -> str:
+def _negated_group(node: _Negatable[Row]) -> str:
     match node:
         case _Comparison():
             return f"{_key(node)}.not.{node.token}.{_group_operand(node)}"
@@ -390,7 +402,5 @@ def _negated_group(node: _Node[Row]) -> str:
             return f"{node.column}.not.{node.operand}"
         case _And() | _Or():
             return f"not.{_group(node)}"
-        case _Not():
-            return _group(node.inner)
         case _:
             assert_never(node)

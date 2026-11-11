@@ -146,6 +146,19 @@ class TestRendering:
     def test_double_negation_collapses_in_both_positions(self) -> None:
         assert rendered(~~Todos.id.eq(2)) == ["id=eq.2"]
         assert rendered(~~Todos.id.eq(2) | Todos.id.eq(3)) == ["or=(id.eq.2,id.eq.3)"]
+        assert rendered(~~~(Todos.a.eq(1) & Todos.b.eq(2))) == [
+            "not.and=(a.eq.1,b.eq.2)"
+        ]
+
+    def test_negating_twice_gives_the_filter_back(self) -> None:
+        assert ~~Todos.id.eq(2) == Todos.id.eq(2)
+        assert ~~~Todos.id.eq(2) == ~Todos.id.eq(2)
+
+    def test_composing_with_anything_but_a_filter_is_a_type_error(self) -> None:
+        with pytest.raises(TypeError):
+            Todos.a.eq(1) & "b=eq.2"  # pyrefly: ignore[unsupported-operation]
+        with pytest.raises(TypeError):
+            Todos.a.eq(1) | 5  # pyrefly: ignore[unsupported-operation]
 
     def test_a_negated_leaf_inside_a_group_moves_not_next_to_the_operator(
         self,
@@ -250,6 +263,7 @@ class TestComparisonOperators:
     def test_raw_keeps_the_column_and_passes_the_operand_through(self) -> None:
         assert rendered(Todos.name.raw("someop.value")) == ["name=someop.value"]
         assert rendered(~Todos.name.raw("someop.v")) == ["name=not.someop.v"]
+        assert rendered(Column("col,name").raw("eq.1")) == ['"col,name"=eq.1']
 
     def test_the_operator_enum_carries_the_tokens_of_the_string_builder(
         self,
@@ -274,6 +288,10 @@ class TestIn:
     def test_accepts_any_iterable(self) -> None:
         assert rendered(Todos.id.in_((1, 2))) == ["id=in.(1,2)"]
         assert rendered(Todos.id.in_(id for id in range(3))) == ["id=in.(0,1,2)"]
+
+    def test_rejects_one_string_in_place_of_the_values(self) -> None:
+        with pytest.raises(TypeError, match="iterable of values"):
+            Todos.name.in_("abc")  # pyrefly: ignore[string-as-iterable]
 
     def test_quotes_members_only_when_the_list_grammar_needs_it(self) -> None:
         assert rendered(Todos.name.in_(["p(q)", "a,b", "a{b", "x"])) == [
@@ -394,7 +412,9 @@ class TestComparison:
         assert Filter[TodoRow].raw("x", "eq.1").comparison is None
         assert (Todos.a.eq(1) & Todos.b.eq(2)).comparison is None
         assert (~(Todos.a.eq(1) & Todos.b.eq(2))).comparison is None
-        assert (~~Todos.a.eq(1)).comparison is None
+
+    def test_survives_a_double_negation(self) -> None:
+        assert (~~Todos.a.eq(1)).comparison == Todos.a.eq(1).comparison
 
 
 COMPARISON_VALUES: list[Any] = [
