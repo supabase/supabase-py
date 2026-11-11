@@ -42,6 +42,7 @@ def mock_client(
     payload: Any,
     requests: list[Request],
     flow_type: AuthFlowType = "pkce",
+    append_flow_id_to_redirects: bool = False,
 ) -> AsyncSupabaseAuthClient:
     def handler(request: Request) -> Response:
         requests.append(request)
@@ -54,6 +55,7 @@ def mock_client(
         ),
         auto_refresh_token=False,
         flow_type=flow_type,
+        append_flow_id_to_redirects=append_flow_id_to_redirects,
     )
 
 
@@ -577,3 +579,136 @@ async def test_exchange_without_flow_id_skips_flows_without_verifier() -> None:
 
     assert request_body(requests)["code_verifier"] == first_verifier
     assert await pending_flows(client) == ["0123456789abcdef"]
+
+
+CALLBACK = "https://app.example/callback?next=%2Fhome"
+FLOW_START_PAYLOAD = {**USER, "url": "https://idp.example/sso"}
+
+
+def flow_id_of(redirect_to: str | None) -> str | None:
+    assert redirect_to
+    assert redirect_to.startswith(CALLBACK + "&sb_flow_id=")
+    return URL(redirect_to).query.get("sb_flow_id")
+
+
+async def oauth_redirect(client: AsyncSupabaseAuthClient) -> str | None:
+    response = await client.sign_in_with_oauth("github", redirect_to=CALLBACK)
+    return URL(response.url).query.get("redirect_to")
+
+
+async def link_identity_redirect(client: AsyncSupabaseAuthClient) -> str | None:
+    await store_session(client)
+    await client.link_identity("github", redirect_to=CALLBACK)
+    return None
+
+
+async def sso_redirect(client: AsyncSupabaseAuthClient) -> str | None:
+    await client.sign_in_with_sso(
+        SignInWithSSO.domain(domain="example.com", redirect_to=CALLBACK)
+    )
+    return None
+
+
+async def otp_redirect(client: AsyncSupabaseAuthClient) -> str | None:
+    await client.sign_in_with_otp(
+        SignInWithPasswordless.email(email="a@example.com", email_redirect_to=CALLBACK)
+    )
+    return None
+
+
+async def sign_up_redirect(client: AsyncSupabaseAuthClient) -> str | None:
+    await client.sign_up(
+        SignUpWithPassword.email(
+            email="a@example.com", password="password", redirect_to=CALLBACK
+        )
+    )
+    return None
+
+
+async def reset_password_redirect(client: AsyncSupabaseAuthClient) -> str | None:
+    await client.reset_password_for_email("a@example.com", redirect_to=CALLBACK)
+    return None
+
+
+async def update_user_redirect(client: AsyncSupabaseAuthClient) -> str | None:
+    await store_session(client)
+    await client.update_user(
+        UserAttributes(email="new@example.com"), email_redirect_to=CALLBACK
+    )
+    return None
+
+
+def sent_redirect(requests: list[Request]) -> str | None:
+    [request] = requests
+    if "redirect_to" in request.url.params:
+        return request.url.params["redirect_to"]
+    redirect_to: str | None = json.loads(request.content).get("redirect_to")
+    return redirect_to
+
+
+REDIRECT_FLOWS = [
+    oauth_redirect,
+    link_identity_redirect,
+    sso_redirect,
+    otp_redirect,
+    sign_up_redirect,
+    reset_password_redirect,
+    update_user_redirect,
+]
+
+
+@pytest.mark.parametrize("start_flow", REDIRECT_FLOWS)
+async def test_redirect_carries_flow_id_of_stored_verifier(
+    start_flow: Callable[[AsyncSupabaseAuthClient], Any],
+) -> None:
+    requests: list[Request] = []
+    client = mock_client(FLOW_START_PAYLOAD, requests, append_flow_id_to_redirects=True)
+    redirect_to = await start_flow(client) or sent_redirect(requests)
+
+    flow_id = flow_id_of(redirect_to)
+    assert flow_id
+    assert await pending_flows(client) == [flow_id]
+
+
+@pytest.mark.parametrize("start_flow", REDIRECT_FLOWS)
+async def test_redirect_has_no_flow_id_by_default(
+    start_flow: Callable[[AsyncSupabaseAuthClient], Any],
+) -> None:
+    requests: list[Request] = []
+    client = mock_client(FLOW_START_PAYLOAD, requests)
+    redirect_to = await start_flow(client) or sent_redirect(requests)
+
+    assert redirect_to == CALLBACK
+
+
+async def test_redirect_has_no_flow_id_with_implicit_flow() -> None:
+    requests: list[Request] = []
+    client = mock_client(
+        {}, requests, flow_type="implicit", append_flow_id_to_redirects=True
+    )
+
+    assert await oauth_redirect(client) == CALLBACK
+
+
+async def test_no_redirect_is_added_without_redirect_to() -> None:
+    requests: list[Request] = []
+    client = mock_client({}, requests, append_flow_id_to_redirects=True)
+    await client.sign_in_with_otp(SignInWithPasswordless.email(email="a@example.com"))
+
+    assert "redirect_to" not in requests[0].url.params
+
+
+async def test_callback_flow_id_selects_its_flow() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests, append_flow_id_to_redirects=True)
+    await client.reset_password_for_email("a@example.com", redirect_to=CALLBACK)
+    reset_flow = flow_id_of(sent_redirect(requests))
+    assert reset_flow
+    reset_verifier = await flow_verifier(client, reset_flow)
+    assert reset_verifier
+    await start_oauth_flow(client)
+
+    requests.clear()
+    await client.exchange_code_for_session("reset-code", flow_id=reset_flow)
+
+    assert request_body(requests)["code_verifier"] == reset_verifier.split("/", 1)[0]

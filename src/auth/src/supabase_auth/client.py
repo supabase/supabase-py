@@ -104,6 +104,7 @@ def _is_implicit_grant_flow(url: URL) -> bool:
 
 _PASSWORD_RECOVERY_SUFFIX = "/PASSWORD_RECOVERY"
 _MAX_PENDING_PKCE_FLOWS = 5
+_FLOW_ID_PARAMETER = "sb_flow_id"
 _FLOW_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{8,64}")
 
 
@@ -129,6 +130,20 @@ def _parse_flow_index(raw: str | None) -> list[str]:
         return []
     flow_ids: list[object] = index
     return [flow_id for flow_id in flow_ids if _is_valid_flow_id(flow_id)]
+
+
+def _append_flow_id(redirect_to: str, flow_id: str) -> str:
+    """Edits the URL as a string, so custom schemes and the encoding of the
+    other parameters stay as they are."""
+    url, hash_sign, fragment = redirect_to.partition("#")
+    path, _, query = url.partition("?")
+    parameters = [
+        parameter
+        for parameter in query.split("&")
+        if parameter and parameter.partition("=")[0] != _FLOW_ID_PARAMETER
+    ]
+    parameters.append(f"{_FLOW_ID_PARAMETER}={flow_id}")
+    return f"{path}?{'&'.join(parameters)}{hash_sign}{fragment}"
 
 
 def _push_flow(index: list[str], flow_id: str) -> tuple[list[str], list[str]]:
@@ -171,6 +186,7 @@ class SupabaseAuthHttpClient[
     session_manager: SessionManager
     _jwks: JWKSet
     flow_type: AuthFlowType = "implicit"
+    append_flow_id_to_redirects: bool = False
     _jwks_ttl: float = 600  # 10 minutes
     _jwks_cached_at: float | None = None
 
@@ -185,6 +201,13 @@ class SupabaseAuthHttpClient[
     def _code_verifier_storage_key(self) -> str:
         """Where versions without flow ids stored the verifier."""
         return f"{self.session_manager.storage_key}-code-verifier"
+
+    def _redirect_with_flow_id(
+        self, redirect_to: str | None, pkce_flow: _PKCEFlow | None
+    ) -> str | None:
+        if redirect_to and pkce_flow and self.append_flow_id_to_redirects:
+            return _append_flow_id(redirect_to, pkce_flow.flow_id)
+        return redirect_to
 
     @property
     def _flow_index_storage_key(self) -> str:
@@ -229,7 +252,9 @@ class SupabaseAuthHttpClient[
         """
         body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, SignUpWithEmailAndPasswordCredentials):
-            query = _redirect_to_as_query(credentials.redirect_to)
+            query = _redirect_to_as_query(
+                self._redirect_with_flow_id(credentials.redirect_to, pkce_flow)
+            )
             body = _with_pkce_challenge(body, pkce_flow)
         else:
             query = URLQuery.empty()
@@ -289,6 +314,9 @@ class SupabaseAuthHttpClient[
     def _sign_in_with_sso(
         self, credentials: SignInWithSSOCredentials, pkce_flow: _PKCEFlow | None = None
     ) -> HttpMethod[SSOResponse]:
+        redirect_to = self._redirect_with_flow_id(credentials.redirect_to, pkce_flow)
+        if redirect_to != credentials.redirect_to:
+            credentials = credentials.model_copy(update={"redirect_to": redirect_to})
         response = yield JSONRequest(
             method="POST",
             path=["sso"],
@@ -320,14 +348,16 @@ class SupabaseAuthHttpClient[
         """
         Log in an existing user via a third-party provider.
         """
+        pkce_flow = self._new_pkce_flow()
         query = (
             URLQuery.from_mapping(query_params) if query_params else URLQuery.empty()
         )
+        redirect_to = self._redirect_with_flow_id(redirect_to, pkce_flow)
         if redirect_to:
             query = query.set("redirect_to", redirect_to)
         if scopes:
             query = query.set("scopes", scopes)
-        pkce_flow, query = self._get_url_for_provider(provider, query)
+        query = self._get_url_for_provider(provider, query, pkce_flow)
         new_url = self.base_url.joinpath("authorize").with_query(query.as_query())
         oauth_response = OAuthResponse(
             provider=provider,
@@ -345,16 +375,17 @@ class SupabaseAuthHttpClient[
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
     ) -> HttpMethod[tuple[OAuthResponse, _PKCEFlow | None]]:
+        pkce_flow = self._new_pkce_flow()
         query = (
             URLQuery.from_mapping(query_params) if query_params else URLQuery.empty()
         )
+        redirect_to = self._redirect_with_flow_id(redirect_to, pkce_flow)
         if redirect_to:
             query = query.set("redirect_to", redirect_to)
         if scopes:
             query = query.set("scopes", scopes)
         query = query.set("skip_http_redirect", "true")
-
-        pkce_flow, query = self._get_url_for_provider(provider, query)
+        query = self._get_url_for_provider(provider, query, pkce_flow)
 
         response = yield EmptyRequest(
             method="GET",
@@ -391,7 +422,9 @@ class SupabaseAuthHttpClient[
     ) -> HttpMethod[AuthOtpResponse]:
         body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials):
-            query = _redirect_to_as_query(credentials.email_redirect_to)
+            query = _redirect_to_as_query(
+                self._redirect_with_flow_id(credentials.email_redirect_to, pkce_flow)
+            )
             body = _with_pkce_challenge(body, pkce_flow)
         else:
             query = URLQuery.empty()
@@ -461,7 +494,9 @@ class SupabaseAuthHttpClient[
             method="PUT",
             path=["user"],
             body=_with_pkce_challenge(attributes, pkce_flow),
-            query=_redirect_to_as_query(email_redirect_to),
+            query=_redirect_to_as_query(
+                self._redirect_with_flow_id(email_redirect_to, pkce_flow)
+            ),
             headers=session.encode_access_token(),
         )
         user_response = parse_user_response(response)
@@ -538,7 +573,9 @@ class SupabaseAuthHttpClient[
                 },
                 pkce_flow,
             ),
-            query=_redirect_to_as_query(redirect_to),
+            query=_redirect_to_as_query(
+                self._redirect_with_flow_id(redirect_to, pkce_flow)
+            ),
         )
         if not response.is_success:
             raise _handle_error_response(response)
@@ -601,13 +638,12 @@ class SupabaseAuthHttpClient[
         self,
         provider: Provider,
         query: URLQuery,
-    ) -> tuple[_PKCEFlow | None, URLQuery]:
-        pkce_flow = self._new_pkce_flow()
+        pkce_flow: _PKCEFlow | None,
+    ) -> URLQuery:
         if pkce_flow:
             for key, value in _pkce_challenge_params(pkce_flow.code_verifier).items():
                 query = query.set(key, value)
-        query = query.set("provider", provider)
-        return pkce_flow, query
+        return query.set("provider", provider)
 
     @handle_http_io
     def _exchange_code_for_session(
@@ -712,6 +748,7 @@ class AsyncSupabaseAuthClient(
         auto_refresh_token: bool = True,
         storage: AsyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
+        append_flow_id_to_redirects: bool = False,
         request_timeout: float | None = None,
         retry: RetryPolicy | None = None,
     ) -> None:
@@ -738,6 +775,7 @@ class AsyncSupabaseAuthClient(
             session_manager=self.session_manager,
             _jwks=JWKSet(keys=[]),
             flow_type=flow_type,
+            append_flow_id_to_redirects=append_flow_id_to_redirects,
         )
         self._pkce_lock = asyncio.Lock()
         self.mfa = AsyncSupabaseAuthMFAClient(
@@ -886,13 +924,12 @@ class AsyncSupabaseAuthClient(
         Exchanges a PKCE auth code for a session and signs the user in.
 
         `flow_id` names the flow that produced the code. It is returned in the
-        `OAuthResponse` or `SSOResponse` that started the flow. Pass it when
-        several flows can be pending at once, such as sign-ins in two tabs.
-        Without it, the most recently started flow that is still pending is
-        used, which is also how flows started by `sign_up`,
-        `sign_in_with_otp`, `reset_password_for_email` and `update_user` are
-        completed. Up to 5 flows are kept pending, so starting a sixth
-        forgets the oldest.
+        `OAuthResponse` or `SSOResponse` that started the flow, and with
+        `append_flow_id_to_redirects` it is also the `sb_flow_id` query
+        parameter of the redirect URL. Pass it when several flows can be
+        pending at once, such as sign-ins in two tabs. Without it, the most
+        recently started flow that is still pending is used. Up to 5 flows are
+        kept pending, so starting a sixth forgets the oldest.
 
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
@@ -1220,6 +1257,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         auto_refresh_token: bool = True,
         storage: SyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
+        append_flow_id_to_redirects: bool = False,
         request_timeout: float | None = None,
         retry: RetryPolicy | None = None,
     ) -> None:
@@ -1246,6 +1284,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             session_manager=self.session_manager,
             _jwks=JWKSet(keys=[]),
             flow_type=flow_type,
+            append_flow_id_to_redirects=append_flow_id_to_redirects,
         )
         self._pkce_lock = threading.Lock()
         self.mfa = SyncSupabaseAuthMFAClient(
@@ -1384,13 +1423,12 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         Exchanges a PKCE auth code for a session and signs the user in.
 
         `flow_id` names the flow that produced the code. It is returned in the
-        `OAuthResponse` or `SSOResponse` that started the flow. Pass it when
-        several flows can be pending at once, such as sign-ins in two tabs.
-        Without it, the most recently started flow that is still pending is
-        used, which is also how flows started by `sign_up`,
-        `sign_in_with_otp`, `reset_password_for_email` and `update_user` are
-        completed. Up to 5 flows are kept pending, so starting a sixth
-        forgets the oldest.
+        `OAuthResponse` or `SSOResponse` that started the flow, and with
+        `append_flow_id_to_redirects` it is also the `sb_flow_id` query
+        parameter of the redirect URL. Pass it when several flows can be
+        pending at once, such as sign-ins in two tabs. Without it, the most
+        recently started flow that is still pending is used. Up to 5 flows are
+        kept pending, so starting a sixth forgets the oldest.
 
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
