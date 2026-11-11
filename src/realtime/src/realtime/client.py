@@ -159,7 +159,7 @@ class RealtimeClient:
     disconnects when the last channel is removed.
 
     :param url: The realtime URL of the project
-    :param token_callback: Returns the access token, awaited on connect and on every heartbeat
+    :param token_callback: Returns the access token, awaited on connect, on every channel join and on every heartbeat
     :param heartbeat_interval: Seconds between heartbeats, must be positive
     :param heartbeat_timeout: Seconds to wait for a heartbeat reply before the connection is considered lost, must be positive
     """
@@ -182,6 +182,8 @@ class RealtimeClient:
         self._listen_task: asyncio.Task[None] | None = None
         self._heartbeat_task: asyncio.Task[None] | None = None
         self._connect_lock = asyncio.Lock()
+        self._auth_lock = asyncio.Lock()
+        self._token_is_manual = False
 
         self.ref = 0
         self.channels: dict[str, RealtimeChannel] = {}
@@ -210,7 +212,7 @@ class RealtimeClient:
             websocket = await websockets.connect(
                 str(normalize_url(self.url, token)), logger=websockets_logger
             )
-            if token and self.last_token is not None:
+            if token and self.last_token is not None and not self._token_is_manual:
                 self.last_token = token
             failure: asyncio.Future[Message] = (
                 asyncio.get_running_loop().create_future()
@@ -318,7 +320,7 @@ class RealtimeClient:
                     self._send(data), timeout=self.heartbeat_timeout
                 )
                 logger.info("heartbeat response: %r", res)
-                await self.set_auth()
+                await self._refresh_token()
                 await asyncio.sleep(self.heartbeat_interval)
         except asyncio.CancelledError:
             return
@@ -379,16 +381,18 @@ class RealtimeClient:
 
     async def set_auth(self, token: str | None = None) -> None:
         """
-        Set the authentication token for the connection and update all joined channels.
+        Set the access token of the connection and send it to every joined channel.
 
-        This method updates the access token for the current connection and sends the new token
-        to all joined channels. This is useful for refreshing authentication or changing users.
+        Channels joined later send it in their join message. Tokens are sent
+        in the order of the calls.
 
         Args:
-            token (Optional[str]): The new authentication token. Can be None to remove authentication.
-
-        Returns:
-            None
+            token (Optional[str]): The new access token. The token callback no
+                longer replaces it on joins, heartbeats and reconnects, until
+                this method is called without a token. When None, the token
+                callback is awaited for the token and replaces it again from
+                then on. Nothing changes if there is no callback or it returns
+                no token.
 
         Raises:
             websockets.ConnectionClosed: If the connection is closed. The token is
@@ -397,26 +401,57 @@ class RealtimeClient:
             Exception: If the connection already failed, the exception that failed
                 it, such as a TimeoutError when a heartbeat timed out.
         """
-        if token is None:
-            if self.get_access_token is not None and (
-                new_token := await self.get_access_token()
-            ):
-                token = new_token
+        if token is None and self.get_access_token is None:
+            logger.warning("tried setting auth but no token callback was registered")
+            return
+        async with self._auth_lock:
+            self._token_is_manual = token is not None
+            if token is None:
+                await self._send_callback_token()
             else:
-                logger.warning(
-                    "tried setting auth but no token callback was registered"
-                )
-                return
+                await self._send_token(token)
+
+    async def _refresh_token(self) -> None:
+        if self.get_access_token is None:
+            return
+        async with self._auth_lock:
+            if not self._token_is_manual:
+                await self._send_callback_token()
+
+    async def _send_callback_token(self) -> None:
+        assert self.get_access_token is not None
+        token = await self.get_access_token()
+        if token:
+            await self._send_token(token)
+
+    async def _send_token(self, token: str) -> None:
         if token == self.last_token:
             logger.info("generated access token is still the same, skipping")
             return
-
         for channel in list(self.channels.values()):
             if channel.joined:
                 await channel._send_event_no_wait(
                     ChannelEvents.access_token, {"access_token": token}
                 )
         self.last_token = token
+
+    async def _send_token_if_changed(
+        self, channel: RealtimeChannel, joined_with: str | None
+    ) -> None:
+        async with self._auth_lock:
+            token = self.last_token
+            if token is None or token == joined_with or not channel.joined:
+                return
+            try:
+                await channel._send_event_no_wait(
+                    ChannelEvents.access_token, {"access_token": token}
+                )
+            except Exception as exception:
+                logger.warning(
+                    "could not send the new access token to %s: %r",
+                    channel.topic,
+                    exception,
+                )
 
     def _make_ref(self) -> str:
         self.ref += 1

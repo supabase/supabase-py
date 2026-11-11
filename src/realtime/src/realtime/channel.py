@@ -228,6 +228,7 @@ class RealtimeChannel:
         self._subscribe_attempt = attempt
         self._raise_if_topic_is_taken()
         await self.socket.connect()
+        await self.socket._refresh_token()
         self._raise_if_join_was_stopped(attempt)
         self._raise_if_topic_is_taken()
         self.socket.channels[self.topic] = self
@@ -252,9 +253,7 @@ class RealtimeChannel:
             msg = await self.socket._send(message)
         except asyncio.CancelledError:
             self.state = ChannelStates.CLOSED
-            if self._subscribe_attempt is attempt:
-                self._subscribe_attempt = None
-                await self._leave_cancelled_join(join_ref, failure)
+            await self._stop_cancelled_join(attempt, join_ref, failure)
             raise
         except Exception:
             self.state = ChannelStates.CLOSED
@@ -268,6 +267,11 @@ class RealtimeChannel:
                 f"error while subscribing to channel: {msg.payload.response!r}"
             )
         self.state = ChannelStates.JOINED
+        try:
+            await self.socket._send_token_if_changed(self, payload.access_token)
+        except asyncio.CancelledError:
+            await self._stop_cancelled_join(attempt, join_ref, failure)
+            raise
         return msg
 
     def _raise_if_join_was_stopped(self, attempt: object) -> None:
@@ -276,6 +280,18 @@ class RealtimeChannel:
                 f"the join of channel {self.topic!r} was stopped by unsubscribe() "
                 "or a closed connection before it completed"
             )
+
+    async def _stop_cancelled_join(
+        self,
+        attempt: object,
+        join_ref: str,
+        failure: asyncio.Future[Message] | None,
+    ) -> None:
+        if self._subscribe_attempt is not attempt:
+            return
+        self.state = ChannelStates.CLOSED
+        self._subscribe_attempt = None
+        await self._leave_cancelled_join(join_ref, failure)
 
     async def _leave_cancelled_join(
         self, join_ref: str, failure: asyncio.Future[Message] | None

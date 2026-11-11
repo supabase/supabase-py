@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -133,6 +135,87 @@ async def test_auth_events_without_a_session_use_the_key(
         assert client.functions.default_headers.get("Authorization") == authorization
         assert client.auth.default_headers.get("Authorization") == authorization
         assert await realtime_access_token(client) == key
+
+
+@pytest.mark.parametrize(
+    ("change", "token"),
+    [
+        *(
+            (AuthStateChange(event, MagicMock(access_token="userjwt")), "userjwt")
+            for event in SESSION_EVENTS
+        ),
+        (AuthStateChange(AuthChangeEvent.SIGNED_OUT), key),
+    ],
+    ids=[*(event.value for event in SESSION_EVENTS), "SIGNED_OUT"],
+)
+async def test_auth_events_send_the_token_to_realtime_right_away(
+    create_async_client: AsyncClientCallable, change: AuthStateChange, token: str
+) -> None:
+    async with create_async_client(url, key) as client:
+        realtime = client.realtime
+        with patch.object(realtime, "set_auth", AsyncMock()) as set_auth:
+            client.auth.session_manager.notify_all_subscribers(change)
+            await asyncio.sleep(0)
+
+        set_auth.assert_awaited_once_with()
+        assert await realtime_access_token(client) == token
+
+
+async def test_auth_events_do_not_create_realtime(
+    create_async_client: AsyncClientCallable,
+) -> None:
+    async with create_async_client(url, key) as client:
+        client.auth.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.SIGNED_IN, MagicMock(access_token="jwt"))
+        )
+
+        assert "realtime" not in client.__dict__
+
+
+async def test_a_failed_realtime_token_update_is_logged(
+    create_async_client: AsyncClientCallable, caplog: pytest.LogCaptureFixture
+) -> None:
+    async with create_async_client(url, key) as client:
+        realtime = client.realtime
+        failure = AsyncMock(side_effect=OSError("socket closed"))
+        with (
+            caplog.at_level(logging.WARNING, logger="supabase.client"),
+            patch.object(realtime, "set_auth", failure),
+        ):
+            client.auth.session_manager.notify_all_subscribers(
+                AuthStateChange(
+                    AuthChangeEvent.SIGNED_IN, MagicMock(access_token="jwt")
+                )
+            )
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+
+        assert "could not send the access token to realtime" in caplog.text
+
+
+async def test_aclose_cancels_pending_realtime_token_updates(
+    create_async_client: AsyncClientCallable,
+) -> None:
+    client = create_async_client(url, key)
+    started = asyncio.Event()
+    tasks: list[asyncio.Task[object]] = []
+
+    async def wait_forever() -> None:
+        task = asyncio.current_task()
+        assert task is not None
+        tasks.append(task)
+        started.set()
+        await asyncio.Event().wait()
+
+    with patch.object(client.realtime, "set_auth", wait_forever):
+        client.auth.session_manager.notify_all_subscribers(
+            AuthStateChange(AuthChangeEvent.SIGNED_IN, MagicMock(access_token="jwt"))
+        )
+        await started.wait()
+        await client.aclose()
+        await asyncio.sleep(0)
+
+    assert tasks[0].cancelled()
 
 
 async def test_create_uses_the_stored_session_token() -> None:

@@ -407,8 +407,8 @@ features:
 
   client.authentication_integration.third_party_auth: not_implemented
   client.authentication_integration.cross_client_token_sync:
-    status: partially_implemented
-    note: "Every auth event that carries a session sets the Authorization header used by auth, postgrest, storage and functions to that session's access token, and an event without a session resets it to the project key. AsyncClient also passes the token to realtime. The sync Client has no realtime client. SupabaseClient.with_token returns a client that shares the HTTP session and options and sends a given user JWT to every sub-client, for servers that act for one user per request. Like a supabase-js client with accessToken, it has no auth client: its auth raises."
+    status: implemented
+    note: "Every auth event that carries a session, including INITIAL_SESSION, sets the Authorization header used by auth, postgrest, storage and functions to that session's access token, and an event without a session resets it to the project key. AsyncClient also sends the token to the joined realtime channels right away, and every channel join carries it. The sync Client has no realtime client. SupabaseClient.with_token returns a client that shares the HTTP session and options and sends a given user JWT to every sub-client, for servers that act for one user per request. Like a supabase-js client with accessToken, it has no auth client: its auth raises."
     symbols:
       - SupabaseClient.with_token
   client.authentication_integration.oauth_flow_type:
@@ -1041,7 +1041,7 @@ features:
       - validate_heartbeat
   realtime.configuration.access_token_callback:
     status: implemented
-    note: "token_callback parameter on connect_once, awaited on connect and on each heartbeat. AsyncClient.realtime passes a callback that returns the access token of the current session, or the project key when there is none (see cross_client_token_sync)."
+    note: "token_callback parameter on connect_once and RealtimeClient, awaited on connect, on every channel join and on each heartbeat. Every join carries the token, and a token that changes while a join is pending is sent once the join completes. AsyncClient.realtime passes a callback that returns the access token of the current session, or the project key when there is none (see cross_client_token_sync)."
     symbols:
       - connect_once
   realtime.configuration.deferred_disconnect: not_implemented
