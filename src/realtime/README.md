@@ -78,7 +78,7 @@ asyncio.run(main())
 ### Notes:
 
 - `REALTIME_URL` is `http://localhost:54321/realtime/v1` when developing locally with the Supabase CLI and `https://<project_ref>.supabase.co/realtime/v1` when connecting to your Supabase project. The client switches to `ws`/`wss` and appends `/websocket` itself.
-- The token callback is awaited when connecting, on every channel join and on every heartbeat, so it can return a refreshed user access token. `client.set_auth()` awaits it right away and sends a new token to the joined channels. It must return a JWT whose claims contain `exp` and `role` (an existing database role), or the publishable key.
+- The token callback is awaited when connecting, on every channel join and on every heartbeat, so it can return a refreshed user access token. `client.set_auth()` awaits it right away and sends a new token to the joined channels. A token passed as `client.set_auth(token)` is used instead of the callback until `client.set_auth()` is called without one. It must return a JWT whose claims contain `exp` and `role` (an existing database role), or the publishable key.
 - `async with client.channel(...)` subscribes on entry and unsubscribes on exit. `subscribe()` raises if the server rejects the join.
 - `RealtimeClient(url, get_token)` creates a client without connecting. It connects when the first channel subscribes, shares that connection with every channel, and closes it when the last channel is unsubscribed or `aclose()` is called.
 - Channel name can be any `string`.

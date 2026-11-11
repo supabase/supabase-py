@@ -228,8 +228,7 @@ class RealtimeChannel:
         self._subscribe_attempt = attempt
         self._raise_if_topic_is_taken()
         await self.socket.connect()
-        if self.socket.get_access_token is not None:
-            await self.socket.set_auth()
+        await self.socket._refresh_token()
         self._raise_if_join_was_stopped(attempt)
         self._raise_if_topic_is_taken()
         self.socket.channels[self.topic] = self

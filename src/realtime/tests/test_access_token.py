@@ -22,6 +22,8 @@ class RecordingServer:
         self.join_received = asyncio.Event()
         self.access_token_received = asyncio.Event()
         self.leave_received = asyncio.Event()
+        self.heartbeats = 0
+        self.heartbeats_received = asyncio.Event()
         self.release_join = asyncio.Event()
         self.release_join.set()
 
@@ -45,6 +47,10 @@ class RecordingServer:
                 self.access_token_received.set()
             if message.event == ChannelEvents.leave:
                 self.leave_received.set()
+            if message.event == ChannelEvents.heartbeat:
+                self.heartbeats += 1
+                if self.heartbeats >= 3:
+                    self.heartbeats_received.set()
             if message.ref is None:
                 continue
             if message.event == ChannelEvents.join:
@@ -209,6 +215,42 @@ async def test_a_subscribe_cancelled_after_the_join_leaves_the_channel(
         message for message in server.received if message.event == ChannelEvents.leave
     )
     assert leave.join_ref == channel.join_ref
+
+
+async def test_a_token_passed_to_set_auth_is_kept_on_joins_and_heartbeats(
+    server: RecordingServer,
+) -> None:
+    client = RealtimeClient(
+        server.url,
+        Token("callback-token"),
+        heartbeat_interval=0.01,
+        heartbeat_timeout=1,
+    )
+    await client.set_auth("user-token")
+
+    await client.channel("room").subscribe()
+    async with asyncio.timeout(1):
+        await server.heartbeats_received.wait()
+    await client.aclose()
+
+    assert [join.payload["access_token"] for join in server.joins()] == ["user-token"]
+    assert server.access_tokens("realtime:room") == []
+    assert client.last_token == "user-token"
+
+
+async def test_set_auth_without_a_token_returns_to_the_callback(
+    server: RecordingServer,
+) -> None:
+    client = RealtimeClient(server.url, Token("callback-token"))
+    await client.set_auth("user-token")
+    await client.channel("room").subscribe()
+
+    await client.set_auth()
+    await wait_for_access_token(server)
+    await client.aclose()
+
+    assert server.joins()[0].payload["access_token"] == "user-token"
+    assert server.access_tokens("realtime:room") == ["callback-token"]
 
 
 async def test_concurrent_set_auth_calls_send_the_tokens_in_order(
