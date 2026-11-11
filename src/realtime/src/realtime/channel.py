@@ -228,6 +228,8 @@ class RealtimeChannel:
         self._subscribe_attempt = attempt
         self._raise_if_topic_is_taken()
         await self.socket.connect()
+        if self.socket.get_access_token is not None:
+            await self.socket.set_auth()
         self._raise_if_join_was_stopped(attempt)
         self._raise_if_topic_is_taken()
         self.socket.channels[self.topic] = self
@@ -268,6 +270,7 @@ class RealtimeChannel:
                 f"error while subscribing to channel: {msg.payload.response!r}"
             )
         self.state = ChannelStates.JOINED
+        await self.socket._send_token_if_changed(self, payload.access_token)
         return msg
 
     def _raise_if_join_was_stopped(self, attempt: object) -> None:
