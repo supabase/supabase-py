@@ -102,6 +102,20 @@ supabase = create_client(
 
 `request_timeout` is in seconds. The `request_timeout` of a service's options overrides the global one for that service.
 
+`retry` is a `RetryPolicy`, exported from `supabase`, that says how a request that failed in a way worth repeating is retried. By default a GET or HEAD request is sent up to three more times on a rate limit, a gateway error or a network error, after the wait the service asked for with `Retry-After` or an exponential backoff with jitter. Writes are not retried unless you opt in with `retry(True)` on a query, or the `retry` argument of `functions.invoke()`, for a write that is safe to send twice. The `retry` of a service's options overrides the global one, and `RetryPolicy(max_retries=0)` turns retries off:
+
+```python
+from supabase import RetryPolicy, StorageClientOptions
+
+supabase = create_client(
+    url,
+    key,
+    retry=RetryPolicy(max_retries=5, max_delay=60),
+    storage=StorageClientOptions(retry=RetryPolicy(max_retries=0)),
+)
+supabase.table("countries").select("*").retry(False).execute()
+```
+
 Use the supabase client to interface with your database.
 
 ### Sign-up

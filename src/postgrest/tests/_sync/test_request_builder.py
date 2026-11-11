@@ -21,7 +21,6 @@ from postgrest.request_builder import (
     SingleAPIResponse,
     SingleRequestBuilder,
     TextRequestBuilder,
-    _can_retry,
 )
 from postgrest.types import CountMethod, Mutation, ReturnMethod, TextSearchType
 
@@ -38,20 +37,6 @@ def request_builder() -> Iterable[RequestBuilder[SyncHttpIO]]:
             base_url=URL("/example_table"),
             default_headers=Headers.empty(),
         )
-
-
-@pytest.mark.parametrize("head", [False, True])
-def test_select_request_retries_transient_response(
-    request_builder: RequestBuilder[SyncHttpIO], head: bool
-) -> None:
-    request = request_builder.select(head=head).request.finalize(
-        URL("http://example.com"), Headers.empty()
-    )
-    response = Response(
-        status=503, headers=Headers.empty(), content=b"", request=request
-    )
-
-    assert _can_retry(response, retry_enabled=True, attempt_count=0)
 
 
 class TestSelect:

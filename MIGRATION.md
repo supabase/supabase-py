@@ -239,6 +239,21 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 A timed-out request raises `supabase.RequestTimeoutError`, a subclass of the built-in `TimeoutError`, instead of an httpx or aiohttp exception. This also applies to timeouts configured on the HTTP client.
 
+## Retries
+
+Every service retries a GET or HEAD request that failed in a way worth repeating, where only the database did before. A request is sent up to three more times when it answered with a 408, 429, 502, 503, 504 or Cloudflare 52x status, instead of only a 503 or 520, or when it failed with a `SupabaseTransportError`. The wait before a retry honors the `Retry-After` header of the response, and is otherwise an exponential backoff from half a second with jitter, instead of a fixed one, two and four seconds.
+
+Retries are configured with a `RetryPolicy`, exported from `supabase` and defined in `supabase_utils.http.retry`. Pass it as the `retry` argument of the client for every service, on `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions` or `FunctionsClientOptions` for one service, with `retry()` on a database query, or with the `retry` argument of `functions.invoke()`. `RetryPolicy(max_retries=0)` turns retries off.
+
+| Before                                       | After                                                                                                |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `query.retry(False)`                         | Unchanged.                                                                                           |
+| `query.retry(True)` on a `select()`          | Unchanged, the query is retried.                                                                     |
+| `query.retry(True)` on `insert()` or `rpc()` | The write is retried too. Only opt in a write that is safe to send twice.                            |
+| Three retries on every 503 or 520            | `create_client(url, key, retry=RetryPolicy(max_retries=3, retryable_statuses={503, 520}, jitter=0))` |
+
+`retry()` also takes a `RetryPolicy` that replaces the one of the client for that query. `PostgrestRequest.retry` is `None` by default, no longer `True`, and holds a `bool` or a `RetryPolicy`.
+
 ## One exception hierarchy
 
 Every exception the packages raise themselves inherits from `supabase_utils.errors.SupabaseError`, re-exported as `supabase.SupabaseError`, so `except SupabaseError` catches any failure the SDK reports. The hierarchy is described in the [error handling](src/supabase/README.md#error-handling) section of the README. The realtime connection is the exception: a lost websocket still surfaces as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, as before.

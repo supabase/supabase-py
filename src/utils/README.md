@@ -79,6 +79,8 @@ class ItemsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
 `handle_http_io` hands the generator to the client's `executor`, which joins each request path to `base_url` and merges `default_headers` into its headers. `SyncHttpIO` runs it with an `HttpSession` and returns the result, `AsyncHttpIO` runs it with an `AsyncHttpSession` and returns an awaitable. The same method therefore backs both the `Sync*` and the `Async*` client of a package.
 
+The executor also retries a request that failed in a way worth repeating, as the `RetryPolicy` from `supabase_utils.http.retry` it was given says. By default a `GET` or `HEAD` request is sent up to three more times when it answered with a 408, 429, 502, 503, 504 or Cloudflare 52x status, or failed with a `SupabaseTransportError`. The wait before a retry is the one a `Retry-After` header asks for, up to the `max_delay` of the policy, and otherwise an exponential backoff that starts at half a second and is jittered. A retried request carries an `X-Retry-Count` header. Other methods are not retried, since the request may have reached the service, unless the policy lists them or the request is built with `retry=True`. `retry=False` never retries a request, and a `RetryPolicy` on the request replaces the one of the executor for that request. Pass `retry=RetryPolicy(...)` to an executor, or to the client of a package, to change the defaults, and `RetryPolicy(max_retries=0)` to send every request once.
+
 The main modules are:
 
 | Module                          | Contents                                                                                                                                        |
@@ -87,6 +89,7 @@ The main modules are:
 | `supabase_utils.http.headers`   | `Headers`, an immutable, case insensitive multi map of header values.                                                                           |
 | `supabase_utils.http.query`     | `URLQuery`, an immutable multi map of query parameters.                                                                                         |
 | `supabase_utils.http.io`        | The `HttpSession` and `AsyncHttpSession` protocols, the `SyncHttpIO` and `AsyncHttpIO` executors and `handle_http_io`.                          |
+| `supabase_utils.http.retry`     | `RetryPolicy`, how the executors retry a request, with `DEFAULT_RETRYABLE_STATUSES` and `DEFAULT_RETRYABLE_METHODS`.                            |
 | `supabase_utils.errors`         | `SupabaseError`, the base class of every exception the packages raise.                                                                          |
 | `supabase_utils.http.errors`    | `SupabaseAPIError` for error responses, and `SupabaseTransportError` and its subclass `RequestTimeoutError`, raised by an adapter.              |
 | `supabase_utils.http.redirects` | `keeps_credentials` and `CREDENTIAL_HEADERS`, for adapters that follow redirects.                                                               |
@@ -101,16 +104,17 @@ An adapter connects another HTTP library. It implements one of two protocols fro
 
 `send` gets a fully built `Request`:
 
-| Field     | Type            | Meaning                                                                     |
-| --------- | --------------- | --------------------------------------------------------------------------- |
-| `url`     | `yarl.URL`      | The absolute URL, query string included.                                    |
-| `method`  | `str`           | `GET`, `POST`, `PATCH`, `PUT`, `DELETE` or `HEAD`.                          |
-| `headers` | `Headers`       | The headers to send. `iter_items()` yields each value of a repeated header. |
-| `content` | `bytes \| None` | The body, already encoded, or `None` for no body.                           |
-| `delay`   | `float \| None` | Seconds to wait before sending. The executor waits, not the adapter.        |
-| `timeout` | `float \| None` | Seconds a request may go without progress. `None` leaves it to the client.  |
+| Field     | Type                          | Meaning                                                                      |
+| --------- | ----------------------------- | ---------------------------------------------------------------------------- |
+| `url`     | `yarl.URL`                    | The absolute URL, query string included.                                     |
+| `method`  | `str`                         | `GET`, `POST`, `PATCH`, `PUT`, `DELETE` or `HEAD`.                           |
+| `headers` | `Headers`                     | The headers to send. `iter_items()` yields each value of a repeated header.  |
+| `content` | `bytes \| None`               | The body, already encoded, or `None` for no body.                            |
+| `delay`   | `float \| None`               | Seconds to wait before sending. The executor waits, not the adapter.         |
+| `timeout` | `float \| None`               | Seconds a request may go without progress. `None` leaves it to the client.   |
+| `retry`   | `RetryPolicy \| bool \| None` | How the executor retries the request. The executor retries, not the adapter. |
 
-It returns a `Response` with the status code, the body as `bytes`, the response headers and the request it answers. `send` must not raise for error statuses: the packages read `response.status` and raise their own errors. `timeout` limits each step of a request, such as connecting or reading, not the whole request. Raise `RequestTimeoutError` from `supabase_utils.http.errors` for every timeout, whether `timeout` or the client's own limit elapsed, so every adapter reports a timeout the same way. A library without a client-level timeout needs a default in the adapter, or `None` waits forever. Wrap every other error of the transport itself, such as a refused connection, in `SupabaseTransportError` with `raise ... from error`, so that `except SupabaseError` catches it whichever library sends the requests and the original exception stays available as `__cause__`. Do not copy the text of that exception into the message: some libraries quote the full URL, and the URL of a signed upload carries a token.
+It returns a `Response` with the status code, the body as `bytes`, the response headers and the request it answers. `send` must not raise for error statuses: the packages read `response.status` and raise their own errors, and the executor retries the statuses its policy lists. `timeout` limits each step of a request, such as connecting or reading, not the whole request. Raise `RequestTimeoutError` from `supabase_utils.http.errors` for every timeout, whether `timeout` or the client's own limit elapsed, so every adapter reports a timeout the same way. A library without a client-level timeout needs a default in the adapter, or `None` waits forever. Wrap every other error of the transport itself, such as a refused connection, in `SupabaseTransportError` with `raise ... from error`, so that `except SupabaseError` catches it whichever library sends the requests and the original exception stays available as `__cause__`. Do not copy the text of that exception into the message: some libraries quote the full URL, and the URL of a signed upload carries a token.
 
 If the library follows redirects, apply the rule from [Using an adapter](#using-an-adapter): drop the headers in `CREDENTIAL_HEADERS` from `supabase_utils.http.redirects` once `keeps_credentials(request.url, target)` is false. `target` is the `Location` header resolved against the URL of the response that sent it, as in `response_url.join(URL(location))`, since a relative location has no host of its own. The simplest way to stay safe is to not follow redirects at all.
 

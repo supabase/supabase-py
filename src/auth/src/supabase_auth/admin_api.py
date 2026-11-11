@@ -46,6 +46,7 @@ from .version import __version__
 if TYPE_CHECKING:
     from types import TracebackType
 
+    from supabase_utils.http.retry import RetryPolicy
     from supabase_utils.types import JSON
 
 
@@ -402,9 +403,12 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
         default_headers: dict[str, str] | None = None,
         *,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         super().__init__(
-            executor=SyncHttpIO(session=http_session, request_timeout=request_timeout),
+            executor=SyncHttpIO(
+                session=http_session, request_timeout=request_timeout, retry=retry
+            ),
             base_url=URL(url),
             default_headers=Headers.from_mapping(default_headers)
             if default_headers
@@ -432,9 +436,12 @@ class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
         default_headers: dict[str, str] | None = None,
         *,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         super().__init__(
-            executor=AsyncHttpIO(session=http_session, request_timeout=request_timeout),
+            executor=AsyncHttpIO(
+                session=http_session, request_timeout=request_timeout, retry=retry
+            ),
             base_url=URL(url),
             default_headers=Headers.from_mapping(default_headers)
             if default_headers

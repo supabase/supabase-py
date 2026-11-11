@@ -6,6 +6,7 @@ from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http import io
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.headers import Headers
+from supabase_utils.http.retry import RetryPolicy
 from yarl import URL
 
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
@@ -29,7 +30,9 @@ def recording_client(
 ) -> SyncPostgrestClient:
     http_client = Client(transport=transport_for(seen, fail_first=fail_first))
     return SyncPostgrestClient(
-        "https://example.com", http_session=HttpxSession(client=http_client)
+        "https://example.com",
+        http_session=HttpxSession(client=http_client),
+        retry=RetryPolicy(jitter=0),
     )
 
 
@@ -141,7 +144,7 @@ def test_executing_one_builder_twice_sends_identical_requests(
     assert dict(second_execution.headers) == dict(first_attempt.headers)
     assert "x-retry-count" not in query.request.headers
     assert query.request.delay is None
-    assert sleeps == [1]
+    assert sleeps == [0.5]
 
 
 @pytest.mark.parametrize(
@@ -176,10 +179,13 @@ def test_retry_and_request_timeout_return_copies() -> None:
     with recording_client([]) as client:
         query = client.table("items").select("*")
 
+    policy = RetryPolicy(max_retries=1)
     assert query.request_timeout(3).request.timeout == 3
     assert query.retry(False).request.retry is False
+    assert query.retry(True).request.retry is True
+    assert query.retry(policy).request.retry is policy
     assert query.request.timeout is None
-    assert query.request.retry is True
+    assert query.request.retry is None
 
 
 def test_mutation_builders_return_copies() -> None:

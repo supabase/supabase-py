@@ -1,16 +1,23 @@
 import inspect
 import re
-from types import TracebackType
-from typing import Self
+from types import SimpleNamespace, TracebackType
+from typing import Self, override
 
 import pytest
+from supabase_utils.http import io
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpSession, HttpSession
 from supabase_utils.http.request import JSONRequest, Request, Response
+from supabase_utils.http.retry import RetryPolicy
 from supabase_utils.types import JSON
 from yarl import URL
 
-from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient, create_client
+from supabase_functions import (
+    AsyncFunctionsClient,
+    FunctionsHttpError,
+    SyncFunctionsClient,
+    create_client,
+)
 
 from ._async.test_function_client import MockHttpClient as AsyncMockHttpClient
 from ._sync.test_function_client import MockHttpClient as SyncMockHttpClient
@@ -152,6 +159,7 @@ def test_invoke_keeps_wrapped_method_metadata(
         "headers",
         "method",
         "request_timeout",
+        "retry",
     ]
 
 
@@ -210,3 +218,120 @@ def test_invalid_request_timeout_is_rejected(valid_url: str) -> None:
             http_session=RecordingSession(),
             request_timeout=0,
         )
+
+
+class FlakySession(RecordingSession):
+    def __init__(self, failures: int) -> None:
+        super().__init__()
+        self.failures = failures
+
+    @override
+    def send(self, request: Request) -> Response:
+        response = super().send(request)
+        if len(self.requests) <= self.failures:
+            return Response(
+                headers=Headers.empty(), content=b"", status=503, request=request
+            )
+        return response
+
+
+@pytest.fixture
+def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    sleeps: list[float] = []
+    monkeypatch.setattr(io, "time", SimpleNamespace(sleep=sleeps.append))
+    return sleeps
+
+
+def test_clients_pass_the_retry_policy_to_their_executor(valid_url: str) -> None:
+    policy = RetryPolicy(max_retries=1)
+    sync_client = SyncFunctionsClient(
+        url=valid_url, headers={}, http_session=RecordingSession(), retry=policy
+    )
+    async_client = AsyncFunctionsClient(
+        url=valid_url,
+        headers={},
+        http_session=AsyncMockHttpClient(b"", 200),
+        retry=policy,
+    )
+    created = create_client(
+        url=valid_url,
+        headers={},
+        http_session=RecordingSession(),
+        is_async=False,
+        retry=policy,
+    )
+    assert sync_client.executor.retry_policy is policy
+    assert async_client.executor.retry_policy is policy
+    assert created.executor.retry_policy is policy
+    assert (
+        SyncFunctionsClient(
+            url=valid_url, headers={}, http_session=RecordingSession()
+        ).executor.retry_policy
+        == RetryPolicy()
+    )
+
+
+def test_post_invocation_is_not_retried_by_default(
+    valid_url: str, sleeps: list[float]
+) -> None:
+    session = FlakySession(failures=1)
+    client = SyncFunctionsClient(
+        url=valid_url, headers={}, http_session=session, retry=RetryPolicy(jitter=0)
+    )
+    with pytest.raises(FunctionsHttpError):
+        client.invoke("hello")
+    assert len(session.requests) == 1
+    assert sleeps == []
+
+
+def test_get_invocation_is_retried(valid_url: str, sleeps: list[float]) -> None:
+    session = FlakySession(failures=2)
+    client = SyncFunctionsClient(
+        url=valid_url, headers={}, http_session=session, retry=RetryPolicy(jitter=0)
+    )
+    response = client.invoke("hello", method="GET")
+    assert response.status == 200
+    assert [r.headers.get("X-Retry-Count") for r in session.requests] == [
+        None,
+        "1",
+        "2",
+    ]
+    assert sleeps == [0.5, 1]
+
+
+def test_invocation_opted_in_with_retry_true_is_retried(
+    valid_url: str, sleeps: list[float]
+) -> None:
+    session = FlakySession(failures=1)
+    client = SyncFunctionsClient(
+        url=valid_url, headers={}, http_session=session, retry=RetryPolicy(jitter=0)
+    )
+    client.invoke("hello", body={"n": 1}, retry=True)
+    assert [r.method for r in session.requests] == ["POST", "POST"]
+    assert session.requests[1].content == session.requests[0].content
+    assert sleeps == [0.5]
+
+
+def test_invocation_with_retry_false_is_not_retried(
+    valid_url: str, sleeps: list[float]
+) -> None:
+    session = FlakySession(failures=1)
+    client = SyncFunctionsClient(url=valid_url, headers={}, http_session=session)
+    with pytest.raises(FunctionsHttpError):
+        client.invoke("hello", method="GET", retry=False)
+    assert len(session.requests) == 1
+    assert sleeps == []
+
+
+def test_invocation_retry_policy_replaces_the_one_of_the_client(
+    valid_url: str, sleeps: list[float]
+) -> None:
+    session = FlakySession(failures=3)
+    client = SyncFunctionsClient(
+        url=valid_url, headers={}, http_session=session, retry=RetryPolicy(jitter=0)
+    )
+    own = RetryPolicy(max_retries=1, base_delay=3, jitter=0)
+    with pytest.raises(FunctionsHttpError):
+        client.invoke("hello", method="GET", retry=own)
+    assert len(session.requests) == 2
+    assert sleeps == [3]

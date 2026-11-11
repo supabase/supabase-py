@@ -30,6 +30,7 @@ from supabase_utils.http.errors import (
     SupabaseAPIError,
     SupabaseTransportError,
 )
+from supabase_utils.http.retry import RetryPolicy
 
 from .client import AsyncClient, Client, SupabaseException
 from .types import (
@@ -69,6 +70,7 @@ __all__ = [
     "RealtimeClientOptions",
     "RealtimeError",
     "RequestTimeoutError",
+    "RetryPolicy",
     "StorageApiError",
     "StorageClientOptions",
     "StorageException",

@@ -8,6 +8,7 @@ from realtime.types import (
 from supabase_auth import AsyncSupportedStorage, AuthFlowType, SyncSupportedStorage
 from supabase_auth.constants import STORAGE_KEY
 from supabase_utils.http.request import validate_request_timeout
+from supabase_utils.http.retry import RetryPolicy
 
 
 @dataclass(frozen=True)
@@ -31,13 +32,16 @@ class _ServiceClientOptions:
     request_timeout: float | None = None
     """Seconds a request to the service may go without progress before it fails with `RequestTimeoutError`. Overrides the `request_timeout` argument of the client when set."""
 
+    retry: RetryPolicy | None = None
+    """How requests to the service that failed in a way worth repeating are retried. Overrides the `retry` argument of the client when set."""
+
     def __post_init__(self) -> None:
         validate_request_timeout(self.request_timeout)
 
 
 @dataclass(frozen=True, kw_only=True)
 class PostgrestClientOptions(_ServiceClientOptions):
-    """Options for the database client. Use `request_timeout()` on a query to override its timeout for that query."""
+    """Options for the database client. Use `request_timeout()` and `retry()` on a query to override its timeout and retries for that query."""
 
     schema: str = "public"
     """The Postgres schema which your tables belong to. Must be on the list of exposed schemas in Supabase."""
@@ -68,9 +72,9 @@ class AuthClientOptions[Storage: (AsyncSupportedStorage, SyncSupportedStorage)](
 
 @dataclass(frozen=True, kw_only=True)
 class StorageClientOptions(_ServiceClientOptions):
-    """Options for the storage client."""
+    """Options for the storage client. The default `RetryPolicy` retries GET and HEAD requests only, so an upload is not retried unless `retry` lists its method."""
 
 
 @dataclass(frozen=True, kw_only=True)
 class FunctionsClientOptions(_ServiceClientOptions):
-    """Options for the edge functions client. Use the `request_timeout` argument of `invoke()` to override its timeout for one invocation."""
+    """Options for the edge functions client. Use the `request_timeout` and `retry` arguments of `invoke()` to override its timeout and retries for one invocation."""

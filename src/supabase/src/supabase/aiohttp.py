@@ -4,6 +4,7 @@ from aiohttp import ClientSession
 from supabase_auth import AsyncSupportedStorage
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from supabase_utils.http.request import validate_request_timeout
+from supabase_utils.http.retry import RetryPolicy
 
 from .client import AsyncClient
 from .types import (
@@ -22,6 +23,7 @@ def create_async_client(
     http_client: ClientSession | None = None,
     headers: Mapping[str, str] | None = None,
     request_timeout: float | None = None,
+    retry: RetryPolicy | None = None,
     postgrest: PostgrestClientOptions | None = None,
     auth: AuthClientOptions[AsyncSupportedStorage] | None = None,
     storage: StorageClientOptions | None = None,
@@ -41,6 +43,7 @@ def create_async_client(
         AsyncAiohttpSession(client=client),
         headers=headers,
         request_timeout=request_timeout,
+        retry=retry,
         postgrest=postgrest,
         auth=auth,
         storage=storage,

@@ -27,6 +27,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from types import TracebackType
 
+    from supabase_utils.http.retry import RetryPolicy
+
 __all__ = [
     "StorageClient",
 ]
@@ -216,6 +218,7 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
         http_session: AsyncHttpSession,
         *,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         """Create a storage client.
 
@@ -230,11 +233,18 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
         request_timeout
             Seconds a request may go without progress before it fails with
             `RequestTimeoutError`. None leaves the timeout to the HTTP client.
+        retry
+            How requests that failed in a way worth repeating are retried.
+            None uses the default `RetryPolicy`, which retries GET and HEAD
+            requests only, so an upload is not retried unless the policy
+            lists its method.
         """
         super().__init__(
             url=url,
             headers=headers,
-            executor=AsyncHttpIO(session=http_session, request_timeout=request_timeout),
+            executor=AsyncHttpIO(
+                session=http_session, request_timeout=request_timeout, retry=retry
+            ),
         )
 
     async def __aenter__(self) -> Self:
@@ -258,6 +268,7 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
         http_session: HttpSession,
         *,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         """Create a storage client.
 
@@ -272,11 +283,18 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
         request_timeout
             Seconds a request may go without progress before it fails with
             `RequestTimeoutError`. None leaves the timeout to the HTTP client.
+        retry
+            How requests that failed in a way worth repeating are retried.
+            None uses the default `RetryPolicy`, which retries GET and HEAD
+            requests only, so an upload is not retried unless the policy
+            lists its method.
         """
         super().__init__(
             url=url,
             headers=headers,
-            executor=SyncHttpIO(session=http_session, request_timeout=request_timeout),
+            executor=SyncHttpIO(
+                session=http_session, request_timeout=request_timeout, retry=retry
+            ),
         )
 
     def __enter__(self) -> Self:

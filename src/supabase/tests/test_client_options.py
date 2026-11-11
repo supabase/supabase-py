@@ -2,6 +2,7 @@ import dataclasses
 
 import pytest
 from supabase_auth import SyncMemoryStorage
+from supabase_utils.http.retry import RetryPolicy
 
 from supabase import (
     AuthClientOptions,
@@ -91,6 +92,14 @@ class TestClientOptions:
         self, options_class: type[_ServiceClientOptions]
     ) -> None:
         assert options_class().request_timeout is None
+
+    @pytest.mark.parametrize("options_class", SERVICE_OPTIONS)
+    def test_retry_defaults_to_none(
+        self, options_class: type[_ServiceClientOptions]
+    ) -> None:
+        assert options_class().retry is None
+        policy = RetryPolicy(max_retries=1)
+        assert options_class(retry=policy).retry is policy
 
     @pytest.mark.parametrize("options_class", SERVICE_OPTIONS)
     @pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])

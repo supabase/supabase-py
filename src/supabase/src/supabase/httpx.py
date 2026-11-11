@@ -5,6 +5,7 @@ from httpx import Client as SyncHttpxClient
 from supabase_auth import AsyncSupportedStorage, SyncSupportedStorage
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.request import validate_request_timeout
+from supabase_utils.http.retry import RetryPolicy
 
 from .client import AsyncClient, Client
 from .types import (
@@ -23,6 +24,7 @@ def create_client(
     http_client: SyncHttpxClient | None = None,
     headers: Mapping[str, str] | None = None,
     request_timeout: float | None = None,
+    retry: RetryPolicy | None = None,
     postgrest: PostgrestClientOptions | None = None,
     auth: AuthClientOptions[SyncSupportedStorage] | None = None,
     storage: StorageClientOptions | None = None,
@@ -45,6 +47,7 @@ def create_client(
         HttpxSession(client=client),
         headers=headers,
         request_timeout=request_timeout,
+        retry=retry,
         postgrest=postgrest,
         auth=auth,
         storage=storage,
@@ -59,6 +62,7 @@ def create_async_client(
     http_client: AsyncHttpxClient | None = None,
     headers: Mapping[str, str] | None = None,
     request_timeout: float | None = None,
+    retry: RetryPolicy | None = None,
     postgrest: PostgrestClientOptions | None = None,
     auth: AuthClientOptions[AsyncSupportedStorage] | None = None,
     storage: StorageClientOptions | None = None,
@@ -82,6 +86,7 @@ def create_async_client(
         AsyncHttpxSession(client=client),
         headers=headers,
         request_timeout=request_timeout,
+        retry=retry,
         postgrest=postgrest,
         auth=auth,
         storage=storage,
