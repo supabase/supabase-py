@@ -129,6 +129,12 @@ small = asian_countries.lt("population", 1_000_000).execute()
 data = supabase.table("countries").update({"country": "Indonesia", "capital_city": "Jakarta"}).eq("id", 1).execute()
 ```
 
+An update or a delete without a filter would affect every row in the table, so executing one raises `ValueError` before anything is sent. To affect every row on purpose, call `all()`:
+
+```python
+data = supabase.table("countries").update({"visited": False}).all().execute()
+```
+
 ### Update data with duplicate keys
 
 ```python
@@ -145,6 +151,7 @@ assert len(data.data) > 0
 
 ```python
 data = supabase.table("countries").delete().eq("id", 1).execute()
+data = supabase.table("countries").delete().all().execute()
 ```
 
 ### Call Edge Functions

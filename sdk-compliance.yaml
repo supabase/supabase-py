@@ -516,16 +516,26 @@ features:
       - RequestBuilder.insert
   database.mutate.update:
     status: implemented
+    note: "update() refuses to send until a filter or all() names the rows it affects."
     symbols:
       - RequestBuilder.update
+      - MutationRequestBuilder.all
+    supporting_symbols:
+      - MutationRequestBuilder
+      - Mutation
   database.mutate.upsert:
     status: implemented
     symbols:
       - RequestBuilder.upsert
   database.mutate.delete:
     status: implemented
+    note: "delete() refuses to send until a filter or all() names the rows it affects."
     symbols:
       - RequestBuilder.delete
+      - MutationRequestBuilder.all
+    supporting_symbols:
+      - MutationRequestBuilder
+      - Mutation
   database.mutate.select_after_mutation:
     status: implemented
     note: "Chainable .select(*columns) after insert/update/upsert/delete sets return=representation and adds a column selection query param."

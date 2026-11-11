@@ -154,6 +154,24 @@ Code that called a builder method without using the returned builder no longer c
 
 The builders, `postgrest.request_builder.PostgrestRequest`, and `supabase_utils.http.request.EmptyRequest` with its subclasses `BytesRequest`, `JSONRequest`, `TextRequest` and `MultipartFormDataRequest` are frozen dataclasses. Setting a field raises `dataclasses.FrozenInstanceError`. Build a changed copy with `dataclasses.replace` instead. The finalized `Request` stays mutable. The builder constructors take keyword arguments only.
 
+## PostgREST `update()` and `delete()` require a filter or `all()`
+
+An `update()` or `delete()` without a filter changes every row the role can reach. Executing one now raises `ValueError` before any request is sent, so a forgotten `eq()` with a service role key no longer rewrites or wipes a table. Writing every row on purpose is spelled out with `all()`.
+
+```python
+client.table("countries").delete().eq("id", 1).execute()
+client.table("countries").delete().all().execute()
+```
+
+| Before                                                       | After                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `client.table("countries").delete().execute()`               | `client.table("countries").delete().all().execute()`               |
+| `client.table("countries").update({"seen": True}).execute()` | `client.table("countries").update({"seen": True}).all().execute()` |
+
+Every filter on the table counts, including `match()`, `in_()`, `or_()` and a negated filter after `not_`. A filter on an embedded resource, such as `eq("cities.name", "Paris")` or `or_(..., reference_table="cities")`, does not count, since PostgREST applies it to the embedded rows and not to the rows the write affects. `order()`, `limit()`, `range()` and `max_affected()` shape the request without naming its rows, so they do not count either. `all()` adds nothing to the request, and a filter applied before or after it still applies. The check runs when the request is sent, so it also covers `select()`, `single()`, `maybe_single()`, `csv()` and `explain()` chained after an unfiltered `update()` or `delete()`. `all()` is a method of the builder `update()` and `delete()` return, so it comes before those.
+
+`update()` and `delete()` return a `MutationRequestBuilder`, a `SelectRequestBuilder` with the added `all()`. Code that spells the type needs the new name. `PostgrestRequest` carries the state as its `filter_required_by` field, a `Mutation` member or `None`.
+
 ## Realtime heartbeat intervals are used as given
 
 `heartbeat_interval` was raised to 15 seconds when it was lower. It is now used as given, so an interval below 15 seconds sends heartbeats more often than before. To keep the old timing, pass 15 or more.

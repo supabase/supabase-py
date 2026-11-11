@@ -6,6 +6,7 @@ from .request_builder import APIResponse
 from .types import (
     CountMethod,
     Filters,
+    Mutation,
     RequestMethod,
     ReturnMethod,
 )
@@ -17,6 +18,7 @@ __all__ = [
     "AsyncPostgrestClient",
     "CountMethod",
     "Filters",
+    "Mutation",
     "RequestMethod",
     "ReturnMethod",
     "SyncPostgrestClient",

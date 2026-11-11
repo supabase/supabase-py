@@ -33,7 +33,7 @@ from supabase_utils.types import JSON
 from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
-from .types import CountMethod, Filters, FilterValue, ReturnMethod
+from .types import CountMethod, Filters, FilterValue, Mutation, ReturnMethod
 from .utils import _sanitize_array_param, sanitize_param
 
 MAX_RETRIES = 3
@@ -232,13 +232,39 @@ class SingleAPIResponse:
         return SingleAPIResponse(data=data, count=count)
 
 
+def _filters_embedded_resource(key: str) -> bool:
+    """Whether a filter key such as ``cities.name`` targets an embedded resource.
+
+    PostgREST applies such a filter to the embedded rows only, so it does not
+    narrow the rows an update or delete of the table affects. A quoted key is a
+    single column name, whatever it contains.
+    """
+    return not key.startswith('"') and "." in key
+
+
 @dataclass(frozen=True)
 class PostgrestRequest(JSONRequest):
     retry: bool = True
     strip_nulls: bool = False
+    filter_required_by: Mutation | None = None
+    """The write that refuses to send until a filter on the table names the
+    rows it affects.
+
+    `update()` and `delete()` set it, so that a forgotten filter does not
+    write every row in the table. A filter on the table clears it, and so
+    does `all()`. A filter on an embedded resource does not, since PostgREST
+    applies it to the embedded rows only.
+    """
 
     @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
+        if self.filter_required_by is not None:
+            operation = f"{self.filter_required_by}()"
+            raise ValueError(
+                f"{operation} has no filter that says which rows it affects. Add "
+                f"one, such as eq(), or call all() right after {operation} to run "
+                "it without a filter on purpose."
+            )
         request = super().finalize(base_url, default_headers)
         if self.strip_nulls:
             accept = request.headers.get("Accept")
@@ -277,10 +303,14 @@ class BaseFilterRequestBuilder:
             operator = f"{Filters.NOT}.{operator}"
         key = sanitize_param(column)
         val = f"{operator}.{_serialize_filter_value(criteria)}"
-        query = self.request.query.set(key, val)
-        return replace(
-            self, negate_next=False, request=replace(self.request, query=query)
+        request = replace(
+            self.request,
+            query=self.request.query.set(key, val),
+            filter_required_by=self.request.filter_required_by
+            if _filters_embedded_resource(key)
+            else None,
         )
+        return replace(self, negate_next=False, request=request)
 
     def eq(self: Self, column: str, value: Any) -> Self:
         """An 'equal to' filter.
@@ -412,10 +442,14 @@ class BaseFilterRequestBuilder:
         """
         op = "not.or" if self.negate_next else "or"
         key = f"{sanitize_param(reference_table)}.{op}" if reference_table else op
-        query = self.request.query.set(key, f"({filters})")
-        return replace(
-            self, negate_next=False, request=replace(self.request, query=query)
+        request = replace(
+            self.request,
+            query=self.request.query.set(key, f"({filters})"),
+            filter_required_by=self.request.filter_required_by
+            if reference_table is not None
+            else None,
         )
+        return replace(self, negate_next=False, request=request)
 
     def fts(self: Self, column: str, query: Any) -> Self:
         return self.filter(column, Filters.FTS, query)
@@ -1020,6 +1054,28 @@ class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
 
 
 @dataclass(frozen=True, kw_only=True)
+class MutationRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
+    SelectRequestBuilder[HttpIO]
+):
+    """The query of an `update()` or a `delete()`.
+
+    It refuses to send until a filter, or `all()`, names the rows it affects.
+    """
+
+    def all(self) -> Self:
+        """Run the request without a filter on purpose.
+
+        An `update()` or `delete()` without a filter raises `ValueError`
+        instead of being sent, since without a limit it affects every row in
+        the table. `all()` states that this is intended. It adds nothing to
+        the request, and a filter applied before or after it still applies.
+        It is a method of this builder, so it comes before `single()`,
+        `maybe_single()`, `csv()` and `explain()`.
+        """
+        return replace(self, request=replace(self.request, filter_required_by=None))
+
+
+@dataclass(frozen=True, kw_only=True)
 class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     executor: HttpIO
     base_url: URL
@@ -1157,7 +1213,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> SelectRequestBuilder[HttpIO]:
+    ) -> MutationRequestBuilder[HttpIO]:
         """Run an UPDATE query.
 
         Args:
@@ -1165,7 +1221,9 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SelectRequestBuilder`
+            :class:`MutationRequestBuilder`. Executing it without a filter
+            raises `ValueError` before anything is sent, since it would
+            update every row in the table. Call `all()` to do so on purpose.
         """
         method, params, headers, json = pre_update(
             json,
@@ -1178,8 +1236,9 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             method=method,
             headers=headers,
             body=json,
+            filter_required_by=Mutation.UPDATE,
         )
-        return SelectRequestBuilder(
+        return MutationRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
@@ -1191,14 +1250,16 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
-    ) -> SelectRequestBuilder[HttpIO]:
+    ) -> MutationRequestBuilder[HttpIO]:
         """Run a DELETE query.
 
         Args:
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
-            :class:`SelectRequestBuilder`
+            :class:`MutationRequestBuilder`. Executing it without a filter
+            raises `ValueError` before anything is sent, since it would
+            delete every row in the table. Call `all()` to do so on purpose.
         """
         method, params, headers, json = pre_delete(
             count=count,
@@ -1210,8 +1271,9 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             method=method,
             headers=headers,
             body=json,
+            filter_required_by=Mutation.DELETE,
         )
-        return SelectRequestBuilder(
+        return MutationRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,

@@ -41,6 +41,13 @@ class Filters(StrEnum):
     ADJ = "adj"
 
 
+class Mutation(StrEnum):
+    """A write that needs a filter to name the rows it affects."""
+
+    UPDATE = "update"
+    DELETE = "delete"
+
+
 class RequestMethod(StrEnum):
     GET = "GET"
     POST = "POST"
