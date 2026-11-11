@@ -43,8 +43,15 @@ def strip_cross_origin_credentials(origin: URL) -> ClientMiddlewareType:
 
 
 class AsyncAiohttpSession:
-    def __init__(self, client: ClientSession) -> None:
+    """Sends the requests with an aiohttp client session.
+
+    Leaving the session closes `client` unless `owns_client` is false, for a
+    client that its owner closes.
+    """
+
+    def __init__(self, client: ClientSession, *, owns_client: bool = True) -> None:
         self.client = client
+        self.owns_client = owns_client
 
     def _timeout(self, request_timeout: float | None) -> ClientTimeout:
         session_timeout = self.client.timeout
@@ -90,4 +97,5 @@ class AsyncAiohttpSession:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        await self.client.__aexit__(exc_type, exc, tb)
+        if self.owns_client:
+            await self.client.__aexit__(exc_type, exc, tb)

@@ -477,3 +477,21 @@ async def test_async_session_wraps_transport_errors() -> None:
                 BASE_URL, Headers.empty(), get_items()
             )
     assert isinstance(error.value.__cause__, httpx.ConnectError)
+
+
+@pytest.mark.parametrize("owns_client", [True, False])
+def test_sync_session_closes_the_client_it_owns(owns_client: bool) -> None:
+    client = httpx.Client()
+    with HttpxSession(client=client, owns_client=owns_client):
+        pass
+    assert client.is_closed is owns_client
+    client.close()
+
+
+@pytest.mark.parametrize("owns_client", [True, False])
+async def test_async_session_closes_the_client_it_owns(owns_client: bool) -> None:
+    client = httpx.AsyncClient()
+    async with AsyncHttpxSession(client=client, owns_client=owns_client):
+        pass
+    assert client.is_closed is owns_client
+    await client.aclose()

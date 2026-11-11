@@ -40,7 +40,9 @@ def create_async_client(
     client = AsyncClient(
         supabase_url,
         supabase_key,
-        AsyncAiohttpSession(client=http_client or ClientSession()),
+        AsyncAiohttpSession(
+            client=http_client or ClientSession(), owns_client=http_client is None
+        ),
         headers=headers,
         request_timeout=request_timeout,
         retry=retry,

@@ -58,8 +58,15 @@ def redirect_request(
 
 
 class HttpxSession:
-    def __init__(self, client: Client) -> None:
+    """Sends the requests with an httpx client.
+
+    Leaving the session closes `client` unless `owns_client` is false, for a
+    client that its owner closes.
+    """
+
+    def __init__(self, client: Client, *, owns_client: bool = True) -> None:
         self.client = client
+        self.owns_client = owns_client
 
     def send(self, request: Request) -> Response:
         try:
@@ -97,12 +104,20 @@ class HttpxSession:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        self.client.close()
+        if self.owns_client:
+            self.client.close()
 
 
 class AsyncHttpxSession:
-    def __init__(self, client: AsyncClient) -> None:
+    """Sends the requests with an httpx client.
+
+    Leaving the session closes `client` unless `owns_client` is false, for a
+    client that its owner closes.
+    """
+
+    def __init__(self, client: AsyncClient, *, owns_client: bool = True) -> None:
         self.client = client
+        self.owns_client = owns_client
 
     async def send(self, request: Request) -> Response:
         try:
@@ -140,4 +155,5 @@ class AsyncHttpxSession:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        await self.client.aclose()
+        if self.owns_client:
+            await self.client.aclose()

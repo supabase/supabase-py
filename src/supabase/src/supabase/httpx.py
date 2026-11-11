@@ -45,7 +45,7 @@ def create_client(
     client = Client(
         supabase_url,
         supabase_key,
-        HttpxSession(client=httpx_client),
+        HttpxSession(client=httpx_client, owns_client=http_client is None),
         headers=headers,
         request_timeout=request_timeout,
         retry=retry,
@@ -87,7 +87,7 @@ def create_async_client(
     client = AsyncClient(
         supabase_url,
         supabase_key,
-        AsyncHttpxSession(client=httpx_client),
+        AsyncHttpxSession(client=httpx_client, owns_client=http_client is None),
         headers=headers,
         request_timeout=request_timeout,
         retry=retry,

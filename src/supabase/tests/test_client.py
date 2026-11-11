@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -524,3 +525,13 @@ def test_factories_reject_an_invalid_request_timeout_before_creating_a_session(
         aiohttp_session.assert_not_called()
         sync_httpx_client.assert_not_called()
         async_httpx_client.assert_not_called()
+
+
+def test_sync_client_shares_one_auth_client_between_threads() -> None:
+    with SyncHttpxClient() as http_client:
+        client = Client(URL, KEY, HttpxSession(client=http_client))
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = [pool.submit(lambda: client.auth) for _ in range(32)]
+            auth_clients = [future.result() for future in futures]
+
+    assert all(auth is auth_clients[0] for auth in auth_clients)
