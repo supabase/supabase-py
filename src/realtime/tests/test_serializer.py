@@ -10,7 +10,7 @@ from realtime._serializer import decode, encode
 from realtime.channel import RealtimeChannelOptions
 from realtime.client import connect_once
 from realtime.message import BroadcastMessage, Message
-from realtime.types import ChannelEvents
+from realtime.types import BroadcastPayload, ChannelEvents
 
 HOST = "127.0.0.1"
 
@@ -45,6 +45,23 @@ def test_encode_writes_a_json_array() -> None:
         "phx_join",
         {"config": {"private": False}},
     ]
+
+
+def test_encode_writes_utf_8_and_null_for_non_finite_floats() -> None:
+    message = Message(
+        topic="realtime:room",
+        event=ChannelEvents.presence,
+        payload={"name": "日本 😀", "score": float("nan")},
+    )
+
+    assert encode(message) == (
+        '[null,null,"realtime:room","presence",{"name":"日本 😀","score":null}]'
+    )
+
+
+def test_broadcast_payload_does_not_read_a_string_as_bytes() -> None:
+    with pytest.raises(ValidationError):
+        BroadcastPayload.model_validate({"event": "e", "payload": "text"})
 
 
 def test_encode_keeps_a_json_broadcast_as_text() -> None:
@@ -242,13 +259,19 @@ async def server() -> AsyncIterator[BroadcastServer]:
 
 
 @pytest.mark.parametrize("ack", [False, True])
-async def test_binary_broadcast_round_trip(server: BroadcastServer, ack: bool) -> None:
+@pytest.mark.parametrize(
+    "data",
+    [b"\x00\x01\xff", bytearray(b"\x00\x01\xff"), memoryview(b"\x00\x01\xff")],
+)
+async def test_binary_broadcast_round_trip(
+    server: BroadcastServer, ack: bool, data: bytes | bytearray | memoryview
+) -> None:
     options = RealtimeChannelOptions().broadcast(ack=ack)
     async with (
         connect_once(server.url) as client,
         client.channel("room", options) as channel,
     ):
-        reply = await channel.send_broadcast("blob", b"\x00\x01\xff")
+        reply = await channel.send_broadcast("blob", data)
 
         message = await channel.messages.__anext__()
 

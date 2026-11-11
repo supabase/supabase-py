@@ -38,10 +38,8 @@ def encode(message: Message) -> str | bytes:
         and isinstance(user_payload, bytes)
     ):
         return _encode_user_broadcast_push(message, user_event, user_payload)
-    return json.dumps(
-        [message.join_ref, message.ref, message.topic, message.event, payload],
-        separators=(",", ":"),
-    )
+    frame = (message.join_ref, message.ref, message.topic, message.event, payload)
+    return _TextFrameAdapter.dump_json(frame).decode()
 
 
 def decode(frame: str | bytes) -> Message:
@@ -72,16 +70,15 @@ def _encode_user_broadcast_push(
             raise ValueError(
                 f"{name} is {len(value)} bytes long, the maximum is {_MAX_FIELD_LENGTH}"
             )
-    metadata = b""
     header = bytes(
         [
             _USER_BROADCAST_PUSH,
             *(len(value) for value in fields.values()),
-            len(metadata),
+            0,
             _BINARY_ENCODING,
         ]
     )
-    return b"".join([header, *fields.values(), metadata, user_payload])
+    return b"".join([header, *fields.values(), user_payload])
 
 
 def _decode_user_broadcast(frame: bytes) -> Message:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import Sequence
+from collections.abc import Buffer, Sequence
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, Self
 
@@ -330,7 +330,7 @@ class RealtimeChannel:
 
     # Broadcast methods
     async def send_broadcast(
-        self, event: str, data: JSON | bytes
+        self, event: str, data: JSON | Buffer
     ) -> ReplyMessage | None:
         """
         Send a broadcast message through this channel.
@@ -339,15 +339,18 @@ class RealtimeChannel:
         connection, not that the server received it.
 
         :param event: The name of the broadcast event
-        :param data: The payload to broadcast. ``bytes`` are sent as a binary
-            frame, and receivers get them as ``bytes`` in
-            ``BroadcastPayload.payload``. Anything else is sent as JSON.
-        :raises ValueError: If ``data`` is ``bytes`` and the topic or the event
+        :param data: The payload to broadcast. A bytes-like object, such as
+            ``bytes``, ``bytearray`` or ``memoryview``, is sent as a binary frame,
+            and receivers get it as ``bytes`` in ``BroadcastPayload.payload``.
+            Anything else is sent as JSON.
+        :raises ValueError: If ``data`` is bytes-like and the topic or the event
             is longer than 255 bytes in UTF-8.
         :raises websockets.ConnectionClosed: If the connection is closed.
         :raises Exception: If the connection already failed, the exception that
             failed it, such as a TimeoutError when a heartbeat timed out.
         """
+        if isinstance(data, Buffer):
+            data = bytes(data)
         payload = {"type": "broadcast", "event": event, "payload": data}
         if self.options.broadcast_ack:
             return await self._send_event(ChannelEvents.broadcast, payload)

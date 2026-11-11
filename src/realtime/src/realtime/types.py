@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated, Any, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, Strict
 
 # Constants
 DEFAULT_TIMEOUT = 10
@@ -131,7 +131,7 @@ class BroadcastMeta(BaseModel):
 
 class BroadcastPayload(BaseModel):
     event: str
-    payload: dict[str, Any] | bytes
+    payload: dict[str, Any] | Annotated[bytes, Strict()]
     type: str | None = None
     meta: BroadcastMeta | None = None
 
