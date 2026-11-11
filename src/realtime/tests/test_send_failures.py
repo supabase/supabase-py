@@ -8,11 +8,16 @@ from websockets.exceptions import ConnectionClosed
 
 from realtime._serializer import decode, encode
 from realtime.channel import RealtimeChannel, RealtimeChannelOptions
-from realtime.client import connect_once
+from realtime.client import RealtimeClient, connect_once
 from realtime.message import Message
 from realtime.types import ChannelEvents
 
 HOST = "127.0.0.1"
+
+
+def connection_failure(client: RealtimeClient) -> asyncio.Future[Message]:
+    assert client._connection_failure is not None
+    return client._connection_failure
 
 
 async def get_token() -> str:
@@ -84,7 +89,7 @@ async def test_send_raises_when_the_connection_is_closed(
 
         await server.drop_connections()
         with pytest.raises(ConnectionClosed):
-            await asyncio.wait_for(client._connection_failure, timeout=1)
+            await asyncio.wait_for(connection_failure(client), timeout=1)
 
         with pytest.raises(ConnectionClosed):
             await send(channel)
@@ -103,7 +108,7 @@ async def test_send_raises_when_the_connection_already_failed(
         ws_send = AsyncMock()
         monkeypatch.setattr(client._ws_connection, "send", ws_send)
 
-        client._connection_failure.set_exception(TimeoutError())
+        connection_failure(client).set_exception(TimeoutError())
         with pytest.raises(TimeoutError):
             await send(channel)
 
@@ -120,7 +125,7 @@ async def test_acknowledged_broadcast_raises_when_the_connection_is_closed(
 
         await server.drop_connections()
         with pytest.raises(ConnectionClosed):
-            await asyncio.wait_for(client._connection_failure, timeout=1)
+            await asyncio.wait_for(connection_failure(client), timeout=1)
 
         with pytest.raises(ConnectionClosed):
             await channel.send_broadcast("event", {"a": 1})
@@ -137,7 +142,7 @@ async def test_set_auth_raises_and_keeps_the_previous_token_when_the_send_fails(
 
         await server.drop_connections()
         with pytest.raises(ConnectionClosed):
-            await asyncio.wait_for(client._connection_failure, timeout=1)
+            await asyncio.wait_for(connection_failure(client), timeout=1)
 
         with pytest.raises(ConnectionClosed):
             await client.set_auth("second-token")

@@ -5,11 +5,16 @@ import pytest
 from websockets.asyncio.server import Server, ServerConnection, serve
 
 from realtime._serializer import decode, encode
-from realtime.client import connect_once
+from realtime.client import RealtimeClient, connect_once
 from realtime.message import Message
 from realtime.types import ChannelEvents
 
 HOST = "127.0.0.1"
+
+
+def connection_failure(client: RealtimeClient) -> asyncio.Future[Message]:
+    assert client._connection_failure is not None
+    return client._connection_failure
 
 
 async def get_token() -> str:
@@ -77,12 +82,12 @@ async def server() -> AsyncIterator[FakeServer]:
 async def test_close_with_join_ref_after_leave_keeps_client_alive(
     server: FakeServer,
 ) -> None:
-    async with connect_once(server.url, get_token) as client:
+    async with connect_once(server.url, get_token) as client, client.channel("held"):
         async with client.channel("first"):
             pass
         async with client.channel("second") as channel:
             assert channel.joined
-        assert not client._connection_failure.done()
+        assert not connection_failure(client).done()
         assert client.message_refs == {}
 
 
@@ -100,7 +105,7 @@ async def test_orphan_reply_is_not_forwarded_to_the_channel(server: FakeServer) 
             queued.append(channel.message_stream.get_nowait())
         assert all(message.event != ChannelEvents.reply for message in queued)
         assert any(message.event == ChannelEvents.close for message in queued)
-        assert not client._connection_failure.done()
+        assert not connection_failure(client).done()
 
 
 @pytest.mark.asyncio
@@ -116,7 +121,7 @@ async def test_late_reply_for_timed_out_send_keeps_client_alive(
         await asyncio.sleep(0.3)
         async with client.channel("fast") as channel:
             assert channel.joined
-        assert not client._connection_failure.done()
+        assert not connection_failure(client).done()
 
 
 @pytest.mark.asyncio

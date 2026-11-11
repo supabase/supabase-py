@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import os
 from collections.abc import AsyncIterator
+from typing import override
 from unittest.mock import AsyncMock
 
 import aiohttp
@@ -428,6 +429,18 @@ def test_broadcast_replication_ready_is_forwarded_only_when_set() -> None:
     assert "replication_ready" not in disabled_payload["config"]["broadcast"]
 
 
+class FakeConnectionClient(RealtimeClient):
+    def __init__(self, ws: AsyncMock) -> None:
+        super().__init__("ws://localhost/realtime/v1")
+        self.fake_ws = ws
+
+    @override
+    async def connect(self) -> None:
+        if not self._is_connected():
+            self._ws_connection = self.fake_ws
+            self._connection_failure = asyncio.get_running_loop().create_future()
+
+
 def fake_client() -> tuple[RealtimeClient, list[Message]]:
     """A client over a mocked websocket that acks every message carrying a ref.
 
@@ -435,7 +448,7 @@ def fake_client() -> tuple[RealtimeClient, list[Message]]:
     """
     sent: list[Message] = []
     ws = AsyncMock()
-    client = RealtimeClient(URL("ws://localhost/realtime/v1"), ws)
+    client = FakeConnectionClient(ws)
 
     async def send(frame: str | bytes) -> None:
         message = decode(frame)

@@ -280,6 +280,7 @@ async def test_binary_broadcast_round_trip(
         assert isinstance(message, BroadcastMessage)
         assert message.payload.event == "blob"
         assert message.payload.payload == b"\x00\x01\xff"
+        assert client._connection_failure is not None
         assert not client._connection_failure.done()
 
     [frame] = server.binary_frames

@@ -13,8 +13,8 @@ from realtime import (
     AuthorizationError,
     MaxRetriesExceeded,
     NotConnectedError,
+    RealtimeClient,
     RealtimeError,
-    connect_once,
 )
 from storage3 import (
     AsyncStorageClient,
@@ -526,7 +526,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         """Instantiate the client.
 
         `http_session` sends the requests and stays open when the client is
-        closed. `realtime` configures the realtime connections. See
+        closed. `realtime` configures the realtime client. See
         `SupabaseClient` for the other arguments.
         """
         self.http_session = http_session
@@ -603,16 +603,20 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         return client
 
     async def aclose(self) -> None:
-        """Stop the auth auto-refresh and close the HTTP session the client created.
+        """Stop the auth auto-refresh and close the connections the client opened.
 
-        A session passed in by the caller is left open, as are the realtime
-        connections opened from `realtime`, which close when their
-        `async with` block ends. Closing the client more than once is safe.
+        Those are the realtime connection and the HTTP session the client
+        created. A session passed in by the caller is left open. Closing the
+        client more than once is safe.
         """
         if self._auth is not None:
             self._auth.session_manager.stop_auto_refresh()
-        if self._owns_http_session:
-            await self.http_session.__aexit__(None, None, None)
+        try:
+            if "realtime" in self.__dict__:
+                await self.realtime.aclose()
+        finally:
+            if self._owns_http_session:
+                await self.http_session.__aexit__(None, None, None)
 
     async def __aenter__(self) -> Self:
         return self
@@ -694,10 +698,14 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
     async def _realtime_access_token(self) -> str | None:
         return self._access_token
 
-    @property
-    def realtime(self) -> connect_once:
-        """Create a realtime connection that uses the client's access token."""
-        return connect_once(
+    @cached_property
+    def realtime(self) -> RealtimeClient:
+        """The realtime client, which uses the client's access token.
+
+        It connects when the first channel subscribes and closes when this
+        client exits.
+        """
+        return RealtimeClient(
             str(self.realtime_url),
             token_callback=self._realtime_access_token,
             heartbeat_interval=self._realtime_options.heartbeat_interval,

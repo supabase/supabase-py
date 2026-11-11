@@ -12,9 +12,9 @@ class NotConnectedError(RealtimeError):
 
     def __init__(self, func_name: str) -> None:
         super().__init__(
-            "A WS connection has not been established. Ensure you call "
-            "AsyncRealtimeClient.connect() before calling "
-            f"AsyncRealtimeClient.{func_name}()"
+            "A WebSocket connection has not been established. Subscribe to a "
+            "channel or call RealtimeClient.connect() before calling "
+            f"{func_name}()"
         )
         self.offending_func_name: str = func_name
 

@@ -20,7 +20,7 @@ def test_realtime_errors_inherit_the_shared_root() -> None:
 def test_not_connected_error_names_the_method() -> None:
     error = NotConnectedError("send")
     assert error.offending_func_name == "send"
-    assert "AsyncRealtimeClient.send()" in str(error)
+    assert "calling send()" in str(error)
     assert str(error) == error.message
 
 
