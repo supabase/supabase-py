@@ -118,7 +118,16 @@ features:
     symbols:
       - AsyncSupabaseAuthClient.exchange_code_for_session
       - SyncSupabaseAuthClient.exchange_code_for_session
-  auth.sign_in.concurrent_pkce_flows: not_implemented
+  auth.sign_in.concurrent_pkce_flows:
+    status: implemented
+    note: "sign_in_with_oauth, link_identity and sign_in_with_sso return the flow id as OAuthResponse.flow_id and SSOResponse.flow_id. exchange_code_for_session(auth_code, flow_id=...) uses the verifier of that flow and raises AuthPKCECodeVerifierMissingError, without sending the code, when it is not stored. The flow id is not added to redirect URLs."
+    symbols:
+      - AsyncSupabaseAuthClient.exchange_code_for_session
+      - SyncSupabaseAuthClient.exchange_code_for_session
+    supporting_symbols:
+      - OAuthResponse
+      - SSOResponse
+      - AuthPKCECodeVerifierMissingError
 
   auth.session.get_session:
     status: implemented
@@ -1471,6 +1480,7 @@ supporting_symbols:
   - AuthImplicitGrantRedirectError
   - AuthInvalidCredentialsError
   - AuthInvalidJwtError
+  - AuthPKCECodeVerifierMissingError
   - AuthRetryableError
   - AuthSessionMissingError
   - AuthUnknownError
