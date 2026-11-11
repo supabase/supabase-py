@@ -60,6 +60,7 @@ from supabase_utils.http.io import (
     SyncHttpIO,
 )
 from supabase_utils.http.request import validate_request_timeout
+from supabase_utils.http.retry import RetryPolicy
 from yarl import URL
 
 from .types import (
@@ -112,6 +113,7 @@ __all__ = [
     "PostgrestAPIResponse",
     "RealtimeError",
     "RequestTimeoutError",
+    "RetryPolicy",
     "StorageApiError",
     "StorageException",
     "SupabaseAPIError",
@@ -164,6 +166,7 @@ class SupabaseClient[
         *,
         headers: Mapping[str, str] | None,
         request_timeout: float | None,
+        retry: RetryPolicy | None,
         postgrest: PostgrestClientOptions | None,
         auth: AuthClientOptions[Storage] | None,
         storage: StorageClientOptions | None,
@@ -187,6 +190,13 @@ class SupabaseClient[
             default) leaves the timeout to the HTTP client. The
             `request_timeout` of a service's options overrides it for that
             service.
+        retry
+            How requests to the database, auth, storage or edge functions
+            that failed in a way worth repeating are retried. None (the
+            default) uses the default `RetryPolicy`, which retries GET and
+            HEAD requests up to three times on a rate limit, a gateway error
+            or a network error. The `retry` of a service's options overrides
+            it for that service.
         postgrest
             Options for the database client.
         auth
@@ -215,6 +225,7 @@ class SupabaseClient[
         validate_request_timeout(request_timeout)
         self.supabase_key = supabase_key
         self._request_timeout = request_timeout
+        self._retry = retry
         self._postgrest_options = postgrest or PostgrestClientOptions()
         self._auth_options: AuthClientOptions[Storage] = auth or AuthClientOptions()
         self._storage_options = storage or StorageClientOptions()
@@ -355,6 +366,11 @@ class SupabaseClient[
             return service_options.request_timeout
         return self._request_timeout
 
+    def _retry_for(self, service_options: _ServiceClientOptions) -> RetryPolicy | None:
+        if service_options.retry is not None:
+            return service_options.retry
+        return self._retry
+
     def _create_auth_header(self, token: str) -> str:
         return f"Bearer {token}"
 
@@ -423,6 +439,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         *,
         headers: Mapping[str, str] | None = None,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
         postgrest: PostgrestClientOptions | None = None,
         auth: AuthClientOptions[AsyncSupportedStorage] | None = None,
         storage: StorageClientOptions | None = None,
@@ -441,6 +458,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             supabase_key,
             headers=headers,
             request_timeout=request_timeout,
+            retry=retry,
             postgrest=postgrest,
             auth=auth,
             storage=storage,
@@ -460,6 +478,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         *,
         headers: Mapping[str, str] | None = None,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
         postgrest: PostgrestClientOptions | None = None,
         auth: AuthClientOptions[AsyncSupportedStorage] | None = None,
         storage: StorageClientOptions | None = None,
@@ -473,6 +492,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             http_session,
             headers=headers,
             request_timeout=request_timeout,
+            retry=retry,
             postgrest=postgrest,
             auth=auth,
             storage=storage,
@@ -514,6 +534,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             storage_key=self._auth_options.storage_key,
             flow_type=self._auth_options.flow_type,
             request_timeout=self._timeout_for(self._auth_options),
+            retry=self._retry_for(self._auth_options),
         )
 
     @cached_property
@@ -525,6 +546,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             headers=self._headers,
             schema=self._postgrest_options.schema,
             request_timeout=self._timeout_for(self._postgrest_options),
+            retry=self._retry_for(self._postgrest_options),
         )
 
     @cached_property
@@ -535,6 +557,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             headers=self._headers,
             http_session=self.http_session,
             request_timeout=self._timeout_for(self._storage_options),
+            retry=self._retry_for(self._storage_options),
         )
 
     @cached_property
@@ -545,6 +568,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             headers=self._functions_headers(),
             http_session=self.http_session,
             request_timeout=self._timeout_for(self._functions_options),
+            retry=self._retry_for(self._functions_options),
         )
 
     def schema(self, schema: str) -> AsyncPostgrestClient:
@@ -579,6 +603,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         *,
         headers: Mapping[str, str] | None = None,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
         postgrest: PostgrestClientOptions | None = None,
         auth: AuthClientOptions[SyncSupportedStorage] | None = None,
         storage: StorageClientOptions | None = None,
@@ -595,6 +620,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             supabase_key,
             headers=headers,
             request_timeout=request_timeout,
+            retry=retry,
             postgrest=postgrest,
             auth=auth,
             storage=storage,
@@ -611,6 +637,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         *,
         headers: Mapping[str, str] | None = None,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
         postgrest: PostgrestClientOptions | None = None,
         auth: AuthClientOptions[SyncSupportedStorage] | None = None,
         storage: StorageClientOptions | None = None,
@@ -623,6 +650,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             http_session,
             headers=headers,
             request_timeout=request_timeout,
+            retry=retry,
             postgrest=postgrest,
             auth=auth,
             storage=storage,
@@ -663,6 +691,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             storage_key=self._auth_options.storage_key,
             flow_type=self._auth_options.flow_type,
             request_timeout=self._timeout_for(self._auth_options),
+            retry=self._retry_for(self._auth_options),
         )
 
     @cached_property
@@ -674,6 +703,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             headers=self._headers,
             schema=self._postgrest_options.schema,
             request_timeout=self._timeout_for(self._postgrest_options),
+            retry=self._retry_for(self._postgrest_options),
         )
 
     @cached_property
@@ -684,6 +714,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             headers=self._headers,
             http_session=self.http_session,
             request_timeout=self._timeout_for(self._storage_options),
+            retry=self._retry_for(self._storage_options),
         )
 
     @cached_property
@@ -694,6 +725,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             headers=self._functions_headers(),
             http_session=self.http_session,
             request_timeout=self._timeout_for(self._functions_options),
+            retry=self._retry_for(self._functions_options),
         )
 
     def schema(self, schema: str) -> SyncPostgrestClient:

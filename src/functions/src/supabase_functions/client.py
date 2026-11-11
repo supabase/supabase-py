@@ -20,6 +20,7 @@ from supabase_utils.http.request import (
     TextRequest,
     ToRequest,
 )
+from supabase_utils.http.retry import RetryPolicy
 from supabase_utils.types import JSON
 from yarl import URL
 
@@ -65,6 +66,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         headers: dict[str, str] | None,
         method: HTTPRequestMethod,
         request_timeout: float | None,
+        retry: RetryPolicy | bool | None,
     ) -> ToRequest:
         if not is_valid_string_argument(function_name):
             raise ValueError("function_name must be a valid string value.")
@@ -88,6 +90,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 headers=new_headers,
                 query=query_params,
                 timeout=request_timeout,
+                retry=retry,
             )
         if isinstance(body, str):
             return TextRequest(
@@ -97,6 +100,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 headers=new_headers,
                 query=query_params,
                 timeout=request_timeout,
+                retry=retry,
             )
         if isinstance(body, (bytes, bytearray)):
             return BytesRequest(
@@ -106,6 +110,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 headers=new_headers,
                 query=query_params,
                 timeout=request_timeout,
+                retry=retry,
             )
         if isinstance(body, (dict, list)):
             return JSONRequest(
@@ -115,6 +120,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 headers=new_headers,
                 query=query_params,
                 timeout=request_timeout,
+                retry=retry,
             )
         raise TypeError(
             f"body must be str, bytes, dict, list or None, not {type(body).__name__}"
@@ -129,6 +135,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         headers: dict[str, str] | None = None,
         method: HTTPRequestMethod = "POST",
         request_timeout: float | None = None,
+        retry: RetryPolicy | bool | None = None,
     ) -> HttpMethod[Response]:
         """Invokes a function
 
@@ -142,9 +149,15 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         method : the HTTP method to use, POST by default
         request_timeout : seconds the invocation may go without progress,
             overriding the timeout of the client
+        retry : how the invocation is retried when it fails in a way worth
+            repeating. None leaves it to the `RetryPolicy` of the client,
+            which retries GET and HEAD invocations only. True retries the
+            invocation with that policy, and a `RetryPolicy` with that policy
+            instead, both whatever its method, for a function that is safe to
+            invoke twice. False never retries it.
         """
         response = yield self._invoke_options_to_request(
-            function_name, body, region, headers, method, request_timeout
+            function_name, body, region, headers, method, request_timeout, retry
         )
         if _is_relay_error(response) or not response.is_success:
             raise _on_error_response(response)
@@ -159,6 +172,7 @@ class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
         http_session: AsyncHttpSession,
         *,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         """Create a functions client.
 
@@ -170,10 +184,16 @@ class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
         request_timeout : seconds an invocation may go without progress before
             it fails with `RequestTimeoutError`. None leaves the timeout to the
             HTTP client.
+        retry : how GET and HEAD invocations that failed in a way worth
+            repeating are retried. None uses the default `RetryPolicy`. Use
+            the `retry` argument of `invoke()` to override it for one
+            invocation.
         """
         super().__init__(
             url=URL(url),
-            executor=AsyncHttpIO(session=http_session, request_timeout=request_timeout),
+            executor=AsyncHttpIO(
+                session=http_session, request_timeout=request_timeout, retry=retry
+            ),
             headers=headers,
         )
 
@@ -186,6 +206,7 @@ class SyncFunctionsClient(FunctionsClient[SyncHttpIO]):
         http_session: HttpSession,
         *,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         """Create a functions client.
 
@@ -197,10 +218,16 @@ class SyncFunctionsClient(FunctionsClient[SyncHttpIO]):
         request_timeout : seconds an invocation may go without progress before
             it fails with `RequestTimeoutError`. None leaves the timeout to the
             HTTP client.
+        retry : how GET and HEAD invocations that failed in a way worth
+            repeating are retried. None uses the default `RetryPolicy`. Use
+            the `retry` argument of `invoke()` to override it for one
+            invocation.
         """
         super().__init__(
             url=URL(url),
-            executor=SyncHttpIO(session=http_session, request_timeout=request_timeout),
+            executor=SyncHttpIO(
+                session=http_session, request_timeout=request_timeout, retry=retry
+            ),
             headers=headers,
         )
 
@@ -213,6 +240,7 @@ def create_client(
     http_session: AsyncHttpSession,
     is_async: Literal[True],
     request_timeout: float | None = None,
+    retry: RetryPolicy | None = None,
 ) -> AsyncFunctionsClient: ...
 
 
@@ -224,6 +252,7 @@ def create_client(
     http_session: HttpSession,
     is_async: Literal[False],
     request_timeout: float | None = None,
+    retry: RetryPolicy | None = None,
 ) -> SyncFunctionsClient: ...
 
 
@@ -234,6 +263,7 @@ def create_client(
     http_session: AsyncHttpSession | HttpSession,
     is_async: bool,
     request_timeout: float | None = None,
+    retry: RetryPolicy | None = None,
 ) -> AsyncFunctionsClient | SyncFunctionsClient:
     if is_async:
         return AsyncFunctionsClient(
@@ -241,10 +271,12 @@ def create_client(
             headers,
             cast("AsyncHttpSession", http_session),
             request_timeout=request_timeout,
+            retry=retry,
         )
     return SyncFunctionsClient(
         url,
         headers,
         cast("HttpSession", http_session),
         request_timeout=request_timeout,
+        retry=retry,
     )

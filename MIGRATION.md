@@ -237,7 +237,42 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 `request_timeout` is in seconds and limits how long a request may go without progress. Set it with the `request_timeout` argument of the client for every service, on `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions` or `FunctionsClientOptions` for one service, with `request_timeout()` on a database query, or with the `request_timeout` argument of `functions.invoke()`. None, the default, leaves the timeout to the HTTP client.
 
-A timed-out request raises `supabase.RequestTimeoutError`, a subclass of the built-in `TimeoutError`, instead of an httpx or aiohttp exception. This also applies to timeouts configured on the HTTP client.
+A timed-out request raises `supabase.RequestTimeoutError`, a subclass of the built-in `TimeoutError`, instead of an httpx or aiohttp exception. This also applies to timeouts configured on the HTTP client. A timed-out GET or HEAD request is retried first, like any network error, so the error surfaces after the retries of the [retry policy](#retries), each of which waits the timeout again.
+
+## Retries
+
+Every service retries a GET or HEAD request that failed in a way worth repeating, where only the database did before. A request is sent up to three more times when it answered with a 408, 429, 502, 503, 504 or Cloudflare 52x status, instead of only a 503 or 520, or when it failed with a `SupabaseTransportError`, which a timeout is too. The wait before a retry honors the `Retry-After` header of the response, and is otherwise an exponential backoff from half a second with jitter, instead of a fixed one, two and four seconds. A response that asks for a wait longer than the `max_delay` of the policy, 30 seconds by default, is not retried.
+
+Retries are configured with a `RetryPolicy`, exported from `supabase` and defined in `supabase_utils.http.retry`. Pass it as the `retry` argument of the client for every service, on `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions` or `FunctionsClientOptions` for one service, with `retry()` on a database query, or with the `retry` argument of `functions.invoke()`. `RetryPolicy(max_retries=0)` turns retries off.
+
+| Before                                       | After                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| `query.retry(False)`                         | Unchanged.                                                                |
+| `query.retry(True)` on a `select()`          | Unchanged, the query is retried.                                          |
+| `query.retry(True)` on `insert()` or `rpc()` | The write is retried too. Only opt in a write that is safe to send twice. |
+
+`retry()` also takes a `RetryPolicy`, which retries the query with that policy whatever its method. `PostgrestRequest.retry` is `None` by default, no longer `True`, and holds a `bool` or a `RetryPolicy`.
+
+To keep the retries exactly as they were, retrying only the database, only on a 503 or 520, after one, two and four seconds and not on a network error:
+
+```python
+from supabase import PostgrestClientOptions, RetryPolicy
+from supabase.httpx import create_client
+
+supabase = create_client(
+    url,
+    key,
+    retry=RetryPolicy(max_retries=0),
+    postgrest=PostgrestClientOptions(
+        retry=RetryPolicy(
+            base_delay=1,
+            jitter=0,
+            retryable_statuses={503, 520},
+            retry_network_errors=False,
+        )
+    ),
+)
+```
 
 ## One exception hierarchy
 

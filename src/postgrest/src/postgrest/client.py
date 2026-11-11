@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from types import TracebackType
 
     from supabase_utils.http.request import HTTPRequestMethod
+    from supabase_utils.http.retry import RetryPolicy
     from supabase_utils.types import JSON
 
     from .types import CountMethod
@@ -253,6 +254,7 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
         schema: str = "public",
         *,
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         """Create a PostgREST client.
 
@@ -265,10 +267,15 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
                 it fails with `RequestTimeoutError`. None leaves the timeout to
                 the HTTP client. Use `request_timeout()` on a query to override
                 it for that query.
+            retry: How GET and HEAD requests that failed in a way worth
+                repeating are retried. None uses the default `RetryPolicy`.
+                Use `retry()` on a query to override it for that query.
         """
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         super().__init__(
-            executor=AsyncHttpIO(session=http_session, request_timeout=request_timeout),
+            executor=AsyncHttpIO(
+                session=http_session, request_timeout=request_timeout, retry=retry
+            ),
             base_url=URL(base_url),
             default_headers=user_headers,
             schema=schema,
@@ -282,6 +289,7 @@ class AsyncPostgrestClient(PostgrestClient[AsyncHttpIO]):
             headers=dict(self.default_headers),
             schema=schema,
             request_timeout=self.executor.request_timeout,
+            retry=self.executor.retry_policy,
         )
 
     async def __aenter__(self) -> Self:
@@ -306,6 +314,7 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
         *,
         schema: str = "public",
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         """Create a PostgREST client.
 
@@ -318,10 +327,15 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
                 it fails with `RequestTimeoutError`. None leaves the timeout to
                 the HTTP client. Use `request_timeout()` on a query to override
                 it for that query.
+            retry: How GET and HEAD requests that failed in a way worth
+                repeating are retried. None uses the default `RetryPolicy`.
+                Use `retry()` on a query to override it for that query.
         """
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         super().__init__(
-            executor=SyncHttpIO(session=http_session, request_timeout=request_timeout),
+            executor=SyncHttpIO(
+                session=http_session, request_timeout=request_timeout, retry=retry
+            ),
             base_url=URL(base_url),
             default_headers=user_headers,
             schema=schema,
@@ -347,4 +361,5 @@ class SyncPostgrestClient(PostgrestClient[SyncHttpIO]):
             schema=schema,
             http_session=self.executor.session,
             request_timeout=self.executor.request_timeout,
+            retry=self.executor.retry_policy,
         )

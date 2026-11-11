@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from re import search
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NamedTuple,
@@ -45,7 +46,8 @@ from .types import (
 )
 from .utils import _sanitize_array_param, sanitize_param
 
-MAX_RETRIES = 3
+if TYPE_CHECKING:
+    from supabase_utils.http.retry import RetryPolicy
 
 
 class QueryArgs(NamedTuple):
@@ -265,7 +267,6 @@ _TEXT_SEARCH_OPERATORS = {
 
 @dataclass(frozen=True)
 class PostgrestRequest(JSONRequest):
-    retry: bool = True
     strip_nulls: bool = False
     shape: ResponseShape = ResponseShape.ROWS
     """The shape of the response, which `finalize()` renders as the `Accept`
@@ -726,9 +727,17 @@ class BaseRequestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     default_headers: Headers
     request: PostgrestRequest
 
-    def retry(self, enabled: bool) -> Self:
-        """Enable or disable retrying GET and HEAD requests on 503 and 520."""
-        return replace(self, request=replace(self.request, retry=enabled))
+    def retry(self, policy: RetryPolicy | bool) -> Self:
+        """Decide how this query is retried when a request of it fails in a
+        way worth repeating, instead of leaving it to the `RetryPolicy` of the
+        client.
+
+        `False` never retries it. `True` retries it with the policy of the
+        client, and a `RetryPolicy` with that policy instead, both even when
+        it is not a GET or HEAD request, which opts in a write that is safe
+        to send twice.
+        """
+        return replace(self, request=replace(self.request, retry=policy))
 
     def request_timeout(self, seconds: float) -> Self:
         """Fail with `RequestTimeoutError` once a request of this query goes
@@ -753,30 +762,6 @@ def _invalid_response_error(response: Response) -> APIError:
         status_code=response.status,
         response=response,
     )
-
-
-def _can_retry(resp: Response, retry_enabled: bool, attempt_count: int) -> bool:
-    if not retry_enabled or attempt_count >= MAX_RETRIES:
-        return False
-    if not (resp.request.method == "GET" or resp.request.method == "HEAD"):
-        return False
-    return resp.status == 503 or resp.status == 520
-
-
-def send_with_retry(req: PostgrestRequest) -> HttpMethod[Response]:
-    attempt_count = 0
-    attempt = req
-    while True:
-        resp = yield attempt
-        if resp.is_success or not _can_retry(resp, req.retry, attempt_count):
-            break
-        attempt_count += 1
-        attempt = replace(
-            req,
-            headers=req.headers.override("X-Retry-Count", str(attempt_count)),
-            delay=min(2 ** (attempt_count - 1), 30),
-        )
-    return resp
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -902,7 +887,7 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        r = yield from send_with_retry(self.request)
+        r = yield self.request
         if not r.is_success:
             raise _api_error(r)
         try:
@@ -928,7 +913,7 @@ class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        response = yield from send_with_retry(self.request)
+        response = yield self.request
         if not response.is_success:
             raise _api_error(response)
         try:
@@ -952,7 +937,7 @@ class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[Ht
                 Raises:
                     :class:`APIError` If the API raised an error.
         """
-        response = yield from send_with_retry(self.request)
+        response = yield self.request
         if response.is_success:
             return response.content.decode("utf8")
         else:
@@ -965,7 +950,7 @@ class ExplainRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
 ):
     @handle_http_io
     def execute(self) -> HttpMethod[str]:
-        r = yield from send_with_retry(self.request)
+        r = yield self.request
         if not r.is_success:
             raise _api_error(r)
         return r.content.decode("utf-8")
@@ -977,7 +962,7 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
 ):
     @handle_http_io
     def execute(self) -> HttpMethod[SingleAPIResponse | None]:
-        response = yield from send_with_retry(self.request)
+        response = yield self.request
         if response.is_success:
             try:
                 parsed = APIResponse.from_http_request_response(response)
@@ -1047,7 +1032,7 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        r = yield from send_with_retry(self.request)
+        r = yield self.request
         if not r.is_success:
             raise _api_error(r)
         try:
@@ -1073,7 +1058,7 @@ class RPCCountRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         Raises:
             :class:`APIError` If the API raised an error.
         """
-        response = yield from send_with_retry(self.request)
+        response = yield self.request
         if response.is_success:
             count = APIResponse._get_count_from_http_request_response(response)
             return count

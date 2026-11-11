@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 from httpx import Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import HttpxSession
+from supabase_utils.http.retry import RetryPolicy
 
 from postgrest import APIError, SyncPostgrestClient
 from postgrest.types import CountMethod
@@ -136,7 +137,9 @@ def test_retry_backoff_and_state_do_not_leak_between_executions() -> None:
 
     with Client(transport=MockTransport(handler)) as http:
         client = SyncPostgrestClient(
-            "https://example.com", http_session=HttpxSession(client=http)
+            "https://example.com",
+            http_session=HttpxSession(client=http),
+            retry=RetryPolicy(jitter=0),
         )
         builder = client.rpc("fn", {}, get=True)
         with patch("supabase_utils.http.io.time.sleep") as sleep:
@@ -145,7 +148,7 @@ def test_retry_backoff_and_state_do_not_leak_between_executions() -> None:
                     builder.execute()
 
     assert retry_counts == [None, "1", "2", "3"] * 2
-    assert [call.args[0] for call in sleep.call_args_list] == [1, 2, 4] * 2
+    assert [call.args[0] for call in sleep.call_args_list] == [0.5, 1, 2] * 2
 
 
 def test_head_select_with_empty_body_returns_count() -> None:

@@ -779,10 +779,19 @@ features:
 
   database.configuration.auto_retry:
     status: implemented
+    note: "retry (a RetryPolicy with max_retries, base_delay, max_delay, jitter, retryable_statuses, retryable_methods and retry_network_errors) on the PostgREST client constructors, and PostgrestClientOptions or the global retry argument of the supabase client. retry() on a query overrides it for that query: False sends it once, True retries it with the policy of the client and a RetryPolicy with that policy, both even for a write. By default GET and HEAD requests are retried up to three times on 408, 429, 502, 503, 504 and Cloudflare 52x responses and on network errors, honoring Retry-After, with exponential backoff and jitter."
     symbols:
       - BaseRequestClient.retry
+      - AsyncPostgrestClient
+      - SyncPostgrestClient
     supporting_symbols:
       - BaseRequestClient
+      - RetryPolicy
+      - RetryPolicy.backoff
+      - RetryPolicy.delay
+      - PostgrestClientOptions
+      - AsyncClient
+      - Client
   database.configuration.request_timeout:
     status: implemented
     note: "request_timeout (float seconds) on the PostgREST client constructors, and PostgrestClientOptions or the global request_timeout argument of the supabase client. request_timeout() on a query overrides it for that query. It bounds how long a request may go without progress, and a timed-out request raises RequestTimeoutError. None (the default) leaves the timeout to the HTTP client."
@@ -1204,7 +1213,17 @@ features:
     no_public_symbols: true
   storage.file_buckets.update_bucket_lifecycle: not_implemented
 
-  storage.configuration.auto_retry: not_implemented
+  storage.configuration.auto_retry:
+    status: implemented
+    note: "retry (a RetryPolicy) on the storage client constructors, and StorageClientOptions or the global retry argument of the supabase client. max_retries says how many times a request is sent again before the error surfaces, 0 sends it once. GET and HEAD requests such as downloads are retried by default; an upload is retried only when retryable_methods lists POST and PUT."
+    symbols:
+      - AsyncStorageClient
+      - SyncStorageClient
+    supporting_symbols:
+      - RetryPolicy
+      - StorageClientOptions
+      - AsyncClient
+      - Client
   storage.errors.error_codes:
     status: implemented
     note: "The error code is exposed as the StorageApiError.code attribute, which is not registrable on its own since only properties are extracted as symbols."

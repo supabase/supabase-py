@@ -87,6 +87,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
     from types import TracebackType
 
+    from supabase_utils.http.retry import RetryPolicy
     from supabase_utils.types import JSON
 
 
@@ -651,12 +652,15 @@ class AsyncSupabaseAuthClient(
         storage: AsyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         self.base_url = URL(url)
         supabase_headers = Headers.supabase_client_headers("supabase_auth", __version__)
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         default_headers = supabase_headers.update(user_headers)
-        executor = AsyncHttpIO(session=http_session, request_timeout=request_timeout)
+        executor = AsyncHttpIO(
+            session=http_session, request_timeout=request_timeout, retry=retry
+        )
         self.session_manager = _AsyncSessionManager(
             base_url=self.base_url,
             executor=executor,
@@ -1089,12 +1093,15 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         storage: SyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
         request_timeout: float | None = None,
+        retry: RetryPolicy | None = None,
     ) -> None:
         self.base_url = URL(url)
         supabase_headers = Headers.supabase_client_headers("supabase_auth", __version__)
         user_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         default_headers = supabase_headers.update(user_headers)
-        executor = SyncHttpIO(session=http_session, request_timeout=request_timeout)
+        executor = SyncHttpIO(
+            session=http_session, request_timeout=request_timeout, retry=retry
+        )
         self.session_manager = _SyncSessionManager(
             base_url=self.base_url,
             executor=executor,

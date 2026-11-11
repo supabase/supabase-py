@@ -13,6 +13,7 @@ from supabase_auth import (
 from supabase_auth.constants import STORAGE_KEY
 from supabase_auth.types import AuthChangeEvent, AuthStateChange
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
+from supabase_utils.http.retry import RetryPolicy
 
 import supabase.aiohttp
 import supabase.httpx
@@ -26,6 +27,7 @@ from supabase import (
     StorageClientOptions,
     SupabaseException,
 )
+from supabase import RetryPolicy as ExportedRetryPolicy
 
 URL = "https://example.supabase.co"
 KEY = "publishable-key"
@@ -311,6 +313,61 @@ async def test_async_client_passes_request_timeouts_to_sub_clients() -> None:
         assert client.postgrest.executor.request_timeout is None
         assert client.storage.executor.request_timeout is None
         assert client.auth.executor.request_timeout is None
+
+
+def test_sync_client_passes_retry_policies_to_sub_clients() -> None:
+    shared = RetryPolicy(max_retries=5)
+    database = RetryPolicy(max_retries=1)
+    uploads = RetryPolicy(retryable_methods={"GET", "HEAD", "POST", "PUT"})
+    with SyncHttpxClient() as http_client:
+        client = Client(
+            URL,
+            KEY,
+            HttpxSession(client=http_client),
+            retry=shared,
+            postgrest=PostgrestClientOptions(retry=database),
+            storage=StorageClientOptions(retry=uploads),
+        )
+        assert client.postgrest.executor.retry_policy is database
+        assert client.storage.executor.retry_policy is uploads
+        assert client.auth.executor.retry_policy is shared
+        assert client.functions.executor.retry_policy is shared
+
+
+async def test_async_client_passes_retry_policies_to_sub_clients() -> None:
+    policy = RetryPolicy(max_retries=0)
+    async with AsyncHttpxClient() as http_client:
+        client = AsyncClient(
+            URL,
+            KEY,
+            AsyncHttpxSession(client=http_client),
+            functions=FunctionsClientOptions(retry=policy),
+        )
+        assert client.functions.executor.retry_policy is policy
+        assert client.postgrest.executor.retry_policy == RetryPolicy()
+        assert client.storage.executor.retry_policy == RetryPolicy()
+        assert client.auth.executor.retry_policy == RetryPolicy()
+
+
+def test_create_client_passes_the_retry_policy() -> None:
+    policy = RetryPolicy(max_retries=2)
+    with supabase.httpx.create_client(URL, KEY, retry=policy) as client:
+        assert client.postgrest.executor.retry_policy is policy
+        assert client.auth.executor.retry_policy is policy
+
+
+async def test_create_async_clients_pass_the_retry_policy() -> None:
+    policy = RetryPolicy(max_retries=2)
+    async with supabase.httpx.create_async_client(URL, KEY, retry=policy) as client:
+        assert client.storage.executor.retry_policy is policy
+    async with supabase.aiohttp.create_async_client(URL, KEY, retry=policy) as client:
+        assert client.functions.executor.retry_policy is policy
+
+
+def test_retry_policy_is_exported_from_supabase() -> None:
+    assert ExportedRetryPolicy is RetryPolicy
+    assert "RetryPolicy" in supabase.__all__
+    assert "RetryPolicy" in supabase.client.__all__
 
 
 @pytest.mark.parametrize("request_timeout", [0, -1, float("nan"), float("inf")])

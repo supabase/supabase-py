@@ -3,7 +3,6 @@ import os
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import (
-    Literal,
     Protocol,
     override,
 )
@@ -12,10 +11,10 @@ from pydantic import BaseModel
 from yarl import URL
 
 from ..types import JSON, JSONParser
+from ..types import HTTPRequestMethod as HTTPRequestMethod
 from .headers import Headers
 from .query import URLQuery
-
-HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
+from .retry import RetryPolicy
 
 
 def validate_request_timeout(timeout: float | None) -> None:
@@ -33,6 +32,7 @@ class Request:
     content: bytes | None
     delay: float | None
     timeout: float | None = None
+    retry: RetryPolicy | bool | None = None
 
     def __post_init__(self) -> None:
         validate_request_timeout(self.timeout)
@@ -64,6 +64,11 @@ class EmptyRequest:
     method: HTTPRequestMethod
     delay: float | None = field(default=None, kw_only=True)
     timeout: float | None = field(default=None, kw_only=True)
+    retry: RetryPolicy | bool | None = field(default=None, kw_only=True)
+    """Whether the executor retries the request when it fails in a way its
+    `RetryPolicy` retries. None leaves it to the method of the request, True
+    retries it whatever its method, False never retries it, and a
+    `RetryPolicy` retries it with that policy whatever its method."""
     headers: Headers = field(default_factory=Headers.empty, kw_only=True)
     query: URLQuery = field(default_factory=URLQuery.empty, kw_only=True)
 
@@ -78,6 +83,7 @@ class EmptyRequest:
             content=None,
             delay=self.delay,
             timeout=self.timeout,
+            retry=self.retry,
         )
 
     def _headers_with_content_type(
@@ -105,6 +111,7 @@ class BytesRequest(EmptyRequest):
             content=self.body,
             delay=self.delay,
             timeout=self.timeout,
+            retry=self.retry,
         )
 
 
@@ -129,6 +136,7 @@ class JSONRequest(EmptyRequest):
             content=content,
             delay=self.delay,
             timeout=self.timeout,
+            retry=self.retry,
         )
 
 
@@ -148,6 +156,7 @@ class TextRequest(EmptyRequest):
             content=self.text.encode("utf-8"),
             delay=self.delay,
             timeout=self.timeout,
+            retry=self.retry,
         )
 
 
@@ -238,4 +247,5 @@ class MultipartFormDataRequest(EmptyRequest):
             content=content,
             delay=self.delay,
             timeout=self.timeout,
+            retry=self.retry,
         )
