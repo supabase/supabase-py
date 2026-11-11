@@ -15,6 +15,7 @@ from postgrest.request_builder import (
     ExplainRequestBuilder,
     MaybeSingleRequestBuilder,
     MutationRequestBuilder,
+    PostgrestRequest,
     QueryRequestBuilder,
     RequestBuilder,
     SingleAPIResponse,
@@ -22,7 +23,11 @@ from postgrest.request_builder import (
     TextRequestBuilder,
     _can_retry,
 )
-from postgrest.types import CountMethod, Mutation, ReturnMethod
+from postgrest.types import CountMethod, Mutation, ReturnMethod, TextSearchType
+
+
+def accept_header(request: PostgrestRequest) -> str | None:
+    return request.finalize(URL("/"), Headers.empty()).headers.get("accept")
 
 
 @pytest.fixture
@@ -81,7 +86,7 @@ class TestSelect:
     def test_select_as_csv(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("*").csv()
 
-        assert builder.request.headers["Accept"] == "text/csv"
+        assert accept_header(builder.request) == "text/csv"
         assert isinstance(builder, TextRequestBuilder)
 
 
@@ -188,7 +193,7 @@ class TestInsert:
 
         assert isinstance(builder, SingleRequestBuilder)
         assert builder.request.query["select"] == "id"
-        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert accept_header(builder.request) == "application/vnd.pgrst.object+json"
         assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "POST"
 
@@ -208,7 +213,7 @@ class TestInsert:
 
         assert isinstance(builder, SingleRequestBuilder)
         assert builder.request.query["select"] == "id"
-        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert accept_header(builder.request) == "application/vnd.pgrst.object+json"
         assert builder.request.method == "POST"
 
     def test_insert_rejects_filters_and_transforms(
@@ -237,7 +242,7 @@ class TestInsert:
         builder = request_builder.insert({"key1": "val1"}).csv()
 
         assert isinstance(builder, TextRequestBuilder)
-        assert builder.request.headers["accept"] == "text/csv"
+        assert accept_header(builder.request) == "text/csv"
         assert builder.request.method == "POST"
 
     def test_insert_with_explain(
@@ -246,8 +251,8 @@ class TestInsert:
         builder = request_builder.insert({"key1": "val1"}).explain()
 
         assert isinstance(builder, ExplainRequestBuilder)
-        assert "application/vnd.pgrst.plan" in str(
-            builder.request.headers.get("accept")
+        assert accept_header(builder.request) == (
+            "application/vnd.pgrst.plan+text; options="
         )
         assert builder.request.method == "POST"
 
@@ -324,7 +329,7 @@ class TestUpdate:
 
         assert isinstance(builder, SingleRequestBuilder)
         assert builder.request.query["id"] == "eq.1"
-        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert accept_header(builder.request) == "application/vnd.pgrst.object+json"
         assert builder.request.method == "PATCH"
 
     def test_update_with_order_and_limit(
@@ -396,7 +401,7 @@ class TestDelete:
 
         assert isinstance(builder, SingleRequestBuilder)
         assert builder.request.query["id"] == "eq.1"
-        assert builder.request.headers["accept"] == "application/vnd.pgrst.object+json"
+        assert accept_header(builder.request) == "application/vnd.pgrst.object+json"
         assert builder.request.method == "DELETE"
 
     def test_delete_all(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
@@ -409,13 +414,13 @@ class TestDelete:
 
 
 class TestTextSearch:
-    @pytest.mark.parametrize("mode", [None, "plain", "phrase", "web_search"])
+    @pytest.mark.parametrize("mode", [None, *TextSearchType])
     def test_text_search_allows_filters_and_modifiers(
-        self, request_builder: RequestBuilder[SyncHttpIO], mode: str | None
+        self, request_builder: RequestBuilder[SyncHttpIO], mode: TextSearchType | None
     ) -> None:
         builder = (
             request_builder.select("id")
-            .text_search("content", "python", {"type": mode, "config": "english"})
+            .text_search("content", "python", type=mode, config="english")
             .eq("published", True)
             .order("id")
             .limit(10)
@@ -423,9 +428,9 @@ class TestTextSearch:
 
         operator = {
             None: "fts",
-            "plain": "plfts",
-            "phrase": "phfts",
-            "web_search": "wfts",
+            TextSearchType.PLAIN: "plfts",
+            TextSearchType.PHRASE: "phfts",
+            TextSearchType.WEB_SEARCH: "wfts",
         }[mode]
         assert builder.request.query["content"] == f"{operator}(english).python"
         assert builder.request.query["published"] == "eq.true"
@@ -437,9 +442,9 @@ class TestTextSearch:
         ("mode", "operator"),
         [
             (None, "fts"),
-            ("plain", "plfts"),
-            ("phrase", "phfts"),
-            ("web_search", "wfts"),
+            (TextSearchType.PLAIN, "plfts"),
+            (TextSearchType.PHRASE, "phfts"),
+            (TextSearchType.WEB_SEARCH, "wfts"),
         ],
     )
     @pytest.mark.parametrize("config", [None, "english"])
@@ -447,7 +452,7 @@ class TestTextSearch:
     def test_negation_is_applied_only_to_text_search(
         self,
         request_builder: RequestBuilder[SyncHttpIO],
-        mode: str | None,
+        mode: TextSearchType | None,
         operator: str,
         config: str | None,
         negate: bool,
@@ -456,9 +461,7 @@ class TestTextSearch:
         if negate:
             selected = selected.not_
 
-        builder = selected.text_search(
-            "content", "fat cat", {"type": mode, "config": config}
-        )
+        builder = selected.text_search("content", "fat cat", type=mode, config=config)
 
         expected_operator = ("not." if negate else "") + operator
         if config:
@@ -470,23 +473,42 @@ class TestTextSearch:
         builder = request_builder.select("catchphrase").text_search(
             "catchphrase",
             "'fat' & 'cat'",
-            {
-                "type": "plain",
-                "config": "english",
-            },
+            type=TextSearchType.PLAIN,
+            config="english",
         )
         assert builder.request.query.get("select") == "catchphrase"
         assert (
             builder.request.query.get("catchphrase") == "plfts(english).'fat' & 'cat'"
         )
 
+    def test_text_search_accepts_the_value_of_a_type(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
+        builder = request_builder.select("*").text_search(
+            "content",
+            "cat",
+            type="web_search",  # pyrefly: ignore[bad-argument-type]
+        )
+
+        assert builder.request.query["content"] == "wfts.cat"
+
+    def test_text_search_rejects_an_unknown_type(
+        self, request_builder: RequestBuilder[SyncHttpIO]
+    ) -> None:
+        with pytest.raises(ValueError, match="websearch"):
+            request_builder.select("*").text_search(
+                "content",
+                "cat",
+                type="websearch",  # pyrefly: ignore[bad-argument-type]
+            )
+
 
 class TestExplain:
     def test_explain_plain(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.select("*").explain()
         assert builder.request.query["select"] == "*"
-        assert "application/vnd.pgrst.plan" in str(
-            builder.request.headers.get("accept")
+        assert accept_header(builder.request) == (
+            "application/vnd.pgrst.plan+text; options="
         )
 
     def test_explain_options(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
@@ -499,11 +521,8 @@ class TestExplain:
             format="json",
         )
         assert builder.request.query["select"] == "*"
-        assert "application/vnd.pgrst.plan+json;" in str(
-            builder.request.headers.get("accept")
-        )
-        assert "options=analyze|verbose|buffers|wal" in str(
-            builder.request.headers.get("accept")
+        assert accept_header(builder.request) == (
+            "application/vnd.pgrst.plan+json; options=analyze|verbose|buffers|wal"
         )
 
 

@@ -5,8 +5,11 @@ import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http import io
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
+from supabase_utils.http.headers import Headers
+from yarl import URL
 
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
+from postgrest.request_builder import PostgrestRequest
 
 OBJECT_ACCEPT = "application/vnd.pgrst.object+json"
 
@@ -27,6 +30,12 @@ def recording_client(
     http_client = Client(transport=transport_for(seen, fail_first=fail_first))
     return SyncPostgrestClient(
         "https://example.com", http_session=HttpxSession(client=http_client)
+    )
+
+
+def finalized_accept(request: PostgrestRequest) -> str | None:
+    return request.finalize(URL("https://example.com"), Headers.empty()).headers.get(
+        "accept"
     )
 
 
@@ -107,8 +116,8 @@ def test_single_leaves_the_accept_header_unchanged() -> None:
 
         assert query.execute().data == []
 
-    assert "accept" not in query.request.headers
-    assert single.request.headers.get("accept") == OBJECT_ACCEPT
+    assert finalized_accept(query.request) is None
+    assert finalized_accept(single.request) == OBJECT_ACCEPT
     assert seen[0].headers.get("accept") != OBJECT_ACCEPT
 
 
@@ -151,8 +160,8 @@ def test_result_shaping_methods_leave_the_receiver_unchanged(
 
         shaped = getattr(query, method)()
 
-    assert shaped.request.headers.get("accept") == accept
-    assert "accept" not in query.request.headers
+    assert finalized_accept(shaped.request) == accept
+    assert finalized_accept(query.request) is None
 
 
 def test_strip_nulls_leaves_the_receiver_unchanged() -> None:
@@ -193,8 +202,9 @@ def test_rpc_builders_return_copies() -> None:
         rpc = client.rpc("hello", {})
 
     assert rpc.select("id").request.query.get("select") == "id"
-    assert rpc.csv().request.headers.get("accept") == "text/csv"
-    assert rpc.single().request.headers.get("accept") == OBJECT_ACCEPT
+    assert finalized_accept(rpc.csv().request) == "text/csv"
+    assert finalized_accept(rpc.single().request) == OBJECT_ACCEPT
+    assert finalized_accept(rpc.request) is None
     assert rpc.limit(1).request.query.get("limit") == "1"
     assert "select" not in rpc.request.query
     assert "limit" not in rpc.request.query

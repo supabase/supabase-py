@@ -652,6 +652,8 @@ features:
       - BaseFilterRequestBuilder.plfts
       - BaseFilterRequestBuilder.phfts
       - BaseFilterRequestBuilder.wfts
+    supporting_symbols:
+      - TextSearchType
   database.using_filters.match:
     status: implemented
     symbols:
@@ -727,6 +729,7 @@ features:
       - SingleRequestBuilder.execute
       - SingleAPIResponse
       - SingleAPIResponse.from_http_request_response
+      - ResponseShape
   database.using_modifiers.maybe_single_row:
     status: implemented
     symbols:
@@ -739,6 +742,8 @@ features:
     status: implemented
     symbols:
       - BaseSelectRequestBuilder.strip_nulls
+    supporting_symbols:
+      - ResponseShape
   database.using_modifiers.format_csv:
     status: implemented
     symbols:
@@ -747,6 +752,7 @@ features:
     supporting_symbols:
       - TextRequestBuilder
       - TextRequestBuilder.execute
+      - ResponseShape
   database.using_modifiers.format_geojson: not_implemented
   database.using_modifiers.explain:
     status: implemented
@@ -755,6 +761,7 @@ features:
     supporting_symbols:
       - ExplainRequestBuilder
       - ExplainRequestBuilder.execute
+      - ResponseShape
   database.using_modifiers.max_affected_rows:
     status: implemented
     symbols:
