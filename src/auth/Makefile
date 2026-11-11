@@ -16,28 +16,17 @@ help::
 
 include ../../infra.mk
 
+AUTH_EXCLUDED_SERVICES := studio,postgrest,realtime,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta
+
 start-infra:
-	@$(call retry_start_infra,$(compose_cleanup),(cd infra && docker compose up -d))
+	@$(call retry_start_infra,$(call supabase_cleanup,auth-py-tests),supabase --workdir infra start -x $(AUTH_EXCLUDED_SERVICES))
 help::
 	@echo "  start-infra    -- start containers for tests"
 
-clean-infra:
-	cd infra &&\
-	docker compose down --remove-orphans &&\
-	docker system prune -a --volumes -f
-help::
-	@echo "  clean-infra    -- delete all stored information about the containers"
-
 stop-infra:
-	cd infra &&\
-	docker compose down --remove-orphans
+	supabase --workdir infra stop
 help::
 	@echo "  stop-infra     -- stop containers for tests"
-
-sync-infra:
-	uv run --package supabase_auth scripts/gh-download.py --repo=supabase/gotrue-js --branch=master --folder=infra
-help::
-	@echo "  sync-infra     -- update locked versions for test containers"
 
 build-sync:
 	uv run --package supabase_auth scripts/run-unasync.py

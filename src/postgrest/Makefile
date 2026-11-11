@@ -18,23 +18,17 @@ help::
 
 include ../../infra.mk
 
+POSTGREST_EXCLUDED_SERVICES := studio,gotrue,mailpit,realtime,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta
+
 start-infra:
-	@$(call retry_start_infra,$(compose_cleanup),(cd infra && docker compose up -d))
+	@$(call retry_start_infra,$(call supabase_cleanup,postgrest-py-tests),supabase --workdir infra start -x $(POSTGREST_EXCLUDED_SERVICES))
 help::
-	@echo "  stop-infra     -- start containers for tests"
+	@echo "  start-infra    -- start containers for tests"
 
 stop-infra:
-	cd infra &&\
-	docker compose down --remove-orphans
+	supabase --workdir infra stop
 help::
 	@echo "  stop-infra     -- stop containers for tests"
-
-clean-infra:
-	cd infra &&\
-	docker compose down --remove-orphans &&\
-	docker system prune -a --volumes -f
-help::
-	@echo "  clean-infra    -- delete all stored information about the containers"
 
 clean:
 	rm -rf htmlcov .pytest_cache .ruff_cache

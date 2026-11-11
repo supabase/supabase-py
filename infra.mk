@@ -25,5 +25,3 @@ endef
 # $(call supabase_cleanup,<project id>)
 supabase_cleanup = supabase --workdir infra stop --no-backup >/dev/null 2>&1 || true; \
 	docker ps -aq --filter "label=com.supabase.cli.project=$(1)" | xargs docker rm -f >/dev/null 2>&1 || true
-
-compose_cleanup = (cd infra && docker compose down --remove-orphans >/dev/null 2>&1) || true

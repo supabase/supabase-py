@@ -121,8 +121,7 @@ jobs:
     timeout-minutes: 20
     env:
       UV_RESOLUTION: ${{ matrix.resolution }}
-      USES_SUPABASE_CLI: ${{ contains(fromJSON('["realtime", "storage"]'), matrix.package) }}
-      USES_INFRA: ${{ contains(fromJSON('["realtime", "storage", "auth", "postgrest"]'), matrix.package) }}
+      USES_SUPABASE_CLI: ${{ contains(fromJSON('["realtime", "storage", "auth", "postgrest"]'), matrix.package) }}
     steps:
       - name: Clone Repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -150,17 +149,17 @@ jobs:
       # fails the container start with "address already in use".
       - name: Reserve infra ports
         if: ${{ env.USES_SUPABASE_CLI == 'true' }}
-        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329,55320-55329
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54320-54329,55320-55329,56320-56329,57320-57329
 
       # Pulling images from the registries on every job gets throttled
       # (429 / "Data limit exceeded"), so reuse the images between runs.
       - name: Cache docker images
-        if: ${{ env.USES_INFRA == 'true' }}
+        if: ${{ env.USES_SUPABASE_CLI == 'true' }}
         id: docker-images
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: /tmp/docker-images
-          key: docker-images-${{ matrix.package }}-${{ steps.supabase-cli.outputs.version || 'compose' }}-${{ hashFiles(format('src/{0}/infra/**', matrix.package)) }}
+          key: docker-images-${{ matrix.package }}-${{ steps.supabase-cli.outputs.version }}-${{ hashFiles(format('src/{0}/infra/**', matrix.package)) }}
 
       - name: Load cached docker images
         if: ${{ steps.docker-images.outputs.cache-hit == 'true' }}
@@ -177,7 +176,7 @@ jobs:
 
       # On a cache miss cache-hit is an empty string, not 'false'.
       - name: Save docker images to cache
-        if: ${{ env.USES_INFRA == 'true' && steps.docker-images.outputs.cache-hit != 'true' }}
+        if: ${{ env.USES_SUPABASE_CLI == 'true' && steps.docker-images.outputs.cache-hit != 'true' }}
         run: |
           mkdir -p /tmp/docker-images
           docker ps --all --format '{{.Image}}' | sort -u \

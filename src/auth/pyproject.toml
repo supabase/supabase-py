@@ -31,9 +31,6 @@ repository = "https://github.com/supabase/supabase-py"
 documentation = "https://supabase.com/docs/reference/python/auth-api"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
-# [project.scripts]
-# gh-download = "scripts.gh-download:main"
-
 [dependency-groups]
 tests = [
   "Faker >= 37.4.0",
