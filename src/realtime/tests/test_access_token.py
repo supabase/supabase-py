@@ -100,7 +100,7 @@ class TokenFailingAfterFirstCall:
     async def __call__(self) -> str:
         self.calls += 1
         if self.calls > 1:
-            raise RuntimeError("refresh failed")
+            raise RuntimeError("refresh failed for secret-refresh-token")
         return "token-1"
 
 
@@ -333,4 +333,8 @@ async def test_a_failing_token_callback_keeps_the_heartbeat_running(
 
     assert len(server.heartbeats()) >= 3
     assert token.calls >= 3
-    assert "could not refresh the access token after the heartbeat" in caplog.text
+    assert (
+        "could not refresh the access token after the heartbeat: RuntimeError"
+        in caplog.text
+    )
+    assert "secret-refresh-token" not in caplog.text

@@ -177,7 +177,7 @@ async def test_a_failed_realtime_token_update_is_logged(
 ) -> None:
     async with create_async_client(url, key) as client:
         realtime = client.realtime
-        failure = AsyncMock(side_effect=OSError("socket closed"))
+        failure = AsyncMock(side_effect=OSError("refresh failed for secretjwt"))
         with (
             caplog.at_level(logging.WARNING, logger="supabase.client"),
             patch.object(realtime, "set_auth", failure),
@@ -190,7 +190,8 @@ async def test_a_failed_realtime_token_update_is_logged(
             await asyncio.sleep(0)
             await asyncio.sleep(0)
 
-        assert "could not send the access token to realtime" in caplog.text
+        assert "could not send the access token to realtime: OSError" in caplog.text
+        assert "secretjwt" not in caplog.text
 
 
 async def test_aclose_cancels_pending_realtime_token_updates(

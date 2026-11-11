@@ -720,7 +720,10 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
     def _realtime_auth_done(self, task: asyncio.Task[None]) -> None:
         self._realtime_auth_tasks.discard(task)
         if not task.cancelled() and (exception := task.exception()) is not None:
-            logger.warning("could not send the access token to realtime: %r", exception)
+            logger.warning(
+                "could not send the access token to realtime: %s",
+                type(exception).__name__,
+            )
 
     async def _realtime_access_token(self) -> str | None:
         if self._auth is None:

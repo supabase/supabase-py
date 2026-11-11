@@ -336,8 +336,8 @@ class RealtimeClient:
             raise
         except Exception as exception:
             logger.warning(
-                "could not refresh the access token after the heartbeat: %r",
-                exception,
+                "could not refresh the access token after the heartbeat: %s",
+                type(exception).__name__,
             )
 
     def channel(
