@@ -6,7 +6,7 @@ from supabase_utils.http.adapters.httpx import HttpxSession
 
 from postgrest import SyncPostgrestClient
 
-REST_URL = "http://127.0.0.1:3000"
+REST_URL = "http://127.0.0.1:56321/rest/v1"
 
 
 def httpx_client() -> Client:

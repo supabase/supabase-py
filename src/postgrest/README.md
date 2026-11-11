@@ -12,13 +12,13 @@
 
 ### Local PostgREST server
 
-If you want to use a local PostgREST server for development, you can use our preconfigured instance via Docker Compose.
+If you want to use a local PostgREST server for development, you can start our preconfigured instance with the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started).
 
 ```sh
-docker compose -f infra/docker-compose.yaml up
+supabase --workdir infra start
 ```
 
-Once Docker Compose started, PostgREST is accessible at <http://localhost:3000>.
+Once it has started, PostgREST is accessible at <http://127.0.0.1:56321/rest/v1>.
 
 ### Instructions
 
@@ -58,7 +58,7 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
 async def main() -> None:
     async with AsyncPostgrestClient(
-        "http://localhost:3000", AsyncHttpxSession(AsyncClient())
+        "http://127.0.0.1:56321/rest/v1", AsyncHttpxSession(AsyncClient())
     ) as client:
         r = await client.from_("countries").select("*").execute()
         countries = r.data

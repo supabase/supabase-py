@@ -71,8 +71,7 @@ cd supabase-py
 This repository relies on the following dependencies for development: 
 - `uv` for python project management.
 - `make` for running project commands.
-- `docker` for both `postgrest` and `auth` test containers.
-- `supabase-cli` for both `storage` and `realtime` test containers.
+- `supabase-cli` and `docker` for the `auth`, `postgrest`, `storage` and `realtime` test containers.
 
 All of these dependencies are included in the nix shell environment, through `flake.nix`. If you've got `nix` installed, you may prefer to use it through `nix develop`.
 

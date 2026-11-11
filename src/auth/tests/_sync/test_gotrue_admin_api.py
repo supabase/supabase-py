@@ -134,16 +134,14 @@ def test_modify_app_metadata_using_update_user_by_id(
 
 def test_modify_confirm_email_using_update_user_by_id(
     secret_key_api_client: SyncSupabaseAuthAdmin,
-    client_api_auto_confirm_off_signups_enabled_client: SyncSupabaseAuthClient,
 ) -> None:
     credentials = mock_user_credentials()
-    response = client_api_auto_confirm_off_signups_enabled_client.sign_up(
-        SignUpWithPassword.email(
+    response = secret_key_api_client.create_user(
+        AdminUserAttributes(
             email=credentials.email,
             password=credentials.password,
         )
     )
-    assert response.user
     assert not response.user.email_confirmed_at
     auth_response = secret_key_api_client.update_user_by_id(
         response.user.id,
@@ -156,11 +154,9 @@ def test_modify_confirm_email_using_update_user_by_id(
 
 
 def test_resend(
-    client_api_auto_confirm_off_signups_enabled_client: SyncSupabaseAuthClient,
+    auth_client: SyncSupabaseAuthClient,
 ) -> None:
-    client_api_auto_confirm_off_signups_enabled_client.resend(
-        Resend.phone(phone="+112345678", type="sms")
-    )
+    auth_client.resend(Resend.phone(phone="+112345678", type="sms"))
 
 
 def test_reauthenticate(
@@ -183,12 +179,10 @@ def test_reset_password_for_email(
 
 
 def test_resend_missing_credentials(
-    client_api_auto_confirm_off_signups_enabled_client: SyncSupabaseAuthClient,
+    auth_client: SyncSupabaseAuthClient,
 ) -> None:
     credentials = mock_user_credentials()
-    client_api_auto_confirm_off_signups_enabled_client.resend(
-        Resend.email(type="email_change", email=credentials.email)
-    )
+    auth_client.resend(Resend.email(type="email_change", email=credentials.email))
 
 
 def test_sign_in_anonymously(
@@ -270,11 +264,9 @@ def test_invite_user_by_email_creates_a_new_user_with_an_invited_at_timestamp(
 
 
 def test_sign_in_with_oauth(
-    client_api_auto_confirm_off_signups_enabled_client: SyncSupabaseAuthClient,
+    auth_client: SyncSupabaseAuthClient,
 ) -> None:
-    assert client_api_auto_confirm_off_signups_enabled_client.sign_in_with_oauth(
-        provider="google"
-    )
+    assert auth_client.sign_in_with_oauth(provider="google")
 
 
 def test_get_item_from_memory_storage(

@@ -47,14 +47,38 @@ async def test_get_claims_returns_none_when_session_is_none(
 async def test_get_claims_calls_get_user_if_symmetric_jwt(
     mocker: MockerFixture, auth_client: AsyncSupabaseAuthClient
 ) -> None:
+    credentials = mock_user_credentials()
+    options = SignUpWithPassword.email(
+        email=credentials.email,
+        password=credentials.password,
+    )
+    response = await auth_client.sign_up(options)
+    assert response.user is not None
+    assert response.session is not None
+    payload = decode_jwt(response.session.access_token).payload
+    symmetric_jwt = encode(
+        payload.model_dump(exclude_none=True), GOTRUE_JWT_SECRET, algorithm="HS256"
+    )
     spy = mocker.spy(auth_client.session_manager, "_get_user")
+
+    claims_response = await auth_client.get_claims(symmetric_jwt)
+    assert claims_response
+    claims = claims_response.claims
+
+    assert claims.model_extra
+    assert claims.model_extra["email"] == response.user.email
+    spy.assert_called_once()
+
+
+async def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(
+    mocker: MockerFixture, auth_client: AsyncSupabaseAuthClient
+) -> None:
     credentials = mock_user_credentials()
     options = SignUpWithPassword.email(
         email=credentials.email,
         password=credentials.password,
     )
     user = (await auth_client.sign_up(options)).user
-
     assert user is not None
 
     response = await auth_client.get_claims()
@@ -63,37 +87,16 @@ async def test_get_claims_calls_get_user_if_symmetric_jwt(
 
     assert claims.model_extra
     assert claims.model_extra["email"] == user.email
-    spy.assert_called_once()
 
-
-async def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(
-    mocker: MockerFixture, auth_client_with_asymmetric_session: AsyncSupabaseAuthClient
-) -> None:
-    credentials = mock_user_credentials()
-    options = SignUpWithPassword.email(
-        email=credentials.email,
-        password=credentials.password,
-    )
-    user = (await auth_client_with_asymmetric_session.sign_up(options)).user
-    assert user is not None
-
-    response = await auth_client_with_asymmetric_session.get_claims()
-    assert response
-    claims = response.claims
-
-    assert claims.model_extra
-    assert claims.model_extra["email"] == user.email
-
-    expected_keyid = "638c54b8-28c2-4b12-9598-ba12ef610a29"
-
-    assert len(auth_client_with_asymmetric_session._jwks.keys) == 1
-    assert auth_client_with_asymmetric_session._jwks.keys[0].kid == expected_keyid
+    assert response.headers.alg == "ES256"
+    assert len(auth_client._jwks.keys) == 1
+    assert auth_client._jwks.keys[0].kid == response.headers.kid
 
 
 async def test_jwks_ttl_cache_behavior(
-    mocker: MockerFixture, auth_client_with_asymmetric_session: AsyncSupabaseAuthClient
+    mocker: MockerFixture, auth_client: AsyncSupabaseAuthClient
 ) -> None:
-    spy = mocker.spy(auth_client_with_asymmetric_session.executor.session, "send")
+    spy = mocker.spy(auth_client.executor.session, "send")
 
     # First call should fetch JWKS from endpoint
     credentials = mock_user_credentials()
@@ -101,15 +104,15 @@ async def test_jwks_ttl_cache_behavior(
         email=credentials.email,
         password=credentials.password,
     )
-    user = (await auth_client_with_asymmetric_session.sign_up(options)).user
+    user = (await auth_client.sign_up(options)).user
     assert user is not None
 
-    await auth_client_with_asymmetric_session.get_claims()
+    await auth_client.get_claims()
 
     first_call_count = spy.call_count
 
     # Second call within TTL should use cache
-    await auth_client_with_asymmetric_session.get_claims()
+    await auth_client.get_claims()
     assert spy.call_count == first_call_count  # No additional JWKS request
 
     # Mock time to be after TTL expiry
@@ -119,7 +122,7 @@ async def test_jwks_ttl_cache_behavior(
         mock_time.return_value = original_time() + 601  # TTL is 600 seconds
 
         # Call after TTL expiry should fetch fresh JWKS
-        await auth_client_with_asymmetric_session.get_claims()
+        await auth_client.get_claims()
         assert spy.call_count == first_call_count + 1  # One more JWKS request
     finally:
         # Restore original time function

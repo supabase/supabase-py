@@ -1,0 +1,76 @@
+project_id = "auth-py-tests"
+
+[api]
+enabled = true
+port = 57321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 57322
+shadow_port = 57320
+major_version = 17
+
+[db.seed]
+enabled = false
+
+[local_smtp]
+enabled = true
+port = 57324
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://localhost:9999/welcome"]
+jwt_expiry = 3600
+jwt_secret = "37c304f8-51aa-419a-a1af-06154e63707a"
+signing_keys_path = "./signing_keys.json"
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = true
+enable_manual_linking = false
+minimum_password_length = 6
+
+[auth.rate_limit]
+email_sent = 10000
+sms_sent = 10000
+anonymous_users = 10000
+token_refresh = 10000
+sign_in_sign_ups = 10000
+token_verifications = 10000
+web3 = 10000
+
+[auth.email]
+enabled = true
+double_confirm_changes = true
+enable_confirmations = false
+secure_password_change = false
+max_frequency = "1s"
+
+[auth.sms]
+enabled = true
+enable_confirmations = false
+template = "Your code is {{ .Code }}"
+max_frequency = "1s"
+
+[auth.sms.twilio]
+enabled = true
+account_sid = "test"
+message_service_sid = "test"
+auth_token = "test"
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.external.google]
+enabled = true
+client_id = "53566906701-bmhc1ndue7hild39575gkpimhs06b7ds.apps.googleusercontent.com"
+secret = "Sm3s8RE85rDcS36iMy8YjrpC"
+
+[auth.oauth_server]
+enabled = true
+authorization_url_path = "/oauth/consent"
+allow_dynamic_registration = true

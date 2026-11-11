@@ -70,33 +70,9 @@ def mock_app_metadata() -> dict[str, list[str]]:
     }
 
 
-SIGNUP_ENABLED_AUTO_CONFIRM_OFF_PORT = 9999
-SIGNUP_ENABLED_AUTO_CONFIRM_ON_PORT = 9998
-SIGNUP_DISABLED_AUTO_CONFIRM_OFF_PORT = 9997
-SIGNUP_ENABLED_ASYMMETRIC_AUTO_CONFIRM_ON_PORT = 9996
-
-GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF = (
-    f"http://localhost:{SIGNUP_ENABLED_AUTO_CONFIRM_OFF_PORT}"
-)
-GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON = (
-    f"http://localhost:{SIGNUP_ENABLED_AUTO_CONFIRM_ON_PORT}"
-)
-GOTRUE_URL_SIGNUP_ENABLED_ASYMMETRIC_AUTO_CONFIRM_ON = (
-    f"http://localhost:{SIGNUP_ENABLED_ASYMMETRIC_AUTO_CONFIRM_ON_PORT}"
-)
-GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF = (
-    f"http://localhost:{SIGNUP_DISABLED_AUTO_CONFIRM_OFF_PORT}"
-)
+AUTH_URL = "http://127.0.0.1:57321/auth/v1"
 
 GOTRUE_JWT_SECRET = "37c304f8-51aa-419a-a1af-06154e63707a"
-
-AUTH_ADMIN_JWT = encode(
-    {
-        "sub": "1234567890",
-        "role": "supabase_admin",
-    },
-    GOTRUE_JWT_SECRET,
-)
 
 
 @pytest.fixture
@@ -116,7 +92,7 @@ async def auth_client(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[AsyncSupabaseAuthClient]:
     async with AsyncSupabaseAuthClient(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
+        url=AUTH_URL,
         auto_refresh_token=False,
         http_session=request.param(),
     ) as client:
@@ -128,7 +104,7 @@ async def auth_client_with_session(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[AsyncSupabaseAuthClient]:
     async with AsyncSupabaseAuthClient(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
+        url=AUTH_URL,
         auto_refresh_token=False,
         http_session=request.param(),
     ) as client:
@@ -147,94 +123,6 @@ async def auth_client_with_session(
         await client.sign_out()
 
 
-@pytest.fixture(params=http_sessions)
-async def auth_client_with_asymmetric_session(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[AsyncSupabaseAuthClient]:
-    async with AsyncSupabaseAuthClient(
-        url=GOTRUE_URL_SIGNUP_ENABLED_ASYMMETRIC_AUTO_CONFIRM_ON,
-        auto_refresh_token=False,
-        http_session=request.param(),
-    ) as client:
-        yield client
-
-
-@pytest.fixture(params=http_sessions)
-async def auth_subscription_client(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[AsyncSupabaseAuthClient]:
-    async with AsyncSupabaseAuthClient(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
-        auto_refresh_token=False,
-        http_session=request.param(),
-    ) as client:
-        yield client
-
-
-@pytest.fixture(params=http_sessions)
-async def client_api_auto_confirm_enabled_client(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[AsyncSupabaseAuthClient]:
-    async with AsyncSupabaseAuthClient(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
-        auto_refresh_token=False,
-        http_session=request.param(),
-    ) as client:
-        yield client
-
-
-@pytest.fixture(params=http_sessions)
-async def client_api_auto_confirm_off_signups_enabled_client(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[AsyncSupabaseAuthClient]:
-    async with AsyncSupabaseAuthClient(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
-        auto_refresh_token=False,
-        http_session=request.param(),
-    ) as client:
-        yield client
-
-
-@pytest.fixture(params=http_sessions)
-async def client_api_auto_confirm_disabled_client(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[AsyncSupabaseAuthClient]:
-    async with AsyncSupabaseAuthClient(
-        url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
-        auto_refresh_token=False,
-        http_session=request.param(),
-    ) as client:
-        yield client
-
-
-@pytest.fixture(params=http_sessions)
-async def auth_admin_api_auto_confirm_enabled_client(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[AsyncSupabaseAuthAdmin]:
-    async with AsyncSupabaseAuthAdmin(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
-        default_headers={
-            "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
-        },
-        http_session=request.param(),
-    ) as client:
-        yield client
-
-
-@pytest.fixture(params=http_sessions)
-async def auth_admin_api_auto_confirm_disabled_client(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[AsyncSupabaseAuthAdmin]:
-    async with AsyncSupabaseAuthAdmin(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
-        default_headers={
-            "Authorization": f"Bearer {AUTH_ADMIN_JWT}",
-        },
-        http_session=request.param(),
-    ) as client:
-        yield client
-
-
 SECRET_KEY_JWT = encode(
     {
         "role": "service_role",
@@ -248,35 +136,7 @@ async def secret_key_api_client(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[AsyncSupabaseAuthAdmin]:
     async with AsyncSupabaseAuthAdmin(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_ON,
-        default_headers={
-            "Authorization": f"Bearer {SECRET_KEY_JWT}",
-        },
-        http_session=request.param(),
-    ) as client:
-        yield client
-
-
-@pytest.fixture(params=http_sessions)
-async def secret_key_api_client_with_sms(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[AsyncSupabaseAuthAdmin]:
-    async with AsyncSupabaseAuthAdmin(
-        url=GOTRUE_URL_SIGNUP_ENABLED_AUTO_CONFIRM_OFF,
-        default_headers={
-            "Authorization": f"Bearer {SECRET_KEY_JWT}",
-        },
-        http_session=request.param(),
-    ) as client:
-        yield client
-
-
-@pytest.fixture(params=http_sessions)
-async def secret_key_api_client_no_sms(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[AsyncSupabaseAuthAdmin]:
-    async with AsyncSupabaseAuthAdmin(
-        url=GOTRUE_URL_SIGNUP_DISABLED_AUTO_CONFIRM_OFF,
+        url=AUTH_URL,
         default_headers={
             "Authorization": f"Bearer {SECRET_KEY_JWT}",
         },
