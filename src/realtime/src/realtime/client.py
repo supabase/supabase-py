@@ -5,12 +5,12 @@ from types import TracebackType
 from warnings import warn
 
 import websockets
-from pydantic import ValidationError
 from supabase_utils.http.errors import SupabaseTransportError
 from websockets.asyncio.client import ClientConnection
 from yarl import URL
 
 from ._redact import RedactingLoggerAdapter
+from ._serializer import decode, encode
 from .channel import RealtimeChannel, RealtimeChannelOptions
 from .exceptions import MaxRetriesExceeded
 from .message import Message, ReplyMessage
@@ -185,11 +185,11 @@ class RealtimeClient:
         """
         try:
             while True:
-                msg = await self._ws_connection.recv(decode=False)
+                frame = await self._ws_connection.recv()
                 try:
-                    message = Message.model_validate_json(msg)
-                except ValidationError as e:
-                    logger.error("Unrecognized message format %r\n%s", msg, e)
+                    message = decode(frame)
+                except ValueError as e:
+                    logger.error("Unrecognized message format %r\n%s", frame, e)
                     continue
                 if message.ref is not None and (
                     fut := self.message_refs.get(message.ref)
@@ -356,13 +356,13 @@ class RealtimeClient:
         assert message.ref, "Cannot wait for reponse on a message without ref"
 
         self._raise_connection_failure()
-        message_str = message.model_dump_json()
-        logger.debug("sending: %s", message_str)
+        frame = encode(message)
+        logger.debug("sending: %s", frame)
 
         receive: asyncio.Future[Message] = asyncio.Future()
         self.message_refs[message.ref] = receive
         try:
-            await self._ws_connection.send(message_str)
+            await self._ws_connection.send(frame)
             logger.debug("waiting for ref=%r", message.ref)
             response = await self._get_message_or_raise(receive)
         finally:
@@ -372,9 +372,9 @@ class RealtimeClient:
 
     async def _send_no_wait(self, message: Message) -> None:
         self._raise_connection_failure()
-        message_str = message.model_dump_json()
-        logger.debug("sending: %s", message_str)
-        await self._ws_connection.send(message_str)
+        frame = encode(message)
+        logger.debug("sending: %s", frame)
+        await self._ws_connection.send(frame)
 
     def _raise_connection_failure(self) -> None:
         failure = self._connection_failure

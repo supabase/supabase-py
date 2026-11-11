@@ -305,7 +305,7 @@ class RealtimeChannel:
         return self.presence.state
 
     async def _send_event(
-        self, event: ChannelEvents, payload: Mapping[str, JSON]
+        self, event: ChannelEvents, payload: Mapping[str, JSON | bytes]
     ) -> ReplyMessage:
         message = Message(
             topic=self.topic,
@@ -317,7 +317,7 @@ class RealtimeChannel:
         return await self.socket._send(message)
 
     async def _send_event_no_wait(
-        self, event: ChannelEvents, payload: Mapping[str, JSON]
+        self, event: ChannelEvents, payload: Mapping[str, JSON | bytes]
     ) -> None:
         message = Message(
             topic=self.topic,
@@ -329,7 +329,9 @@ class RealtimeChannel:
         return await self.socket._send_no_wait(message)
 
     # Broadcast methods
-    async def send_broadcast(self, event: str, data: JSON) -> ReplyMessage | None:
+    async def send_broadcast(
+        self, event: str, data: JSON | bytes
+    ) -> ReplyMessage | None:
         """
         Send a broadcast message through this channel.
 
@@ -337,7 +339,11 @@ class RealtimeChannel:
         connection, not that the server received it.
 
         :param event: The name of the broadcast event
-        :param data: The payload to broadcast
+        :param data: The payload to broadcast. ``bytes`` are sent as a binary
+            frame, and receivers get them as ``bytes`` in
+            ``BroadcastPayload.payload``. Anything else is sent as JSON.
+        :raises ValueError: If ``data`` is ``bytes`` and the topic or the event
+            is longer than 255 bytes in UTF-8.
         :raises websockets.ConnectionClosed: If the connection is closed.
         :raises Exception: If the connection already failed, the exception that
             failed it, such as a TimeoutError when a heartbeat timed out.

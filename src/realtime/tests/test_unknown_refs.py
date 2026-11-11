@@ -4,13 +4,9 @@ from collections.abc import AsyncIterator
 import pytest
 from websockets.asyncio.server import Server, ServerConnection, serve
 
+from realtime._serializer import decode, encode
 from realtime.client import connect_once
-from realtime.message import (
-    Message,
-    ReplyMessage,
-    ReplyPostgresChanges,
-    SuccessReplyMessage,
-)
+from realtime.message import Message
 from realtime.types import ChannelEvents
 
 HOST = "127.0.0.1"
@@ -20,15 +16,15 @@ async def get_token() -> str:
     return "my-publishable-key"
 
 
-def reply_ack(topic: str, ref: str) -> str:
-    return ReplyMessage(
-        event=ChannelEvents.reply,
-        topic=topic,
-        ref=ref,
-        payload=SuccessReplyMessage(
-            status="ok", response=ReplyPostgresChanges(postgres_changes=[])
-        ),
-    ).model_dump_json()
+def reply_ack(topic: str, ref: str) -> str | bytes:
+    return encode(
+        Message(
+            event=ChannelEvents.reply,
+            topic=topic,
+            ref=ref,
+            payload={"status": "ok", "response": {"postgres_changes": []}},
+        )
+    )
 
 
 class FakeServer:
@@ -53,7 +49,7 @@ class FakeServer:
 
     async def handler(self, connection: ServerConnection) -> None:
         while True:
-            message = Message.model_validate_json(await connection.recv(decode=False))
+            message = decode(await connection.recv())
             if message.ref is None:
                 continue
             if message.event == ChannelEvents.join and self.join_reply_delay:
@@ -67,7 +63,7 @@ class FakeServer:
                     ref=message.join_ref,
                     join_ref=message.join_ref,
                 )
-                await connection.send(close.model_dump_json())
+                await connection.send(encode(close))
                 await connection.send(reply_ack(message.topic, "unknown-ref"))
 
 

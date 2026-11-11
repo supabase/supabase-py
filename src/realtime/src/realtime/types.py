@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # Constants
 DEFAULT_TIMEOUT = 10
 PHOENIX_CHANNEL = "phoenix"
-PROTOCOL_VERSION = "1.0.0"
+PROTOCOL_VERSION = "2.0.0"
 DEFAULT_HEARTBEAT_INTERVAL = 25
 DEFAULT_HEARTBEAT_TIMEOUT = 5
 
@@ -131,7 +131,7 @@ class BroadcastMeta(BaseModel):
 
 class BroadcastPayload(BaseModel):
     event: str
-    payload: dict[str, Any]
+    payload: dict[str, Any] | bytes
     type: str | None = None
     meta: BroadcastMeta | None = None
 

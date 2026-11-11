@@ -5,13 +5,9 @@ from collections.abc import AsyncIterator
 import pytest
 from websockets.asyncio.server import Server, ServerConnection, serve
 
+from realtime._serializer import decode, encode
 from realtime.client import connect_once
-from realtime.message import (
-    Message,
-    ReplyMessage,
-    ReplyPostgresChanges,
-    SuccessReplyMessage,
-)
+from realtime.message import Message
 from realtime.types import ChannelEvents
 
 HOST = "127.0.0.1"
@@ -41,19 +37,17 @@ class HeartbeatServer:
 
     async def handler(self, connection: ServerConnection) -> None:
         async for raw in connection:
-            message = Message.model_validate_json(raw)
+            message = decode(raw)
             if message.event != ChannelEvents.heartbeat or message.ref is None:
                 continue
-            reply = ReplyMessage(
+            reply = Message(
                 event=ChannelEvents.reply,
                 topic=message.topic,
                 ref=message.ref,
-                payload=SuccessReplyMessage(
-                    status="ok", response=ReplyPostgresChanges()
-                ),
+                payload={"status": "ok", "response": {}},
             )
             self.heartbeat_times.append(asyncio.get_running_loop().time())
-            await connection.send(reply.model_dump_json())
+            await connection.send(encode(reply))
             if len(self.heartbeat_times) >= self.expected_heartbeats:
                 self.received_expected.set()
 

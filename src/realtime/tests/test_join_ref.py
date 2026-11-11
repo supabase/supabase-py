@@ -4,14 +4,12 @@ import pytest
 from pydantic import TypeAdapter
 from websockets.asyncio.server import Server, ServerConnection, serve
 
+from realtime._serializer import decode, encode
 from realtime.channel import RealtimeChannelOptions
 from realtime.client import connect_once
 from realtime.message import (
     ClientMessage,
     Message,
-    ReplyMessage,
-    ReplyPostgresChanges,
-    SuccessReplyMessage,
 )
 from realtime.types import ChannelEvents
 
@@ -29,16 +27,15 @@ async def get_token() -> str:
     return PUBLISHABLE_KEY
 
 
-def reply_ack(topic: str, ref: str) -> str:
-    reply_msg = ReplyMessage(
-        event=ChannelEvents.reply,
-        topic=topic,
-        ref=ref,
-        payload=SuccessReplyMessage(
-            status="ok", response=ReplyPostgresChanges(postgres_changes=[])
-        ),
+def reply_ack(topic: str, ref: str) -> str | bytes:
+    return encode(
+        Message(
+            event=ChannelEvents.reply,
+            topic=topic,
+            ref=ref,
+            payload={"status": "ok", "response": {"postgres_changes": []}},
+        )
     )
-    return reply_msg.model_dump_json()
 
 
 class RecordingServer:
@@ -66,8 +63,7 @@ class RecordingServer:
 
     async def handler(self, connection: ServerConnection) -> None:
         while True:
-            raw = await connection.recv(decode=False)
-            message = Message.model_validate_json(raw)
+            message = decode(await connection.recv())
             self.received.append(message)
             if message.ref is not None:
                 await connection.send(reply_ack(message.topic, message.ref))

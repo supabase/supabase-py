@@ -103,6 +103,7 @@ async with client.channel("broadcast-test", options) as channel:
 
 - With `ack=True`, `send_broadcast()` waits for the server to acknowledge the message and returns its reply.
 - With `listen_self=True`, the client receives the broadcast messages it sends.
+- A `bytes` payload is sent as a binary WebSocket frame, without JSON encoding, and receivers get it back as `bytes` in `message.payload.payload`.
 - `RealtimeChannelOptions().private(True)` makes the server use RLS to decide whether the user may join the channel.
 - Setting `replication_ready` to `true` instructs the server to emit a `system` message once the Postgres replication connection backing the channel is established and ready to stream changes. Its payload's `status` is `"ok"` (`message: "Replication connection established"`) on success or `"error"` if the connection is not ready in time.
 

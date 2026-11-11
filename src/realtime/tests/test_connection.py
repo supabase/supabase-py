@@ -14,6 +14,7 @@ from realtime import (
     RealtimeClient,
     RealtimePostgresChangesListenEvent,
 )
+from realtime._serializer import decode
 from realtime.channel import RealtimeChannelOptions
 from realtime.client import connect_once, exponential_delay, normalize_url
 from realtime.message import (
@@ -129,9 +130,24 @@ async def test_broadcast_events(socket: RealtimeClient) -> None:
         assert msg1.payload.event == "test-event"
         assert msg2.payload.event == "test-event"
         assert msg3.payload.event == "test-event"
-        assert msg1.payload.payload["message"] == "Event 1"
-        assert msg2.payload.payload["message"] == "Event 2"
-        assert msg3.payload.payload["message"] == "Event 3"
+        assert msg1.payload.payload == {"message": "Event 1"}
+        assert msg2.payload.payload == {"message": "Event 2"}
+        assert msg3.payload.payload == {"message": "Event 3"}
+
+
+@pytest.mark.asyncio
+async def test_binary_broadcast_events(socket: RealtimeClient) -> None:
+    channel_options = RealtimeChannelOptions().broadcast(listen_self=True, ack=True)
+    data = bytes(range(256))
+    async with socket.channel("test-binary-broadcast", channel_options) as chan:
+        reply = await chan.send_broadcast("binary-event", data)
+        assert reply is not None
+        assert reply.payload.status == "ok"
+
+        message = await chan.messages.__anext__()
+        assert isinstance(message, BroadcastMessage)
+        assert message.payload.event == "binary-event"
+        assert message.payload.payload == data
 
 
 @pytest.mark.asyncio
@@ -346,6 +362,7 @@ async def test_subscribe_to_private_channel_with_broadcast_replay(
         for i in range(messages):
             broadcast = await message_stream.__anext__()
             assert isinstance(broadcast, BroadcastMessage)
+            assert isinstance(broadcast.payload.payload, dict)
             assert broadcast.payload.payload["i"] == str(i)
             meta = broadcast.payload.meta
             assert meta
@@ -363,7 +380,7 @@ def test_normalize_url_includes_connection_params() -> None:
     assert dict(url.query) == {
         "apikey": "publishable-key",
         "log_level": "info",
-        "vsn": "1.0.0",
+        "vsn": "2.0.0",
     }
 
 
@@ -420,8 +437,8 @@ def fake_client() -> tuple[RealtimeClient, list[Message]]:
     ws = AsyncMock()
     client = RealtimeClient(URL("ws://localhost/realtime/v1"), ws)
 
-    async def send(raw: str) -> None:
-        message = Message.model_validate_json(raw)
+    async def send(frame: str | bytes) -> None:
+        message = decode(frame)
         sent.append(message)
         if message.ref is not None and message.event != ChannelEvents.access_token:
             reply = Message(

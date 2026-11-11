@@ -1045,7 +1045,13 @@ features:
       - connect_once
   realtime.configuration.deferred_disconnect: not_implemented
   realtime.configuration.custom_logger: not_applicable
-  realtime.configuration.binary_protocol: not_implemented
+  realtime.configuration.binary_protocol:
+    status: implemented
+    note: "The client always speaks protocol 2.0.0. send_broadcast() sends a bytes payload as a binary frame, and binary broadcasts are received as bytes in BroadcastPayload.payload."
+    symbols:
+      - RealtimeChannel.send_broadcast
+    supporting_symbols:
+      - BroadcastPayload
   realtime.configuration.foreground_liveness_probe:
     status: not_applicable
     note: "Python has no app foreground lifecycle to hook into. Dropped connections are detected by the heartbeat timeout."

@@ -21,7 +21,7 @@ class Message(BaseModel):
     """
 
     event: str
-    payload: Mapping[str, JSON]
+    payload: Mapping[str, JSON | bytes]
     topic: str
     ref: str | None = None
     join_ref: str | None = None
