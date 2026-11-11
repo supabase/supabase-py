@@ -257,6 +257,7 @@ To keep the retries exactly as they were, retrying only the database, only on a 
 
 ```python
 from supabase import PostgrestClientOptions, RetryPolicy
+from supabase.httpx import create_client
 
 supabase = create_client(
     url,
