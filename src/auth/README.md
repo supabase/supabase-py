@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/supabase_auth)](https://pypi.org/project/supabase_auth)
 [![Version](https://img.shields.io/pypi/v/supabase_auth?color=%2334D058)](https://pypi.org/project/supabase_auth)
 
-Python client for [Supabase Auth](https://github.com/supabase/auth), the Python counterpart of [`@supabase/auth-js`](https://github.com/supabase/supabase-js/tree/master/packages/core/auth-js). Most users use it through the [`supabase`](../supabase/README.md) package, as `client.auth`.
+Python client for [Supabase Auth](https://github.com/supabase/auth), the Python counterpart of [`@supabase/auth-js`](https://github.com/supabase/supabase-js/tree/master/packages/core/auth-js). Most users use it through the [`supabase`](https://github.com/supabase/supabase-py/blob/main/src/supabase/README.md) package, as `client.auth`.
 
 ## Installation
 
@@ -42,11 +42,11 @@ Use `supabase_utils[aiohttp]` instead to run the async client on aiohttp.
 - JWT token handling and verification
 - User management and profile updates
 
-## Differences to the JS client
+## Differences to the JavaScript client
 
-Methods and attributes follow the JS client, but browser specific code is not ported.
+Methods and attributes follow the JavaScript client, but browser specific code is not ported.
 
-Errors are raised where they originate instead of being returned next to the data, since that is the idiomatic way in Python. Where JS returns the error:
+Errors are raised where they originate instead of being returned next to the data, since that is the idiomatic way in Python. Where JavaScript returns the error:
 
 ```js
 const { data, error } = await supabase.auth.signUp({ email, password })

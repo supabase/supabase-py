@@ -43,7 +43,8 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
 
 async def run_func() -> None:
-    headers = {"apikey": "your-publishable-key"}
+    key = "your-publishable-key"
+    headers = {"apikey": key, "Authorization": f"Bearer {key}"}
 
     async with AsyncHttpxSession(AsyncClient(follow_redirects=True)) as session:
         functions = AsyncFunctionsClient(
@@ -72,7 +73,8 @@ from httpx import Client
 from supabase_functions import FunctionsHttpError, FunctionsRelayError, SyncFunctionsClient
 from supabase_utils.http.adapters.httpx import HttpxSession
 
-headers = {"apikey": "your-publishable-key"}
+key = "your-publishable-key"
+headers = {"apikey": key, "Authorization": f"Bearer {key}"}
 
 with HttpxSession(Client(follow_redirects=True)) as session:
     functions = SyncFunctionsClient(

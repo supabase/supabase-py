@@ -118,4 +118,4 @@ await client.rpc("foobar", {"arg1": "value1", "arg2": "value2"}).execute()
 
 ## CHANGELOG
 
-Read more [here](CHANGELOG.md).
+Read more [here](https://github.com/supabase/supabase-py/blob/main/src/postgrest/CHANGELOG.md).

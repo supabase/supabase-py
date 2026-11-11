@@ -7,7 +7,8 @@ and MIGRATION.md cannot show code that does not match the API.
 A block is the body of an async function, so it can use `await` and
 `async with`. It imports what it uses, as the code a user copies has to. The
 names a file's snippets share, such as the client its README creates once, are
-declared in PRELUDES. A block fenced as ```python skip is not checked, for
+declared in PRELUDES with their types. Their types are imported under private
+aliases, so a snippet that uses a class without importing it still fails. A block fenced as ```python skip is not checked, for
 example v2 code shown as "before" or a fragment that only shows a shape.
 
 Run it from the repository root in an environment with every package and extra
@@ -30,35 +31,18 @@ LANGUAGES = {"python", "py", "python3"}
 FENCE = re.compile(r"^(?P<indent>\s*)(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
 
 PRELUDES = {
-    "MIGRATION.md": [
-        "from supabase import Client",
-        "from supabase_auth import SyncSupportedStorage",
-        "client: Client",
-        "url: str",
-        "key: str",
-        "my_storage: SyncSupportedStorage",
-        "account_id: str",
-    ],
-    "src/supabase/README.md": [
-        "from supabase import Client",
-        "supabase: Client",
-    ],
-    "src/auth/README.md": [
-        "from supabase_auth import SyncSupabaseAuthClient",
-        "client: SyncSupabaseAuthClient",
-    ],
-    "src/postgrest/README.md": [
-        "from postgrest import AsyncPostgrestClient",
-        "client: AsyncPostgrestClient",
-    ],
-    "src/realtime/README.md": [
-        "from realtime import RealtimeClient",
-        "client: RealtimeClient",
-    ],
-    "src/storage/README.md": [
-        "from storage3 import AsyncStorageClient",
-        "storage_client: AsyncStorageClient",
-    ],
+    "MIGRATION.md": {
+        "client": "supabase.Client",
+        "url": "str",
+        "key": "str",
+        "my_storage": "supabase_auth.SyncSupportedStorage",
+        "account_id": "str",
+    },
+    "src/supabase/README.md": {"supabase": "supabase.Client"},
+    "src/auth/README.md": {"client": "supabase_auth.SyncSupabaseAuthClient"},
+    "src/postgrest/README.md": {"client": "postgrest.AsyncPostgrestClient"},
+    "src/realtime/README.md": {"client": "realtime.RealtimeClient"},
+    "src/storage/README.md": {"storage_client": "storage3.AsyncStorageClient"},
 }
 
 PYREFLY_CONFIG = """\
@@ -78,7 +62,7 @@ class Snippet:
 
 def markdown_files() -> list[str]:
     output = subprocess.run(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "*.md"],
+        ["git", "ls-files", "*.md"],
         check=True,
         capture_output=True,
         text=True,
@@ -113,17 +97,31 @@ def python_snippets(markdown: str) -> list[Snippet]:
                 and not closing["info"].strip()
             ):
                 break
-            body.append(lines[index - 1][indent:])
+            line = lines[index - 1]
+            body.append(line[min(indent, len(line) - len(line.lstrip())) :])
         if words and words[0] in LANGUAGES and "skip" not in words[1:]:
             snippets.append(Snippet(markdown, first_line, body))
     return snippets
+
+
+def prelude(markdown: str) -> list[str]:
+    imports: list[str] = []
+    declarations: list[str] = []
+    for number, (name, type_path) in enumerate(PRELUDES.get(markdown, {}).items()):
+        module, _, type_name = type_path.rpartition(".")
+        if module:
+            alias = f"_Prelude{number}"
+            imports.append(f"from {module} import {type_name} as {alias}")
+            type_name = alias
+        declarations.append(f"{name}: {type_name}")
+    return [*imports, *declarations]
 
 
 def module_source(snippet: Snippet) -> tuple[str, int]:
     """Return the module that wraps the snippet and the number of lines before
     the snippet's first line."""
     header = [
-        *PRELUDES.get(snippet.markdown, []),
+        *prelude(snippet.markdown),
         "",
         "",
         "async def _snippet() -> None:",
@@ -174,7 +172,11 @@ def main() -> int:
 
     located: list[tuple[str, int, str]] = []
     for error in errors:
-        snippet, header_lines = modules[Path(error["path"]).name]
+        located_module = modules.get(Path(error["path"]).name)
+        if located_module is None:
+            located.append((error["path"], error["line"], error["description"]))
+            continue
+        snippet, header_lines = located_module
         line = snippet.first_line + error["line"] - header_lines - 1
         located.append(
             (snippet.markdown, line, f"{error['description']} [{error['name']}]")

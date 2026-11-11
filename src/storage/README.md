@@ -20,7 +20,7 @@ uv add storage3 "supabase_utils[httpx]"
 
 ## How to use
 
-Most users use storage through the main [Supabase Python client](../supabase/README.md), as `client.storage`, which sets the headers for you.
+Most users use storage through the main [Supabase Python client](https://github.com/supabase/supabase-py/blob/main/src/supabase/README.md), as `client.storage`, which sets the headers for you.
 
 The client takes the URL of the storage service, the headers to send, and the HTTP session it sends its requests with. Leaving the client's context manager closes the session:
 
