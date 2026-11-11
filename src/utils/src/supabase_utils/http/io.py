@@ -58,23 +58,36 @@ class AsyncHttpSession(Protocol):
     ) -> None: ...
 
 
-def _retry_attempt(request: Request, retries: int) -> Request:
-    return replace(
-        request, headers=request.headers.override("X-Retry-Count", str(retries))
-    )
+class _Retries:
+    """The retries of one request: the attempt to send next, and how many
+    were made before it."""
 
+    def __init__(self, request: Request, policy: RetryPolicy) -> None:
+        self.request = request
+        self.policy = policy
+        self.attempt = request
+        self.count = 0
 
-def _log_retry(
-    request: Request, delay: float, retries: int, policy: RetryPolicy
-) -> None:
-    logger.debug(
-        "%s %s failed, retry %d of %d in %.2f seconds",
-        request.method,
-        request.url.with_query(None),
-        retries,
-        policy.max_retries,
-        delay,
-    )
+    def delay_after(self, outcome: Response | SupabaseTransportError) -> float | None:
+        """Seconds to wait before the next attempt, or None when `outcome` is
+        the final one. Prepares the next attempt when there is one."""
+        delay = self.policy.delay(outcome, self.count)
+        if delay is None:
+            return None
+        self.count += 1
+        self.attempt = replace(
+            self.request,
+            headers=self.request.headers.override("X-Retry-Count", str(self.count)),
+        )
+        logger.debug(
+            "%s %s failed, retry %d of %d in %.2f seconds",
+            self.request.method,
+            self.request.url.with_query(None),
+            self.count,
+            self.policy.max_retries,
+            delay,
+        )
+        return delay
 
 
 class _HttpIO[Session]:
@@ -96,6 +109,10 @@ class _HttpIO[Session]:
         if request.timeout is None and self.request_timeout is not None:
             request = replace(request, timeout=self.request_timeout)
         return request
+
+    def _retries(self, request: Request) -> _Retries | None:
+        policy = _policy_for(request, self.retry_policy)
+        return None if policy is None else _Retries(request, policy)
 
 
 class SyncHttpIO(_HttpIO[HttpSession]):
@@ -119,26 +136,21 @@ class SyncHttpIO(_HttpIO[HttpSession]):
             return return_value_iterator.return_value
 
     def _send(self, request: Request) -> Response:
-        policy = _policy_for(request, self.retry_policy)
-        if policy is None:
+        retries = self._retries(request)
+        if retries is None:
             return self.session.send(request)
-        retries = 0
-        attempt = request
         while True:
             try:
-                response = self.session.send(attempt)
+                response = self.session.send(retries.attempt)
             except SupabaseTransportError as error:
-                delay = policy.delay(error, retries)
+                delay = retries.delay_after(error)
                 if delay is None:
                     raise
             else:
-                delay = policy.delay(response, retries)
+                delay = retries.delay_after(response)
                 if delay is None:
                     return response
-            retries += 1
-            _log_retry(request, delay, retries, policy)
             time.sleep(delay)
-            attempt = _retry_attempt(request, retries)
 
 
 class AsyncHttpIO(_HttpIO[AsyncHttpSession]):
@@ -162,26 +174,21 @@ class AsyncHttpIO(_HttpIO[AsyncHttpSession]):
             return return_value_iterator.return_value
 
     async def _send(self, request: Request) -> Response:
-        policy = _policy_for(request, self.retry_policy)
-        if policy is None:
+        retries = self._retries(request)
+        if retries is None:
             return await self.session.send(request)
-        retries = 0
-        attempt = request
         while True:
             try:
-                response = await self.session.send(attempt)
+                response = await self.session.send(retries.attempt)
             except SupabaseTransportError as error:
-                delay = policy.delay(error, retries)
+                delay = retries.delay_after(error)
                 if delay is None:
                     raise
             else:
-                delay = policy.delay(response, retries)
+                delay = retries.delay_after(response)
                 if delay is None:
                     return response
-            retries += 1
-            _log_retry(request, delay, retries, policy)
             await asyncio.sleep(delay)
-            attempt = _retry_attempt(request, retries)
 
 
 class _HasExecutor[HttpIO: (SyncHttpIO, AsyncHttpIO)](Protocol):

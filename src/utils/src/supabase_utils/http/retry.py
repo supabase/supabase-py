@@ -6,13 +6,14 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, get_args
 
+from ..types import HTTPRequestMethod
 from .errors import SupabaseTransportError
 
 if TYPE_CHECKING:
     from .headers import Headers
-    from .request import HTTPRequestMethod, Request, Response  # noqa: TC004
+    from .request import Request, Response
 
 DEFAULT_RETRYABLE_STATUSES: frozenset[int] = frozenset(
     {408, 429, 502, 503, 504, 520, 521, 522, 523, 524, 530}
@@ -28,6 +29,7 @@ idempotent for every Supabase service, so a request that may have reached
 the service can be sent again."""
 
 _MAX_EXPONENT = 64
+_METHODS: frozenset[str] = frozenset(get_args(HTTPRequestMethod))
 
 
 def _retry_after(headers: Headers) -> float | None:
@@ -42,7 +44,7 @@ def _retry_after(headers: Headers) -> float | None:
     if value is None:
         return None
     value = value.strip()
-    if value.isdigit():
+    if value.isdecimal():
         seconds = int(value)
         return float(seconds) if seconds > 0 else None
     try:
@@ -60,11 +62,12 @@ class RetryPolicy:
     """How the executors retry a request that failed in a way worth repeating.
 
     A request is retried when its method is in `retryable_methods`, or when
-    it was sent with `retry=True`, and the attempt either answered with a
-    status in `retryable_statuses` or failed with a `SupabaseTransportError`
-    while `retry_network_errors` is set. The wait before a retry is the
-    `Retry-After` the response asked for, up to `max_delay`, and otherwise an
-    exponential backoff from `base_delay` with jitter.
+    it was sent with `retry=True` or a policy of its own, and the attempt
+    either answered with a status in `retryable_statuses` or failed with a
+    `SupabaseTransportError` while `retry_network_errors` is set. The wait
+    before a retry is the `Retry-After` the response asked for, up to
+    `max_delay`, and otherwise an exponential backoff from `base_delay` with
+    jitter.
 
     Pass one to the client of a service, or to the supabase client for every
     service, and `max_retries=0` to not retry at all:
@@ -89,7 +92,9 @@ class RetryPolicy:
 
     max_delay: float = 30.0
     """The longest wait between two attempts, in seconds. A response whose
-    `Retry-After` asks for a longer wait is not retried."""
+    `Retry-After` asks for a longer wait is not retried, so that a caller is
+    not held up for longer than it allowed. Raise it to wait for such a
+    response."""
 
     jitter: float = 0.5
     """The fraction of a backoff wait that is randomized. Each wait is the
@@ -100,14 +105,15 @@ class RetryPolicy:
     """The response statuses that are retried."""
 
     retryable_methods: AbstractSet[HTTPRequestMethod] = DEFAULT_RETRYABLE_METHODS
-    """The request methods that are retried. Add a method only when every
-    request a client sends with it is safe to send twice."""
+    """The request methods that are retried when the request does not say
+    itself whether it is. Add a method only when every request a client sends
+    with it is safe to send twice."""
 
     retry_network_errors: bool = True
     """Whether a request that failed with a `SupabaseTransportError`, because
     the connection failed or the request timed out, is retried. Such a request
     may have reached the service, which is why only the `retryable_methods`
-    are retried."""
+    are retried. A retried timeout waits the `request_timeout` again."""
 
     def __post_init__(self) -> None:
         if self.max_retries < 0:
@@ -126,10 +132,15 @@ class RetryPolicy:
             )
         if not 0 <= self.jitter <= 1:
             raise ValueError(f"jitter must be between 0 and 1, not {self.jitter!r}")
+        methods = frozenset(method.upper() for method in self.retryable_methods)
+        if unknown := methods - _METHODS:
+            raise ValueError(
+                f"retryable_methods must be HTTP request methods, not {sorted(unknown)}"
+            )
         object.__setattr__(
             self, "retryable_statuses", frozenset(self.retryable_statuses)
         )
-        object.__setattr__(self, "retryable_methods", frozenset(self.retryable_methods))
+        object.__setattr__(self, "retryable_methods", methods)
 
     def backoff(self, retry: int) -> float:
         """Seconds to wait before the `retry`-th retry, counted from 1: the
@@ -170,11 +181,10 @@ def _policy_for(request: Request, default: RetryPolicy) -> RetryPolicy | None:
     `request.retry` decides: None leaves it to `default`, which retries the
     request when its method is one of its `retryable_methods`. True retries it
     with `default` whatever its method, False never retries it, and a
-    `RetryPolicy` replaces `default` for this request.
+    `RetryPolicy` retries it with that policy whatever its method.
     """
+    if request.retry is None:
+        return default if request.method in default.retryable_methods else None
     if request.retry is False:
         return None
-    if request.retry is True:
-        return default
-    policy = default if request.retry is None else request.retry
-    return policy if request.method in policy.retryable_methods else None
+    return default if request.retry is True else request.retry

@@ -733,9 +733,9 @@ class BaseRequestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         client.
 
         `False` never retries it. `True` retries it with the policy of the
-        client even when it is not a GET or HEAD request, which opts in a
-        write that is safe to send twice. A `RetryPolicy` replaces the policy
-        of the client for this query.
+        client, and a `RetryPolicy` with that policy instead, both even when
+        it is not a GET or HEAD request, which opts in a write that is safe
+        to send twice.
         """
         return replace(self, request=replace(self.request, retry=policy))
 

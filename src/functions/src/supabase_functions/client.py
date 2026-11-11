@@ -152,9 +152,9 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         retry : how the invocation is retried when it fails in a way worth
             repeating. None leaves it to the `RetryPolicy` of the client,
             which retries GET and HEAD invocations only. True retries the
-            invocation with that policy whatever its method, for a function
-            that is safe to invoke twice, False never retries it, and a
-            `RetryPolicy` replaces the one of the client for this invocation.
+            invocation with that policy, and a `RetryPolicy` with that policy
+            instead, both whatever its method, for a function that is safe to
+            invoke twice. False never retries it.
         """
         response = yield self._invoke_options_to_request(
             function_name, body, region, headers, method, request_timeout, retry

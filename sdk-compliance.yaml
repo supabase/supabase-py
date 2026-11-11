@@ -779,7 +779,7 @@ features:
 
   database.configuration.auto_retry:
     status: implemented
-    note: "retry (a RetryPolicy with max_retries, base_delay, max_delay, jitter, retryable_statuses, retryable_methods and retry_network_errors) on the PostgREST client constructors, and PostgrestClientOptions or the global retry argument of the supabase client. retry() on a query overrides it for that query: False sends it once, True retries a write too, and a RetryPolicy replaces the one of the client. By default GET and HEAD requests are retried up to three times on 408, 429, 502, 503, 504 and Cloudflare 52x responses and on network errors, honoring Retry-After, with exponential backoff and jitter."
+    note: "retry (a RetryPolicy with max_retries, base_delay, max_delay, jitter, retryable_statuses, retryable_methods and retry_network_errors) on the PostgREST client constructors, and PostgrestClientOptions or the global retry argument of the supabase client. retry() on a query overrides it for that query: False sends it once, True retries it with the policy of the client and a RetryPolicy with that policy, both even for a write. By default GET and HEAD requests are retried up to three times on 408, 429, 502, 503, 504 and Cloudflare 52x responses and on network errors, honoring Retry-After, with exponential backoff and jitter."
     symbols:
       - BaseRequestClient.retry
       - AsyncPostgrestClient

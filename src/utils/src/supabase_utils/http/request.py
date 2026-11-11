@@ -3,7 +3,6 @@ import os
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import (
-    Literal,
     Protocol,
     override,
 )
@@ -12,11 +11,10 @@ from pydantic import BaseModel
 from yarl import URL
 
 from ..types import JSON, JSONParser
+from ..types import HTTPRequestMethod as HTTPRequestMethod
 from .headers import Headers
 from .query import URLQuery
 from .retry import RetryPolicy
-
-HTTPRequestMethod = Literal["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"]
 
 
 def validate_request_timeout(timeout: float | None) -> None:
@@ -70,7 +68,7 @@ class EmptyRequest:
     """Whether the executor retries the request when it fails in a way its
     `RetryPolicy` retries. None leaves it to the method of the request, True
     retries it whatever its method, False never retries it, and a
-    `RetryPolicy` replaces the one of the executor for this request."""
+    `RetryPolicy` retries it with that policy whatever its method."""
     headers: Headers = field(default_factory=Headers.empty, kw_only=True)
     query: URLQuery = field(default_factory=URLQuery.empty, kw_only=True)
 

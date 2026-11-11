@@ -98,6 +98,17 @@ def test_invalid_options_are_rejected(kwargs: dict[str, Any], message: str) -> N
         RetryPolicy(**kwargs)
 
 
+def test_retryable_methods_are_upper_cased() -> None:
+    methods: Any = {"get", "Post"}
+    assert RetryPolicy(retryable_methods=methods).retryable_methods == {"GET", "POST"}
+
+
+def test_unknown_retryable_methods_are_rejected() -> None:
+    methods: Any = {"GET", "OPTIONS", "TRACE"}
+    with pytest.raises(ValueError, match=r"not \['OPTIONS', 'TRACE'\]"):
+        RetryPolicy(retryable_methods=methods)
+
+
 def test_zero_delays_are_allowed() -> None:
     policy = RetryPolicy(base_delay=0, max_delay=0)
     assert policy.backoff(1) == 0
@@ -153,7 +164,17 @@ def test_retry_after_as_a_date_in_the_future() -> None:
 
 @pytest.mark.parametrize(
     "value",
-    ["0", "-3", "1.5", "soon", "", "Mon, 32 Foo 2026 00:00:00 GMT"],
+    [
+        "0",
+        "-3",
+        "+3",
+        "1.5",
+        "1_0",
+        "\u00b2",
+        "soon",
+        "",
+        "Mon, 32 Foo 2026 00:00:00 GMT",
+    ],
 )
 def test_unusable_retry_after_is_ignored(value: str) -> None:
     assert _retry_after(Headers.from_mapping({"Retry-After": value})) is None
@@ -261,13 +282,12 @@ def test_policy_for_false_never_retries_the_request() -> None:
     assert _policy_for(make_request("GET", retry=False), NO_JITTER) is None
 
 
-def test_policy_for_uses_the_policy_of_the_request_with_its_own_methods() -> None:
+@pytest.mark.parametrize("method", ["GET", "POST", "DELETE"])
+def test_policy_for_uses_the_policy_of_the_request_whatever_its_method(
+    method: HTTPRequestMethod,
+) -> None:
     own = RetryPolicy(max_retries=1)
-    assert _policy_for(make_request("GET", retry=own), NO_JITTER) is own
-    assert _policy_for(make_request("POST", retry=own), NO_JITTER) is None
-    writes = RetryPolicy(retryable_methods={"POST"})
-    assert _policy_for(make_request("POST", retry=writes), NO_JITTER) is writes
-    assert _policy_for(make_request("GET", retry=writes), NO_JITTER) is None
+    assert _policy_for(make_request(method, retry=own), NO_JITTER) is own
 
 
 def test_policy_for_uses_the_methods_of_the_default_policy() -> None:

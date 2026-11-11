@@ -496,6 +496,14 @@ def test_the_policy_of_the_request_replaces_the_one_of_the_executor(
     assert len(session.requests) == 2
 
 
+def test_a_post_with_its_own_policy_is_retried(sync_sleeps: list[float]) -> None:
+    session = FakeSession([503, 201])
+    executor = SyncHttpIO(session, retry=NO_JITTER)
+    own = RetryPolicy(max_retries=1, base_delay=2, jitter=0)
+    assert executor.communicate(BASE_URL, DEFAULT_HEADERS, create_item(own)) == 201
+    assert sync_sleeps == [2]
+
+
 def test_a_disabled_policy_sends_every_request_once(sync_sleeps: list[float]) -> None:
     session = FakeSession([503, 200])
     executor = SyncHttpIO(session, retry=RetryPolicy(max_retries=0))
