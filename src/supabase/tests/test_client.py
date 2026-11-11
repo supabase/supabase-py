@@ -131,6 +131,19 @@ async def test_async_client_closes_realtime_on_exit() -> None:
     close.assert_awaited_once()
 
 
+async def test_with_token_client_has_its_own_realtime_client() -> None:
+    async with AsyncHttpxClient() as http_client:
+        client = AsyncClient(URL, KEY, AsyncHttpxSession(client=http_client))
+        channel = client.realtime.channel("room")
+
+        with patch.object(RealtimeClient, "aclose", AsyncMock()) as close:
+            async with client.with_token("user-jwt") as scoped:
+                assert scoped.realtime is not client.realtime
+
+        close.assert_awaited_once()
+        assert client.realtime.get_channels() == [channel]
+
+
 async def test_async_client_does_not_create_realtime_on_exit() -> None:
     async with AsyncClient(
         URL, KEY, AsyncHttpxSession(client=AsyncHttpxClient())
