@@ -301,7 +301,6 @@ class SupabaseClient[
         self.auth_url = self.supabase_url.joinpath("auth", "v1")
         self.storage_url = self.supabase_url.joinpath("storage", "v1", "")
         self.functions_url = self.supabase_url.joinpath("functions", "v1")
-        self._has_auth = True
 
     @property
     def headers(self) -> Mapping[str, str]:
@@ -332,22 +331,18 @@ class SupabaseClient[
         """
         if not access_token:
             raise ValueError("access_token is required")
-        client = self._with_headers(
+        return self._without_auth(
             {**self._headers, "Authorization": self._create_auth_header(access_token)}
         )
-        client._has_auth = False
-        return client
 
     @abstractmethod
-    def _with_headers(self, headers: Mapping[str, str]) -> Self: ...
+    def _without_auth(self, headers: Mapping[str, str]) -> Self: ...
 
-    def _check_has_auth(self) -> None:
-        if not self._has_auth:
-            raise SupabaseException(
-                "The client was created with with_token(), so it has no auth"
-                " client. Use the auth of the client that with_token() was"
-                " called on."
-            )
+    def _no_auth_error(self) -> SupabaseException:
+        return SupabaseException(
+            "The client was created with with_token(), so it has no auth"
+            " client. Use the auth of the client that with_token() was called on."
+        )
 
     @property
     @abstractmethod
@@ -536,7 +531,6 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         """
         self.http_session = http_session
         self._owns_http_session = False
-        self._auth: AsyncSupabaseAuthClient | None = None
         self._realtime_options = realtime or RealtimeClientOptions()
         super().__init__(
             supabase_url,
@@ -552,6 +546,19 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         self.realtime_url = self.supabase_url.joinpath("realtime", "v1").with_scheme(
             "wss" if self.supabase_url.scheme == "https" else "ws"
         )
+        auth_client = AsyncSupabaseAuthClient(
+            url=str(self.auth_url),
+            http_session=self.http_session,
+            headers=self._headers,
+            auto_refresh_token=self._auth_options.auto_refresh_token,
+            storage=self._auth_options.session_storage,
+            storage_key=self._auth_options.storage_key,
+            flow_type=self._auth_options.flow_type,
+            request_timeout=self._timeout_for(self._auth_options),
+            retry=self._retry_for(self._auth_options),
+        )
+        self._auth: AsyncSupabaseAuthClient | None = auth_client
+        auth_client.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
     async def create(
@@ -619,8 +626,8 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         await self.aclose()
 
     @override
-    def _with_headers(self, headers: Mapping[str, str]) -> Self:
-        return type(self)(
+    def _without_auth(self, headers: Mapping[str, str]) -> Self:
+        client = type(self)(
             str(self.supabase_url),
             self.supabase_key,
             _SharedAsyncHttpSession(self.http_session),
@@ -633,24 +640,14 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             functions=self._functions_options,
             realtime=self._realtime_options,
         )
+        client._auth = None
+        return client
 
     @property
     @override
     def auth(self) -> AsyncSupabaseAuthClient:
         if self._auth is None:
-            self._check_has_auth()
-            self._auth = AsyncSupabaseAuthClient(
-                url=str(self.auth_url),
-                http_session=self.http_session,
-                headers=self._headers,
-                auto_refresh_token=self._auth_options.auto_refresh_token,
-                storage=self._auth_options.session_storage,
-                storage_key=self._auth_options.storage_key,
-                flow_type=self._auth_options.flow_type,
-                request_timeout=self._timeout_for(self._auth_options),
-                retry=self._retry_for(self._auth_options),
-            )
-            self._auth.on_auth_state_change(self._listen_to_auth_events)
+            raise self._no_auth_error()
         return self._auth
 
     @cached_property
@@ -732,7 +729,6 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         """
         self.http_session = http_session
         self._owns_http_session = False
-        self._auth: SyncSupabaseAuthClient | None = None
         super().__init__(
             supabase_url,
             supabase_key,
@@ -744,6 +740,19 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             storage=storage,
             functions=functions,
         )
+        auth_client = SyncSupabaseAuthClient(
+            url=str(self.auth_url),
+            http_session=self.http_session,
+            headers=self._headers,
+            auto_refresh_token=self._auth_options.auto_refresh_token,
+            storage=self._auth_options.session_storage,
+            storage_key=self._auth_options.storage_key,
+            flow_type=self._auth_options.flow_type,
+            request_timeout=self._timeout_for(self._auth_options),
+            retry=self._retry_for(self._auth_options),
+        )
+        self._auth: SyncSupabaseAuthClient | None = auth_client
+        auth_client.on_auth_state_change(self._listen_to_auth_events)
 
     @classmethod
     def create(
@@ -808,8 +817,8 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         self.close()
 
     @override
-    def _with_headers(self, headers: Mapping[str, str]) -> Self:
-        return type(self)(
+    def _without_auth(self, headers: Mapping[str, str]) -> Self:
+        client = type(self)(
             str(self.supabase_url),
             self.supabase_key,
             _SharedHttpSession(self.http_session),
@@ -821,24 +830,14 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             storage=self._storage_options,
             functions=self._functions_options,
         )
+        client._auth = None
+        return client
 
     @property
     @override
     def auth(self) -> SyncSupabaseAuthClient:
         if self._auth is None:
-            self._check_has_auth()
-            self._auth = SyncSupabaseAuthClient(
-                url=str(self.auth_url),
-                http_session=self.http_session,
-                headers=self._headers,
-                auto_refresh_token=self._auth_options.auto_refresh_token,
-                storage=self._auth_options.session_storage,
-                storage_key=self._auth_options.storage_key,
-                flow_type=self._auth_options.flow_type,
-                request_timeout=self._timeout_for(self._auth_options),
-                retry=self._retry_for(self._auth_options),
-            )
-            self._auth.on_auth_state_change(self._listen_to_auth_events)
+            raise self._no_auth_error()
         return self._auth
 
     @cached_property
