@@ -263,7 +263,9 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         self.stop_auto_refresh()
 
     def stop_auto_refresh(self) -> None:
-        """Cancel the scheduled refresh and the refresh in flight."""
+        """Cancel the scheduled refresh and the refresh in flight, and
+        schedule no new one."""
+        self.auto_refresh_token = False
         self._cancel_refresh_timer()
         task, self._refresh_task = self._refresh_task, None
         if task is not None:
@@ -493,7 +495,9 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         self.stop_auto_refresh()
 
     def stop_auto_refresh(self) -> None:
-        """Cancel the scheduled refresh."""
+        """Cancel the scheduled refresh and schedule no new one, even from a
+        refresh that is running."""
+        self.auto_refresh_token = False
         self._cancel_refresh_timer()
 
     def __enter__(self) -> Self:

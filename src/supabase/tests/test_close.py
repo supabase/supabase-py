@@ -66,6 +66,16 @@ def test_close_stops_the_auto_refresh() -> None:
     assert client.auth.session_manager.refresh_token_timer is None
 
 
+def test_close_schedules_no_new_refresh() -> None:
+    client = supabase.httpx.create_client(URL, KEY)
+    session_manager = client.auth.session_manager
+
+    client.close()
+    session_manager._schedule_refresh(60, None)
+
+    assert session_manager.refresh_token_timer is None
+
+
 def test_close_can_be_called_twice() -> None:
     client = supabase.httpx.create_client(URL, KEY)
 
@@ -138,6 +148,16 @@ async def test_aclose_stops_the_auto_refresh() -> None:
     assert session_manager._refresh_task is None
     await asyncio.gather(refresh, return_exceptions=True)
     assert refresh.cancelled()
+
+
+async def test_aclose_schedules_no_new_refresh() -> None:
+    client = supabase.httpx.create_async_client(URL, KEY)
+    session_manager = client.auth.session_manager
+
+    await client.aclose()
+    session_manager._schedule_refresh(60, None)
+
+    assert session_manager.refresh_token_timer is None
 
 
 async def test_aclose_can_be_called_twice() -> None:
