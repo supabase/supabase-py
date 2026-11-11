@@ -26,7 +26,7 @@ If you self-host the Supabase Edge Runtime, we recommend upgrading to the latest
 Deploy your Edge Function following the [Supabase Functions documentation](https://supabase.com/docs/guides/functions).
 
 
-The client takes the URL of your functions, the headers to send, and the HTTP session it sends its requests with. Leaving the session's context manager closes it. A function that answers with an error status raises `FunctionsHttpError`, and one the relay could not reach raises `FunctionsRelayError`.
+The client takes the URL of your functions, the headers to send, and the HTTP session it sends its requests with. Leaving the session's context manager closes it. A function that answers with an error status raises `FunctionsHttpError`, and one the relay could not reach raises `FunctionsRelayError`. The publishable key goes in the `apikey` header only. For a function that verifies the JWT of the caller, also send `Authorization: Bearer <access token>` with the access token of the signed in user.
 
 ### Asynchronous Client
 
@@ -43,8 +43,7 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
 
 async def run_func() -> None:
-    key = "your-publishable-key"
-    headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+    headers = {"apikey": "your-publishable-key"}
 
     async with AsyncHttpxSession(AsyncClient(follow_redirects=True)) as session:
         functions = AsyncFunctionsClient(
@@ -73,8 +72,7 @@ from httpx import Client
 from supabase_functions import FunctionsHttpError, FunctionsRelayError, SyncFunctionsClient
 from supabase_utils.http.adapters.httpx import HttpxSession
 
-key = "your-publishable-key"
-headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+headers = {"apikey": "your-publishable-key"}
 
 with HttpxSession(Client(follow_redirects=True)) as session:
     functions = SyncFunctionsClient(
