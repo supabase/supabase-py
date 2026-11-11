@@ -82,6 +82,9 @@ def test_sets_are_frozen_and_the_policy_hashable() -> None:
     ("kwargs", "message"),
     [
         ({"max_retries": -1}, "max_retries must be a non-negative integer"),
+        ({"max_retries": 2.5}, "max_retries must be a non-negative integer"),
+        ({"max_retries": float("nan")}, "max_retries must be a non-negative integer"),
+        ({"max_retries": float("inf")}, "max_retries must be a non-negative integer"),
         ({"base_delay": -1}, "base_delay must be a non-negative number"),
         ({"base_delay": float("nan")}, "base_delay must be a non-negative number"),
         ({"base_delay": float("inf")}, "base_delay must be a non-negative number"),

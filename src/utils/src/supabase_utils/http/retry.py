@@ -116,7 +116,7 @@ class RetryPolicy:
     are retried. A retried timeout waits the `request_timeout` again."""
 
     def __post_init__(self) -> None:
-        if self.max_retries < 0:
+        if not (isinstance(self.max_retries, int) and self.max_retries >= 0):
             raise ValueError(
                 f"max_retries must be a non-negative integer, not {self.max_retries!r}"
             )
