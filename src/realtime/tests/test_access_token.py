@@ -6,7 +6,7 @@ import pytest
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
-from realtime import ChannelStates, RealtimeClient
+from realtime import ChannelStates, RealtimeChannel, RealtimeClient
 from realtime._serializer import decode, encode
 from realtime.message import Message
 from realtime.types import ChannelEvents
@@ -21,6 +21,7 @@ class RecordingServer:
         self.received: list[Message] = []
         self.join_received = asyncio.Event()
         self.access_token_received = asyncio.Event()
+        self.leave_received = asyncio.Event()
         self.release_join = asyncio.Event()
         self.release_join.set()
 
@@ -42,6 +43,8 @@ class RecordingServer:
             self.received.append(message)
             if message.event == ChannelEvents.access_token:
                 self.access_token_received.set()
+            if message.event == ChannelEvents.leave:
+                self.leave_received.set()
             if message.ref is None:
                 continue
             if message.event == ChannelEvents.join:
@@ -177,6 +180,35 @@ async def test_a_failed_send_after_the_join_is_logged(
 
     assert reply.payload.status == "ok"
     assert "could not send the new access token to realtime:room" in caplog.text
+
+
+async def test_a_subscribe_cancelled_after_the_join_leaves_the_channel(
+    server: RecordingServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = RealtimeClient(server.url, Token("token-1"))
+    sending_token = asyncio.Event()
+
+    async def wait_forever(channel: RealtimeChannel, joined_with: str | None) -> None:
+        sending_token.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(client, "_send_token_if_changed", wait_forever)
+    channel = client.channel("room")
+    subscribe = asyncio.create_task(channel.subscribe())
+
+    await sending_token.wait()
+    subscribe.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await subscribe
+    async with asyncio.timeout(1):
+        await server.leave_received.wait()
+    await client.aclose()
+
+    assert channel.state == ChannelStates.CLOSED
+    leave = next(
+        message for message in server.received if message.event == ChannelEvents.leave
+    )
+    assert leave.join_ref == channel.join_ref
 
 
 async def test_concurrent_set_auth_calls_send_the_tokens_in_order(
