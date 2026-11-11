@@ -88,10 +88,9 @@ async def test_get_claims_fetches_jwks_to_verify_asymmetric_jwt(
     assert claims.model_extra
     assert claims.model_extra["email"] == user.email
 
-    expected_keyid = "638c54b8-28c2-4b12-9598-ba12ef610a29"
-
+    assert response.headers.alg == "ES256"
     assert len(auth_client._jwks.keys) == 1
-    assert auth_client._jwks.keys[0].kid == expected_keyid
+    assert auth_client._jwks.keys[0].kid == response.headers.kid
 
 
 async def test_jwks_ttl_cache_behavior(

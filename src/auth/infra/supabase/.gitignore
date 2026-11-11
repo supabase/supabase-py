@@ -2,3 +2,4 @@
 .branches
 .temp
 .env
+signing_keys.json
