@@ -1488,6 +1488,31 @@ supporting_symbols:
   - BaseFilterRequestBuilder
   - BaseSelectRequestBuilder
   - FilterRequestBuilder
+  - ColumnExpression
+  - ColumnExpression.expression
+  - ColumnExpression.eq
+  - ColumnExpression.neq
+  - ColumnExpression.gt
+  - ColumnExpression.gte
+  - ColumnExpression.lt
+  - ColumnExpression.lte
+  - ColumnExpression.is_distinct
+  - ColumnExpression.in_
+  - ColumnExpression.text_search
+  - ColumnExpression.is_true
+  - ColumnExpression.is_false
+  - ColumnExpression.raw
+  - Column
+  - NullableColumn
+  - NullableColumn.is_null
+  - ComputedField
+  - ComputedField.expression
+  - ComputedField.is_null
+  - Filter
+  - Filter.raw
+  - Filter.comparison
+  - FilterOperator
+  - Comparison
   - APIError
   - APIError.json
   - APIErrorFromJSON

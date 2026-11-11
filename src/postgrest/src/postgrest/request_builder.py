@@ -36,6 +36,7 @@ from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .types import (
+    _TEXT_SEARCH_OPERATORS,
     CountMethod,
     Filters,
     FilterValue,
@@ -44,7 +45,7 @@ from .types import (
     ReturnMethod,
     TextSearchType,
 )
-from .utils import _sanitize_array_param, sanitize_param
+from .utils import _sanitize_array_param, _serialize_filter_value, sanitize_param
 
 if TYPE_CHECKING:
     from supabase_utils.http.retry import RetryPolicy
@@ -61,21 +62,6 @@ class QueryArgs(NamedTuple):
 def _unique_columns(json: list[JSON]) -> str:
     unique_keys = {key for row in json if isinstance(row, Mapping) for key in row}
     return ",".join([f'"{k}"' for k in unique_keys])
-
-
-def _serialize_filter_value(value: Any) -> str:
-    """Serialize a filter value into the wire format PostgREST expects.
-
-    ``None`` maps to ``null``, booleans to ``true``/``false``, and dicts/lists
-    to compact JSON, instead of the plain ``str()`` result (e.g. ``"None"``).
-    """
-    if value is None:
-        return "null"
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, separators=(",", ":"))
-    return str(value)
 
 
 def _cleaned_columns(columns: tuple[str, ...]) -> str:
@@ -256,12 +242,6 @@ def _filters_embedded_resource(key: str) -> bool:
 _SHAPES_WITHOUT_STRIP_NULLS = {
     ResponseShape.CSV: "csv()",
     ResponseShape.PLAN: "explain()",
-}
-
-_TEXT_SEARCH_OPERATORS = {
-    TextSearchType.PLAIN: Filters.PLFTS,
-    TextSearchType.PHRASE: Filters.PHFTS,
-    TextSearchType.WEB_SEARCH: Filters.WFTS,
 }
 
 

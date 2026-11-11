@@ -71,3 +71,10 @@ class TextSearchType(StrEnum):
     PLAIN = "plain"
     PHRASE = "phrase"
     WEB_SEARCH = "web_search"
+
+
+_TEXT_SEARCH_OPERATORS = {
+    TextSearchType.PLAIN: Filters.PLFTS,
+    TextSearchType.PHRASE: Filters.PHFTS,
+    TextSearchType.WEB_SEARCH: Filters.WFTS,
+}
