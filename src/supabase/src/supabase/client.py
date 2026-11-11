@@ -702,8 +702,8 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
     def realtime(self) -> RealtimeClient:
         """The realtime client, which uses the client's access token.
 
-        It connects when the first channel subscribes and closes when this
-        client exits.
+        It connects when the first channel subscribes, and disconnects when
+        its last channel is removed or this client is closed.
         """
         return RealtimeClient(
             str(self.realtime_url),
