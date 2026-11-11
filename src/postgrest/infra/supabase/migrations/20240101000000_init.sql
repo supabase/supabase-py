@@ -108,4 +108,3 @@ grant select, insert, update, delete on all tables in schema public to anon;
 grant execute on all functions in schema public to anon;
 
 alter role authenticator set pgrst.db_plan_enabled = 'true';
-notify pgrst, 'reload config';

@@ -58,7 +58,7 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
 async def main() -> None:
     async with AsyncPostgrestClient(
-        "http://localhost:3000", AsyncHttpxSession(AsyncClient())
+        "http://127.0.0.1:56321/rest/v1", AsyncHttpxSession(AsyncClient())
     ) as client:
         r = await client.from_("countries").select("*").execute()
         countries = r.data

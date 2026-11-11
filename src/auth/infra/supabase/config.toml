@@ -15,18 +15,9 @@ major_version = 17
 [db.seed]
 enabled = false
 
-[realtime]
-enabled = false
-
-[studio]
-enabled = false
-
 [local_smtp]
 enabled = true
 port = 57324
-
-[storage]
-enabled = false
 
 [auth]
 enabled = true
@@ -83,9 +74,3 @@ secret = "Sm3s8RE85rDcS36iMy8YjrpC"
 enabled = true
 authorization_url_path = "/oauth/consent"
 allow_dynamic_registration = true
-
-[edge_runtime]
-enabled = false
-
-[analytics]
-enabled = false
