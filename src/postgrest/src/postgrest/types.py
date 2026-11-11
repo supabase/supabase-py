@@ -48,15 +48,26 @@ class Mutation(StrEnum):
     DELETE = "delete"
 
 
-class RequestMethod(StrEnum):
-    GET = "GET"
-    POST = "POST"
-    PATCH = "PATCH"
-    PUT = "PUT"
-    DELETE = "DELETE"
-    HEAD = "HEAD"
+class ResponseShape(StrEnum):
+    """The shape of the response a query asks PostgREST for.
+
+    It decides the `Accept` header of the request.
+    """
+
+    ROWS = "rows"
+    SINGLE = "single"
+    CSV = "csv"
+    PLAN = "plan"
 
 
 class ReturnMethod(StrEnum):
     minimal = "minimal"
     representation = "representation"
+
+
+class TextSearchType(StrEnum):
+    """How `text_search()` parses its query into a `tsquery`."""
+
+    PLAIN = "plain"
+    PHRASE = "phrase"
+    WEB_SEARCH = "web_search"

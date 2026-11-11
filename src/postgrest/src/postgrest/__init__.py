@@ -7,8 +7,9 @@ from .types import (
     CountMethod,
     Filters,
     Mutation,
-    RequestMethod,
+    ResponseShape,
     ReturnMethod,
+    TextSearchType,
 )
 from .version import __version__
 
@@ -19,8 +20,9 @@ __all__ = [
     "CountMethod",
     "Filters",
     "Mutation",
-    "RequestMethod",
+    "ResponseShape",
     "ReturnMethod",
     "SyncPostgrestClient",
+    "TextSearchType",
     "__version__",
 ]

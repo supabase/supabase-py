@@ -172,6 +172,25 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 `update()` and `delete()` return a `MutationRequestBuilder`, a `SelectRequestBuilder` with the added `all()`. Code that spells the type needs the new name. `PostgrestRequest` carries the state as its `filter_required_by` field, a `Mutation` member or `None`.
 
+## PostgREST `text_search()` takes keyword arguments
+
+`text_search()` takes `type` and `config` as keyword arguments instead of an `options` dictionary. `type` is a `TextSearchType` member, so a misspelled type fails type checking. At runtime an unknown type raises `ValueError`, where it used to fall back to a plain `fts` search.
+
+| Before                                                                  | After                                                                        |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `text_search("content", "cat", {"type": "plain", "config": "english"})` | `text_search("content", "cat", type=TextSearchType.PLAIN, config="english")` |
+| `text_search("content", "cat", {"type": "phrase"})`                     | `text_search("content", "cat", type=TextSearchType.PHRASE)`                  |
+| `text_search("content", "cat", {"type": "web_search"})`                 | `text_search("content", "cat", type=TextSearchType.WEB_SEARCH)`              |
+| `text_search("content", "cat", {"config": "english"})`                  | `text_search("content", "cat", config="english")`                            |
+
+## PostgREST response shape and HTTP method types
+
+`single()`, `csv()` and `explain()` set the `shape` field of `PostgrestRequest`, a `ResponseShape` member, instead of the `Accept` header. The header is rendered from it when the request is sent, so `request.headers` of a builder no longer contains `Accept`. `strip_nulls()` combined with `csv()` or `explain()` raises `ValueError` as soon as the second of them is called, in either order, instead of when the request is sent.
+
+`postgrest.RequestMethod` and `storage3.types.RequestMethod` are removed. Nothing used them. Use `supabase_utils.http.request.HTTPRequestMethod`, the `Literal` every package types its requests with.
+
+`filter()` takes the operator as `Filters | str`. A `Filters` member is checked by the type checker, and a string still works for operators `Filters` does not list, such as `match`.
+
 ## Realtime heartbeat intervals are used as given
 
 `heartbeat_interval` was raised to 15 seconds when it was lower. It is now used as given, so an interval below 15 seconds sends heartbeats more often than before. To keep the old timing, pass 15 or more.

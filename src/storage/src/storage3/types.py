@@ -7,8 +7,6 @@ from pydantic import BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
 from supabase_utils.types import JSON
 
-RequestMethod = Literal["GET", "POST", "DELETE", "PUT", "HEAD"]
-
 
 class Bucket(BaseModel, extra="ignore"):
     """Represents a file storage bucket."""

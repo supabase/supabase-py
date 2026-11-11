@@ -33,7 +33,15 @@ from supabase_utils.types import JSON
 from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
-from .types import CountMethod, Filters, FilterValue, Mutation, ReturnMethod
+from .types import (
+    CountMethod,
+    Filters,
+    FilterValue,
+    Mutation,
+    ResponseShape,
+    ReturnMethod,
+    TextSearchType,
+)
 from .utils import _sanitize_array_param, sanitize_param
 
 MAX_RETRIES = 3
@@ -242,10 +250,30 @@ def _filters_embedded_resource(key: str) -> bool:
     return not key.startswith('"') and "." in key
 
 
+_SHAPES_WITHOUT_STRIP_NULLS = {
+    ResponseShape.CSV: "csv()",
+    ResponseShape.PLAN: "explain()",
+}
+
+_TEXT_SEARCH_OPERATORS = {
+    TextSearchType.PLAIN: Filters.PLFTS,
+    TextSearchType.PHRASE: Filters.PHFTS,
+    TextSearchType.WEB_SEARCH: Filters.WFTS,
+}
+
+
 @dataclass(frozen=True)
 class PostgrestRequest(JSONRequest):
     retry: bool = True
     strip_nulls: bool = False
+    shape: ResponseShape = ResponseShape.ROWS
+    """The shape of the response, which `finalize()` renders as the `Accept`
+    header. `single()`, `csv()` and `explain()` set it."""
+    plan_format: Literal["text", "json"] = "text"
+    """The format of the plan `explain()` asks for."""
+    plan_options: tuple[str, ...] = ()
+    """The PostgreSQL `EXPLAIN` options `explain()` asks for, such as
+    `analyze`."""
     filter_required_by: Mutation | None = None
     """The write that refuses to send until a filter on the table names the
     rows it affects.
@@ -255,6 +283,30 @@ class PostgrestRequest(JSONRequest):
     does `all()`. A filter on an embedded resource does not, since PostgREST
     applies it to the embedded rows only.
     """
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.strip_nulls and self.shape in _SHAPES_WITHOUT_STRIP_NULLS:
+            method = _SHAPES_WITHOUT_STRIP_NULLS[self.shape]
+            raise ValueError(f"strip_nulls() cannot be used with {method}")
+
+    def _accept(self) -> str | None:
+        match self.shape:
+            case ResponseShape.ROWS:
+                if self.strip_nulls:
+                    return "application/vnd.pgrst.array+json;nulls=stripped"
+                return None
+            case ResponseShape.SINGLE:
+                if self.strip_nulls:
+                    return "application/vnd.pgrst.object+json;nulls=stripped"
+                return "application/vnd.pgrst.object+json"
+            case ResponseShape.CSV:
+                return "text/csv"
+            case ResponseShape.PLAN:
+                options = "|".join(self.plan_options)
+                return (
+                    f"application/vnd.pgrst.plan+{self.plan_format}; options={options}"
+                )
 
     @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
@@ -266,18 +318,9 @@ class PostgrestRequest(JSONRequest):
                 "it without a filter on purpose."
             )
         request = super().finalize(base_url, default_headers)
-        if self.strip_nulls:
-            accept = request.headers.get("Accept")
-            if accept == "application/vnd.pgrst.object+json":
-                request.headers = request.headers.override(
-                    "Accept", f"{accept};nulls=stripped"
-                )
-            elif accept in (None, "application/json"):
-                request.headers = request.headers.override(
-                    "Accept", "application/vnd.pgrst.array+json;nulls=stripped"
-                )
-            else:
-                raise ValueError(f"strip_nulls() cannot be used with Accept: {accept}")
+        accept = self._accept()
+        if accept is not None:
+            request.headers = request.headers.override("Accept", accept)
         return request
 
 
@@ -291,12 +334,13 @@ class BaseFilterRequestBuilder:
         """A copy of this query that negates the filter applied next."""
         return replace(self, negate_next=True)
 
-    def filter(self: Self, column: str, operator: str, criteria: Any) -> Self:
+    def filter(self: Self, column: str, operator: Filters | str, criteria: Any) -> Self:
         """Apply filters on a query.
 
         Args:
             column: The name of the column to apply a filter on
-            operator: The operator to use while filtering
+            operator: The operator to use while filtering. A `Filters` member,
+                or a string for an operator it does not list, such as `match`
             criteria: The value to filter by
         """
         if self.negate_next:
@@ -602,10 +646,9 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
     def strip_nulls(self: Self) -> Self:
         """Strip null values from the response data.
 
-        Only available in PostgREST v11.2+.
+        Only available in PostgREST v11.2+. It cannot be combined with
+        `csv()` or `explain()`, and raises `ValueError` when it is.
         """
-        if self.request.headers.get("Accept") == "text/csv":
-            raise ValueError("strip_nulls() cannot be used with Accept: text/csv")
         return replace(self, request=replace(self.request, strip_nulls=True))
 
     def limit(self: Self, size: int, *, foreign_table: str | None = None) -> Self:
@@ -662,8 +705,8 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
 
     def csv(self) -> Self:
         """Specify that the query must retrieve data as a single CSV string."""
-        headers = self.request.headers.set("Accept", "text/csv")
-        return replace(self, request=replace(self.request, headers=headers))
+        request = replace(self.request, shape=ResponseShape.CSV)
+        return replace(self, request=request)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -747,14 +790,11 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        headers = self.request.headers.set(
-            "Accept", "application/vnd.pgrst.object+json"
-        )
         return SingleRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
-            request=replace(self.request, headers=headers),
+            request=replace(self.request, shape=ResponseShape.SINGLE),
         )
 
     def maybe_single(self) -> MaybeSingleRequestBuilder[HttpIO]:
@@ -768,12 +808,11 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
 
     def csv(self) -> TextRequestBuilder[HttpIO]:
         """Specify that the query must retrieve data as a single CSV string."""
-        headers = self.request.headers.set("Accept", "text/csv")
         return TextRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
-            request=replace(self.request, headers=headers),
+            request=replace(self.request, shape=ResponseShape.CSV),
         )
 
     @overload
@@ -813,16 +852,19 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
         wal: bool = False,
         format: Literal["text", "json"] = "text",
     ) -> ExplainRequestBuilder[HttpIO] | QueryRequestBuilder[HttpIO]:
-        options = [
-            key
-            for key, value in locals().items()
-            if key not in ["self", "format"] and value
-        ]
-        options_str = "|".join(options)
-        headers = self.request.headers.set(
-            "Accept", f"application/vnd.pgrst.plan+{format}; options={options_str}"
+        flags = {
+            "analyze": analyze,
+            "verbose": verbose,
+            "settings": settings,
+            "buffers": buffers,
+            "wal": wal,
+        }
+        request = replace(
+            self.request,
+            shape=ResponseShape.PLAN,
+            plan_format=format,
+            plan_options=tuple(option for option, enabled in flags.items() if enabled),
         )
-        request = replace(self.request, headers=headers)
         if format == "text":
             return ExplainRequestBuilder(
                 executor=self.executor,
@@ -966,14 +1008,11 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         .. caution::
             The API will raise an error if the query returned more than one row.
         """
-        headers = self.request.headers.set(
-            "Accept", "application/vnd.pgrst.object+json"
-        )
         return SingleRequestBuilder(
             executor=self.executor,
             base_url=self.base_url,
             default_headers=self.default_headers,
-            request=replace(self.request, headers=headers),
+            request=replace(self.request, shape=ResponseShape.SINGLE),
         )
 
     def maybe_single(self) -> MaybeSingleRequestBuilder[HttpIO]:
@@ -1037,20 +1076,28 @@ class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     QueryRequestBuilder[HttpIO], BaseSelectRequestBuilder
 ):
     def text_search(
-        self: Self, column: str, query: str, options: dict[str, Any] | None = None
+        self: Self,
+        column: str,
+        query: str,
+        *,
+        type: TextSearchType | None = None,
+        config: str | None = None,
     ) -> Self:
-        if options is None:
-            options = {}
-        type_ = options.get("type")
-        type_part = ""
-        if type_ == "plain":
-            type_part = "pl"
-        elif type_ == "phrase":
-            type_part = "ph"
-        elif type_ == "web_search":
-            type_part = "w"
-        config_part = f"({options.get('config')})" if options.get("config") else ""
-        return self.filter(column, f"{type_part}fts{config_part}", query)
+        """A full text search filter.
+
+        Args:
+            column: The name of the column to search
+            query: The text search query
+            type: How PostgreSQL parses `query`. Without it, `query` is
+                parsed by `to_tsquery`
+            config: The text search configuration to use, such as `english`
+        """
+        operator: str = Filters.FTS
+        if type is not None:
+            operator = _TEXT_SEARCH_OPERATORS[TextSearchType(type)]
+        if config:
+            operator = f"{operator}({config})"
+        return self.filter(column, operator, query)
 
 
 @dataclass(frozen=True, kw_only=True)
