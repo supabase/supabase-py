@@ -164,7 +164,7 @@ response = supabase.auth.sign_in_with_password(
 
 ### Complete a sign-in after a redirect
 
-With the default PKCE flow, OAuth, SSO, magic link and password reset sign-ins redirect to your app with a `code` that `exchange_code_for_session` turns into a session. Several of these flows can be pending at once, for example in two tabs. With `append_flow_id_to_redirects`, every redirect URL also gets a `sb_flow_id` query parameter that tells the callback which flow it completes. Allow the parameter in the redirect URL allow list of your project first, for example with `https://example.com/callback**`, since an entry without a wildcard no longer matches the URL.
+With the default PKCE flow, OAuth, SSO, magic link and password reset sign-ins redirect to your app with a `code` that `exchange_code_for_session` turns into a session. Several of these flows can be pending at once, for example in two tabs. With `append_flow_id_to_redirects`, every redirect URL you pass, such as `redirect_to` or `email_redirect_to`, also gets a `sb_flow_id` query parameter that tells the callback which flow it completes. Allow the parameter in the redirect URL allow list of your project first, for example with `https://example.com/callback**`, since an entry without a wildcard no longer matches the URL.
 
 ```python
 import os

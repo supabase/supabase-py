@@ -292,25 +292,18 @@ async def test_autoconfirmed_email_sign_up_removes_verifier() -> None:
     assert await stored_verifier(client) is None
 
 
-async def test_failed_exchange_removes_stored_verifier() -> None:
+async def test_failed_exchange_keeps_stored_verifier() -> None:
     def handler(request: Request) -> Response:
         return Response(400, json={"code": "bad_code", "msg": "invalid code"})
 
-    client = AsyncSupabaseAuthClient(
-        url="https://example.supabase.co/auth/v1",
-        http_session=AsyncHttpxSession(
-            client=AsyncClient(transport=MockTransport(handler))
-        ),
-        auto_refresh_token=False,
-        flow_type="pkce",
-    )
+    client = client_with_handler(handler)
     await client.session_manager.storage.set_item(
         legacy_verifier_key(client), "verifier"
     )
     with pytest.raises(AuthError):
         await client.exchange_code_for_session("auth-code")
 
-    assert await legacy_verifier(client) is None
+    assert await legacy_verifier(client) == "verifier"
 
 
 async def test_sign_out_removes_stored_verifier() -> None:
@@ -512,26 +505,19 @@ async def test_flow_index_ignores_invalid_entries() -> None:
     assert await pending_flows(client) == [second]
 
 
-async def test_failed_exchange_with_flow_id_removes_its_verifier() -> None:
+async def test_failed_exchange_keeps_pending_flows() -> None:
     def handler(request: Request) -> Response:
         return Response(400, json={"code": "bad_code", "msg": "invalid code"})
 
-    client = AsyncSupabaseAuthClient(
-        url="https://example.supabase.co/auth/v1",
-        http_session=AsyncHttpxSession(
-            client=AsyncClient(transport=MockTransport(handler))
-        ),
-        auto_refresh_token=False,
-        flow_type="pkce",
-    )
+    client = client_with_handler(handler)
     first = await start_oauth_flow(client)
     second = await start_oauth_flow(client)
     with pytest.raises(AuthError):
-        await client.exchange_code_for_session("auth-code", flow_id=second)
+        await client.exchange_code_for_session("first-code")
+    with pytest.raises(AuthError):
+        await client.exchange_code_for_session("second-code", flow_id=second)
 
-    assert await flow_verifier(client, second) is None
-    assert await pending_flows(client) == [first]
-    assert await stored_verifier(client) == await flow_verifier(client, first)
+    assert await pending_flows(client) == [first, second]
 
 
 async def test_sign_out_removes_all_flows() -> None:

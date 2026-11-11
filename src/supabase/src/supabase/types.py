@@ -70,7 +70,7 @@ class AuthClientOptions[Storage: (AsyncSupportedStorage, SyncSupportedStorage)](
     """The flow type to use for authentication."""
 
     append_flow_id_to_redirects: bool = False
-    """Adds the id of each PKCE flow to its redirect URL as the `sb_flow_id` query parameter, for the callback to pass to `exchange_code_for_session(code, flow_id=...)`. That way the callback completes the flow that sent the user there, even when several flows are pending, including flows that are completed from an email link. Allow the parameter in the redirect URL allow list first: an entry without a wildcard no longer matches the URL, and the auth service then redirects to the Site URL instead."""
+    """Adds the id of each PKCE flow to the redirect URL it is given, such as `redirect_to` or `email_redirect_to`, as the `sb_flow_id` query parameter, for the callback to pass to `exchange_code_for_session(code, flow_id=...)`. That way the callback completes the flow that sent the user there, even when several flows are pending, including flows that are completed from an email link. Allow the parameter in the redirect URL allow list first: an entry without a wildcard no longer matches the URL, and the auth service then redirects to the Site URL instead."""
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -949,8 +949,10 @@ class AsyncSupabaseAuthClient(
         `append_flow_id_to_redirects` it is also the `sb_flow_id` query
         parameter of the redirect URL. Pass it when several flows can be
         pending at once, such as sign-ins in two tabs. Without it, the most
-        recently started flow that is still pending is used. Up to 5 flows are
-        kept pending, so starting a sixth forgets the oldest.
+        recently started flow that is still pending is used. A flow stays
+        pending until its code is exchanged, so a failed exchange can be
+        retried. Up to 5 flows are kept pending, so starting a sixth forgets
+        the oldest.
 
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
@@ -966,12 +968,10 @@ class AsyncSupabaseAuthClient(
             )
         else:
             pending_flow_id, verifier = await self._pending_code_verifier(flow_id)
-            try:
-                auth_response = await self._exchange_code_for_session(
-                    verifier, auth_code, redirect_to
-                )
-            finally:
-                await self._remove_pkce_flow(pending_flow_id)
+            auth_response = await self._exchange_code_for_session(
+                verifier, auth_code, redirect_to
+            )
+            await self._remove_pkce_flow(pending_flow_id)
         await self._save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -1477,8 +1477,10 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         `append_flow_id_to_redirects` it is also the `sb_flow_id` query
         parameter of the redirect URL. Pass it when several flows can be
         pending at once, such as sign-ins in two tabs. Without it, the most
-        recently started flow that is still pending is used. Up to 5 flows are
-        kept pending, so starting a sixth forgets the oldest.
+        recently started flow that is still pending is used. A flow stays
+        pending until its code is exchanged, so a failed exchange can be
+        retried. Up to 5 flows are kept pending, so starting a sixth forgets
+        the oldest.
 
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
@@ -1494,12 +1496,10 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             )
         else:
             pending_flow_id, verifier = self._pending_code_verifier(flow_id)
-            try:
-                auth_response = self._exchange_code_for_session(
-                    verifier, auth_code, redirect_to
-                )
-            finally:
-                self._remove_pkce_flow(pending_flow_id)
+            auth_response = self._exchange_code_for_session(
+                verifier, auth_code, redirect_to
+            )
+            self._remove_pkce_flow(pending_flow_id)
         self._save_session_and_sign_in(auth_response)
         return auth_response
 
