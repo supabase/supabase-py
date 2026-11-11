@@ -1432,12 +1432,14 @@ supporting_symbols:
   - AsyncClient.storage
   - AsyncClient.functions
   - AsyncClient.realtime
+  - AsyncClient.aclose
   - Client
   - Client.create
   - Client.auth
   - Client.postgrest
   - Client.storage
   - Client.functions
+  - Client.close
   - AuthClientOptions
   - StorageClientOptions
   - SupabaseException

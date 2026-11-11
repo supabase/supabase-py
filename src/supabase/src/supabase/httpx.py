@@ -32,19 +32,20 @@ def create_client(
 ) -> Client:
     """Create a sync client that sends its requests with httpx.
 
-    `http_client` defaults to a new httpx client. See `Client` for the other
-    arguments.
+    `http_client` defaults to a new httpx client, which is closed with the
+    client. An `http_client` passed in is left open. See `Client` for the
+    other arguments.
     """
     validate_request_timeout(request_timeout)
-    client = http_client or SyncHttpxClient(
+    httpx_client = http_client or SyncHttpxClient(
         http2=True,
         verify=True,
         follow_redirects=True,
     )
-    return Client(
+    client = Client(
         supabase_url,
         supabase_key,
-        HttpxSession(client=client),
+        HttpxSession(client=httpx_client),
         headers=headers,
         request_timeout=request_timeout,
         retry=retry,
@@ -53,6 +54,8 @@ def create_client(
         storage=storage,
         functions=functions,
     )
+    client._owns_http_session = http_client is None
+    return client
 
 
 def create_async_client(
@@ -71,19 +74,20 @@ def create_async_client(
 ) -> AsyncClient:
     """Create an async client that sends its requests with httpx.
 
-    `http_client` defaults to a new httpx client. See `AsyncClient` for the
+    `http_client` defaults to a new httpx client, which is closed with the
+    client. An `http_client` passed in is left open. See `AsyncClient` for the
     other arguments.
     """
     validate_request_timeout(request_timeout)
-    client = http_client or AsyncHttpxClient(
+    httpx_client = http_client or AsyncHttpxClient(
         http2=True,
         verify=True,
         follow_redirects=True,
     )
-    return AsyncClient(
+    client = AsyncClient(
         supabase_url,
         supabase_key,
-        AsyncHttpxSession(client=client),
+        AsyncHttpxSession(client=httpx_client),
         headers=headers,
         request_timeout=request_timeout,
         retry=retry,
@@ -93,3 +97,5 @@ def create_async_client(
         functions=functions,
         realtime=realtime,
     )
+    client._owns_http_session = http_client is None
+    return client
