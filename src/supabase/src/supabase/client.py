@@ -448,10 +448,12 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
     ) -> None:
         """Instantiate the client.
 
-        `http_session` sends the requests and `realtime` configures the
-        realtime connections. See `SupabaseClient` for the other arguments.
+        `http_session` sends the requests and stays open when the client is
+        closed. `realtime` configures the realtime connections. See
+        `SupabaseClient` for the other arguments.
         """
         self.http_session = http_session
+        self._owns_http_session = False
         self._realtime_options = realtime or RealtimeClientOptions()
         super().__init__(
             supabase_url,
@@ -511,6 +513,17 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
 
         return client
 
+    async def aclose(self) -> None:
+        """Stop the auth auto-refresh and close the HTTP session the client created.
+
+        A session passed in by the caller is left open, as are the realtime
+        connections opened from `realtime`, which close when their
+        `async with` block ends. Closing the client more than once is safe.
+        """
+        self.auth.session_manager.stop_auto_refresh()
+        if self._owns_http_session:
+            await self.http_session.__aexit__(None, None, None)
+
     async def __aenter__(self) -> Self:
         return self
 
@@ -520,7 +533,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        await self.http_session.__aexit__(exc_type, exc, tb)
+        await self.aclose()
 
     @cached_property
     @override
@@ -611,10 +624,11 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
     ) -> None:
         """Instantiate the client.
 
-        `http_session` sends the requests. See `SupabaseClient` for the other
-        arguments.
+        `http_session` sends the requests and stays open when the client is
+        closed. See `SupabaseClient` for the other arguments.
         """
         self.http_session = http_session
+        self._owns_http_session = False
         super().__init__(
             supabase_url,
             supabase_key,
@@ -668,6 +682,16 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
 
         return client
 
+    def close(self) -> None:
+        """Stop the auth auto-refresh and close the HTTP session the client created.
+
+        A session passed in by the caller is left open. Closing the client
+        more than once is safe.
+        """
+        self.auth.session_manager.stop_auto_refresh()
+        if self._owns_http_session:
+            self.http_session.__exit__(None, None, None)
+
     def __enter__(self) -> Self:
         return self
 
@@ -677,7 +701,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        self.http_session.__exit__(exc_type, exc, tb)
+        self.close()
 
     @cached_property
     @override

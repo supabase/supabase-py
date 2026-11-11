@@ -260,6 +260,10 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
+        self.stop_auto_refresh()
+
+    def stop_auto_refresh(self) -> None:
+        """Cancel the scheduled refresh and the refresh in flight."""
         self._cancel_refresh_timer()
         task, self._refresh_task = self._refresh_task, None
         if task is not None:
@@ -486,6 +490,10 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
+        self.stop_auto_refresh()
+
+    def stop_auto_refresh(self) -> None:
+        """Cancel the scheduled refresh."""
         self._cancel_refresh_timer()
 
     def __enter__(self) -> Self:

@@ -32,15 +32,15 @@ def create_async_client(
 ) -> AsyncClient:
     """Create an async client that sends its requests with aiohttp.
 
-    `http_client` defaults to a new aiohttp client. See `AsyncClient` for the
+    `http_client` defaults to a new aiohttp client, which is closed with the
+    client. An `http_client` passed in is left open. See `AsyncClient` for the
     other arguments.
     """
     validate_request_timeout(request_timeout)
-    client = http_client or ClientSession()
-    return AsyncClient(
+    client = AsyncClient(
         supabase_url,
         supabase_key,
-        AsyncAiohttpSession(client=client),
+        AsyncAiohttpSession(client=http_client or ClientSession()),
         headers=headers,
         request_timeout=request_timeout,
         retry=retry,
@@ -50,3 +50,5 @@ def create_async_client(
         functions=functions,
         realtime=realtime,
     )
+    client._owns_http_session = http_client is None
+    return client

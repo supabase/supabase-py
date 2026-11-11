@@ -306,7 +306,7 @@ The response errors inherit both from the root of their package and from `Supaba
 
 ## Closing the client
 
-The client keeps its HTTP connections open. Use it as a context manager to close them when you are done:
+The client keeps its HTTP connections open and refreshes the session in the background. Use it as a context manager, or call `close()`, to stop the refresh and close the connections when you are done:
 
 ```python
 import os
@@ -317,4 +317,4 @@ with create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]) as su
     data = supabase.table("countries").select("*").execute()
 ```
 
-`AsyncClient` works the same way with `async with`.
+`AsyncClient` works the same way with `async with` or `await supabase.aclose()`. Closing the client closes the HTTP client that `create_client` created, but not an `http_client` you passed in, which stays yours to close. Realtime connections close when their own `async with` block ends.
