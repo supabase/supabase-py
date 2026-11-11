@@ -200,6 +200,7 @@ class RealtimeChannel:
         self.presence: RealtimePresence = RealtimePresence()
         self.state = ChannelStates.CLOSED
         self.join_ref: str | None = None
+        self._subscribe_attempt: object | None = None
         self.message_stream: asyncio.Queue[Message] = asyncio.Queue()
         self.broadcast_endpoint_url = self._broadcast_endpoint_url()
 
@@ -216,11 +217,20 @@ class RealtimeChannel:
             await self.unsubscribe()
 
     async def subscribe(self) -> ReplyMessage:
-        owner = self.socket.channels.setdefault(self.topic, self)
-        if owner is not self:
-            raise ValueError(
-                f"another channel is already registered for {self.topic!r}"
-            )
+        """
+        Join the channel, connecting the client first if it is not connected.
+
+        :raises RealtimeError: If the server rejects the join, or if
+            `unsubscribe()` or `RealtimeClient.aclose()` is called before the
+            join completes.
+        """
+        attempt = object()
+        self._subscribe_attempt = attempt
+        self._raise_if_topic_is_taken()
+        await self.socket.connect()
+        self._raise_if_join_was_stopped(attempt)
+        self._raise_if_topic_is_taken()
+        self.socket.channels[self.topic] = self
         while not self.message_stream.empty():
             self.message_stream.get_nowait()
         options = self.options
@@ -235,21 +245,67 @@ class RealtimeChannel:
             ref=join_ref,
             join_ref=join_ref,
         )
-        msg = await self.socket._send(message)
+        self.join_ref = join_ref
+        self.state = ChannelStates.JOINING
+        failure = self.socket._connection_failure
+        try:
+            msg = await self.socket._send(message)
+        except asyncio.CancelledError:
+            self.state = ChannelStates.CLOSED
+            if self._subscribe_attempt is attempt:
+                self._subscribe_attempt = None
+                await self._leave_cancelled_join(join_ref, failure)
+            raise
+        except Exception:
+            self.state = ChannelStates.CLOSED
+            self._raise_if_join_was_stopped(attempt)
+            raise
         logger.info("Subscribe reply: %r", msg)
+        self._raise_if_join_was_stopped(attempt)
         if msg.payload.status != "ok":
+            self.state = ChannelStates.CLOSED
             raise RealtimeError(
                 f"error while subscribing to channel: {msg.payload.response!r}"
             )
-        self.join_ref = join_ref
         self.state = ChannelStates.JOINED
         return msg
+
+    def _raise_if_join_was_stopped(self, attempt: object) -> None:
+        if self._subscribe_attempt is not attempt:
+            raise RealtimeError(
+                f"the join of channel {self.topic!r} was stopped by unsubscribe() "
+                "or a closed connection before it completed"
+            )
+
+    async def _leave_cancelled_join(
+        self, join_ref: str, failure: asyncio.Future[Message] | None
+    ) -> None:
+        if self.socket._connection_failure is not failure:
+            return
+        leave = Message(
+            topic=self.topic,
+            event=ChannelEvents.leave,
+            ref=self.socket._make_ref(),
+            join_ref=join_ref,
+            payload={},
+        )
+        with contextlib.suppress(Exception):
+            await self.socket._send_no_wait(leave)
+
+    def _raise_if_topic_is_taken(self) -> None:
+        if self.socket.channels.get(self.topic, self) is not self:
+            raise ValueError(
+                f"another channel is already registered for {self.topic!r}"
+            )
 
     @property
     async def messages(self) -> AsyncIterator[ChannelMessage]:
         while True:
-            get_task = asyncio.create_task(self.message_stream.get())
-            message = await self.socket._get_message_or_raise(get_task)
+            if self.message_stream.empty():
+                get_task = asyncio.create_task(self.message_stream.get())
+                message = await self.socket._get_message_or_raise(get_task)
+            else:
+                message = self.message_stream.get_nowait()
             server_message = ServerMessageAdapter.validate_python(message)
             if isinstance(server_message, PresenceStateMessage):
                 for presence_event in self.presence._on_state_event(
@@ -265,10 +321,13 @@ class RealtimeChannel:
                 yield server_message
 
     async def unsubscribe(self) -> None:
+        self._subscribe_attempt = None
+        needs_leave = self.state in (ChannelStates.JOINED, ChannelStates.JOINING)
         self.state = ChannelStates.LEAVING
         self.socket._remove_channel(self)
         try:
-            await self._send_event(ChannelEvents.leave, payload={})
+            if needs_leave:
+                await self._send_event(ChannelEvents.leave, payload={})
         finally:
             self.state = ChannelStates.CLOSED
             self.message_stream.put_nowait(
@@ -280,6 +339,7 @@ class RealtimeChannel:
                     join_ref=self.join_ref,
                 )
             )
+            await self.socket._close_if_unused()
 
     # Presence methods
     async def track(self, user_status: dict[str, Any]) -> ReplyMessage:

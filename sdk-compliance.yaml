@@ -861,14 +861,13 @@ features:
 
   realtime.client.connect:
     status: implemented
-    note: "connect_once(url, ...) is awaitable and an async context manager that opens the connection and returns a RealtimeClient; automatically_reconnect wraps it with reconnection."
+    note: "RealtimeClient connects when the first channel subscribes, or when connect() is called, and reuses that connection for every channel until the last channel is removed. AsyncClient.realtime is one RealtimeClient per supabase client, closed when the supabase client exits. connect_once(url, ...) is awaitable and an async context manager that connects a RealtimeClient and closes it on exit; automatically_reconnect wraps it with reconnection."
     symbols:
+      - RealtimeClient.connect
       - connect_once
       - automatically_reconnect
     supporting_symbols:
       - RealtimeClient
-      - RealtimeClient.listen
-      - RealtimeClient.heartbeat
       - RealtimeClient.endpoint_url
       - normalize_url
       - MaxRetriesExceeded

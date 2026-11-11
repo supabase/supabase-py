@@ -99,5 +99,5 @@ def test_connect_once_accepts_fractional_heartbeat_durations() -> None:
         "http://localhost", heartbeat_interval=2.5, heartbeat_timeout=0.5
     )
 
-    assert connection.heartbeat_interval == 2.5
-    assert connection.heartbeat_timeout == 0.5
+    assert connection.client.heartbeat_interval == 2.5
+    assert connection.client.heartbeat_timeout == 0.5

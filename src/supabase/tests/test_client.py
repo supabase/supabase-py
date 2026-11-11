@@ -5,6 +5,7 @@ import httpx
 import pytest
 from httpx import AsyncClient as AsyncHttpxClient
 from httpx import Client as SyncHttpxClient
+from realtime import RealtimeClient
 from supabase_auth import (
     AsyncMemoryStorage,
     AsyncSupabaseAuthClient,
@@ -106,10 +107,66 @@ async def test_async_client_passes_realtime_options_to_connections() -> None:
             realtime=RealtimeClientOptions(heartbeat_interval=30, heartbeat_timeout=10),
         )
 
-    connection = client.realtime
+    assert client.realtime.heartbeat_interval == 30
+    assert client.realtime.heartbeat_timeout == 10
 
-    assert connection.heartbeat_interval == 30
-    assert connection.heartbeat_timeout == 10
+
+async def test_async_client_reuses_one_realtime_client() -> None:
+    async with AsyncHttpxClient() as http_client:
+        client = AsyncClient(URL, KEY, AsyncHttpxSession(client=http_client))
+
+    channel = client.realtime.channel("room")
+
+    assert client.realtime is client.realtime
+    assert client.realtime.get_channels() == [channel]
+
+
+async def test_async_client_closes_realtime_on_exit() -> None:
+    with patch.object(RealtimeClient, "aclose", AsyncMock()) as close:
+        async with AsyncClient(
+            URL, KEY, AsyncHttpxSession(client=AsyncHttpxClient())
+        ) as client:
+            client.realtime.channel("room")
+
+    close.assert_awaited_once()
+
+
+async def test_with_token_client_has_its_own_realtime_client() -> None:
+    async with AsyncHttpxClient() as http_client:
+        client = AsyncClient(URL, KEY, AsyncHttpxSession(client=http_client))
+        channel = client.realtime.channel("room")
+
+        with patch.object(RealtimeClient, "aclose", AsyncMock()) as close:
+            async with client.with_token("user-jwt") as scoped:
+                assert scoped.realtime is not client.realtime
+
+        close.assert_awaited_once()
+        assert client.realtime.get_channels() == [channel]
+
+
+async def test_async_client_does_not_create_realtime_on_exit() -> None:
+    async with AsyncClient(
+        URL, KEY, AsyncHttpxSession(client=AsyncHttpxClient())
+    ) as client:
+        pass
+
+    assert "realtime" not in client.__dict__
+
+
+async def test_async_client_closes_the_http_session_when_realtime_close_fails() -> None:
+    client = supabase.httpx.create_async_client(URL, KEY)
+    assert isinstance(client.http_session, AsyncHttpxSession)
+    client.realtime.channel("room")
+
+    with (
+        patch.object(
+            RealtimeClient, "aclose", AsyncMock(side_effect=OSError("socket closed"))
+        ),
+        pytest.raises(OSError, match="socket closed"),
+    ):
+        await client.aclose()
+
+    assert client.http_session.client.is_closed
 
 
 def test_sync_create_does_not_replace_a_lowercase_authorization_header() -> None:

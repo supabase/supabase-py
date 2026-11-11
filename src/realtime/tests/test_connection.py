@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import os
 from collections.abc import AsyncIterator
+from typing import override
 from unittest.mock import AsyncMock
 
 import aiohttp
@@ -11,7 +12,9 @@ from pydantic import BaseModel
 from yarl import URL
 
 from realtime import (
+    ChannelStates,
     RealtimeClient,
+    RealtimeError,
     RealtimePostgresChangesListenEvent,
 )
 from realtime._serializer import decode
@@ -428,6 +431,18 @@ def test_broadcast_replication_ready_is_forwarded_only_when_set() -> None:
     assert "replication_ready" not in disabled_payload["config"]["broadcast"]
 
 
+class FakeConnectionClient(RealtimeClient):
+    def __init__(self, ws: AsyncMock) -> None:
+        super().__init__("ws://localhost/realtime/v1")
+        self.fake_ws = ws
+
+    @override
+    async def connect(self) -> None:
+        if not self._is_connected():
+            self._ws_connection = self.fake_ws
+            self._connection_failure = asyncio.get_running_loop().create_future()
+
+
 def fake_client() -> tuple[RealtimeClient, list[Message]]:
     """A client over a mocked websocket that acks every message carrying a ref.
 
@@ -435,7 +450,7 @@ def fake_client() -> tuple[RealtimeClient, list[Message]]:
     """
     sent: list[Message] = []
     ws = AsyncMock()
-    client = RealtimeClient(URL("ws://localhost/realtime/v1"), ws)
+    client = FakeConnectionClient(ws)
 
     async def send(frame: str | bytes) -> None:
         message = decode(frame)
@@ -558,6 +573,19 @@ async def test_resubscribing_the_same_channel_keeps_receiving() -> None:
 
     assert client.channels["realtime:room"] is channel
     assert channel.message_stream.empty()
+
+
+async def test_aclose_with_a_join_reply_not_yet_handled_stops_the_join() -> None:
+    client, _ = fake_client()
+    channel = client.channel("room")
+    join = asyncio.create_task(channel.subscribe())
+    await asyncio.sleep(0)
+
+    await client.aclose()
+
+    with pytest.raises(RealtimeError, match="was stopped"):
+        await join
+    assert channel.state == ChannelStates.CLOSED
 
 
 async def test_subscribe_does_not_store_the_token_in_shared_options() -> None:

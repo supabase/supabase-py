@@ -7,9 +7,9 @@ Abbreviated and contracted public names are spelled out. Wire formats do not cha
 | Package              | Before                                                           | After                                                                                 |
 | -------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `realtime`           | `connect_once(hb_interval=..., hb_timeout=...)`                  | `connect_once(heartbeat_interval=..., heartbeat_timeout=...)`                         |
-| `realtime`           | `RealtimeClient(ws_connection, hb_interval=..., hb_timeout=...)` | `RealtimeClient(websocket_connection, heartbeat_interval=..., heartbeat_timeout=...)` |
+| `realtime`           | `RealtimeClient(ws_connection, hb_interval=..., hb_timeout=...)` | `RealtimeClient(url, token_callback, heartbeat_interval=..., heartbeat_timeout=...)`  |
 | `realtime`           | `RealtimeClient.hb_interval`                                     | `RealtimeClient.heartbeat_interval`                                                   |
-| `realtime`           | `connect_once.ws`                                                | `connect_once.websocket`                                                              |
+| `realtime`           | `connect_once.ws`                                                | Removed, `connect_once.client` holds the connected `RealtimeClient`                   |
 | `realtime`           | `RealtimeClient.channel(topic, params=...)`                      | `RealtimeClient.channel(topic, options=...)`                                          |
 | `realtime`           | `RealtimeChannel(socket, topic, params=...)`                     | `RealtimeChannel(socket, topic, options=...)`                                         |
 | `realtime`           | `RealtimeChannel.params`                                         | `RealtimeChannel.options`                                                             |
@@ -199,6 +199,18 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 `heartbeat_interval` was raised to 15 seconds when it was lower. It is now used as given, so an interval below 15 seconds sends heartbeats more often than before. To keep the old timing, pass 15 or more.
 
 `heartbeat_interval` and `heartbeat_timeout` are typed `float` and are in seconds. `connect_once`, `RealtimeClient` and `RealtimeClientOptions` raise `ValueError` when either one is not positive.
+
+## Realtime clients connect on the first subscribe
+
+`RealtimeClient` takes the realtime URL and a token callback instead of an open connection. It connects when the first channel subscribes, or when `connect()` is called, and every channel of the client shares that connection. The connection is closed when the last channel is unsubscribed or removed, so a client with no channels holds no connection. `aclose()` closes it too and leaves the channels unsubscribed. Subscribing again opens a new connection, which also replaces a connection that was lost.
+
+Messages queued on a channel, like the close message of `unsubscribe()`, can still be read from `channel.messages` after the connection is closed. Reading past them raises `NotConnectedError` instead of waiting.
+
+`AsyncClient.realtime` returns the same `RealtimeClient` every time, so channels made through it are visible to each other. It is closed by `AsyncClient.aclose()` and when the `AsyncClient` exits. Before, every read of `AsyncClient.realtime` returned a new `connect_once` that opened its own connection.
+
+`connect_once` keeps the client it connects in `connect_once.client`. The `websocket`, `listen_task` and `heartbeat_task` attributes are removed.
+
+`unsubscribe()` on a channel that is not joined, for example after `aclose()`, removes the channel without sending a leave message.
 
 ## Realtime `close()` is `aclose()`
 

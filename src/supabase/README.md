@@ -279,6 +279,25 @@ new_file_path: str = "important/revenue.png"
 data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 ```
 
+### Listen to realtime messages
+
+`AsyncClient.realtime` is one realtime client per `AsyncClient`. It connects when the first channel subscribes, all its channels share that connection, and the connection is closed when the last channel is unsubscribed or the `AsyncClient` exits. A client that never subscribes opens no connection. The sync `Client` has no realtime client.
+
+```python
+import os
+
+from realtime import BroadcastMessage
+from supabase.httpx import create_async_client
+
+async with create_async_client(
+    os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]
+) as async_supabase:
+    async with async_supabase.realtime.channel("room") as channel:
+        async for message in channel.messages:
+            if isinstance(message, BroadcastMessage):
+                print(message.payload)
+```
+
 ## Error handling
 
 Every exception the client raises inherits from `SupabaseError`, so one clause catches them all:
@@ -339,4 +358,4 @@ with create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]) as su
     data = supabase.table("countries").select("*").execute()
 ```
 
-`AsyncClient` works the same way with `async with` or `await supabase.aclose()`. Closing the client closes the HTTP client that `create_client` created, but not an `http_client` you passed in, which stays yours to close. Realtime connections close when their own `async with` block ends.
+`AsyncClient` works the same way with `async with` or `await supabase.aclose()`. Closing the client closes the HTTP client that `create_client` created, but not an `http_client` you passed in, which stays yours to close. It also closes the realtime connection of `AsyncClient.realtime`.
