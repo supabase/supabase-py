@@ -281,7 +281,7 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 
 ### Listen to realtime messages
 
-`AsyncClient.realtime` is one realtime client per `AsyncClient`. It connects when the first channel subscribes, all its channels share that connection, and the connection is closed when the last channel is unsubscribed or the `AsyncClient` exits. A client that never subscribes opens no connection. Channels join with the access token of the current session, and a new token is sent to them as soon as the user signs in, the session refreshes or the user signs out. The sync `Client` has no realtime client.
+`AsyncClient.realtime` is one realtime client per `AsyncClient`. It connects when the first channel subscribes, all its channels share that connection, and the connection is closed when the last channel is unsubscribed or the `AsyncClient` exits. A client that never subscribes opens no connection. Channels join with the access token of the current session, read through `auth.get_session()` so that an expiring session is refreshed first, and a new token is sent to them as soon as the user signs in, the session refreshes or the user signs out. The sync `Client` has no realtime client.
 
 ```python
 import os

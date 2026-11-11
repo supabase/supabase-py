@@ -218,6 +218,42 @@ async def test_aclose_cancels_pending_realtime_token_updates(
     assert tasks[0].cancelled()
 
 
+async def test_realtime_reads_the_token_from_the_session(
+    create_async_client: AsyncClientCallable,
+) -> None:
+    async with create_async_client(url, key) as client:
+        session = MagicMock(access_token="refreshedjwt")
+        with patch.object(
+            client.auth, "get_session", AsyncMock(return_value=session)
+        ) as get_session:
+            assert await realtime_access_token(client) == "refreshedjwt"
+
+        get_session.assert_awaited_once_with()
+        assert client.headers.get("Authorization") == f"Bearer {key}"
+
+
+async def test_realtime_uses_the_authorization_token_without_a_session(
+    create_async_client: AsyncClientCallable,
+) -> None:
+    async with create_async_client(
+        url, key, headers={"Authorization": "Bearer customjwt"}
+    ) as client:
+        with patch.object(client.auth, "get_session", AsyncMock(return_value=None)):
+            assert await realtime_access_token(client) == "customjwt"
+
+
+async def test_a_failed_session_refresh_raises_from_the_realtime_token(
+    create_async_client: AsyncClientCallable,
+) -> None:
+    async with create_async_client(url, key) as client:
+        failure = AsyncMock(side_effect=OSError("auth is unreachable"))
+        with (
+            patch.object(client.auth, "get_session", failure),
+            pytest.raises(OSError, match="auth is unreachable"),
+        ):
+            await realtime_access_token(client)
+
+
 async def test_create_uses_the_stored_session_token() -> None:
     session = MagicMock(access_token="secretuserjwt")
     async with AsyncHttpxClient() as http_client:

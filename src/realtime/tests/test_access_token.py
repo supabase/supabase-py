@@ -8,6 +8,7 @@ from websockets.exceptions import ConnectionClosed
 
 from realtime import ChannelStates, RealtimeChannel, RealtimeClient
 from realtime._serializer import decode, encode
+from realtime.client import connect_once
 from realtime.message import Message
 from realtime.types import ChannelEvents
 
@@ -22,8 +23,7 @@ class RecordingServer:
         self.join_received = asyncio.Event()
         self.access_token_received = asyncio.Event()
         self.leave_received = asyncio.Event()
-        self.heartbeats = 0
-        self.heartbeats_received = asyncio.Event()
+        self.third_heartbeat_received = asyncio.Event()
         self.release_join = asyncio.Event()
         self.release_join.set()
 
@@ -47,10 +47,8 @@ class RecordingServer:
                 self.access_token_received.set()
             if message.event == ChannelEvents.leave:
                 self.leave_received.set()
-            if message.event == ChannelEvents.heartbeat:
-                self.heartbeats += 1
-                if self.heartbeats >= 3:
-                    self.heartbeats_received.set()
+            if message.event == ChannelEvents.heartbeat and len(self.heartbeats()) >= 3:
+                self.third_heartbeat_received.set()
             if message.ref is None:
                 continue
             if message.event == ChannelEvents.join:
@@ -72,6 +70,13 @@ class RecordingServer:
             message for message in self.received if message.event == ChannelEvents.join
         ]
 
+    def heartbeats(self) -> list[Message]:
+        return [
+            message
+            for message in self.received
+            if message.event == ChannelEvents.heartbeat
+        ]
+
     def access_tokens(self, topic: str) -> list[object]:
         return [
             message.payload["access_token"]
@@ -86,6 +91,17 @@ class Token:
 
     async def __call__(self) -> str:
         return self.value
+
+
+class TokenFailingAfterFirstCall:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def __call__(self) -> str:
+        self.calls += 1
+        if self.calls > 1:
+            raise RuntimeError("refresh failed")
+        return "token-1"
 
 
 @pytest.fixture
@@ -230,7 +246,7 @@ async def test_a_token_passed_to_set_auth_is_kept_on_joins_and_heartbeats(
 
     await client.channel("room").subscribe()
     async with asyncio.timeout(1):
-        await server.heartbeats_received.wait()
+        await server.third_heartbeat_received.wait()
     await client.aclose()
 
     assert [join.payload["access_token"] for join in server.joins()] == ["user-token"]
@@ -288,3 +304,33 @@ async def test_set_auth_without_a_token_from_the_callback_keeps_the_token() -> N
     await client.set_auth()
 
     assert client.last_token == "token-1"
+
+
+async def test_a_failing_token_callback_fails_the_subscribe(
+    server: RecordingServer,
+) -> None:
+    async def failing_token() -> str:
+        raise RuntimeError("refresh failed")
+
+    client = RealtimeClient(server.url, failing_token)
+
+    with pytest.raises(RuntimeError, match="refresh failed"):
+        await client.channel("room").subscribe()
+    await client.aclose()
+
+    assert server.joins() == []
+
+
+async def test_a_failing_token_callback_keeps_the_heartbeat_running(
+    server: RecordingServer, caplog: pytest.LogCaptureFixture
+) -> None:
+    token = TokenFailingAfterFirstCall()
+
+    with caplog.at_level(logging.WARNING, logger="realtime.client"):
+        async with connect_once(server.url, token, heartbeat_interval=0.05):
+            async with asyncio.timeout(5):
+                await server.third_heartbeat_received.wait()
+
+    assert len(server.heartbeats()) >= 3
+    assert token.calls >= 3
+    assert "could not refresh the access token after the heartbeat" in caplog.text
