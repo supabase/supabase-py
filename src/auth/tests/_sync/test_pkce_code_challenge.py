@@ -763,6 +763,21 @@ def test_rejected_flow_start_keeps_older_flows(
     assert stored_verifier(client) == older_verifier
 
 
+@pytest.mark.parametrize("status", [429, 502, 504])
+def test_flow_is_kept_when_the_request_may_have_been_handled(
+    status: int,
+) -> None:
+    def handler(request: Request) -> Response:
+        return Response(status, text="Gateway Timeout")
+
+    client = client_with_handler(handler)
+
+    with pytest.raises(AuthError):
+        reset_password_redirect(client)
+
+    assert len(pending_flows(client)) == 1
+
+
 def test_flow_is_kept_when_the_request_fails_to_connect() -> None:
     def handler(request: Request) -> Response:
         raise ConnectError("connection refused", request=request)

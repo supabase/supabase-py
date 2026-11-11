@@ -31,6 +31,7 @@ from .errors import (
     AuthImplicitGrantRedirectError,
     AuthInvalidJwtError,
     AuthPKCECodeVerifierMissingError,
+    AuthRetryableError,
     AuthSessionMissingError,
     UserDoesNotExistError,
 )
@@ -863,6 +864,8 @@ class AsyncSupabaseAuthClient(
     ) -> AsyncGenerator[None]:
         try:
             yield
+        except AuthRetryableError:
+            raise
         except SupabaseAPIError:
             if pkce_flow:
                 await self._remove_pkce_flow(pkce_flow.flow_id)
@@ -1399,6 +1402,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
     def _removing_rejected_flow(self, pkce_flow: _PKCEFlow | None) -> Generator[None]:
         try:
             yield
+        except AuthRetryableError:
+            raise
         except SupabaseAPIError:
             if pkce_flow:
                 self._remove_pkce_flow(pkce_flow.flow_id)
