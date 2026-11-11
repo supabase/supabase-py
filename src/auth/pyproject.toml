@@ -28,7 +28,7 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/supabase/supabase-py/tree/main/src/auth"
 repository = "https://github.com/supabase/supabase-py"
-documentation = "https://github.com/supabase/supabase-py/tree/main/src/auth"
+documentation = "https://supabase.com/docs/reference/python/auth-api"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 # [project.scripts]

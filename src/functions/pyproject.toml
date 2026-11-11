@@ -29,6 +29,7 @@ dependencies = [
 [project.urls]
 repository = "https://github.com/supabase/supabase-py"
 homepage = "https://github.com/supabase/supabase-py/tree/main/src/functions"
+documentation = "https://supabase.com/docs/reference/python/functions-invoke"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [dependency-groups]

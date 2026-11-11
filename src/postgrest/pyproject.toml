@@ -32,7 +32,7 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/supabase/supabase-py/tree/main/src/postgrest"
 repository = "https://github.com/supabase/supabase-py"
-documentation = "https://postgrest-py.rtfd.io"
+documentation = "https://supabase.com/docs/reference/python/select"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [dependency-groups]
@@ -49,10 +49,6 @@ lints = [
   "python-lsp-server (>=1.12.2,<2.0.0)",
   "pyrefly >=1.4.0,<2.0.0",
   "python-lsp-ruff (>=2.2.2,<3.0.0)",
-]
-docs = [
-  "sphinx >=7.1.2",
-  "furo >=2023.9.10,<2026.0.0",
 ]
 dev = [ { include-group = "lints" }, { include-group="test" }]
 
