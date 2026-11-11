@@ -18,6 +18,8 @@ include ../../infra.mk
 
 AUTH_EXCLUDED_SERVICES := studio,postgrest,realtime,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta
 
+.DELETE_ON_ERROR:
+
 SIGNING_KEYS := infra/supabase/signing_keys.json
 
 $(SIGNING_KEYS):
