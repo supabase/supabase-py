@@ -38,7 +38,7 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/supabase/supabase-py"
 repository = "https://github.com/supabase/supabase-py"
-documentation = "https://github.com/supabase/supabase-py/tree/main/src/supabase"
+documentation = "https://supabase.com/docs/reference/python/introduction"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [project.optional-dependencies]
