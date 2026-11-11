@@ -159,7 +159,8 @@ class RealtimeClient:
     disconnects when the last channel is removed.
 
     :param url: The realtime URL of the project
-    :param token_callback: Returns the access token, awaited on connect, on every channel join and on every heartbeat
+    :param token_callback: Returns the access token, awaited on connect, on every channel join and on every heartbeat.
+        An error it raises fails the connect or the join. After a heartbeat it is logged and the channels keep their token.
     :param heartbeat_interval: Seconds between heartbeats, must be positive
     :param heartbeat_timeout: Seconds to wait for a heartbeat reply before the connection is considered lost, must be positive
     """
@@ -320,13 +321,24 @@ class RealtimeClient:
                     self._send(data), timeout=self.heartbeat_timeout
                 )
                 logger.info("heartbeat response: %r", res)
-                await self._refresh_token()
+                await self._refresh_token_after_heartbeat()
                 await asyncio.sleep(self.heartbeat_interval)
         except asyncio.CancelledError:
             return
         except (TimeoutError, websockets.ConnectionClosed) as exc:
             if not failure.done():
                 failure.set_exception(exc)
+
+    async def _refresh_token_after_heartbeat(self) -> None:
+        try:
+            await self._refresh_token()
+        except websockets.ConnectionClosed:
+            raise
+        except Exception as exception:
+            logger.warning(
+                "could not refresh the access token after the heartbeat: %s",
+                type(exception).__name__,
+            )
 
     def channel(
         self, topic: str, options: RealtimeChannelOptions | None = None

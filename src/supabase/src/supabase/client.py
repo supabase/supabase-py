@@ -720,14 +720,26 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
     def _realtime_auth_done(self, task: asyncio.Task[None]) -> None:
         self._realtime_auth_tasks.discard(task)
         if not task.cancelled() and (exception := task.exception()) is not None:
-            logger.warning("could not send the access token to realtime: %r", exception)
+            logger.warning(
+                "could not send the access token to realtime: %s",
+                type(exception).__name__,
+            )
 
     async def _realtime_access_token(self) -> str | None:
-        return self._access_token
+        if self._auth is None:
+            return self._access_token
+        session = await self._auth.get_session()
+        return self._access_token if session is None else session.access_token
 
     @cached_property
     def realtime(self) -> RealtimeClient:
-        """The realtime client, which uses the client's access token.
+        """The realtime client, which sends the access token of the session.
+
+        It reads the token through `auth.get_session()` when it connects,
+        joins a channel or sends a heartbeat, so an expiring session is
+        refreshed first. Without a session it sends the `Authorization`
+        token of this client, which is the API key by default. A refresh
+        that fails raises from `subscribe()`.
 
         It connects when the first channel subscribes, and disconnects when
         its last channel is removed or this client is closed.
