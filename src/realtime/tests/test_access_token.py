@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 
 import pytest
@@ -15,7 +16,7 @@ HOST = "127.0.0.1"
 
 class RecordingServer:
     def __init__(self) -> None:
-        self.ws_server: Server | None = None
+        self.websocket_server: Server | None = None
         self.url = ""
         self.received: list[Message] = []
         self.join_received = asyncio.Event()
@@ -24,16 +25,16 @@ class RecordingServer:
         self.release_join.set()
 
     async def __aenter__(self) -> "RecordingServer":
-        self.ws_server = await serve(self.handler, HOST, 0)
-        port = next(iter(self.ws_server.sockets)).getsockname()[1]
+        self.websocket_server = await serve(self.handler, HOST, 0)
+        port = next(iter(self.websocket_server.sockets)).getsockname()[1]
         self.url = f"http://{HOST}:{port}"
-        await self.ws_server.start_serving()
+        await self.websocket_server.start_serving()
         return self
 
-    async def __aexit__(self, *exc: object) -> None:
-        assert self.ws_server is not None
-        self.ws_server.close()
-        await self.ws_server.wait_closed()
+    async def __aexit__(self, *exception: object) -> None:
+        assert self.websocket_server is not None
+        self.websocket_server.close()
+        await self.websocket_server.wait_closed()
 
     async def handler(self, connection: ServerConnection) -> None:
         async for raw in connection:
@@ -58,13 +59,15 @@ class RecordingServer:
                 return
 
     def joins(self) -> list[Message]:
-        return [m for m in self.received if m.event == ChannelEvents.join]
+        return [
+            message for message in self.received if message.event == ChannelEvents.join
+        ]
 
     def access_tokens(self, topic: str) -> list[object]:
         return [
-            m.payload["access_token"]
-            for m in self.received
-            if m.event == ChannelEvents.access_token and m.topic == topic
+            message.payload["access_token"]
+            for message in self.received
+            if message.event == ChannelEvents.access_token and message.topic == topic
         ]
 
 
@@ -146,6 +149,34 @@ async def test_a_token_set_during_the_join_is_sent_after_it(
 
     assert server.joins()[0].payload["access_token"] == "token-1"
     assert server.access_tokens("realtime:room") == ["token-2"]
+
+
+async def test_a_failed_send_after_the_join_is_logged(
+    server: RecordingServer,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    token = Token("token-1")
+    client = RealtimeClient(server.url, token)
+    server.release_join.clear()
+    channel = client.channel("room")
+    subscribe = asyncio.create_task(channel.subscribe())
+
+    await server.join_received.wait()
+    token.value = "token-2"
+    await client.set_auth()
+
+    async def fail(message: Message) -> None:
+        raise OSError("socket closed")
+
+    monkeypatch.setattr(client, "_send_no_wait", fail)
+    server.release_join.set()
+    with caplog.at_level(logging.WARNING, logger="realtime.client"):
+        reply = await subscribe
+    await client.aclose()
+
+    assert reply.payload.status == "ok"
+    assert "could not send the new access token to realtime:room" in caplog.text
 
 
 async def test_concurrent_set_auth_calls_send_the_tokens_in_order(

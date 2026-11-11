@@ -423,9 +423,17 @@ class RealtimeClient:
     ) -> None:
         async with self._auth_lock:
             token = self.last_token
-            if token is not None and token != joined_with and channel.joined:
+            if token is None or token == joined_with or not channel.joined:
+                return
+            try:
                 await channel._send_event_no_wait(
                     ChannelEvents.access_token, {"access_token": token}
+                )
+            except Exception as exception:
+                logger.warning(
+                    "could not send the new access token to %s: %r",
+                    channel.topic,
+                    exception,
                 )
 
     def _make_ref(self) -> str:

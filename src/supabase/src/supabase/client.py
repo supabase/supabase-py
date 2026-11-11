@@ -616,6 +616,8 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         """
         if self._auth is not None:
             self._auth.session_manager.stop_auto_refresh()
+        for task in self._realtime_auth_tasks:
+            task.cancel()
         try:
             if "realtime" in self.__dict__:
                 await self.realtime.aclose()
@@ -704,21 +706,21 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
     def _set_access_token(self, access_token: str) -> None:
         super()._set_access_token(access_token)
         if "realtime" in self.__dict__:
-            self._send_realtime_token(access_token)
+            self._send_realtime_token()
 
-    def _send_realtime_token(self, access_token: str) -> None:
+    def _send_realtime_token(self) -> None:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             return
-        task = loop.create_task(self.realtime.set_auth(access_token))
+        task = loop.create_task(self.realtime.set_auth())
         self._realtime_auth_tasks.add(task)
         task.add_done_callback(self._realtime_auth_done)
 
     def _realtime_auth_done(self, task: asyncio.Task[None]) -> None:
         self._realtime_auth_tasks.discard(task)
-        if not task.cancelled() and (exc := task.exception()) is not None:
-            logger.info("could not send the access token to realtime: %r", exc)
+        if not task.cancelled() and (exception := task.exception()) is not None:
+            logger.warning("could not send the access token to realtime: %r", exception)
 
     async def _realtime_access_token(self) -> str | None:
         return self._access_token
