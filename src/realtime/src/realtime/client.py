@@ -219,12 +219,6 @@ class RealtimeClient:
     async def aclose(self) -> None:
         """
         Close the WebSocket connection.
-
-        Returns:
-            None
-
-        Raises:
-            NotConnectedError: If the connection is not established when this method is called.
         """
 
         await self._ws_connection.close()
