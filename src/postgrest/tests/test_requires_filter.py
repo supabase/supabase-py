@@ -5,13 +5,13 @@ from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.io import SyncHttpIO
 
-from postgrest import AsyncPostgrestClient, SyncPostgrestClient
+from postgrest import AsyncPostgrestClient, Mutation, SyncPostgrestClient
 from postgrest.request_builder import MutationRequestBuilder, RequestBuilder
 
-type Mutation = MutationRequestBuilder[SyncHttpIO]
-type Write = Callable[[RequestBuilder[SyncHttpIO]], Mutation]
-type Scope = Callable[[Mutation], Mutation]
-type Finish = Callable[[Mutation], object]
+type Query = MutationRequestBuilder[SyncHttpIO]
+type Write = Callable[[RequestBuilder[SyncHttpIO]], Query]
+type Scope = Callable[[Query], Query]
+type Finish = Callable[[Query], object]
 type QueryParameters = list[tuple[str, str]]
 
 
@@ -125,8 +125,8 @@ def test_all_leaves_the_receiver_unchanged() -> None:
         unfiltered = client.table("items").delete()
         every_row = unfiltered.all()
 
-    assert unfiltered.request.requires_filter is True
-    assert every_row.request.requires_filter is False
+    assert unfiltered.request.filter_required_by is Mutation.DELETE
+    assert every_row.request.filter_required_by is None
     assert len(every_row.request.query) == 0
 
 

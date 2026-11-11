@@ -33,7 +33,7 @@ from supabase_utils.types import JSON
 from yarl import URL
 
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
-from .types import CountMethod, Filters, FilterValue, ReturnMethod
+from .types import CountMethod, Filters, FilterValue, Mutation, ReturnMethod
 from .utils import _sanitize_array_param, sanitize_param
 
 MAX_RETRIES = 3
@@ -232,9 +232,6 @@ class SingleAPIResponse:
         return SingleAPIResponse(data=data, count=count)
 
 
-_WRITE_OPERATIONS: dict[str, str] = {"PATCH": "update()", "DELETE": "delete()"}
-
-
 def _filters_embedded_resource(key: str) -> bool:
     """Whether a filter key such as ``cities.name`` targets an embedded resource.
 
@@ -249,9 +246,9 @@ def _filters_embedded_resource(key: str) -> bool:
 class PostgrestRequest(JSONRequest):
     retry: bool = True
     strip_nulls: bool = False
-    requires_filter: bool = False
-    """Refuse to send until a filter on the table names the rows the request
-    affects.
+    filter_required_by: Mutation | None = None
+    """The write that refuses to send until a filter on the table names the
+    rows it affects.
 
     `update()` and `delete()` set it, so that a forgotten filter does not
     write every row in the table. A filter on the table clears it, and so
@@ -261,8 +258,8 @@ class PostgrestRequest(JSONRequest):
 
     @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
-        if self.requires_filter:
-            operation = _WRITE_OPERATIONS.get(self.method, "update() or delete()")
+        if self.filter_required_by is not None:
+            operation = f"{self.filter_required_by}()"
             raise ValueError(
                 f"{operation} has no filter that says which rows it affects. Add "
                 f"one, such as eq(), or call all() right after {operation} to run "
@@ -309,8 +306,9 @@ class BaseFilterRequestBuilder:
         request = replace(
             self.request,
             query=self.request.query.set(key, val),
-            requires_filter=self.request.requires_filter
-            and _filters_embedded_resource(key),
+            filter_required_by=self.request.filter_required_by
+            if _filters_embedded_resource(key)
+            else None,
         )
         return replace(self, negate_next=False, request=request)
 
@@ -447,8 +445,9 @@ class BaseFilterRequestBuilder:
         request = replace(
             self.request,
             query=self.request.query.set(key, f"({filters})"),
-            requires_filter=self.request.requires_filter
-            and reference_table is not None,
+            filter_required_by=self.request.filter_required_by
+            if reference_table is not None
+            else None,
         )
         return replace(self, negate_next=False, request=request)
 
@@ -1073,7 +1072,7 @@ class MutationRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         It is a method of this builder, so it comes before `single()`,
         `maybe_single()`, `csv()` and `explain()`.
         """
-        return replace(self, request=replace(self.request, requires_filter=False))
+        return replace(self, request=replace(self.request, filter_required_by=None))
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1237,7 +1236,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             method=method,
             headers=headers,
             body=json,
-            requires_filter=True,
+            filter_required_by=Mutation.UPDATE,
         )
         return MutationRequestBuilder(
             executor=self.executor,
@@ -1272,7 +1271,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             method=method,
             headers=headers,
             body=json,
-            requires_filter=True,
+            filter_required_by=Mutation.DELETE,
         )
         return MutationRequestBuilder(
             executor=self.executor,

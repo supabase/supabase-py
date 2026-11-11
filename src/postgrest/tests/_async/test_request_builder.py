@@ -22,7 +22,7 @@ from postgrest.request_builder import (
     TextRequestBuilder,
     _can_retry,
 )
-from postgrest.types import CountMethod, ReturnMethod
+from postgrest.types import CountMethod, Mutation, ReturnMethod
 
 
 @pytest.fixture
@@ -284,7 +284,7 @@ class TestUpdate:
         assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "PATCH"
         assert builder.request.body == {"key1": "val1"}
-        assert builder.request.requires_filter
+        assert builder.request.filter_required_by is Mutation.UPDATE
 
     def test_update_with_count(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -308,7 +308,7 @@ class TestUpdate:
         assert "return=representation" in builder.request.headers["prefer"]
         assert builder.request.method == "PATCH"
         assert builder.request.body == {"key1": "val1"}
-        assert builder.request.requires_filter
+        assert builder.request.filter_required_by is Mutation.UPDATE
 
     def test_update_with_select(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -317,7 +317,7 @@ class TestUpdate:
 
         assert builder.request.query["id"] == "eq.1"
         assert builder.request.query["select"] == "id"
-        assert not builder.request.requires_filter
+        assert builder.request.filter_required_by is None
 
     def test_update_with_select_single(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -337,12 +337,12 @@ class TestUpdate:
         assert builder.request.query["order"] == "id.asc"
         assert builder.request.query["limit"] == "1"
         assert builder.request.method == "PATCH"
-        assert builder.request.requires_filter
+        assert builder.request.filter_required_by is Mutation.UPDATE
 
     def test_update_all(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
         builder = request_builder.update({"key1": "val1"}).all()
 
-        assert not builder.request.requires_filter
+        assert builder.request.filter_required_by is None
         assert len(builder.request.query) == 0
         assert builder.request.method == "PATCH"
         assert builder.request.body == {"key1": "val1"}
@@ -356,7 +356,7 @@ class TestDelete:
         assert builder.request.headers.get_list("prefer") == ["return=representation"]
         assert builder.request.method == "DELETE"
         assert builder.request.body == {}
-        assert builder.request.requires_filter
+        assert builder.request.filter_required_by is Mutation.DELETE
 
     def test_delete_with_count(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -380,7 +380,7 @@ class TestDelete:
         assert "return=representation" in builder.request.headers["prefer"]
         assert builder.request.method == "DELETE"
         assert builder.request.body == {}
-        assert builder.request.requires_filter
+        assert builder.request.filter_required_by is Mutation.DELETE
 
     def test_delete_with_select(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -389,7 +389,7 @@ class TestDelete:
 
         assert builder.request.query["id"] == "eq.1"
         assert builder.request.query["select"] == "id"
-        assert not builder.request.requires_filter
+        assert builder.request.filter_required_by is None
 
     def test_delete_with_select_single(
         self, request_builder: RequestBuilder[AsyncHttpIO]
@@ -404,7 +404,7 @@ class TestDelete:
     def test_delete_all(self, request_builder: RequestBuilder[AsyncHttpIO]) -> None:
         builder = request_builder.delete().all()
 
-        assert not builder.request.requires_filter
+        assert builder.request.filter_required_by is None
         assert len(builder.request.query) == 0
         assert builder.request.method == "DELETE"
         assert builder.request.body == {}

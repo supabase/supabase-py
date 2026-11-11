@@ -522,6 +522,7 @@ features:
       - MutationRequestBuilder.all
     supporting_symbols:
       - MutationRequestBuilder
+      - Mutation
   database.mutate.upsert:
     status: implemented
     symbols:
@@ -534,6 +535,7 @@ features:
       - MutationRequestBuilder.all
     supporting_symbols:
       - MutationRequestBuilder
+      - Mutation
   database.mutate.select_after_mutation:
     status: implemented
     note: "Chainable .select(*columns) after insert/update/upsert/delete sets return=representation and adds a column selection query param."
