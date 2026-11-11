@@ -6,11 +6,13 @@ import re
 import secrets
 import threading
 import time
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Self, TypeGuard, override
 
 from jwt import get_algorithm_by_name
 from pydantic import BaseModel
+from supabase_utils.http.errors import SupabaseAPIError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
@@ -90,7 +92,7 @@ from .types import (
 from .version import __version__
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import AsyncGenerator, Callable, Generator, Mapping
     from types import TracebackType
 
     from supabase_utils.http.retry import RetryPolicy
@@ -855,6 +857,17 @@ class AsyncSupabaseAuthClient(
                 await storage.remove_item(self._flow_storage_key(flow_id))
             await storage.set_item(self._flow_index_storage_key, json.dumps(index))
 
+    @asynccontextmanager
+    async def _removing_rejected_flow(
+        self, pkce_flow: _PKCEFlow | None
+    ) -> AsyncGenerator[None]:
+        try:
+            yield
+        except SupabaseAPIError:
+            if pkce_flow:
+                await self._remove_pkce_flow(pkce_flow.flow_id)
+            raise
+
     async def _start_pkce_flow(
         self, *, password_recovery: bool = False
     ) -> _PKCEFlow | None:
@@ -983,7 +996,8 @@ class AsyncSupabaseAuthClient(
             if isinstance(credentials, SignUpWithEmailAndPasswordCredentials)
             else None
         )
-        auth_response = await self._sign_up(credentials, pkce_flow)
+        async with self._removing_rejected_flow(pkce_flow):
+            auth_response = await self._sign_up(credentials, pkce_flow)
         if pkce_flow and auth_response.session:
             await self._remove_pkce_flow(pkce_flow.flow_id)
         await self._save_session_and_sign_in(auth_response)
@@ -1080,7 +1094,8 @@ class AsyncSupabaseAuthClient(
             if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials)
             else None
         )
-        return await self._sign_in_with_otp(credentials, pkce_flow)
+        async with self._removing_rejected_flow(pkce_flow):
+            return await self._sign_in_with_otp(credentials, pkce_flow)
 
     async def resend(self, credentials: ResendCredentials) -> AuthOtpResponse:
         """
@@ -1092,7 +1107,8 @@ class AsyncSupabaseAuthClient(
             if isinstance(credentials, ResendEmailCredentials)
             else None
         )
-        return await self._resend(credentials, pkce_flow)
+        async with self._removing_rejected_flow(pkce_flow):
+            return await self._resend(credentials, pkce_flow)
 
     async def sign_in_with_sso(
         self, credentials: SignInWithSSOCredentials
@@ -1101,7 +1117,8 @@ class AsyncSupabaseAuthClient(
         Attempts a single-sign on using an enterprise Identity Provider.
         """
         pkce_flow = await self._start_pkce_flow()
-        return await self._sign_in_with_sso(credentials, pkce_flow)
+        async with self._removing_rejected_flow(pkce_flow):
+            return await self._sign_in_with_sso(credentials, pkce_flow)
 
     async def reset_password_for_email(
         self,
@@ -1113,9 +1130,10 @@ class AsyncSupabaseAuthClient(
         Sends a password reset request to an email address.
         """
         pkce_flow = await self._start_pkce_flow(password_recovery=True)
-        await self._reset_password_for_email(
-            email, captcha_token, redirect_to, pkce_flow
-        )
+        async with self._removing_rejected_flow(pkce_flow):
+            await self._reset_password_for_email(
+                email, captcha_token, redirect_to, pkce_flow
+            )
 
     async def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
         """
@@ -1162,9 +1180,10 @@ class AsyncSupabaseAuthClient(
         pkce_flow = (
             await self._start_pkce_flow() if attributes.email is not None else None
         )
-        user_response = await self._update_user(
-            session, attributes, email_redirect_to, pkce_flow
-        )
+        async with self._removing_rejected_flow(pkce_flow):
+            user_response = await self._update_user(
+                session, attributes, email_redirect_to, pkce_flow
+            )
         await self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers(
             AuthStateChange(AuthChangeEvent.USER_UPDATED, session)
@@ -1376,6 +1395,15 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
                 storage.remove_item(self._flow_storage_key(flow_id))
             storage.set_item(self._flow_index_storage_key, json.dumps(index))
 
+    @contextmanager
+    def _removing_rejected_flow(self, pkce_flow: _PKCEFlow | None) -> Generator[None]:
+        try:
+            yield
+        except SupabaseAPIError:
+            if pkce_flow:
+                self._remove_pkce_flow(pkce_flow.flow_id)
+            raise
+
     def _start_pkce_flow(self, *, password_recovery: bool = False) -> _PKCEFlow | None:
         pkce_flow = self._new_pkce_flow()
         if pkce_flow:
@@ -1494,7 +1522,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             if isinstance(credentials, SignUpWithEmailAndPasswordCredentials)
             else None
         )
-        auth_response = self._sign_up(credentials, pkce_flow)
+        with self._removing_rejected_flow(pkce_flow):
+            auth_response = self._sign_up(credentials, pkce_flow)
         if pkce_flow and auth_response.session:
             self._remove_pkce_flow(pkce_flow.flow_id)
         self._save_session_and_sign_in(auth_response)
@@ -1591,7 +1620,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials)
             else None
         )
-        return self._sign_in_with_otp(credentials, pkce_flow)
+        with self._removing_rejected_flow(pkce_flow):
+            return self._sign_in_with_otp(credentials, pkce_flow)
 
     def resend(self, credentials: ResendCredentials) -> AuthOtpResponse:
         """
@@ -1603,14 +1633,16 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             if isinstance(credentials, ResendEmailCredentials)
             else None
         )
-        return self._resend(credentials, pkce_flow)
+        with self._removing_rejected_flow(pkce_flow):
+            return self._resend(credentials, pkce_flow)
 
     def sign_in_with_sso(self, credentials: SignInWithSSOCredentials) -> SSOResponse:
         """
         Attempts a single-sign on using an enterprise Identity Provider.
         """
         pkce_flow = self._start_pkce_flow()
-        return self._sign_in_with_sso(credentials, pkce_flow)
+        with self._removing_rejected_flow(pkce_flow):
+            return self._sign_in_with_sso(credentials, pkce_flow)
 
     def reset_password_for_email(
         self,
@@ -1622,7 +1654,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         Sends a password reset request to an email address.
         """
         pkce_flow = self._start_pkce_flow(password_recovery=True)
-        self._reset_password_for_email(email, captcha_token, redirect_to, pkce_flow)
+        with self._removing_rejected_flow(pkce_flow):
+            self._reset_password_for_email(email, captcha_token, redirect_to, pkce_flow)
 
     def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
         """
@@ -1667,9 +1700,10 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         """
         session = self.session_manager.get_session_or_raise()
         pkce_flow = self._start_pkce_flow() if attributes.email is not None else None
-        user_response = self._update_user(
-            session, attributes, email_redirect_to, pkce_flow
-        )
+        with self._removing_rejected_flow(pkce_flow):
+            user_response = self._update_user(
+                session, attributes, email_redirect_to, pkce_flow
+            )
         self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers(
             AuthStateChange(AuthChangeEvent.USER_UPDATED, session)

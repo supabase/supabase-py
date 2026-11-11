@@ -4,8 +4,9 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from httpx import AsyncClient, MockTransport, Request, Response
+from httpx import AsyncClient, ConnectError, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
+from supabase_utils.http.errors import SupabaseTransportError
 from yarl import URL
 
 from supabase_auth import AsyncSupabaseAuthClient
@@ -739,3 +740,58 @@ async def test_callback_flow_id_selects_its_flow() -> None:
     await client.exchange_code_for_session("reset-code", flow_id=reset_flow)
 
     assert request_body(requests)["code_verifier"] == reset_verifier.split("/", 1)[0]
+
+
+def client_with_handler(
+    handler: Callable[[Request], Response],
+) -> AsyncSupabaseAuthClient:
+    return AsyncSupabaseAuthClient(
+        url="https://example.supabase.co/auth/v1",
+        http_session=AsyncHttpxSession(
+            client=AsyncClient(transport=MockTransport(handler))
+        ),
+        auto_refresh_token=False,
+        flow_type="pkce",
+    )
+
+
+REJECTABLE_FLOWS = [
+    sso_redirect,
+    otp_redirect,
+    sign_up_redirect,
+    resend_redirect,
+    reset_password_redirect,
+    update_user_redirect,
+]
+
+
+@pytest.mark.parametrize("start_flow", REJECTABLE_FLOWS)
+async def test_rejected_flow_start_keeps_older_flows(
+    start_flow: Callable[[AsyncSupabaseAuthClient], Any],
+) -> None:
+    def handler(request: Request) -> Response:
+        if request.method == "GET":
+            return Response(200, json=USER)
+        return Response(422, json={"code": "validation_failed", "msg": "invalid"})
+
+    client = client_with_handler(handler)
+    older = await start_oauth_flow(client)
+    older_verifier = await flow_verifier(client, older)
+
+    with pytest.raises(AuthError):
+        await start_flow(client)
+
+    assert await pending_flows(client) == [older]
+    assert await stored_verifier(client) == older_verifier
+
+
+async def test_flow_is_kept_when_the_request_fails_to_connect() -> None:
+    def handler(request: Request) -> Response:
+        raise ConnectError("connection refused", request=request)
+
+    client = client_with_handler(handler)
+
+    with pytest.raises(SupabaseTransportError):
+        await otp_redirect(client)
+
+    assert len(await pending_flows(client)) == 1
