@@ -57,7 +57,7 @@ def mock_client(
     )
 
 
-def verifier_key(client: AsyncSupabaseAuthClient) -> str:
+def legacy_verifier_key(client: AsyncSupabaseAuthClient) -> str:
     return f"{client.session_manager.storage_key}-code-verifier"
 
 
@@ -67,8 +67,8 @@ def request_body(requests: list[Request]) -> dict[str, Any]:
     return body
 
 
-async def stored_verifier(client: AsyncSupabaseAuthClient) -> str | None:
-    return await client.session_manager.storage.get_item(verifier_key(client))
+async def legacy_verifier(client: AsyncSupabaseAuthClient) -> str | None:
+    return await client.session_manager.storage.get_item(legacy_verifier_key(client))
 
 
 async def flow_verifier(client: AsyncSupabaseAuthClient, flow_id: str) -> str | None:
@@ -85,6 +85,11 @@ async def pending_flows(client: AsyncSupabaseAuthClient) -> list[str]:
     raw = await client.session_manager.storage.get_item(flow_index_key(client))
     flows: list[str] = json.loads(raw) if raw else []
     return flows
+
+
+async def stored_verifier(client: AsyncSupabaseAuthClient) -> str | None:
+    flows = await pending_flows(client)
+    return await flow_verifier(client, flows[-1]) if flows else None
 
 
 async def start_oauth_flow(client: AsyncSupabaseAuthClient) -> str:
@@ -231,12 +236,12 @@ async def test_exchange_code_uses_and_removes_stored_verifier() -> None:
     requests: list[Request] = []
     client = mock_client(SESSION, requests)
     await client.session_manager.storage.set_item(
-        verifier_key(client), "stored-verifier/PASSWORD_RECOVERY"
+        legacy_verifier_key(client), "stored-verifier/PASSWORD_RECOVERY"
     )
     await client.exchange_code_for_session("auth-code")
 
     assert request_body(requests)["code_verifier"] == "stored-verifier"
-    assert await stored_verifier(client) is None
+    assert await legacy_verifier(client) is None
 
 
 async def test_exchange_code_saves_session_and_signs_in() -> None:
@@ -277,20 +282,24 @@ async def test_failed_exchange_removes_stored_verifier() -> None:
         auto_refresh_token=False,
         flow_type="pkce",
     )
-    await client.session_manager.storage.set_item(verifier_key(client), "verifier")
+    await client.session_manager.storage.set_item(
+        legacy_verifier_key(client), "verifier"
+    )
     with pytest.raises(AuthError):
         await client.exchange_code_for_session("auth-code")
 
-    assert await stored_verifier(client) is None
+    assert await legacy_verifier(client) is None
 
 
 async def test_sign_out_removes_stored_verifier() -> None:
     requests: list[Request] = []
     client = mock_client({}, requests)
-    await client.session_manager.storage.set_item(verifier_key(client), "verifier")
+    await client.session_manager.storage.set_item(
+        legacy_verifier_key(client), "verifier"
+    )
     await client.sign_out()
 
-    assert await stored_verifier(client) is None
+    assert await legacy_verifier(client) is None
 
 
 async def test_raising_listener_does_not_stop_other_listeners() -> None:
@@ -319,7 +328,7 @@ async def test_oauth_pkce_returns_flow_id_of_stored_verifier() -> None:
     assert response.flow_id
     verifier = await flow_verifier(client, response.flow_id)
     assert verifier
-    assert await stored_verifier(client) == verifier
+    assert await legacy_verifier(client) is None
     assert await pending_flows(client) == [response.flow_id]
     assert URL(response.url).query["code_challenge"] == generate_pkce_challenge(
         verifier
@@ -500,7 +509,7 @@ async def test_failed_exchange_with_flow_id_removes_its_verifier() -> None:
 
     assert await flow_verifier(client, second) is None
     assert await pending_flows(client) == [first]
-    assert await stored_verifier(client) is None
+    assert await stored_verifier(client) == await flow_verifier(client, first)
 
 
 async def test_sign_out_removes_all_flows() -> None:
@@ -525,3 +534,46 @@ async def test_autoconfirmed_sign_up_keeps_other_flows() -> None:
 
     assert await pending_flows(client) == [pending]
     assert await flow_verifier(client, pending)
+
+
+async def test_exchange_without_stored_verifier_raises_without_request() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+
+    with pytest.raises(AuthPKCECodeVerifierMissingError) as error:
+        await client.exchange_code_for_session("auth-code")
+
+    assert error.value.flow_id is None
+    assert requests == []
+
+
+async def test_exchange_without_flow_id_after_newer_flow_completed() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    await client.reset_password_for_email("a@example.com")
+    [reset_flow] = await pending_flows(client)
+    reset_verifier = await flow_verifier(client, reset_flow)
+    assert reset_verifier
+    oauth_flow = await start_oauth_flow(client)
+    await client.exchange_code_for_session("oauth-code", flow_id=oauth_flow)
+
+    requests.clear()
+    await client.exchange_code_for_session("reset-code")
+
+    assert request_body(requests)["code_verifier"] == reset_verifier.split("/", 1)[0]
+    assert await pending_flows(client) == []
+
+
+async def test_exchange_without_flow_id_skips_flows_without_verifier() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    first = await start_oauth_flow(client)
+    first_verifier = await flow_verifier(client, first)
+    await client.session_manager.storage.set_item(
+        flow_index_key(client), json.dumps([first, "0123456789abcdef"])
+    )
+
+    await client.exchange_code_for_session("auth-code")
+
+    assert request_body(requests)["code_verifier"] == first_verifier
+    assert await pending_flows(client) == ["0123456789abcdef"]

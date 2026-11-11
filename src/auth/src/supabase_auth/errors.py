@@ -196,13 +196,18 @@ class AuthInvalidCredentialsError(AuthError):
 
 class AuthPKCECodeVerifierMissingError(AuthError):
     """Raised by `exchange_code_for_session` when no code verifier is stored
-    for the given `flow_id`, because the flow was already completed, cleared
-    by signing out, evicted by newer flows, or started on another device.
+    for the flow, because it was already completed, cleared by signing out,
+    evicted by newer flows, or started on another device. `flow_id` is the
+    flow id that was passed, `None` when none was.
 
     The auth code is not sent, so it stays unused."""
 
-    def __init__(self, flow_id: str) -> None:
-        super().__init__(f"No PKCE code verifier is stored for flow {flow_id!r}")
+    def __init__(self, flow_id: str | None) -> None:
+        super().__init__(
+            "No PKCE code verifier is stored"
+            if flow_id is None
+            else f"No PKCE code verifier is stored for flow {flow_id!r}"
+        )
         self.flow_id = flow_id
 
 

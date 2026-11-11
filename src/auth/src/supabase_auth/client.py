@@ -117,9 +117,8 @@ def _is_valid_flow_id(flow_id: object) -> TypeGuard[str]:
 
 
 def _parse_flow_index(raw: str | None) -> list[str]:
-    """Reads the ids of the pending flows, oldest first. The storage may be
-    client controlled, like a cookie, so anything that is not a flow id is
-    dropped before it is used in a storage key."""
+    """The storage may be client controlled, like a cookie, so anything that
+    is not a flow id is dropped before it is used in a storage key."""
     if raw is None:
         return []
     try:
@@ -133,8 +132,6 @@ def _parse_flow_index(raw: str | None) -> list[str]:
 
 
 def _push_flow(index: list[str], flow_id: str) -> tuple[list[str], list[str]]:
-    """Appends `flow_id` to `index` and returns the flows to keep and the
-    oldest ones that no longer fit."""
     index = [pending for pending in index if pending != flow_id] + [flow_id]
     cut = max(len(index) - _MAX_PENDING_PKCE_FLOWS, 0)
     return index[cut:], index[:cut]
@@ -186,8 +183,7 @@ class SupabaseAuthHttpClient[
 
     @property
     def _code_verifier_storage_key(self) -> str:
-        """Holds the verifier of the most recently started flow, for an
-        exchange that does not name its flow."""
+        """Where versions without flow ids stored the verifier."""
         return f"{self.session_manager.storage_key}-code-verifier"
 
     @property
@@ -803,11 +799,11 @@ class AsyncSupabaseAuthClient(
         self, pkce_flow: _PKCEFlow, *, password_recovery: bool = False
     ) -> None:
         storage = self.session_manager.storage
-        verifier = self._stored_code_verifier(
-            pkce_flow.code_verifier, password_recovery
-        )
         async with self._pkce_lock:
-            await storage.set_item(self._flow_storage_key(pkce_flow.flow_id), verifier)
+            await storage.set_item(
+                self._flow_storage_key(pkce_flow.flow_id),
+                self._stored_code_verifier(pkce_flow.code_verifier, password_recovery),
+            )
             index, evicted = _push_flow(
                 _parse_flow_index(await storage.get_item(self._flow_index_storage_key)),
                 pkce_flow.flow_id,
@@ -815,7 +811,6 @@ class AsyncSupabaseAuthClient(
             for flow_id in evicted:
                 await storage.remove_item(self._flow_storage_key(flow_id))
             await storage.set_item(self._flow_index_storage_key, json.dumps(index))
-            await storage.set_item(self._code_verifier_storage_key, verifier)
 
     async def _start_pkce_flow(
         self, *, password_recovery: bool = False
@@ -825,47 +820,48 @@ class AsyncSupabaseAuthClient(
             await self._store_pkce_flow(pkce_flow, password_recovery=password_recovery)
         return pkce_flow
 
-    async def _stored_code_verifier_for(self, flow_id: str | None) -> str | None:
+    async def _pending_code_verifier(
+        self, flow_id: str | None
+    ) -> tuple[str | None, str]:
         storage = self.session_manager.storage
-        if flow_id is None:
-            return await storage.get_item(self._code_verifier_storage_key)
-        verifier = (
-            await storage.get_item(self._flow_storage_key(flow_id))
-            if _is_valid_flow_id(flow_id)
-            else None
-        )
+        if flow_id is not None:
+            verifier = (
+                await storage.get_item(self._flow_storage_key(flow_id))
+                if _is_valid_flow_id(flow_id)
+                else None
+            )
+            if verifier is None:
+                raise AuthPKCECodeVerifierMissingError(flow_id)
+            return flow_id, verifier
+        index = _parse_flow_index(await storage.get_item(self._flow_index_storage_key))
+        for pending in reversed(index):
+            verifier = await storage.get_item(self._flow_storage_key(pending))
+            if verifier is not None:
+                return pending, verifier
+        verifier = await storage.get_item(self._code_verifier_storage_key)
         if verifier is None:
-            raise AuthPKCECodeVerifierMissingError(flow_id)
-        return verifier
+            raise AuthPKCECodeVerifierMissingError(None)
+        return None, verifier
 
     async def _remove_pkce_flow(self, flow_id: str | None) -> None:
-        """Removes the verifier of one flow, the most recently started one
-        when `flow_id` is `None`, and leaves the other pending flows alone."""
         storage = self.session_manager.storage
+        if flow_id is None:
+            await storage.remove_item(self._code_verifier_storage_key)
+            return
         async with self._pkce_lock:
+            await storage.remove_item(self._flow_storage_key(flow_id))
             index = _parse_flow_index(
                 await storage.get_item(self._flow_index_storage_key)
             )
-            latest_verifier = await storage.get_item(self._code_verifier_storage_key)
-            if flow_id is None:
-                if not index or latest_verifier != await storage.get_item(
-                    self._flow_storage_key(index[-1])
-                ):
-                    await storage.remove_item(self._code_verifier_storage_key)
-                    return
-                flow_id = index[-1]
-            verifier = await storage.get_item(self._flow_storage_key(flow_id))
-            await storage.remove_item(self._flow_storage_key(flow_id))
             remaining = [pending for pending in index if pending != flow_id]
-            if len(remaining) < len(index):
-                if remaining:
-                    await storage.set_item(
-                        self._flow_index_storage_key, json.dumps(remaining)
-                    )
-                else:
-                    await storage.remove_item(self._flow_index_storage_key)
-            if verifier is not None and verifier == latest_verifier:
-                await storage.remove_item(self._code_verifier_storage_key)
+            if len(remaining) == len(index):
+                return
+            if remaining:
+                await storage.set_item(
+                    self._flow_index_storage_key, json.dumps(remaining)
+                )
+            else:
+                await storage.remove_item(self._flow_index_storage_key)
 
     async def _remove_all_pkce_flows(self) -> None:
         storage = self.session_manager.storage
@@ -889,19 +885,20 @@ class AsyncSupabaseAuthClient(
         """
         Exchanges a PKCE auth code for a session and signs the user in.
 
-        The code is exchanged with the verifier stored by the flow that
-        produced it. When several flows can be pending at once, such as two
-        sign-ins in different tabs or a sign-in started while a password reset
-        email is unanswered, pass the `flow_id` of the `OAuthResponse` or
-        `SSOResponse` that started the flow. Without it, the verifier of the
-        most recently started flow is used. Up to 5 flows are kept pending, so
-        starting a sixth forgets the oldest.
+        `flow_id` names the flow that produced the code. It is returned in the
+        `OAuthResponse` or `SSOResponse` that started the flow. Pass it when
+        several flows can be pending at once, such as sign-ins in two tabs.
+        Without it, the most recently started flow that is still pending is
+        used, which is also how flows started by `sign_up`,
+        `sign_in_with_otp`, `reset_password_for_email` and `update_user` are
+        completed. Up to 5 flows are kept pending, so starting a sixth
+        forgets the oldest.
 
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
 
         Raises `AuthPKCECodeVerifierMissingError`, without sending the code,
-        when no verifier is stored for `flow_id`.
+        when no verifier is stored for the flow.
         """
         if flow_id is not None and code_verifier is not None:
             raise ValueError("Pass either flow_id or code_verifier, not both")
@@ -910,13 +907,13 @@ class AsyncSupabaseAuthClient(
                 code_verifier, auth_code, redirect_to
             )
         else:
-            verifier = await self._stored_code_verifier_for(flow_id)
+            pending_flow_id, verifier = await self._pending_code_verifier(flow_id)
             try:
                 auth_response = await self._exchange_code_for_session(
                     verifier, auth_code, redirect_to
                 )
             finally:
-                await self._remove_pkce_flow(flow_id)
+                await self._remove_pkce_flow(pending_flow_id)
         await self._save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -1310,11 +1307,11 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         self, pkce_flow: _PKCEFlow, *, password_recovery: bool = False
     ) -> None:
         storage = self.session_manager.storage
-        verifier = self._stored_code_verifier(
-            pkce_flow.code_verifier, password_recovery
-        )
         with self._pkce_lock:
-            storage.set_item(self._flow_storage_key(pkce_flow.flow_id), verifier)
+            storage.set_item(
+                self._flow_storage_key(pkce_flow.flow_id),
+                self._stored_code_verifier(pkce_flow.code_verifier, password_recovery),
+            )
             index, evicted = _push_flow(
                 _parse_flow_index(storage.get_item(self._flow_index_storage_key)),
                 pkce_flow.flow_id,
@@ -1322,7 +1319,6 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             for flow_id in evicted:
                 storage.remove_item(self._flow_storage_key(flow_id))
             storage.set_item(self._flow_index_storage_key, json.dumps(index))
-            storage.set_item(self._code_verifier_storage_key, verifier)
 
     def _start_pkce_flow(self, *, password_recovery: bool = False) -> _PKCEFlow | None:
         pkce_flow = self._new_pkce_flow()
@@ -1330,45 +1326,42 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             self._store_pkce_flow(pkce_flow, password_recovery=password_recovery)
         return pkce_flow
 
-    def _stored_code_verifier_for(self, flow_id: str | None) -> str | None:
+    def _pending_code_verifier(self, flow_id: str | None) -> tuple[str | None, str]:
         storage = self.session_manager.storage
-        if flow_id is None:
-            return storage.get_item(self._code_verifier_storage_key)
-        verifier = (
-            storage.get_item(self._flow_storage_key(flow_id))
-            if _is_valid_flow_id(flow_id)
-            else None
-        )
+        if flow_id is not None:
+            verifier = (
+                storage.get_item(self._flow_storage_key(flow_id))
+                if _is_valid_flow_id(flow_id)
+                else None
+            )
+            if verifier is None:
+                raise AuthPKCECodeVerifierMissingError(flow_id)
+            return flow_id, verifier
+        index = _parse_flow_index(storage.get_item(self._flow_index_storage_key))
+        for pending in reversed(index):
+            verifier = storage.get_item(self._flow_storage_key(pending))
+            if verifier is not None:
+                return pending, verifier
+        verifier = storage.get_item(self._code_verifier_storage_key)
         if verifier is None:
-            raise AuthPKCECodeVerifierMissingError(flow_id)
-        return verifier
+            raise AuthPKCECodeVerifierMissingError(None)
+        return None, verifier
 
     def _remove_pkce_flow(self, flow_id: str | None) -> None:
-        """Removes the verifier of one flow, the most recently started one
-        when `flow_id` is `None`, and leaves the other pending flows alone."""
         storage = self.session_manager.storage
+        if flow_id is None:
+            storage.remove_item(self._code_verifier_storage_key)
+            return
         with self._pkce_lock:
-            index = _parse_flow_index(storage.get_item(self._flow_index_storage_key))
-            latest_verifier = storage.get_item(self._code_verifier_storage_key)
-            if flow_id is None:
-                if not index or latest_verifier != storage.get_item(
-                    self._flow_storage_key(index[-1])
-                ):
-                    storage.remove_item(self._code_verifier_storage_key)
-                    return
-                flow_id = index[-1]
-            verifier = storage.get_item(self._flow_storage_key(flow_id))
             storage.remove_item(self._flow_storage_key(flow_id))
+            index = _parse_flow_index(storage.get_item(self._flow_index_storage_key))
             remaining = [pending for pending in index if pending != flow_id]
-            if len(remaining) < len(index):
-                if remaining:
-                    storage.set_item(
-                        self._flow_index_storage_key, json.dumps(remaining)
-                    )
-                else:
-                    storage.remove_item(self._flow_index_storage_key)
-            if verifier is not None and verifier == latest_verifier:
-                storage.remove_item(self._code_verifier_storage_key)
+            if len(remaining) == len(index):
+                return
+            if remaining:
+                storage.set_item(self._flow_index_storage_key, json.dumps(remaining))
+            else:
+                storage.remove_item(self._flow_index_storage_key)
 
     def _remove_all_pkce_flows(self) -> None:
         storage = self.session_manager.storage
@@ -1390,19 +1383,20 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         """
         Exchanges a PKCE auth code for a session and signs the user in.
 
-        The code is exchanged with the verifier stored by the flow that
-        produced it. When several flows can be pending at once, such as two
-        sign-ins in different tabs or a sign-in started while a password reset
-        email is unanswered, pass the `flow_id` of the `OAuthResponse` or
-        `SSOResponse` that started the flow. Without it, the verifier of the
-        most recently started flow is used. Up to 5 flows are kept pending, so
-        starting a sixth forgets the oldest.
+        `flow_id` names the flow that produced the code. It is returned in the
+        `OAuthResponse` or `SSOResponse` that started the flow. Pass it when
+        several flows can be pending at once, such as sign-ins in two tabs.
+        Without it, the most recently started flow that is still pending is
+        used, which is also how flows started by `sign_up`,
+        `sign_in_with_otp`, `reset_password_for_email` and `update_user` are
+        completed. Up to 5 flows are kept pending, so starting a sixth
+        forgets the oldest.
 
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
 
         Raises `AuthPKCECodeVerifierMissingError`, without sending the code,
-        when no verifier is stored for `flow_id`.
+        when no verifier is stored for the flow.
         """
         if flow_id is not None and code_verifier is not None:
             raise ValueError("Pass either flow_id or code_verifier, not both")
@@ -1411,13 +1405,13 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
                 code_verifier, auth_code, redirect_to
             )
         else:
-            verifier = self._stored_code_verifier_for(flow_id)
+            pending_flow_id, verifier = self._pending_code_verifier(flow_id)
             try:
                 auth_response = self._exchange_code_for_session(
                     verifier, auth_code, redirect_to
                 )
             finally:
-                self._remove_pkce_flow(flow_id)
+                self._remove_pkce_flow(pending_flow_id)
         self._save_session_and_sign_in(auth_response)
         return auth_response
 
