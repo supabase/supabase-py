@@ -32,7 +32,7 @@ dependencies = [
 [project.urls]
 homepage = "https://github.com/supabase/supabase-py/tree/main/src/postgrest"
 repository = "https://github.com/supabase/supabase-py"
-documentation = "https://postgrest-py.rtfd.io"
+documentation = "https://github.com/supabase/supabase-py/tree/main/src/postgrest"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
 [dependency-groups]

@@ -36,8 +36,8 @@ iceberg = [
 ]
 
 [project.urls]
-documentation = "https://supabase.github.io/storage-py"
-homepage = "https://supabase.github.io/storage-py"
+documentation = "https://github.com/supabase/supabase-py/tree/main/src/storage"
+homepage = "https://github.com/supabase/supabase-py/tree/main/src/storage"
 repository = "https://github.com/supabase/supabase-py"
 changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
 
