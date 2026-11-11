@@ -221,13 +221,14 @@ class RealtimeChannel:
         Join the channel, connecting the client first if it is not connected.
 
         :raises RealtimeError: If the server rejects the join, or if
-            `unsubscribe()` is called before the join completes.
+            `unsubscribe()` or `RealtimeClient.aclose()` is called before the
+            join completes.
         """
         attempt = object()
         self._subscribe_attempt = attempt
         self._raise_if_topic_is_taken()
         await self.socket.connect()
-        self._raise_if_unsubscribed(attempt)
+        self._raise_if_join_was_stopped(attempt)
         self._raise_if_topic_is_taken()
         self.socket.channels[self.topic] = self
         while not self.message_stream.empty():
@@ -246,15 +247,21 @@ class RealtimeChannel:
         )
         self.join_ref = join_ref
         self.state = ChannelStates.JOINING
+        failure = self.socket._connection_failure
         try:
             msg = await self.socket._send(message)
-        except BaseException as error:
+        except asyncio.CancelledError:
             self.state = ChannelStates.CLOSED
-            if isinstance(error, Exception):
-                self._raise_if_unsubscribed(attempt)
+            if self._subscribe_attempt is attempt:
+                self._subscribe_attempt = None
+                await self._leave_cancelled_join(join_ref, failure)
+            raise
+        except Exception:
+            self.state = ChannelStates.CLOSED
+            self._raise_if_join_was_stopped(attempt)
             raise
         logger.info("Subscribe reply: %r", msg)
-        self._raise_if_unsubscribed(attempt)
+        self._raise_if_join_was_stopped(attempt)
         if msg.payload.status != "ok":
             self.state = ChannelStates.CLOSED
             raise RealtimeError(
@@ -263,11 +270,27 @@ class RealtimeChannel:
         self.state = ChannelStates.JOINED
         return msg
 
-    def _raise_if_unsubscribed(self, attempt: object) -> None:
+    def _raise_if_join_was_stopped(self, attempt: object) -> None:
         if self._subscribe_attempt is not attempt:
             raise RealtimeError(
-                f"channel {self.topic!r} was unsubscribed before the join completed"
+                f"the join of channel {self.topic!r} was stopped by unsubscribe() "
+                "or a closed connection before it completed"
             )
+
+    async def _leave_cancelled_join(
+        self, join_ref: str, failure: asyncio.Future[Message] | None
+    ) -> None:
+        if self.socket._connection_failure is not failure:
+            return
+        leave = Message(
+            topic=self.topic,
+            event=ChannelEvents.leave,
+            ref=self.socket._make_ref(),
+            join_ref=join_ref,
+            payload={},
+        )
+        with contextlib.suppress(Exception):
+            await self.socket._send_no_wait(leave)
 
     def _raise_if_topic_is_taken(self) -> None:
         if self.socket.channels.get(self.topic, self) is not self:

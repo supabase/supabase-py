@@ -253,6 +253,8 @@ class RealtimeClient:
         self._listen_task = None
         self._heartbeat_task = None
         for channel in self.channels.values():
+            if channel.state == ChannelStates.JOINING:
+                channel._subscribe_attempt = None
             channel.state = ChannelStates.CLOSED
         if websocket is not None:
             await websocket.close()

@@ -181,7 +181,7 @@ async def test_unsubscribe_during_a_pending_join_sends_leave(
     await asyncio.sleep(0.05)
 
     await channel.unsubscribe()
-    with pytest.raises(RealtimeError, match="unsubscribed before the join"):
+    with pytest.raises(RealtimeError, match="was stopped"):
         await join
     await client.aclose()
 
@@ -254,7 +254,7 @@ async def test_unsubscribe_while_connecting_stops_the_join(server: FakeServer) -
     await asyncio.sleep(0)
 
     await channel.unsubscribe()
-    with pytest.raises(RealtimeError, match="unsubscribed before the join"):
+    with pytest.raises(RealtimeError, match="was stopped"):
         await join
     await client.aclose()
 
@@ -325,3 +325,36 @@ async def test_reader_receives_close_when_the_last_channel_unsubscribes(
 
     message = await asyncio.wait_for(reader, timeout=1)
     assert message.topic == channel.topic
+
+
+async def test_cancelling_a_pending_join_sends_leave(server: FakeServer) -> None:
+    server.join_reply_delay = 0.2
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    join = asyncio.create_task(channel.subscribe())
+    await asyncio.sleep(0.05)
+
+    join.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await join
+    await asyncio.sleep(0.3)
+    await client.aclose()
+
+    assert channel.state == ChannelStates.CLOSED
+    [join_message] = [m for m in server.received if m.event == ChannelEvents.join]
+    [leave_message] = [m for m in server.received if m.event == ChannelEvents.leave]
+    assert leave_message.join_ref == join_message.ref
+
+
+async def test_aclose_during_a_pending_join_stops_the_join(server: FakeServer) -> None:
+    server.join_reply_delay = 0.2
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    join = asyncio.create_task(channel.subscribe())
+    await asyncio.sleep(0.05)
+
+    await client.aclose()
+
+    with pytest.raises(RealtimeError, match="was stopped"):
+        await join
+    assert channel.state == ChannelStates.CLOSED

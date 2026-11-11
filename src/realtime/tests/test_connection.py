@@ -12,7 +12,9 @@ from pydantic import BaseModel
 from yarl import URL
 
 from realtime import (
+    ChannelStates,
     RealtimeClient,
+    RealtimeError,
     RealtimePostgresChangesListenEvent,
 )
 from realtime._serializer import decode
@@ -571,6 +573,19 @@ async def test_resubscribing_the_same_channel_keeps_receiving() -> None:
 
     assert client.channels["realtime:room"] is channel
     assert channel.message_stream.empty()
+
+
+async def test_aclose_with_a_join_reply_not_yet_handled_stops_the_join() -> None:
+    client, _ = fake_client()
+    channel = client.channel("room")
+    join = asyncio.create_task(channel.subscribe())
+    await asyncio.sleep(0)
+
+    await client.aclose()
+
+    with pytest.raises(RealtimeError, match="was stopped"):
+        await join
+    assert channel.state == ChannelStates.CLOSED
 
 
 async def test_subscribe_does_not_store_the_token_in_shared_options() -> None:
