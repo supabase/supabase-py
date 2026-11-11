@@ -27,6 +27,12 @@ logger = RedactingLoggerAdapter(logging.getLogger(__name__))
 websockets_logger = RedactingLoggerAdapter(logging.getLogger("websockets.client"))
 
 
+def _loggable(frame: str | bytes) -> str:
+    if isinstance(frame, str):
+        return frame
+    return f"<binary frame of {len(frame)} bytes>"
+
+
 def normalize_url(url: URL, token: str | None) -> URL:
     if url.scheme not in {"ws", "wss", "http", "https"}:
         raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
@@ -189,7 +195,9 @@ class RealtimeClient:
                 try:
                     message = decode(frame)
                 except ValueError as e:
-                    logger.error("Unrecognized message format %r\n%s", frame, e)
+                    logger.error(
+                        "Unrecognized message format %s\n%s", _loggable(frame), e
+                    )
                     continue
                 if message.ref is not None and (
                     fut := self.message_refs.get(message.ref)
@@ -357,7 +365,7 @@ class RealtimeClient:
 
         self._raise_connection_failure()
         frame = encode(message)
-        logger.debug("sending: %s", frame)
+        logger.debug("sending: %s", _loggable(frame))
 
         receive: asyncio.Future[Message] = asyncio.Future()
         self.message_refs[message.ref] = receive
@@ -373,7 +381,7 @@ class RealtimeClient:
     async def _send_no_wait(self, message: Message) -> None:
         self._raise_connection_failure()
         frame = encode(message)
-        logger.debug("sending: %s", frame)
+        logger.debug("sending: %s", _loggable(frame))
         await self._ws_connection.send(frame)
 
     def _raise_connection_failure(self) -> None:

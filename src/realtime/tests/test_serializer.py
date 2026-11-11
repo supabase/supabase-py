@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import AsyncIterator
 
 import pytest
@@ -284,3 +285,24 @@ async def test_binary_broadcast_round_trip(
     [frame] = server.binary_frames
     assert frame[0] == 3
     assert frame.endswith(b"realtime:roomblob\x00\x01\xff")
+
+
+async def test_binary_frames_are_logged_by_size_only(
+    server: BroadcastServer, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.DEBUG, logger="realtime"):
+        async with (
+            connect_once(server.url) as client,
+            client.channel("room") as channel,
+        ):
+            await channel.send_broadcast("blob", b"secret-binary-token")
+            await channel.messages.__anext__()
+
+    client_logs = "\n".join(
+        record.getMessage()
+        for record in caplog.records
+        if record.name.startswith("realtime")
+    )
+    assert "<binary frame of 45 bytes>" in client_logs
+    assert "<binary frame of 13 bytes>" in client_logs
+    assert "secret-binary-token" not in client_logs
