@@ -437,18 +437,23 @@ class SupabaseAuthHttpClient[
         return parse_auth_otp_response(response)
 
     @handle_http_io
-    def resend(
+    def _resend(
         self,
         credentials: ResendCredentials,
+        pkce_flow: _PKCEFlow | None = None,
     ) -> HttpMethod[AuthOtpResponse]:
+        body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, ResendEmailCredentials):
-            query = _redirect_to_as_query(credentials.email_redirect_to)
+            query = _redirect_to_as_query(
+                self._redirect_with_flow_id(credentials.email_redirect_to, pkce_flow)
+            )
+            body = _with_pkce_challenge(body, pkce_flow)
         else:
             query = URLQuery.empty()
         response = yield JSONRequest(
             method="POST",
             path=["resend"],
-            body=credentials.body,
+            body=body,
             query=query,
         )
         return parse_auth_otp_response(response)
@@ -1077,6 +1082,18 @@ class AsyncSupabaseAuthClient(
         )
         return await self._sign_in_with_otp(credentials, pkce_flow)
 
+    async def resend(self, credentials: ResendCredentials) -> AuthOtpResponse:
+        """
+        Resends a sign-up or email change confirmation, or an SMS or phone
+        change OTP.
+        """
+        pkce_flow = (
+            await self._start_pkce_flow()
+            if isinstance(credentials, ResendEmailCredentials)
+            else None
+        )
+        return await self._resend(credentials, pkce_flow)
+
     async def sign_in_with_sso(
         self, credentials: SignInWithSSOCredentials
     ) -> SSOResponse:
@@ -1575,6 +1592,18 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             else None
         )
         return self._sign_in_with_otp(credentials, pkce_flow)
+
+    def resend(self, credentials: ResendCredentials) -> AuthOtpResponse:
+        """
+        Resends a sign-up or email change confirmation, or an SMS or phone
+        change OTP.
+        """
+        pkce_flow = (
+            self._start_pkce_flow()
+            if isinstance(credentials, ResendEmailCredentials)
+            else None
+        )
+        return self._resend(credentials, pkce_flow)
 
     def sign_in_with_sso(self, credentials: SignInWithSSOCredentials) -> SSOResponse:
         """

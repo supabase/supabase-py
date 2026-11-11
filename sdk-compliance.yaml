@@ -94,7 +94,8 @@ features:
   auth.sign_in.resend_confirmation:
     status: implemented
     symbols:
-      - SupabaseAuthHttpClient.resend
+      - AsyncSupabaseAuthClient.resend
+      - SyncSupabaseAuthClient.resend
     supporting_symbols:
       - Resend
       - Resend.email

@@ -15,6 +15,7 @@ from supabase_auth.types import (
     AuthChangeEvent,
     AuthFlowType,
     AuthStateChange,
+    Resend,
     Session,
     SignInWithPasswordless,
     SignInWithSSO,
@@ -163,6 +164,24 @@ async def test_email_otp_pkce_sends_code_challenge() -> None:
             SignInWithPasswordless.email(email="a@example.com")
         ),
     )
+
+
+async def test_email_resend_pkce_sends_code_challenge() -> None:
+    await assert_sends_challenge(
+        {},
+        lambda client: client.resend(
+            Resend.email(email="a@example.com", type="email_change")
+        ),
+    )
+
+
+async def test_phone_resend_pkce_omits_code_challenge() -> None:
+    requests: list[Request] = []
+    client = mock_client({}, requests)
+    await client.resend(Resend.phone(phone="+15555550100", type="sms"))
+
+    assert "code_challenge" not in request_body(requests)
+    assert await stored_verifier(client) is None
 
 
 async def test_sso_pkce_sends_code_challenge() -> None:
@@ -625,6 +644,13 @@ async def sign_up_redirect(client: AsyncSupabaseAuthClient) -> str | None:
     return None
 
 
+async def resend_redirect(client: AsyncSupabaseAuthClient) -> str | None:
+    await client.resend(
+        Resend.email(email="a@example.com", type="signup", email_redirect_to=CALLBACK)
+    )
+    return None
+
+
 async def reset_password_redirect(client: AsyncSupabaseAuthClient) -> str | None:
     await client.reset_password_for_email("a@example.com", redirect_to=CALLBACK)
     return None
@@ -652,6 +678,7 @@ REDIRECT_FLOWS = [
     sso_redirect,
     otp_redirect,
     sign_up_redirect,
+    resend_redirect,
     reset_password_redirect,
     update_user_redirect,
 ]
