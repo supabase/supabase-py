@@ -185,11 +185,11 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 ## PostgREST response shape and HTTP method types
 
-`single()`, `csv()` and `explain()` set the `shape` field of `PostgrestRequest`, a `ResponseShape` member, instead of the `Accept` header. The header is rendered from it when the request is sent, so `request.headers` of a builder no longer contains `Accept`. `strip_nulls()` combined with `csv()` or `explain()` raises `ValueError` as soon as the second of them is called, in either order, instead of when the request is sent.
+`single()`, `csv()` and `explain()` set the `shape` field of `PostgrestRequest`, a `ResponseShape` member, instead of the `Accept` header. The header is rendered from it when the request is sent, so `request.headers` of a builder no longer contains `Accept`. `strip_nulls()` followed by `csv()` or `explain()`, or `csv()` followed by `strip_nulls()` on an RPC, raises `ValueError` when the second method is called instead of when the request is sent.
 
 `postgrest.RequestMethod` and `storage3.types.RequestMethod` are removed. Nothing used them. Use `supabase_utils.http.request.HTTPRequestMethod`, the `Literal` every package types its requests with.
 
-`filter()` takes the operator as `Filters | str`. A `Filters` member is checked by the type checker, and a string still works for operators `Filters` does not list, such as `match`.
+`filter()` takes the operator as `Filters | str`, which shows that the `Filters` members are the expected values. A string still works for operators `Filters` does not list, such as `match`, so a misspelled string is not caught before PostgREST rejects it.
 
 ## Realtime heartbeat intervals are used as given
 

@@ -67,3 +67,31 @@ def test_strip_nulls_rejects_a_request_built_with_csv() -> None:
         PostgrestRequest(
             path=[], method="GET", body={}, shape=ResponseShape.CSV, strip_nulls=True
         )
+
+
+def test_strip_nulls_rejects_a_custom_accept_header() -> None:
+    with Client() as http:
+        client = SyncPostgrestClient(
+            "https://example.com",
+            headers={"Accept": "application/geo+json"},
+            http_session=HttpxSession(client=http),
+        )
+        query = client.from_("users").select("*").strip_nulls()
+        with pytest.raises(
+            ValueError, match="cannot be used with Accept: application/geo\\+json"
+        ):
+            query.execute()
+
+
+def test_a_custom_accept_header_is_kept_without_strip_nulls() -> None:
+    def handler(request: Request) -> Response:
+        assert request.headers["Accept"] == "application/geo+json"
+        return Response(200, json=[])
+
+    with Client(transport=MockTransport(handler)) as http:
+        client = SyncPostgrestClient(
+            "https://example.com",
+            headers={"Accept": "application/geo+json"},
+            http_session=HttpxSession(client=http),
+        )
+        client.from_("users").select("*").execute()

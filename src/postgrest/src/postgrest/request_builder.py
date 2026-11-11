@@ -9,6 +9,7 @@ from typing import (
     Literal,
     NamedTuple,
     Self,
+    assert_never,
     overload,
     override,
 )
@@ -307,6 +308,8 @@ class PostgrestRequest(JSONRequest):
                 return (
                     f"application/vnd.pgrst.plan+{self.plan_format}; options={options}"
                 )
+            case _:
+                assert_never(self.shape)
 
     @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
@@ -319,8 +322,15 @@ class PostgrestRequest(JSONRequest):
             )
         request = super().finalize(base_url, default_headers)
         accept = self._accept()
-        if accept is not None:
-            request.headers = request.headers.override("Accept", accept)
+        if accept is None:
+            return request
+        if self.strip_nulls and self.shape is ResponseShape.ROWS:
+            requested = request.headers.get("Accept")
+            if requested not in (None, "application/json"):
+                raise ValueError(
+                    f"strip_nulls() cannot be used with Accept: {requested}"
+                )
+        request.headers = request.headers.override("Accept", accept)
         return request
 
 
