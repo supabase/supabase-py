@@ -26,62 +26,66 @@ If you self-host the Supabase Edge Runtime, we recommend upgrading to the latest
 Deploy your Edge Function following the [Supabase Functions documentation](https://supabase.com/docs/guides/functions).
 
 
+The client takes the URL of your functions, the headers to send, and the HTTP session it sends its requests with. Leaving the session's context manager closes it. A function that answers with an error status raises `FunctionsHttpError`, and one the relay could not reach raises `FunctionsRelayError`.
+
 ### Asynchronous Client
 
 ```python
 import asyncio
 
 from httpx import AsyncClient
-from supabase_functions import AsyncFunctionsClient
+from supabase_functions import (
+    AsyncFunctionsClient,
+    FunctionsHttpError,
+    FunctionsRelayError,
+)
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 
-async def run_func():
-    # Initialize the client with your project URL and optional headers
-    headers = {
-        "apikey": "your-publishable-key",
-        # Add any other headers you might need
-    }
-    
-    fc = AsyncFunctionsClient(
-        "https://<project_ref>.functions.supabase.co",
-        headers,
-        http_session=AsyncHttpxSession(client=AsyncClient(follow_redirects=True)),
-    )
-    
-    try:
-        # Invoke your Edge Function
-        res = await fc.invoke("payment-sheet", {
-            "responseType": "json",
-            "body": {"amount": 1000, "currency": "usd"}
-        })
-        print("Response:", res)
-    except Exception as e:
-        print(f"Error: {e}")
+
+async def run_func() -> None:
+    headers = {"apikey": "your-publishable-key"}
+
+    async with AsyncHttpxSession(AsyncClient(follow_redirects=True)) as session:
+        functions = AsyncFunctionsClient(
+            "https://<project_ref>.supabase.co/functions/v1",
+            headers,
+            session,
+        )
+
+        try:
+            response = await functions.invoke(
+                "payment-sheet", body={"amount": 1000, "currency": "usd"}
+            )
+            print("Response:", response.content)
+        except (FunctionsHttpError, FunctionsRelayError) as error:
+            print(error.status_code, error.message)
+
 
 if __name__ == "__main__":
     asyncio.run(run_func())
 ```
+
 ### Synchronous Client
+
 ```python
 from httpx import Client
-from supabase_functions import SyncFunctionsClient
+from supabase_functions import FunctionsHttpError, FunctionsRelayError, SyncFunctionsClient
 from supabase_utils.http.adapters.httpx import HttpxSession
 
-# Initialize the client
 headers = {"apikey": "your-publishable-key"}
-fc = SyncFunctionsClient(
-    "https://<project_ref>.functions.supabase.co",
-    headers,
-    http_session=HttpxSession(client=Client(follow_redirects=True)),
-)
 
-# Invoke your Edge Function
-try:
-    res = fc.invoke("payment-sheet", {
-        "responseType": "json", 
-        "body": {"amount": 1000, "currency": "usd"}
-    })
-    print("Response:", res)
-except Exception as e:
-    print(f"Error: {e}")
+with HttpxSession(Client(follow_redirects=True)) as session:
+    functions = SyncFunctionsClient(
+        "https://<project_ref>.supabase.co/functions/v1",
+        headers,
+        session,
+    )
+
+    try:
+        response = functions.invoke(
+            "payment-sheet", body={"amount": 1000, "currency": "usd"}
+        )
+        print("Response:", response.content)
+    except (FunctionsHttpError, FunctionsRelayError) as error:
+        print(error.status_code, error.message)
 ```

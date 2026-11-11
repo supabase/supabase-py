@@ -24,6 +24,7 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 - `make <pkg>.tests` runs pyrefly and pytest. For `auth`, `postgrest`, `storage` and `realtime`, pytest first starts Docker / Supabase CLI infra; `make stop-infra` when done.
 - Fast loop for tests that need no infra: from `src/<pkg>`, `uv run --frozen --package <import name> pytest tests/<file>.py`.
 - Code must run on Python 3.12, CI tests 3.12 to 3.15 ([ci.yml](.github/workflows/ci.yml)).
+- `make snippets` type-checks every `python` code block of the Markdown files, apart from the changelogs, against the workspace. A block is the body of an async function and imports what it uses. Names a file's blocks share, like the client its README creates, are declared in `PRELUDES` of [check_markdown_snippets.py](.github/scripts/check_markdown_snippets.py). Fence v2 code shown as "before" as `python skip`.
 
 ## Public API
 
