@@ -7,7 +7,7 @@ help::
 	@echo "Available commands"
 	@echo "  help           -- (default) print this message"
 
-ci: ruff $(call FORALL_PKGS,tests)
+ci: ruff snippets $(call FORALL_PKGS,tests)
 help::
 	@echo "  ci             -- Run tests for all packages, the same way as CI does"
 
@@ -29,6 +29,11 @@ stop-infra: realtime.stop-infra storage.stop-infra auth.stop-infra postgrest.sto
 help::
 	@echo "  stop-infra     -- Stop all infra used by tests."
 	@echo "                    NOTE: run this command to ensure all containers are stopped after tests"
+
+snippets:
+	uv run --all-packages --all-extras python .github/scripts/check_markdown_snippets.py
+help::
+	@echo "  snippets       -- Type-check the Python snippets of the Markdown files"
 
 pyrefly: $(call FORALL_PKGS,pyrefly)
 help::

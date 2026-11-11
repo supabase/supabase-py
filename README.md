@@ -12,11 +12,12 @@ Python monorepo for all [Supabase](https://supabase.com) libraries.
 > See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 - [supabase](src/supabase/README.md)
-- [realtime-py](src/realtime/README.md)
+- [realtime](src/realtime/README.md)
 - [supabase_functions](src/functions/README.md)
 - [storage3](src/storage/README.md)
 - [postgrest](src/postgrest/README.md)
 - [supabase_auth](src/auth/README.md)
+- [supabase_utils](src/utils/README.md)
 
 Relevant links:
 

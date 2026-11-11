@@ -15,23 +15,25 @@
 If you want to use a local PostgREST server for development, you can use our preconfigured instance via Docker Compose.
 
 ```sh
-docker-compose up
+docker compose -f infra/docker-compose.yaml up
 ```
 
 Once Docker Compose started, PostgREST is accessible at <http://localhost:3000>.
 
 ### Instructions
 
+The package needs an HTTP client adapter. The examples below use httpx:
+
 #### With uv (recommended)
 
 ```sh
-uv add postgrest
+uv add postgrest "supabase_utils[httpx]"
 ```
 
 #### With Pip
 
 ```sh
-pip install postgrest
+pip install postgrest "supabase_utils[httpx]"
 ```
 
 ## Supabase Service Compatibility
@@ -44,17 +46,28 @@ If you self-host PostgREST, we recommend upgrading to the latest release when up
 
 ### Getting started
 
+The client takes the URL of the PostgREST service and the HTTP session it sends its requests with. Leaving the client's context manager closes the session:
+
 ```py
 import asyncio
-from postgrest import AsyncPostgrestClient
 
-async def main():
-    async with AsyncPostgrestClient("http://localhost:3000") as client:
+from httpx import AsyncClient
+from postgrest import AsyncPostgrestClient
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession
+
+
+async def main() -> None:
+    async with AsyncPostgrestClient(
+        "http://localhost:3000", AsyncHttpxSession(AsyncClient())
+    ) as client:
         r = await client.from_("countries").select("*").execute()
         countries = r.data
 
+
 asyncio.run(main())
 ```
+
+`SyncPostgrestClient` with an `HttpxSession` works the same way without `await`. The examples below use the async `client` from above.
 
 ### Create
 
@@ -98,8 +111,6 @@ await client.from_("countries").delete().eq("name", "Việt Nam").execute()
 await client.from_("countries").delete().all().execute()
 ```
 
-### General filters
-
 ### Stored procedures (RPC)
 ```py
 await client.rpc("foobar", {"arg1": "value1", "arg2": "value2"}).execute()
@@ -107,11 +118,4 @@ await client.rpc("foobar", {"arg1": "value1", "arg2": "value2"}).execute()
 
 ## CHANGELOG
 
-Read more [here](https://github.com/supabase/postgrest-py/blob/main/CHANGELOG.md).
-
-## SPONSORS
-
-We are building the features of Firebase using enterprise-grade, open source products. We support existing communities wherever possible, and if the products don’t exist we build them and open source them ourselves. Thanks to these sponsors who are making the OSS ecosystem better for everyone.
-
-[![Worklife VC](https://user-images.githubusercontent.com/10214025/90451355-34d71200-e11e-11ea-81f9-1592fd1e9146.png)](https://www.worklife.vc)
-[![New Sponsor](https://user-images.githubusercontent.com/10214025/90518111-e74bbb00-e198-11ea-8f88-c9e3c1aa4b5b.png)](https://github.com/sponsors/supabase)
+Read more [here](https://github.com/supabase/supabase-py/blob/main/src/postgrest/CHANGELOG.md).

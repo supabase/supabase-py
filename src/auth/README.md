@@ -1,37 +1,37 @@
-# Auth-py
+# supabase_auth
 
-[![CI](https://github.com/supabase-community/gotrue-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase-community/gotrue-py/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/pypi/pyversions/gotrue)](https://pypi.org/project/gotrue)
-[![Version](https://img.shields.io/pypi/v/gotrue?color=%2334D058)](https://pypi.org/project/gotrue)
+[![CI](https://github.com/supabase/supabase-py/actions/workflows/ci.yml/badge.svg)](https://github.com/supabase/supabase-py/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/pypi/pyversions/supabase_auth)](https://pypi.org/project/supabase_auth)
+[![Version](https://img.shields.io/pypi/v/supabase_auth?color=%2334D058)](https://pypi.org/project/supabase_auth)
 
-This is a Python port of the [supabase js gotrue client](https://github.com/supabase/gotrue-js). The current state is that there is a features parity but with small differences that are mentioned in the section **Differences to the JS client**. As of December 14th, we renamed to repo from `gotrue-py` to `auth-py` to mirror the changes in the JavaScript library.
+Python client for [Supabase Auth](https://github.com/supabase/auth), the Python counterpart of [`@supabase/auth-js`](https://github.com/supabase/supabase-js/tree/master/packages/core/auth-js). Most users use it through the [`supabase`](https://github.com/supabase/supabase-py/blob/main/src/supabase/README.md) package, as `client.auth`.
 
 ## Installation
 
-The package can be installed using pip, uv or poetry:
+The package needs an HTTP client adapter. The examples below use httpx:
 
 ### Pip
 
 ```bash
-pip install supabase_auth
+pip install supabase_auth "supabase_utils[httpx]"
 ```
-
 
 ### Uv
 
 ```bash
-uv add supabase_auth
+uv add supabase_auth "supabase_utils[httpx]"
 ```
 
 ### Poetry
 
 ```bash
-poetry add supabase_auth
+poetry add supabase_auth "supabase_utils[httpx]"
 ```
+
+Use `supabase_utils[aiohttp]` instead to run the async client on aiohttp.
 
 ## Features
 
-- Full feature parity with the JavaScript client
 - Support for both synchronous and asynchronous operations
 - MFA (Multi-Factor Authentication) support
 - OAuth and SSO integration
@@ -42,23 +42,19 @@ poetry add supabase_auth
 - JWT token handling and verification
 - User management and profile updates
 
-## Differences to the JS client
+## Differences to the JavaScript client
 
-It should be noted there are differences to the [JS client](https://github.com/supabase/gotrue-js). If you feel particulaly strongly about them and want to motivate a change, feel free to make a GitHub issue and we can discuss it there.
+Methods and attributes follow the JavaScript client, but browser specific code is not ported.
 
-Firstly, feature pairity is not 100% with the [JS client](https://github.com/supabase/gotrue-js). In most cases we match the methods and attributes of the [JS client](https://github.com/supabase/gotrue-js) and api classes, but is some places (e.g for browser specific code) it didn't make sense to port the code line for line.
-
-There is also a divergence in terms of how errors are raised. In the [JS client](https://github.com/supabase/gotrue-js), the errors are returned as part of the object, which the user can choose to process in whatever way they see fit. In this Python client, we raise the errors directly where they originate, as it was felt this was more Pythonic and adhered to the idioms of the language more directly.
-
-In JS we return the error, but in Python we just raise it.
+Errors are raised where they originate instead of being returned next to the data, since that is the idiomatic way in Python. Where JavaScript returns the error:
 
 ```js
-const { data, error } = client.sign_up(...)
+const { data, error } = await supabase.auth.signUp({ email, password })
 ```
 
-The other key difference is we do not use pascalCase to encode variable and method names. Instead we use the snake_case convention adopted in the Python language.
+Python raises a subclass of `AuthError`, which you catch with `try`/`except`.
 
-Also, the `supabase_auth` library for Python parses the date-time string into `datetime` Python objects. The [JS client](https://github.com/supabase/gotrue-js) keeps the date-time as strings.
+Names use the Python snake_case convention instead of camelCase, and date-time strings are parsed into `datetime` objects.
 
 ## Supabase Service Compatibility
 
@@ -68,82 +64,110 @@ If you self-host Supabase Auth, we recommend upgrading to the latest release whe
 
 ## Usage
 
-The library provides both synchronous and asynchronous clients. Here are some examples:
+The client takes the URL of the auth service, `https://<project_ref>.supabase.co/auth/v1` for a Supabase project, and the HTTP session it sends its requests with. Leaving the client's context manager closes the session and stops the automatic token refresh.
 
 ### Synchronous Client
 
 ```python
-from supabase_auth import SyncGoTrueClient
+from httpx import Client
+from supabase_auth import (
+    SignInWithPassword,
+    SignInWithPasswordless,
+    SignUpWithPassword,
+    SyncSupabaseAuthClient,
+    UserAttributes,
+)
+from supabase_utils.http.adapters.httpx import HttpxSession
 
-headers = {
-    "apiKey": "my-mega-awesome-api-key",
-    # ... any other headers you might need.
-}
-client: SyncGoTrueClient = SyncGoTrueClient(url="www.genericauthwebsite.com", headers=headers)
+with SyncSupabaseAuthClient(
+    "https://<project_ref>.supabase.co/auth/v1",
+    HttpxSession(Client()),
+    headers={"apikey": "your-publishable-key"},
+) as client:
+    # Sign up with email and password
+    response = client.sign_up(
+        SignUpWithPassword.email("someone@example.com", "a-strong-password")
+    )
 
-# Sign up with email and password
-user = client.sign_up(email="example@gmail.com", password="*********")
+    # Sign in with email and password
+    response = client.sign_in_with_password(
+        SignInWithPassword.email("someone@example.com", "a-strong-password")
+    )
 
-# Sign in with email and password
-user = client.sign_in_with_password(email="example@gmail.com", password="*********")
+    # Sign in with magic link
+    client.sign_in_with_otp(SignInWithPasswordless.email("someone@example.com"))
 
-# Sign in with magic link
-user = client.sign_in_with_otp(email="example@gmail.com")
+    # Sign in with phone number
+    client.sign_in_with_otp(SignInWithPasswordless.phone("+1234567890"))
 
-# Sign in with phone number
-user = client.sign_in_with_otp(phone="+1234567890")
+    # Sign in with OAuth: send the user to the returned URL
+    oauth = client.sign_in_with_oauth("google")
+    print(oauth.url)
 
-# Sign in with OAuth
-user = client.sign_in_with_oauth(provider="google")
+    # Get current user
+    user = client.get_user()
 
-# Sign out
-client.sign_out()
+    # Update user profile
+    user = client.update_user(UserAttributes(data={"name": "John Doe"}))
 
-# Get current user
-user = client.get_user()
-
-# Update user profile
-user = client.update_user({"data": {"name": "John Doe"}})
+    # Sign out
+    client.sign_out()
 ```
 
 ### Asynchronous Client
 
 ```python
-from supabase_auth import AsyncGoTrueClient
-
-headers = {
-    "apiKey": "my-mega-awesome-api-key",
-    # ... any other headers you might need.
-}
-client: AsyncGoTrueClient = AsyncGoTrueClient(url="www.genericauthwebsite.com", headers=headers)
-
-async def main():
-    # Sign up with email and password
-    user = await client.sign_up(email="example@gmail.com", password="*********")
-
-    # Sign in with email and password
-    user = await client.sign_in_with_password(email="example@gmail.com", password="*********")
-
-    # Sign in with magic link
-    user = await client.sign_in_with_otp(email="example@gmail.com")
-
-    # Sign in with phone number
-    user = await client.sign_in_with_otp(phone="+1234567890")
-
-    # Sign in with OAuth
-    user = await client.sign_in_with_oauth(provider="google")
-
-    # Sign out
-    await client.sign_out()
-
-    # Get current user
-    user = await client.get_user()
-
-    # Update user profile
-    user = await client.update_user({"data": {"name": "John Doe"}})
-
-# Run the async code
 import asyncio
+
+from httpx import AsyncClient
+from supabase_auth import (
+    AsyncSupabaseAuthClient,
+    SignInWithPassword,
+    SignInWithPasswordless,
+    SignUpWithPassword,
+    UserAttributes,
+)
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession
+
+
+async def main() -> None:
+    async with AsyncSupabaseAuthClient(
+        "https://<project_ref>.supabase.co/auth/v1",
+        AsyncHttpxSession(AsyncClient()),
+        headers={"apikey": "your-publishable-key"},
+    ) as client:
+        # Sign up with email and password
+        response = await client.sign_up(
+            SignUpWithPassword.email("someone@example.com", "a-strong-password")
+        )
+
+        # Sign in with email and password
+        response = await client.sign_in_with_password(
+            SignInWithPassword.email("someone@example.com", "a-strong-password")
+        )
+
+        # Sign in with magic link
+        await client.sign_in_with_otp(
+            SignInWithPasswordless.email("someone@example.com")
+        )
+
+        # Sign in with phone number
+        await client.sign_in_with_otp(SignInWithPasswordless.phone("+1234567890"))
+
+        # Sign in with OAuth: send the user to the returned URL
+        oauth = await client.sign_in_with_oauth("google")
+        print(oauth.url)
+
+        # Get current user
+        user = await client.get_user()
+
+        # Update user profile
+        user = await client.update_user(UserAttributes(data={"name": "John Doe"}))
+
+        # Sign out
+        await client.sign_out()
+
+
 asyncio.run(main())
 ```
 
@@ -152,20 +176,21 @@ asyncio.run(main())
 The library includes support for Multi-Factor Authentication:
 
 ```python
+from supabase_auth import MFAEnroll
+
 # List MFA factors
 factors = client.mfa.list_factors()
 
 # Enroll a new MFA factor
-enrolled_factor = client.mfa.enroll({"factor_type": "totp"})
+factor = client.mfa.enroll(MFAEnroll.totp(friendly_name="My phone"))
 
 # Challenge and verify MFA
-challenge = client.mfa.challenge({"factor_id": "factor_id"})
-verified = client.mfa.verify({"factor_id": "factor_id", "code": "123456"})
+challenge = client.mfa.challenge(factor.id)
+verified = client.mfa.verify(factor.id, "123456", challenge.id)
+
+# Or both in one call
+verified = client.mfa.challenge_and_verify(factor.id, "123456")
 
 # Unenroll a factor
-client.mfa.unenroll({"factor_id": "factor_id"})
+client.mfa.unenroll(factor.id)
 ```
-
-## Contributions
-
-We would be immensely grateful for any contributions to this project.

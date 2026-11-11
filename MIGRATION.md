@@ -66,6 +66,9 @@ Names that mirror a wire format keep their wire spelling, for example the JWT cl
 `ClientOptions`, `AsyncClientOptions`, their v2 names `SyncClientOptions` and `AClientOptions`, and the `supabase.lib.client_options` module are removed. `create_client`, `create_async_client`, `Client`, `AsyncClient` and their `create` methods take the settings as keyword-only arguments. Settings that apply to every service are arguments of their own. The settings of one service are grouped in an options class, passed in the argument named after the service.
 
 ```python
+from supabase import AuthClientOptions, PostgrestClientOptions, StorageClientOptions
+from supabase.httpx import create_client
+
 client = create_client(
     url,
     key,

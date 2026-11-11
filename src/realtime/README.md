@@ -107,12 +107,19 @@ async with client.channel("broadcast-test", options) as channel:
 - Setting `replication_ready` to `true` instructs the server to emit a `system` message once the Postgres replication connection backing the channel is established and ready to stream changes. Its payload's `status` is `"ok"` (`message: "Replication connection established"`) on success or `"error"` if the connection is not ready in time.
 
 ```python
-from realtime import PostgresChangesMessage, RealtimeChannelOptions, SystemMessage
+from realtime import (
+    PostgresChangesMessage,
+    RealtimeChannelOptions,
+    RealtimePostgresChangesListenEvent,
+    SystemMessage,
+)
 
 options = (
     RealtimeChannelOptions()
     .broadcast(replication_ready=True)
-    .postgres_changes("*", schema="public", table="messages")
+    .postgres_changes(
+        RealtimePostgresChangesListenEvent.All, schema="public", table="messages"
+    )
 )
 
 async with client.channel("db-changes", options) as channel:
@@ -148,14 +155,23 @@ async with client.channel("presence-test", options) as channel:
 Receive database changes on the client.
 
 ```python
-from realtime import PostgresChangesMessage, RealtimeChannelOptions
+from realtime import (
+    PostgresChangesMessage,
+    RealtimeChannelOptions,
+    RealtimePostgresChangesListenEvent,
+)
 
 options = (
     RealtimeChannelOptions()
-    .postgres_changes("*", schema="public")
-    .postgres_changes("INSERT", schema="public", table="messages")
+    .postgres_changes(RealtimePostgresChangesListenEvent.All, schema="public")
     .postgres_changes(
-        "UPDATE", schema="public", table="users", filter="username=eq.Realtime"
+        RealtimePostgresChangesListenEvent.Insert, schema="public", table="messages"
+    )
+    .postgres_changes(
+        RealtimePostgresChangesListenEvent.Update,
+        schema="public",
+        table="users",
+        filter="username=eq.Realtime",
     )
 )
 
@@ -198,8 +214,13 @@ reduces payload size (helpful for large `bytea`/`jsonb` columns). The selected
 columns must be selectable by the subscribing role:
 
 ```python
+from realtime import RealtimeChannelOptions, RealtimePostgresChangesListenEvent
+
 options = RealtimeChannelOptions().postgres_changes(
-    "*", schema="public", table="users", select=["id", "first_name"]
+    RealtimePostgresChangesListenEvent.All,
+    schema="public",
+    table="users",
+    select=["id", "first_name"],
 )
 
 async with client.channel("db-changes", options) as channel:

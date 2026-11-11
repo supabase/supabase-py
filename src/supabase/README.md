@@ -61,16 +61,37 @@ key: str = os.environ["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 ```
 
-For the async client, use `create_async_client` from `supabase.httpx` or `supabase.aiohttp`, which returns an `AsyncClient`.
+For the async client, use `create_async_client` from `supabase.httpx` or `supabase.aiohttp`, which returns an `AsyncClient`:
+
+```python
+import asyncio
+import os
+
+from supabase.httpx import create_async_client
+
+
+async def main() -> None:
+    async with create_async_client(
+        os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]
+    ) as supabase:
+        response = await supabase.table("countries").select("*").execute()
+        print(response.data)
+
+
+asyncio.run(main())
+```
 
 Settings are keyword arguments. `headers` and `request_timeout` apply to the database, auth, storage and edge functions, not to the realtime connection of `AsyncClient`. The settings of one service are grouped in an options class:
 
 ```python
+import os
+
 from supabase import AuthClientOptions, PostgrestClientOptions, StorageClientOptions
+from supabase.httpx import create_client
 
 supabase = create_client(
-    url,
-    key,
+    os.environ["SUPABASE_URL"],
+    os.environ["SUPABASE_KEY"],
     headers={"x-app": "my-app"},
     request_timeout=30,
     postgrest=PostgrestClientOptions(schema="private"),
@@ -86,13 +107,21 @@ Use the supabase client to interface with your database.
 ### Sign-up
 
 ```python
-user = supabase.auth.sign_up({ "email": users_email, "password": users_password })
+from supabase_auth import SignUpWithPassword
+
+response = supabase.auth.sign_up(
+    SignUpWithPassword.email("someone@example.com", "a-strong-password")
+)
 ```
 
 ### Sign-in
 
 ```python
-user = supabase.auth.sign_in_with_password({ "email": users_email, "password": users_password })
+from supabase_auth import SignInWithPassword
+
+response = supabase.auth.sign_in_with_password(
+    SignInWithPassword.email("someone@example.com", "a-strong-password")
+)
 ```
 
 ### Insert Data
@@ -157,12 +186,13 @@ data = supabase.table("countries").delete().all().execute()
 ### Call Edge Functions
 
 ```python
-def test_func():
-  try:
-    resp = supabase.functions.invoke("hello-world", body={})
-    return resp
-  except (FunctionsRelayError, FunctionsHttpError) as exception:
-    print(exception.status_code, exception.message)
+from supabase import FunctionsHttpError, FunctionsRelayError
+
+try:
+    response = supabase.functions.invoke("hello-world", body={"name": "Functions"})
+    print(response.content)
+except (FunctionsRelayError, FunctionsHttpError) as error:
+    print(error.status_code, error.message)
 ```
 
 ### Download a file from Storage
@@ -176,10 +206,13 @@ data = supabase.storage.from_(bucket_name).download("photo1.png")
 ### Upload a file
 
 ```python
-bucket_name: str = "photos"
-new_file = getUserFile()
+from pathlib import Path
 
-data = supabase.storage.from_(bucket_name).upload("/user1/profile.png", new_file)
+bucket_name: str = "photos"
+
+data = supabase.storage.from_(bucket_name).upload(
+    "user1/profile.png", Path("profile.png"), content_type="image/png"
+)
 ```
 
 ### Remove a file
@@ -254,10 +287,17 @@ SupabaseError
 
 The response errors inherit both from the root of their package and from `SupabaseAPIError`, so `except AuthApiError` and `except AuthError` keep working. Arguments the client rejects before sending a request raise the built-in `ValueError` or `TypeError`, as they do everywhere in Python, except for a vector batch of the wrong size, which raises `VectorBucketException`. A lost realtime connection is reported as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, not as a `SupabaseError`.
 
-## Important: Proper Client Shutdown
+## Closing the client
 
-To ensure the Supabase client terminates correctly and to prevent resource leaks, you **must** explicitly call:
+The client keeps its HTTP connections open. Use it as a context manager to close them when you are done:
 
 ```python
-client.auth.sign_out()
+import os
+
+from supabase.httpx import create_client
+
+with create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]) as supabase:
+    data = supabase.table("countries").select("*").execute()
 ```
+
+`AsyncClient` works the same way with `async with`.
