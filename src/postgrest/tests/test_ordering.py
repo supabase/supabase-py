@@ -79,7 +79,7 @@ def test_an_ordering_is_frozen() -> None:
     ordering = Books.title.asc()
 
     with pytest.raises(FrozenInstanceError):
-        ordering.direction = "desc"  # pyrefly: ignore[missing-attribute, read-only]
+        ordering.direction = "desc"  # pyrefly: ignore[missing-attribute]
 
 
 def test_chaining_leaves_the_earlier_ordering_unchanged() -> None:

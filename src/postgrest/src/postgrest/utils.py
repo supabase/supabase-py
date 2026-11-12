@@ -24,12 +24,19 @@ def _serialize_filter_value(value: Any) -> str:
     return str(value)
 
 
+def _quote(text: str) -> str:
+    """`text` in double quotes, with the backslashes and double quotes inside
+    escaped by a backslash, as every PostgREST and Postgres literal reads a
+    quoted value."""
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
 def sanitize_param(param: Any) -> str:
     param_str = str(param)
     reserved_chars = ',:()"\\'
     if any(char in param_str for char in reserved_chars):
-        escaped = param_str.replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
+        return _quote(param_str)
     return param_str
 
 
@@ -53,8 +60,7 @@ def _sanitize_array_element(element: Any) -> str:
     )
     if not needs_quoting:
         return element_str
-    escaped = element_str.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
+    return _quote(element_str)
 
 
 def _sanitize_array_param(values: Iterable[Any]) -> str:

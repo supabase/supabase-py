@@ -466,11 +466,23 @@ def _members(values: Iterable[Any], method: str) -> tuple[Any, ...]:
 
 def _containment_operand(value: object, method: str) -> object:
     """The operand of `contains()`, `contained_by()` and `overlaps()`: a
-    collection of values becomes a tuple, to be sent as an array literal; a
-    `Range`, a mapping and a single value are kept as given."""
-    if isinstance(value, (Range, Mapping)) or not isinstance(value, Iterable):
+    collection of values becomes a tuple, to be sent as an array literal, a
+    mapping a `dict`, to be sent as JSON, and a `Range` or a single value is
+    kept as given."""
+    if isinstance(value, Mapping):
+        return dict(value)
+    if isinstance(value, Range) or not isinstance(value, Iterable):
         return value
     return _members(value, method)
+
+
+def _array_literal(members: tuple[Any, ...]) -> str:
+    """`members` as the array literal `{a,b}`, each rendered as any other
+    operand is, apart from `None`, which is the SQL `NULL` of the literal."""
+    return _sanitize_array_param(
+        None if member is None else _serialize_filter_value(member)
+        for member in members
+    )
 
 
 @dataclass(frozen=True)
@@ -644,7 +656,7 @@ def _operand(node: _Comparison[Any]) -> str:
         )
         return f"({members})"
     if node.operator in _ARRAY_OPERATORS and isinstance(node.value, tuple):
-        return _sanitize_array_param(node.value)
+        return _array_literal(node.value)
     return _serialize_filter_value(node.value)
 
 

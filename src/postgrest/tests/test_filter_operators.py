@@ -2,6 +2,7 @@ import json
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -122,11 +123,22 @@ class TestArrayOperators:
         assert rendered(Posts.tags.contains(["a", None])) == ["tags=cs.{a,NULL}"]
         assert rendered(Posts.labels.overlaps([None])) == ["labels=ov.{NULL}"]
 
-    def test_members_render_like_other_values(self) -> None:
+    def test_members_render_like_other_operands(self) -> None:
         assert rendered(Posts.moods.contains([Mood.HAPPY, Mood.VERY_HAPPY])) == [
             'moods=cs.{happy,"very happy"}'
         ]
         assert rendered(Column("ids").contains([1, 2])) == ["ids=cs.{1,2}"]
+        assert rendered(Column("flags").contains([True, False])) == [
+            "flags=cs.{true,false}"
+        ]
+        assert rendered(Column("items").contains([{"a": 1}])) == [
+            'items=cs.{"{\\"a\\":1}"}'
+        ]
+
+    def test_a_mapping_of_any_kind_is_sent_as_json(self) -> None:
+        assert rendered(Posts.metadata.contains(MappingProxyType({"a": 1}))) == [
+            'metadata=cs.{"a":1}'
+        ]
 
     def test_an_empty_array_renders_empty_braces(self) -> None:
         assert rendered(Posts.tags.contains([])) == ["tags=cs.{}"]
@@ -140,7 +152,7 @@ class TestArrayOperators:
 
     def test_reject_one_string(self) -> None:
         with pytest.raises(TypeError, match="contains\\(\\) takes an iterable"):
-            Posts.tags.contains("abc")  # pyrefly: ignore[string-as-iterable]
+            Posts.tags.contains("abc")
         with pytest.raises(TypeError, match="overlaps\\(\\) takes an iterable"):
             Column("x").overlaps("[1,2)")
 
@@ -275,10 +287,10 @@ class TestOperators:
         assert range_.operator is FilterOperator.RANGE_LT
         assert range_.value == Range(2, 25)
 
-        json = (~Posts.metadata.contains({"a": 1})).comparison
-        assert json is not None
-        assert json.value == {"a": 1}
-        assert json.negated
+        json_comparison = (~Posts.metadata.contains({"a": 1})).comparison
+        assert json_comparison is not None
+        assert json_comparison.value == {"a": 1}
+        assert json_comparison.negated
 
         patterns = Posts.content.like_all_of(["%a%"]).comparison
         assert patterns is not None
@@ -292,9 +304,12 @@ ARRAYS: list[list[Any]] = [
     ["a", "b"],
     [],
     ["a,b", "a{b", 'a"b', "a\\b", "a b", "", "null", "NULL"],
-    [1, 2.5, Decimal("1.25"), True, None],
+    [1, 2.5, Decimal("1.25"), None],
     [datetime(2024, 1, 15, 12, tzinfo=UTC), date(2024, 1, 15), Mood.VERY_HAPPY],
 ]
+"""Members the string builder renders as the typed operators do. A boolean
+member is left out, since the string builder sends it as `True` where every
+typed operand is `true`, which Postgres reads alike."""
 
 RANGES = [
     Range(1, 2),
@@ -321,8 +336,10 @@ class TestEqualsTheStringBuilder:
             "x"
         )
 
-        assert typed_values(getattr(Column("x"), method)(pattern), "x") == expected
-        assert typed_values(~getattr(Column("x"), method)(pattern), "x") == negated
+        filter_: Filter[Any] = getattr(Column("x"), method)(pattern)
+
+        assert typed_values(filter_, "x") == expected
+        assert typed_values(~filter_, "x") == negated
 
     @pytest.mark.parametrize(
         ("method", "operator"),
@@ -358,8 +375,10 @@ class TestEqualsTheStringBuilder:
             "x"
         )
 
-        assert typed_values(getattr(Column("x"), method)(patterns), "x") == expected
-        assert typed_values(~getattr(Column("x"), method)(patterns), "x") == negated
+        filter_: Filter[Any] = getattr(Column("x"), method)(patterns)
+
+        assert typed_values(filter_, "x") == expected
+        assert typed_values(~filter_, "x") == negated
 
     @pytest.mark.parametrize("method", ["contains", "contained_by", "overlaps"])
     @pytest.mark.parametrize("values", ARRAYS)
@@ -369,8 +388,10 @@ class TestEqualsTheStringBuilder:
         expected = getattr(builder, method)("x", values).request.query.get_list("x")
         negated = getattr(builder.not_, method)("x", values).request.query.get_list("x")
 
-        assert typed_values(getattr(Column("x"), method)(values), "x") == expected
-        assert typed_values(~getattr(Column("x"), method)(values), "x") == negated
+        filter_: Filter[Any] = getattr(Column("x"), method)(values)
+
+        assert typed_values(filter_, "x") == expected
+        assert typed_values(~filter_, "x") == negated
 
     @pytest.mark.parametrize("method", ["contains", "contained_by"])
     @pytest.mark.parametrize(
@@ -419,8 +440,10 @@ class TestEqualsTheStringBuilder:
         ).request.query.get_list("x")
         range_ = Range(lower or None, upper, "()")
 
-        assert typed_values(getattr(Column("x"), method)(range_), "x") == expected
-        assert typed_values(~getattr(Column("x"), method)(range_), "x") == negated
+        filter_: Filter[Any] = getattr(Column("x"), method)(range_)
+
+        assert typed_values(filter_, "x") == expected
+        assert typed_values(~filter_, "x") == negated
 
     @pytest.mark.parametrize(
         "method", ["range_lt", "range_gt", "range_gte", "range_lte", "range_adjacent"]
