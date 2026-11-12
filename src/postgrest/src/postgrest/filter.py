@@ -1,24 +1,30 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, replace
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Generic, assert_never
+from typing import TYPE_CHECKING, Any, Generic, Literal, assert_never, overload
 
 from typing_extensions import TypeVar
 
+from .range import Bound, Range
 from .types import _TEXT_SEARCH_OPERATORS, Filters, TextSearchType
-from .utils import _serialize_filter_value, sanitize_param
+from .utils import _sanitize_array_param, _serialize_filter_value, sanitize_param
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from pydantic import JsonValue
 
 Row = TypeVar("Row", default=Any)
-"""The row type of the table a column expression or a filter belongs to."""
+"""The row type of the table a column expression, a filter or an ordering
+belongs to."""
 
 Value = TypeVar("Value", default=Any)
 """The Python type of a column expression, which its operators take as their
 operand."""
+
+Element = TypeVar("Element")
+"""The element type of an array column."""
 
 
 class FilterOperator(StrEnum):
@@ -37,29 +43,157 @@ class FilterOperator(StrEnum):
     IS_DISTINCT = "isdistinct"
     IS = "is"
     IN = "in"
+    LIKE = "like"
+    ILIKE = "ilike"
+    MATCH_REGEX = "match"
+    IMATCH_REGEX = "imatch"
+    LIKE_ALL_OF = "like(all)"
+    LIKE_ANY_OF = "like(any)"
+    ILIKE_ALL_OF = "ilike(all)"
+    ILIKE_ANY_OF = "ilike(any)"
+    CONTAINS = "cs"
+    CONTAINED_BY = "cd"
+    OVERLAPS = "ov"
+    RANGE_LT = "sl"
+    RANGE_GT = "sr"
+    RANGE_GTE = "nxl"
+    RANGE_LTE = "nxr"
+    RANGE_ADJACENT = "adj"
     TEXT_SEARCH = "fts"
 
 
-class ColumnExpression(ABC, Generic[Row, Value]):
-    """A single value of a row that a filter applies an operator to: a stored
-    column, a computed field, or an expression derived from one.
+_ARRAY_OPERATORS = frozenset(
+    {
+        FilterOperator.LIKE_ALL_OF,
+        FilterOperator.LIKE_ANY_OF,
+        FilterOperator.ILIKE_ALL_OF,
+        FilterOperator.ILIKE_ANY_OF,
+        FilterOperator.CONTAINS,
+        FilterOperator.CONTAINED_BY,
+        FilterOperator.OVERLAPS,
+    }
+)
+"""The operators whose operand is sent as an array literal when it is a
+collection of values."""
+
+
+class Ordering(ABC, Generic[Row]):
+    """One sort key of a query: a column expression, optionally with a
+    direction and a null placement.
+
+        .order(Books.priority.desc())
+        .order(Books.id)  # breaks ties in the first
+
+    A bare column is an ordering with no direction, and `order(Books.id)`
+    sends `order=id`; `asc()`, `desc()`, `nulls_first()` and `nulls_last()`
+    say more, as in `title.desc.nullslast`. Only what was asked for is sent,
+    so the defaults of PostgREST and the database apply to the rest, where the
+    string builder's `order()` always sends a direction.
+
+    `Row` is the row type of the table the key belongs to, so an ordering on
+    one table cannot be applied to a query on another.
+    """
+
+    @property
+    @abstractmethod
+    def order_key(self) -> str:
+        """The key as it appears in the `order` parameter, such as
+        `title.desc.nullslast`."""
+
+    @abstractmethod
+    def asc(self) -> Ordering[Row]:
+        """Sorts smallest first."""
+
+    @abstractmethod
+    def desc(self) -> Ordering[Row]:
+        """Sorts largest first."""
+
+    @abstractmethod
+    def nulls_first(self) -> Ordering[Row]:
+        """Places `NULL`s before the other values."""
+
+    @abstractmethod
+    def nulls_last(self) -> Ordering[Row]:
+        """Places `NULL`s after the other values."""
+
+
+@dataclass(frozen=True)
+class _Ordering(Ordering[Row]):
+    """An ordering by an expression with the direction and the null placement
+    that were asked for."""
+
+    expression: str
+    direction: Literal["asc", "desc"] | None = None
+    """`None` sends no direction, so the default of PostgREST applies."""
+    nulls: Literal["nullsfirst", "nullslast"] | None = None
+    """`None` sends no placement, so the default of the database applies."""
+
+    @property
+    def order_key(self) -> str:
+        parts = (self.expression, self.direction, self.nulls)
+        return ".".join(part for part in parts if part is not None)
+
+    def asc(self) -> Ordering[Row]:
+        return replace(self, direction="asc")
+
+    def desc(self) -> Ordering[Row]:
+        return replace(self, direction="desc")
+
+    def nulls_first(self) -> Ordering[Row]:
+        return replace(self, nulls="nullsfirst")
+
+    def nulls_last(self) -> Ordering[Row]:
+        return replace(self, nulls="nullslast")
+
+
+class ColumnExpression(Ordering[Row], ABC, Generic[Row, Value]):
+    """A single value of a row that a filter applies an operator to, or that a
+    query orders by: a stored column, a computed field, or an expression
+    derived from one.
 
     `Row` is the row type of the table the expression belongs to, and every
-    filter built from it carries it, so a filter on one table is rejected by a
-    query on another. `Value` is the Python type of the expression, which every
-    operator takes as its operand, so `Books.id.eq("seven")` is a type error.
-    Both default to `Any`, so `Column("deleted_at")` works without generated
-    code.
+    filter and ordering built from it carries it, so a filter on one table is
+    rejected by a query on another. `Value` is the Python type of the
+    expression, which every operator takes as its operand, so
+    `Books.id.eq("seven")` is a type error. Both default to `Any`, so
+    `Column("deleted_at")` works without generated code.
 
-    Operators are methods, not Python's comparison operators, so a column keeps
-    its equality and hash. There is no `not_in()` or `is_not_null()`: negate the
-    filter with `~` instead.
+    The operators of one kind of value exist on that kind only: `like()` on a
+    `str` expression, `contains()` on a `list`, a `Range` or a `JsonValue`
+    one, `range_lt()` on a `Range` one. Operators are methods, not Python's
+    comparison operators, so a column keeps its equality and hash. There is
+    no `not_in()` or `is_not_null()`: negate the filter with `~` instead.
     """
 
     @property
     @abstractmethod
     def expression(self) -> str:
         """The text PostgREST expects on the left of an operator."""
+
+    @property
+    def order_key(self) -> str:
+        """The expression as it appears in the `order` parameter: on its own,
+        it orders with no direction, so `order(Books.title)` sends
+        `order=title`."""
+        return self.expression
+
+    def asc(self) -> Ordering[Row]:
+        """Sorts by this expression, smallest first: `title.asc`."""
+        return _Ordering(self.order_key, direction="asc")
+
+    def desc(self) -> Ordering[Row]:
+        """Sorts by this expression, largest first: `title.desc`."""
+        return _Ordering(self.order_key, direction="desc")
+
+    def nulls_first(self) -> Ordering[Row]:
+        """Sorts by this expression with `NULL`s before the other values,
+        leaving the direction to PostgREST: `title.nullsfirst`."""
+        return _Ordering(self.order_key, nulls="nullsfirst")
+
+    def nulls_last(self) -> Ordering[Row]:
+        """Sorts by this expression with `NULL`s after the other values,
+        leaving the direction to PostgREST: `title.nullslast`."""
+        return _Ordering(self.order_key, nulls="nullslast")
 
     def _compare(
         self, operator: FilterOperator, value: object, *, token: str | None = None
@@ -107,9 +241,174 @@ class ColumnExpression(ABC, Generic[Row, Value]):
         An empty `values` matches no rows. `~Books.id.in_([1, 2])` renders
         `id=not.in.(1,2)`.
         """
-        if isinstance(values, (str, bytes)):
-            raise TypeError("in_() takes an iterable of values, not one string")
-        return self._compare(FilterOperator.IN, tuple(values))
+        return self._compare(FilterOperator.IN, _members(values, "in_"))
+
+    def like(self: ColumnExpression[Row, str], pattern: str) -> Filter[Row]:
+        """Only rows matching the `LIKE` `pattern`, case-sensitively.
+
+        `%` matches any run of characters and `_` exactly one.
+        """
+        return self._compare(FilterOperator.LIKE, pattern)
+
+    def ilike(self: ColumnExpression[Row, str], pattern: str) -> Filter[Row]:
+        """Only rows matching the `LIKE` `pattern`, case-insensitively."""
+        return self._compare(FilterOperator.ILIKE, pattern)
+
+    def match_regex(self: ColumnExpression[Row, str], pattern: str) -> Filter[Row]:
+        """Only rows matching the POSIX regular expression `pattern`,
+        case-sensitively.
+
+        Not named `match()`, which on the string builder is an equality
+        shorthand over several columns.
+        """
+        return self._compare(FilterOperator.MATCH_REGEX, pattern)
+
+    def imatch_regex(self: ColumnExpression[Row, str], pattern: str) -> Filter[Row]:
+        """Only rows matching the POSIX regular expression `pattern`,
+        case-insensitively."""
+        return self._compare(FilterOperator.IMATCH_REGEX, pattern)
+
+    def like_all_of(
+        self: ColumnExpression[Row, str], patterns: Iterable[str]
+    ) -> Filter[Row]:
+        """Only rows matching every one of `patterns`, case-sensitively.
+
+        An empty `patterns` matches every row, `NULL` rows included, since
+        `LIKE ALL` of nothing holds.
+        """
+        return self._compare(
+            FilterOperator.LIKE_ALL_OF, _members(patterns, "like_all_of")
+        )
+
+    def like_any_of(
+        self: ColumnExpression[Row, str], patterns: Iterable[str]
+    ) -> Filter[Row]:
+        """Only rows matching at least one of `patterns`, case-sensitively.
+
+        An empty `patterns` matches no rows.
+        """
+        return self._compare(
+            FilterOperator.LIKE_ANY_OF, _members(patterns, "like_any_of")
+        )
+
+    def ilike_all_of(
+        self: ColumnExpression[Row, str], patterns: Iterable[str]
+    ) -> Filter[Row]:
+        """Only rows matching every one of `patterns`, case-insensitively.
+
+        An empty `patterns` matches every row, as with `like_all_of()`.
+        """
+        return self._compare(
+            FilterOperator.ILIKE_ALL_OF, _members(patterns, "ilike_all_of")
+        )
+
+    def ilike_any_of(
+        self: ColumnExpression[Row, str], patterns: Iterable[str]
+    ) -> Filter[Row]:
+        """Only rows matching at least one of `patterns`, case-insensitively.
+
+        An empty `patterns` matches no rows.
+        """
+        return self._compare(
+            FilterOperator.ILIKE_ANY_OF, _members(patterns, "ilike_any_of")
+        )
+
+    @overload
+    def contains(
+        self: ColumnExpression[Row, list[Element]], values: Iterable[Element | None], /
+    ) -> Filter[Row]: ...
+    @overload
+    def contains(
+        self: ColumnExpression[Row, Range[Bound]], range: Range[Bound] | Bound, /
+    ) -> Filter[Row]: ...
+    @overload
+    def contains(
+        self: ColumnExpression[Row, JsonValue], value: Mapping[str, Any], /
+    ) -> Filter[Row]: ...
+    def contains(self, value: object, /) -> Filter[Row]:
+        """Only rows whose value contains the operand, which the column type
+        decides the shape of.
+
+        An array column contains every element of `values`, sent as the array
+        literal `{a,b}`; an empty `values` matches every row whose column is
+        not `NULL`. A range column contains every value of `range`, sent as
+        `[2,25)`, or the one value given, sent as `2`. A JSON column contains
+        the object `value`, sent as `{"a":1}`; a JSON array or scalar operand
+        has no typed form, use `raw("cs.[1,2]")`.
+        """
+        return self._compare(
+            FilterOperator.CONTAINS, _containment_operand(value, "contains")
+        )
+
+    @overload
+    def contained_by(
+        self: ColumnExpression[Row, list[Element]], values: Iterable[Element | None], /
+    ) -> Filter[Row]: ...
+    @overload
+    def contained_by(
+        self: ColumnExpression[Row, Range[Bound]], range: Range[Bound], /
+    ) -> Filter[Row]: ...
+    @overload
+    def contained_by(
+        self: ColumnExpression[Row, JsonValue], value: Mapping[str, Any], /
+    ) -> Filter[Row]: ...
+    def contained_by(self, value: object, /) -> Filter[Row]:
+        """Only rows whose value is contained by the operand, which the column
+        type decides the shape of, as for `contains()`.
+
+        An array column has no element outside `values`, a range column lies
+        within `range`, and a JSON column is contained by the object `value`.
+        """
+        return self._compare(
+            FilterOperator.CONTAINED_BY, _containment_operand(value, "contained_by")
+        )
+
+    @overload
+    def overlaps(
+        self: ColumnExpression[Row, list[Element]], values: Iterable[Element | None], /
+    ) -> Filter[Row]: ...
+    @overload
+    def overlaps(
+        self: ColumnExpression[Row, Range[Bound]], range: Range[Bound], /
+    ) -> Filter[Row]: ...
+    def overlaps(self, value: object, /) -> Filter[Row]:
+        """Only rows whose value shares at least one element with `values`,
+        on an array column, or at least one value with `range`, on a range
+        column."""
+        return self._compare(
+            FilterOperator.OVERLAPS, _containment_operand(value, "overlaps")
+        )
+
+    def range_lt(
+        self: ColumnExpression[Row, Range[Bound]], range: Range[Bound]
+    ) -> Filter[Row]:
+        """Only rows whose range is strictly to the left of `range`."""
+        return self._compare(FilterOperator.RANGE_LT, range)
+
+    def range_gt(
+        self: ColumnExpression[Row, Range[Bound]], range: Range[Bound]
+    ) -> Filter[Row]:
+        """Only rows whose range is strictly to the right of `range`."""
+        return self._compare(FilterOperator.RANGE_GT, range)
+
+    def range_gte(
+        self: ColumnExpression[Row, Range[Bound]], range: Range[Bound]
+    ) -> Filter[Row]:
+        """Only rows whose range does not extend to the left of `range`."""
+        return self._compare(FilterOperator.RANGE_GTE, range)
+
+    def range_lte(
+        self: ColumnExpression[Row, Range[Bound]], range: Range[Bound]
+    ) -> Filter[Row]:
+        """Only rows whose range does not extend to the right of `range`."""
+        return self._compare(FilterOperator.RANGE_LTE, range)
+
+    def range_adjacent(
+        self: ColumnExpression[Row, Range[Bound]], range: Range[Bound]
+    ) -> Filter[Row]:
+        """Only rows whose range is adjacent to `range`: the two share no
+        value and nothing lies between them."""
+        return self._compare(FilterOperator.RANGE_ADJACENT, range)
 
     def text_search(
         self,
@@ -155,6 +454,35 @@ class ColumnExpression(ABC, Generic[Row, Value]):
         beneath `|` or `~` unless it is valid inside `or=(…)`.
         """
         return Filter(_Raw(sanitize_param(self.expression), operand))
+
+
+def _members(values: Iterable[Any], method: str) -> tuple[Any, ...]:
+    """`values` as a tuple, rejecting one string where a collection of values
+    is expected, since a string is an iterable of its characters."""
+    if isinstance(values, (str, bytes)):
+        raise TypeError(f"{method}() takes an iterable of values, not one string")
+    return tuple(values)
+
+
+def _containment_operand(value: object, method: str) -> object:
+    """The operand of `contains()`, `contained_by()` and `overlaps()`: a
+    collection of values becomes a tuple, to be sent as an array literal, a
+    mapping a `dict`, to be sent as JSON, and a `Range` or a single value is
+    kept as given."""
+    if isinstance(value, Mapping):
+        return dict(value)
+    if isinstance(value, Range) or not isinstance(value, Iterable):
+        return value
+    return _members(value, method)
+
+
+def _array_literal(members: tuple[Any, ...]) -> str:
+    """`members` as the array literal `{a,b}`, each rendered as any other
+    operand is, apart from `None`, which is the SQL `NULL` of the literal."""
+    return _sanitize_array_param(
+        None if member is None else _serialize_filter_value(member)
+        for member in members
+    )
 
 
 @dataclass(frozen=True)
@@ -211,7 +539,8 @@ class Comparison(Generic[Row]):
     operator: FilterOperator
     value: object
     """The operand as it was given: the value of a comparison, a tuple for
-    `in_()`, and `None`, `True` or `False` for an `IS` check."""
+    `in_()` and for the array operators, a `Range` for the range operators,
+    and `None`, `True` or `False` for an `IS` check."""
     negated: bool
     """Whether the comparison is wrapped in `~`, so it matches the rows the
     operator does not."""
@@ -318,12 +647,16 @@ def _key(node: _Comparison[Any]) -> str:
 def _operand(node: _Comparison[Any]) -> str:
     """The operand as sent at top level, where PostgREST reads everything
     after the operator as the value. The members of an `in` list are escaped,
-    since its parentheses and commas are syntax."""
+    since its parentheses and commas are syntax, and a collection given to an
+    array operator is sent as the array literal `{a,b}`, with its members
+    escaped as that literal requires."""
     if node.operator is FilterOperator.IN:
         members = ",".join(
             sanitize_param(_serialize_filter_value(member)) for member in node.value
         )
         return f"({members})"
+    if node.operator in _ARRAY_OPERATORS and isinstance(node.value, tuple):
+        return _array_literal(node.value)
     return _serialize_filter_value(node.value)
 
 
