@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import asyncio
+import json
+import re
+import secrets
+import threading
 import time
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, Self, override
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Self, TypeGuard, override
 
 from jwt import get_algorithm_by_name
 from pydantic import BaseModel
+from supabase_utils.http.errors import SupabaseAPIError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
@@ -23,6 +30,8 @@ from .constants import STORAGE_KEY
 from .errors import (
     AuthImplicitGrantRedirectError,
     AuthInvalidJwtError,
+    AuthPKCECodeVerifierMissingError,
+    AuthRetryableError,
     AuthSessionMissingError,
     UserDoesNotExistError,
 )
@@ -84,7 +93,7 @@ from .types import (
 from .version import __version__
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import AsyncGenerator, Callable, Generator, Mapping
     from types import TracebackType
 
     from supabase_utils.http.retry import RetryPolicy
@@ -97,6 +106,53 @@ def _is_implicit_grant_flow(url: URL) -> bool:
 
 
 _PASSWORD_RECOVERY_SUFFIX = "/PASSWORD_RECOVERY"
+_MAX_PENDING_PKCE_FLOWS = 5
+_FLOW_ID_PARAMETER = "sb_flow_id"
+_FLOW_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{8,64}")
+
+
+class _PKCEFlow(NamedTuple):
+    flow_id: str
+    code_verifier: str
+
+
+def _is_valid_flow_id(flow_id: object) -> TypeGuard[str]:
+    return isinstance(flow_id, str) and _FLOW_ID_PATTERN.fullmatch(flow_id) is not None
+
+
+def _parse_flow_index(raw: str | None) -> list[str]:
+    """The storage may be client controlled, like a cookie, so anything that
+    is not a flow id is dropped before it is used in a storage key."""
+    if raw is None:
+        return []
+    try:
+        index: object = json.loads(raw)
+    except ValueError:
+        return []
+    if not isinstance(index, list):
+        return []
+    flow_ids: list[object] = index
+    return [flow_id for flow_id in flow_ids if _is_valid_flow_id(flow_id)]
+
+
+def _append_flow_id(redirect_to: str, flow_id: str) -> str:
+    """Edits the URL as a string, so custom schemes and the encoding of the
+    other parameters stay as they are."""
+    url, hash_sign, fragment = redirect_to.partition("#")
+    path, _, query = url.partition("?")
+    parameters = [
+        parameter
+        for parameter in query.split("&")
+        if parameter and parameter.partition("=")[0] != _FLOW_ID_PARAMETER
+    ]
+    parameters.append(f"{_FLOW_ID_PARAMETER}={flow_id}")
+    return f"{path}?{'&'.join(parameters)}{hash_sign}{fragment}"
+
+
+def _push_flow(index: list[str], flow_id: str) -> tuple[list[str], list[str]]:
+    index = [pending for pending in index if pending != flow_id] + [flow_id]
+    cut = max(len(index) - _MAX_PENDING_PKCE_FLOWS, 0)
+    return index[cut:], index[:cut]
 
 
 def _pkce_challenge_params(code_verifier: str) -> dict[str, str]:
@@ -109,13 +165,13 @@ def _pkce_challenge_params(code_verifier: str) -> dict[str, str]:
 
 
 def _with_pkce_challenge(
-    body: BaseModel | dict[str, JSON], code_verifier: str | None
+    body: BaseModel | dict[str, JSON], pkce_flow: _PKCEFlow | None
 ) -> BaseModel | dict[str, JSON]:
-    if code_verifier is None:
+    if pkce_flow is None:
         return body
     if isinstance(body, BaseModel):
         body = body.model_dump(mode="json", exclude_none=True)
-    return {**body, **_pkce_challenge_params(code_verifier)}
+    return {**body, **_pkce_challenge_params(pkce_flow.code_verifier)}
 
 
 def _strip_password_recovery_suffix(code_verifier: str) -> str:
@@ -133,17 +189,35 @@ class SupabaseAuthHttpClient[
     session_manager: SessionManager
     _jwks: JWKSet
     flow_type: AuthFlowType = "implicit"
+    append_flow_id_to_redirects: bool = False
     _jwks_ttl: float = 600  # 10 minutes
     _jwks_cached_at: float | None = None
 
-    def _new_code_verifier(self) -> str | None:
+    def _new_pkce_flow(self) -> _PKCEFlow | None:
         if self.flow_type != "pkce":
             return None
-        return generate_pkce_verifier()
+        return _PKCEFlow(
+            flow_id=secrets.token_hex(16), code_verifier=generate_pkce_verifier()
+        )
 
     @property
     def _code_verifier_storage_key(self) -> str:
+        """Where versions without flow ids stored the verifier."""
         return f"{self.session_manager.storage_key}-code-verifier"
+
+    def _redirect_with_flow_id(
+        self, redirect_to: str | None, pkce_flow: _PKCEFlow | None
+    ) -> str | None:
+        if redirect_to and pkce_flow and self.append_flow_id_to_redirects:
+            return _append_flow_id(redirect_to, pkce_flow.flow_id)
+        return redirect_to
+
+    @property
+    def _flow_index_storage_key(self) -> str:
+        return f"{self.session_manager.storage_key}-flows-code-verifier"
+
+    def _flow_storage_key(self, flow_id: str) -> str:
+        return f"{self.session_manager.storage_key}-flow-{flow_id}-code-verifier"
 
     @staticmethod
     def _stored_code_verifier(code_verifier: str, password_recovery: bool) -> str:
@@ -174,15 +248,17 @@ class SupabaseAuthHttpClient[
     def _sign_up(
         self,
         credentials: SignUpWithPasswordCredentials,
-        code_verifier: str | None = None,
+        pkce_flow: _PKCEFlow | None = None,
     ) -> HttpMethod[AuthResponse]:
         """
         Creates a new user.
         """
         body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, SignUpWithEmailAndPasswordCredentials):
-            query = _redirect_to_as_query(credentials.redirect_to)
-            body = _with_pkce_challenge(body, code_verifier)
+            query = _redirect_to_as_query(
+                self._redirect_with_flow_id(credentials.redirect_to, pkce_flow)
+            )
+            body = _with_pkce_challenge(body, pkce_flow)
         else:
             query = URLQuery.empty()
         response = yield JSONRequest(
@@ -239,14 +315,20 @@ class SupabaseAuthHttpClient[
 
     @handle_http_io
     def _sign_in_with_sso(
-        self, credentials: SignInWithSSOCredentials, code_verifier: str | None = None
+        self, credentials: SignInWithSSOCredentials, pkce_flow: _PKCEFlow | None = None
     ) -> HttpMethod[SSOResponse]:
+        redirect_to = self._redirect_with_flow_id(credentials.redirect_to, pkce_flow)
+        if redirect_to != credentials.redirect_to:
+            credentials = credentials.model_copy(update={"redirect_to": redirect_to})
         response = yield JSONRequest(
             method="POST",
             path=["sso"],
-            body=_with_pkce_challenge(credentials, code_verifier),
+            body=_with_pkce_challenge(credentials, pkce_flow),
         )
-        return parse_sso_response(response)
+        sso_response = parse_sso_response(response)
+        if pkce_flow is None:
+            return sso_response
+        return sso_response.model_copy(update={"flow_id": pkce_flow.flow_id})
 
     @handle_http_io
     def _sign_out(self, session: Session, scope: SignOutScope) -> HttpMethod[None]:
@@ -265,20 +347,27 @@ class SupabaseAuthHttpClient[
         redirect_to: str | None = None,
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
-    ) -> tuple[OAuthResponse, str | None]:
+    ) -> tuple[OAuthResponse, _PKCEFlow | None]:
         """
         Log in an existing user via a third-party provider.
         """
+        pkce_flow = self._new_pkce_flow()
         query = (
             URLQuery.from_mapping(query_params) if query_params else URLQuery.empty()
         )
+        redirect_to = self._redirect_with_flow_id(redirect_to, pkce_flow)
         if redirect_to:
             query = query.set("redirect_to", redirect_to)
         if scopes:
             query = query.set("scopes", scopes)
-        code_verifier, query = self._get_url_for_provider(provider, query)
+        query = self._get_url_for_provider(provider, query, pkce_flow)
         new_url = self.base_url.joinpath("authorize").with_query(query.as_query())
-        return OAuthResponse(provider=provider, url=str(new_url)), code_verifier
+        oauth_response = OAuthResponse(
+            provider=provider,
+            url=str(new_url),
+            flow_id=pkce_flow.flow_id if pkce_flow else None,
+        )
+        return oauth_response, pkce_flow
 
     @handle_http_io
     def _link_identity(
@@ -288,17 +377,18 @@ class SupabaseAuthHttpClient[
         redirect_to: str | None = None,
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
-    ) -> HttpMethod[tuple[OAuthResponse, str | None]]:
+    ) -> HttpMethod[tuple[OAuthResponse, _PKCEFlow | None]]:
+        pkce_flow = self._new_pkce_flow()
         query = (
             URLQuery.from_mapping(query_params) if query_params else URLQuery.empty()
         )
+        redirect_to = self._redirect_with_flow_id(redirect_to, pkce_flow)
         if redirect_to:
             query = query.set("redirect_to", redirect_to)
         if scopes:
             query = query.set("scopes", scopes)
         query = query.set("skip_http_redirect", "true")
-
-        code_verifier, query = self._get_url_for_provider(provider, query)
+        query = self._get_url_for_provider(provider, query, pkce_flow)
 
         response = yield EmptyRequest(
             method="GET",
@@ -307,7 +397,12 @@ class SupabaseAuthHttpClient[
             headers=session.encode_access_token(),
         )
         link_identity = parse_link_identity_response(response)
-        return OAuthResponse(provider=provider, url=link_identity.url), code_verifier
+        oauth_response = OAuthResponse(
+            provider=provider,
+            url=link_identity.url,
+            flow_id=pkce_flow.flow_id if pkce_flow else None,
+        )
+        return oauth_response, pkce_flow
 
     @handle_http_io
     def _unlink_identity(
@@ -326,12 +421,14 @@ class SupabaseAuthHttpClient[
     def _sign_in_with_otp(
         self,
         credentials: SignInWithPasswordlessCredentials,
-        code_verifier: str | None = None,
+        pkce_flow: _PKCEFlow | None = None,
     ) -> HttpMethod[AuthOtpResponse]:
         body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials):
-            query = _redirect_to_as_query(credentials.email_redirect_to)
-            body = _with_pkce_challenge(body, code_verifier)
+            query = _redirect_to_as_query(
+                self._redirect_with_flow_id(credentials.email_redirect_to, pkce_flow)
+            )
+            body = _with_pkce_challenge(body, pkce_flow)
         else:
             query = URLQuery.empty()
         response = yield JSONRequest(
@@ -343,18 +440,23 @@ class SupabaseAuthHttpClient[
         return parse_auth_otp_response(response)
 
     @handle_http_io
-    def resend(
+    def _resend(
         self,
         credentials: ResendCredentials,
+        pkce_flow: _PKCEFlow | None = None,
     ) -> HttpMethod[AuthOtpResponse]:
+        body: BaseModel | dict[str, JSON] = credentials.body
         if isinstance(credentials, ResendEmailCredentials):
-            query = _redirect_to_as_query(credentials.email_redirect_to)
+            query = _redirect_to_as_query(
+                self._redirect_with_flow_id(credentials.email_redirect_to, pkce_flow)
+            )
+            body = _with_pkce_challenge(body, pkce_flow)
         else:
             query = URLQuery.empty()
         response = yield JSONRequest(
             method="POST",
             path=["resend"],
-            body=credentials.body,
+            body=body,
             query=query,
         )
         return parse_auth_otp_response(response)
@@ -391,7 +493,7 @@ class SupabaseAuthHttpClient[
         session: Session,
         attributes: UserAttributes,
         email_redirect_to: str | None = None,
-        code_verifier: str | None = None,
+        pkce_flow: _PKCEFlow | None = None,
     ) -> HttpMethod[UserResponse]:
         """
         Updates user data, if there is a logged in user.
@@ -399,8 +501,10 @@ class SupabaseAuthHttpClient[
         response = yield JSONRequest(
             method="PUT",
             path=["user"],
-            body=_with_pkce_challenge(attributes, code_verifier),
-            query=_redirect_to_as_query(email_redirect_to),
+            body=_with_pkce_challenge(attributes, pkce_flow),
+            query=_redirect_to_as_query(
+                self._redirect_with_flow_id(email_redirect_to, pkce_flow)
+            ),
             headers=session.encode_access_token(),
         )
         user_response = parse_user_response(response)
@@ -460,7 +564,7 @@ class SupabaseAuthHttpClient[
         email: str,
         captcha_token: str | None = None,
         redirect_to: str | None = None,
-        code_verifier: str | None = None,
+        pkce_flow: _PKCEFlow | None = None,
     ) -> HttpMethod[None]:
         """
         Sends a password reset request to an email address.
@@ -475,9 +579,11 @@ class SupabaseAuthHttpClient[
                         "captcha_token": captcha_token,
                     },
                 },
-                code_verifier,
+                pkce_flow,
             ),
-            query=_redirect_to_as_query(redirect_to),
+            query=_redirect_to_as_query(
+                self._redirect_with_flow_id(redirect_to, pkce_flow)
+            ),
         )
         if not response.is_success:
             raise _handle_error_response(response)
@@ -540,13 +646,12 @@ class SupabaseAuthHttpClient[
         self,
         provider: Provider,
         query: URLQuery,
-    ) -> tuple[str | None, URLQuery]:
-        code_verifier = self._new_code_verifier()
-        if code_verifier:
-            for key, value in _pkce_challenge_params(code_verifier).items():
+        pkce_flow: _PKCEFlow | None,
+    ) -> URLQuery:
+        if pkce_flow:
+            for key, value in _pkce_challenge_params(pkce_flow.code_verifier).items():
                 query = query.set(key, value)
-        query = query.set("provider", provider)
-        return code_verifier, query
+        return query.set("provider", provider)
 
     @handle_http_io
     def _exchange_code_for_session(
@@ -651,6 +756,7 @@ class AsyncSupabaseAuthClient(
         auto_refresh_token: bool = True,
         storage: AsyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
+        append_flow_id_to_redirects: bool = False,
         request_timeout: float | None = None,
         retry: RetryPolicy | None = None,
     ) -> None:
@@ -677,7 +783,9 @@ class AsyncSupabaseAuthClient(
             session_manager=self.session_manager,
             _jwks=JWKSet(keys=[]),
             flow_type=flow_type,
+            append_flow_id_to_redirects=append_flow_id_to_redirects,
         )
+        self._pkce_lock = asyncio.Lock()
         self.mfa = AsyncSupabaseAuthMFAClient(
             base_url=self.base_url,
             executor=executor,
@@ -733,53 +841,137 @@ class AsyncSupabaseAuthClient(
                 AuthStateChange(AuthChangeEvent.SIGNED_IN, auth_response.session)
             )
 
-    async def _store_code_verifier(
-        self, code_verifier: str, *, password_recovery: bool = False
+    async def _store_pkce_flow(
+        self, pkce_flow: _PKCEFlow, *, password_recovery: bool = False
     ) -> None:
-        await self.session_manager.storage.set_item(
-            self._code_verifier_storage_key,
-            self._stored_code_verifier(code_verifier, password_recovery),
-        )
-
-    async def _prepare_code_verifier(
-        self, *, password_recovery: bool = False
-    ) -> str | None:
-        code_verifier = self._new_code_verifier()
-        if code_verifier:
-            await self._store_code_verifier(
-                code_verifier, password_recovery=password_recovery
+        storage = self.session_manager.storage
+        async with self._pkce_lock:
+            await storage.set_item(
+                self._flow_storage_key(pkce_flow.flow_id),
+                self._stored_code_verifier(pkce_flow.code_verifier, password_recovery),
             )
-        return code_verifier
+            index, evicted = _push_flow(
+                _parse_flow_index(await storage.get_item(self._flow_index_storage_key)),
+                pkce_flow.flow_id,
+            )
+            for flow_id in evicted:
+                await storage.remove_item(self._flow_storage_key(flow_id))
+            await storage.set_item(self._flow_index_storage_key, json.dumps(index))
 
-    async def _code_verifier_for_exchange(self, explicit: str | None) -> str | None:
-        if explicit:
-            return explicit
-        return await self.session_manager.storage.get_item(
-            self._code_verifier_storage_key
-        )
+    @asynccontextmanager
+    async def _removing_rejected_flow(
+        self, pkce_flow: _PKCEFlow | None
+    ) -> AsyncGenerator[None]:
+        try:
+            yield
+        except AuthRetryableError:
+            raise
+        except SupabaseAPIError:
+            if pkce_flow:
+                await self._remove_pkce_flow(pkce_flow.flow_id)
+            raise
+
+    async def _start_pkce_flow(
+        self, *, password_recovery: bool = False
+    ) -> _PKCEFlow | None:
+        pkce_flow = self._new_pkce_flow()
+        if pkce_flow:
+            await self._store_pkce_flow(pkce_flow, password_recovery=password_recovery)
+        return pkce_flow
+
+    async def _pending_code_verifier(
+        self, flow_id: str | None
+    ) -> tuple[str | None, str]:
+        storage = self.session_manager.storage
+        if flow_id is not None:
+            verifier = (
+                await storage.get_item(self._flow_storage_key(flow_id))
+                if _is_valid_flow_id(flow_id)
+                else None
+            )
+            if verifier is None:
+                raise AuthPKCECodeVerifierMissingError(flow_id)
+            return flow_id, verifier
+        index = _parse_flow_index(await storage.get_item(self._flow_index_storage_key))
+        for pending in reversed(index):
+            verifier = await storage.get_item(self._flow_storage_key(pending))
+            if verifier is not None:
+                return pending, verifier
+        verifier = await storage.get_item(self._code_verifier_storage_key)
+        if verifier is None:
+            raise AuthPKCECodeVerifierMissingError(None)
+        return None, verifier
+
+    async def _remove_pkce_flow(self, flow_id: str | None) -> None:
+        storage = self.session_manager.storage
+        if flow_id is None:
+            await storage.remove_item(self._code_verifier_storage_key)
+            return
+        async with self._pkce_lock:
+            await storage.remove_item(self._flow_storage_key(flow_id))
+            index = _parse_flow_index(
+                await storage.get_item(self._flow_index_storage_key)
+            )
+            remaining = [pending for pending in index if pending != flow_id]
+            if len(remaining) == len(index):
+                return
+            if remaining:
+                await storage.set_item(
+                    self._flow_index_storage_key, json.dumps(remaining)
+                )
+            else:
+                await storage.remove_item(self._flow_index_storage_key)
+
+    async def _remove_all_pkce_flows(self) -> None:
+        storage = self.session_manager.storage
+        async with self._pkce_lock:
+            index = _parse_flow_index(
+                await storage.get_item(self._flow_index_storage_key)
+            )
+            for flow_id in index:
+                await storage.remove_item(self._flow_storage_key(flow_id))
+            await storage.remove_item(self._flow_index_storage_key)
+            await storage.remove_item(self._code_verifier_storage_key)
 
     async def exchange_code_for_session(
         self,
         auth_code: str,
         *,
+        flow_id: str | None = None,
         code_verifier: str | None = None,
         redirect_to: str | None = None,
     ) -> AuthResponse:
         """
         Exchanges a PKCE auth code for a session and signs the user in.
 
-        When code_verifier is not given, the verifier stored by the flow that
-        produced the auth code is used.
+        `flow_id` names the flow that produced the code. It is returned in the
+        `OAuthResponse` or `SSOResponse` that started the flow, and with
+        `append_flow_id_to_redirects` it is also the `sb_flow_id` query
+        parameter of the redirect URL. Pass it when several flows can be
+        pending at once, such as sign-ins in two tabs. Without it, the most
+        recently started flow that is still pending is used. A flow stays
+        pending until its code is exchanged, so a failed exchange can be
+        retried. Up to 5 flows are kept pending, so starting a sixth forgets
+        the oldest.
+
+        Pass `code_verifier` instead of `flow_id` to use a verifier you stored
+        yourself.
+
+        Raises `AuthPKCECodeVerifierMissingError`, without sending the code,
+        when no verifier is stored for the flow.
         """
-        verifier = await self._code_verifier_for_exchange(code_verifier)
-        try:
+        if flow_id is not None and code_verifier is not None:
+            raise ValueError("Pass either flow_id or code_verifier, not both")
+        if code_verifier is not None:
+            auth_response = await self._exchange_code_for_session(
+                code_verifier, auth_code, redirect_to
+            )
+        else:
+            pending_flow_id, verifier = await self._pending_code_verifier(flow_id)
             auth_response = await self._exchange_code_for_session(
                 verifier, auth_code, redirect_to
             )
-        finally:
-            await self.session_manager.storage.remove_item(
-                self._code_verifier_storage_key
-            )
+            await self._remove_pkce_flow(pending_flow_id)
         await self._save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -802,16 +994,15 @@ class AsyncSupabaseAuthClient(
         """
         Creates a new user.
         """
-        code_verifier = (
-            await self._prepare_code_verifier()
+        pkce_flow = (
+            await self._start_pkce_flow()
             if isinstance(credentials, SignUpWithEmailAndPasswordCredentials)
             else None
         )
-        auth_response = await self._sign_up(credentials, code_verifier)
-        if code_verifier and auth_response.session:
-            await self.session_manager.storage.remove_item(
-                self._code_verifier_storage_key
-            )
+        async with self._removing_rejected_flow(pkce_flow):
+            auth_response = await self._sign_up(credentials, pkce_flow)
+        if pkce_flow and auth_response.session:
+            await self._remove_pkce_flow(pkce_flow.flow_id)
         await self._save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -853,11 +1044,11 @@ class AsyncSupabaseAuthClient(
         """
         Log in an existing user via a third-party provider.
         """
-        oauth_response, code_verifier = self._sign_in_with_oauth(
+        oauth_response, pkce_flow = self._sign_in_with_oauth(
             provider, redirect_to, scopes, query_params
         )
-        if code_verifier:
-            await self._store_code_verifier(code_verifier)
+        if pkce_flow:
+            await self._store_pkce_flow(pkce_flow)
         return oauth_response
 
     async def link_identity(
@@ -868,11 +1059,11 @@ class AsyncSupabaseAuthClient(
         query_params: dict[str, str] | None = None,
     ) -> OAuthResponse:
         session = await self.session_manager.get_session_or_raise()
-        oauth_response, code_verifier = await self._link_identity(
+        oauth_response, pkce_flow = await self._link_identity(
             session, provider, redirect_to, scopes, query_params
         )
-        if code_verifier:
-            await self._store_code_verifier(code_verifier)
+        if pkce_flow:
+            await self._store_pkce_flow(pkce_flow)
         return oauth_response
 
     async def get_user_identities(self) -> IdentitiesResponse:
@@ -901,12 +1092,26 @@ class AsyncSupabaseAuthClient(
         If you're using phone sign-ins, only an OTP will be sent.
         You won't be able to send a magiclink for phone sign-ins.
         """
-        code_verifier = (
-            await self._prepare_code_verifier()
+        pkce_flow = (
+            await self._start_pkce_flow()
             if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials)
             else None
         )
-        return await self._sign_in_with_otp(credentials, code_verifier)
+        async with self._removing_rejected_flow(pkce_flow):
+            return await self._sign_in_with_otp(credentials, pkce_flow)
+
+    async def resend(self, credentials: ResendCredentials) -> AuthOtpResponse:
+        """
+        Resends a sign-up or email change confirmation, or an SMS or phone
+        change OTP.
+        """
+        pkce_flow = (
+            await self._start_pkce_flow()
+            if isinstance(credentials, ResendEmailCredentials)
+            else None
+        )
+        async with self._removing_rejected_flow(pkce_flow):
+            return await self._resend(credentials, pkce_flow)
 
     async def sign_in_with_sso(
         self, credentials: SignInWithSSOCredentials
@@ -914,8 +1119,9 @@ class AsyncSupabaseAuthClient(
         """
         Attempts a single-sign on using an enterprise Identity Provider.
         """
-        code_verifier = await self._prepare_code_verifier()
-        return await self._sign_in_with_sso(credentials, code_verifier)
+        pkce_flow = await self._start_pkce_flow()
+        async with self._removing_rejected_flow(pkce_flow):
+            return await self._sign_in_with_sso(credentials, pkce_flow)
 
     async def reset_password_for_email(
         self,
@@ -926,10 +1132,11 @@ class AsyncSupabaseAuthClient(
         """
         Sends a password reset request to an email address.
         """
-        code_verifier = await self._prepare_code_verifier(password_recovery=True)
-        await self._reset_password_for_email(
-            email, captcha_token, redirect_to, code_verifier
-        )
+        pkce_flow = await self._start_pkce_flow(password_recovery=True)
+        async with self._removing_rejected_flow(pkce_flow):
+            await self._reset_password_for_email(
+                email, captcha_token, redirect_to, pkce_flow
+            )
 
     async def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
         """
@@ -973,14 +1180,13 @@ class AsyncSupabaseAuthClient(
         Updates user data, if there is a logged in user.
         """
         session = await self.session_manager.get_session_or_raise()
-        code_verifier = (
-            await self._prepare_code_verifier()
-            if attributes.email is not None
-            else None
+        pkce_flow = (
+            await self._start_pkce_flow() if attributes.email is not None else None
         )
-        user_response = await self._update_user(
-            session, attributes, email_redirect_to, code_verifier
-        )
+        async with self._removing_rejected_flow(pkce_flow):
+            user_response = await self._update_user(
+                session, attributes, email_redirect_to, pkce_flow
+            )
         await self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers(
             AuthStateChange(AuthChangeEvent.USER_UPDATED, session)
@@ -1046,9 +1252,7 @@ class AsyncSupabaseAuthClient(
 
         if scope != "others":
             await self.session_manager.remove_session()
-            await self.session_manager.storage.remove_item(
-                self._code_verifier_storage_key
-            )
+            await self._remove_all_pkce_flows()
             self.session_manager.notify_all_subscribers(
                 AuthStateChange(
                     AuthChangeEvent.SIGNED_OUT,
@@ -1092,6 +1296,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         auto_refresh_token: bool = True,
         storage: SyncSupportedStorage | None = None,
         flow_type: AuthFlowType = "implicit",
+        append_flow_id_to_redirects: bool = False,
         request_timeout: float | None = None,
         retry: RetryPolicy | None = None,
     ) -> None:
@@ -1118,7 +1323,9 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             session_manager=self.session_manager,
             _jwks=JWKSet(keys=[]),
             flow_type=flow_type,
+            append_flow_id_to_redirects=append_flow_id_to_redirects,
         )
+        self._pkce_lock = threading.Lock()
         self.mfa = SyncSupabaseAuthMFAClient(
             base_url=self.base_url,
             executor=executor,
@@ -1174,47 +1381,125 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
                 AuthStateChange(AuthChangeEvent.SIGNED_IN, auth_response.session)
             )
 
-    def _store_code_verifier(
-        self, code_verifier: str, *, password_recovery: bool = False
+    def _store_pkce_flow(
+        self, pkce_flow: _PKCEFlow, *, password_recovery: bool = False
     ) -> None:
-        self.session_manager.storage.set_item(
-            self._code_verifier_storage_key,
-            self._stored_code_verifier(code_verifier, password_recovery),
-        )
-
-    def _prepare_code_verifier(self, *, password_recovery: bool = False) -> str | None:
-        code_verifier = self._new_code_verifier()
-        if code_verifier:
-            self._store_code_verifier(
-                code_verifier, password_recovery=password_recovery
+        storage = self.session_manager.storage
+        with self._pkce_lock:
+            storage.set_item(
+                self._flow_storage_key(pkce_flow.flow_id),
+                self._stored_code_verifier(pkce_flow.code_verifier, password_recovery),
             )
-        return code_verifier
+            index, evicted = _push_flow(
+                _parse_flow_index(storage.get_item(self._flow_index_storage_key)),
+                pkce_flow.flow_id,
+            )
+            for flow_id in evicted:
+                storage.remove_item(self._flow_storage_key(flow_id))
+            storage.set_item(self._flow_index_storage_key, json.dumps(index))
 
-    def _code_verifier_for_exchange(self, explicit: str | None) -> str | None:
-        if explicit:
-            return explicit
-        return self.session_manager.storage.get_item(self._code_verifier_storage_key)
+    @contextmanager
+    def _removing_rejected_flow(self, pkce_flow: _PKCEFlow | None) -> Generator[None]:
+        try:
+            yield
+        except AuthRetryableError:
+            raise
+        except SupabaseAPIError:
+            if pkce_flow:
+                self._remove_pkce_flow(pkce_flow.flow_id)
+            raise
+
+    def _start_pkce_flow(self, *, password_recovery: bool = False) -> _PKCEFlow | None:
+        pkce_flow = self._new_pkce_flow()
+        if pkce_flow:
+            self._store_pkce_flow(pkce_flow, password_recovery=password_recovery)
+        return pkce_flow
+
+    def _pending_code_verifier(self, flow_id: str | None) -> tuple[str | None, str]:
+        storage = self.session_manager.storage
+        if flow_id is not None:
+            verifier = (
+                storage.get_item(self._flow_storage_key(flow_id))
+                if _is_valid_flow_id(flow_id)
+                else None
+            )
+            if verifier is None:
+                raise AuthPKCECodeVerifierMissingError(flow_id)
+            return flow_id, verifier
+        index = _parse_flow_index(storage.get_item(self._flow_index_storage_key))
+        for pending in reversed(index):
+            verifier = storage.get_item(self._flow_storage_key(pending))
+            if verifier is not None:
+                return pending, verifier
+        verifier = storage.get_item(self._code_verifier_storage_key)
+        if verifier is None:
+            raise AuthPKCECodeVerifierMissingError(None)
+        return None, verifier
+
+    def _remove_pkce_flow(self, flow_id: str | None) -> None:
+        storage = self.session_manager.storage
+        if flow_id is None:
+            storage.remove_item(self._code_verifier_storage_key)
+            return
+        with self._pkce_lock:
+            storage.remove_item(self._flow_storage_key(flow_id))
+            index = _parse_flow_index(storage.get_item(self._flow_index_storage_key))
+            remaining = [pending for pending in index if pending != flow_id]
+            if len(remaining) == len(index):
+                return
+            if remaining:
+                storage.set_item(self._flow_index_storage_key, json.dumps(remaining))
+            else:
+                storage.remove_item(self._flow_index_storage_key)
+
+    def _remove_all_pkce_flows(self) -> None:
+        storage = self.session_manager.storage
+        with self._pkce_lock:
+            index = _parse_flow_index(storage.get_item(self._flow_index_storage_key))
+            for flow_id in index:
+                storage.remove_item(self._flow_storage_key(flow_id))
+            storage.remove_item(self._flow_index_storage_key)
+            storage.remove_item(self._code_verifier_storage_key)
 
     def exchange_code_for_session(
         self,
         auth_code: str,
         *,
+        flow_id: str | None = None,
         code_verifier: str | None = None,
         redirect_to: str | None = None,
     ) -> AuthResponse:
         """
         Exchanges a PKCE auth code for a session and signs the user in.
 
-        When code_verifier is not given, the verifier stored by the flow that
-        produced the auth code is used.
+        `flow_id` names the flow that produced the code. It is returned in the
+        `OAuthResponse` or `SSOResponse` that started the flow, and with
+        `append_flow_id_to_redirects` it is also the `sb_flow_id` query
+        parameter of the redirect URL. Pass it when several flows can be
+        pending at once, such as sign-ins in two tabs. Without it, the most
+        recently started flow that is still pending is used. A flow stays
+        pending until its code is exchanged, so a failed exchange can be
+        retried. Up to 5 flows are kept pending, so starting a sixth forgets
+        the oldest.
+
+        Pass `code_verifier` instead of `flow_id` to use a verifier you stored
+        yourself.
+
+        Raises `AuthPKCECodeVerifierMissingError`, without sending the code,
+        when no verifier is stored for the flow.
         """
-        verifier = self._code_verifier_for_exchange(code_verifier)
-        try:
+        if flow_id is not None and code_verifier is not None:
+            raise ValueError("Pass either flow_id or code_verifier, not both")
+        if code_verifier is not None:
+            auth_response = self._exchange_code_for_session(
+                code_verifier, auth_code, redirect_to
+            )
+        else:
+            pending_flow_id, verifier = self._pending_code_verifier(flow_id)
             auth_response = self._exchange_code_for_session(
                 verifier, auth_code, redirect_to
             )
-        finally:
-            self.session_manager.storage.remove_item(self._code_verifier_storage_key)
+            self._remove_pkce_flow(pending_flow_id)
         self._save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -1237,14 +1522,15 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         """
         Creates a new user.
         """
-        code_verifier = (
-            self._prepare_code_verifier()
+        pkce_flow = (
+            self._start_pkce_flow()
             if isinstance(credentials, SignUpWithEmailAndPasswordCredentials)
             else None
         )
-        auth_response = self._sign_up(credentials, code_verifier)
-        if code_verifier and auth_response.session:
-            self.session_manager.storage.remove_item(self._code_verifier_storage_key)
+        with self._removing_rejected_flow(pkce_flow):
+            auth_response = self._sign_up(credentials, pkce_flow)
+        if pkce_flow and auth_response.session:
+            self._remove_pkce_flow(pkce_flow.flow_id)
         self._save_session_and_sign_in(auth_response)
         return auth_response
 
@@ -1286,11 +1572,11 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         """
         Log in an existing user via a third-party provider.
         """
-        oauth_response, code_verifier = self._sign_in_with_oauth(
+        oauth_response, pkce_flow = self._sign_in_with_oauth(
             provider, redirect_to, scopes, query_params
         )
-        if code_verifier:
-            self._store_code_verifier(code_verifier)
+        if pkce_flow:
+            self._store_pkce_flow(pkce_flow)
         return oauth_response
 
     def link_identity(
@@ -1301,11 +1587,11 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         query_params: dict[str, str] | None = None,
     ) -> OAuthResponse:
         session = self.session_manager.get_session_or_raise()
-        oauth_response, code_verifier = self._link_identity(
+        oauth_response, pkce_flow = self._link_identity(
             session, provider, redirect_to, scopes, query_params
         )
-        if code_verifier:
-            self._store_code_verifier(code_verifier)
+        if pkce_flow:
+            self._store_pkce_flow(pkce_flow)
         return oauth_response
 
     def get_user_identities(self) -> IdentitiesResponse:
@@ -1334,19 +1620,34 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         If you're using phone sign-ins, only an OTP will be sent.
         You won't be able to send a magiclink for phone sign-ins.
         """
-        code_verifier = (
-            self._prepare_code_verifier()
+        pkce_flow = (
+            self._start_pkce_flow()
             if isinstance(credentials, SignInWithEmailAndPasswordlessCredentials)
             else None
         )
-        return self._sign_in_with_otp(credentials, code_verifier)
+        with self._removing_rejected_flow(pkce_flow):
+            return self._sign_in_with_otp(credentials, pkce_flow)
+
+    def resend(self, credentials: ResendCredentials) -> AuthOtpResponse:
+        """
+        Resends a sign-up or email change confirmation, or an SMS or phone
+        change OTP.
+        """
+        pkce_flow = (
+            self._start_pkce_flow()
+            if isinstance(credentials, ResendEmailCredentials)
+            else None
+        )
+        with self._removing_rejected_flow(pkce_flow):
+            return self._resend(credentials, pkce_flow)
 
     def sign_in_with_sso(self, credentials: SignInWithSSOCredentials) -> SSOResponse:
         """
         Attempts a single-sign on using an enterprise Identity Provider.
         """
-        code_verifier = self._prepare_code_verifier()
-        return self._sign_in_with_sso(credentials, code_verifier)
+        pkce_flow = self._start_pkce_flow()
+        with self._removing_rejected_flow(pkce_flow):
+            return self._sign_in_with_sso(credentials, pkce_flow)
 
     def reset_password_for_email(
         self,
@@ -1357,8 +1658,9 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         """
         Sends a password reset request to an email address.
         """
-        code_verifier = self._prepare_code_verifier(password_recovery=True)
-        self._reset_password_for_email(email, captcha_token, redirect_to, code_verifier)
+        pkce_flow = self._start_pkce_flow(password_recovery=True)
+        with self._removing_rejected_flow(pkce_flow):
+            self._reset_password_for_email(email, captcha_token, redirect_to, pkce_flow)
 
     def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
         """
@@ -1402,12 +1704,11 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         Updates user data, if there is a logged in user.
         """
         session = self.session_manager.get_session_or_raise()
-        code_verifier = (
-            self._prepare_code_verifier() if attributes.email is not None else None
-        )
-        user_response = self._update_user(
-            session, attributes, email_redirect_to, code_verifier
-        )
+        pkce_flow = self._start_pkce_flow() if attributes.email is not None else None
+        with self._removing_rejected_flow(pkce_flow):
+            user_response = self._update_user(
+                session, attributes, email_redirect_to, pkce_flow
+            )
         self.session_manager.save_session(session)
         self.session_manager.notify_all_subscribers(
             AuthStateChange(AuthChangeEvent.USER_UPDATED, session)
@@ -1473,7 +1774,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
 
         if scope != "others":
             self.session_manager.remove_session()
-            self.session_manager.storage.remove_item(self._code_verifier_storage_key)
+            self._remove_all_pkce_flows()
             self.session_manager.notify_all_subscribers(
                 AuthStateChange(
                     AuthChangeEvent.SIGNED_OUT,

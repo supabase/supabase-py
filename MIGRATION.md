@@ -220,7 +220,7 @@ Messages queued on a channel, like the close message of `unsubscribe()`, can sti
 
 `AsyncSupabaseAuthClient` and `SyncSupabaseAuthClient` no longer take `persist_session`. It was never passed on to the session manager, so it had no effect. To keep the session only in memory, leave `storage` out. Each client then gets its own memory storage, so clients created per request do not share a session.
 
-`storage_key` was accepted but ignored as well. It is now the key the session is stored under, with the PKCE code verifier under `<storage_key>-code-verifier`. Set it on `AuthClientOptions` or on the auth client constructors to keep clients that share a storage apart.
+`storage_key` was accepted but ignored as well. It is now the key the session is stored under. PKCE code verifiers are stored under keys that start with it: each pending flow under `<storage_key>-flow-<flow id>-code-verifier`, and the list of pending flows under `<storage_key>-flows-code-verifier`. A verifier stored by v2 under `<storage_key>-code-verifier` is still used when no flow is pending. Set it on `AuthClientOptions` or on the auth client constructors to keep clients that share a storage apart.
 
 - Sessions saved before the upgrade are under `supabase.auth.token`, the default. Leave `storage_key` out to keep reading them.
 - `storage_key` is typed `str`. Passing `None` is no longer accepted.

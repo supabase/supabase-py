@@ -471,6 +471,7 @@ def test_sync_client_passes_service_options_to_sub_clients() -> None:
                 session_storage=session_storage,
                 storage_key="custom-key",
                 flow_type="implicit",
+                append_flow_id_to_redirects=True,
             ),
         )
         assert client.postgrest.default_headers.get("Accept-Profile") == "private"
@@ -478,6 +479,7 @@ def test_sync_client_passes_service_options_to_sub_clients() -> None:
         assert client.auth.session_manager.storage_key == "custom-key"
         assert client.auth.session_manager.auto_refresh_token is False
         assert client.auth.flow_type == "implicit"
+        assert client.auth.append_flow_id_to_redirects is True
 
 
 async def test_async_client_passes_service_options_to_sub_clients() -> None:
@@ -493,6 +495,7 @@ async def test_async_client_passes_service_options_to_sub_clients() -> None:
                 session_storage=session_storage,
                 storage_key="custom-key",
                 flow_type="implicit",
+                append_flow_id_to_redirects=True,
             ),
         )
         assert client.postgrest.default_headers.get("Accept-Profile") == "private"
@@ -500,6 +503,7 @@ async def test_async_client_passes_service_options_to_sub_clients() -> None:
         assert client.auth.session_manager.storage_key == "custom-key"
         assert client.auth.session_manager.auto_refresh_token is False
         assert client.auth.flow_type == "implicit"
+        assert client.auth.append_flow_id_to_redirects is True
 
 
 def test_sync_client_uses_service_defaults() -> None:

@@ -4,16 +4,19 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from httpx import Client, MockTransport, Request, Response
+from httpx import Client, ConnectError, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import HttpxSession
+from supabase_utils.http.errors import SupabaseTransportError
+from yarl import URL
 
 from supabase_auth import SyncSupabaseAuthClient
-from supabase_auth.errors import AuthError
+from supabase_auth.errors import AuthError, AuthPKCECodeVerifierMissingError
 from supabase_auth.helpers import generate_pkce_challenge
 from supabase_auth.types import (
     AuthChangeEvent,
     AuthFlowType,
     AuthStateChange,
+    Resend,
     Session,
     SignInWithPasswordless,
     SignInWithSSO,
@@ -41,6 +44,7 @@ def mock_client(
     payload: Any,
     requests: list[Request],
     flow_type: AuthFlowType = "pkce",
+    append_flow_id_to_redirects: bool = False,
 ) -> SyncSupabaseAuthClient:
     def handler(request: Request) -> Response:
         requests.append(request)
@@ -51,10 +55,11 @@ def mock_client(
         http_session=HttpxSession(client=Client(transport=MockTransport(handler))),
         auto_refresh_token=False,
         flow_type=flow_type,
+        append_flow_id_to_redirects=append_flow_id_to_redirects,
     )
 
 
-def verifier_key(client: SyncSupabaseAuthClient) -> str:
+def legacy_verifier_key(client: SyncSupabaseAuthClient) -> str:
     return f"{client.session_manager.storage_key}-code-verifier"
 
 
@@ -64,8 +69,44 @@ def request_body(requests: list[Request]) -> dict[str, Any]:
     return body
 
 
+def legacy_verifier(client: SyncSupabaseAuthClient) -> str | None:
+    return client.session_manager.storage.get_item(legacy_verifier_key(client))
+
+
+def flow_verifier(client: SyncSupabaseAuthClient, flow_id: str) -> str | None:
+    return client.session_manager.storage.get_item(
+        f"{client.session_manager.storage_key}-flow-{flow_id}-code-verifier"
+    )
+
+
+def flow_index_key(client: SyncSupabaseAuthClient) -> str:
+    return f"{client.session_manager.storage_key}-flows-code-verifier"
+
+
+def pending_flows(client: SyncSupabaseAuthClient) -> list[str]:
+    raw = client.session_manager.storage.get_item(flow_index_key(client))
+    flows: list[str] = json.loads(raw) if raw else []
+    return flows
+
+
 def stored_verifier(client: SyncSupabaseAuthClient) -> str | None:
-    return client.session_manager.storage.get_item(verifier_key(client))
+    flows = pending_flows(client)
+    return flow_verifier(client, flows[-1]) if flows else None
+
+
+def start_oauth_flow(client: SyncSupabaseAuthClient) -> str:
+    response = client.sign_in_with_oauth("github")
+    assert response.flow_id
+    return response.flow_id
+
+
+def store_session(client: SyncSupabaseAuthClient) -> None:
+    session = Session.model_validate(
+        {**SESSION, "expires_at": round(time.time()) + 3600}
+    )
+    client.session_manager.storage.set_item(
+        client.session_manager.storage_key, session.model_dump_json()
+    )
 
 
 def assert_sends_challenge(
@@ -118,6 +159,24 @@ def test_email_otp_pkce_sends_code_challenge() -> None:
             SignInWithPasswordless.email(email="a@example.com")
         ),
     )
+
+
+def test_email_resend_pkce_sends_code_challenge() -> None:
+    assert_sends_challenge(
+        {},
+        lambda client: client.resend(
+            Resend.email(email="a@example.com", type="email_change")
+        ),
+    )
+
+
+def test_phone_resend_pkce_omits_code_challenge() -> None:
+    requests: list[Request] = []
+    client = mock_client({}, requests)
+    client.resend(Resend.phone(phone="+15555550100", type="sms"))
+
+    assert "code_challenge" not in request_body(requests)
+    assert stored_verifier(client) is None
 
 
 def test_sso_pkce_sends_code_challenge() -> None:
@@ -193,12 +252,12 @@ def test_exchange_code_uses_and_removes_stored_verifier() -> None:
     requests: list[Request] = []
     client = mock_client(SESSION, requests)
     client.session_manager.storage.set_item(
-        verifier_key(client), "stored-verifier/PASSWORD_RECOVERY"
+        legacy_verifier_key(client), "stored-verifier/PASSWORD_RECOVERY"
     )
     client.exchange_code_for_session("auth-code")
 
     assert request_body(requests)["code_verifier"] == "stored-verifier"
-    assert stored_verifier(client) is None
+    assert legacy_verifier(client) is None
 
 
 def test_exchange_code_saves_session_and_signs_in() -> None:
@@ -223,30 +282,25 @@ def test_autoconfirmed_email_sign_up_removes_verifier() -> None:
     assert stored_verifier(client) is None
 
 
-def test_failed_exchange_removes_stored_verifier() -> None:
+def test_failed_exchange_keeps_stored_verifier() -> None:
     def handler(request: Request) -> Response:
         return Response(400, json={"code": "bad_code", "msg": "invalid code"})
 
-    client = SyncSupabaseAuthClient(
-        url="https://example.supabase.co/auth/v1",
-        http_session=HttpxSession(client=Client(transport=MockTransport(handler))),
-        auto_refresh_token=False,
-        flow_type="pkce",
-    )
-    client.session_manager.storage.set_item(verifier_key(client), "verifier")
+    client = client_with_handler(handler)
+    client.session_manager.storage.set_item(legacy_verifier_key(client), "verifier")
     with pytest.raises(AuthError):
         client.exchange_code_for_session("auth-code")
 
-    assert stored_verifier(client) is None
+    assert legacy_verifier(client) == "verifier"
 
 
 def test_sign_out_removes_stored_verifier() -> None:
     requests: list[Request] = []
     client = mock_client({}, requests)
-    client.session_manager.storage.set_item(verifier_key(client), "verifier")
+    client.session_manager.storage.set_item(legacy_verifier_key(client), "verifier")
     client.sign_out()
 
-    assert stored_verifier(client) is None
+    assert legacy_verifier(client) is None
 
 
 def test_raising_listener_does_not_stop_other_listeners() -> None:
@@ -265,3 +319,462 @@ def test_raising_listener_does_not_stop_other_listeners() -> None:
         AuthChangeEvent.INITIAL_SESSION,
         AuthChangeEvent.SIGNED_IN,
     ]
+
+
+def test_oauth_pkce_returns_flow_id_of_stored_verifier() -> None:
+    requests: list[Request] = []
+    client = mock_client({}, requests)
+    response = client.sign_in_with_oauth("github")
+
+    assert response.flow_id
+    verifier = flow_verifier(client, response.flow_id)
+    assert verifier
+    assert legacy_verifier(client) is None
+    assert pending_flows(client) == [response.flow_id]
+    assert URL(response.url).query["code_challenge"] == generate_pkce_challenge(
+        verifier
+    )
+
+
+def test_oauth_implicit_returns_no_flow_id() -> None:
+    requests: list[Request] = []
+    client = mock_client({}, requests, flow_type="implicit")
+    response = client.sign_in_with_oauth("github")
+
+    assert response.flow_id is None
+    assert pending_flows(client) == []
+
+
+def test_sso_pkce_returns_flow_id() -> None:
+    requests: list[Request] = []
+    client = mock_client({"url": "https://idp.example/sso"}, requests)
+    response = client.sign_in_with_sso(SignInWithSSO.domain(domain="example.com"))
+
+    assert response.url == "https://idp.example/sso"
+    assert response.flow_id
+    verifier = flow_verifier(client, response.flow_id)
+    assert verifier
+    assert request_body(requests)["code_challenge"] == generate_pkce_challenge(verifier)
+
+
+def test_link_identity_pkce_returns_flow_id() -> None:
+    requests: list[Request] = []
+    client = mock_client({"url": "https://github.com/login"}, requests)
+    store_session(client)
+    response = client.link_identity("github")
+
+    assert response.flow_id
+    verifier = flow_verifier(client, response.flow_id)
+    assert verifier
+    assert requests[0].url.params["code_challenge"] == generate_pkce_challenge(verifier)
+
+
+def test_concurrent_flows_exchange_with_their_own_verifier() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    first = start_oauth_flow(client)
+    second = start_oauth_flow(client)
+    first_verifier = flow_verifier(client, first)
+    second_verifier = flow_verifier(client, second)
+
+    client.exchange_code_for_session("first-code", flow_id=first)
+
+    assert request_body(requests)["code_verifier"] == first_verifier
+    assert flow_verifier(client, first) is None
+    assert pending_flows(client) == [second]
+    assert stored_verifier(client) == second_verifier
+
+    requests.clear()
+    client.exchange_code_for_session("second-code")
+
+    assert request_body(requests)["code_verifier"] == second_verifier
+    assert pending_flows(client) == []
+    assert stored_verifier(client) is None
+
+
+def test_exchange_without_flow_id_keeps_older_flows() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    first = start_oauth_flow(client)
+    second = start_oauth_flow(client)
+    first_verifier = flow_verifier(client, first)
+
+    client.exchange_code_for_session("second-code")
+
+    assert flow_verifier(client, second) is None
+    assert pending_flows(client) == [first]
+    assert flow_verifier(client, first) == first_verifier
+
+
+def test_exchange_with_flow_id_strips_recovery_suffix() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    client.reset_password_for_email("a@example.com")
+    [flow_id] = pending_flows(client)
+    verifier = flow_verifier(client, flow_id)
+    assert verifier
+    code_verifier, redirect_type = verifier.split("/", 1)
+    assert redirect_type == "PASSWORD_RECOVERY"
+
+    requests.clear()
+    client.exchange_code_for_session("auth-code", flow_id=flow_id)
+
+    assert request_body(requests)["code_verifier"] == code_verifier
+
+
+@pytest.mark.parametrize("flow_id", ["0123456789abcdef", "../../session", ""])
+def test_exchange_with_unknown_flow_id_raises_without_request(
+    flow_id: str,
+) -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    pending = start_oauth_flow(client)
+
+    with pytest.raises(AuthPKCECodeVerifierMissingError) as error:
+        client.exchange_code_for_session("auth-code", flow_id=flow_id)
+
+    assert error.value.flow_id == flow_id
+    assert requests == []
+    assert pending_flows(client) == [pending]
+    assert stored_verifier(client) == flow_verifier(client, pending)
+
+
+def test_exchange_with_flow_id_and_code_verifier_raises() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+
+    with pytest.raises(ValueError, match="flow_id or code_verifier"):
+        client.exchange_code_for_session(
+            "auth-code", flow_id="0123456789abcdef", code_verifier="verifier"
+        )
+
+    assert requests == []
+
+
+def test_exchange_with_code_verifier_leaves_stored_flows() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    pending = start_oauth_flow(client)
+
+    client.exchange_code_for_session("auth-code", code_verifier="verifier")
+
+    assert pending_flows(client) == [pending]
+    assert stored_verifier(client) == flow_verifier(client, pending)
+
+
+def test_sixth_flow_evicts_oldest() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    flows = [start_oauth_flow(client) for _ in range(6)]
+
+    assert pending_flows(client) == flows[1:]
+    assert flow_verifier(client, flows[0]) is None
+    for flow_id in flows[1:]:
+        assert flow_verifier(client, flow_id)
+    with pytest.raises(AuthPKCECodeVerifierMissingError):
+        client.exchange_code_for_session("auth-code", flow_id=flows[0])
+
+
+def test_flow_index_ignores_invalid_entries() -> None:
+    requests: list[Request] = []
+    client = mock_client({}, requests)
+    client.session_manager.storage.set_item(
+        flow_index_key(client), json.dumps(["../session", 1, None])
+    )
+    flow_id = start_oauth_flow(client)
+
+    assert pending_flows(client) == [flow_id]
+
+    client.session_manager.storage.set_item(flow_index_key(client), "{not json")
+    second = start_oauth_flow(client)
+
+    assert pending_flows(client) == [second]
+
+
+def test_failed_exchange_keeps_pending_flows() -> None:
+    def handler(request: Request) -> Response:
+        return Response(400, json={"code": "bad_code", "msg": "invalid code"})
+
+    client = client_with_handler(handler)
+    first = start_oauth_flow(client)
+    second = start_oauth_flow(client)
+    with pytest.raises(AuthError):
+        client.exchange_code_for_session("first-code")
+    with pytest.raises(AuthError):
+        client.exchange_code_for_session("second-code", flow_id=second)
+
+    assert pending_flows(client) == [first, second]
+
+
+def test_sign_out_removes_all_flows() -> None:
+    requests: list[Request] = []
+    client = mock_client({}, requests)
+    flows = [start_oauth_flow(client) for _ in range(3)]
+    client.sign_out()
+
+    assert pending_flows(client) == []
+    assert stored_verifier(client) is None
+    for flow_id in flows:
+        assert flow_verifier(client, flow_id) is None
+
+
+def test_autoconfirmed_sign_up_keeps_other_flows() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    pending = start_oauth_flow(client)
+    client.sign_up(SignUpWithPassword.email(email="a@example.com", password="password"))
+
+    assert pending_flows(client) == [pending]
+    assert flow_verifier(client, pending)
+
+
+def test_exchange_without_stored_verifier_raises_without_request() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+
+    with pytest.raises(AuthPKCECodeVerifierMissingError) as error:
+        client.exchange_code_for_session("auth-code")
+
+    assert error.value.flow_id is None
+    assert requests == []
+
+
+def test_exchange_without_flow_id_after_newer_flow_completed() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    client.reset_password_for_email("a@example.com")
+    [reset_flow] = pending_flows(client)
+    reset_verifier = flow_verifier(client, reset_flow)
+    assert reset_verifier
+    oauth_flow = start_oauth_flow(client)
+    client.exchange_code_for_session("oauth-code", flow_id=oauth_flow)
+
+    requests.clear()
+    client.exchange_code_for_session("reset-code")
+
+    assert request_body(requests)["code_verifier"] == reset_verifier.split("/", 1)[0]
+    assert pending_flows(client) == []
+
+
+def test_exchange_without_flow_id_skips_flows_without_verifier() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    first = start_oauth_flow(client)
+    first_verifier = flow_verifier(client, first)
+    client.session_manager.storage.set_item(
+        flow_index_key(client), json.dumps([first, "0123456789abcdef"])
+    )
+
+    client.exchange_code_for_session("auth-code")
+
+    assert request_body(requests)["code_verifier"] == first_verifier
+    assert pending_flows(client) == ["0123456789abcdef"]
+
+
+CALLBACK = "https://app.example/callback?next=%2Fhome"
+FLOW_START_PAYLOAD = {**USER, "url": "https://idp.example/sso"}
+
+
+def flow_id_of(redirect_to: str | None) -> str | None:
+    assert redirect_to
+    assert redirect_to.startswith(CALLBACK + "&sb_flow_id=")
+    return URL(redirect_to).query.get("sb_flow_id")
+
+
+def oauth_redirect(client: SyncSupabaseAuthClient) -> str | None:
+    response = client.sign_in_with_oauth("github", redirect_to=CALLBACK)
+    return URL(response.url).query.get("redirect_to")
+
+
+def link_identity_redirect(client: SyncSupabaseAuthClient) -> str | None:
+    store_session(client)
+    client.link_identity("github", redirect_to=CALLBACK)
+    return None
+
+
+def sso_redirect(client: SyncSupabaseAuthClient) -> str | None:
+    client.sign_in_with_sso(
+        SignInWithSSO.domain(domain="example.com", redirect_to=CALLBACK)
+    )
+    return None
+
+
+def otp_redirect(client: SyncSupabaseAuthClient) -> str | None:
+    client.sign_in_with_otp(
+        SignInWithPasswordless.email(email="a@example.com", email_redirect_to=CALLBACK)
+    )
+    return None
+
+
+def sign_up_redirect(client: SyncSupabaseAuthClient) -> str | None:
+    client.sign_up(
+        SignUpWithPassword.email(
+            email="a@example.com", password="password", redirect_to=CALLBACK
+        )
+    )
+    return None
+
+
+def resend_redirect(client: SyncSupabaseAuthClient) -> str | None:
+    client.resend(
+        Resend.email(email="a@example.com", type="signup", email_redirect_to=CALLBACK)
+    )
+    return None
+
+
+def reset_password_redirect(client: SyncSupabaseAuthClient) -> str | None:
+    client.reset_password_for_email("a@example.com", redirect_to=CALLBACK)
+    return None
+
+
+def update_user_redirect(client: SyncSupabaseAuthClient) -> str | None:
+    store_session(client)
+    client.update_user(
+        UserAttributes(email="new@example.com"), email_redirect_to=CALLBACK
+    )
+    return None
+
+
+def sent_redirect(requests: list[Request]) -> str | None:
+    [request] = requests
+    if "redirect_to" in request.url.params:
+        return request.url.params["redirect_to"]
+    redirect_to: str | None = json.loads(request.content).get("redirect_to")
+    return redirect_to
+
+
+REDIRECT_FLOWS = [
+    oauth_redirect,
+    link_identity_redirect,
+    sso_redirect,
+    otp_redirect,
+    sign_up_redirect,
+    resend_redirect,
+    reset_password_redirect,
+    update_user_redirect,
+]
+
+
+@pytest.mark.parametrize("start_flow", REDIRECT_FLOWS)
+def test_redirect_carries_flow_id_of_stored_verifier(
+    start_flow: Callable[[SyncSupabaseAuthClient], Any],
+) -> None:
+    requests: list[Request] = []
+    client = mock_client(FLOW_START_PAYLOAD, requests, append_flow_id_to_redirects=True)
+    redirect_to = start_flow(client) or sent_redirect(requests)
+
+    flow_id = flow_id_of(redirect_to)
+    assert flow_id
+    assert pending_flows(client) == [flow_id]
+
+
+@pytest.mark.parametrize("start_flow", REDIRECT_FLOWS)
+def test_redirect_has_no_flow_id_by_default(
+    start_flow: Callable[[SyncSupabaseAuthClient], Any],
+) -> None:
+    requests: list[Request] = []
+    client = mock_client(FLOW_START_PAYLOAD, requests)
+    redirect_to = start_flow(client) or sent_redirect(requests)
+
+    assert redirect_to == CALLBACK
+
+
+def test_redirect_has_no_flow_id_with_implicit_flow() -> None:
+    requests: list[Request] = []
+    client = mock_client(
+        {}, requests, flow_type="implicit", append_flow_id_to_redirects=True
+    )
+
+    assert oauth_redirect(client) == CALLBACK
+
+
+def test_no_redirect_is_added_without_redirect_to() -> None:
+    requests: list[Request] = []
+    client = mock_client({}, requests, append_flow_id_to_redirects=True)
+    client.sign_in_with_otp(SignInWithPasswordless.email(email="a@example.com"))
+
+    assert "redirect_to" not in requests[0].url.params
+
+
+def test_callback_flow_id_selects_its_flow() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests, append_flow_id_to_redirects=True)
+    client.reset_password_for_email("a@example.com", redirect_to=CALLBACK)
+    reset_flow = flow_id_of(sent_redirect(requests))
+    assert reset_flow
+    reset_verifier = flow_verifier(client, reset_flow)
+    assert reset_verifier
+    start_oauth_flow(client)
+
+    requests.clear()
+    client.exchange_code_for_session("reset-code", flow_id=reset_flow)
+
+    assert request_body(requests)["code_verifier"] == reset_verifier.split("/", 1)[0]
+
+
+def client_with_handler(
+    handler: Callable[[Request], Response],
+) -> SyncSupabaseAuthClient:
+    return SyncSupabaseAuthClient(
+        url="https://example.supabase.co/auth/v1",
+        http_session=HttpxSession(client=Client(transport=MockTransport(handler))),
+        auto_refresh_token=False,
+        flow_type="pkce",
+    )
+
+
+REJECTABLE_FLOWS = [
+    sso_redirect,
+    otp_redirect,
+    sign_up_redirect,
+    resend_redirect,
+    reset_password_redirect,
+    update_user_redirect,
+]
+
+
+@pytest.mark.parametrize("start_flow", REJECTABLE_FLOWS)
+def test_rejected_flow_start_keeps_older_flows(
+    start_flow: Callable[[SyncSupabaseAuthClient], Any],
+) -> None:
+    def handler(request: Request) -> Response:
+        if request.method == "GET":
+            return Response(200, json=USER)
+        return Response(422, json={"code": "validation_failed", "msg": "invalid"})
+
+    client = client_with_handler(handler)
+    older = start_oauth_flow(client)
+    older_verifier = flow_verifier(client, older)
+
+    with pytest.raises(AuthError):
+        start_flow(client)
+
+    assert pending_flows(client) == [older]
+    assert stored_verifier(client) == older_verifier
+
+
+@pytest.mark.parametrize("status", [429, 502, 504])
+def test_flow_is_kept_when_the_request_may_have_been_handled(
+    status: int,
+) -> None:
+    def handler(request: Request) -> Response:
+        return Response(status, text="Gateway Timeout")
+
+    client = client_with_handler(handler)
+
+    with pytest.raises(AuthError):
+        reset_password_redirect(client)
+
+    assert len(pending_flows(client)) == 1
+
+
+def test_flow_is_kept_when_the_request_fails_to_connect() -> None:
+    def handler(request: Request) -> Response:
+        raise ConnectError("connection refused", request=request)
+
+    client = client_with_handler(handler)
+
+    with pytest.raises(SupabaseTransportError):
+        otp_redirect(client)
+
+    assert len(pending_flows(client)) == 1

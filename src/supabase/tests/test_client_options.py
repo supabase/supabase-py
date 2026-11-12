@@ -31,6 +31,7 @@ class TestClientOptions:
         assert options.auto_refresh_token is True
         assert options.session_storage is None
         assert options.flow_type == "pkce"
+        assert options.append_flow_id_to_redirects is False
 
     def test_dataclasses_replace_keeps_the_other_fields(self) -> None:
         storage = SyncMemoryStorage()

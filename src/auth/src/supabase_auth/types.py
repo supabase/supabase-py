@@ -114,10 +114,18 @@ class AuthOtpResponse(BaseModel):
 class OAuthResponse(BaseModel):
     provider: Provider
     url: str
+    flow_id: str | None = None
+    """Identifies the PKCE flow this sign-in started, `None` with the implicit
+    flow. Pass it to `exchange_code_for_session` when several flows can be
+    pending at once."""
 
 
 class SSOResponse(BaseModel):
     url: str
+    flow_id: str | None = None
+    """Identifies the PKCE flow this sign-in started, `None` with the implicit
+    flow. Pass it to `exchange_code_for_session` when several flows can be
+    pending at once."""
 
 
 class LinkIdentityResponse(BaseModel):

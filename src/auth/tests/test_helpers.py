@@ -7,6 +7,7 @@ from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
 from yarl import URL
 
+from supabase_auth.client import _append_flow_id
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -239,3 +240,32 @@ def test_handle_error_response_keeps_an_unparsable_client_error_unknown() -> Non
 
     assert isinstance(error, AuthUnknownError)
     assert error.status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("redirect_to", "expected"),
+    [
+        (
+            "https://app.example/callback",
+            "https://app.example/callback?sb_flow_id=abcdef0123456789",
+        ),
+        (
+            "https://app.example/callback?next=%2Fhome&a=b+c",
+            "https://app.example/callback?next=%2Fhome&a=b+c&sb_flow_id=abcdef0123456789",
+        ),
+        (
+            "https://app.example/callback?sb_flow_id=old&next=1#section",
+            "https://app.example/callback?next=1&sb_flow_id=abcdef0123456789#section",
+        ),
+        (
+            "myapp://login-callback/?",
+            "myapp://login-callback/?sb_flow_id=abcdef0123456789",
+        ),
+        (
+            "https://app.example/callback#a?b",
+            "https://app.example/callback?sb_flow_id=abcdef0123456789#a?b",
+        ),
+    ],
+)
+def test_append_flow_id(redirect_to: str, expected: str) -> None:
+    assert _append_flow_id(redirect_to, "abcdef0123456789") == expected
