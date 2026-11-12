@@ -373,6 +373,42 @@ def _select_returned(request: PostgrestRequest, *columns: str) -> PostgrestReque
     return replace(request, query=query, headers=headers)
 
 
+def _max_affected(request: PostgrestRequest, value: int) -> PostgrestRequest:
+    """`request` allowing at most `value` affected rows, which PostgREST
+    enforces with `Prefer: handling=strict`."""
+    headers = request.headers.set("Prefer", "handling=strict").set(
+        "Prefer", f"max-affected={value}"
+    )
+    return replace(request, headers=headers)
+
+
+def _explain(
+    request: PostgrestRequest,
+    *,
+    analyze: bool,
+    verbose: bool,
+    settings: bool,
+    buffers: bool,
+    wal: bool,
+    format: Literal["text", "json"],
+) -> PostgrestRequest:
+    """`request` asking for its query plan instead of its rows, with the
+    PostgreSQL `EXPLAIN` options that are enabled."""
+    flags = {
+        "analyze": analyze,
+        "verbose": verbose,
+        "settings": settings,
+        "buffers": buffers,
+        "wal": wal,
+    }
+    return replace(
+        request,
+        shape=ResponseShape.PLAN,
+        plan_format=format,
+        plan_options=tuple(option for option, enabled in flags.items() if enabled),
+    )
+
+
 def _multiple_rows_error() -> APIError:
     """The error of a `maybe_single()` whose query returned more than one
     row, shaped like the one PostgREST answers a `single()` with."""
@@ -669,10 +705,7 @@ class BaseFilterRequestBuilder:
         Args:
             value: The maximum number of rows that can be affected
         """
-        headers = self.request.headers.set("Prefer", "handling=strict").set(
-            "Prefer", f"max-affected={value}"
-        )
-        return replace(self, request=replace(self.request, headers=headers))
+        return replace(self, request=_max_affected(self.request, value))
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -889,18 +922,14 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
         wal: bool = False,
         format: Literal["text", "json"] = "text",
     ) -> ExplainRequestBuilder[HttpIO] | QueryRequestBuilder[HttpIO]:
-        flags = {
-            "analyze": analyze,
-            "verbose": verbose,
-            "settings": settings,
-            "buffers": buffers,
-            "wal": wal,
-        }
-        request = replace(
+        request = _explain(
             self.request,
-            shape=ResponseShape.PLAN,
-            plan_format=format,
-            plan_options=tuple(option for option, enabled in flags.items() if enabled),
+            analyze=analyze,
+            verbose=verbose,
+            settings=settings,
+            buffers=buffers,
+            wal=wal,
+            format=format,
         )
         if format == "text":
             return ExplainRequestBuilder(

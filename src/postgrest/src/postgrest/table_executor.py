@@ -10,13 +10,14 @@ from supabase_utils.types import JSONParser
 
 from .request_builder import (
     APIResponse,
-    BaseFilterRequestBuilder,
     JSONDictParser,
     JSONListParser,
     PostgrestRequest,
     _api_error,
+    _explain,
     _filters_embedded_resource,
     _invalid_response_error,
+    _max_affected,
     _multiple_rows_error,
     _select_returned,
     pre_delete,
@@ -102,9 +103,16 @@ _WRITES = frozenset(
 )
 """The operations that get rows back only when `returning` is set."""
 
-_SELECT_ON_RETURNING = _WRITES | {TableOperation.RPC}
-"""The operations whose `columns` make a `select` list only when `returning`
-is set."""
+_SHAPES_OF_A_SILENT_WRITE = frozenset(
+    {ResultShape.ROWS, ResultShape.NONE, ResultShape.EXPLAIN}
+)
+"""The shapes a write that is not `returning` takes, having no rows to
+shape."""
+
+_SHAPES_WITHOUT_STRIP_NULLS = frozenset(
+    {ResultShape.CSV, ResultShape.GEOJSON, ResultShape.EXPLAIN}
+)
+"""The shapes PostgREST cannot strip the nulls of."""
 
 _ROW_FILTERED = frozenset(
     {TableOperation.UPDATE, TableOperation.DELETE, TableOperation.COUNT}
@@ -153,11 +161,12 @@ class HttpTableExecutor(_HttpTableExecutor[SyncHttpIO]):
         """Sends `request` and returns its result in the shape it asked for.
 
         Raises `ValueError` before anything is sent for a request that cannot
-        be rendered: a filter on an insert or upsert, a transform on a count,
-        a filter of an update, delete or count that names no rows of the
-        table, a write without a payload, or a `HEAD` request of a write.
-        Raises `APIError` for an answer that is not a success or that is not
-        in the shape asked for.
+        be rendered: a filter on an insert or upsert, anything but a filter
+        on a count, a filter of an update, delete or count that names no rows
+        of the table, a write without a payload, a shape on a write that
+        returns no rows, and `strip_nulls` with a shape that has no nulls to
+        strip. Raises `APIError` for an answer that is not a success or that
+        is not in the shape asked for.
         """
         rendered = _render(request)
         return self.client.executor.communicate(
@@ -181,17 +190,15 @@ def _render(request: TableRequest) -> PostgrestRequest:
     """The `PostgrestRequest` the string builders would send for `request`,
     with its options applied.
 
-    Raises `ValueError` for a request that cannot be sent as it is: a filter
-    on an insert or upsert, a transform on a count, a filter of an update,
-    delete or count that names no rows of the table, a write without a
-    payload, a `HEAD` request of a write, and what the string builders
-    reject too, such as `strip_nulls` with csv.
+    Raises `ValueError` for a request that cannot be sent as it is, see
+    `HttpTableExecutor.execute`.
     """
+    if request.strip_nulls and request.shape in _SHAPES_WITHOUT_STRIP_NULLS:
+        raise ValueError(f"strip_nulls cannot be used with the {request.shape} shape")
+    rendered = _filtered(_operation(request), request)
     if request.operation is TableOperation.COUNT:
         _reject_transforms(request)
-        rendered = _filtered(_operation(request), request)
     else:
-        rendered = _filtered(_operation(request), request)
         rendered = _shaped(_transformed(rendered, request), request)
     return _with_options(rendered, request)
 
@@ -284,14 +291,17 @@ def _arguments(request: TableRequest) -> Mapping[str, JSON]:
 
 
 def _reject_transforms(request: TableRequest) -> None:
-    """Rejects a count that carries transforms, which a count has no rows
-    for."""
-    if (
-        request.limit is not None
-        or request.offset is not None
-        or request.orderings
-        or request.shape not in (ResultShape.ROWS, ResultShape.NONE)
-    ):
+    """Rejects a count that carries anything but its filter, which a count
+    has no rows for."""
+    bare = TableRequest(
+        table=request.table,
+        operation=TableOperation.COUNT,
+        schema=request.schema,
+        filter=request.filter,
+        count=request.count,
+        options=request.options,
+    )
+    if request not in (bare, replace(bare, shape=ResultShape.NONE)):
         raise ValueError("A count takes filters only, no transforms")
 
 
@@ -303,7 +313,9 @@ def _filtered(rendered: PostgrestRequest, request: TableRequest) -> PostgrestReq
     rather than sent with the filter silently dropped. The filter of an
     update, delete or count has to name rows of the table, as the string
     builder requires of an update and a delete: a filter on an embedded
-    resource, such as `author.name`, applies to the embedded rows only.
+    resource, such as `author.name`, applies to the embedded rows only, so
+    sending it would affect every row while looking filtered. No filter at
+    all affects every row on purpose, see `TableRequest.filter`.
     """
     if request.filter is None:
         return rendered
@@ -331,13 +343,16 @@ def _names_rows(key: str) -> bool:
 
 
 def _transformed(rendered: PostgrestRequest, request: TableRequest) -> PostgrestRequest:
-    """`rendered` with the `select` list of a returning write, the orderings,
-    the row window and the preferences of `request`.
+    """`rendered` with the `select` list of a returning write or of a
+    function call, the orderings, the row window and the preferences of
+    `request`.
 
     The orderings go into one `order` parameter, since PostgREST reads the
     first `order` parameter only.
     """
-    if request.operation in _SELECT_ON_RETURNING and request.returning:
+    if (request.operation in _WRITES and request.returning) or (
+        request.operation is TableOperation.RPC and request.columns
+    ):
         rendered = _select_returned(rendered, *_select_list(request))
     query = rendered.query
     if request.orderings:
@@ -349,11 +364,11 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
         query = query.set("limit", request.limit)
     rendered = replace(rendered, query=query)
     if request.max_affected is not None:
-        builder = BaseFilterRequestBuilder(request=rendered)
-        rendered = builder.max_affected(request.max_affected).request
+        rendered = _max_affected(rendered, request.max_affected)
     if request.dry_run:
-        headers = rendered.headers.set("Prefer", "tx=rollback")
-        rendered = replace(rendered, headers=headers)
+        rendered = replace(
+            rendered, headers=_preferring(rendered.headers, "tx=rollback")
+        )
     if request.strip_nulls:
         rendered = replace(rendered, strip_nulls=True)
     return rendered
@@ -362,20 +377,27 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
 def _shaped(rendered: PostgrestRequest, request: TableRequest) -> PostgrestRequest:
     """`rendered` asking for the shape of `request`, which the `Accept`
     header carries."""
+    if request.shape is ResultShape.HEAD and request.operation in _WRITES:
+        raise ValueError(
+            f"The {request.operation} cannot be sent as HEAD, which carries no body"
+        )
+    if (
+        request.operation in _WRITES
+        and not request.returning
+        and request.shape not in _SHAPES_OF_A_SILENT_WRITE
+    ):
+        raise ValueError(
+            f"The {request.operation} returns no rows unless returning is set, "
+            f"so it cannot be read as {request.shape}"
+        )
     match request.shape:
         case (
             ResultShape.ROWS
             | ResultShape.MAYBE_SINGLE
             | ResultShape.NONE
+            | ResultShape.HEAD
             | ResultShape.VALUE
         ):
-            return rendered
-        case ResultShape.HEAD:
-            if request.operation in _WRITES:
-                raise ValueError(
-                    f"The {request.operation} cannot be sent as HEAD, "
-                    "which carries no body"
-                )
             return rendered
         case ResultShape.SINGLE:
             return replace(rendered, shape=ResponseShape.SINGLE)
@@ -385,18 +407,14 @@ def _shaped(rendered: PostgrestRequest, request: TableRequest) -> PostgrestReque
             return replace(rendered, shape=ResponseShape.GEOJSON)
         case ResultShape.EXPLAIN:
             options = request.explain or ExplainOptions()
-            flags = {
-                "analyze": options.analyze,
-                "verbose": options.verbose,
-                "settings": options.settings,
-                "buffers": options.buffers,
-                "wal": options.wal,
-            }
-            return replace(
+            return _explain(
                 rendered,
-                shape=ResponseShape.PLAN,
-                plan_format=options.format,
-                plan_options=tuple(name for name, enabled in flags.items() if enabled),
+                analyze=options.analyze,
+                verbose=options.verbose,
+                settings=options.settings,
+                buffers=options.buffers,
+                wal=options.wal,
+                format=options.format,
             )
         case _:
             assert_never(request.shape)
@@ -408,13 +426,14 @@ def _with_options(
     """`rendered` in the schema of `request` and with its options: the
     headers, the retry policy and the timeout."""
     headers = rendered.headers
-    if request.schema is not None:
-        headers = headers.override("Accept-Profile", request.schema).override(
-            "Content-Profile", request.schema
+    schema = request.schema if request.schema is not None else request.table.schema
+    if schema is not None:
+        headers = headers.override("Accept-Profile", schema).override(
+            "Content-Profile", schema
         )
     for key, value in request.options.headers.items():
         if key.lower() == "prefer":
-            headers = headers.set(key, value)
+            headers = _preferring(headers, value)
         else:
             headers = headers.override(key, value)
     return replace(
@@ -423,6 +442,29 @@ def _with_options(
         retry=request.options.retry,
         timeout=request.options.timeout,
     )
+
+
+def _preferring(headers: Headers, preferences: str) -> Headers:
+    """`headers` with the comma-separated `preferences` added to `Prefer`,
+    each replacing the preference of the same name, so that a second
+    `return=` or `count=` does not contradict the first."""
+    given = [preference.strip() for preference in preferences.split(",")]
+    given = [preference for preference in given if preference]
+    names = {_preference_name(preference) for preference in given}
+    kept = [
+        preference.strip()
+        for value in headers.get_list("Prefer") or []
+        for preference in value.split(",")
+        if preference.strip() and _preference_name(preference) not in names
+    ]
+    headers = headers.remove("Prefer")
+    for preference in (*kept, *given):
+        headers = headers.set("Prefer", preference)
+    return headers
+
+
+def _preference_name(preference: str) -> str:
+    return preference.partition("=")[0].strip().lower()
 
 
 def _decode(response: Response, request: TableRequest) -> TableResult:

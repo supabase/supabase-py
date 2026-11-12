@@ -109,8 +109,10 @@ class RequestOptions:
     """The headers sent on top of the ones the request renders to.
 
     A header replaces the one the request or the client would send under the
-    same name, apart from `Prefer`, whose value is added to the preferences
-    the request carries.
+    same name, with two exceptions. `Accept` is decided by the shape of the
+    request. The preferences of `Prefer`, comma-separated `name=value` pairs,
+    are merged into the ones the request carries, each replacing the
+    preference of the same name.
     """
 
     retry: RetryPolicy | bool | None = None
@@ -155,18 +157,23 @@ class TableRequest:
     """What the request does to `table`."""
 
     schema: str | None = None
-    """The database schema of `table`, or `None` for the schema of the
-    client."""
+    """The schema to query `table` in, or `None` for the schema the table
+    carries and, when it carries none, the schema of the client."""
 
     columns: tuple[ColumnExpression[Any, Any], ...] = ()
     """The entries of the `select` list to read back; empty for every column.
 
-    For a write or a function call these are the columns of the returned
-    rows, and only apply when `returning` is set.
+    For a write these are the columns of the returned rows, and only apply
+    when `returning` is set.
     """
 
     filter: Filter[Any] | None = None
-    """The rows to act on, or `None` for every row."""
+    """The rows to act on, or `None` for every row.
+
+    An update or delete without a filter affects the whole table, and an
+    executor sends it as it is: the typed query builder, not the value,
+    requires `where()` or `all()` before it builds one.
+    """
 
     orderings: tuple[Ordering[Any], ...] = ()
     """The sort keys, first key first."""
@@ -178,7 +185,11 @@ class TableRequest:
     """The number of rows to skip."""
 
     shape: ResultShape = ResultShape.ROWS
-    """The form the result is asked back in."""
+    """The form the result is asked back in.
+
+    A write that is not `returning` has no rows to shape: it takes `ROWS`,
+    `NONE` and `EXPLAIN` only.
+    """
 
     count: CountMethod | None = None
     """The count to compute next to the result, or `None` for none.
@@ -216,8 +227,8 @@ class TableRequest:
 
     returning: bool = False
     """Whether a write returns the rows it affected, which a trailing
-    `select()` asks for. Without it the result holds no data whatever
-    `shape` says."""
+    `select()` asks for. Without it the result holds no data. A function
+    call returns its rows whatever this says."""
 
     max_affected: int | None = None
     """The maximum number of rows a write may affect."""

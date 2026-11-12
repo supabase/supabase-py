@@ -401,8 +401,8 @@ SAME_QUERY: dict[str, tuple[TableRequest, StringQuery]] = {
         .order("id")
         .limit(2),
     ),
-    "rpc returning columns": (
-        search(payload={"query": "x"}, returning=True, columns=(Books.id,)),
+    "rpc columns": (
+        search(payload={"query": "x"}, columns=(Books.id,)),
         lambda c: c.rpc("search_books", {"query": "x"}).select("id"),
     ),
     "rpc single": (
@@ -471,12 +471,56 @@ class TestRendersWhatTheStringBuilderSends:
         assert sent.headers.get("Accept-Profile") == "other"
         assert sent.headers.get_list("Prefer") == ["count=exact", "x=1"]
 
+    def test_a_preference_of_the_options_replaces_the_one_of_its_name(self) -> None:
+        request = books(
+            TableOperation.UPDATE,
+            payload=ROW,
+            max_affected=2,
+            options=RequestOptions(
+                headers={"Prefer": "Return=representation, handling=lenient, x=1"}
+            ),
+        )
+
+        rendered = _render(request)
+
+        assert rendered.headers.get_list("Prefer") == [
+            "max-affected=2",
+            "Return=representation",
+            "handling=lenient",
+            "x=1",
+        ]
+
+    def test_the_shape_decides_accept_whatever_the_options_say(self) -> None:
+        client = sync_client(Transport())
+        request = books(
+            TableOperation.SELECT,
+            shape=ResultShape.SINGLE,
+            options=RequestOptions(headers={"Accept": "application/json"}),
+        )
+
+        sent = _render(request).finalize(client.base_url, client.default_headers)
+
+        assert sent.headers.get("Accept") == "application/vnd.pgrst.object+json"
+
     def test_a_request_in_a_schema_renders_as_a_client_of_that_schema(self) -> None:
         client = sync_client(Transport())
         library = sync_client(Transport(), schema="library")
         request = books(TableOperation.SELECT, schema="library")
 
         assert typed(client, request) == untyped(library.from_("books").select("*"))
+
+    def test_a_table_carrying_its_schema_is_queried_in_it(self) -> None:
+        client = sync_client(Transport())
+        library = Table("books", BookRow, schema="library")
+        of_table = TableRequest(table=library, operation=TableOperation.SELECT)
+        of_request = replace(of_table, schema="archive")
+
+        assert typed(client, of_table) == untyped(
+            sync_client(Transport(), schema="library").from_("books").select("*")
+        )
+        assert typed(client, of_request) == untyped(
+            sync_client(Transport(), schema="archive").from_("books").select("*")
+        )
 
     def test_a_request_without_a_schema_keeps_the_schema_of_the_client(self) -> None:
         client = sync_client(Transport(), schema="library")
@@ -524,6 +568,31 @@ class TestRejectsBeforeSending:
                 id="shape on a count",
             ),
             pytest.param(
+                books(TableOperation.COUNT, columns=(Books.id,)),
+                "A count takes filters only",
+                id="columns on a count",
+            ),
+            pytest.param(
+                books(TableOperation.COUNT, dry_run=True),
+                "A count takes filters only",
+                id="dry run on a count",
+            ),
+            pytest.param(
+                books(TableOperation.COUNT, max_affected=1),
+                "A count takes filters only",
+                id="max affected on a count",
+            ),
+            pytest.param(
+                books(TableOperation.INSERT, payload=ROW, shape=ResultShape.SINGLE),
+                "returns no rows unless returning is set",
+                id="single on a silent insert",
+            ),
+            pytest.param(
+                books(TableOperation.DELETE, shape=ResultShape.CSV),
+                "returns no rows unless returning is set",
+                id="csv on a silent delete",
+            ),
+            pytest.param(
                 books(
                     TableOperation.UPDATE, payload=ROW, filter=Books.author_name.eq("x")
                 ),
@@ -557,15 +626,22 @@ class TestRejectsBeforeSending:
             ),
             pytest.param(
                 books(TableOperation.SELECT, strip_nulls=True, shape=ResultShape.CSV),
-                "strip_nulls\\(\\) cannot be used with csv\\(\\)",
+                "strip_nulls cannot be used with the csv shape",
                 id="strip nulls with csv",
             ),
             pytest.param(
                 books(
                     TableOperation.SELECT, strip_nulls=True, shape=ResultShape.GEOJSON
                 ),
-                "strip_nulls\\(\\) cannot be used with geojson\\(\\)",
+                "strip_nulls cannot be used with the geojson shape",
                 id="strip nulls with geojson",
+            ),
+            pytest.param(
+                books(
+                    TableOperation.SELECT, strip_nulls=True, shape=ResultShape.EXPLAIN
+                ),
+                "strip_nulls cannot be used with the explain shape",
+                id="strip nulls with explain",
             ),
             pytest.param(
                 search(payload=[1, 2]),
