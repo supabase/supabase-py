@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 from supabase_utils.types import JSONParser
 
+from .exceptions import APIError
 from .request_builder import (
     APIResponse,
     JSONDictParser,
@@ -165,8 +166,8 @@ class HttpTableExecutor(_HttpTableExecutor[SyncHttpIO]):
         on a count, a filter of an update, delete or count that names no rows
         of the table, a write without a payload, a shape on a write that
         returns no rows, and `strip_nulls` with a shape that has no nulls to
-        strip. Raises `APIError` for an answer that is not a success or that
-        is not in the shape asked for.
+        strip. Raises `APIError` for an answer that is not a success, that
+        is not in the shape asked for, or that committed a dry run.
         """
         rendered = _render(request)
         return self.client.executor.communicate(
@@ -348,9 +349,7 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
     `request`.
 
     The orderings go into one `order` parameter, since PostgREST reads the
-    first `order` parameter only. A dry run asks for `handling=strict` with
-    its rollback, so that a PostgREST whose `db-tx-end` does not allow the
-    override rejects the request instead of committing it.
+    first `order` parameter only.
     """
     if (request.operation in _WRITES and request.returning) or (
         request.operation is TableOperation.RPC and request.columns
@@ -369,8 +368,7 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
         rendered = _max_affected(rendered, request.max_affected)
     if request.dry_run:
         rendered = replace(
-            rendered,
-            headers=_preferring(rendered.headers, "handling=strict, tx=rollback"),
+            rendered, headers=_preferring(rendered.headers, "tx=rollback")
         )
     if request.strip_nulls:
         rendered = replace(rendered, strip_nulls=True)
@@ -473,17 +471,39 @@ def _preference_name(preference: str) -> str:
 def _decode(response: Response, request: TableRequest) -> TableResult:
     """The `TableResult` of `response`, decoded by the shape of `request`.
 
-    Raises `APIError` for an answer that is not a success, or whose body is
-    not in the shape asked for.
+    Raises `APIError` for an answer that is not a success, whose body is not
+    in the shape asked for, or that committed a dry run: PostgREST accepts
+    `tx=rollback` whatever its `db-tx-end` setting, and lists it in
+    `Preference-Applied` only when it rolled back.
     """
     if not response.is_success:
         raise _api_error(response)
+    if request.dry_run and not _rolled_back(response):
+        raise _committed_dry_run_error(response)
     count = APIResponse._get_count_from_http_request_response(response)
     try:
         data = _data(response, request)
     except ValidationError as error:
         raise _invalid_response_error(response) from error
     return TableResult(data=data, count=count)
+
+
+def _rolled_back(response: Response) -> bool:
+    applied = response.headers.get("Preference-Applied") or ""
+    return "tx=rollback" in {preference.strip() for preference in applied.split(",")}
+
+
+def _committed_dry_run_error(response: Response) -> APIError:
+    return APIError(
+        {
+            "message": "The dry run was committed: PostgREST applied no tx=rollback",
+            "code": str(response.status),
+            "hint": "A rollback needs db-tx-end = commit-allow-override on the server",
+            "details": response.headers.get("Preference-Applied"),
+        },
+        status_code=response.status,
+        response=response,
+    )
 
 
 def _data(response: Response, request: TableRequest) -> JSON:

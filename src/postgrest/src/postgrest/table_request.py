@@ -239,8 +239,9 @@ class TableRequest:
     dry_run: bool = False
     """Whether the transaction is rolled back after the request.
 
-    PostgREST allows the rollback only when its `db-tx-end` setting ends in
-    `allow-override`; otherwise the request fails rather than commits.
+    PostgREST rolls back only when its `db-tx-end` setting allows the
+    override, and commits otherwise; the HTTP executors raise `APIError` when
+    the response shows that it did.
     """
 
     explain: ExplainOptions | None = None

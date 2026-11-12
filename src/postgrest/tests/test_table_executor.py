@@ -445,11 +445,7 @@ class TestRendersWhatTheStringBuilderSends:
     def test_a_dry_run_asks_for_a_rollback(self) -> None:
         rendered = _render(books(TableOperation.UPDATE, payload=ROW, dry_run=True))
 
-        assert rendered.headers.get_list("Prefer") == [
-            "return=minimal",
-            "handling=strict",
-            "tx=rollback",
-        ]
+        assert rendered.headers.get_list("Prefer") == ["return=minimal", "tx=rollback"]
 
     def test_geojson_is_asked_for_through_accept(self) -> None:
         client = sync_client(Transport())
@@ -834,6 +830,34 @@ class TestDecodesByShape:
         )
 
         assert result.data == [{"id": 1}]
+
+    def test_a_dry_run_that_was_rolled_back_returns_its_result(self) -> None:
+        transport = Transport(
+            content=b'[{"id": 1}]',
+            headers={"Preference-Applied": "return=representation, tx=rollback"},
+        )
+
+        result = self.execute(
+            transport,
+            books(TableOperation.INSERT, payload=ROW, returning=True, dry_run=True),
+        )
+
+        assert result.data == [{"id": 1}]
+
+    @pytest.mark.parametrize(
+        "headers",
+        [
+            pytest.param({}, id="no preference applied"),
+            pytest.param({"Preference-Applied": "return=minimal"}, id="other ones"),
+        ],
+    )
+    def test_a_dry_run_that_was_committed_raises(self, headers: dict[str, str]) -> None:
+        transport = Transport(content=b"", headers=headers)
+
+        with pytest.raises(APIError, match="The dry run was committed"):
+            self.execute(transport, books(TableOperation.DELETE, dry_run=True))
+
+        assert transport.only_request.headers["Prefer"] == "return=minimal, tx=rollback"
 
     def test_an_error_status_raises(self) -> None:
         transport = Transport(
