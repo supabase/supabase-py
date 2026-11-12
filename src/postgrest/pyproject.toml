@@ -27,6 +27,7 @@ dependencies = [
   "pydantic >=2,<3",
   "yarl>=1.20.1",
   "supabase_utils==3.0.0-a1", # x-release-please-version
+  "typing-extensions>=4.12.0",
 ]
 
 [project.urls]
@@ -48,6 +49,8 @@ lints = [
   "ruff >=0.12.1",
   "python-lsp-server (>=1.12.2,<2.0.0)",
   "pyrefly >=1.4.0,<2.0.0",
+  "mypy >=2.4.1",
+  "pyright >=1.1.414",
   "python-lsp-ruff (>=2.2.2,<3.0.0)",
 ]
 dev = [ { include-group = "lints" }, { include-group="test" }]

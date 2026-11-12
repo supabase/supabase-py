@@ -9,6 +9,21 @@ if TYPE_CHECKING:
     from yarl import URL
 
 
+def _serialize_filter_value(value: Any) -> str:
+    """Serialize a filter value into the wire format PostgREST expects.
+
+    ``None`` maps to ``null``, booleans to ``true``/``false``, and dicts/lists
+    to compact JSON, instead of the plain ``str()`` result (e.g. ``"None"``).
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"))
+    return str(value)
+
+
 def sanitize_param(param: Any) -> str:
     param_str = str(param)
     reserved_chars = ',:()"\\'
