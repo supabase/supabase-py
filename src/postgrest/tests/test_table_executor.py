@@ -445,7 +445,11 @@ class TestRendersWhatTheStringBuilderSends:
     def test_a_dry_run_asks_for_a_rollback(self) -> None:
         rendered = _render(books(TableOperation.UPDATE, payload=ROW, dry_run=True))
 
-        assert rendered.headers.get_list("Prefer") == ["return=minimal", "tx=rollback"]
+        assert rendered.headers.get_list("Prefer") == [
+            "return=minimal",
+            "handling=strict",
+            "tx=rollback",
+        ]
 
     def test_geojson_is_asked_for_through_accept(self) -> None:
         client = sync_client(Transport())

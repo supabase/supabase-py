@@ -237,7 +237,11 @@ class TableRequest:
     """Whether `NULL` values are left out of the returned rows."""
 
     dry_run: bool = False
-    """Whether the transaction is rolled back after the request."""
+    """Whether the transaction is rolled back after the request.
+
+    PostgREST allows the rollback only when its `db-tx-end` setting ends in
+    `allow-override`; otherwise the request fails rather than commits.
+    """
 
     explain: ExplainOptions | None = None
     """The options of a `ResultShape.EXPLAIN` request, or `None` for the

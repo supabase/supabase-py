@@ -348,7 +348,9 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
     `request`.
 
     The orderings go into one `order` parameter, since PostgREST reads the
-    first `order` parameter only.
+    first `order` parameter only. A dry run asks for `handling=strict` with
+    its rollback, so that a PostgREST whose `db-tx-end` does not allow the
+    override rejects the request instead of committing it.
     """
     if (request.operation in _WRITES and request.returning) or (
         request.operation is TableOperation.RPC and request.columns
@@ -367,7 +369,8 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
         rendered = _max_affected(rendered, request.max_affected)
     if request.dry_run:
         rendered = replace(
-            rendered, headers=_preferring(rendered.headers, "tx=rollback")
+            rendered,
+            headers=_preferring(rendered.headers, "handling=strict, tx=rollback"),
         )
     if request.strip_nulls:
         rendered = replace(rendered, strip_nulls=True)
