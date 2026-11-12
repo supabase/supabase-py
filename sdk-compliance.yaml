@@ -1513,6 +1513,27 @@ supporting_symbols:
   - ColumnExpression.is_true
   - ColumnExpression.is_false
   - ColumnExpression.raw
+  - ColumnExpression.like
+  - ColumnExpression.ilike
+  - ColumnExpression.match_regex
+  - ColumnExpression.imatch_regex
+  - ColumnExpression.like_all_of
+  - ColumnExpression.like_any_of
+  - ColumnExpression.ilike_all_of
+  - ColumnExpression.ilike_any_of
+  - ColumnExpression.contains
+  - ColumnExpression.contained_by
+  - ColumnExpression.overlaps
+  - ColumnExpression.range_lt
+  - ColumnExpression.range_gt
+  - ColumnExpression.range_gte
+  - ColumnExpression.range_lte
+  - ColumnExpression.range_adjacent
+  - ColumnExpression.order_key
+  - ColumnExpression.asc
+  - ColumnExpression.desc
+  - ColumnExpression.nulls_first
+  - ColumnExpression.nulls_last
   - Column
   - NullableColumn
   - NullableColumn.is_null
@@ -1524,6 +1545,13 @@ supporting_symbols:
   - Filter.comparison
   - FilterOperator
   - Comparison
+  - Ordering
+  - Ordering.order_key
+  - Ordering.asc
+  - Ordering.desc
+  - Ordering.nulls_first
+  - Ordering.nulls_last
+  - Range
   - APIError
   - APIError.json
   - APIErrorFromJSON

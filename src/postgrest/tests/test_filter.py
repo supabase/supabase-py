@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
@@ -8,12 +7,7 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from httpx import Client
-from supabase_utils.http.adapters.httpx import HttpxSession
-from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import SyncHttpIO
-from supabase_utils.http.query import URLQuery
-from yarl import URL
 
 from postgrest import (
     Column,
@@ -25,12 +19,7 @@ from postgrest import (
     NullableColumn,
     TextSearchType,
 )
-from postgrest.request_builder import (
-    BaseFilterRequestBuilder,
-    PostgrestRequest,
-    RequestBuilder,
-    SelectRequestBuilder,
-)
+from postgrest.request_builder import BaseFilterRequestBuilder, SelectRequestBuilder
 from postgrest.utils import sanitize_param
 
 
@@ -64,28 +53,6 @@ def rendered(filter_: Filter[Any]) -> list[str]:
 
 def typed_values(filter_: Filter[Any], key: str) -> list[str]:
     return [value for name, value in filter_._query_parameters() if name == key]
-
-
-@pytest.fixture
-def builder() -> BaseFilterRequestBuilder:
-    request = PostgrestRequest(
-        path=["todos"],
-        method="GET",
-        headers=Headers.empty(),
-        query=URLQuery.empty(),
-        body={},
-    )
-    return BaseFilterRequestBuilder(request=request)
-
-
-@pytest.fixture
-def select_builder() -> Iterable[SelectRequestBuilder[SyncHttpIO]]:
-    with Client() as client:
-        yield RequestBuilder(
-            executor=SyncHttpIO(session=HttpxSession(client=client)),
-            base_url=URL("/todos"),
-            default_headers=Headers.empty(),
-        ).select("*")
 
 
 class TestRendering:
