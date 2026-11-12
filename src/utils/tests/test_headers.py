@@ -91,3 +91,51 @@ def test_supabase_client_headers() -> None:
     )
     assert f"runtime-version={platform.python_version()}" in x_client_info
     assert len(headers) == 1
+
+
+def test_supabase_client_headers_list_the_features_last() -> None:
+    headers = Headers.supabase_client_headers(
+        "supabase_test", "1.2.3", features=["typed-api", "b", "typed-api"]
+    )
+    assert headers["X-Client-Info"].endswith(
+        f"; runtime-version={platform.python_version()}; features=b,typed-api"
+    )
+
+
+def test_with_client_info_features_appends_a_features_segment() -> None:
+    headers = Headers.from_mapping(
+        {"X-Client-Info": "supabase-py/3.0.0; runtime=python"}
+    )
+    featured = headers.with_client_info_features(["typed-api"])
+    assert featured["X-Client-Info"] == (
+        "supabase-py/3.0.0; runtime=python; features=typed-api"
+    )
+    assert headers["X-Client-Info"] == "supabase-py/3.0.0; runtime=python"
+
+
+def test_with_client_info_features_merges_with_the_features_listed() -> None:
+    headers = Headers.from_mapping(
+        {"x-client-info": "client/1.0; Features=b, a,; runtime=python"}
+    )
+    featured = headers.with_client_info_features(["typed-api", "a"])
+    assert (
+        featured["X-Client-Info"]
+        == "client/1.0; runtime=python; features=a,b,typed-api"
+    )
+
+
+def test_with_client_info_features_leaves_other_headers_alone() -> None:
+    headers = Headers.from_mapping({"X-Client-Info": "client/1.0", "apikey": "key"})
+    featured = headers.with_client_info_features(["typed-api"])
+    assert featured["apikey"] == "key"
+    assert len(featured) == 2
+
+
+def test_with_client_info_features_changes_nothing_without_the_header() -> None:
+    headers = Headers.from_mapping({"apikey": "key"})
+    assert headers.with_client_info_features(["typed-api"]) is headers
+
+
+def test_with_client_info_features_changes_nothing_without_features() -> None:
+    headers = Headers.from_mapping({"X-Client-Info": "client/1.0"})
+    assert headers.with_client_info_features([]) is headers

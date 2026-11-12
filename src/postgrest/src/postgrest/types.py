@@ -57,6 +57,7 @@ class ResponseShape(StrEnum):
     ROWS = "rows"
     SINGLE = "single"
     CSV = "csv"
+    GEOJSON = "geojson"
     PLAN = "plan"
 
 

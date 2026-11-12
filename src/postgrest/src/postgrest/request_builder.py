@@ -45,7 +45,12 @@ from .types import (
     ReturnMethod,
     TextSearchType,
 )
-from .utils import _sanitize_array_param, _serialize_filter_value, sanitize_param
+from .utils import (
+    _rpc_query_param,
+    _sanitize_array_param,
+    _serialize_filter_value,
+    sanitize_param,
+)
 
 if TYPE_CHECKING:
     from supabase_utils.http.retry import RetryPolicy
@@ -241,6 +246,7 @@ def _filters_embedded_resource(key: str) -> bool:
 
 _SHAPES_WITHOUT_STRIP_NULLS = {
     ResponseShape.CSV: "csv()",
+    ResponseShape.GEOJSON: "geojson()",
     ResponseShape.PLAN: "explain()",
 }
 
@@ -284,6 +290,8 @@ class PostgrestRequest(JSONRequest):
                 return "application/vnd.pgrst.object+json"
             case ResponseShape.CSV:
                 return "text/csv"
+            case ResponseShape.GEOJSON:
+                return "application/geo+json"
             case ResponseShape.PLAN:
                 options = "|".join(self.plan_options)
                 return (
@@ -313,6 +321,70 @@ class PostgrestRequest(JSONRequest):
                 )
         request.headers = request.headers.override("Accept", accept)
         return request
+
+
+def pre_rpc(
+    func: str,
+    params: Mapping[str, JSON],
+    *,
+    head: bool = False,
+    count: CountMethod | None = None,
+    get: bool = False,
+) -> PostgrestRequest:
+    """The request of a call of the function `func` with the arguments
+    `params`, see `PostgrestClient.rpc`.
+
+    A `GET` or `HEAD` request has no body, so `get` and `head` send the
+    arguments as query parameters, with a list as a PostgreSQL array literal.
+    """
+    method: HTTPRequestMethod = "HEAD" if head else "GET" if get else "POST"
+    headers = (
+        Headers.from_mapping({"Prefer": f"count={count}"}) if count else Headers.empty()
+    )
+    json, http_params = (
+        (
+            {},
+            URLQuery.from_mapping({k: _rpc_query_param(v) for k, v in params.items()}),
+        )
+        if method in ("HEAD", "GET")
+        else (dict(params), URLQuery.empty())
+    )
+    return PostgrestRequest(
+        path=["rpc", func],
+        method=method,
+        headers=headers,
+        query=http_params,
+        body=json,
+    )
+
+
+def _select_returned(request: PostgrestRequest, *columns: str) -> PostgrestRequest:
+    """`request` asking the rows it affects back, with `columns` as its
+    `select` list: `Prefer: return=representation` replaces any other
+    `return=` preference, and the list is cleaned as `pre_select` does."""
+    _, params, _, _ = pre_select(*columns, count=None)
+    query = request.query.set("select", params["select"])
+    if prefer_headers := request.headers.get_list("Prefer"):
+        prefer_headers = [h for h in prefer_headers if not h.startswith("return=")]
+        prefer_headers.append("return=representation")
+        headers = request.headers.override("Prefer", ",".join(prefer_headers))
+    else:
+        headers = request.headers.set("Prefer", "return=representation")
+    return replace(request, query=query, headers=headers)
+
+
+def _multiple_rows_error() -> APIError:
+    """The error of a `maybe_single()` whose query returned more than one
+    row, shaped like the one PostgREST answers a `single()` with."""
+    return APIError(
+        {
+            "message": "Cannot coerce the result to a single JSON object",
+            "code": "406",
+            "hint": "Please check traceback of the code",
+            "details": "The result contains more than one row.",
+        },
+        status_code=406,
+    )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -747,17 +819,7 @@ def _invalid_response_error(response: Response) -> APIError:
 @dataclass(frozen=True, kw_only=True)
 class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[HttpIO]):
     def select(self, *columns: str) -> Self:
-        _, params, _, _ = pre_select(*columns, count=None)
-        query = self.request.query.set("select", params["select"])
-        if prefer_headers := self.request.headers.get_list("Prefer"):
-            prefer_headers = [h for h in prefer_headers if not h.startswith("return=")]
-            prefer_headers.append("return=representation")
-            headers = self.request.headers.override("Prefer", ",".join(prefer_headers))
-        else:
-            headers = self.request.headers.set("Prefer", "return=representation")
-        return replace(
-            self, request=replace(self.request, query=query, headers=headers)
-        )
+        return replace(self, request=_select_returned(self.request, *columns))
 
     def single(self) -> SingleRequestBuilder[HttpIO]:
         """Specify that the query will only return a single row in response.
@@ -953,15 +1015,7 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             if len(parsed.data) == 1:
                 return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
             else:
-                raise APIError(
-                    {
-                        "message": "Cannot coerce the result to a single JSON object",
-                        "code": "406",
-                        "hint": "Please check traceback of the code",
-                        "details": "The result contains more than one row.",
-                    },
-                    status_code=406,
-                )
+                raise _multiple_rows_error()
         else:
             raise _api_error(response)
 

@@ -10,23 +10,20 @@ from supabase_utils.http.io import (
     HttpSession,
     SyncHttpIO,
 )
-from supabase_utils.http.query import URLQuery
 from yarl import URL
 
 from .request_builder import (
-    PostgrestRequest,
     RequestBuilder,
     RPCCountRequestBuilder,
     RPCFilterRequestBuilder,
+    pre_rpc,
 )
-from .utils import _rpc_query_param
 from .version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from types import TracebackType
 
-    from supabase_utils.http.request import HTTPRequestMethod
     from supabase_utils.http.retry import RetryPolicy
     from supabase_utils.types import JSON
 
@@ -204,32 +201,7 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
                 await client.rpc("foobar", {"arg": "value"}).execute()
         """
-        method: HTTPRequestMethod = "HEAD" if head else "GET" if get else "POST"
-
-        headers = (
-            Headers.from_mapping({"Prefer": f"count={count}"})
-            if count
-            else Headers.empty()
-        )
-
-        # the params here are params to be sent to the RPC and not the queryparams!
-        json, http_params = (
-            (
-                {},
-                URLQuery.from_mapping(
-                    {k: _rpc_query_param(v) for k, v in params.items()}
-                ),
-            )
-            if method in ("HEAD", "GET")
-            else (dict(params), URLQuery.empty())
-        )
-        request = PostgrestRequest(
-            path=["rpc", func],
-            method=method,
-            headers=headers,
-            query=http_params,
-            body=json,
-        )
+        request = pre_rpc(func, params, head=head, count=count, get=get)
         if not head:
             return RPCFilterRequestBuilder(
                 executor=self.executor,
