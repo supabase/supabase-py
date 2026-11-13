@@ -8,13 +8,14 @@ from postgrest import SyncPostgrestClient
 
 Query = Callable[[SyncPostgrestClient], object]
 
-READS: dict[str, Query] = {
+BODYLESS: dict[str, Query] = {
     "select": lambda client: client.from_("items").select("*").execute(),
     "head select": lambda client: client.from_("items")
     .select("*", head=True)
     .execute(),
     "rpc get": lambda client: client.rpc("fn", {"x": 1}, get=True).execute(),
     "rpc head": lambda client: client.rpc("fn", {"x": 1}, head=True).execute(),
+    "delete": lambda client: client.from_("items").delete().eq("id", 1).execute(),
 }
 
 
@@ -34,11 +35,11 @@ def send(query: Query) -> Request:
     return sent[0]
 
 
-@pytest.mark.parametrize("query", READS.values(), ids=READS.keys())
-def test_a_read_sends_no_body(query: Query) -> None:
+@pytest.mark.parametrize("query", BODYLESS.values(), ids=BODYLESS.keys())
+def test_a_request_without_a_payload_sends_no_body(query: Query) -> None:
     request = send(query)
 
-    assert request.method in ("GET", "HEAD")
+    assert request.method in ("GET", "HEAD", "DELETE")
     assert request.content == b""
     assert "content-type" not in request.headers
 

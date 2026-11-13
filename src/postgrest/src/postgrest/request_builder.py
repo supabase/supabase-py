@@ -314,7 +314,7 @@ class PostgrestRequest(JSONRequest):
                 f"one, such as eq(), or call all() right after {operation} to run "
                 "it without a filter on purpose."
             )
-        if self.method in ("GET", "HEAD"):
+        if self.method in ("GET", "HEAD", "DELETE"):
             request = EmptyRequest.finalize(self, base_url, default_headers)
         else:
             request = super().finalize(base_url, default_headers)

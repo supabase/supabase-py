@@ -6,7 +6,7 @@ from postgrest import AsyncPostgrestClient, SyncPostgrestClient
 
 
 @pytest.mark.parametrize(
-    "url", ["ftp://example.com", "file:///tmp/db", "example.com", ""]
+    "url", ["ftp://example.com", "file:///tmp/db", "example.com", "", "http://"]
 )
 def test_sync_client_rejects_a_non_http_base_url(url: str) -> None:
     with (
@@ -17,7 +17,7 @@ def test_sync_client_rejects_a_non_http_base_url(url: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "url", ["ftp://example.com", "file:///tmp/db", "example.com", ""]
+    "url", ["ftp://example.com", "file:///tmp/db", "example.com", "", "http://"]
 )
 async def test_async_client_rejects_a_non_http_base_url(url: str) -> None:
     async with AsyncClient() as http:
