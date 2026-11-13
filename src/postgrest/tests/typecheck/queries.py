@@ -56,8 +56,12 @@ class Books:
     title = Column[BooksRow, str]("title")
     published_on = NullableColumn[BooksRow, date]("published_on")
     full_title = ComputedField[BooksRow, str]("full_title")
+    next_publication = ComputedField[BooksRow, date]("next_publication", date)
     table = Table[BooksRow, BooksInsert, BooksUpdate](
-        "books", BooksRow, primary_key=(id,), computed_fields=(full_title,)
+        "books",
+        BooksRow,
+        primary_key=(id,),
+        computed_fields=(full_title, next_publication),
     )
 
 
@@ -134,6 +138,8 @@ assert_type(row[Books.id], int)
 assert_type(row[Books.title], str)
 assert_type(row[Books.published_on], date | None)
 assert_type(row[Books.full_title], str | None)
+assert_type(row[Books.next_publication], date | None)
+ComputedField[BooksRow, date]("next_publication", str)  # error:
 assert_type(row[Column("legacy")], Any)
 assert_type(row.to_row(), BooksRow)
 row[Authors.id]  # error:

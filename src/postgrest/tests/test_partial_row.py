@@ -5,7 +5,7 @@ from typing import Annotated, Any
 import pytest
 from pydantic import BaseModel, Field, ValidationError
 
-from postgrest import Column, NullableColumn, PartialRow, Table
+from postgrest import Column, ComputedField, NullableColumn, PartialRow, Table
 from tests.typed_schema import Books, BooksRow
 
 ROW = {"id": 1, "title": "Dune", "published_on": "1965-08-01", "title_upper": "DUNE"}
@@ -37,6 +37,19 @@ class TestReads:
         partial = row(Books.title_upper)
 
         assert partial[Books.title_upper] == "DUNE"
+
+    def test_a_computed_field_decodes_through_its_value_type(self) -> None:
+        partial = row(Books.next_publication, json={"next_publication": "1966-08-01"})
+
+        assert partial[Books.next_publication] == date(1966, 8, 1)
+
+    def test_a_computed_field_without_a_value_type_reads_the_decoded_value(
+        self,
+    ) -> None:
+        untyped = ComputedField[BooksRow, date]("next_publication")
+        partial = row(untyped, json={"next_publication": "1966-08-01"})
+
+        assert partial[untyped] == "1966-08-01"
 
     def test_an_ad_hoc_column_named_after_a_field_reads_like_it(self) -> None:
         partial = row(Column("published_on"), json={"published_on": "1965-08-01"})

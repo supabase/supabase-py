@@ -8,11 +8,12 @@ from typing import TYPE_CHECKING, Annotated, Any, get_type_hints, overload
 from pydantic import BaseModel, TypeAdapter
 from supabase_utils.types import JSON
 
+from .column_expression import ComputedField
 from .filter import ColumnExpression
-from .table import Table, _row_adapter
+from .table import Table, _cached_adapter, _row_adapter
 
 if TYPE_CHECKING:
-    from .column_expression import Column, ComputedField, NullableColumn
+    from .column_expression import Column, NullableColumn
 
 
 @dataclass(frozen=True, repr=False)
@@ -35,11 +36,12 @@ class PartialRow[Row]:
     A value is validated against the field of `Row` the entry is named
     after, its type and the constraints of its `Field`, so a `date` column
     reads as a `date` as it does from `select()`; the validators and the
-    config of the model itself run in `select()` and `to_row()` only. An
-    entry `Row` has no field for, such as a computed field or an ad hoc
-    `Column`, reads as the decoded JSON value. Reading an entry the list did
-    not ask for raises `KeyError`, instead of returning `None` as a missing
-    key would.
+    config of the model itself run in `select()` and `to_row()` only. A
+    computed field, which `Row` never carries, decodes through the
+    `value_type` it was declared with, and as the decoded JSON without one,
+    as does an ad hoc `Column` that names no field of `Row`. Reading an
+    entry the list did not ask for raises `KeyError`, instead of returning
+    `None` as a missing key would.
     """
 
     table: Table[Row, Any, Any]
@@ -70,7 +72,7 @@ class PartialRow[Row]:
         value = self.json.get(key)
         if value is None:
             return None
-        adapter = _field_adapter(self.table.row_type, key)
+        adapter = _adapter(entry, self.table.row_type)
         return value if adapter is None else adapter.validate_python(value)
 
     def to_row(self) -> Row:
@@ -88,6 +90,16 @@ class PartialRow[Row]:
     @cached_property
     def _keys(self) -> frozenset[str]:
         return frozenset(column.expression for column in self.columns)
+
+
+def _adapter(
+    entry: ColumnExpression[Any, Any], row_type: Any
+) -> TypeAdapter[Any] | None:
+    """The validator of a value of `entry`: the `value_type` of a computed
+    field, and otherwise the field of `row_type` the entry is named after."""
+    if isinstance(entry, ComputedField) and entry.value_type is not None:
+        return _cached_adapter(entry.value_type)
+    return _field_adapter(row_type, entry.expression)
 
 
 @cache

@@ -27,6 +27,14 @@ as $function$
     select upper($1.title);
 $function$;
 
+create function public.next_publication(public.books)
+    returns date
+    language sql
+    immutable
+as $function$
+    select $1.published_on + 365;
+$function$;
+
 create view public.book_titles as
     select id, title from public.books;
 
@@ -46,6 +54,7 @@ grant select, insert, update, delete on public.books to anon;
 grant select on public.book_titles to anon;
 grant select on public.places to anon;
 grant execute on function public.title_upper(public.books) to anon;
+grant execute on function public.next_publication(public.books) to anon;
 
 -- A dry run asks PostgREST to roll back with Prefer: tx=rollback, which it
 -- honors only with this setting.
