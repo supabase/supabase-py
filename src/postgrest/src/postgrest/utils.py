@@ -18,8 +18,7 @@ def _serialize_filter_value(value: Any) -> str:
 
     A ``datetime`` becomes ISO 8601 with its UTC offset, so the server does
     not read it in the database time zone. A naive ``datetime`` is taken as
-    local time, as ``datetime.astimezone()`` and ``datetime.timestamp()``
-    take it.
+    UTC.
     """
     if value is None:
         return "null"
@@ -92,11 +91,9 @@ def _rpc_query_param(value: Any) -> Any:
         return _sanitize_array_param(value)
     if value is None:
         return ""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, dict):
-        return json.dumps(value, separators=(",", ":"))
-    return value
+    if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+        return value
+    return _serialize_filter_value(value)
 
 
 def is_http_url(url: URL) -> bool:

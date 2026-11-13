@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import patch
 
@@ -167,3 +168,16 @@ def test_head_select_with_empty_body_returns_count() -> None:
 
     assert response.data == []
     assert response.count == 42
+
+
+def test_rpc_query_params_send_datetimes_as_iso_8601() -> None:
+    with Client() as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        at = datetime(2024, 1, 1, 12, tzinfo=UTC)
+        params: Any = {"at": at, "ats": [at]}
+        builder = client.rpc("fn", params, get=True)
+
+        assert builder.request.query["at"] == "2024-01-01T12:00:00+00:00"
+        assert builder.request.query.get_list("ats") == ["{2024-01-01T12:00:00+00:00}"]

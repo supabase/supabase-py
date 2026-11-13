@@ -196,7 +196,9 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 ## PostgREST `datetime` filter values carry their UTC offset
 
-A `datetime` filter value was sent as `str(value)`, like `2024-01-01 12:00:00`, which PostgREST read in the database time zone when the value had no offset. It is now sent as ISO 8601 with its offset, like `2024-01-01T12:00:00+01:00`. An aware `datetime` keeps its offset. A naive `datetime` is taken as local time, as `datetime.astimezone()` takes it, so pass an aware `datetime` to filter on a time in another zone. `date` and `time` values are sent as before.
+A `datetime` filter value was sent as `str(value)`, like `2024-01-01 12:00:00`, which PostgREST read in the database time zone when the value had no offset. It is now sent as ISO 8601 with its offset, like `2024-01-01T12:00:00+01:00`. An aware `datetime` keeps its offset. A naive `datetime` is taken as UTC, so pass an aware `datetime` to filter on a time in another zone. `date` and `time` values are sent as before. This applies to every filter, including the members of `in_()` and of an array.
+
+The members of an array sent by `cs()`, `cd()`, `contains()`, `contained_by()`, `overlaps()` or as an RPC query argument are rendered as any other filter value: a boolean as `true` or `false` instead of `True` or `False`, and a `dict` or `list` as compact JSON instead of its Python representation.
 
 ## Realtime heartbeat intervals are used as given
 
