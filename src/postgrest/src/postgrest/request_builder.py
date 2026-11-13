@@ -609,7 +609,9 @@ class BaseFilterRequestBuilder:
         return self.filter(column, Filters.WFTS, query)
 
     def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
-        stringified_values = ",".join(map(sanitize_param, values))
+        stringified_values = ",".join(
+            sanitize_param(_serialize_filter_value(value)) for value in values
+        )
         return self.filter(column, Filters.IN, f"({stringified_values})")
 
     def cs(self: Self, column: str, values: Iterable[FilterValue]) -> Self:

@@ -1,4 +1,5 @@
 from dataclasses import FrozenInstanceError, replace
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -372,6 +373,15 @@ def test_in_(filter_request_builder: BaseFilterRequestBuilder) -> None:
     builder = filter_request_builder.in_("x", ["a", "b"])
 
     assert builder.request.query.get("x") == "in.(a,b)"
+
+
+def test_in_renders_datetimes_as_iso_8601(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    values: Any = [datetime(2024, 1, 1, 12, tzinfo=UTC)]
+    builder = filter_request_builder.in_("x", values)
+
+    assert builder.request.query.get("x") == 'in.("2024-01-01T12:00:00+00:00")'
 
 
 def test_or_(filter_request_builder: BaseFilterRequestBuilder) -> None:

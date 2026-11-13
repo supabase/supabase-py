@@ -216,6 +216,14 @@ class TestComparisonOperators:
         assert rendered(Todos.is_urgent.is_true()) == ["is_urgent=is.true"]
         assert rendered(Todos.is_urgent.is_null()) == ["is_urgent=is.null"]
 
+    def test_a_datetime_renders_as_iso_8601_with_its_offset(self) -> None:
+        due = datetime(2024, 1, 15, 12, tzinfo=UTC)
+
+        assert rendered(Todos.due.lt(due)) == ["due=lt.2024-01-15T12:00:00+00:00"]
+        assert rendered(Todos.due.lt(due) | Todos.id.eq(1)) == [
+            'or=(due.lt."2024-01-15T12:00:00+00:00",id.eq.1)'
+        ]
+
     def test_is_null_on_a_nullable_column_and_a_computed_field(self) -> None:
         assert rendered(Todos.due.is_null()) == ["due=is.null"]
         assert rendered(~Todos.due.is_null()) == ["due=not.is.null"]

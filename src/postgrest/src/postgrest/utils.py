@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -14,6 +15,10 @@ def _serialize_filter_value(value: Any) -> str:
 
     ``None`` maps to ``null``, booleans to ``true``/``false``, and dicts/lists
     to compact JSON, instead of the plain ``str()`` result (e.g. ``"None"``).
+
+    A ``datetime`` becomes ISO 8601 with its UTC offset, so the server does
+    not read it in the database time zone. A naive ``datetime`` is taken as
+    UTC.
     """
     if value is None:
         return "null"
@@ -21,6 +26,10 @@ def _serialize_filter_value(value: Any) -> str:
         return "true" if value else "false"
     if isinstance(value, (dict, list)):
         return json.dumps(value, separators=(",", ":"))
+    if isinstance(value, datetime):
+        if value.utcoffset() is None:
+            value = value.replace(tzinfo=UTC)
+        return value.isoformat()
     return str(value)
 
 
@@ -51,7 +60,7 @@ def _sanitize_array_element(element: Any) -> str:
     """
     if element is None:
         return "NULL"
-    element_str = str(element)
+    element_str = _serialize_filter_value(element)
     needs_quoting = (
         element_str == ""
         or element_str.lower() == "null"
@@ -80,11 +89,9 @@ def _rpc_query_param(value: Any) -> Any:
         return _sanitize_array_param(value)
     if value is None:
         return ""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, dict):
-        return json.dumps(value, separators=(",", ":"))
-    return value
+    if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+        return value
+    return _serialize_filter_value(value)
 
 
 def is_http_url(url: URL) -> bool:

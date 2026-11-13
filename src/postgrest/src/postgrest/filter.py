@@ -476,15 +476,6 @@ def _containment_operand(value: object, method: str) -> object:
     return _members(value, method)
 
 
-def _array_literal(members: tuple[Any, ...]) -> str:
-    """`members` as the array literal `{a,b}`, each rendered as any other
-    operand is, apart from `None`, which is the SQL `NULL` of the literal."""
-    return _sanitize_array_param(
-        None if member is None else _serialize_filter_value(member)
-        for member in members
-    )
-
-
 @dataclass(frozen=True)
 class _Comparison(Generic[Row]):
     """One operator applied to one column expression."""
@@ -656,7 +647,7 @@ def _operand(node: _Comparison[Any]) -> str:
         )
         return f"({members})"
     if node.operator in _ARRAY_OPERATORS and isinstance(node.value, tuple):
-        return _array_literal(node.value)
+        return _sanitize_array_param(node.value)
     return _serialize_filter_value(node.value)
 
 
