@@ -20,9 +20,6 @@ async def get_token() -> str:
 
 
 class JoinReplyServer:
-    """A local websocket server that acks every ref'd message and replies to
-    joins with the configured `postgres_changes` response."""
-
     def __init__(self, postgres_changes: JSON) -> None:
         self.postgres_changes = postgres_changes
         self.ws_server: Server | None = None

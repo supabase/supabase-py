@@ -269,13 +269,13 @@ class RealtimeChannel:
             raise RealtimeError(
                 f"error while subscribing to channel: {msg.payload.response!r}"
             )
-        self.state = ChannelStates.JOINED
         if not self._postgres_changes_match(msg.payload.response.postgres_changes):
-            with contextlib.suppress(websockets.ConnectionClosed):
+            with contextlib.suppress(Exception):
                 await self.unsubscribe()
             raise RealtimeError(
                 "mismatch between server and client bindings for postgres changes"
             )
+        self.state = ChannelStates.JOINED
         try:
             await self.socket._send_token_if_changed(self, payload.access_token)
         except asyncio.CancelledError:
