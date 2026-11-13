@@ -65,7 +65,9 @@ class QueryArgs(NamedTuple):
 
 
 def _unique_columns(json: list[JSON]) -> str:
-    unique_keys = {key for row in json if isinstance(row, Mapping) for key in row}
+    unique_keys = dict.fromkeys(
+        key for row in json if isinstance(row, Mapping) for key in row
+    )
     return ",".join([f'"{k}"' for k in unique_keys])
 
 
