@@ -4,15 +4,12 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import TYPE_CHECKING, Protocol, assert_never
 
-from pydantic import ValidationError
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
-from supabase_utils.types import JSONParser
 
+from ._parsing import InvalidResponseBodyError, parse_json, parse_object, parse_rows
 from .exceptions import APIError
 from .request_builder import (
     APIResponse,
-    JSONDictParser,
-    JSONListParser,
     PostgrestRequest,
     _api_error,
     _explain,
@@ -483,7 +480,7 @@ def _decode(response: Response, request: TableRequest) -> TableResult:
     count = APIResponse._get_count_from_http_request_response(response)
     try:
         data = _data(response, request)
-    except ValidationError as error:
+    except InvalidResponseBodyError as error:
         raise _invalid_response_error(response) from error
     return TableResult(data=data, count=count)
 
@@ -516,11 +513,11 @@ def _data(response: Response, request: TableRequest) -> JSON:
         case ResultShape.NONE | ResultShape.HEAD:
             return None
         case ResultShape.ROWS:
-            return JSONListParser.validate_json(content) if content else []
+            return parse_rows(content) if content else []
         case ResultShape.SINGLE | ResultShape.GEOJSON:
-            return JSONDictParser.validate_json(content)
+            return parse_object(content)
         case ResultShape.MAYBE_SINGLE:
-            rows = JSONListParser.validate_json(content) if content else []
+            rows = parse_rows(content) if content else []
             if len(rows) > 1:
                 raise _multiple_rows_error()
             return rows[0] if rows else None
@@ -529,8 +526,8 @@ def _data(response: Response, request: TableRequest) -> JSON:
         case ResultShape.EXPLAIN:
             if request.explain is None or request.explain.format == "text":
                 return content.decode("utf-8")
-            return JSONParser.validate_json(content)
+            return parse_json(content)
         case ResultShape.VALUE:
-            return JSONParser.validate_json(content) if content else None
+            return parse_json(content) if content else None
         case _:
             assert_never(request.shape)

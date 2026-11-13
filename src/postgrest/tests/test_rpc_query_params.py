@@ -3,11 +3,12 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from httpx import Client, MockTransport, Request, Response
-from supabase_utils.http.adapters.httpx import HttpxSession
+from httpx import AsyncClient, Client, MockTransport, Request, Response
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.retry import RetryPolicy
+from supabase_utils.types import JSON
 
-from postgrest import APIError, SyncPostgrestClient
+from postgrest import APIError, AsyncPostgrestClient, RPCResponse, SyncPostgrestClient
 from postgrest.types import CountMethod
 
 
@@ -181,3 +182,84 @@ def test_rpc_query_params_send_datetimes_as_iso_8601() -> None:
 
         assert builder.request.query["at"] == "2024-01-01T12:00:00+00:00"
         assert builder.request.query.get_list("ats") == ["{2024-01-01T12:00:00+00:00}"]
+
+
+RPC_RESULTS = pytest.mark.parametrize(
+    ("content", "data"),
+    [
+        (b"1", 1),
+        (b'"text"', "text"),
+        (b"true", True),
+        (b"null", None),
+        (b'{"id": 1}', {"id": 1}),
+        (b'[{"id": 1}]', [{"id": 1}]),
+        (b"[1, 2]", [1, 2]),
+        (b"", None),
+    ],
+    ids=[
+        "number",
+        "string",
+        "boolean",
+        "null",
+        "object",
+        "rows",
+        "array-of-scalars",
+        "empty",
+    ],
+)
+
+
+@RPC_RESULTS
+def test_rpc_returns_the_decoded_body_as_data(content: bytes, data: JSON) -> None:
+    def handler(request: Request) -> Response:
+        return Response(200, content=content)
+
+    with Client(transport=MockTransport(handler)) as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        result = client.rpc("fn", {}).execute()
+
+    assert result == RPCResponse(data=data, count=None)
+
+
+@RPC_RESULTS
+async def test_async_rpc_returns_the_decoded_body_as_data(
+    content: bytes, data: JSON
+) -> None:
+    def handler(request: Request) -> Response:
+        return Response(200, content=content)
+
+    async with AsyncClient(transport=MockTransport(handler)) as http:
+        client = AsyncPostgrestClient(
+            "https://example.com", http_session=AsyncHttpxSession(client=http)
+        )
+        result = await client.rpc("fn", {}).execute()
+
+    assert result == RPCResponse(data=data, count=None)
+
+
+def test_rpc_wraps_a_successful_response_that_is_not_json_in_api_error() -> None:
+    def handler(request: Request) -> Response:
+        return Response(200, content=b"<html>not json</html>")
+
+    with Client(transport=MockTransport(handler)) as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        with pytest.raises(APIError):
+            client.rpc("fn", {}).execute()
+
+
+def test_rpc_csv_returns_the_text() -> None:
+    def handler(request: Request) -> Response:
+        assert request.headers["Accept"] == "text/csv"
+        return Response(200, content=b"id,name\n1,a\n")
+
+    with Client(transport=MockTransport(handler)) as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        result = client.rpc("fn", {}).csv().execute()
+
+    assert result == RPCResponse(data="id,name\n1,a\n", count=None)
