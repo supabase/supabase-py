@@ -480,7 +480,36 @@ def test_max_affected_with_existing_handling_strict(
     ).max_affected(3)
 
     assert builder.request.headers.get_list("prefer") == [
-        "handling=strict,return=minimal",
+        "return=minimal",
         "handling=strict",
         "max-affected=3",
+    ]
+
+
+def test_max_affected_called_twice_replaces_its_preferences(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = (
+        with_prefer_header(filter_request_builder, "return=representation")
+        .max_affected(3)
+        .max_affected(7)
+    )
+
+    assert builder.request.headers.get_list("prefer") == [
+        "return=representation",
+        "handling=strict",
+        "max-affected=7",
+    ]
+
+
+def test_max_affected_replaces_another_handling_preference(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = with_prefer_header(
+        filter_request_builder, "handling=lenient, max-affected=1"
+    ).max_affected(2)
+
+    assert builder.request.headers.get_list("prefer") == [
+        "handling=strict",
+        "max-affected=2",
     ]

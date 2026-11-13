@@ -18,6 +18,7 @@ from .request_builder import (
     RPCFilterRequestBuilder,
     pre_rpc,
 )
+from .utils import is_http_url
 from .version import __version__
 
 if TYPE_CHECKING:
@@ -41,6 +42,8 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         schema: str = "public",
     ) -> None:
+        if not is_http_url(base_url):
+            raise ValueError("base_url must be a valid HTTP URL string")
         supabase_headers = Headers.supabase_client_headers("postgrest", __version__)
         self.executor: HttpIO = executor
         self.base_url = base_url
