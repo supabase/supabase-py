@@ -123,6 +123,14 @@ class TestClient:
         assert isinstance(builder.executor, AsyncHttpTableExecutor)
         assert builder.executor.client is async_client
 
+    def test_builders_of_one_client_compare_by_request(
+        self, sync_client: SyncPostgrestClient
+    ) -> None:
+        query = sync_client.table(Books.table).select().where(Books.id.eq(1))
+
+        assert query == sync_client.table(Books.table).select().where(Books.id.eq(1))
+        assert query != sync_client.table(Books.table).select()
+
     def test_a_name_still_gives_the_string_builder(
         self, sync_client: SyncPostgrestClient
     ) -> None:
@@ -402,7 +410,9 @@ class TestWrites:
             {"title": "y", "published_on": "2020-01-02"}
         ]
 
-    @pytest.mark.parametrize("rows", ["title", 7, [1], [{"title": "x"}, "y"]])
+    @pytest.mark.parametrize(
+        "rows", ["title", 7, [1], [{"title": "x"}, "y"], object(), [object()]]
+    )
     def test_insert_rejects_what_is_not_a_row(self, rows: Any) -> None:
         builder, _ = books()
 
@@ -487,11 +497,12 @@ class TestWrites:
             TableOperation.UPDATE, payload={"title": "x"}, shape=ResultShape.NONE
         )
 
-    def test_update_rejects_what_is_not_a_row(self) -> None:
+    @pytest.mark.parametrize("values", [[{"title": "x"}], object()])
+    def test_update_rejects_what_is_not_a_row(self, values: Any) -> None:
         builder, _ = books()
 
         with pytest.raises(TypeError, match="update\\(\\) takes a mapping"):
-            builder.update([{"title": "x"}])  # pyrefly: ignore[bad-argument-type]
+            builder.update(values)
 
     def test_update_returns_the_rows_with_select(self) -> None:
         builder, executor = books()

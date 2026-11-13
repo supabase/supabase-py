@@ -132,6 +132,18 @@ class _HttpTableExecutor[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def __init__(self, client: PostgrestClient[HttpIO]) -> None:
         self.client = client
 
+    def __eq__(self, other: object) -> bool:
+        """Two executors of one client send the same way, so the typed
+        builders of that client compare by their requests."""
+        return (
+            isinstance(other, _HttpTableExecutor)
+            and type(other) is type(self)
+            and other.client is self.client
+        )
+
+    def __hash__(self) -> int:
+        return hash((type(self), id(self.client)))
+
     def _headers(self) -> Headers:
         """The headers of the client as they are now, so that a request sent
         later carries the current access token, with `typed-api` among the

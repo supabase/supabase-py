@@ -5,7 +5,7 @@ from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Literal, Never, Self, overload
 
 from pydantic import TypeAdapter
-from pydantic_core import to_jsonable_python
+from pydantic_core import PydanticSerializationError, to_jsonable_python
 from supabase_utils.types import JSON, JSONParser
 
 from .partial_row import PartialRow
@@ -224,14 +224,21 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
         """
         return self._with(max_affected=value)
 
-    def csv(self) -> TypedTransformBuilder[Executor, Row, str]:
-        """Resolve to the rows rendered as csv text."""
+    def csv[Element](
+        self: TypedTransformBuilder[Executor, Row, list[Element]],
+    ) -> TypedTransformBuilder[Executor, Row, str]:
+        """Resolve to the rows rendered as csv text.
+
+        It applies to a query that resolves to a list, so a write needs
+        `select()` first.
+        """
         request = replace(self.request, shape=ResultShape.CSV)
         return TypedTransformBuilder(request, self.executor, _text)
 
     def head(self) -> TypedBuilder[Executor, None]:
-        """Send a `HEAD` request, which carries no rows back; with `count()`
-        before it, the count still comes back.
+        """Send a `HEAD` request, which carries no rows back, and resolve to
+        `None`. See `TypedQueryBuilder.count` to count rows without reading
+        them.
 
         Raises `ValueError` after an insert, upsert, update or delete, which
         a `HEAD` request cannot perform.
@@ -243,9 +250,15 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
         request = replace(self.request, shape=ResultShape.HEAD)
         return TypedBuilder(request, self.executor, _none)
 
-    def geojson(self) -> TypedBuilder[Executor, dict[str, JSON]]:
+    def geojson[Element](
+        self: TypedTransformBuilder[Executor, Row, list[Element]],
+    ) -> TypedBuilder[Executor, dict[str, JSON]]:
         """Resolve to the rows as one GeoJSON `FeatureCollection`, which
-        needs the PostGIS extension."""
+        needs the PostGIS extension.
+
+        It applies to a query that resolves to a list, so a write needs
+        `select()` first.
+        """
         request = replace(self.request, shape=ResultShape.GEOJSON)
         return TypedBuilder(request, self.executor, _object)
 
@@ -372,8 +385,7 @@ class TypedFilterBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, T](
         Repeated calls combine with `&`. A filter on another table is a type
         error.
         """
-        current = self.request.filter
-        return self._with(filter=filter if current is None else current & filter)
+        return self._with(filter=_and_filter(self.request.filter, filter))
 
 
 @dataclass(frozen=True)
@@ -390,8 +402,7 @@ class TypedCountBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row](
     def where(self, filter: Filter[Row]) -> Self:
         """Only count the rows satisfying `filter`, see
         `TypedFilterBuilder.where`. Repeated calls combine with `&`."""
-        current = self.request.filter
-        return self._with(filter=filter if current is None else current & filter)
+        return self._with(filter=_and_filter(self.request.filter, filter))
 
 
 @dataclass(frozen=True)
@@ -677,7 +688,11 @@ def _selected[Row](
 def _rows_payload(rows: object, method: str) -> JSON:
     """`rows` as the payload of a write: one JSON object for a row, a list of
     them for an iterable of rows."""
-    payload = _jsonable(rows)
+    error = (
+        f"{method}() takes a row, a mapping of column names to values, or an "
+        "iterable of rows"
+    )
+    payload = _jsonable(rows, error)
     if isinstance(payload, Mapping):
         return payload
     if (
@@ -686,19 +701,28 @@ def _rows_payload(rows: object, method: str) -> JSON:
         and all(isinstance(row, Mapping) for row in payload)
     ):
         return list(payload)
-    raise TypeError(
-        f"{method}() takes a row, a mapping of column names to values, or an "
-        "iterable of rows"
-    )
+    raise TypeError(error)
 
 
 def _row_payload(values: object, method: str) -> JSON:
-    payload = _jsonable(values)
+    error = f"{method}() takes a mapping of column names to values"
+    payload = _jsonable(values, error)
     if isinstance(payload, Mapping):
         return payload
-    raise TypeError(f"{method}() takes a mapping of column names to values")
+    raise TypeError(error)
 
 
-def _jsonable(value: object) -> JSON:
-    """`value` as plain JSON, serialized the way pydantic serializes it."""
-    return JSONParser.validate_python(to_jsonable_python(value))
+def _jsonable(value: object, error: str) -> JSON:
+    """`value` as plain JSON, serialized the way pydantic serializes it, or
+    `TypeError` with `error` when it cannot be."""
+    try:
+        jsonable = to_jsonable_python(value)
+    except PydanticSerializationError as cause:
+        raise TypeError(error) from cause
+    return JSONParser.validate_python(jsonable)
+
+
+def _and_filter(current: Filter[Any] | None, filter: Filter[Any]) -> Filter[Any]:
+    """`filter` combined with the filter `current` a request carries, when
+    it carries one."""
+    return filter if current is None else current & filter
