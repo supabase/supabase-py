@@ -55,7 +55,9 @@ async def test_select_decodes_every_row(books: TypedBooks) -> None:
 
 async def test_select_only_reads_through_the_entries(books: TypedBooks) -> None:
     rows = (
-        await books.select_only([Books.id, Books.published_on, Books.title_upper])
+        await books.select_only(
+            [Books.id, Books.published_on, Books.title_upper, Books.next_publication]
+        )
         .where(Books.id.eq(1))
         .execute()
     )
@@ -64,6 +66,7 @@ async def test_select_only_reads_through_the_entries(books: TypedBooks) -> None:
     assert row[Books.id] == 1
     assert row[Books.published_on] == date(1965, 8, 1)
     assert row[Books.title_upper] == "DUNE"
+    assert row[Books.next_publication] == date(1966, 8, 1)
     with pytest.raises(KeyError):
         row[Books.title]
 

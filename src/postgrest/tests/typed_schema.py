@@ -51,11 +51,12 @@ class Books:
     tags = Column[BooksRow, list[str]]("tags")
     metadata = NullableColumn[BooksRow, JsonValue]("metadata")
     title_upper = ComputedField[BooksRow, str]("title_upper")
+    next_publication = ComputedField[BooksRow, date]("next_publication", date)
     table = Table[BooksRow, BooksInsert, BooksUpdate](
         "books",
         BooksRow,
         primary_key=(id,),
-        computed_fields=(title_upper,),
+        computed_fields=(title_upper, next_publication),
         schema="public",
     )
 
