@@ -7,7 +7,7 @@ from pyrsistent import m as Map
 from pyrsistent import v as Vec
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, KeysView, Mapping
+    from collections.abc import Iterable, Iterator, KeysView, Mapping
 
 
 class Headers:
@@ -26,10 +26,15 @@ class Headers:
         return Headers(pmap=map)
 
     @staticmethod
-    def supabase_client_headers(package_name: str, package_version: str) -> Headers:
+    def supabase_client_headers(
+        package_name: str, package_version: str, *, features: Iterable[str] = ()
+    ) -> Headers:
+        """The `X-Client-Info` header that names this SDK, its package and the
+        platform it runs on, with a `features` segment listing `features` when
+        there are any, see `with_client_info_features()`."""
         from platform import python_version, release, system
 
-        return Headers.from_mapping(
+        headers = Headers.from_mapping(
             {
                 "X-Client-Info": (
                     f"supabase-py/{package_name} v{package_version}"
@@ -40,6 +45,36 @@ class Headers:
                 )
             }
         )
+        return headers.with_client_info_features(features)
+
+    def with_client_info_features(self, features: Iterable[str]) -> Headers:
+        """A copy whose `X-Client-Info` header also lists `features` in its
+        `features` segment, as in `...; runtime=python; features=typed-api`.
+
+        The features the header lists already are kept, and the segment is
+        rendered once, last, sorted and without duplicates. The headers are
+        returned as they are without an `X-Client-Info` header, since the
+        segment says what a client used and not which client it is, and
+        without `features`.
+        """
+        merged = set(features)
+        if not merged:
+            return self
+        value = self.get("X-Client-Info")
+        if value is None:
+            return self
+        segments: list[str] = []
+        for raw_segment in value.split(";"):
+            segment = raw_segment.strip()
+            name, separator, listed = segment.partition("=")
+            if separator and name.strip().lower() == "features":
+                merged.update(
+                    feature.strip() for feature in listed.split(",") if feature.strip()
+                )
+            elif segment:
+                segments.append(segment)
+        segments.append(f"features={','.join(sorted(merged))}")
+        return self.override("X-Client-Info", "; ".join(segments))
 
     def set(self, key: str, value: str) -> Headers:
         key = key.lower()

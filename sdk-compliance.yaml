@@ -1552,6 +1552,23 @@ supporting_symbols:
   - Ordering.nulls_first
   - Ordering.nulls_last
   - Range
+  - Table
+  - TableRequest
+  - TableResult
+  - TableOperation
+  - ResultShape
+  - RequestOptions
+  - ExplainOptions
+  - TableExecutor
+  - TableExecutor.execute
+  - AsyncTableExecutor
+  - AsyncTableExecutor.execute
+  - HttpTableExecutor
+  - HttpTableExecutor.execute
+  - AsyncHttpTableExecutor
+  - AsyncHttpTableExecutor.execute
+  - pre_rpc
+  - Headers.with_client_info_features
   - APIError
   - APIError.json
   - APIErrorFromJSON
