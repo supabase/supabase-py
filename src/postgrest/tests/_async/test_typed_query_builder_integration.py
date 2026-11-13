@@ -1,0 +1,395 @@
+from collections.abc import AsyncIterator
+from datetime import date
+
+import pytest
+
+from postgrest import (
+    APIError,
+    AsyncPostgrestClient,
+    AsyncTableExecutor,
+    CountedResponse,
+    CountMethod,
+    TypedQueryBuilder,
+)
+from tests.typed_schema import (
+    Books,
+    BooksInsert,
+    BooksRow,
+    BooksUpdate,
+    BookTitles,
+    BookTitlesRow,
+    Places,
+)
+
+type TypedBooks = TypedQueryBuilder[
+    AsyncTableExecutor, BooksRow, BooksInsert, BooksUpdate
+]
+
+DUNE = BooksRow(
+    id=1,
+    title="Dune",
+    isbn="9780441013593",
+    pages=412,
+    published_on=date(1965, 8, 1),
+    tags=["science fiction"],
+    metadata={"awards": ["Hugo", "Nebula"]},
+)
+
+
+@pytest.fixture
+async def books(postgrest_client: AsyncPostgrestClient) -> AsyncIterator[TypedBooks]:
+    """The typed builder of `books`, which forgets the rows a test wrote: the
+    seeded rows have ids below 100 and the written ones from 100 on."""
+    builder = postgrest_client.table(Books.table)
+    yield builder
+    await builder.delete().where(Books.id.gte(100)).execute()
+
+
+async def test_select_decodes_every_row(books: TypedBooks) -> None:
+    rows = await books.select().order(Books.id).execute()
+
+    assert [row.id for row in rows] == [1, 2, 3]
+    assert rows[0] == DUNE
+    assert rows[2].published_on is None
+
+
+async def test_select_only_reads_through_the_entries(books: TypedBooks) -> None:
+    rows = (
+        await books.select_only(
+            [Books.id, Books.published_on, Books.title_upper, Books.next_publication]
+        )
+        .where(Books.id.eq(1))
+        .execute()
+    )
+
+    (row,) = rows
+    assert row[Books.id] == 1
+    assert row[Books.published_on] == date(1965, 8, 1)
+    assert row[Books.title_upper] == "DUNE"
+    assert row[Books.next_publication] == date(1966, 8, 1)
+    with pytest.raises(KeyError):
+        row[Books.title]
+
+
+async def test_select_only_of_every_column_converts_into_the_row(
+    books: TypedBooks,
+) -> None:
+    rows = (
+        await books.select_only(
+            [
+                Books.id,
+                Books.title,
+                Books.isbn,
+                Books.pages,
+                Books.published_on,
+                Books.tags,
+                Books.metadata,
+            ]
+        )
+        .where(Books.id.eq(3))
+        .execute()
+    )
+
+    assert rows[0].to_row() == BooksRow(id=3, title="Untitled", pages=0, tags=[])
+
+
+async def test_where_composes_filters(books: TypedBooks) -> None:
+    rows = (
+        await books.select()
+        .where((Books.pages.gt(300) | Books.isbn.is_null()) & ~Books.id.eq(1))
+        .execute()
+    )
+    assert [row.id for row in rows] == [3]
+
+    rows = (
+        await books.select()
+        .where(Books.pages.gte(0))
+        .where(Books.id.lte(2))
+        .order(Books.id)
+        .execute()
+    )
+    assert [row.id for row in rows] == [1, 2]
+
+
+async def test_array_and_json_filters(books: TypedBooks) -> None:
+    rows = await books.select().where(Books.tags.contains(["cyberpunk"])).execute()
+    assert [row.id for row in rows] == [2]
+
+    rows = (
+        await books.select()
+        .where(Books.metadata.contains({"awards": ["Nebula"]}))
+        .order(Books.id)
+        .execute()
+    )
+    assert [row.id for row in rows] == [1, 2]
+
+
+async def test_order_limit_and_range(books: TypedBooks) -> None:
+    rows = await books.select().order(Books.pages.desc()).execute()
+    assert [row.id for row in rows] == [1, 2, 3]
+
+    rows = await books.select().order(Books.published_on.desc().nulls_first()).execute()
+    assert [row.id for row in rows] == [3, 2, 1]
+
+    rows = await books.select().order(Books.id).limit(2).execute()
+    assert [row.id for row in rows] == [1, 2]
+
+    rows = await books.select().order(Books.id).range(1, 2).execute()
+    assert [row.id for row in rows] == [2, 3]
+
+
+async def test_single_and_maybe_single(books: TypedBooks) -> None:
+    row = await books.select().where(Books.id.eq(2)).single().execute()
+    assert row.title == "Neuromancer"
+
+    maybe = await books.select().where(Books.id.eq(2)).maybe_single().execute()
+    assert maybe is not None
+    assert maybe.title == "Neuromancer"
+
+    assert await books.select().where(Books.id.eq(999)).maybe_single().execute() is None
+
+    with pytest.raises(APIError) as error:
+        await books.select().where(Books.id.lte(2)).maybe_single().execute()
+    assert error.value.code == "406"
+
+    with pytest.raises(APIError):
+        await books.select().where(Books.id.lte(2)).single().execute()
+
+
+async def test_count(books: TypedBooks) -> None:
+    response = await books.select().order(Books.id).limit(1).count().execute()
+    assert response.count == 3
+    assert [row.id for row in response.data] == [1]
+
+    assert await books.count().where(Books.isbn.is_null()).execute() == 1
+    assert await books.count(CountMethod.estimated).execute() == 3
+    assert isinstance(await books.count(CountMethod.planned).execute(), int)
+
+
+async def test_head(books: TypedBooks) -> None:
+    assert await books.select().where(Books.id.eq(1)).head().execute() is None
+
+
+async def test_csv(books: TypedBooks) -> None:
+    text = (
+        await books.select_only([Books.id, Books.title]).order(Books.id).csv().execute()
+    )
+
+    assert text.splitlines() == ["id,title", "1,Dune", "2,Neuromancer", "3,Untitled"]
+
+
+async def test_explain(books: TypedBooks) -> None:
+    plan = await books.select().where(Books.id.eq(1)).explain().execute()
+    assert "Aggregate" in plan
+
+    plan_json = await books.select().explain(analyze=True, format="json").execute()
+    assert isinstance(plan_json, list)
+
+
+async def test_geojson(postgrest_client: AsyncPostgrestClient) -> None:
+    collection = (
+        await postgrest_client.table(Places.table)
+        .select()
+        .order(Places.id)
+        .geojson()
+        .execute()
+    )
+
+    assert collection["type"] == "FeatureCollection"
+    features = collection["features"]
+    assert isinstance(features, list)
+    assert len(features) == 2
+    null_island = features[0]
+    assert isinstance(null_island, dict)
+    assert null_island["geometry"] == {"type": "Point", "coordinates": [0, 0]}
+
+
+async def test_strip_nulls(books: TypedBooks) -> None:
+    rows = await books.select().where(Books.id.eq(3)).strip_nulls().execute()
+    assert rows[0].isbn is None
+    assert rows[0].published_on is None
+
+    partial = (
+        await books.select_only([Books.id, Books.isbn])
+        .where(Books.id.eq(3))
+        .strip_nulls()
+        .execute()
+    )
+    assert partial[0].json == {"id": 3}
+    assert partial[0][Books.isbn] is None
+
+
+async def test_a_view_reads_its_row_type(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    titles = (
+        await postgrest_client.table(BookTitles.table)
+        .select()
+        .order(BookTitles.id)
+        .limit(2)
+        .execute()
+    )
+
+    assert titles == [
+        BookTitlesRow(id=1, title="Dune"),
+        BookTitlesRow(id=2, title="Neuromancer"),
+    ]
+
+
+async def test_insert_one_row(books: TypedBooks) -> None:
+    assert await books.insert({"title": "Emma", "pages": 474}).execute() is None
+
+    row = (
+        await books.insert({"title": "Persuasion", "published_on": date(1817, 12, 20)})
+        .select()
+        .single()
+        .execute()
+    )
+    assert row.id >= 100
+    assert row.title == "Persuasion"
+    assert row.pages == 0
+    assert row.published_on == date(1817, 12, 20)
+    assert row.tags == []
+
+    assert await books.count().where(Books.id.gte(100)).execute() == 2
+
+
+async def test_insert_rows_with_defaults(books: TypedBooks) -> None:
+    rows = (
+        await books.insert(
+            [{"title": "A"}, {"title": "B", "pages": 2}, {"title": "C", "isbn": None}]
+        )
+        .select()
+        .order(Books.id)
+        .execute()
+    )
+
+    assert [(row.title, row.pages, row.isbn) for row in rows] == [
+        ("A", 0, None),
+        ("B", 2, None),
+        ("C", 0, None),
+    ]
+
+
+async def test_insert_returns_some_columns(books: TypedBooks) -> None:
+    rows = (
+        await books.insert({"title": "D"})
+        .select_only([Books.id, Books.title_upper])
+        .execute()
+    )
+
+    assert rows[0][Books.id] >= 100
+    assert rows[0][Books.title_upper] == "D"
+
+
+async def test_upsert(books: TypedBooks) -> None:
+    await books.upsert({"id": 1000, "title": "E", "isbn": "isbn-1000"}).execute()
+
+    row = await books.upsert({"id": 1000, "title": "F"}).select().single().execute()
+    assert (row.id, row.title, row.isbn) == (1000, "F", "isbn-1000")
+
+    row = (
+        await books.upsert(
+            {"title": "G", "isbn": "isbn-1000"}, on_conflict=[Books.isbn]
+        )
+        .select()
+        .single()
+        .execute()
+    )
+    assert (row.id, row.title) == (1000, "G")
+
+    ignored = (
+        await books.upsert({"id": 1000, "title": "H"}, ignore_duplicates=True)
+        .select()
+        .execute()
+    )
+    assert ignored == []
+    row = await books.select().where(Books.id.eq(1000)).single().execute()
+    assert row.title == "G"
+
+
+async def test_update(books: TypedBooks) -> None:
+    inserted = await books.insert({"title": "I"}).select().single().execute()
+
+    assert (
+        await books.update({"pages": 9}).where(Books.id.eq(inserted.id)).execute()
+        is None
+    )
+
+    rows = (
+        await books.update({"title": "J"})
+        .where(Books.id.eq(inserted.id))
+        .select()
+        .execute()
+    )
+    assert [(row.title, row.pages) for row in rows] == [("J", 9)]
+
+
+async def test_update_all_in_a_dry_run(books: TypedBooks) -> None:
+    rows = (
+        await books.update({"pages": 1})
+        .all()
+        .dry_run()
+        .select()
+        .order(Books.id)
+        .execute()
+    )
+    assert [row.pages for row in rows] == [1, 1, 1]
+
+    row = await books.select().where(Books.id.eq(1)).single().execute()
+    assert row.pages == 412
+
+
+async def test_delete(books: TypedBooks) -> None:
+    await books.insert([{"title": "K"}, {"title": "L"}]).execute()
+
+    deleted = (
+        await books.delete()
+        .where(Books.title.in_(["K", "L"]))
+        .select()
+        .order(Books.title)
+        .execute()
+    )
+    assert [row.title for row in deleted] == ["K", "L"]
+    assert await books.count().execute() == 3
+
+    response = await books.delete().all().dry_run().count().execute()
+    assert response == CountedResponse(None, 3)
+    assert await books.count().execute() == 3
+
+
+async def test_max_affected(books: TypedBooks) -> None:
+    await books.insert([{"title": "M"}, {"title": "M"}]).execute()
+
+    with pytest.raises(APIError) as error:
+        await books.delete().where(Books.title.eq("M")).max_affected(1).execute()
+    assert error.value.code == "PGRST124"
+
+    response = (
+        await books.delete()
+        .where(Books.title.eq("M"))
+        .max_affected(2)
+        .count()
+        .execute()
+    )
+    assert response == CountedResponse(None, 2)
+
+
+async def test_dry_run_of_an_insert(books: TypedBooks) -> None:
+    row = await books.insert({"title": "Ghost"}).select().single().dry_run().execute()
+    assert row.title == "Ghost"
+
+    assert await books.count().where(Books.title.eq("Ghost")).execute() == 0
+
+
+async def test_request_options_apply(books: TypedBooks) -> None:
+    rows = await books.select().retry(False).request_timeout(10).execute()
+
+    assert len(rows) == 3
+
+
+async def test_an_error_answer_raises(books: TypedBooks) -> None:
+    with pytest.raises(APIError) as error:
+        await books.select().where(Books.title.raw("nonsense.x")).execute()
+
+    assert error.value.status_code == 400

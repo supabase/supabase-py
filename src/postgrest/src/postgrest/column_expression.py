@@ -63,11 +63,22 @@ class ComputedField(ColumnExpression[Row, Value]):
     It filters like a column, and has `is_null()` whatever its declared type,
     since the function can return `NULL`. `Value` is the Python type of a
     present value.
+
+    A `select_only()` reads the field through `value_type`, so a `date`
+    field comes back as a `date`. Without it the value is the decoded JSON,
+    which is right for `str`, `int`, `float`, `bool` and JSON values. `Row`
+    cannot decode the field, since a `select()` of every column never
+    carries it; the generator gives `value_type` for every field whose type
+    differs from its JSON form.
     """
 
     name: str
     """The name of the function in the database, which is also the name the
     field is selected by."""
+
+    value_type: type[Value] | None = None
+    """The type a present value is decoded into when the field is read from
+    a `PartialRow`, or `None` for the decoded JSON."""
 
     @property
     def expression(self) -> str:
