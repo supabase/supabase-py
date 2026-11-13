@@ -46,6 +46,7 @@ from .types import (
     TextSearchType,
 )
 from .utils import (
+    _quote,
     _rpc_query_param,
     _sanitize_array_param,
     _serialize_filter_value,
@@ -68,7 +69,7 @@ def _unique_columns(json: list[JSON]) -> str:
     unique_keys = dict.fromkeys(
         key for row in json if isinstance(row, Mapping) for key in row
     )
-    return ",".join([f'"{k}"' for k in unique_keys])
+    return ",".join(_quote(key) for key in unique_keys)
 
 
 def _cleaned_columns(columns: tuple[str, ...]) -> str:

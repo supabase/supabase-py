@@ -3,6 +3,7 @@ from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
+from postgrest.types import FilterValue
 
 
 @pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
@@ -20,10 +21,11 @@ from postgrest import AsyncPostgrestClient, SyncPostgrestClient
             ["normal", "a,b", "a:b", "a(b)", "table.column"],
             'in.(normal,"a,b","a:b","a(b)",table.column)',
         ),
+        ([None, True, False], "in.(null,true,false)"),
     ],
 )
 async def test_in_filter_escapes_quoted_values(
-    use_async: bool, values: list[str], expected: str
+    use_async: bool, values: list[FilterValue | None], expected: str
 ) -> None:
     def handler(request: Request) -> Response:
         assert request.url.params["name"] == expected
