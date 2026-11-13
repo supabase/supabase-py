@@ -88,7 +88,6 @@ assert_type(books, TypedQueryBuilder[TableExecutor, BooksRow, BooksInsert, Books
 assert_type(sync_client.table("books"), RequestBuilder[SyncHttpIO])
 assert_type(async_client.table("books"), RequestBuilder[AsyncHttpIO])
 
-# Reads resolve to the row type, and every transform keeps it.
 assert_type(books.select().execute(), list[BooksRow])
 assert_type(
     books.select()
@@ -110,7 +109,6 @@ books.select().where(Authors.id.eq(1))  # error:
 books.select().order(Authors.name)  # error:
 books.select().where(Books.id.eq("one"))  # error:
 
-# The shapes of a read.
 assert_type(books.select().single().execute(), BooksRow)
 assert_type(books.select().maybe_single().execute(), BooksRow | None)
 assert_type(books.select().count().execute(), CountedResponse[list[BooksRow]])
@@ -129,7 +127,6 @@ books.select().csv().where(Books.id.eq(1))  # error:
 books.select().single().single()  # error:
 books.count().order(Books.id)  # error:
 
-# A partial row is read through the entries of its list.
 partial = books.select_only([Books.id, Books.title, Books.published_on]).execute()
 assert_type(partial, list[PartialRow[BooksRow]])
 row = partial[0]
@@ -142,8 +139,6 @@ assert_type(row.to_row(), BooksRow)
 row[Authors.id]  # error:
 books.select_only([Books.id, Authors.name])  # error:
 
-# Writes take the Insert and Update types of the table and resolve to None
-# unless select() asks the rows back.
 assert_type(books.insert({"title": "x"}).execute(), None)
 assert_type(books.insert([{"title": "x"}, {"title": "y", "id": 2}]).execute(), None)
 assert_type(books.insert({"title": "x"}).select().execute(), list[BooksRow])
@@ -157,6 +152,9 @@ books.insert({"title": 1})  # error:
 books.insert({"name": "x"})  # error:
 books.insert({"title": "x"}).single()  # error:
 books.insert({"title": "x"}).where(Books.id.eq(1))  # error:
+books.insert({"title": "x"}).csv()  # error:
+books.insert({"title": "x"}).geojson()  # error:
+books.select().single().csv()  # error:
 
 assert_type(
     books.upsert(
@@ -182,7 +180,6 @@ assert_type(books.delete().where(Books.id.eq(1)).execute(), None)
 assert_type(books.delete().all().select().execute(), list[BooksRow])
 books.delete().execute()  # error:
 
-# A view declares Never as its write types, so it cannot be written to.
 titles = sync_client.table(BookTitles.table)
 assert_type(titles.select().execute(), list[BookTitlesRow])
 titles.insert({"title": "x"})  # error:
@@ -192,7 +189,6 @@ titles.delete().all()  # error:
 titles.delete().where(BookTitles.id.eq(1))  # error:
 
 
-# On the async client execute() is awaited.
 async def main() -> None:
     async_books = async_client.table(Books.table)
     assert_type(

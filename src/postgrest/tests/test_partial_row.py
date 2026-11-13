@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Annotated, Any
 
 import pytest
 from pydantic import BaseModel, Field, ValidationError
@@ -82,7 +82,22 @@ class Dataclasses:
     table = Table[DataclassRow, Any, Any]("dataclasses", DataclassRow)
 
 
+class ConstrainedRow(BaseModel):
+    pages: Annotated[int, Field(gt=0)]
+
+
+class Constrained:
+    pages = Column[ConstrainedRow, int]("pages")
+    table = Table[ConstrainedRow, Any, Any]("constrained", ConstrainedRow)
+
+
 class TestRowTypes:
+    def test_the_constraints_of_a_field_apply(self) -> None:
+        partial = PartialRow(Constrained.table, (Constrained.pages,), {"pages": 0})
+
+        with pytest.raises(ValidationError, match="greater than 0"):
+            partial[Constrained.pages]
+
     def test_a_pydantic_alias_names_the_field(self) -> None:
         partial = PartialRow(Aliased.table, (Aliased.class_,), {"class": "3"})
 

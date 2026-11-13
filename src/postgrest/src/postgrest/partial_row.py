@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import cache
-from typing import TYPE_CHECKING, Any, get_type_hints, overload
+from functools import cache, cached_property
+from typing import TYPE_CHECKING, Annotated, Any, get_type_hints, overload
 
 from pydantic import BaseModel, TypeAdapter
 from supabase_utils.types import JSON
@@ -32,12 +32,14 @@ class PartialRow[Row]:
             title: str = book[Books.title]
             published_on: date | None = book[Books.published_on]
 
-    A value is decoded the way `select()` decodes the whole row: through the
-    field of `Row` the entry is named after, so a `date` column reads as a
-    `date`. An entry `Row` has no field for, such as a computed field or an ad
-    hoc `Column`, reads as the decoded JSON value. Reading an entry the list
-    did not ask for raises `KeyError`, instead of returning `None` as a
-    missing key would.
+    A value is validated against the field of `Row` the entry is named
+    after, its type and the constraints of its `Field`, so a `date` column
+    reads as a `date` as it does from `select()`; the validators and the
+    config of the model itself run in `select()` and `to_row()` only. An
+    entry `Row` has no field for, such as a computed field or an ad hoc
+    `Column`, reads as the decoded JSON value. Reading an entry the list did
+    not ask for raises `KeyError`, instead of returning `None` as a missing
+    key would.
     """
 
     table: Table[Row, Any, Any]
@@ -62,7 +64,7 @@ class PartialRow[Row]:
     def __getitem__(self, entry: ColumnExpression[Row, Any]) -> Any:
         """The value of `entry` in this row, see the class."""
         key = entry.expression
-        if all(column.expression != key for column in self.columns):
+        if key not in self._keys:
             selected = ", ".join(column.expression for column in self.columns)
             raise KeyError(f"{key} was not selected; the row holds {selected}")
         value = self.json.get(key)
@@ -83,6 +85,10 @@ class PartialRow[Row]:
     def __repr__(self) -> str:
         return f"PartialRow({dict(self.json)!r})"
 
+    @cached_property
+    def _keys(self) -> frozenset[str]:
+        return frozenset(column.expression for column in self.columns)
+
 
 @cache
 def _field_adapter(row_type: Any, name: str) -> TypeAdapter[Any] | None:
@@ -94,16 +100,21 @@ def _field_adapter(row_type: Any, name: str) -> TypeAdapter[Any] | None:
 
 @cache
 def _field_annotations(row_type: Any) -> Mapping[str, Any]:
-    """The declared type of every field of `row_type`, by the key the field
-    is read from a response row under: the alias of a pydantic field that has
-    one, and the attribute name otherwise."""
+    """The declared type of every field of `row_type`, with the constraints
+    of its `Field`, by the key the field is read from a response row under:
+    the alias of a pydantic field that has one, and the attribute name
+    otherwise."""
     if isinstance(row_type, type) and issubclass(row_type, BaseModel):
         return {
-            field.alias or name: field.annotation
+            field.alias or name: _constrained(field.annotation, field.metadata)
             for name, field in row_type.model_fields.items()
             if field.annotation is not None
         }
     try:
-        return get_type_hints(row_type)
+        return get_type_hints(row_type, include_extras=True)
     except Exception:
         return {}
+
+
+def _constrained(annotation: Any, metadata: list[Any]) -> Any:
+    return Annotated[annotation, *metadata] if metadata else annotation
