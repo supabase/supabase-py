@@ -769,3 +769,26 @@ def test_order_retry_400_doesnt_retry(postgrest_client: SyncPostgrestClient) -> 
             query.execute()
 
         assert retry_count == 1
+
+
+def test_rpc_returning_a_number(postgrest_client: SyncPostgrestClient) -> None:
+    res = postgrest_client.rpc("count_stored_countries", {}).execute()
+
+    assert isinstance(res.data, int)
+    assert res.data > 0
+
+
+def test_rpc_returning_text(postgrest_client: SyncPostgrestClient) -> None:
+    res = postgrest_client.rpc("country_iso", {"search_name": "Albania"}).execute()
+
+    assert res.data == "AL"
+
+
+def test_rpc_returning_a_single_row(postgrest_client: SyncPostgrestClient) -> None:
+    res = (
+        postgrest_client.rpc("stored_country", {"search_name": "Albania"})
+        .select("nicename, iso")
+        .execute()
+    )
+
+    assert res.data == {"nicename": "Albania", "iso": "AL"}

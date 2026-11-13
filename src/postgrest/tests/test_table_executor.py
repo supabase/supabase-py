@@ -870,11 +870,32 @@ class TestDecodesByShape:
         assert error.value.message == "bad"
         assert error.value.code == "22P02"
 
-    def test_a_body_in_another_shape_raises(self) -> None:
+    @pytest.mark.parametrize(
+        ("content", "shape"),
+        [
+            (b'{"id": 1}', ResultShape.ROWS),
+            (b"[1, 2]", ResultShape.ROWS),
+            (b"1", ResultShape.ROWS),
+            (b"[1]", ResultShape.MAYBE_SINGLE),
+            (b'[{"id": 1}]', ResultShape.SINGLE),
+            (b"not json", ResultShape.ROWS),
+        ],
+        ids=[
+            "rows-as-object",
+            "rows-of-scalars",
+            "rows-as-scalar",
+            "maybe-single-of-scalar",
+            "single-as-array",
+            "invalid-json",
+        ],
+    )
+    def test_a_body_in_another_shape_raises(
+        self, content: bytes, shape: ResultShape
+    ) -> None:
         with pytest.raises(APIError):
             self.execute(
-                Transport(content=b'{"id": 1}'),
-                books(TableOperation.SELECT),
+                Transport(content=content),
+                books(TableOperation.SELECT, shape=shape),
             )
 
 

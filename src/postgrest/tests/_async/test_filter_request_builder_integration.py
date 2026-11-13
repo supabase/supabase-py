@@ -772,3 +772,30 @@ async def test_order_retry_400_doesnt_retry(
             await query.execute()
 
         assert retry_count == 1
+
+
+async def test_rpc_returning_a_number(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await postgrest_client.rpc("count_stored_countries", {}).execute()
+
+    assert isinstance(res.data, int)
+    assert res.data > 0
+
+
+async def test_rpc_returning_text(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await postgrest_client.rpc(
+        "country_iso", {"search_name": "Albania"}
+    ).execute()
+
+    assert res.data == "AL"
+
+
+async def test_rpc_returning_a_single_row(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    res = await (
+        postgrest_client.rpc("stored_country", {"search_name": "Albania"})
+        .select("nicename, iso")
+        .execute()
+    )
+
+    assert res.data == {"nicename": "Albania", "iso": "AL"}

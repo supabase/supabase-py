@@ -1,5 +1,6 @@
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
+from postgrest import RPCResponse as PostgrestRPCResponse
 from realtime import (
     AuthorizationError,
     MaxRetriesExceeded,
@@ -69,6 +70,7 @@ __all__ = [
     "PostgrestAPIError",
     "PostgrestAPIResponse",
     "PostgrestClientOptions",
+    "PostgrestRPCResponse",
     "RealtimeClientOptions",
     "RealtimeError",
     "RequestTimeoutError",

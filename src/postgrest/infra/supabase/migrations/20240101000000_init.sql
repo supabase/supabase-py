@@ -84,6 +84,27 @@ as $function$
     select * from countries where nicename ilike '%' || search_name || '%';
 $function$;
 
+create or replace function public.count_stored_countries()
+    returns bigint
+    language sql
+as $function$
+    select count(*) from countries;
+$function$;
+
+create or replace function public.country_iso(search_name text)
+    returns text
+    language sql
+as $function$
+    select iso from countries where nicename = search_name;
+$function$;
+
+create or replace function public.stored_country(search_name text)
+    returns countries
+    language sql
+as $function$
+    select * from countries where nicename = search_name;
+$function$;
+
 create table
   orchestral_sections (id int8 primary key, name text);
 create table

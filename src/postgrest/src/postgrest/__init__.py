@@ -5,7 +5,7 @@ from .column_expression import Column, ComputedField, NullableColumn
 from .exceptions import APIError
 from .filter import ColumnExpression, Comparison, Filter, FilterOperator, Ordering
 from .range import Range, RangeBounds
-from .request_builder import APIResponse
+from .request_builder import APIResponse, RPCResponse
 from .table import Table
 from .table_executor import (
     AsyncHttpTableExecutor,
@@ -50,6 +50,7 @@ __all__ = [
     "Mutation",
     "NullableColumn",
     "Ordering",
+    "RPCResponse",
     "Range",
     "RangeBounds",
     "RequestOptions",

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Literal, Self, overload, override
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
+from postgrest import RPCResponse as PostgrestRPCResponse
 from realtime import (
     AuthorizationError,
     MaxRetriesExceeded,
@@ -118,6 +119,7 @@ __all__ = [
     "NotConnectedError",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
+    "PostgrestRPCResponse",
     "RealtimeError",
     "RequestTimeoutError",
     "RetryPolicy",

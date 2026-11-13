@@ -15,7 +15,7 @@ from typing import (
     override,
 )
 
-from pydantic import TypeAdapter, ValidationError
+from pydantic import ValidationError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
@@ -34,6 +34,7 @@ from supabase_utils.http.request import (
 from supabase_utils.types import JSON
 from yarl import URL
 
+from ._parsing import parse_json, parse_object, parse_rows
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .types import (
     _TEXT_SEARCH_OPERATORS,
@@ -173,10 +174,6 @@ def pre_delete(
     return QueryArgs("DELETE", URLQuery.empty(), prefer_headers, {})
 
 
-JSONListParser = TypeAdapter(list[dict[str, JSON]])
-JSONDictParser = TypeAdapter(dict[str, JSON])
-
-
 @dataclass
 class APIResponse:
     data: list[dict[str, JSON]]
@@ -218,8 +215,24 @@ class APIResponse:
         count = APIResponse._get_count_from_http_request_response(response)
         if response.request.method == "HEAD" or not response.content:
             return APIResponse(data=[], count=count)
-        data = JSONListParser.validate_json(response.content)
-        return APIResponse(data=data, count=count)
+        return APIResponse(data=parse_rows(response.content), count=count)
+
+
+@dataclass
+class RPCResponse:
+    data: JSON
+    """The value the function returned: a list of rows for a set returning
+    function, an object for a function returning a single row, a scalar for a
+    function returning a base type, and `None` when the response has no body."""
+    count: int | None = None
+    """The number of rows returned."""
+
+    @staticmethod
+    def from_http_request_response(response: Response) -> RPCResponse:
+        count = APIResponse._get_count_from_http_request_response(response)
+        if response.request.method == "HEAD" or not response.content:
+            return RPCResponse(data=None, count=count)
+        return RPCResponse(data=parse_json(response.content), count=count)
 
 
 @dataclass
@@ -232,8 +245,7 @@ class SingleAPIResponse:
         response: Response,
     ) -> SingleAPIResponse:
         count = APIResponse._get_count_from_http_request_response(response)
-        data = JSONDictParser.validate_json(response.content)
-        return SingleAPIResponse(data=data, count=count)
+        return SingleAPIResponse(data=parse_object(response.content), count=count)
 
 
 def _filters_embedded_resource(key: str) -> bool:
@@ -968,7 +980,7 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
             raise _api_error(r)
         try:
             return APIResponse.from_http_request_response(r)
-        except ValidationError as e:
+        except ValueError as e:
             raise _invalid_response_error(r) from e
 
 
@@ -994,7 +1006,7 @@ class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             raise _api_error(response)
         try:
             return SingleAPIResponse.from_http_request_response(response)
-        except ValidationError as e:
+        except ValueError as e:
             raise _invalid_response_error(response) from e
 
 
@@ -1042,7 +1054,7 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         if response.is_success:
             try:
                 parsed = APIResponse.from_http_request_response(response)
-            except ValidationError as e:
+            except ValueError as e:
                 raise _invalid_response_error(response) from e
             if len(parsed.data) == 0:
                 return None
@@ -1088,14 +1100,14 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         )
 
     @handle_http_io
-    def execute(self) -> HttpMethod[APIResponse]:
+    def execute(self) -> HttpMethod[RPCResponse]:
         """Execute the query.
 
         .. tip::
             This is the last method called, after the query is built.
 
         Returns:
-            :class:`APIResponse`
+            :class:`RPCResponse`
 
         Raises:
             :class:`APIError` If the API raised an error.
@@ -1104,8 +1116,8 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         if not r.is_success:
             raise _api_error(r)
         try:
-            return APIResponse.from_http_request_response(r)
-        except ValidationError as e:
+            return RPCResponse.from_http_request_response(r)
+        except ValueError as e:
             raise _invalid_response_error(r) from e
 
 

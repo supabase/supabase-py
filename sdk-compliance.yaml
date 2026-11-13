@@ -518,6 +518,8 @@ features:
       - BaseRPCRequestBuilder.select
       - RPCFilterRequestBuilder
       - RPCFilterRequestBuilder.execute
+      - RPCResponse
+      - RPCResponse.from_http_request_response
       - RPCCountRequestBuilder
       - RPCCountRequestBuilder.execute
   database.query.openapi_spec: not_implemented
