@@ -474,7 +474,7 @@ async def test_csv(postgrest_client: AsyncPostgrestClient) -> None:
         .csv()
         .execute()
     )
-    assert "ALBANIA,AL\nALGERIA,DZ" in res
+    assert "ALBANIA,AL\nALGERIA,DZ" in res.data
 
 
 async def test_explain_text(postgrest_client: AsyncPostgrestClient) -> None:

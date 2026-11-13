@@ -252,6 +252,22 @@ class SingleAPIResponse:
         return SingleAPIResponse(data=parse_object(response.content), count=count)
 
 
+@dataclass
+class TextAPIResponse:
+    """The response of a query that asks for text instead of JSON, such as
+    `csv()`."""
+
+    data: str
+    """The body of the response, decoded as UTF-8."""
+    count: int | None = None
+    """The number of rows, when the query asked for a count."""
+
+    @staticmethod
+    def from_http_request_response(response: Response) -> TextAPIResponse:
+        count = APIResponse._get_count_from_http_request_response(response)
+        return TextAPIResponse(data=response.content.decode("utf-8"), count=count)
+
+
 def _filters_embedded_resource(key: str) -> bool:
     """Whether a filter key such as ``cities.name`` targets an embedded resource.
 
@@ -831,11 +847,6 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
         )
         return replace(self, request=request)
 
-    def csv(self) -> Self:
-        """Specify that the query must retrieve data as a single CSV string."""
-        request = replace(self.request, shape=ResponseShape.CSV)
-        return replace(self, request=request)
-
 
 @dataclass(frozen=True, kw_only=True)
 class BaseRequestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
@@ -1028,23 +1039,22 @@ class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
 @dataclass(frozen=True, kw_only=True)
 class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[HttpIO]):
     @handle_http_io
-    def execute(self) -> HttpMethod[str]:
+    def execute(self) -> HttpMethod[TextAPIResponse]:
         """Execute the query.
 
-                .. tip::
-                    This is the last method called, after the query is built.
+        .. tip::
+            This is the last method called, after the query is built.
 
-                Returns:
-                    :class:`SingleAPIResponse`
-        na
-                Raises:
-                    :class:`APIError` If the API raised an error.
+        Returns:
+            :class:`TextAPIResponse`
+
+        Raises:
+            :class:`APIError` If the API raised an error.
         """
         response = yield self.request
-        if response.is_success:
-            return response.content.decode("utf8")
-        else:
+        if not response.is_success:
             raise _api_error(response)
+        return TextAPIResponse.from_http_request_response(response)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1092,6 +1102,15 @@ class FilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
 class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     BaseRequestClient[HttpIO], BaseRPCRequestBuilder
 ):
+    def csv(self) -> TextRequestBuilder[HttpIO]:
+        """Specify that the query must retrieve data as a single CSV string."""
+        return TextRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=replace(self.request, shape=ResponseShape.CSV),
+        )
+
     def single(self) -> SingleRequestBuilder[HttpIO]:
         """Specify that the query will only return a single row in response.
 

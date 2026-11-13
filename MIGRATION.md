@@ -188,11 +188,23 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 ## PostgREST response shape and HTTP method types
 
-`single()`, `csv()` and `explain()` set the `shape` field of `PostgrestRequest`, a `ResponseShape` member, instead of the `Accept` header. The header is rendered from it when the request is sent, so `request.headers` of a builder no longer contains `Accept`. `strip_nulls()` followed by `csv()` or `explain()`, or `csv()` followed by `strip_nulls()` on an RPC, raises `ValueError` when the second method is called instead of when the request is sent.
+`single()`, `csv()` and `explain()` set the `shape` field of `PostgrestRequest`, a `ResponseShape` member, instead of the `Accept` header. The header is rendered from it when the request is sent, so `request.headers` of a builder no longer contains `Accept`. `strip_nulls()` followed by `csv()` or `explain()` raises `ValueError` when the second method is called instead of when the request is sent.
 
 `postgrest.RequestMethod` and `storage3.types.RequestMethod` are removed. Nothing used them. Use `supabase_utils.http.request.HTTPRequestMethod`, the `Literal` every package types its requests with.
 
 `filter()` takes the operator as `Filters | str`, which shows that the `Filters` members are the expected values. A string still works for operators `Filters` does not list, such as `match`, so a misspelled string is not caught before PostgREST rejects it.
+
+## PostgREST `csv()` returns a `TextAPIResponse`
+
+`execute()` after `csv()` returned the CSV body in `APIResponse.data`, a field typed as a list of rows, so iterating it went over characters. It now returns a `TextAPIResponse`, whose `data` is the body as a `str` and whose `count` is the row count when the query asked for one. `rpc(...).csv()` returns the same builder as `csv()` on a table.
+
+```python
+from postgrest import CountMethod
+
+response = client.table("cities").select("*", count=CountMethod.exact).csv().execute()
+csv_text: str = response.data
+row_count: int | None = response.count
+```
 
 ## PostgREST `datetime` filter values carry their UTC offset
 

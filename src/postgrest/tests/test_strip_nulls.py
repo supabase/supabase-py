@@ -29,16 +29,6 @@ def test_strip_nulls_sets_accept_header(single: bool, expected: str) -> None:
             query.execute()
 
 
-def test_strip_nulls_rejects_csv() -> None:
-    with Client() as http:
-        client = SyncPostgrestClient(
-            "https://example.com", http_session=HttpxSession(client=http)
-        )
-        query = client.rpc("f", {}).csv()
-        with pytest.raises(ValueError, match=r"cannot be used with csv\(\)"):
-            query.strip_nulls()
-
-
 def test_strip_nulls_rejects_csv_set_after_strip_nulls() -> None:
     with Client() as http:
         client = SyncPostgrestClient(
