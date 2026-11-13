@@ -188,11 +188,23 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 ## PostgREST response shape and HTTP method types
 
-`single()`, `csv()` and `explain()` set the `shape` field of `PostgrestRequest`, a `ResponseShape` member, instead of the `Accept` header. The header is rendered from it when the request is sent, so `request.headers` of a builder no longer contains `Accept`. `strip_nulls()` followed by `csv()` or `explain()`, or `csv()` followed by `strip_nulls()` on an RPC, raises `ValueError` when the second method is called instead of when the request is sent.
+`single()`, `csv()` and `explain()` set the `shape` field of `PostgrestRequest`, a `ResponseShape` member, instead of the `Accept` header. The header is rendered from it when the request is sent, so `request.headers` of a builder no longer contains `Accept`. `strip_nulls()` followed by `csv()` or `explain()` raises `ValueError` when the second method is called instead of when the request is sent.
 
 `postgrest.RequestMethod` and `storage3.types.RequestMethod` are removed. Nothing used them. Use `supabase_utils.http.request.HTTPRequestMethod`, the `Literal` every package types its requests with.
 
 `filter()` takes the operator as `Filters | str`, which shows that the `Filters` members are the expected values. A string still works for operators `Filters` does not list, such as `match`, so a misspelled string is not caught before PostgREST rejects it.
+
+## PostgREST `csv()` returns a `TextAPIResponse`
+
+`execute()` after `csv()` returned the CSV body in `APIResponse.data`, a field typed as a list of rows, so iterating it went over characters. It now returns a `TextAPIResponse`, whose `data` is the body as a `str` and whose `count` is the row count when the query asked for one. `rpc(...).csv()` returns the same builder as `csv()` on a table, so filters and modifiers such as `eq()` and `limit()` go before `csv()`.
+
+```python
+from postgrest import CountMethod
+
+response = client.table("cities").select("*", count=CountMethod.exact).csv().execute()
+csv_text: str = response.data
+row_count: int | None = response.count
+```
 
 ## PostgREST `datetime` filter values carry their UTC offset
 
@@ -202,7 +214,7 @@ The members of an array sent by `cs()`, `cd()`, `contains()`, `contained_by()`, 
 
 ## PostgREST `rpc().execute()` returns an `RPCResponse`
 
-`rpc(...).execute()` returns an `RPCResponse` instead of an `APIResponse`. Its `data` is typed as `JSON` and holds whatever the function returned: a list of rows for a set returning function, an object for a function returning a single row, a scalar such as `1` or `"text"` for a function returning a base type, and `None` when the response has no body, as for a function returning `void`. A function returning a scalar or a single row used to raise `APIError` with code `"200"`. `csv()` on an RPC returns the text in `data`. `RPCResponse` is also exported from `supabase` as `PostgrestRPCResponse`.
+`rpc(...).execute()` returns an `RPCResponse` instead of an `APIResponse`. Its `data` is typed as `JSON` and holds whatever the function returned: a list of rows for a set returning function, an object for a function returning a single row, a scalar such as `1` or `"text"` for a function returning a base type, and `None` when the response has no body, as for a function returning `void`. A function returning a scalar or a single row used to raise `APIError` with code `"200"`. `csv()` on an RPC returns a `TextAPIResponse`, as on a table. `RPCResponse` is also exported from `supabase` as `PostgrestRPCResponse`.
 
 Code that indexes `data` as a list, such as `res.data[0]["id"]`, keeps working at runtime for set returning functions, but needs a check such as `isinstance(res.data, list)` to type check.
 

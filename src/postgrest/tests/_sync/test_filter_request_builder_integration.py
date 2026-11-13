@@ -473,7 +473,7 @@ def test_csv(postgrest_client: SyncPostgrestClient) -> None:
         .csv()
         .execute()
     )
-    assert "ALBANIA,AL\nALGERIA,DZ" in res
+    assert "ALBANIA,AL\nALGERIA,DZ" in res.data
 
 
 def test_explain_text(postgrest_client: SyncPostgrestClient) -> None:

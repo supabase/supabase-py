@@ -20,6 +20,7 @@ from postgrest.request_builder import (
     RequestBuilder,
     SingleAPIResponse,
     SingleRequestBuilder,
+    TextAPIResponse,
     TextRequestBuilder,
 )
 from postgrest.types import CountMethod, Mutation, ReturnMethod, TextSearchType
@@ -858,3 +859,12 @@ class TestApiResponse:
         assert isinstance(result.data, dict)
         assert result.data == single_api_response
         assert result.count == 2
+
+    def test_text_from_http_request_response_constructor(
+        self, request_response_with_csv_data: Response, csv_api_response: str
+    ) -> None:
+        result = TextAPIResponse.from_http_request_response(
+            request_response_with_csv_data
+        )
+        assert result.data == csv_api_response
+        assert result.count is None

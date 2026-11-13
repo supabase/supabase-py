@@ -762,10 +762,12 @@ features:
     status: implemented
     symbols:
       - QueryRequestBuilder.csv
-      - BaseRPCRequestBuilder.csv
+      - RPCFilterRequestBuilder.csv
     supporting_symbols:
       - TextRequestBuilder
       - TextRequestBuilder.execute
+      - TextAPIResponse
+      - TextAPIResponse.from_http_request_response
       - ResponseShape
   database.using_modifiers.format_geojson: not_implemented
   database.using_modifiers.explain:
