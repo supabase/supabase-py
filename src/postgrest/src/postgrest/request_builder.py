@@ -25,6 +25,7 @@ from supabase_utils.http.io import (
 )
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import (
+    EmptyRequest,
     HTTPRequestMethod,
     JSONRequest,
     Request,
@@ -186,7 +187,9 @@ class APIResponse:
         content_range_header: str,
     ) -> int | None:
         content_range = content_range_header.split("/")
-        return None if len(content_range) < 2 else int(content_range[1])
+        if len(content_range) < 2 or content_range[1] == "*":
+            return None
+        return int(content_range[1])
 
     @staticmethod
     def _is_count_in_prefer_header(prefer_header: str) -> bool:
@@ -324,7 +327,10 @@ class PostgrestRequest(JSONRequest):
                 f"one, such as eq(), or call all() right after {operation} to run "
                 "it without a filter on purpose."
             )
-        request = super().finalize(base_url, default_headers)
+        if self.method in ("GET", "HEAD", "DELETE"):
+            request = EmptyRequest.finalize(self, base_url, default_headers)
+        else:
+            request = super().finalize(base_url, default_headers)
         accept = self._accept()
         if accept is None:
             return request
@@ -391,9 +397,17 @@ def _select_returned(request: PostgrestRequest, *columns: str) -> PostgrestReque
 def _max_affected(request: PostgrestRequest, value: int) -> PostgrestRequest:
     """`request` allowing at most `value` affected rows, which PostgREST
     enforces with `Prefer: handling=strict`."""
-    headers = request.headers.set("Prefer", "handling=strict").set(
-        "Prefer", f"max-affected={value}"
-    )
+    preferences = [
+        preference.strip()
+        for header in request.headers.get_list("Prefer") or []
+        for preference in header.split(",")
+        if preference.strip()
+        and not preference.strip().startswith(("handling=", "max-affected="))
+    ]
+    preferences += ["handling=strict", f"max-affected={value}"]
+    headers = request.headers.remove("Prefer")
+    for preference in preferences:
+        headers = headers.set("Prefer", preference)
     return replace(request, headers=headers)
 
 

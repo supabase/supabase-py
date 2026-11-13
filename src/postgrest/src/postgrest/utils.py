@@ -107,4 +107,4 @@ def _rpc_query_param(value: Any) -> Any:
 
 
 def is_http_url(url: URL) -> bool:
-    return url.scheme in {"https", "http"}
+    return url.scheme in {"https", "http"} and bool(url.host)
