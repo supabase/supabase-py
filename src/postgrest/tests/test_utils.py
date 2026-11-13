@@ -43,13 +43,18 @@ def test_serialize_filter_value_renders_dates_and_times_as_iso_8601(
     assert _serialize_filter_value(value) == expected
 
 
-def test_serialize_filter_value_takes_a_naive_datetime_as_local_time() -> None:
-    naive = datetime(2024, 7, 1, 12)  # noqa: DTZ001
-
-    assert _serialize_filter_value(naive) == naive.astimezone().isoformat()
-    assert (
-        datetime.fromisoformat(_serialize_filter_value(naive)).utcoffset() is not None
-    )
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (datetime(2024, 7, 1, 12), "2024-07-01T12:00:00+00:00"),  # noqa: DTZ001
+        (datetime.min, "0001-01-01T00:00:00+00:00"),  # noqa: DTZ901
+        (datetime.max, "9999-12-31T23:59:59.999999+00:00"),  # noqa: DTZ901
+    ],
+)
+def test_serialize_filter_value_takes_a_naive_datetime_as_utc(
+    value: datetime, expected: str
+) -> None:
+    assert _serialize_filter_value(value) == expected
 
 
 def test_array_elements_render_datetimes_as_iso_8601() -> None:

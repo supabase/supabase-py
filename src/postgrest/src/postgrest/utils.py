@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -27,11 +27,9 @@ def _serialize_filter_value(value: Any) -> str:
     if isinstance(value, (dict, list)):
         return json.dumps(value, separators=(",", ":"))
     if isinstance(value, datetime):
-        return (
-            value.astimezone().isoformat()
-            if value.utcoffset() is None
-            else value.isoformat()
-        )
+        if value.utcoffset() is None:
+            value = value.replace(tzinfo=UTC)
+        return value.isoformat()
     return str(value)
 
 
