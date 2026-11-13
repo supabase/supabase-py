@@ -1,12 +1,18 @@
+from typing import assert_type
+
+import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
+from supabase_utils.http.io import SyncHttpIO
 
 from postgrest import (
+    APIError,
     AsyncPostgrestClient,
     CountMethod,
     SyncPostgrestClient,
     TextAPIResponse,
 )
+from postgrest.request_builder import RPCCountRequestBuilder, RPCFilterRequestBuilder
 
 CSV = "id,name\n1,Paris\n2,Lyon\n"
 
@@ -48,3 +54,27 @@ async def test_async_rpc_csv_returns_a_text_response() -> None:
     client = async_client()
     response = await client.rpc("cities", {}).csv().execute()
     assert response == TextAPIResponse(data=CSV, count=None)
+
+
+def test_csv_that_is_not_utf8_raises_api_error() -> None:
+    http = Client(transport=MockTransport(lambda _: Response(200, content=b"\xff")))
+    client = SyncPostgrestClient(
+        "https://example.com", http_session=HttpxSession(client=http)
+    )
+    with pytest.raises(APIError):
+        client.from_("cities").select("*").csv().execute()
+
+
+def test_rpc_with_head_has_no_csv() -> None:
+    client = sync_client()
+    builder = client.rpc("cities", {}, count=CountMethod.exact, head=True)
+    assert_type(builder, RPCCountRequestBuilder[SyncHttpIO])
+    assert not hasattr(builder, "csv")
+
+
+def test_rpc_with_count_and_without_head_has_csv() -> None:
+    client = sync_client()
+    builder = client.rpc("cities", {}, count=CountMethod.exact, get=False)
+    assert_type(builder, RPCFilterRequestBuilder[SyncHttpIO])
+    response = builder.csv().execute()
+    assert response == TextAPIResponse(data=CSV, count=2)

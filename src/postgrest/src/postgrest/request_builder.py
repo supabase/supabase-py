@@ -1054,7 +1054,10 @@ class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[Ht
         response = yield self.request
         if not response.is_success:
             raise _api_error(response)
-        return TextAPIResponse.from_http_request_response(response)
+        try:
+            return TextAPIResponse.from_http_request_response(response)
+        except UnicodeDecodeError as e:
+            raise _invalid_response_error(response) from e
 
 
 @dataclass(frozen=True, kw_only=True)

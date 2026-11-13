@@ -147,7 +147,7 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         count: CountMethod | None,
         get: Literal[False],
-    ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]: ...
+    ) -> RPCFilterRequestBuilder[HttpIO]: ...
 
     @overload
     def rpc(
@@ -167,7 +167,7 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         count: CountMethod | None,
         head: Literal[True],
-    ) -> RPCFilterRequestBuilder[HttpIO]: ...
+    ) -> RPCCountRequestBuilder[HttpIO]: ...
 
     @overload
     def rpc(

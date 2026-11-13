@@ -196,7 +196,7 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 ## PostgREST `csv()` returns a `TextAPIResponse`
 
-`execute()` after `csv()` returned the CSV body in `APIResponse.data`, a field typed as a list of rows, so iterating it went over characters. It now returns a `TextAPIResponse`, whose `data` is the body as a `str` and whose `count` is the row count when the query asked for one. `rpc(...).csv()` returns the same builder as `csv()` on a table.
+`execute()` after `csv()` returned the CSV body in `APIResponse.data`, a field typed as a list of rows, so iterating it went over characters. It now returns a `TextAPIResponse`, whose `data` is the body as a `str` and whose `count` is the row count when the query asked for one. `rpc(...).csv()` returns the same builder as `csv()` on a table, so filters and modifiers such as `eq()` and `limit()` go before `csv()`.
 
 ```python
 from postgrest import CountMethod
