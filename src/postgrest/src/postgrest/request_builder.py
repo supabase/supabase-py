@@ -120,10 +120,9 @@ def pre_insert(
         prefer_headers = prefer_headers.set("Prefer", "resolution=merge-duplicates")
     if not default_to_null:
         prefer_headers = prefer_headers.set("Prefer", "missing=default")
-    # Adding 'columns' query parameters
     query_params: dict[str, str] = {}
-    if isinstance(json, list):
-        query_params = {"columns": _unique_columns(json)}
+    if isinstance(json, list) and (columns := _unique_columns(json)):
+        query_params["columns"] = columns
     return QueryArgs("POST", URLQuery.from_mapping(query_params), prefer_headers, json)
 
 
@@ -146,9 +145,8 @@ def pre_upsert(
         prefer_headers = prefer_headers.set("Prefer", "missing=default")
     if on_conflict:
         query_params["on_conflict"] = on_conflict
-    # Adding 'columns' query parameters
-    if isinstance(json, list):
-        query_params["columns"] = _unique_columns(json)
+    if isinstance(json, list) and (columns := _unique_columns(json)):
+        query_params["columns"] = columns
     return QueryArgs("POST", URLQuery.from_mapping(query_params), prefer_headers, json)
 
 
