@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -14,6 +15,11 @@ def _serialize_filter_value(value: Any) -> str:
 
     ``None`` maps to ``null``, booleans to ``true``/``false``, and dicts/lists
     to compact JSON, instead of the plain ``str()`` result (e.g. ``"None"``).
+
+    A ``datetime`` becomes ISO 8601 with its UTC offset, so the server does
+    not read it in the database time zone. A naive ``datetime`` is taken as
+    local time, as ``datetime.astimezone()`` and ``datetime.timestamp()``
+    take it.
     """
     if value is None:
         return "null"
@@ -21,6 +27,12 @@ def _serialize_filter_value(value: Any) -> str:
         return "true" if value else "false"
     if isinstance(value, (dict, list)):
         return json.dumps(value, separators=(",", ":"))
+    if isinstance(value, datetime):
+        return (
+            value.astimezone().isoformat()
+            if value.utcoffset() is None
+            else value.isoformat()
+        )
     return str(value)
 
 
@@ -51,7 +63,7 @@ def _sanitize_array_element(element: Any) -> str:
     """
     if element is None:
         return "NULL"
-    element_str = str(element)
+    element_str = _serialize_filter_value(element)
     needs_quoting = (
         element_str == ""
         or element_str.lower() == "null"

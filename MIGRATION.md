@@ -194,6 +194,10 @@ Every filter on the table counts, including `match()`, `in_()`, `or_()` and a ne
 
 `filter()` takes the operator as `Filters | str`, which shows that the `Filters` members are the expected values. A string still works for operators `Filters` does not list, such as `match`, so a misspelled string is not caught before PostgREST rejects it.
 
+## PostgREST `datetime` filter values carry their UTC offset
+
+A `datetime` filter value was sent as `str(value)`, like `2024-01-01 12:00:00`, which PostgREST read in the database time zone when the value had no offset. It is now sent as ISO 8601 with its offset, like `2024-01-01T12:00:00+01:00`. An aware `datetime` keeps its offset. A naive `datetime` is taken as local time, as `datetime.astimezone()` takes it, so pass an aware `datetime` to filter on a time in another zone. `date` and `time` values are sent as before.
+
 ## Realtime heartbeat intervals are used as given
 
 `heartbeat_interval` was raised to 15 seconds when it was lower. It is now used as given, so an interval below 15 seconds sends heartbeats more often than before. To keep the old timing, pass 15 or more.

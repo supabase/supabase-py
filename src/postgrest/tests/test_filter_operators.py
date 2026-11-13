@@ -203,9 +203,9 @@ class TestRangeOperators:
                     datetime(2024, 1, 1, tzinfo=UTC), datetime(2025, 1, 1, tzinfo=UTC)
                 )
             )
-        ) == ["during=ov.[2024-01-01 00:00:00+00:00,2025-01-01 00:00:00+00:00)"]
+        ) == ["during=ov.[2024-01-01T00:00:00+00:00,2025-01-01T00:00:00+00:00)"]
         assert rendered(Posts.during.contains(datetime(2024, 6, 1, tzinfo=UTC))) == [
-            "during=cs.2024-06-01 00:00:00+00:00"
+            "during=cs.2024-06-01T00:00:00+00:00"
         ]
         assert rendered(
             Posts.season.contained_by(Range(date(2024, 1, 1), date(2024, 2, 1)))

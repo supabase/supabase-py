@@ -35,7 +35,7 @@ def test_bounds_render_as_filter_values() -> None:
                 datetime(2024, 2, 1, 12, 30, tzinfo=UTC),
             )
         )
-        == "[2024-01-01 00:00:00+00:00,2024-02-01 12:30:00+00:00)"
+        == "[2024-01-01T00:00:00+00:00,2024-02-01T12:30:00+00:00)"
     )
     assert str(Range(Decimal("1.5"), Decimal("2.25"))) == "[1.5,2.25)"
     assert str(Range(1.5, 2.0)) == "[1.5,2.0)"
