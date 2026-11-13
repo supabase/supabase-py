@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Protocol, assert_never
 
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 
-from ._parsing import parse_json, parse_object, parse_rows
+from ._parsing import InvalidResponseBodyError, parse_json, parse_object, parse_rows
 from .exceptions import APIError
 from .request_builder import (
     APIResponse,
@@ -480,7 +480,7 @@ def _decode(response: Response, request: TableRequest) -> TableResult:
     count = APIResponse._get_count_from_http_request_response(response)
     try:
         data = _data(response, request)
-    except ValueError as error:
+    except InvalidResponseBodyError as error:
         raise _invalid_response_error(response) from error
     return TableResult(data=data, count=count)
 

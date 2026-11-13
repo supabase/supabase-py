@@ -34,7 +34,7 @@ from supabase_utils.http.request import (
 from supabase_utils.types import JSON
 from yarl import URL
 
-from ._parsing import parse_json, parse_object, parse_rows
+from ._parsing import InvalidResponseBodyError, parse_json, parse_object, parse_rows
 from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
 from .types import (
     _TEXT_SEARCH_OPERATORS,
@@ -223,14 +223,15 @@ class RPCResponse:
     data: JSON
     """The value the function returned: a list of rows for a set returning
     function, an object for a function returning a single row, a scalar for a
-    function returning a base type, and `None` when the response has no body."""
+    function returning a base type, the text for `csv()`, and `None` when the
+    response has no body."""
     count: int | None = None
     """The number of rows returned."""
 
     @staticmethod
     def from_http_request_response(response: Response) -> RPCResponse:
         count = APIResponse._get_count_from_http_request_response(response)
-        if response.request.method == "HEAD" or not response.content:
+        if not response.content:
             return RPCResponse(data=None, count=count)
         return RPCResponse(data=parse_json(response.content), count=count)
 
@@ -980,7 +981,7 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
             raise _api_error(r)
         try:
             return APIResponse.from_http_request_response(r)
-        except ValueError as e:
+        except InvalidResponseBodyError as e:
             raise _invalid_response_error(r) from e
 
 
@@ -1006,7 +1007,7 @@ class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             raise _api_error(response)
         try:
             return SingleAPIResponse.from_http_request_response(response)
-        except ValueError as e:
+        except InvalidResponseBodyError as e:
             raise _invalid_response_error(response) from e
 
 
@@ -1054,7 +1055,7 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         if response.is_success:
             try:
                 parsed = APIResponse.from_http_request_response(response)
-            except ValueError as e:
+            except InvalidResponseBodyError as e:
                 raise _invalid_response_error(response) from e
             if len(parsed.data) == 0:
                 return None
@@ -1115,9 +1116,12 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
         r = yield self.request
         if not r.is_success:
             raise _api_error(r)
+        if self.request.shape is ResponseShape.CSV:
+            count = APIResponse._get_count_from_http_request_response(r)
+            return RPCResponse(data=r.content.decode("utf-8"), count=count)
         try:
             return RPCResponse.from_http_request_response(r)
-        except ValueError as e:
+        except InvalidResponseBodyError as e:
             raise _invalid_response_error(r) from e
 
 

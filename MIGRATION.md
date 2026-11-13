@@ -200,6 +200,12 @@ A `datetime` filter value was sent as `str(value)`, like `2024-01-01 12:00:00`, 
 
 The members of an array sent by `cs()`, `cd()`, `contains()`, `contained_by()`, `overlaps()` or as an RPC query argument are rendered as any other filter value: a boolean as `true` or `false` instead of `True` or `False`, and a `dict` or `list` as compact JSON instead of its Python representation.
 
+## PostgREST `rpc().execute()` returns an `RPCResponse`
+
+`rpc(...).execute()` returns an `RPCResponse` instead of an `APIResponse`. Its `data` is typed as `JSON` and holds whatever the function returned: a list of rows for a set returning function, an object for a function returning a single row, a scalar such as `1` or `"text"` for a function returning a base type, and `None` when the response has no body, as for a function returning `void`. A function returning a scalar or a single row used to raise `APIError` with code `"200"`. `csv()` on an RPC returns the text in `data`. `RPCResponse` is also exported from `supabase` as `PostgrestRPCResponse`.
+
+Code that indexes `data` as a list, such as `res.data[0]["id"]`, keeps working at runtime for set returning functions, but needs a check such as `isinstance(res.data, list)` to type check.
+
 ## Realtime heartbeat intervals are used as given
 
 `heartbeat_interval` was raised to 15 seconds when it was lower. It is now used as given, so an interval below 15 seconds sends heartbeats more often than before. To keep the old timing, pass 15 or more.
