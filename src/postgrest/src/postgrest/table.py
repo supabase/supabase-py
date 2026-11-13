@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import KW_ONLY, dataclass
+from functools import cache
 from typing import Any, Generic
 
+from pydantic import TypeAdapter
 from typing_extensions import TypeVar
 
 from .column_expression import Column, ComputedField
@@ -70,3 +72,21 @@ class Table(Generic[Row, Insert, Update]):
     call on the client, so tables from several schemas can be used side by
     side on one client.
     """
+
+
+def _row_adapter[Row](row_type: type[Row]) -> TypeAdapter[Row]:
+    """The validator that decodes one response row into `row_type`."""
+    return _cached_adapter(row_type)
+
+
+def _rows_adapter[Row](row_type: type[Row]) -> TypeAdapter[list[Row]]:
+    """The validator that decodes a list of response rows into `row_type`
+    in one pass."""
+    return _cached_adapter(list[row_type])
+
+
+@cache
+def _cached_adapter(decoded_type: Any) -> TypeAdapter[Any]:
+    """One `TypeAdapter` per type, since building one is costly and every
+    query of a table decodes into the same type."""
+    return TypeAdapter(decoded_type)
