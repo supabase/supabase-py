@@ -20,6 +20,7 @@ from .message import (
     PresenceStateMessage,
     ReplyMessage,
     ServerMessageAdapter,
+    SuccessReplyMessage,
     SystemMessage,
 )
 from .presence import PresenceEvent, RealtimePresence
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
     from yarl import URL
 
     from .client import RealtimeClient
+    from .message import PostgresRowChange
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +102,7 @@ class RealtimeChannelOptions:
         self,
         event: RealtimePostgresChangesListenEvent,
         table: str | None = None,
-        schema: str | None = None,
+        schema: str = "public",
         filter: str | None = None,
         id: int | None = None,
         select: Sequence[str] | None = None,
@@ -110,7 +112,7 @@ class RealtimeChannelOptions:
 
         :param event: The change event to listen for (``INSERT``, ``UPDATE``, ``DELETE`` or ``*``)
         :param table: The table name to monitor. Defaults to all tables
-        :param schema: The database schema to monitor
+        :param schema: The database schema to monitor. Defaults to ``public``
         :param filter: Optional filter string, evaluated server-side, in the form
             ``column=operator.value`` (e.g. ``"id=eq.1"`` or ``"title=like.%foo%"``).
             Supported operators: ``eq``, ``neq``, ``lt``, ``lte``, ``gt``, ``gte``,
@@ -220,9 +222,10 @@ class RealtimeChannel:
         """
         Join the channel, connecting the client first if it is not connected.
 
-        :raises RealtimeError: If the server rejects the join, or if
-            `unsubscribe()` or `RealtimeClient.aclose()` is called before the
-            join completes.
+        :raises RealtimeError: If the server rejects the join, if the
+            ``postgres_changes`` bindings in the server's reply do not match the
+            requested ones (the channel is left first), or if `unsubscribe()` or
+            `RealtimeClient.aclose()` is called before the join completes.
         """
         attempt = object()
         self._subscribe_attempt = attempt
@@ -261,10 +264,16 @@ class RealtimeChannel:
             raise
         logger.info("Subscribe reply: %r", msg)
         self._raise_if_join_was_stopped(attempt)
-        if msg.payload.status != "ok":
+        if not isinstance(msg.payload, SuccessReplyMessage):
             self.state = ChannelStates.CLOSED
             raise RealtimeError(
                 f"error while subscribing to channel: {msg.payload.response!r}"
+            )
+        if not self._postgres_changes_match(msg.payload.response.postgres_changes):
+            with contextlib.suppress(Exception):
+                await self.unsubscribe()
+            raise RealtimeError(
+                "mismatch between server and client bindings for postgres changes"
             )
         self.state = ChannelStates.JOINED
         try:
@@ -273,6 +282,20 @@ class RealtimeChannel:
             await self._stop_cancelled_join(attempt, join_ref, failure)
             raise
         return msg
+
+    def _postgres_changes_match(
+        self, server_bindings: Sequence[PostgresRowChange] | None
+    ) -> bool:
+        if server_bindings is None:
+            return True
+        client_bindings = self.options.postgres_changes_bindings
+        if len(server_bindings) < len(client_bindings):
+            return False
+        return all(
+            (server.event, server.schema_, server.table, server.filter)
+            == (client.event, client.schema, client.table, client.filter)
+            for client, server in zip(client_bindings, server_bindings, strict=False)
+        )
 
     def _raise_if_join_was_stopped(self, attempt: object) -> None:
         if self._subscribe_attempt is not attempt:

@@ -99,7 +99,7 @@ class PostgresChangesData(BaseModel):
     table: str
     commit_timestamp: str
     type: RealtimePostgresChangesListenEvent
-    errors: list[str] | None
+    errors: str | list[str] | None
     columns: list[PostgresChangesColumn]
     record: dict[str, Any] | None = None
     old_record: dict[str, Any] | None = None
@@ -108,9 +108,9 @@ class PostgresChangesData(BaseModel):
 @dataclass(frozen=True)
 class PostgresChangesBinding:
     event: RealtimePostgresChangesListenEvent
-    table: str | None
-    schema: str | None
-    filter: str | None
+    table: str | None = None
+    schema: str = "public"
+    filter: str | None = None
     select: Sequence[str] | None = None
     id: Annotated[int | None, Field(exclude=True)] = None
 
