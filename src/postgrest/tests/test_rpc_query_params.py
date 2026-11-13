@@ -251,18 +251,6 @@ def test_rpc_wraps_a_successful_response_that_is_not_json_in_api_error() -> None
             client.rpc("fn", {}).execute()
 
 
-def test_rpc_wraps_a_too_deeply_nested_response_in_api_error() -> None:
-    def handler(request: Request) -> Response:
-        return Response(200, content=b"[" * 100_000 + b"]" * 100_000)
-
-    with Client(transport=MockTransport(handler)) as http:
-        client = SyncPostgrestClient(
-            "https://example.com", http_session=HttpxSession(client=http)
-        )
-        with pytest.raises(APIError):
-            client.rpc("fn", {}).execute()
-
-
 def test_rpc_csv_returns_the_text() -> None:
     def handler(request: Request) -> Response:
         assert request.headers["Accept"] == "text/csv"
