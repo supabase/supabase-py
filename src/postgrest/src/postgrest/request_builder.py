@@ -46,6 +46,7 @@ from .types import (
     TextSearchType,
 )
 from .utils import (
+    _in_members,
     _quote,
     _rpc_query_param,
     _sanitize_array_param,
@@ -611,7 +612,8 @@ class BaseFilterRequestBuilder:
 
     def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
         stringified_values = ",".join(
-            sanitize_param(_serialize_filter_value(value)) for value in values
+            sanitize_param(_serialize_filter_value(value))
+            for value in _in_members(values)
         )
         return self.filter(column, Filters.IN, f"({stringified_values})")
 

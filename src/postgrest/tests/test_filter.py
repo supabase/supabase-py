@@ -264,6 +264,10 @@ class TestIn:
         assert rendered(Todos.id.in_((1, 2))) == ["id=in.(1,2)"]
         assert rendered(Todos.id.in_(id for id in range(3))) == ["id=in.(0,1,2)"]
 
+    def test_rejects_none(self) -> None:
+        with pytest.raises(ValueError, match="is_"):
+            Todos.name.in_([None])  # pyrefly: ignore[bad-argument-type]
+
     def test_rejects_one_string_in_place_of_the_values(self) -> None:
         with pytest.raises(TypeError, match="iterable of values"):
             Todos.name.in_("abc")  # pyrefly: ignore[string-as-iterable]
