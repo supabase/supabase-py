@@ -799,3 +799,14 @@ async def test_rpc_returning_a_single_row(
     )
 
     assert res.data == {"nicename": "Albania", "iso": "AL"}
+
+
+async def test_rpc_as_csv(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.rpc("stored_country", {"search_name": "Albania"})
+        .select("iso")
+        .csv()
+        .execute()
+    )
+
+    assert res.data == "iso\nAL"

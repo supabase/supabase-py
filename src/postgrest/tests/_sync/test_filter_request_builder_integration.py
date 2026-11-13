@@ -792,3 +792,14 @@ def test_rpc_returning_a_single_row(postgrest_client: SyncPostgrestClient) -> No
     )
 
     assert res.data == {"nicename": "Albania", "iso": "AL"}
+
+
+def test_rpc_as_csv(postgrest_client: SyncPostgrestClient) -> None:
+    res = (
+        postgrest_client.rpc("stored_country", {"search_name": "Albania"})
+        .select("iso")
+        .csv()
+        .execute()
+    )
+
+    assert res.data == "iso\nAL"
