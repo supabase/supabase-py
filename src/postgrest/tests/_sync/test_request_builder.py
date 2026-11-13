@@ -141,6 +141,15 @@ class TestInsert:
             '"key3"',
         }
 
+    @pytest.mark.parametrize("rows", [[], [{}]])
+    def test_bulk_insert_without_columns(
+        self, request_builder: RequestBuilder[SyncHttpIO], rows: list[dict[str, str]]
+    ) -> None:
+        builder = request_builder.insert(rows)
+        assert builder.request.method == "POST"
+        assert builder.request.body == rows
+        assert builder.request.query.get("columns") is None
+
     def test_upsert(self, request_builder: RequestBuilder[SyncHttpIO]) -> None:
         builder = request_builder.upsert({"key1": "val1"})
 
@@ -262,6 +271,16 @@ class TestInsert:
             '"key2"',
             '"key3"',
         }
+
+    @pytest.mark.parametrize("rows", [[], [{}]])
+    def test_bulk_upsert_without_columns(
+        self, request_builder: RequestBuilder[SyncHttpIO], rows: list[dict[str, str]]
+    ) -> None:
+        builder = request_builder.upsert(rows, on_conflict="id")
+        assert builder.request.method == "POST"
+        assert builder.request.body == rows
+        assert builder.request.query.get("columns") is None
+        assert builder.request.query.get("on_conflict") == "id"
 
 
 class TestUpdate:
