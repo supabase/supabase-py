@@ -4,6 +4,7 @@ from .client import AsyncPostgrestClient, SyncPostgrestClient
 from .column_expression import Column, ComputedField, NullableColumn
 from .exceptions import APIError
 from .filter import ColumnExpression, Comparison, Filter, FilterOperator, Ordering
+from .partial_row import PartialRow
 from .range import Range, RangeBounds
 from .request_builder import APIResponse
 from .table import Table
@@ -20,6 +21,15 @@ from .table_request import (
     TableOperation,
     TableRequest,
     TableResult,
+)
+from .typed_builder import (
+    CountedResponse,
+    TypedBuilder,
+    TypedCountBuilder,
+    TypedFilterBuilder,
+    TypedMutationBuilder,
+    TypedQueryBuilder,
+    TypedTransformBuilder,
 )
 from .types import (
     CountMethod,
@@ -42,6 +52,7 @@ __all__ = [
     "Comparison",
     "ComputedField",
     "CountMethod",
+    "CountedResponse",
     "ExplainOptions",
     "Filter",
     "FilterOperator",
@@ -50,6 +61,7 @@ __all__ = [
     "Mutation",
     "NullableColumn",
     "Ordering",
+    "PartialRow",
     "Range",
     "RangeBounds",
     "RequestOptions",
@@ -63,5 +75,11 @@ __all__ = [
     "TableRequest",
     "TableResult",
     "TextSearchType",
+    "TypedBuilder",
+    "TypedCountBuilder",
+    "TypedFilterBuilder",
+    "TypedMutationBuilder",
+    "TypedQueryBuilder",
+    "TypedTransformBuilder",
     "__version__",
 ]

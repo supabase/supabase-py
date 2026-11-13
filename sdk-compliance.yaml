@@ -1567,6 +1567,44 @@ supporting_symbols:
   - HttpTableExecutor.execute
   - AsyncHttpTableExecutor
   - AsyncHttpTableExecutor.execute
+  - TypedQueryBuilder
+  - TypedQueryBuilder.select
+  - TypedQueryBuilder.select_only
+  - TypedQueryBuilder.insert
+  - TypedQueryBuilder.upsert
+  - TypedQueryBuilder.update
+  - TypedQueryBuilder.delete
+  - TypedQueryBuilder.count
+  - TypedBuilder
+  - TypedBuilder.execute
+  - TypedBuilder.retry
+  - TypedBuilder.request_timeout
+  - TypedTransformBuilder
+  - TypedTransformBuilder.select
+  - TypedTransformBuilder.select_only
+  - TypedTransformBuilder.order
+  - TypedTransformBuilder.limit
+  - TypedTransformBuilder.range
+  - TypedTransformBuilder.strip_nulls
+  - TypedTransformBuilder.dry_run
+  - TypedTransformBuilder.max_affected
+  - TypedTransformBuilder.csv
+  - TypedTransformBuilder.head
+  - TypedTransformBuilder.geojson
+  - TypedTransformBuilder.explain
+  - TypedTransformBuilder.count
+  - TypedTransformBuilder.single
+  - TypedTransformBuilder.maybe_single
+  - TypedFilterBuilder
+  - TypedFilterBuilder.where
+  - TypedCountBuilder
+  - TypedCountBuilder.where
+  - TypedMutationBuilder
+  - TypedMutationBuilder.where
+  - TypedMutationBuilder.all
+  - PartialRow
+  - PartialRow.to_row
+  - CountedResponse
   - pre_rpc
   - Headers.with_client_info_features
   - APIError

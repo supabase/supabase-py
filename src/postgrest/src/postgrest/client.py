@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from base64 import b64encode
-from typing import TYPE_CHECKING, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -18,6 +18,8 @@ from .request_builder import (
     RPCFilterRequestBuilder,
     pre_rpc,
 )
+from .table_executor import AsyncHttpTableExecutor, HttpTableExecutor
+from .typed_builder import TypedQueryBuilder
 from .version import __version__
 
 if TYPE_CHECKING:
@@ -27,6 +29,8 @@ if TYPE_CHECKING:
     from supabase_utils.http.retry import RetryPolicy
     from supabase_utils.types import JSON
 
+    from .table import Table
+    from .table_executor import AsyncTableExecutor, TableExecutor
     from .types import CountMethod
 
 
@@ -94,9 +98,35 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             default_headers=self.default_headers,
         )
 
-    def table(self, table: str) -> RequestBuilder[HttpIO]:
-        """Alias to :meth:`from_`."""
-        return self.from_(table)
+    @overload
+    def table[Row, Insert, Update](
+        self: PostgrestClient[SyncHttpIO], table: Table[Row, Insert, Update]
+    ) -> TypedQueryBuilder[TableExecutor, Row, Insert, Update]: ...
+    @overload
+    def table[Row, Insert, Update](
+        self: PostgrestClient[AsyncHttpIO], table: Table[Row, Insert, Update]
+    ) -> TypedQueryBuilder[AsyncTableExecutor, Row, Insert, Update]: ...
+    @overload
+    def table(self, table: str) -> RequestBuilder[HttpIO]: ...
+    def table(
+        self: PostgrestClient[Any], table: str | Table[Any, Any, Any]
+    ) -> RequestBuilder[Any] | TypedQueryBuilder[Any, Any, Any, Any]:
+        """Perform a table operation.
+
+        With a `Table` it returns the typed query builder of the table, whose
+        rows decode into its `Row` type and whose writes take its `Insert`
+        and `Update` types:
+
+            books = client.table(Books.table).select().where(Books.id.eq(1)).execute()
+
+        With the name of a table it is an alias to :meth:`from_`, the string
+        builder.
+        """
+        if isinstance(table, str):
+            return self.from_(table)
+        if isinstance(self.executor, AsyncHttpIO):
+            return TypedQueryBuilder(table, AsyncHttpTableExecutor(self))
+        return TypedQueryBuilder(table, HttpTableExecutor(self))
 
     @overload
     def rpc(

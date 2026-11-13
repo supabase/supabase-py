@@ -1,0 +1,109 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+from functools import cache
+from typing import TYPE_CHECKING, Any, get_type_hints, overload
+
+from pydantic import BaseModel, TypeAdapter
+from supabase_utils.types import JSON
+
+from .filter import ColumnExpression
+from .table import Table, _row_adapter
+
+if TYPE_CHECKING:
+    from .column_expression import Column, ComputedField, NullableColumn
+
+
+@dataclass(frozen=True, repr=False)
+class PartialRow[Row]:
+    """A row of a `select_only()` list, read through the entries of the list.
+
+    An entry types the read, so `row[Books.title]` is a `str`, a
+    `NullableColumn` and a `ComputedField` read as their value or `None`, and
+    an entry of another table is a type error:
+
+        books = (
+            client.table(Books.table)
+            .select_only([Books.id, Books.title, Books.published_on])
+            .execute()
+        )
+        for book in books:
+            title: str = book[Books.title]
+            published_on: date | None = book[Books.published_on]
+
+    A value is decoded the way `select()` decodes the whole row: through the
+    field of `Row` the entry is named after, so a `date` column reads as a
+    `date`. An entry `Row` has no field for, such as a computed field or an ad
+    hoc `Column`, reads as the decoded JSON value. Reading an entry the list
+    did not ask for raises `KeyError`, instead of returning `None` as a
+    missing key would.
+    """
+
+    table: Table[Row, Any, Any]
+    """The table the row belongs to, whose `Row` type decodes the values."""
+
+    columns: tuple[ColumnExpression[Row, Any], ...]
+    """The entries of the `select` list this row answers."""
+
+    json: Mapping[str, JSON]
+    """The row as decoded from the response, keyed by the entries."""
+
+    @overload
+    def __getitem__[Value](self, entry: Column[Row, Value]) -> Value: ...
+    @overload
+    def __getitem__[Value](self, entry: NullableColumn[Row, Value]) -> Value | None: ...
+    @overload
+    def __getitem__[Value](self, entry: ComputedField[Row, Value]) -> Value | None: ...
+    @overload
+    def __getitem__[Value](
+        self, entry: ColumnExpression[Row, Value]
+    ) -> Value | None: ...
+    def __getitem__(self, entry: ColumnExpression[Row, Any]) -> Any:
+        """The value of `entry` in this row, see the class."""
+        key = entry.expression
+        if all(column.expression != key for column in self.columns):
+            selected = ", ".join(column.expression for column in self.columns)
+            raise KeyError(f"{key} was not selected; the row holds {selected}")
+        value = self.json.get(key)
+        if value is None:
+            return None
+        adapter = _field_adapter(self.table.row_type, key)
+        return value if adapter is None else adapter.validate_python(value)
+
+    def to_row(self) -> Row:
+        """The row as the full `Row` of its table.
+
+        It decodes the row the way `select()` does, so it raises
+        `pydantic.ValidationError` when the list left out a column `Row`
+        requires.
+        """
+        return _row_adapter(self.table.row_type).validate_python(self.json)
+
+    def __repr__(self) -> str:
+        return f"PartialRow({dict(self.json)!r})"
+
+
+@cache
+def _field_adapter(row_type: Any, name: str) -> TypeAdapter[Any] | None:
+    """The validator of the field of `row_type` that a response row carries
+    under `name`, or `None` when it has no such field."""
+    annotation = _field_annotations(row_type).get(name)
+    return None if annotation is None else TypeAdapter(annotation)
+
+
+@cache
+def _field_annotations(row_type: Any) -> Mapping[str, Any]:
+    """The declared type of every field of `row_type`, by the key the field
+    is read from a response row under: the alias of a pydantic field that has
+    one, and the attribute name otherwise."""
+    if isinstance(row_type, type) and issubclass(row_type, BaseModel):
+        return {
+            field.alias or name: field.annotation
+            for name, field in row_type.model_fields.items()
+            if field.annotation is not None
+        }
+    try:
+        return get_type_hints(row_type)
+    except Exception:
+        return {}
