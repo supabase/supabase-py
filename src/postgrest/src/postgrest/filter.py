@@ -10,7 +10,12 @@ from typing_extensions import TypeVar
 
 from .range import Bound, Range
 from .types import _TEXT_SEARCH_OPERATORS, Filters, TextSearchType
-from .utils import _sanitize_array_param, _serialize_filter_value, sanitize_param
+from .utils import (
+    _in_members,
+    _sanitize_array_param,
+    _serialize_filter_value,
+    sanitize_param,
+)
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -239,9 +244,10 @@ class ColumnExpression(Ordering[Row], ABC, Generic[Row, Value]):
         """Only rows where this expression equals one of `values`.
 
         An empty `values` matches no rows. `~Books.id.in_([1, 2])` renders
-        `id=not.in.(1,2)`.
+        `id=not.in.(1,2)`. `None` raises a `ValueError`, since PostgREST
+        never matches `NULL` in an `in` list. Use `is_(None)` for it.
         """
-        return self._compare(FilterOperator.IN, _members(values, "in_"))
+        return self._compare(FilterOperator.IN, _in_members(_members(values, "in_")))
 
     def like(self: ColumnExpression[Row, str], pattern: str) -> Filter[Row]:
         """Only rows matching the `LIKE` `pattern`, case-sensitively.

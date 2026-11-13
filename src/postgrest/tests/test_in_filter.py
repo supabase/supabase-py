@@ -3,6 +3,7 @@ from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
+from postgrest.types import FilterValue
 
 
 @pytest.mark.parametrize("use_async", [False, True], ids=["sync", "async"])
@@ -20,10 +21,11 @@ from postgrest import AsyncPostgrestClient, SyncPostgrestClient
             ["normal", "a,b", "a:b", "a(b)", "table.column"],
             'in.(normal,"a,b","a:b","a(b)",table.column)',
         ),
+        ([True, False], "in.(true,false)"),
     ],
 )
 async def test_in_filter_escapes_quoted_values(
-    use_async: bool, values: list[str], expected: str
+    use_async: bool, values: list[FilterValue], expected: str
 ) -> None:
     def handler(request: Request) -> Response:
         assert request.url.params["name"] == expected
@@ -43,3 +45,15 @@ async def test_in_filter_escapes_quoted_values(
                 url, http_session=HttpxSession(client=sync_http)
             )
             sync_client.from_("products").select("*").in_("name", values).execute()
+
+
+def test_in_filter_rejects_none() -> None:
+    with Client() as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        with pytest.raises(ValueError, match="is_"):
+            client.from_("products").select("*").in_(
+                "name",
+                [None, "a"],  # pyrefly: ignore[bad-argument-type]
+            )

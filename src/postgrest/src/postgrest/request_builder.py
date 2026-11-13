@@ -46,6 +46,8 @@ from .types import (
     TextSearchType,
 )
 from .utils import (
+    _in_members,
+    _quote,
     _rpc_query_param,
     _sanitize_array_param,
     _serialize_filter_value,
@@ -68,7 +70,7 @@ def _unique_columns(json: list[JSON]) -> str:
     unique_keys = dict.fromkeys(
         key for row in json if isinstance(row, Mapping) for key in row
     )
-    return ",".join([f'"{k}"' for k in unique_keys])
+    return ",".join(_quote(key) for key in unique_keys)
 
 
 def _cleaned_columns(columns: tuple[str, ...]) -> str:
@@ -610,7 +612,8 @@ class BaseFilterRequestBuilder:
 
     def in_(self: Self, column: str, values: Iterable[FilterValue]) -> Self:
         stringified_values = ",".join(
-            sanitize_param(_serialize_filter_value(value)) for value in values
+            sanitize_param(_serialize_filter_value(value))
+            for value in _in_members(values)
         )
         return self.filter(column, Filters.IN, f"({stringified_values})")
 

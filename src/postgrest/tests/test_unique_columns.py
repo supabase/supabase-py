@@ -13,3 +13,8 @@ def test_unique_columns_keeps_first_seen_order() -> None:
         [{"zeta": 1, "alpha": 2}, {"mu": 3, "zeta": 4}, {"beta": 5, "alpha": 6}]
     )
     assert columns == '"zeta","alpha","mu","beta"'
+
+
+def test_unique_columns_escapes_quotes_and_backslashes() -> None:
+    assert _unique_columns([{'a"b': 1}]) == '"a\\"b"'
+    assert _unique_columns([{"a\\b": 1}]) == '"a\\\\b"'

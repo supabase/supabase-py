@@ -33,6 +33,18 @@ def _serialize_filter_value(value: Any) -> str:
     return str(value)
 
 
+def _in_members(values: Iterable[Any]) -> tuple[Any, ...]:
+    """`values` as a tuple, rejecting `None`, since PostgREST reads every
+    member of an `in` list as a quoted literal, so `null` there is the text
+    `'null'` and never matches a `NULL` row."""
+    members = tuple(values)
+    if any(member is None for member in members):
+        raise ValueError(
+            "in_() cannot match NULL, use is_() for NULL or combine it with or_()"
+        )
+    return members
+
+
 def _quote(text: str) -> str:
     """`text` in double quotes, with the backslashes and double quotes inside
     escaped by a backslash, as every PostgREST and Postgres literal reads a
