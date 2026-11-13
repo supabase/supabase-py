@@ -8,7 +8,13 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.retry import RetryPolicy
 from supabase_utils.types import JSON
 
-from postgrest import APIError, AsyncPostgrestClient, RPCResponse, SyncPostgrestClient
+from postgrest import (
+    APIError,
+    AsyncPostgrestClient,
+    RPCResponse,
+    SyncPostgrestClient,
+    TextAPIResponse,
+)
 from postgrest.types import CountMethod
 
 
@@ -262,4 +268,4 @@ def test_rpc_csv_returns_the_text() -> None:
         )
         result = client.rpc("fn", {}).csv().execute()
 
-    assert result == RPCResponse(data="id,name\n1,a\n", count=None)
+    assert result == TextAPIResponse(data="id,name\n1,a\n", count=None)

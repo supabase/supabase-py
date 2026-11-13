@@ -214,7 +214,7 @@ The members of an array sent by `cs()`, `cd()`, `contains()`, `contained_by()`, 
 
 ## PostgREST `rpc().execute()` returns an `RPCResponse`
 
-`rpc(...).execute()` returns an `RPCResponse` instead of an `APIResponse`. Its `data` is typed as `JSON` and holds whatever the function returned: a list of rows for a set returning function, an object for a function returning a single row, a scalar such as `1` or `"text"` for a function returning a base type, and `None` when the response has no body, as for a function returning `void`. A function returning a scalar or a single row used to raise `APIError` with code `"200"`. `csv()` on an RPC returns the text in `data`. `RPCResponse` is also exported from `supabase` as `PostgrestRPCResponse`.
+`rpc(...).execute()` returns an `RPCResponse` instead of an `APIResponse`. Its `data` is typed as `JSON` and holds whatever the function returned: a list of rows for a set returning function, an object for a function returning a single row, a scalar such as `1` or `"text"` for a function returning a base type, and `None` when the response has no body, as for a function returning `void`. A function returning a scalar or a single row used to raise `APIError` with code `"200"`. `csv()` on an RPC returns a `TextAPIResponse`, as on a table. `RPCResponse` is also exported from `supabase` as `PostgrestRPCResponse`.
 
 Code that indexes `data` as a list, such as `res.data[0]["id"]`, keeps working at runtime for set returning functions, but needs a check such as `isinstance(res.data, list)` to type check.
 
