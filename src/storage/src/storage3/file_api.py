@@ -83,8 +83,6 @@ def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> byte
         return f.read()
 
 
-_NOT_FOUND_CODES = frozenset({"NoSuchKey", "not_found"})
-
 FileObjectsAdapter = TypeAdapter(list[FileObject])
 
 
@@ -443,7 +441,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         if response.is_success:
             return True
         error = parse_api_error(response)
-        if error.code in _NOT_FOUND_CODES:
+        if error.code == "NoSuchKey":
             return False
         raise error
 

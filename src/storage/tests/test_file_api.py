@@ -180,7 +180,11 @@ NOT_FOUND_BODIES = [
         b'{"statusCode": "404", "error": "not_found", "message": "Object not found",'
         b' "code": "NoSuchKey"}',
     ),
-    (404, b'{"statusCode": "404", "error": "not_found", "message": "Not found"}'),
+    (
+        404,
+        b'{"statusCode": "404", "error": "not_found", "message": "Object not found",'
+        b' "code": "NoSuchKey"}',
+    ),
 ]
 
 
@@ -220,6 +224,12 @@ async def test_exists_false_when_the_object_is_not_found(
             b'{"statusCode": "403", "error": "Unauthorized",'
             b' "message": "invalid signature", "code": "InvalidJWT"}',
             "InvalidJWT",
+        ),
+        (
+            400,
+            b'{"statusCode": "404", "error": "not_found",'
+            b' "message": "Bucket not found"}',
+            "not_found",
         ),
         (401, b"", "InternalError"),
         (404, b"", "InternalError"),
