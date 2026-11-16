@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Annotated, Any, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, Strict
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    Strict,
+    field_validator,
+)
 
 # Constants
 DEFAULT_TIMEOUT = 10
@@ -92,19 +99,6 @@ class PostgresChangesColumn(BaseModel):
     type: str
 
 
-class PostgresChangesData(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    schema_: str = Field(alias="schema")
-    table: str
-    commit_timestamp: str
-    type: RealtimePostgresChangesListenEvent
-    errors: str | list[str] | None
-    columns: list[PostgresChangesColumn]
-    record: dict[str, Any] | None = None
-    old_record: dict[str, Any] | None = None
-
-
 @dataclass(frozen=True)
 class PostgresChangesBinding:
     event: RealtimePostgresChangesListenEvent
@@ -120,8 +114,65 @@ class PostgresChangesBinding:
 
 
 class PostgresChangesPayload(BaseModel):
-    data: PostgresChangesData
-    ids: list[int]
+    """A row change the server read from the Postgres write-ahead log."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    event: RealtimePostgresChangesListenEvent = Field(alias="type")
+    """The statement that made the change: ``INSERT``, ``UPDATE`` or ``DELETE``."""
+
+    schema_: str = Field(alias="schema")
+    """The schema of the changed table."""
+
+    table: str
+    """The changed table."""
+
+    commit_timestamp: datetime
+    """When the transaction committed, as a timezone-aware `datetime`."""
+
+    columns: list[PostgresChangesColumn]
+    """The columns of the table, with their Postgres type names."""
+
+    record: dict[str, Any] | None = None
+    """The row after the change, or ``None`` for a delete."""
+
+    old_record: dict[str, Any] | None = None
+    """The row before the change, or ``None`` for an insert.
+
+    Without ``REPLICA IDENTITY FULL`` on the table, or under row level
+    security, it holds only the primary key columns.
+    """
+
+    errors: list[str] = []
+    """Errors the server reported for the change, such as
+    ``"Error 413: Payload Too Large"``. The records of a change with errors
+    can be incomplete."""
+
+    ids: list[int] = []
+    """The ids of the bindings of the channel the change matched."""
+
+    @field_validator("commit_timestamp", mode="before")
+    @classmethod
+    def _parse_commit_timestamp(cls, value: object) -> object:
+        if isinstance(value, str):
+            return datetime.fromisoformat(value)
+        return value
+
+    @field_validator("commit_timestamp")
+    @classmethod
+    def _assume_utc(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
+
+    @field_validator("errors", mode="before")
+    @classmethod
+    def _errors_as_list(cls, value: object) -> object:
+        if value is None:
+            return ()
+        if isinstance(value, str):
+            return (value,)
+        return value
 
 
 class BroadcastMeta(BaseModel):

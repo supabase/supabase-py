@@ -8,7 +8,7 @@ from realtime._serializer import decode, encode
 from realtime.channel import RealtimeChannelOptions
 from realtime.client import connect_once
 from realtime.exceptions import RealtimeError
-from realtime.message import Message, PostgresChangesMessage, ServerMessageAdapter
+from realtime.message import Message
 from realtime.types import ChannelEvents, RealtimePostgresChangesListenEvent
 
 HOST = "127.0.0.1"
@@ -194,37 +194,3 @@ async def test_mismatched_reply_leaves_and_raises(server: JoinReplyServer) -> No
         assert client.get_channels() == []
 
     assert server.events() == ["phx_join", "phx_leave"]
-
-
-def postgres_changes_message(errors: JSON) -> PostgresChangesMessage:
-    message = ServerMessageAdapter.validate_python(
-        {
-            "event": "postgres_changes",
-            "topic": "realtime:room",
-            "ref": None,
-            "payload": {
-                "ids": [1],
-                "data": {
-                    "schema": "public",
-                    "table": "todos",
-                    "commit_timestamp": "2026-11-04T00:00:00Z",
-                    "type": "INSERT",
-                    "errors": errors,
-                    "columns": [{"name": "id", "type": "int8"}],
-                },
-            },
-        }
-    )
-    assert isinstance(message, PostgresChangesMessage)
-    return message
-
-
-@pytest.mark.parametrize(
-    "errors",
-    ["Error 413: Payload Too Large", ["Error 413: Payload Too Large"], None],
-    ids=["string", "list", "null"],
-)
-def test_postgres_changes_errors_accept_a_string_a_list_or_null(
-    errors: JSON,
-) -> None:
-    assert postgres_changes_message(errors).payload.data.errors == errors

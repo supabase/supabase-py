@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 from supabase_utils.types import JSON
 
 from .types import (
@@ -118,6 +118,15 @@ class PostgresChangesMessage(BaseModel):
     topic: str
     payload: PostgresChangesPayload
     ref: None
+
+    @field_validator("payload", mode="before")
+    @classmethod
+    def _unwrap_data(cls, value: object) -> object:
+        if isinstance(value, Mapping):
+            data = value.get("data")
+            if isinstance(data, Mapping):
+                return {**data, "ids": value.get("ids", [])}
+        return value
 
 
 class BroadcastMessage(BaseModel):

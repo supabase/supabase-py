@@ -188,19 +188,28 @@ async def test_postgrest_changes(socket: RealtimeClient) -> None:
         delete = await message_stream.__anext__()
         assert isinstance(delete, PostgresChangesMessage)
 
-    insert_record = insert.payload.data.record
+    assert insert.payload.event == RealtimePostgresChangesListenEvent.Insert
+    assert insert.payload.schema_ == "public"
+    assert insert.payload.table == "todos"
+    assert insert.payload.commit_timestamp.tzinfo is not None
+    assert insert.payload.old_record is None
+    assert insert.payload.errors == []
+    insert_record = insert.payload.record
     assert insert_record is not None
     assert insert_record["id"] == created_todo_id
     assert insert_record["description"] == "Test todo"
     assert not insert_record["is_completed"]
 
-    update_record = update.payload.data.record
+    assert update.payload.event == RealtimePostgresChangesListenEvent.Update
+    update_record = update.payload.record
     assert update_record is not None
     assert update_record["id"] == created_todo_id
     assert update_record["description"] == "Updated todo"
     assert update_record["is_completed"]
 
-    delete_record = delete.payload.data.old_record
+    assert delete.payload.event == RealtimePostgresChangesListenEvent.Delete
+    assert delete.payload.record is None
+    delete_record = delete.payload.old_record
     assert delete_record is not None
     assert delete_record["id"] == created_todo_id
 
@@ -234,13 +243,13 @@ async def test_postgrest_changes_on_different_tables(socket: RealtimeClient) -> 
         insert_message = await message_stream.__anext__()
         assert isinstance(insert_message, PostgresChangesMessage)
 
-    insert_todo_record = insert_todo.payload.data.record
+    insert_todo_record = insert_todo.payload.record
     assert insert_todo_record is not None
     assert insert_todo_record["id"] == created_todo_id
     assert insert_todo_record["description"] == "Test todo"
     assert insert_todo_record["is_completed"] is False
 
-    insert_message_record = insert_message.payload.data.record
+    insert_message_record = insert_message.payload.record
     assert insert_message_record is not None
     assert insert_message_record["id"] == created_message_id
     assert insert_message_record["title"] == "Test message"
