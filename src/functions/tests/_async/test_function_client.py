@@ -287,6 +287,23 @@ async def test_invoke_raises_on_300() -> None:
         await client.invoke("test-function")
 
 
+async def test_invoke_accepts_region_not_in_function_region() -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke("test-function", region="mars-north-1")
+    assert response.request.headers.get_list("x-region") == ["mars-north-1"]
+    assert response.request.url.query["forceFunctionRegion"] == "mars-north-1"
+
+
+@pytest.mark.parametrize("region", [FunctionRegion.Any, "any"])
+async def test_invoke_with_any_region_sends_no_region(
+    region: FunctionRegion | str,
+) -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = await client.invoke("test-function", region=region)
+    assert "x-region" not in response.request.headers
+    assert "forceFunctionRegion" not in response.request.url.query
+
+
 async def test_invoke_accepts_region_as_string() -> None:
     client = client_returning(content=b"{}", status=200)
     response = await client.invoke(

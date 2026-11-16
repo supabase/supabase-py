@@ -852,7 +852,7 @@ features:
   functions.invocation.streaming_response: not_implemented
   functions.invocation.region_selection:
     status: implemented
-    note: "Passed via the region argument of invoke(); maps to the x-region header and forceFunctionRegion query param using the FunctionRegion enum."
+    note: "Passed via the region argument of invoke(); maps to the x-region header and forceFunctionRegion query param. Accepts a FunctionRegion or any region name as a string, so new regions work without an SDK update."
     symbols:
       - FunctionsClient.invoke
     supporting_symbols:

@@ -258,6 +258,21 @@ def test_invoke_does_not_overwrite_client_content_type() -> None:
     assert response.request.headers.get_list("Content-Type") == ["application/xml"]
 
 
+def test_invoke_accepts_region_not_in_function_region() -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = client.invoke("test-function", region="mars-north-1")
+    assert response.request.headers.get_list("x-region") == ["mars-north-1"]
+    assert response.request.url.query["forceFunctionRegion"] == "mars-north-1"
+
+
+@pytest.mark.parametrize("region", [FunctionRegion.Any, "any"])
+def test_invoke_with_any_region_sends_no_region(region: FunctionRegion | str) -> None:
+    client = client_returning(content=b"{}", status=200)
+    response = client.invoke("test-function", region=region)
+    assert "x-region" not in response.request.headers
+    assert "forceFunctionRegion" not in response.request.url.query
+
+
 def test_invoke_accepts_region_as_string() -> None:
     client = client_returning(content=b"{}", status=200)
     response = client.invoke(
