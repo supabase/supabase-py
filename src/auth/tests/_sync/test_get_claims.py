@@ -5,10 +5,12 @@ from typing import Any
 
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
-from httpx import Client, MockTransport, Request, Response
+from httpx import Client, ConnectTimeout, MockTransport, Request, Response
 from jwt import encode
 from jwt.algorithms import ECAlgorithm, OKPAlgorithm, RSAAlgorithm
 from supabase_utils.http.adapters.httpx import HttpxSession
+from supabase_utils.http.errors import SupabaseTransportError
+from supabase_utils.http.retry import RetryPolicy
 
 from supabase_auth import SyncSupabaseAuthClient
 from supabase_auth.errors import AuthApiError, AuthInvalidJwtError
@@ -84,13 +86,14 @@ class Server:
             return self.user()
         return Response(500)
 
-    def client(self) -> SyncSupabaseAuthClient:
+    def client(self, retry: RetryPolicy | None = None) -> SyncSupabaseAuthClient:
         return SyncSupabaseAuthClient(
             url="http://localhost",
             http_session=HttpxSession(
                 client=Client(transport=MockTransport(self.handle))
             ),
             auto_refresh_token=False,
+            retry=retry,
         )
 
 
@@ -315,3 +318,24 @@ def test_get_claims_backs_off_after_a_failed_forced_refetch() -> None:
     response = client.get_claims(token(kid="unknown"))
     assert response is not None
     assert server.requests[-1] == "/user"
+
+
+def test_get_claims_backs_off_after_a_forced_refetch_times_out() -> None:
+    responses = [Response(200, json={"keys": [ec_jwk("key")]})]
+
+    def jwks_or_timeout() -> Response:
+        if responses:
+            return responses.pop(0)
+        raise ConnectTimeout("timed out")
+
+    server = Server(jwks=jwks_or_timeout)
+    client = server.client(RetryPolicy(max_retries=0))
+    client.get_claims(token())
+
+    with pytest.raises(SupabaseTransportError):
+        client.get_claims(token(kid="unknown"))
+
+    assert client._jwks_refetch_wait == 1
+    response = client.get_claims(token(kid="unknown"))
+    assert response is not None
+    assert server.requests[-2:] == ["/.well-known/jwks.json", "/user"]

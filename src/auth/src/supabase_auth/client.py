@@ -790,17 +790,17 @@ class SupabaseAuthHttpClient[
         if now < self._jwks_refetch_blocked_until:
             return None
 
+        # Started before the download, as a transport error is raised outside
+        # this generator.
+        self._extend_jwks_refetch_wait()
         try:
             refetched = yield from self._download_jwks()
-        except Exception:
-            self._extend_jwks_refetch_wait()
-            raise
+        finally:
+            self._jwks_refetch_blocked_until = time.time() + self._jwks_refetch_wait
         jwk = _jwk_by_kid(refetched, kid)
         if jwk:
             self._jwks_refetch_wait = 0
             self._jwks_refetch_blocked_until = 0
-        else:
-            self._extend_jwks_refetch_wait()
         return jwk
 
     @handle_http_io
