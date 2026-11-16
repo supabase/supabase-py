@@ -18,6 +18,8 @@ classifiers = [
 requires-python = ">=3.12"
 description = "Common collection of methods used in the supabase python libraries."
 readme = "README.md"
+license = "MIT"
+license-files = [ "LICENSE" ]
 dependencies = [
     "pydantic>=2.12.2",
     "pyrsistent>=0.20.0",
