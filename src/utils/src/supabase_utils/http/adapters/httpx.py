@@ -1,3 +1,5 @@
+from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterable, Iterator
+from contextlib import asynccontextmanager, contextmanager
 from types import TracebackType
 
 from httpx import (
@@ -13,18 +15,36 @@ from httpx import Request as HttpxRequest
 from httpx import Response as HttpxResponse
 from yarl import URL
 
+from ..body import async_chunks
 from ..errors import RequestTimeoutError, SupabaseTransportError
 from ..headers import Headers
 from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
-from ..request import Request, Response
+from ..request import AsyncStreamedResponse, Request, Response, StreamedResponse
 
 
 def to_httpx_request(req: Request) -> HttpxRequest:
+    content = req.content
+    if content is not None and not isinstance(content, (bytes, Iterable)):
+        raise TypeError("HttpxSession cannot send an async iterable body")
+    return _httpx_request(req, content)
+
+
+def to_async_httpx_request(req: Request) -> HttpxRequest:
+    content = req.content
+    if content is not None and not isinstance(content, bytes):
+        content = async_chunks(content)
+    return _httpx_request(req, content)
+
+
+def _httpx_request(
+    req: Request,
+    content: bytes | Iterable[bytes] | AsyncIterator[bytes] | None,
+) -> HttpxRequest:
     return HttpxRequest(
         method=req.method,
         url=str(req.url),
         headers=req.headers.iter_items(),
-        content=req.content,
+        content=content,
         extensions={}
         if req.timeout is None
         else {"timeout": Timeout(req.timeout).as_dict()},
@@ -44,6 +64,29 @@ def to_supabase_response(req: Request, resp: HttpxResponse) -> Response:
         headers=Headers.from_mapping(resp.headers),
         request=req,
     )
+
+
+def _transport_error(request: Request, error: RequestError) -> SupabaseTransportError:
+    if isinstance(error, TimeoutException):
+        return RequestTimeoutError(request)
+    return SupabaseTransportError(request)
+
+
+def _sync_body(request: Request, response: HttpxResponse) -> Iterator[bytes]:
+    try:
+        yield from response.iter_bytes()
+    except RequestError as error:
+        raise _transport_error(request, error) from error
+
+
+async def _async_body(
+    request: Request, response: HttpxResponse
+) -> AsyncIterator[bytes]:
+    try:
+        async for chunk in response.aiter_bytes():
+            yield chunk
+    except RequestError as error:
+        raise _transport_error(request, error) from error
 
 
 def redirect_request(
@@ -70,30 +113,47 @@ class HttpxSession:
 
     def send(self, request: Request) -> Response:
         try:
-            return self._send(request)
-        except TimeoutException as error:
-            raise RequestTimeoutError(request) from error
+            return to_supabase_response(request, self._send(request, stream=False))
         except RequestError as error:
-            raise SupabaseTransportError(request) from error
+            raise _transport_error(request, error) from error
 
-    def _send(self, request: Request) -> Response:
+    @contextmanager
+    def stream(self, request: Request) -> Generator[StreamedResponse]:
+        try:
+            response = self._send(request, stream=True)
+        except RequestError as error:
+            raise _transport_error(request, error) from error
+        try:
+            yield StreamedResponse(
+                headers=Headers.from_mapping(response.headers),
+                status=response.status_code,
+                request=request,
+                body=_sync_body(request, response),
+            )
+        finally:
+            response.close()
+
+    def _send(self, request: Request, *, stream: bool) -> HttpxResponse:
         httpx_request = to_httpx_request(request)
         response = self.client.send(
             httpx_request,
             auth=_request_auth(self.client, httpx_request),
             follow_redirects=False,
+            stream=stream,
         )
         redirects = 0
         while self.client.follow_redirects and (next_request := response.next_request):
             redirects += 1
+            response.close()
             response = self.client.send(
                 redirect_request(
                     request.url, next_request, redirects, self.client.max_redirects
                 ),
                 auth=None,
                 follow_redirects=False,
+                stream=stream,
             )
-        return to_supabase_response(request, response)
+        return response
 
     def __enter__(self) -> "HttpxSession":
         return self
@@ -121,30 +181,48 @@ class AsyncHttpxSession:
 
     async def send(self, request: Request) -> Response:
         try:
-            return await self._send(request)
-        except TimeoutException as error:
-            raise RequestTimeoutError(request) from error
+            response = await self._send(request, stream=False)
         except RequestError as error:
-            raise SupabaseTransportError(request) from error
+            raise _transport_error(request, error) from error
+        return to_supabase_response(request, response)
 
-    async def _send(self, request: Request) -> Response:
-        httpx_request = to_httpx_request(request)
+    @asynccontextmanager
+    async def stream(self, request: Request) -> AsyncGenerator[AsyncStreamedResponse]:
+        try:
+            response = await self._send(request, stream=True)
+        except RequestError as error:
+            raise _transport_error(request, error) from error
+        try:
+            yield AsyncStreamedResponse(
+                headers=Headers.from_mapping(response.headers),
+                status=response.status_code,
+                request=request,
+                body=_async_body(request, response),
+            )
+        finally:
+            await response.aclose()
+
+    async def _send(self, request: Request, *, stream: bool) -> HttpxResponse:
+        httpx_request = to_async_httpx_request(request)
         response = await self.client.send(
             httpx_request,
             auth=_request_auth(self.client, httpx_request),
             follow_redirects=False,
+            stream=stream,
         )
         redirects = 0
         while self.client.follow_redirects and (next_request := response.next_request):
             redirects += 1
+            await response.aclose()
             response = await self.client.send(
                 redirect_request(
                     request.url, next_request, redirects, self.client.max_redirects
                 ),
                 auth=None,
                 follow_redirects=False,
+                stream=stream,
             )
-        return to_supabase_response(request, response)
+        return response
 
     async def __aenter__(self) -> "AsyncHttpxSession":
         return self

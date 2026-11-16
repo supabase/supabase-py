@@ -18,6 +18,16 @@ class StorageException(SupabaseError):
     """
 
 
+class StorageDownloadTooLargeError(StorageException):
+    """Raised when a download is read into memory and its body is larger than
+    the `max_bytes` the caller allowed."""
+
+    def __init__(self, max_bytes: int) -> None:
+        super().__init__(f"The download is larger than {max_bytes} bytes")
+        self.max_bytes = max_bytes
+        """The cap the body exceeded."""
+
+
 class VectorBucketException(StorageException):
     """Raised when a vector bucket operation is given invalid input."""
 

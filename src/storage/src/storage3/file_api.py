@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import base64
+import os
+from collections.abc import AsyncIterable
+from contextlib import contextmanager
 from dataclasses import dataclass
-from io import BufferedReader, FileIO
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, cast, overload
 
 from pydantic import BaseModel, TypeAdapter
+from supabase_utils.http.body import FileContent
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
@@ -15,17 +18,20 @@ from supabase_utils.http.io import (
 )
 from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import (
-    DataField,
+    BytesRequest,
     EmptyRequest,
-    FileField,
     JSONRequest,
-    MultipartFormDataRequest,
-    PartField,
     Response,
 )
 from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
+from .download import (
+    AsyncStorageDownload,
+    StorageDownload,
+    _async_download,
+    _sync_download,
+)
 from .exceptions import (
     StorageException,
     _validate_adapter,
@@ -46,14 +52,17 @@ from .types import (
     SignedUrlsJsonResponse,
     SortBy,
     TransformOptions,
+    UploadBody,
     UploadResponse,
     transform_to_dict,
 )
 
 if TYPE_CHECKING:
     import builtins
-    from collections.abc import AsyncIterator, Iterator
-    from pathlib import Path
+    from collections.abc import AsyncIterator, Generator, Iterator
+    from contextlib import AbstractAsyncContextManager, AbstractContextManager
+
+    from supabase_utils.http.body import RequestContent
 
 __all__ = ["StorageFileApiClient"]
 
@@ -85,15 +94,43 @@ def _cache_control_header(value: str | None) -> str | None:
     return value
 
 
-def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:
-    if isinstance(file, (BufferedReader, FileIO)):
-        # bytes or byte-stream-like object received
-        return file.read()
+@contextmanager
+def _upload_content(file: UploadBody) -> Generator[RequestContent]:
+    """The request body that streams `file`, with a file at a path open while
+    it is sent."""
     if isinstance(file, bytes):
-        return file
-    # str or pathlib.path received
-    with open(file, "rb") as f:
-        return f.read()
+        yield file
+    elif isinstance(file, (str, os.PathLike)):
+        with open(file, "rb") as opened:
+            yield FileContent(opened)
+    elif isinstance(file, AsyncIterable):
+        yield file
+    elif hasattr(file, "read"):
+        yield FileContent(cast("BinaryIO", file))
+    else:
+        yield file
+
+
+def _upload_headers(
+    content_type: str,
+    cache_control: str,
+    metadata: dict[str, Any] | None,
+    upsert: bool | None,
+    headers: dict[str, str] | None,
+) -> Headers:
+    http_headers = (
+        Headers.empty()
+        .set("Content-Type", content_type)
+        .set("Cache-Control", f"max-age={cache_control}")
+    )
+    if metadata is not None:
+        encoded = base64.b64encode(JSONParser.dump_json(metadata)).decode("ascii")
+        http_headers = http_headers.set("x-metadata", encoded)
+    if upsert is not None:
+        http_headers = http_headers.set("x-upsert", _bool_header(upsert))
+    if headers:
+        http_headers = http_headers.update(Headers.from_mapping(headers))
+    return http_headers
 
 
 @dataclass(frozen=True)
@@ -222,57 +259,38 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self,
         path: str,
         token: str,
-        file: BufferedReader | bytes | FileIO | str | Path,
+        file: UploadBody,
         content_type: str = "text/plain;charset=UTF-8",
         cache_control: str = "3600",
         metadata: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
     ) -> HttpMethod[UploadResponse]:
         """
-        Upload a file with a token generated from :meth:`.create_signed_url`
+        Upload a file with a token generated from :meth:`.create_signed_upload_url`
 
         Parameters
         ----------
         path
             The file path, including the file name
         token
-            The token generated from :meth:`.create_signed_url`
+            The token generated from :meth:`.create_signed_upload_url`
         file
-            The file contents or a file-like object to upload
+            What to upload: the bytes, the path of a file, a binary file or an
+            iterator over the bytes. A file or an iterator is streamed instead
+            of read into memory first.
         """
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
-        query_params = URLQuery.from_mapping({"token": token})
-
-        http_headers = Headers.empty().set("x-upsert", "false")
-        if headers:
-            http_headers = http_headers.update(Headers.from_mapping(headers))
-
-        cache_control_field = DataField(
-            name="cacheControl",
-            data=cache_control.encode("utf-8"),
+        http_headers = _upload_headers(
+            content_type, cache_control, metadata, upsert=False, headers=headers
         )
-        fields: list[PartField] = [cache_control_field]
-        if metadata is not None:
-            fields.append(
-                DataField(
-                    name="metadata",
-                    data=JSONParser.dump_json(metadata),
-                )
+        with _upload_content(file) as content:
+            response = yield BytesRequest(
+                method="PUT",
+                path=["object", "upload", "sign", self.id, *path_parts],
+                body=content,
+                headers=http_headers,
+                query=URLQuery.from_mapping({"token": token}),
             )
-        file_field = FileField(
-            name="file",
-            filename=path_parts[-1],
-            data=_maybe_read_file(file),
-            content_type=content_type,
-        )
-        fields.append(file_field)
-        response = yield MultipartFormDataRequest(
-            method="PUT",
-            path=["object", "upload", "sign", self.id, *path_parts],
-            fields=fields,
-            headers=http_headers,
-            query=query_params,
-        )
 
         return _parse_upload_response(response, "/".join(path_parts))
 
@@ -691,21 +709,12 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             return _async_pages(self, options)
         return _sync_pages(self, options)
 
-    @handle_http_io
-    def download(
+    def _download_request(
         self,
         path: str,
-        transform: TransformOptions | None = None,
-        query_params: dict[str, str] | None = None,
-    ) -> HttpMethod[bytes]:
-        """
-        Downloads a file.
-
-        Parameters
-        ----------
-        path
-            The file path to be downloaded, including the path and file name. For example `folder/image.png`.
-        """
+        transform: TransformOptions | None,
+        query_params: dict[str, str] | None,
+    ) -> EmptyRequest:
         render_path: list[str] = ["object"]
         params = (
             URLQuery.from_mapping(query_params) if query_params else URLQuery.empty()
@@ -714,72 +723,111 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             params = params.merge(URLQuery.from_mapping(transform_to_dict(transform)))
             render_path = ["render", "image", "authenticated"]
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
-        response = yield EmptyRequest(
+        return EmptyRequest(
             method="GET",
             path=[*render_path, self.id, *path_parts],
             query=params,
         )
+
+    @handle_http_io
+    def download(
+        self,
+        path: str,
+        transform: TransformOptions | None = None,
+        query_params: dict[str, str] | None = None,
+    ) -> HttpMethod[bytes]:
+        """
+        Downloads a file into memory. Use :meth:`download_stream` for a file
+        too large to hold in memory.
+
+        Parameters
+        ----------
+        path
+            The file path to be downloaded, including the path and file name. For example `folder/image.png`.
+        """
+        response = yield self._download_request(path, transform, query_params)
         if not response.is_success:
             raise parse_api_error(response)
         return response.content
+
+    @overload
+    def download_stream(
+        self: StorageFileApiClient[SyncHttpIO],
+        path: str,
+        transform: TransformOptions | None = None,
+        query_params: dict[str, str] | None = None,
+    ) -> AbstractContextManager[StorageDownload]: ...
+
+    @overload
+    def download_stream(
+        self: StorageFileApiClient[AsyncHttpIO],
+        path: str,
+        transform: TransformOptions | None = None,
+        query_params: dict[str, str] | None = None,
+    ) -> AbstractAsyncContextManager[AsyncStorageDownload]: ...
+
+    def download_stream(
+        self: StorageFileApiClient[Any],
+        path: str,
+        transform: TransformOptions | None = None,
+        query_params: dict[str, str] | None = None,
+    ) -> (
+        AbstractContextManager[StorageDownload]
+        | AbstractAsyncContextManager[AsyncStorageDownload]
+    ):
+        """
+        Downloads a file and reads its body as it arrives, without holding it
+        in memory.
+
+        Entering the returned context sends the request and gives the
+        download once the response head arrived, with its status and headers.
+        An error response raises the same `StorageApiError` as `download`.
+        Leaving the context closes the connection.
+
+        ```python
+        with client.from_("videos").download_stream("intro.mp4") as download:
+            download.write_to("intro.mp4")
+
+        async with client.from_("videos").download_stream("intro.mp4") as download:
+            async for chunk in download:
+                ...
+        ```
+
+        Parameters
+        ----------
+        path
+            The file path to be downloaded, including the path and file name. For example `folder/image.png`.
+        """
+        request = self._download_request(path, transform, query_params)
+        if isinstance(self.executor, AsyncHttpIO):
+            return _async_download(
+                self.executor, self.base_url, self.default_headers, request
+            )
+        return _sync_download(
+            self.executor, self.base_url, self.default_headers, request
+        )
 
     def _upload_or_update(
         self,
         method: Literal["POST", "PUT"],
         path: tuple[str, ...],
-        file: BufferedReader | bytes | FileIO | str | Path,
+        file: UploadBody,
         cache_control: str,
         content_type: str,
         upsert: bool | None,
         metadata: dict[str, Any] | None,
         headers: dict[str, str] | None,
     ) -> HttpMethod[UploadResponse]:
-        """
-        Uploads a file to an existing bucket.
-
-        Parameters
-        ----------
-        path
-            The relative file path including the bucket ID. Should be of the format `bucket/folder/subfolder/filename.png`.
-            The bucket must already exist before attempting to upload.
-        file
-            The File object to be stored in the bucket. or a async generator of chunks
-        upsert
-            Sent as the `x-upsert` header, or left out when `None`.
-        """
-
-        http_headers = Headers.empty()
-        if upsert is not None:
-            http_headers = http_headers.set("x-upsert", _bool_header(upsert))
-
-        if headers:
-            http_headers = http_headers.update(Headers.from_mapping(headers))
-
-        cache_control_field = DataField(
-            name="cacheControl",
-            data=cache_control.encode("utf-8"),
+        http_headers = _upload_headers(
+            content_type, cache_control, metadata, upsert, headers
         )
-        fields: list[PartField] = [cache_control_field]
-        if metadata is not None:
-            fields.append(
-                DataField(
-                    name="metadata",
-                    data=JSONParser.dump_json(metadata),
-                )
+        with _upload_content(file) as content:
+            response = yield BytesRequest(
+                method=method,
+                path=["object", self.id, *path],
+                body=content,
+                headers=http_headers,
             )
-        file_field = FileField(
-            name="file",
-            filename=path[-1],
-            data=_maybe_read_file(file),
-            content_type=content_type,
-        )
-        fields.append(file_field)
-        response = yield MultipartFormDataRequest(
-            method=method,
-            path=["object", self.id, *path],
-            fields=fields,
-            headers=http_headers,
-        )
 
         return _parse_upload_response(response, "/".join(path))
 
@@ -787,7 +835,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def upload(
         self,
         path: str,
-        file: BufferedReader | bytes | FileIO | str | Path,
+        file: UploadBody,
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
         upsert: bool = False,
@@ -803,7 +851,10 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             The relative file path including the bucket ID. Should be of the format `bucket/folder/subfolder/filename.png`.
             The bucket must already exist before attempting to upload.
         file
-            The File object to be stored in the bucket. or a async generator of chunks
+            What to upload: the bytes, the path of a file, a binary file or an
+            iterator over the bytes. A file or an iterator is streamed instead
+            of read into memory first. A request whose body is an iterator, or
+            a file that cannot seek, is never retried.
         upsert
             Whether to overwrite the file if it already exists.
         """
@@ -823,7 +874,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def update(
         self,
         path: str,
-        file: BufferedReader | bytes | FileIO | str | Path,
+        file: UploadBody,
         cache_control: str = "3600",
         content_type: str = "text/plain;charset=UTF-8",
         metadata: dict[str, Any] | None = None,

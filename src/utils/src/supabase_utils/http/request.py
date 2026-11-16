@@ -1,5 +1,6 @@
 import math
 import os
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from io import BytesIO
 from typing import (
@@ -12,6 +13,7 @@ from yarl import URL
 
 from ..types import JSON, JSONParser
 from ..types import HTTPRequestMethod as HTTPRequestMethod
+from .body import FileContent, RequestContent
 from .headers import Headers
 from .query import URLQuery
 from .retry import RetryPolicy
@@ -29,7 +31,7 @@ class Request:
     url: URL
     method: HTTPRequestMethod
     headers: Headers
-    content: bytes | None
+    content: RequestContent | None
     delay: float | None
     timeout: float | None = None
     retry: RetryPolicy | bool | None = None
@@ -52,6 +54,54 @@ class Response:
     @property
     def is_error(self) -> bool:
         return 400 <= self.status <= 599
+
+
+@dataclass
+class StreamedResponse:
+    """A response whose body is read as it arrives. `body` can be read once,
+    and raises a `SupabaseTransportError` when the transfer fails."""
+
+    headers: Headers
+    status: int
+    request: Request
+    body: Iterator[bytes]
+
+    @property
+    def is_success(self) -> bool:
+        return 200 <= self.status < 300
+
+    def read(self) -> Response:
+        """Reads the rest of the body into a `Response`."""
+        return Response(
+            headers=self.headers,
+            content=b"".join(self.body),
+            status=self.status,
+            request=self.request,
+        )
+
+
+@dataclass
+class AsyncStreamedResponse:
+    """A response whose body is read as it arrives. `body` can be read once,
+    and raises a `SupabaseTransportError` when the transfer fails."""
+
+    headers: Headers
+    status: int
+    request: Request
+    body: AsyncIterator[bytes]
+
+    @property
+    def is_success(self) -> bool:
+        return 200 <= self.status < 300
+
+    async def read(self) -> Response:
+        """Reads the rest of the body into a `Response`."""
+        return Response(
+            headers=self.headers,
+            content=b"".join([chunk async for chunk in self.body]),
+            status=self.status,
+            request=self.request,
+        )
 
 
 class ToRequest(Protocol):
@@ -97,13 +147,21 @@ class EmptyRequest:
 
 @dataclass(frozen=True)
 class BytesRequest(EmptyRequest):
-    body: bytes
+    """A request that sends `body` as it is. An iterable body is streamed,
+    and a `FileContent` whose length is known is sent with a
+    `Content-Length`."""
+
+    body: RequestContent
 
     @override
     def finalize(self, base_url: URL, default_headers: Headers) -> Request:
         headers = self._headers_with_content_type(
             default_headers, "application/octet-stream"
         )
+        if isinstance(self.body, FileContent) and "content-length" not in headers:
+            length = self.body.length
+            if length is not None:
+                headers = headers.override("Content-Length", str(length))
         return Request(
             method=self.method,
             url=base_url.joinpath(*self.path).with_query(self.query.as_query()),

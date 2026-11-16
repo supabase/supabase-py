@@ -1,4 +1,6 @@
 import re
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager
 from types import TracebackType
 
 import pytest
@@ -6,7 +8,12 @@ from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpIO
 
 # Import the class to test
-from supabase_utils.http.request import HTTPRequestMethod, Request, Response
+from supabase_utils.http.request import (
+    AsyncStreamedResponse,
+    HTTPRequestMethod,
+    Request,
+    Response,
+)
 from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
@@ -30,6 +37,20 @@ class MockHttpClient:
             status=self.status,
             content=self.content,
             request=request,
+        )
+
+    @asynccontextmanager
+    async def stream(self, request: Request) -> AsyncGenerator[AsyncStreamedResponse]:
+        response = await self.send(request)
+
+        async def body() -> AsyncIterator[bytes]:
+            yield response.content
+
+        yield AsyncStreamedResponse(
+            headers=response.headers,
+            status=response.status,
+            request=request,
+            body=body(),
         )
 
     async def __aenter__(self) -> "MockHttpClient":

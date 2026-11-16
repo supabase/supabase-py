@@ -62,3 +62,17 @@ await storage_client.from_("bucket").upload(
 ```
 
 If no MIME type is given, `text/plain;charset=UTF-8` is used.
+
+A path or an open binary file is streamed from disk, and an iterator over bytes (an async iterator on the async client) is streamed as it is read, so a large file is never held in memory.
+
+### Streaming downloads
+
+`download_stream` gives the status and headers once the response head arrives, and the body as it arrives. Write it to a file, which is replaced only once the whole body arrived, or iterate over it chunk by chunk:
+
+```python
+async with storage_client.from_("bucket").download_stream("videos/intro.mp4") as download:
+    print(download.status, download.content_length)
+    await download.write_to("intro.mp4")
+```
+
+`read(max_bytes=...)` reads the body into memory and raises `StorageDownloadTooLargeError` once it grows past the cap.

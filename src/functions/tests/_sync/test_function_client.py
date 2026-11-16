@@ -1,4 +1,6 @@
 import re
+from collections.abc import Generator
+from contextlib import contextmanager
 from types import TracebackType
 
 import pytest
@@ -6,7 +8,12 @@ from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import SyncHttpIO
 
 # Import the class to test
-from supabase_utils.http.request import HTTPRequestMethod, Request, Response
+from supabase_utils.http.request import (
+    HTTPRequestMethod,
+    Request,
+    Response,
+    StreamedResponse,
+)
 from supabase_utils.types import JSON
 from yarl import URL
 
@@ -30,6 +37,16 @@ class MockHttpClient:
             status=self.status,
             content=self.content,
             request=request,
+        )
+
+    @contextmanager
+    def stream(self, request: Request) -> Generator[StreamedResponse]:
+        response = self.send(request)
+        yield StreamedResponse(
+            headers=response.headers,
+            status=response.status,
+            request=request,
+            body=iter([response.content]),
         )
 
     def __enter__(self) -> "MockHttpClient":

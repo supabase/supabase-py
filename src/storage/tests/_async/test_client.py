@@ -13,7 +13,7 @@ from storage3.exceptions import StorageApiError
 from storage3.types import TransformOptions
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Callable
+    from collections.abc import AsyncGenerator, AsyncIterator, Callable
     from pathlib import Path
 
     from supabase_utils.http.io import AsyncHttpIO
@@ -518,6 +518,44 @@ async def test_client_upload_with_custom_metadata(
         "second": "second",
         "third": "third",
     }
+
+
+async def test_client_upload_streams_an_iterator_and_downloads_a_stream(
+    storage_file_client: StorageFileApiClient[AsyncHttpIO],
+    file: FileForTesting,
+    tmp_path: Path,
+) -> None:
+    """Ensure a streamed upload and a streamed download round trip"""
+
+    async def chunks() -> AsyncIterator[bytes]:
+        for start in range(0, len(file.file_content), 100):
+            yield file.file_content[start : start + 100]
+
+    await storage_file_client.upload(
+        file.bucket_path,
+        chunks(),
+        content_type=file.mime_type,
+        metadata={"source": "stream"},
+    )
+
+    destination = tmp_path / "download"
+    async with storage_file_client.download_stream(file.bucket_path) as download:
+        assert download.status == 200
+        assert download.content_type == file.mime_type
+        await download.write_to(destination)
+    assert destination.read_bytes() == file.file_content
+
+    info = await storage_file_client.info(file.bucket_path)
+    assert info.metadata == {"source": "stream"}
+
+
+async def test_client_download_stream_raises_for_a_missing_file(
+    storage_file_client: StorageFileApiClient[AsyncHttpIO],
+) -> None:
+    with pytest.raises(StorageApiError) as caught:
+        async with storage_file_client.download_stream("missing.txt"):
+            pass
+    assert caught.value.code == "NoSuchKey"
 
 
 async def test_client_info(

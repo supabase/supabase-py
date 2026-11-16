@@ -1,3 +1,5 @@
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager
 from types import TracebackType
 
 from aiohttp import (
@@ -11,10 +13,11 @@ from aiohttp import (
 from aiohttp import ClientResponse as AioResponse
 from yarl import URL
 
+from ..body import CHUNK_SIZE, async_chunks
 from ..errors import RequestTimeoutError, SupabaseTransportError
 from ..headers import Headers
 from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
-from ..request import Request, Response
+from ..request import AsyncStreamedResponse, Request, Response
 
 
 async def to_supabase_response(req: Request, resp: AioResponse) -> Response:
@@ -24,6 +27,22 @@ async def to_supabase_response(req: Request, resp: AioResponse) -> Response:
         headers=Headers.from_mapping(resp.headers),
         request=req,
     )
+
+
+def _transport_error(
+    request: Request, error: TimeoutError | ClientError
+) -> SupabaseTransportError:
+    if isinstance(error, TimeoutError):
+        return RequestTimeoutError(request)
+    return SupabaseTransportError(request)
+
+
+async def _body(request: Request, response: AioResponse) -> AsyncIterator[bytes]:
+    try:
+        async for chunk in response.content.iter_chunked(CHUNK_SIZE):
+            yield chunk
+    except (TimeoutError, ClientError) as error:
+        raise _transport_error(request, error) from error
 
 
 def strip_cross_origin_credentials(origin: URL) -> ClientMiddlewareType:
@@ -67,26 +86,46 @@ class AsyncAiohttpSession:
 
     async def send(self, request: Request) -> Response:
         try:
-            response = await self.client.request(
-                method=request.method,
-                url=str(request.url),
-                data=request.content,
-                headers=dict(request.headers),
-                timeout=self._timeout(request.timeout),
-                # The packages read the status themselves, so an error status
-                # must come back as a response even on a session that raises.
-                raise_for_status=False,
-                middlewares=(
-                    # Per request middlewares replace the session ones, so keep those.
-                    *self.client._middlewares,
-                    strip_cross_origin_credentials(request.url),
-                ),
-            )
+            response = await self._request(request)
             return await to_supabase_response(request, response)
-        except TimeoutError as error:
-            raise RequestTimeoutError(request) from error
-        except ClientError as error:
-            raise SupabaseTransportError(request) from error
+        except (TimeoutError, ClientError) as error:
+            raise _transport_error(request, error) from error
+
+    @asynccontextmanager
+    async def stream(self, request: Request) -> AsyncGenerator[AsyncStreamedResponse]:
+        try:
+            response = await self._request(request)
+        except (TimeoutError, ClientError) as error:
+            raise _transport_error(request, error) from error
+        try:
+            yield AsyncStreamedResponse(
+                headers=Headers.from_mapping(response.headers),
+                status=response.status,
+                request=request,
+                body=_body(request, response),
+            )
+        finally:
+            response.release()
+
+    async def _request(self, request: Request) -> AioResponse:
+        content = request.content
+        if content is not None and not isinstance(content, bytes):
+            content = async_chunks(content)
+        return await self.client.request(
+            method=request.method,
+            url=str(request.url),
+            data=content,
+            headers=dict(request.headers),
+            timeout=self._timeout(request.timeout),
+            # The packages read the status themselves, so an error status
+            # must come back as a response even on a session that raises.
+            raise_for_status=False,
+            middlewares=(
+                # Per request middlewares replace the session ones, so keep those.
+                *self.client._middlewares,
+                strip_cross_origin_credentials(request.url),
+            ),
+        )
 
     async def __aenter__(self) -> "AsyncAiohttpSession":
         return self
