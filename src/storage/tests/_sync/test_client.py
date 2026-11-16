@@ -237,11 +237,12 @@ def test_client_upload(
     )
 
     image = storage_file_client.download(file.bucket_path)
-    files = storage_file_client.list(file.bucket_folder)
-    image_info = next((f for f in files if f.name == file.name), None)
+    page = storage_file_client.list(f"{file.bucket_folder}/")
+    image_info = next((f for f in page.objects if f.name == file.bucket_path), None)
 
     assert image == file.file_content
     assert image_info is not None
+    assert image_info.metadata is not None
     assert image_info.metadata.get("mimetype") == file.mime_type
 
     # Default cache-control is "3600" seconds and must be stored as max-age=3600
@@ -260,11 +261,12 @@ def test_client_upload_with_query(
     image = storage_file_client.download(
         file.bucket_path, query_params={"my-param": "test"}
     )
-    files = storage_file_client.list(file.bucket_folder)
-    image_info = next((f for f in files if f.name == file.name), None)
+    page = storage_file_client.list(f"{file.bucket_folder}/")
+    image_info = next((f for f in page.objects if f.name == file.bucket_path), None)
 
     assert image == file.file_content
     assert image_info is not None
+    assert image_info.metadata is not None
     assert image_info.metadata.get("mimetype") == file.mime_type
 
 
@@ -311,11 +313,14 @@ def test_client_update(
     )
 
     image = storage_file_client.download(two_files[0].bucket_path)
-    file_list = storage_file_client.list(two_files[0].bucket_folder)
-    image_info = next((f for f in file_list if f.name == two_files[0].name), None)
+    page = storage_file_client.list(f"{two_files[0].bucket_folder}/")
+    image_info = next(
+        (f for f in page.objects if f.name == two_files[0].bucket_path), None
+    )
 
     assert image == two_files[1].file_content
     assert image_info is not None
+    assert image_info.metadata is not None
     assert image_info.metadata.get("mimetype") == two_files[1].mime_type
     info = storage_file_client.info(two_files[0].bucket_path)
     assert info.cache_control == "max-age=7200"
@@ -350,11 +355,12 @@ def test_client_upload_to_signed_url(
         metadata={"source": "signed-upload"},
     )
     image = storage_file_client.download(file.bucket_path)
-    files = storage_file_client.list(file.bucket_folder)
-    image_info = next((f for f in files if f.name == file.name), None)
+    page = storage_file_client.list(f"{file.bucket_folder}/")
+    image_info = next((f for f in page.objects if f.name == file.bucket_path), None)
 
     assert image == file.file_content
     assert image_info is not None
+    assert image_info.metadata is not None
     assert image_info.metadata.get("mimetype") == file.mime_type
     info = storage_file_client.info(file.bucket_path)
     assert info.metadata == {"source": "signed-upload"}
@@ -583,9 +589,10 @@ def test_client_copy(
     assert original == copied == file.file_content
 
     # Verify metadata was copied
-    files = storage_file_client.list(file.bucket_folder)
-    copied_info = next((f for f in files if f.name == f"copied_{file.name}"), None)
+    page = storage_file_client.list(f"{file.bucket_folder}/")
+    copied_info = next((f for f in page.objects if f.name == new_path), None)
     assert copied_info is not None
+    assert copied_info.metadata is not None
     assert copied_info.metadata.get("mimetype") == file.mime_type
 
 
@@ -610,9 +617,10 @@ def test_client_move(
     assert moved == file.file_content
 
     # Verify metadata was preserved
-    files = storage_file_client.list(file.bucket_folder)
-    moved_info = next((f for f in files if f.name == f"moved_{file.name}"), None)
+    page = storage_file_client.list(f"{file.bucket_folder}/")
+    moved_info = next((f for f in page.objects if f.name == new_path), None)
     assert moved_info is not None
+    assert moved_info.metadata is not None
     assert moved_info.metadata.get("mimetype") == file.mime_type
 
 
@@ -682,15 +690,15 @@ def test_client_create_signed_urls_with_download(
             assert response.content == multi_file[i].file_content
 
 
-def test_client_list_v2(
+def test_client_list(
     storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
-    """Ensure we can upload files to a bucket"""
+    """Ensure list() returns every object at every depth without a delimiter"""
     storage_file_client.upload(
         file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
-    result = storage_file_client.list_v2()
+    result = storage_file_client.list()
 
     assert not result.hasNext
     assert len(result.folders) == 0
@@ -701,15 +709,15 @@ def test_client_list_v2(
     assert object.metadata.get("mimetype") == file.mime_type
 
 
-def test_client_list_v2_folder(
+def test_client_list_folder(
     storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
-    """Ensure we can upload files to a bucket"""
+    """Ensure list() collapses the keys below the delimiter into a folder"""
     storage_file_client.upload(
         file.bucket_path, file.local_path, content_type=file.mime_type
     )
 
-    result = storage_file_client.list_v2(with_delimiter=True)
+    result = storage_file_client.list(with_delimiter=True)
 
     assert not result.hasNext
     assert len(result.objects) == 0
@@ -718,10 +726,29 @@ def test_client_list_v2_folder(
     assert folder.name == file.bucket_folder + "/"
 
 
-def test_client_list_v2_paginated(
+def test_client_list_folder_and_object(
     storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
-    """Ensure we can upload files to a bucket"""
+    """Ensure a prefix that holds a folder and a file lists both"""
+    nested_path = f"{file.bucket_folder}/nested/{file.name}"
+    for path in (file.bucket_path, nested_path):
+        storage_file_client.upload(path, file.local_path, content_type=file.mime_type)
+
+    result = storage_file_client.list(f"{file.bucket_folder}/", with_delimiter=True)
+
+    assert not result.hasNext
+    assert [folder.name for folder in result.folders] == [
+        f"{file.bucket_folder}/nested/"
+    ]
+    assert [object.name for object in result.objects] == [file.bucket_path]
+    assert result.objects[0].metadata is not None
+    assert result.objects[0].metadata.get("mimetype") == file.mime_type
+
+
+def test_client_list_paginated(
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
+) -> None:
+    """Ensure list() pages with the cursor of the previous page"""
     suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]
     for suffix in suffixes:
         storage_file_client.upload(
@@ -732,9 +759,9 @@ def test_client_list_v2_paginated(
     cursor = ""
     pages = 0
     while has_next:
-        result = storage_file_client.list_v2(
+        result = storage_file_client.list(
+            f"{file.bucket_folder}/",
             with_delimiter=True,
-            prefix=f"{file.bucket_folder}/",
             limit=2,
             cursor=cursor,
         )

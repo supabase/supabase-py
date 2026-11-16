@@ -26,21 +26,6 @@ class BucketName(BaseModel, extra="ignore"):
     name: str
 
 
-# used in bucket.list method's option parameter
-@dataclass(frozen=True)
-class SortByType:
-    column: str = "name"
-    order: Literal["asc", "desc"] = "asc"
-
-
-class ListBody(BaseModel):
-    prefix: str
-    limit: int
-    offset: int
-    search: str | None
-    sortBy: SortByType
-
-
 class SignedUploadUrlResponse(BaseModel):
     url: str
     token: str
@@ -104,51 +89,50 @@ class FileObject(BaseModel):
 
 
 @dataclass(frozen=True)
-class SortByV2:
+class SortBy:
     column: Literal["name", "updated_at", "created_at"] = "name"
     order: Literal["asc", "desc"] = "asc"
 
 
-class SearchV2Object(BaseModel):
+class ListBody(BaseModel):
+    prefix: str | None = None
+    limit: int | None = None
+    cursor: str | None = None
+    with_delimiter: bool | None = None
+    sortBy: SortBy | None = None
+
+
+class ListObject(BaseModel):
+    """An object of a listing page. ``name`` is the full key."""
+
     id: str
     name: str
-    updated_at: datetime
     created_at: datetime
+    updated_at: datetime
+    last_accessed_at: datetime | None = None
     metadata: dict[str, Any] | None
     key: str | None = None
 
 
-class SearchV2Folder(BaseModel):
-    key: str | None = None
+class ListFolder(BaseModel):
+    """A folder of a listing page. ``name`` is the full prefix ending in ``/``.
+
+    The server sends a folder as a row with a null ``id`` and no metadata. Its
+    timestamps, when present, are those of one of the objects below it.
+    """
+
     name: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    last_accessed_at: datetime | None = None
+    key: str | None = None
 
 
-class SearchV2Body(BaseModel):
-    limit: int | None = None
-    prefix: str | None = None
-    cursor: str | None = None
-    with_delimiter: bool | None = None
-    sortBy: SortByV2 | None = None
-
-
-class SearchV2Result(BaseModel):
+class ListResult(BaseModel):
     hasNext: bool
-    folders: list[SearchV2Folder]
-    objects: list[SearchV2Object]
+    folders: list[ListFolder]
+    objects: list[ListObject]
     nextCursor: str | None = None
-
-
-class ListFileObject(BaseModel):
-    id: str
-    name: str
-    owner: str | None = None
-    bucket_id: str | None = None
-    updated_at: datetime
-    created_at: datetime
-    metadata: dict[str, Any]
-    buckets: Bucket | None = None
 
 
 class UploadResponse(BaseModel):

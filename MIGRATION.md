@@ -43,6 +43,49 @@ Names that mirror a wire format keep their wire spelling, for example the JWT cl
 
 `update()` no longer takes `upsert`. It never sent the header, so the option had no effect.
 
+## Storage `list()` is the cursor-paged listing
+
+The legacy `POST /object/list` endpoint is gone. `list()` now calls `POST /object/list-v2`, which `list_v2()` used to call, and `list_v2()` is removed. The listing types lose their version number. `ListBody` reuses the name of the removed legacy request body, with the shape of the former `SearchV2Body`.
+
+| Before                                               | After                                               |
+| ---------------------------------------------------- | --------------------------------------------------- |
+| `list_v2(prefix="photos/")`                          | `list("photos/")`                                   |
+| `list("photos")`                                     | `list("photos/", with_delimiter=True)`              |
+| `list("photos", search="cat")`                       | `list("photos/cat", with_delimiter=True)`           |
+| `list("photos", limit=50, offset=50)`                | `list("photos/", limit=50, cursor=page.nextCursor)` |
+| `list("photos", sortBy=SortByType(column="name"))`   | `list("photos/", sort_by=SortBy(column="name"))`    |
+| `SortByV2`                                           | `SortBy`                                            |
+| `SearchV2Body`                                       | `ListBody`                                          |
+| `SearchV2Result`                                     | `ListResult`                                        |
+| `SearchV2Object`                                     | `ListObject`                                        |
+| `SearchV2Folder`                                     | `ListFolder`                                        |
+| `ListFileObject`                                     | `ListObject` and `ListFolder`                       |
+
+`prefix` is the first positional parameter; the other parameters are keyword-only. `list()` needs Supabase Storage v1.19.0 or newer. On the Supabase platform, a project whose storage schema predates list-v2 gets a `StorageApiError` with the code `FeatureNotEnabled`.
+
+A page holds the objects as `ListObject`s and, with `with_delimiter=True`, the folders as `ListFolder`s. The legacy endpoint returned folders as rows with a null `id`, `created_at`, `updated_at` and `metadata`, which `list()` rejected as invalid objects. Names are full keys: `photos/cat.png` instead of `cat.png`, and a folder is `photos/2024/` instead of `2024`. Without `with_delimiter=True`, `list()` returns every object at every depth below the prefix and no folders.
+
+```python
+from storage3.types import SortBy
+
+bucket = client.storage.from_("photos")
+page = bucket.list("2024/", with_delimiter=True, sort_by=SortBy(column="created_at"))
+for folder in page.folders:
+    print(folder.name)
+for object in page.objects:
+    print(object.name, object.metadata)
+while page.hasNext:
+    page = bucket.list("2024/", with_delimiter=True, sort_by=SortBy(column="created_at"), cursor=page.nextCursor)
+```
+
+What the legacy endpoint offered and `list()` does not:
+
+- **Case-insensitive prefix matching.** The legacy endpoint lowercased both the prefix and the key. `list()` compares byte by byte, so `list("avatars/john")` no longer matches `avatars/John.png`.
+- **`offset` paging.** Page with the `nextCursor` of the previous page, sent together with the same arguments as the first page.
+- **`search`.** The legacy endpoint appended it to the prefix and matched the result as a prefix, so pass the joined prefix instead. The only difference is the case sensitivity above.
+- **Sorting by `last_accessed_at`.** `SortBy` takes `name`, `created_at` or `updated_at`. Each `ListObject` still has `last_accessed_at`, so a page can be sorted by it locally.
+- **Old storage servers.** `POST /object/list-v2` first shipped in Supabase Storage v1.19.0. Older self-hosted servers cannot be listed.
+
 ## One implementation for `AsyncClient` and `Client`
 
 `AsyncClient` and `Client` are defined in `supabase.client` over a shared base. The `supabase._async` and `supabase._sync` modules are removed, and so are the extra names that pointed at the same classes.
@@ -115,9 +158,9 @@ The remaining option `TypedDict`s are dataclasses. Fields you leave out use the 
 | Package    | Before                                                       | After                                                                                  |
 | ---------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | `supabase` | `AsyncClientOptions(realtime={"heartbeat_interval": 30})`    | `create_async_client(url, key, realtime=RealtimeClientOptions(heartbeat_interval=30))` |
-| `storage3` | `list_v2(sort_by={"column": "created_at", "order": "desc"})` | `list_v2(sort_by=SortByV2(column="created_at", order="desc"))`                         |
+| `storage3` | `list_v2(sort_by={"column": "created_at", "order": "desc"})` | `list(sort_by=SortBy(column="created_at", order="desc"))`                              |
 
-`RealtimeClientOptions` is exported from `supabase`, and `SortByV2` from `storage3.types`.
+`RealtimeClientOptions` is exported from `supabase`, and `SortBy` from `storage3.types`.
 
 The unused `storage3.types.SearchV2Options` and `storage3.types.UploadData` are removed.
 
@@ -125,7 +168,7 @@ The unused `storage3.types.SearchV2Options` and `storage3.types.UploadData` are 
 
 Option and parameter dataclasses are frozen. Setting a field raises `dataclasses.FrozenInstanceError`. Build a changed copy with `dataclasses.replace` instead.
 
-This covers `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions`, `FunctionsClientOptions`, `RealtimeClientOptions`, `realtime.RealtimeChannelOptions`, `realtime.PostgresChangesBinding`, the `storage3.types` `SortByType`, `SortByV2` and `TransformOptions`, and the `supabase_auth` credential and parameter classes such as `SignUpWithEmailAndPasswordCredentials` and `VerifyEmailOtpParams`.
+This covers `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions`, `FunctionsClientOptions`, `RealtimeClientOptions`, `realtime.RealtimeChannelOptions`, `realtime.PostgresChangesBinding`, the `storage3.types` `SortBy` and `TransformOptions`, and the `supabase_auth` credential and parameter classes such as `SignUpWithEmailAndPasswordCredentials` and `VerifyEmailOtpParams`.
 
 | Before                                                 | After                                                                     |
 | ------------------------------------------------------ | ------------------------------------------------------------------------- |

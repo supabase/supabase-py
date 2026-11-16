@@ -40,6 +40,8 @@ If you self-host Supabase, we recommend upgrading your services to their latest 
 | PostgREST | [`postgrest`](https://pypi.org/project/postgrest)                   | [PostgREST/postgrest](https://github.com/PostgREST/postgrest/releases)     | Latest release           |
 | Realtime  | [`realtime`](https://pypi.org/project/realtime)                     | [supabase/realtime](https://github.com/supabase/realtime/releases)         | Latest release           |
 
+Listing objects with `list()` needs Supabase Storage v1.19.0 or newer, which added `POST /object/list-v2`.
+
 ## Usage
 
 Set your Supabase environment variables in a dotenv file, or using the shell:

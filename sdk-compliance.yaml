@@ -1124,16 +1124,12 @@ features:
     status: implemented
     symbols:
       - StorageFileApiClient.list
-      - StorageFileApiClient.list_v2
     supporting_symbols:
       - ListBody
-      - ListFileObject
-      - SearchV2Body
-      - SearchV2Folder
-      - SearchV2Object
-      - SearchV2Result
-      - SortByType
-      - SortByV2
+      - ListFolder
+      - ListObject
+      - ListResult
+      - SortBy
   storage.file_buckets.move:
     status: implemented
     symbols:

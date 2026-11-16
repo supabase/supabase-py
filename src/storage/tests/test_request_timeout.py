@@ -28,7 +28,7 @@ def test_sync_client_uses_request_timeout() -> None:
         request_timeout=40,
     )
     client.list_buckets()
-    client.from_("photos").list()
+    client.from_("photos").remove(["photo.png"])
     assert read_timeouts(seen) == [40, 40]
 
 
@@ -43,7 +43,7 @@ async def test_async_client_uses_request_timeout() -> None:
         request_timeout=40,
     )
     await client.list_buckets()
-    await client.from_("photos").list()
+    await client.from_("photos").remove(["photo.png"])
     assert read_timeouts(seen) == [40, 40]
 
 

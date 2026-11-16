@@ -10,7 +10,7 @@ from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 
 from storage3 import StorageFileApiClient
 from storage3.exceptions import StorageApiError
-from storage3.types import SortByType, SortByV2, TransformOptions
+from storage3.types import SortBy, TransformOptions
 
 from .utils import STORAGE_URL, call_with_client, use_async
 
@@ -204,7 +204,108 @@ async def test_error_with_binary_body_raises_storage_api_error(use_async: bool) 
 
 
 @use_async
-async def test_list_v2_allows_null_object_metadata(use_async: bool) -> None:
+async def test_list_sends_the_given_options_to_list_v2(use_async: bool) -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json={"hasNext": False, "folders": [], "objects": []})
+
+    result = await call_with_client(
+        use_async,
+        handler,
+        lambda client: client.from_("bucket").list(
+            "photos/", limit=2, cursor="opaque", with_delimiter=True
+        ),
+    )
+
+    assert not result.hasNext
+    assert result.nextCursor is None
+    (request,) = requests
+    assert request.method == "POST"
+    assert request.url.path == "/storage/v1/object/list-v2/bucket"
+    assert json.loads(request.content) == {
+        "prefix": "photos/",
+        "limit": 2,
+        "cursor": "opaque",
+        "with_delimiter": True,
+    }
+
+
+@use_async
+async def test_list_sends_an_empty_body_by_default(use_async: bool) -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json={"hasNext": False, "folders": [], "objects": []})
+
+    await call_with_client(
+        use_async, handler, lambda client: client.from_("bucket").list()
+    )
+
+    assert json.loads(requests[0].content) == {}
+
+
+@use_async
+async def test_list_returns_folder_rows_as_folders(use_async: bool) -> None:
+    response_body: dict[str, JSON] = {
+        "hasNext": True,
+        "nextCursor": "opaque",
+        "folders": [
+            {
+                "id": None,
+                "name": "photos/2024/",
+                "key": "2024",
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-02T00:00:00Z",
+                "last_accessed_at": None,
+                "metadata": None,
+            },
+            {"id": None, "name": "photos/archive/"},
+        ],
+        "objects": [
+            {
+                "id": "object-id",
+                "name": "photos/cat.png",
+                "key": "cat.png",
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z",
+                "last_accessed_at": "2024-01-03T00:00:00Z",
+                "metadata": {"mimetype": "image/png"},
+            }
+        ],
+    }
+
+    def handler(request: Request) -> Response:
+        return Response(200, json=response_body)
+
+    result = await call_with_client(
+        use_async,
+        handler,
+        lambda client: client.from_("bucket").list("photos/", with_delimiter=True),
+    )
+
+    assert result.hasNext
+    assert result.nextCursor == "opaque"
+    assert [folder.name for folder in result.folders] == [
+        "photos/2024/",
+        "photos/archive/",
+    ]
+    assert result.folders[0].key == "2024"
+    assert result.folders[0].created_at is not None
+    assert result.folders[1].created_at is None
+    assert result.folders[1].updated_at is None
+    (object,) = result.objects
+    assert object.id == "object-id"
+    assert object.name == "photos/cat.png"
+    assert object.key == "cat.png"
+    assert object.last_accessed_at is not None
+    assert object.metadata == {"mimetype": "image/png"}
+
+
+@use_async
+async def test_list_allows_null_object_metadata(use_async: bool) -> None:
     response_body: dict[str, JSON] = {
         "hasNext": False,
         "folders": [],
@@ -230,7 +331,7 @@ async def test_list_v2_allows_null_object_metadata(use_async: bool) -> None:
         return Response(200, json=response_body)
 
     result = await call_with_client(
-        use_async, handler, lambda client: client.from_("bucket").list_v2()
+        use_async, handler, lambda client: client.from_("bucket").list()
     )
 
     assert len(result.objects) == 2
@@ -310,14 +411,14 @@ async def test_get_public_url_rejects_dot_segments(path: str) -> None:
     ("sort_by", "expected"),
     [
         (
-            SortByV2(column="created_at", order="desc"),
+            SortBy(column="created_at", order="desc"),
             {"column": "created_at", "order": "desc"},
         ),
-        (SortByV2(), {"column": "name", "order": "asc"}),
+        (SortBy(), {"column": "name", "order": "asc"}),
     ],
 )
-async def test_list_v2_sends_sort_by(
-    use_async: bool, sort_by: SortByV2, expected: dict[str, str]
+async def test_list_sends_sort_by(
+    use_async: bool, sort_by: SortBy, expected: dict[str, str]
 ) -> None:
     requests: list[Request] = []
 
@@ -328,13 +429,13 @@ async def test_list_v2_sends_sort_by(
     await call_with_client(
         use_async,
         handler,
-        lambda client: client.from_("bucket").list_v2(sort_by=sort_by),
+        lambda client: client.from_("bucket").list(sort_by=sort_by),
     )
 
     assert json.loads(requests[0].content) == {"sortBy": expected}
 
 
-@pytest.mark.parametrize("options", [SortByType(), SortByV2(), TransformOptions()])
+@pytest.mark.parametrize("options", [SortBy(), TransformOptions()])
 def test_option_types_are_frozen(options: object) -> None:
     with pytest.raises(dataclasses.FrozenInstanceError):
         options.order = "desc"  # pyrefly: ignore[missing-attribute]
