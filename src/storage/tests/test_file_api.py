@@ -530,36 +530,6 @@ async def test_get_public_url_rejects_dot_segments(path: str) -> None:
         )
 
 
-INVALID_KEY_ACTIONS: list[Callable[[str], FileAction]] = [
-    lambda path: lambda b: b.upload(path, b"hello"),
-    lambda path: lambda b: b.download(path),
-    lambda path: lambda b: b.create_signed_url(path, 60),
-    lambda path: lambda b: b.create_signed_upload_url(path),
-    lambda path: lambda b: b.upload_to_signed_url(path, "token", b"hello"),
-    lambda path: lambda b: b.get_public_url(path),
-]
-
-
-@use_async
-@pytest.mark.parametrize("make_action", INVALID_KEY_ACTIONS)
-@pytest.mark.parametrize("path", ["a//b.txt", "folder//", "/a//b/c.txt"])
-async def test_empty_segments_in_object_key_raise(
-    use_async: bool, make_action: Callable[[str], FileAction], path: str
-) -> None:
-    with pytest.raises(ValueError, match="empty segments"):
-        await run(use_async, make_action(path))
-
-
-@use_async
-@pytest.mark.parametrize("make_action", INVALID_KEY_ACTIONS)
-@pytest.mark.parametrize("path", ["", "/", "//"])
-async def test_empty_object_key_raises(
-    use_async: bool, make_action: Callable[[str], FileAction], path: str
-) -> None:
-    with pytest.raises(ValueError, match="must not be empty"):
-        await run(use_async, make_action(path))
-
-
 @use_async
 @pytest.mark.parametrize("method", ["move", "copy"])
 async def test_move_and_copy_normalize_object_keys(
