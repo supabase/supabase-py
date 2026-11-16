@@ -1,11 +1,12 @@
 from collections.abc import Mapping
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from supabase_auth import AsyncSupportedStorage
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from supabase_utils.http.request import validate_request_timeout
 from supabase_utils.http.retry import RetryPolicy
 
+from ._defaults import DEFAULT_REQUEST_TIMEOUT
 from ._keys import _validate_string_argument
 from .client import AsyncClient
 from .types import (
@@ -15,6 +16,17 @@ from .types import (
     RealtimeClientOptions,
     StorageClientOptions,
 )
+
+
+def _default_session() -> ClientSession:
+    return ClientSession(
+        timeout=ClientTimeout(
+            total=None,
+            connect=DEFAULT_REQUEST_TIMEOUT,
+            sock_connect=DEFAULT_REQUEST_TIMEOUT,
+            sock_read=DEFAULT_REQUEST_TIMEOUT,
+        )
+    )
 
 
 def create_async_client(
@@ -33,9 +45,9 @@ def create_async_client(
 ) -> AsyncClient:
     """Create an async client that sends its requests with aiohttp.
 
-    `http_client` defaults to a new aiohttp client, which is closed with the
-    client. An `http_client` passed in is left open. See `AsyncClient` for the
-    other arguments.
+    `http_client` defaults to a new aiohttp client with a 60 second timeout,
+    which is closed with the client. An `http_client` passed in keeps its own
+    timeout and is left open. See `AsyncClient` for the other arguments.
     """
     _validate_string_argument("supabase_url", supabase_url)
     _validate_string_argument("supabase_key", supabase_key)
@@ -44,7 +56,7 @@ def create_async_client(
         supabase_url,
         supabase_key,
         AsyncAiohttpSession(
-            client=http_client or ClientSession(), owns_client=http_client is None
+            client=http_client or _default_session(), owns_client=http_client is None
         ),
         headers=headers,
         request_timeout=request_timeout,

@@ -7,6 +7,7 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.request import validate_request_timeout
 from supabase_utils.http.retry import RetryPolicy
 
+from ._defaults import DEFAULT_REQUEST_TIMEOUT
 from ._keys import _validate_string_argument
 from .client import AsyncClient, Client
 from .types import (
@@ -33,9 +34,9 @@ def create_client(
 ) -> Client:
     """Create a sync client that sends its requests with httpx.
 
-    `http_client` defaults to a new httpx client, which is closed with the
-    client. An `http_client` passed in is left open. See `Client` for the
-    other arguments.
+    `http_client` defaults to a new httpx client with a 60 second timeout,
+    which is closed with the client. An `http_client` passed in keeps its own
+    timeout and is left open. See `Client` for the other arguments.
     """
     _validate_string_argument("supabase_url", supabase_url)
     _validate_string_argument("supabase_key", supabase_key)
@@ -44,6 +45,7 @@ def create_client(
         http2=True,
         verify=True,
         follow_redirects=True,
+        timeout=DEFAULT_REQUEST_TIMEOUT,
     )
     client = Client(
         supabase_url,
@@ -77,9 +79,9 @@ def create_async_client(
 ) -> AsyncClient:
     """Create an async client that sends its requests with httpx.
 
-    `http_client` defaults to a new httpx client, which is closed with the
-    client. An `http_client` passed in is left open. See `AsyncClient` for the
-    other arguments.
+    `http_client` defaults to a new httpx client with a 60 second timeout,
+    which is closed with the client. An `http_client` passed in keeps its own
+    timeout and is left open. See `AsyncClient` for the other arguments.
     """
     _validate_string_argument("supabase_url", supabase_url)
     _validate_string_argument("supabase_key", supabase_key)
@@ -88,6 +90,7 @@ def create_async_client(
         http2=True,
         verify=True,
         follow_redirects=True,
+        timeout=DEFAULT_REQUEST_TIMEOUT,
     )
     client = AsyncClient(
         supabase_url,

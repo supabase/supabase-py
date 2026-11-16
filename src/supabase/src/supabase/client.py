@@ -107,9 +107,10 @@ class SupabaseClient[
             may go without progress before it fails with `RequestTimeoutError`.
             It limits how long the connection may stall, not the whole request,
             so a large transfer that keeps moving is not cut short. None (the
-            default) leaves the timeout to the HTTP client. The
-            `request_timeout` of a service's options overrides it for that
-            service.
+            default) leaves the timeout to the HTTP client, which is 60
+            seconds for the one `create_client` or `create_async_client`
+            creates. The `request_timeout` of a service's options overrides it
+            for that service.
         retry
             How requests to the database, auth, storage or edge functions
             that failed in a way worth repeating are retried. None (the
