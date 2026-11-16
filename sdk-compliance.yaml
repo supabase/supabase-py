@@ -901,9 +901,20 @@ features:
     symbols:
       - RealtimeClient.remove_all_channels
   realtime.client.connection_state:
-    status: not_implemented
-    note: "The v3 realtime client exposes no connection state."
-  realtime.client.listen_heartbeats: not_implemented
+    status: implemented
+    note: "RealtimeClient.connection_state is a ConnectionState: CONNECTING, CONNECTED or CLOSED. RealtimeClient.connection_states() is an async iterator that yields the current state, then every change, until the caller stops iterating."
+    symbols:
+      - RealtimeClient.connection_state
+      - RealtimeClient.connection_states
+    supporting_symbols:
+      - ConnectionState
+  realtime.client.listen_heartbeats:
+    status: implemented
+    note: "RealtimeClient.heartbeats() is an async iterator instead of a callback. It yields a HeartbeatStatus for every heartbeat: SENT, then OK when the server acknowledges it, ERROR when the server replies with an error, or TIMEOUT when it does not reply within heartbeat_timeout. ERROR and TIMEOUT drop the connection, which the client reopens when a channel is joined."
+    symbols:
+      - RealtimeClient.heartbeats
+    supporting_symbols:
+      - HeartbeatStatus
   realtime.client.set_auth_token:
     status: implemented
     symbols:

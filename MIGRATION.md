@@ -319,6 +319,8 @@ async for message in channel.messages:
 
 `channel.messages` no longer raises the `websockets.ConnectionClosed` or `TimeoutError` that dropped the connection of a joined channel. It yields a `ChannelStateChange` with the state `ERRORED` and that error, then one with the state `JOINED` once the channel is joined again, and keeps yielding the channel's messages. When the server rejects the new join for good, for example with an `AuthorizationError`, the channel is closed and `channel.messages` raises that error. A rejected token is retried once with a fresh one first.
 
+`RealtimeClient.is_connected` is removed. `client.connection_state` is the `ConnectionState` of the connection, `client.connection_states()` yields it every time it changes, and `client.heartbeats()` yields the `HeartbeatStatus` of every heartbeat. A heartbeat the server replies to with an error now drops the connection, like one it does not reply to.
+
 ## Realtime pushes time out and channel queues are bounded
 
 `subscribe()`, `unsubscribe()`, `track()`, `untrack()` and an acknowledged `send_broadcast()` raise `RealtimeTimeoutError`, also a built-in `TimeoutError`, when the server does not reply within `timeout` seconds, 10 by default. Before, they waited forever. Pass `timeout` to `connect_once`, `RealtimeClient` or `RealtimeClientOptions` to change it. A join that times out is left, so a late reply does not join the channel.

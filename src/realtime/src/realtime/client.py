@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable, Generator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from types import TracebackType
 from warnings import warn
 
@@ -13,8 +13,12 @@ from yarl import URL
 from ._redact import RedactingLoggerAdapter
 from ._serializer import decode, encode
 from .channel import QueuedMessage, RealtimeChannel, RealtimeChannelOptions
-from .exceptions import AuthorizationError, NotConnectedError, RealtimeTimeoutError
-from .message import Message, ReplyMessage
+from .exceptions import (
+    AuthorizationError,
+    NotConnectedError,
+    RealtimeTimeoutError,
+)
+from .message import ErrorReplyMessage, Message, ReplyMessage
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
     DEFAULT_HEARTBEAT_TIMEOUT,
@@ -23,6 +27,8 @@ from .types import (
     PHOENIX_CHANNEL,
     PROTOCOL_VERSION,
     ChannelEvents,
+    ConnectionState,
+    HeartbeatStatus,
     validate_heartbeat,
     validate_push_options,
 )
@@ -52,6 +58,13 @@ async def _wait_or_raise(
         fut.cancel()
         await failure
     return fut.result()
+
+
+def _publish[T](listeners: set[asyncio.Queue[T]], value: T) -> None:
+    for queue in listeners:
+        if queue.full():
+            queue.get_nowait()
+        queue.put_nowait(value)
 
 
 def normalize_url(url: URL, token: str | None) -> URL:
@@ -188,6 +201,9 @@ class RealtimeClient:
         self._connect_lock = asyncio.Lock()
         self._auth_lock = asyncio.Lock()
         self._token_is_manual = False
+        self._connection_state = ConnectionState.CLOSED
+        self._connection_state_listeners: set[asyncio.Queue[ConnectionState]] = set()
+        self._heartbeat_listeners: set[asyncio.Queue[HeartbeatStatus]] = set()
 
         self.ref = 0
         self.channels: dict[str, RealtimeChannel] = {}
@@ -210,14 +226,19 @@ class RealtimeClient:
             if self._is_connected():
                 return
             await self._drop_connection()
-            token = (
-                await self.get_access_token()
-                if self.get_access_token is not None
-                else None
-            )
-            websocket = await websockets.connect(
-                str(normalize_url(self.url, token)), logger=websockets_logger
-            )
+            self._set_connection_state(ConnectionState.CONNECTING)
+            try:
+                token = (
+                    await self.get_access_token()
+                    if self.get_access_token is not None
+                    else None
+                )
+                websocket = await websockets.connect(
+                    str(normalize_url(self.url, token)), logger=websockets_logger
+                )
+            except BaseException:
+                self._set_connection_state(ConnectionState.CLOSED)
+                raise
             if token and self.last_token is not None and not self._token_is_manual:
                 self.last_token = token
             loop = asyncio.get_running_loop()
@@ -228,7 +249,63 @@ class RealtimeClient:
             if self._session is None:
                 self._session = loop.create_future()
             self._listen_task = asyncio.create_task(self._listen(websocket, failure))
-            self._heartbeat_task = asyncio.create_task(self._heartbeat(failure))
+            self._heartbeat_task = asyncio.create_task(
+                self._heartbeat(websocket, failure)
+            )
+            self._set_connection_state(ConnectionState.CONNECTED)
+
+    @property
+    def connection_state(self) -> ConnectionState:
+        """The current state of the WebSocket connection."""
+        return self._connection_state
+
+    async def connection_states(self) -> AsyncGenerator[ConnectionState, None]:
+        """
+        Yield the current connection state, then every state the connection
+        moves to, until the caller stops iterating.
+
+        A dropped connection moves to `ConnectionState.CLOSED`, and to
+        `ConnectionState.CONNECTING` again when the client reconnects. At most
+        ``max_queued_messages`` states are kept until they are read; older ones
+        are dropped.
+        """
+        queue: asyncio.Queue[ConnectionState] = asyncio.Queue(
+            maxsize=self.max_queued_messages
+        )
+        self._connection_state_listeners.add(queue)
+        try:
+            yield self._connection_state
+            while True:
+                yield await queue.get()
+        finally:
+            self._connection_state_listeners.discard(queue)
+
+    async def heartbeats(self) -> AsyncGenerator[HeartbeatStatus, None]:
+        """
+        Yield the status of every heartbeat sent from the first iteration on,
+        until the caller stops iterating.
+
+        Each heartbeat yields `HeartbeatStatus.SENT`, then `HeartbeatStatus.OK`
+        when the server acknowledges it. An error reply yields
+        `HeartbeatStatus.ERROR`, and no reply within ``heartbeat_timeout``
+        yields `HeartbeatStatus.TIMEOUT`. Both drop the connection, which the
+        client reopens when a channel is joined. At most ``max_queued_messages``
+        statuses are kept until they are read; older ones are dropped.
+        """
+        queue: asyncio.Queue[HeartbeatStatus] = asyncio.Queue(
+            maxsize=self.max_queued_messages
+        )
+        self._heartbeat_listeners.add(queue)
+        try:
+            while True:
+                yield await queue.get()
+        finally:
+            self._heartbeat_listeners.discard(queue)
+
+    def _set_connection_state(self, state: ConnectionState) -> None:
+        if state != self._connection_state:
+            self._connection_state = state
+            _publish(self._connection_state_listeners, state)
 
     async def aclose(self) -> None:
         """
@@ -283,6 +360,7 @@ class RealtimeClient:
             await listen_task
         if failure is not None and failure.done() and not failure.cancelled():
             failure.exception()
+        self._set_connection_state(ConnectionState.CLOSED)
 
     def _connection(
         self, func_name: str
@@ -331,6 +409,7 @@ class RealtimeClient:
         failure.set_exception(exc)
         if failure is not self._connection_failure:
             return
+        self._set_connection_state(ConnectionState.CLOSED)
         loop = asyncio.get_running_loop()
         if loop.time() - self._connected_at >= MAX_RECONNECT_DELAY:
             self._reconnect_attempt = 0
@@ -401,7 +480,9 @@ class RealtimeClient:
         finally:
             get.cancel()
 
-    async def _heartbeat(self, failure: asyncio.Future[Message]) -> None:
+    async def _heartbeat(
+        self, websocket: ClientConnection, failure: asyncio.Future[Message]
+    ) -> None:
         try:
             while True:
                 data = Message(
@@ -411,14 +492,26 @@ class RealtimeClient:
                     ref=self._make_ref(),
                 )
                 logger.info("sending heartbeat")
+                _publish(self._heartbeat_listeners, HeartbeatStatus.SENT)
                 res = await self._send(data, reply_timeout=self.heartbeat_timeout)
                 logger.info("heartbeat response: %r", res)
+                if isinstance(res.payload, ErrorReplyMessage):
+                    _publish(self._heartbeat_listeners, HeartbeatStatus.ERROR)
+                    raise NotConnectedError(
+                        "RealtimeClient.heartbeats",
+                        "the server replied to a heartbeat with an error: "
+                        f"{res.payload.response!r}",
+                    )
+                _publish(self._heartbeat_listeners, HeartbeatStatus.OK)
                 await self._refresh_token_after_heartbeat()
                 await asyncio.sleep(self.heartbeat_interval)
         except asyncio.CancelledError:
             return
-        except (TimeoutError, websockets.ConnectionClosed) as exc:
+        except Exception as exc:
+            if isinstance(exc, TimeoutError):
+                _publish(self._heartbeat_listeners, HeartbeatStatus.TIMEOUT)
             self._fail_connection(failure, exc)
+            await websocket.close()
 
     async def _refresh_token_after_heartbeat(self) -> None:
         try:
