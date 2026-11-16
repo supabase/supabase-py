@@ -13,7 +13,9 @@ from storage3 import AsyncStorageClient, SyncStorageClient
 from supabase_auth import (
     AsyncSupabaseAuthClient,
     AsyncSupportedStorage,
+    AuthApiError,
     AuthChangeEvent,
+    AuthRetryableError,
     SyncSupabaseAuthClient,
     SyncSupportedStorage,
 )
@@ -469,7 +471,13 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         functions: FunctionsClientOptions | None = None,
         realtime: RealtimeClientOptions | None = None,
     ) -> AsyncClient:
-        """Create a client that uses the session in the session storage, if any."""
+        """Create a client that uses the session in the session storage, if any.
+
+        An expiring session is refreshed first. When the auth service rejects
+        its refresh token, the session is removed and the client starts
+        without one. Any other error, like a failing session storage or an
+        unreachable auth service, is raised.
+        """
         client = cls(
             supabase_url,
             supabase_key,
@@ -488,7 +496,9 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         if auth_header is None and not client._uses_secret_key:
             try:
                 session = await client.auth.get_session()
-            except Exception:
+            except AuthRetryableError:
+                raise
+            except AuthApiError:
                 session = None
             if session:
                 client._set_access_token(session.access_token)
@@ -709,7 +719,13 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         storage: StorageClientOptions | None = None,
         functions: FunctionsClientOptions | None = None,
     ) -> Client:
-        """Create a client that uses the session in the session storage, if any."""
+        """Create a client that uses the session in the session storage, if any.
+
+        An expiring session is refreshed first. When the auth service rejects
+        its refresh token, the session is removed and the client starts
+        without one. Any other error, like a failing session storage or an
+        unreachable auth service, is raised.
+        """
         client = cls(
             supabase_url,
             supabase_key,
@@ -727,7 +743,9 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         if auth_header is None and not client._uses_secret_key:
             try:
                 session = client.auth.get_session()
-            except Exception:
+            except AuthRetryableError:
+                raise
+            except AuthApiError:
                 session = None
             if session:
                 client._set_access_token(session.access_token)

@@ -2,6 +2,7 @@ import base64
 import json
 import re
 from concurrent.futures import ThreadPoolExecutor
+from typing import override
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -12,6 +13,7 @@ from realtime import RealtimeClient
 from supabase_auth import (
     AsyncMemoryStorage,
     AsyncSupabaseAuthClient,
+    AuthRetryableError,
     SyncMemoryStorage,
     SyncSupabaseAuthClient,
 )
@@ -780,3 +782,138 @@ def test_sync_client_shares_one_auth_client_between_threads() -> None:
             auth_clients = [future.result() for future in futures]
 
     assert all(auth is auth_clients[0] for auth in auth_clients)
+
+
+def expired_session_json() -> str:
+    return json.dumps(
+        {
+            "access_token": "storedjwt",
+            "refresh_token": "storedrefresh",
+            "token_type": "bearer",
+            "expires_in": 3600,
+            "expires_at": 1,
+            "user": {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "aud": "authenticated",
+                "app_metadata": {},
+                "user_metadata": {},
+                "created_at": "2026-01-01T00:00:00Z",
+            },
+        }
+    )
+
+
+def token_endpoint(status_code: int) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code,
+            json={"error_code": "refresh_token_not_found", "msg": "rejected"},
+        )
+
+    return httpx.MockTransport(handler)
+
+
+class FailingSyncStorage(SyncMemoryStorage):
+    @override
+    def get_item(self, key: str) -> str | None:
+        raise OSError("storage is unreachable")
+
+
+class FailingAsyncStorage(AsyncMemoryStorage):
+    @override
+    async def get_item(self, key: str) -> str | None:
+        raise OSError("storage is unreachable")
+
+
+NO_RETRY = RetryPolicy(max_retries=0)
+
+
+def test_sync_create_starts_without_a_session_when_its_refresh_is_rejected() -> None:
+    storage = SyncMemoryStorage()
+    storage.set_item(STORAGE_KEY, expired_session_json())
+    with SyncHttpxClient(transport=token_endpoint(400)) as http_client:
+        client = Client.create(
+            URL,
+            KEY,
+            HttpxSession(client=http_client),
+            auth=AuthClientOptions(session_storage=storage),
+        )
+
+    assert authorization_headers(client) == [f"Bearer {KEY}"] * 4
+    assert storage.storage == {}
+
+
+async def test_async_create_starts_without_a_session_when_its_refresh_is_rejected() -> (
+    None
+):
+    storage = AsyncMemoryStorage()
+    await storage.set_item(STORAGE_KEY, expired_session_json())
+    async with AsyncHttpxClient(transport=token_endpoint(400)) as http_client:
+        client = await AsyncClient.create(
+            URL,
+            KEY,
+            AsyncHttpxSession(client=http_client),
+            auth=AuthClientOptions(session_storage=storage),
+        )
+        await client.aclose()
+
+    assert authorization_headers(client) == [f"Bearer {KEY}"] * 4
+    assert storage.storage == {}
+
+
+def test_sync_create_raises_a_refresh_failure_worth_retrying() -> None:
+    storage = SyncMemoryStorage()
+    storage.set_item(STORAGE_KEY, expired_session_json())
+    with (
+        SyncHttpxClient(transport=token_endpoint(503)) as http_client,
+        pytest.raises(AuthRetryableError),
+    ):
+        Client.create(
+            URL,
+            KEY,
+            HttpxSession(client=http_client),
+            retry=NO_RETRY,
+            auth=AuthClientOptions(session_storage=storage),
+        )
+
+    assert STORAGE_KEY in storage.storage
+
+
+async def test_async_create_raises_a_refresh_failure_worth_retrying() -> None:
+    storage = AsyncMemoryStorage()
+    await storage.set_item(STORAGE_KEY, expired_session_json())
+    async with AsyncHttpxClient(transport=token_endpoint(503)) as http_client:
+        with pytest.raises(AuthRetryableError):
+            await AsyncClient.create(
+                URL,
+                KEY,
+                AsyncHttpxSession(client=http_client),
+                retry=NO_RETRY,
+                auth=AuthClientOptions(session_storage=storage),
+            )
+
+    assert STORAGE_KEY in storage.storage
+
+
+def test_sync_create_raises_a_session_storage_failure() -> None:
+    with (
+        SyncHttpxClient() as http_client,
+        pytest.raises(OSError, match="storage is unreachable"),
+    ):
+        Client.create(
+            URL,
+            KEY,
+            HttpxSession(client=http_client),
+            auth=AuthClientOptions(session_storage=FailingSyncStorage()),
+        )
+
+
+async def test_async_create_raises_a_session_storage_failure() -> None:
+    async with AsyncHttpxClient() as http_client:
+        with pytest.raises(OSError, match="storage is unreachable"):
+            await AsyncClient.create(
+                URL,
+                KEY,
+                AsyncHttpxSession(client=http_client),
+                auth=AuthClientOptions(session_storage=FailingAsyncStorage()),
+            )
