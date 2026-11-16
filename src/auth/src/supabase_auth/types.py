@@ -1038,7 +1038,7 @@ SignOutScope = Literal["global", "local", "others"]
 
 
 class JWTHeader(BaseModel, extra="allow"):
-    alg: Literal["RS256", "ES256", "HS256"]
+    alg: str | None = None
     typ: str | None = None
     kid: str | None = None
 
@@ -1048,6 +1048,7 @@ class JWTPayload(BaseModel, extra="allow"):
     sub: str | None = None
     auth: str | list[str] | None = None
     exp: int | None = None
+    nbf: int | None = None
     iat: int | None = None
     role: str | None = None
     aal: AuthenticatorAssuranceLevels | None = None
@@ -1063,10 +1064,11 @@ class ClaimsResponse:
 
 
 class JWK(BaseModel, extra="allow"):
-    kty: Literal["RSA", "EC", "oct"]
-    key_ops: list[str]
+    kty: str
+    key_ops: list[str] | None = None
     alg: str | None = None
     kid: str | None = None
+    crv: str | None = None
 
 
 class JWKSet(BaseModel):
