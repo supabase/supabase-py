@@ -274,7 +274,7 @@ def validate_expiration(expires_at: int | None) -> None:
         raise AuthInvalidJwtError("JWT has expired")
 
 
-def validate_not_before(not_before: float | None) -> None:
+def _validate_not_before(not_before: float | None) -> None:
     if not_before is not None and not_before > datetime.now(UTC).timestamp():
         raise AuthInvalidJwtError("JWT is not yet valid")
 
@@ -285,13 +285,13 @@ _LOCALLY_VERIFIABLE_ALGORITHMS = frozenset(
 _EDDSA_CURVES = frozenset({"Ed25519", "Ed448"})
 
 
-def is_locally_verifiable(header_alg: str | None) -> bool:
+def _is_locally_verifiable(header_alg: str | None) -> bool:
     """Whether a token with this header `alg` can be verified against the JWK
     Set rather than by the server."""
     return header_alg in _LOCALLY_VERIFIABLE_ALGORITHMS
 
 
-def bind_algorithm(jwk: JWK) -> str | None:
+def _bind_algorithm(jwk: JWK) -> str | None:
     """The algorithm the JWK verifies, taken from the key and never from the
     token header, or `None` when this SDK cannot verify with it. EdDSA keys
     bind to their curve, `Ed25519` or `Ed448`."""
@@ -308,13 +308,13 @@ def bind_algorithm(jwk: JWK) -> str | None:
             return None
 
 
-def header_names_algorithm(header_alg: str | None, bound: str) -> bool:
+def _header_names_algorithm(header_alg: str | None, bound: str) -> bool:
     if header_alg == bound:
         return True
     return header_alg == "EdDSA" and bound in _EDDSA_CURVES
 
 
-def verify_signature(decoded: DecodedJWT, jwk: JWK, bound: str) -> bool | None:
+def _verify_signature(decoded: DecodedJWT, jwk: JWK, bound: str) -> bool | None:
     """Checks the token signature with the JWK, or returns `None` when the
     runtime cannot import the key or perform the algorithm."""
     key_data = jwk.model_dump(exclude_none=True, exclude={"alg", "key_ops"})

@@ -48,15 +48,17 @@ from .errors import (
     UserDoesNotExistError,
 )
 from .helpers import (
+    _bind_algorithm,
     _handle_error_response,
+    _header_names_algorithm,
+    _is_locally_verifiable,
     _parse_verify_otp_response,
     _redirect_to_as_query,
-    bind_algorithm,
+    _validate_not_before,
+    _verify_signature,
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
-    header_names_algorithm,
-    is_locally_verifiable,
     parse_auth_otp_response,
     parse_auth_response,
     parse_jwks,
@@ -64,8 +66,6 @@ from .helpers import (
     parse_sso_response,
     parse_user_response,
     validate_expiration,
-    validate_not_before,
-    verify_signature,
 )
 from .mfa import AsyncSupabaseAuthMFAClient, SyncSupabaseAuthMFAClient
 from .session import (
@@ -816,14 +816,14 @@ class SupabaseAuthHttpClient[
 
         if not allow_expired:
             validate_expiration(payload.exp)
-        validate_not_before(payload.nbf)
+        _validate_not_before(payload.nbf)
 
-        if header.kid and is_locally_verifiable(header.alg):
+        if header.kid and _is_locally_verifiable(header.alg):
             jwk = yield from self._find_jwk(header.kid, jwks)
-            if jwk and (bound := bind_algorithm(jwk)):
-                if not header_names_algorithm(header.alg, bound):
+            if jwk and (bound := _bind_algorithm(jwk)):
+                if not _header_names_algorithm(header.alg, bound):
                     raise AuthInvalidJwtError("Invalid JWT signature")
-                verified = verify_signature(decoded_jwt, jwk, bound)
+                verified = _verify_signature(decoded_jwt, jwk, bound)
                 if verified is not None:
                     if not verified:
                         raise AuthInvalidJwtError("Invalid JWT signature")
