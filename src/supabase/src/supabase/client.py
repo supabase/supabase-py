@@ -17,10 +17,11 @@ from postgrest import AsyncPostgrestClient, SyncPostgrestClient
 from postgrest import RPCResponse as PostgrestRPCResponse
 from realtime import (
     AuthorizationError,
-    MaxRetriesExceeded,
+    ChannelJoinError,
     NotConnectedError,
     RealtimeClient,
     RealtimeError,
+    RealtimeTimeoutError,
 )
 from storage3 import (
     AsyncStorageClient,
@@ -114,16 +115,17 @@ __all__ = [
     "AuthUnknownError",
     "AuthWeakPasswordError",
     "AuthorizationError",
+    "ChannelJoinError",
     "Client",
     "FunctionsError",
     "FunctionsHttpError",
     "FunctionsRelayError",
-    "MaxRetriesExceeded",
     "NotConnectedError",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
     "PostgrestRPCResponse",
     "RealtimeError",
+    "RealtimeTimeoutError",
     "RequestTimeoutError",
     "RetryPolicy",
     "StorageApiError",
@@ -790,13 +792,16 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         that fails raises from `subscribe()`.
 
         It connects when the first channel subscribes, and disconnects when
-        its last channel is removed or this client is closed.
+        its last channel is removed or this client is closed. When the
+        connection drops, it reconnects and joins its channels again.
         """
         return RealtimeClient(
             str(self.realtime_url),
             token_callback=self._realtime_access_token,
             heartbeat_interval=self._realtime_options.heartbeat_interval,
             heartbeat_timeout=self._realtime_options.heartbeat_timeout,
+            timeout=self._realtime_options.timeout,
+            max_queued_messages=self._realtime_options.max_queued_messages,
         )
 
 

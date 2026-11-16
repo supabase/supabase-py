@@ -6,7 +6,7 @@ from supabase_utils.types import JSON
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
-from realtime import ChannelStates, RealtimeClient
+from realtime import ChannelStateChange, ChannelStates, RealtimeClient
 from realtime._serializer import decode, encode
 from realtime.message import (
     BroadcastMessage,
@@ -102,6 +102,15 @@ class FakeServer:
             for message in self.received
             if message.event != ChannelEvents.heartbeat
         ]
+
+
+def wait_an_hour(attempt: int) -> float:
+    return 3600.0
+
+
+@pytest.fixture(autouse=True)
+def no_reconnect(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("realtime.client.reconnect_delay", wait_an_hour)
 
 
 @pytest.fixture
@@ -261,6 +270,9 @@ async def test_a_heartbeat_timeout_moves_joined_channels_to_errored(
 
     assert errored == ChannelStates.ERRORED
     assert after_close == ChannelStates.ERRORED
+    queued = channel.message_stream.get_nowait()
+    assert isinstance(queued, ChannelStateChange)
+    assert queued.state == ChannelStates.ERRORED
     assert channel.message_stream.empty()
 
 
@@ -313,4 +325,6 @@ def test_state_transitions(
     channel._receive(Message(event=event, topic=channel.topic, payload={}))
 
     assert channel.state == expected
-    assert channel.message_stream.get_nowait().event == event
+    queued = channel.message_stream.get_nowait()
+    assert isinstance(queued, Message)
+    assert queued.event == event

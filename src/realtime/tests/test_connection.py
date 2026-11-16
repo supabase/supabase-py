@@ -19,7 +19,7 @@ from realtime import (
 )
 from realtime._serializer import decode
 from realtime.channel import RealtimeChannelOptions
-from realtime.client import connect_once, exponential_delay, normalize_url
+from realtime.client import connect_once, normalize_url
 from realtime.message import (
     BroadcastMessage,
     ChannelCloseMessage,
@@ -606,9 +606,3 @@ async def test_subscribe_does_not_store_the_token_in_shared_options() -> None:
 
     assert options.token is None
     assert sent[-1].payload["access_token"] == "user-token"
-
-
-def test_exponential_delay_stops_once_retries_reach_the_limit() -> None:
-    assert exponential_delay(1, 1) is None
-    assert exponential_delay(1, 2) is None
-    assert exponential_delay(3, 1) == 2

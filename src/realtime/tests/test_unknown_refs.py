@@ -100,9 +100,11 @@ async def test_orphan_reply_is_not_forwarded_to_the_channel(server: FakeServer) 
             Message(topic=channel.topic, event=ChannelEvents.leave, payload={}, ref="x")
         )
         await asyncio.sleep(0.1)
-        queued = []
+        queued: list[Message] = []
         while not channel.message_stream.empty():
-            queued.append(channel.message_stream.get_nowait())
+            message = channel.message_stream.get_nowait()
+            assert isinstance(message, Message)
+            queued.append(message)
         assert all(message.event != ChannelEvents.reply for message in queued)
         assert any(message.event == ChannelEvents.close for message in queued)
         assert not connection_failure(client).done()
@@ -135,6 +137,6 @@ async def test_unsubscribe_delivers_a_single_close(server: FakeServer) -> None:
         closes = []
         while not channel.message_stream.empty():
             message = channel.message_stream.get_nowait()
-            if message.event == ChannelEvents.close:
+            if isinstance(message, Message) and message.event == ChannelEvents.close:
                 closes.append(message)
         assert len(closes) == 1

@@ -46,8 +46,26 @@ class TestClientOptions:
 
     def test_realtime_options_default_to_realtime_defaults(self) -> None:
         assert RealtimeClientOptions() == RealtimeClientOptions(
-            heartbeat_interval=25, heartbeat_timeout=5
+            heartbeat_interval=25,
+            heartbeat_timeout=5,
+            timeout=10,
+            max_queued_messages=1000,
         )
+
+    @pytest.mark.parametrize(
+        ("timeout", "max_queued_messages", "message"),
+        [
+            (0, 1000, "timeout must be positive"),
+            (10, 0, "max_queued_messages must be positive"),
+        ],
+    )
+    def test_realtime_options_reject_non_positive_push_options(
+        self, timeout: float, max_queued_messages: int, message: str
+    ) -> None:
+        with pytest.raises(ValueError, match=message):
+            RealtimeClientOptions(
+                timeout=timeout, max_queued_messages=max_queued_messages
+            )
 
     def test_realtime_options_accept_fractional_seconds(self) -> None:
         realtime = RealtimeClientOptions(heartbeat_interval=7.5, heartbeat_timeout=2.5)

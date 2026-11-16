@@ -1,19 +1,14 @@
-import asyncio
-import socket
 from collections.abc import AsyncIterator
 from types import TracebackType
 
 import pytest
 from pydantic import TypeAdapter
 from websockets.asyncio.server import Server, ServerConnection, serve
-from websockets.exceptions import ConnectionClosedOK
+from websockets.exceptions import ConnectionClosed, ConnectionClosedOK
 
-from realtime import (
-    MaxRetriesExceeded,
-    RealtimeClient,
-)
+from realtime import ChannelStateChange, ChannelStates
 from realtime._serializer import decode, encode
-from realtime.client import automatically_reconnect, connect_once
+from realtime.client import connect_once
 from realtime.message import (
     AccessTokenMessage,
     ChannelLeaveMessage,
@@ -142,73 +137,17 @@ async def test_raises_on_send_presence(server: RealtimeServer) -> None:
         raise Exception("should have raised a connection error, but got nothing")
 
 
-async def test_raises_on_listen_message(server: RealtimeServer) -> None:
+async def test_yields_the_errored_state_when_the_connection_drops(
+    server: RealtimeServer,
+) -> None:
     async with (
         connect_once(server.url, get_token) as client,
         client.channel("test-channel") as channel,
     ):
         await server.close()
-        try:
-            async for _msg in channel.messages:
-                pass
-        except ConnectionClosedOK:
-            return
-        raise Exception("should have raised a connection error, but got nothing")
+        message = await anext(aiter(channel.messages))
 
-
-async def test_automatic_reconnection(server: RealtimeServer) -> None:
-    async def restart_server_after_2_seconds() -> None:
-        await asyncio.sleep(2)
-        await server.start()
-
-    async def client_callback(client: RealtimeClient) -> None:
-        return
-
-    await server.close()
-    restart = asyncio.create_task(restart_server_after_2_seconds())
-    await automatically_reconnect(server.url, get_token, client_callback, max_retries=3)
-    await restart
-
-
-async def test_automatic_reconnection_fails_after_max_retries() -> None:
-    async def client_callback(client: RealtimeClient) -> None:
-        return
-
-    with socket.socket() as unused:
-        unused.bind((HOST, 0))
-        port = unused.getsockname()[1]
-        try:
-            await automatically_reconnect(
-                f"http://{HOST}:{port}", get_token, client_callback, max_retries=3
-            )
-        except MaxRetriesExceeded:
-            return
-    raise Exception("expected max retries exceeded exception but got nothing")
-
-
-async def test_automatic_reconnection_calls_callback_when_connected(
-    server: RealtimeServer,
-) -> None:
-    called_twice = False
-    restart: asyncio.Task[None] | None = None
-
-    async def restart_server_after_1_second() -> None:
-        await asyncio.sleep(1)
-        await server.start()
-
-    async def client_callback(client: RealtimeClient) -> None:
-        nonlocal called_twice, restart
-        if called_twice:
-            return
-        called_twice = True
-        await server.close()
-        # reschedule server to re-start 1 second later
-        restart = asyncio.create_task(restart_server_after_1_second())
-        # this should raise when the server is offline
-        async with client.channel("test-channel"):
-            pass
-
-    await automatically_reconnect(server.url, get_token, client_callback, max_retries=3)
-    assert called_twice
-    assert restart is not None
-    await restart
+        assert isinstance(message, ChannelStateChange)
+        assert message.state == ChannelStates.ERRORED
+        assert isinstance(message.error, ConnectionClosed)
+        assert channel.state == ChannelStates.ERRORED

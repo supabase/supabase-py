@@ -3,7 +3,10 @@ from dataclasses import dataclass
 from realtime.types import (
     DEFAULT_HEARTBEAT_INTERVAL,
     DEFAULT_HEARTBEAT_TIMEOUT,
+    DEFAULT_MAX_QUEUED_MESSAGES,
+    DEFAULT_TIMEOUT,
     validate_heartbeat,
+    validate_push_options,
 )
 from supabase_auth import AsyncSupportedStorage, AuthFlowType, SyncSupportedStorage
 from supabase_auth.constants import STORAGE_KEY
@@ -21,8 +24,15 @@ class RealtimeClientOptions:
     heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT
     """Seconds to wait for a heartbeat reply before the connection is considered lost. Must be positive."""
 
+    timeout: float = DEFAULT_TIMEOUT
+    """Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast. Must be positive."""
+
+    max_queued_messages: int = DEFAULT_MAX_QUEUED_MESSAGES
+    """Messages each channel keeps until they are read from `RealtimeChannel.messages`. When a channel's queue is full, its oldest message is dropped and a warning is logged. Must be positive."""
+
     def __post_init__(self) -> None:
         validate_heartbeat(self.heartbeat_interval, self.heartbeat_timeout)
+        validate_push_options(self.timeout, self.max_queued_messages)
 
 
 @dataclass(frozen=True, kw_only=True)

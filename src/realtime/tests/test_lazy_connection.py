@@ -58,6 +58,15 @@ class FakeServer:
             await connection.close()
 
 
+def wait_an_hour(attempt: int) -> float:
+    return 3600.0
+
+
+@pytest.fixture(autouse=True)
+def no_reconnect(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("realtime.client.reconnect_delay", wait_an_hour)
+
+
 @pytest.fixture
 async def server() -> AsyncIterator[FakeServer]:
     async with FakeServer() as server:
@@ -167,7 +176,7 @@ async def test_close_wakes_a_reader_waiting_for_messages(server: FakeServer) -> 
     await asyncio.sleep(0.05)
     await client.aclose()
 
-    with pytest.raises(ConnectionClosed):
+    with pytest.raises(NotConnectedError):
         await asyncio.wait_for(reader, timeout=1)
 
 
