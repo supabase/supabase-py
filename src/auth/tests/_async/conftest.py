@@ -1,3 +1,5 @@
+import base64
+import json
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from random import random
@@ -17,6 +19,11 @@ from supabase_auth.types import (
 
 from ..conftest import fake
 from ..http_sessions import async_http_sessions as http_sessions
+
+
+def base64url_segment(value: object) -> str:
+    raw = value if isinstance(value, bytes) else json.dumps(value).encode()
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
 
 def mock_access_token() -> str:

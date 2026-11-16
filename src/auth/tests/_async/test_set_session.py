@@ -1,14 +1,15 @@
-import base64
-import json
 import time
-from typing import Any
 
+import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 from supabase_utils.types import JSON
 
 from supabase_auth import AsyncSupabaseAuthClient
+from supabase_auth.errors import AuthInvalidJwtError
 from supabase_auth.types import AuthChangeEvent, AuthStateChange
+
+from .conftest import base64url_segment
 
 USER: dict[str, JSON] = {
     "id": "11111111-1111-1111-1111-111111111111",
@@ -20,15 +21,10 @@ USER: dict[str, JSON] = {
 }
 
 
-def b64(value: dict[str, Any]) -> str:
-    raw = json.dumps(value, separators=(",", ":")).encode()
-    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
-
-
 def token(exp: int) -> str:
-    header = b64({"alg": "HS256", "typ": "JWT"})
-    payload = b64({"exp": exp, "sub": USER["id"]})
-    return f"{header}.{payload}.{b64({'sig': 1})}"
+    header = base64url_segment({"alg": "HS256", "typ": "JWT"})
+    payload = base64url_segment({"exp": exp, "sub": USER["id"]})
+    return f"{header}.{payload}.{base64url_segment({'sig': 1})}"
 
 
 def mock_client(requests: list[Request] | None = None) -> AsyncSupabaseAuthClient:
@@ -101,3 +97,24 @@ async def test_set_session_stores_the_expiry_of_the_access_token() -> None:
     assert session is not None
     assert session.access_token == token(exp)
     assert [request.url.path for request in requests] == ["/user"]
+
+
+@pytest.mark.parametrize(
+    "access_token",
+    [
+        f"{base64url_segment({'typ': 'JWT'})}.{base64url_segment({'exp': 1})}.sig",
+        f"{base64url_segment({'alg': 'HS256'})}.{base64url_segment(b'not json')}.sig",
+        "\u00e9.\u00e9.\u00e9",
+    ],
+    ids=["alg-missing", "payload-not-json", "non-ascii"],
+)
+async def test_set_session_raises_auth_error_for_malformed_jwt(
+    access_token: str,
+) -> None:
+    requests: list[Request] = []
+    client = mock_client(requests)
+
+    with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure"):
+        await client.set_session(access_token, "refresh-token")
+
+    assert requests == []

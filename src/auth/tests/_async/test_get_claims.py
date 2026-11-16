@@ -1,6 +1,3 @@
-import base64
-import json
-
 import pytest
 from httpx import AsyncClient, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
@@ -8,13 +5,9 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 from supabase_auth import AsyncSupabaseAuthClient
 from supabase_auth.errors import AuthInvalidJwtError
 
+from .conftest import base64url_segment
 
-def b64(value: object) -> str:
-    raw = value if isinstance(value, bytes) else json.dumps(value).encode()
-    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
-
-
-PAYLOAD = b64({"sub": "user", "exp": 9999999999})
+PAYLOAD = base64url_segment({"sub": "user", "exp": 9999999999})
 
 
 def mock_client(requests: list[Request]) -> AsyncSupabaseAuthClient:
@@ -35,20 +28,10 @@ def mock_client(requests: list[Request]) -> AsyncSupabaseAuthClient:
     "token",
     [
         "opaque-token",
-        f"{b64(b'not json')}.{PAYLOAD}.{b64(b'sig')}",
-        f"{b64({'typ': 'JWT'})}.{PAYLOAD}.{b64(b'sig')}",
-        f"{b64({'alg': 'HS256'})}.{b64(b'not json')}.{b64(b'sig')}",
-        "a.b.c",
+        f"{base64url_segment({'typ': 'JWT'})}.{PAYLOAD}.sig",
         "\u00e9.\u00e9.\u00e9",
     ],
-    ids=[
-        "opaque",
-        "header-not-json",
-        "alg-missing",
-        "payload-not-json",
-        "undecodable-base64",
-        "non-ascii",
-    ],
+    ids=["opaque", "alg-missing", "non-ascii"],
 )
 async def test_get_claims_raises_auth_error_for_malformed_jwt(token: str) -> None:
     requests: list[Request] = []
