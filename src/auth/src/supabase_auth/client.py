@@ -20,7 +20,6 @@ from typing import (
 )
 from urllib.parse import parse_qsl, urlsplit
 
-from jwt import get_algorithm_by_name
 from pydantic import BaseModel
 from supabase_utils.http.errors import SupabaseAPIError
 from supabase_utils.http.headers import Headers
@@ -49,9 +48,14 @@ from .errors import (
     UserDoesNotExistError,
 )
 from .helpers import (
+    _bind_algorithm,
     _handle_error_response,
+    _header_names_algorithm,
+    _is_locally_verifiable,
     _parse_verify_otp_response,
     _redirect_to_as_query,
+    _validate_not_before,
+    _verify_signature,
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
@@ -127,6 +131,14 @@ def _parse_url_params(url: str) -> dict[str, str]:
 def _is_implicit_grant_flow(url: str) -> bool:
     params = _parse_url_params(url)
     return "access_token" in params or "error_description" in params
+
+
+_JWKS_REFETCH_MIN_WAIT = 1.0
+_JWKS_REFETCH_MAX_WAIT = 16.0
+
+
+def _jwk_by_kid(jwks: JWKSet, kid: str) -> JWK | None:
+    return next((jwk for jwk in jwks.keys if jwk.kid == kid), None)
 
 
 _PASSWORD_RECOVERY_MARKER = "PASSWORD_RECOVERY"
@@ -270,6 +282,8 @@ class SupabaseAuthHttpClient[
     append_flow_id_to_redirects: bool = False
     _jwks_ttl: float = 600  # 10 minutes
     _jwks_cached_at: float | None = None
+    _jwks_refetch_wait: float = 0
+    _jwks_refetch_blocked_until: float = 0
 
     def _new_pkce_flow(self) -> _PKCEFlow | None:
         if self.flow_type != "pkce":
@@ -746,74 +760,77 @@ class SupabaseAuthHttpClient[
         auth_response = parse_auth_response(response)
         return auth_response
 
-    def _fetch_jwks(self, kid: str, jwks: JWKSet) -> HttpMethod[JWK]:
-        jwk: JWK | None = None
-
-        # try fetching from the suplied keys.
-        jwk = next((jwk for jwk in jwks.keys if jwk.kid == kid), None)
-
-        if jwk:
-            return jwk
-
-        if self._jwks and (
-            self._jwks_cached_at and time.time() - self._jwks_cached_at < self._jwks_ttl
-        ):
-            # try fetching from the cache.
-            jwk = next(
-                (jwk for jwk in self._jwks.keys if jwk.kid == kid),
-                None,
-            )
-            if jwk:
-                return jwk
-
-        # jwk isn't cached in memory so we need to fetch it from the well-known endpoint
+    def _download_jwks(self) -> HttpMethod[JWKSet]:
         response = yield EmptyRequest(method="GET", path=[".well-known", "jwks.json"])
         jwks = parse_jwks(response)
-
         self._jwks = jwks
         self._jwks_cached_at = time.time()
+        return jwks
 
-        # find the signing key
-        jwk = next((jwk for jwk in jwks.keys if jwk.kid == kid), None)
-        if not jwk:
-            raise AuthInvalidJwtError("No matching signing key found in JWKS")
+    def _extend_jwks_refetch_wait(self) -> None:
+        self._jwks_refetch_wait = min(
+            self._jwks_refetch_wait * 2 or _JWKS_REFETCH_MIN_WAIT,
+            _JWKS_REFETCH_MAX_WAIT,
+        )
+        self._jwks_refetch_blocked_until = time.time() + self._jwks_refetch_wait
+
+    def _find_jwk(self, kid: str, jwks: JWKSet | None) -> HttpMethod[JWK | None]:
+        """The JWK for `kid`, or `None` when the token has to be verified by
+        the server instead."""
+        if jwks and (jwk := _jwk_by_kid(jwks, kid)):
+            return jwk
+
+        now = time.time()
+        if self._jwks_cached_at is None or now - self._jwks_cached_at >= self._jwks_ttl:
+            fetched = yield from self._download_jwks()
+            return _jwk_by_kid(fetched, kid)
+
+        if jwk := _jwk_by_kid(self._jwks, kid):
+            return jwk
+        if now < self._jwks_refetch_blocked_until:
+            return None
+
+        # Started before the download, as a transport error is raised outside
+        # this generator.
+        self._extend_jwks_refetch_wait()
+        try:
+            refetched = yield from self._download_jwks()
+        finally:
+            self._jwks_refetch_blocked_until = time.time() + self._jwks_refetch_wait
+        jwk = _jwk_by_kid(refetched, kid)
+        if jwk:
+            self._jwks_refetch_wait = 0
+            self._jwks_refetch_blocked_until = 0
         return jwk
 
     @handle_http_io
     def _get_claims(
-        self, jwt: str, jwks: JWKSet | None = None
+        self, jwt: str, jwks: JWKSet | None = None, *, allow_expired: bool = False
     ) -> HttpMethod[ClaimsResponse]:
         decoded_jwt = decode_jwt(jwt)
-
-        validate_expiration(decoded_jwt.payload.exp)
         header = decoded_jwt.header
         payload = decoded_jwt.payload
-        signature = decoded_jwt.signature
-        # if symmetric algorithm, fallback to get_user
-        if not header.kid or header.alg == "HS256":
-            yield from self.session_manager._get_user(jwt)
-            return ClaimsResponse(
-                claims=decoded_jwt.payload,
-                headers=decoded_jwt.header,
-                signature=decoded_jwt.signature,
-            )
-
-        algorithm = get_algorithm_by_name(header.alg)
-        jwk_set = yield from self._fetch_jwks(header.kid, jwks or JWKSet(keys=[]))
-        signing_key = algorithm.from_jwk(dict(jwk_set))
-
-        # verify the signature
-        is_valid = algorithm.verify(
-            msg=f"{decoded_jwt.raw_header}.{decoded_jwt.raw_payload}".encode(),
-            key=signing_key,
-            sig=signature,
+        claims = ClaimsResponse(
+            claims=payload, headers=header, signature=decoded_jwt.signature
         )
 
-        if not is_valid:
-            raise AuthInvalidJwtError("Invalid JWT signature")
+        if not allow_expired:
+            validate_expiration(payload.exp)
+        _validate_not_before(payload.nbf)
 
-        # If verification succeeds, decode and return claims
-        return ClaimsResponse(claims=payload, headers=header, signature=signature)
+        if header.kid and _is_locally_verifiable(header.alg):
+            jwk = yield from self._find_jwk(header.kid, jwks)
+            if jwk and (bound := _bind_algorithm(jwk)):
+                if not _header_names_algorithm(header.alg, bound):
+                    raise AuthInvalidJwtError("Invalid JWT signature")
+                verified = _verify_signature(decoded_jwt, jwk, bound)
+                if verified is not None:
+                    if not verified:
+                        raise AuthInvalidJwtError("Invalid JWT signature")
+                    return claims
+
+        yield from self.session_manager._get_user(jwt)
+        return claims
 
 
 class AsyncSupabaseAuthClient(
@@ -1411,14 +1428,29 @@ class AsyncSupabaseAuthClient(
         return self.session_manager.subscribe(callback)
 
     async def get_claims(
-        self, jwt: str | None = None, jwks: JWKSet | None = None
+        self,
+        jwt: str | None = None,
+        jwks: JWKSet | None = None,
+        *,
+        allow_expired: bool = False,
     ) -> ClaimsResponse | None:
+        """
+        Verifies a JWT and returns its claims, header and signature.
+
+        `jwt` defaults to the current session's access token. Tokens signed
+        with an asymmetric key are verified locally against the project's JWK
+        Set, which is cached for ten minutes. Any other token is verified by
+        calling `get_user`. `jwks` adds keys to look up before the cached set.
+        `allow_expired` skips the expiry check, so a token that already
+        expired can still be inspected. The signature is still verified, and
+        a token verified by `get_user` is still rejected by the server.
+        """
         if not jwt:
             session = await self.get_session()
             if not session:
                 return None
             jwt = session.access_token
-        return await self._get_claims(jwt, jwks)
+        return await self._get_claims(jwt, jwks, allow_expired=allow_expired)
 
 
 class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionManager]):
@@ -1996,11 +2028,26 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         return self.session_manager.subscribe(callback)
 
     def get_claims(
-        self, jwt: str | None = None, jwks: JWKSet | None = None
+        self,
+        jwt: str | None = None,
+        jwks: JWKSet | None = None,
+        *,
+        allow_expired: bool = False,
     ) -> ClaimsResponse | None:
+        """
+        Verifies a JWT and returns its claims, header and signature.
+
+        `jwt` defaults to the current session's access token. Tokens signed
+        with an asymmetric key are verified locally against the project's JWK
+        Set, which is cached for ten minutes. Any other token is verified by
+        calling `get_user`. `jwks` adds keys to look up before the cached set.
+        `allow_expired` skips the expiry check, so a token that already
+        expired can still be inspected. The signature is still verified, and
+        a token verified by `get_user` is still rejected by the server.
+        """
         if not jwt:
             session = self.get_session()
             if not session:
                 return None
             jwt = session.access_token
-        return self._get_claims(jwt, jwks)
+        return self._get_claims(jwt, jwks, allow_expired=allow_expired)

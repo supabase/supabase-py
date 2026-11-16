@@ -11,6 +11,9 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlparse
 
+from cryptography.exceptions import UnsupportedAlgorithm
+from jwt import PyJWK
+from jwt.exceptions import PyJWTError
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from supabase_utils.http.query import URLQuery
 
@@ -25,6 +28,7 @@ from .errors import (
     RawApiError,
 )
 from .types import (
+    JWK,
     AuthOtpResponse,
     AuthResponse,
     GenerateLinkProperties,
@@ -106,11 +110,7 @@ def parse_sso_response(response: Response) -> SSOResponse:
 
 
 def parse_jwks(response: Response) -> JWKSet:
-    jwk = _validate_model(response, JWKSet)
-    if len(jwk.keys) == 0:
-        raise AuthInvalidJwtError("JWKS is empty")
-
-    return jwk
+    return _validate_model(response, JWKSet)
 
 
 def _validate_model[Model: BaseModel](response: Response, model: type[Model]) -> Model:
@@ -272,6 +272,62 @@ def validate_expiration(expires_at: int | None) -> None:
     time_now = datetime.now(UTC).timestamp()
     if expires_at <= time_now:
         raise AuthInvalidJwtError("JWT has expired")
+
+
+def _validate_not_before(not_before: float | None) -> None:
+    if not_before is not None and not_before > datetime.now(UTC).timestamp():
+        raise AuthInvalidJwtError("JWT is not yet valid")
+
+
+_LOCALLY_VERIFIABLE_ALGORITHMS = frozenset(
+    {"RS256", "ES256", "EdDSA", "Ed25519", "Ed448"}
+)
+_EDDSA_CURVES = frozenset({"Ed25519", "Ed448"})
+
+
+def _is_locally_verifiable(header_alg: str | None) -> bool:
+    """Whether a token with this header `alg` can be verified against the JWK
+    Set rather than by the server."""
+    return header_alg in _LOCALLY_VERIFIABLE_ALGORITHMS
+
+
+def _bind_algorithm(jwk: JWK) -> str | None:
+    """The algorithm the JWK verifies, taken from the key and never from the
+    token header, or `None` when this SDK cannot verify with it. EdDSA keys
+    bind to their curve, `Ed25519` or `Ed448`."""
+    match jwk.kty, jwk.crv, jwk.alg:
+        case "RSA", _, None | "RS256":
+            return "RS256"
+        case "EC", "P-256", None | "ES256":
+            return "ES256"
+        case "OKP", "Ed25519" | "Ed448" as curve, None | "EdDSA":
+            return curve
+        case "OKP", "Ed25519" | "Ed448" as curve, alg if alg == curve:
+            return curve
+        case _:
+            return None
+
+
+def _header_names_algorithm(header_alg: str | None, bound: str) -> bool:
+    if header_alg == bound:
+        return True
+    return header_alg == "EdDSA" and bound in _EDDSA_CURVES
+
+
+def _verify_signature(decoded: DecodedJWT, jwk: JWK, bound: str) -> bool | None:
+    """Checks the token signature with the JWK, or returns `None` when the
+    runtime cannot import the key or perform the algorithm."""
+    key_data = jwk.model_dump(exclude_none=True, exclude={"alg", "key_ops"})
+    algorithm = "EdDSA" if bound in _EDDSA_CURVES else bound
+    try:
+        key = PyJWK(key_data, algorithm)
+    except (PyJWTError, UnsupportedAlgorithm):
+        return None
+    signing_input = f"{decoded.raw_header}.{decoded.raw_payload}".encode()
+    try:
+        return key.Algorithm.verify(signing_input, key.key, decoded.signature)
+    except UnsupportedAlgorithm:
+        return None
 
 
 def is_valid_uuid(value: str) -> bool:

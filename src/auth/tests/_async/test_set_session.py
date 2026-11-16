@@ -102,7 +102,7 @@ async def test_set_session_stores_the_expiry_of_the_access_token() -> None:
 @pytest.mark.parametrize(
     "access_token",
     [
-        f"{base64url_segment({'typ': 'JWT'})}.{base64url_segment({'exp': 1})}.sig",
+        f"{base64url_segment(['JWT'])}.{base64url_segment({'exp': 1})}.sig",
         f"{base64url_segment({'alg': 'HS256'})}.{base64url_segment(b'not json')}.sig",
         "\u00e9.\u00e9.\u00e9",
         "opaque-token",
@@ -110,7 +110,7 @@ async def test_set_session_stores_the_expiry_of_the_access_token() -> None:
         f"{base64url_segment({'alg': 'HS256'})}..sig",
     ],
     ids=[
-        "alg-missing",
+        "header-array",
         "payload-not-json",
         "non-ascii",
         "no-dots",

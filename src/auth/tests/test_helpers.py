@@ -66,9 +66,8 @@ def test_parse_jwks_raises_the_api_error_of_an_error_response() -> None:
     assert exc_info.value.code is ErrorCode.NO_AUTHORIZATION
 
 
-def test_parse_jwks_raises_on_an_empty_key_set() -> None:
-    with pytest.raises(AuthInvalidJwtError, match="JWKS is empty"):
-        parse_jwks(error_response(200, {"keys": []}))
+def test_parse_jwks_accepts_an_empty_key_set() -> None:
+    assert parse_jwks(error_response(200, {"keys": []})).keys == []
 
 
 def test_decode_jwt() -> None:
@@ -97,9 +96,6 @@ _PAYLOAD = {"sub": "user", "exp": 9999999999}
     [
         _token(b"not json", _PAYLOAD),
         _token(_HEADER, b"not json"),
-        _token({"alg": "none", "typ": "JWT"}, _PAYLOAD),
-        _token({"alg": "EdDSA", "typ": "JWT"}, _PAYLOAD),
-        _token({"typ": "JWT"}, _PAYLOAD),
         _token([_HEADER], _PAYLOAD),
         _token(_HEADER, {"sub": "user", "exp": "soon"}),
         "a.b.c",
@@ -109,9 +105,6 @@ _PAYLOAD = {"sub": "user", "exp": 9999999999}
     ids=[
         "header-not-json",
         "payload-not-json",
-        "alg-none",
-        "alg-eddsa",
-        "alg-missing",
         "header-array",
         "exp-string",
         "undecodable-base64",
@@ -122,6 +115,13 @@ _PAYLOAD = {"sub": "user", "exp": 9999999999}
 def test_decode_jwt_raises_auth_error_for_malformed_segments(token: str) -> None:
     with pytest.raises(AuthInvalidJwtError, match=r"Invalid JWT structure"):
         decode_jwt(token)
+
+
+@pytest.mark.parametrize("alg", ["none", "EdDSA", "PS512", None])
+def test_decode_jwt_reads_alg_as_an_opaque_string(alg: str | None) -> None:
+    header = {"typ": "JWT"} if alg is None else {"alg": alg, "typ": "JWT"}
+
+    assert decode_jwt(_token(header, _PAYLOAD)).header.alg == alg
 
 
 def test_decode_jwt_accepts_header_without_typ() -> None:
