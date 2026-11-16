@@ -958,7 +958,6 @@ features:
     supporting_symbols:
       - PostgresChangesMessage
       - PostgresChangesPayload
-      - PostgresChangesData
       - PostgresChangesColumn
       - PostgresChangesBinding
       - PostgresRowChange

@@ -181,8 +181,17 @@ async with client.channel("db-changes", options) as channel:
     print("Ready to receive database changes!")
     async for message in channel.messages:
         if isinstance(message, PostgresChangesMessage):
-            print("Change received: ", message.payload)
+            change = message.payload
+            print(change.event, change.table, change.commit_timestamp)
+            print("New row:", change.record)
+            print("Old row:", change.old_record)
 ```
+
+`record` is the row after the change and is `None` for a delete. `old_record`
+is the row before the change and is `None` for an insert. Without
+`REPLICA IDENTITY FULL` on the table, `old_record` holds only the primary key
+columns. `errors` lists the errors the server reported for the change, such as
+a row too large to send.
 
 ### Filters
 
@@ -216,7 +225,11 @@ reduces payload size (helpful for large `bytea`/`jsonb` columns). The selected
 columns must be selectable by the subscribing role:
 
 ```python
-from realtime import RealtimeChannelOptions, RealtimePostgresChangesListenEvent
+from realtime import (
+    PostgresChangesMessage,
+    RealtimeChannelOptions,
+    RealtimePostgresChangesListenEvent,
+)
 
 options = RealtimeChannelOptions().postgres_changes(
     RealtimePostgresChangesListenEvent.All,
@@ -227,8 +240,9 @@ options = RealtimeChannelOptions().postgres_changes(
 
 async with client.channel("db-changes", options) as channel:
     async for message in channel.messages:
-        # the record only contains {"id": ..., "first_name": ...}
-        print("Selected columns only: ", message)
+        if isinstance(message, PostgresChangesMessage):
+            # the record only contains {"id": ..., "first_name": ...}
+            print("Selected columns only: ", message.payload.record)
 ```
 
 ## Get All Channels

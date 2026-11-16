@@ -240,6 +240,22 @@ Messages queued on a channel, like the close message of `unsubscribe()`, can sti
 
 `RealtimeClient.close()` is renamed to `aclose()`, the name Python uses for an async close, so `contextlib.aclosing(client)` works. `close()` is removed.
 
+## Realtime postgres changes have a flat payload
+
+The payload of a `PostgresChangesMessage` is a `PostgresChangesPayload` model with the change at its top level. The `data` level and `PostgresChangesData` are removed.
+
+| Before                                                 | After                                                                     |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `payload["data"]["record"]`                            | `message.payload.record`                                                  |
+| `payload["data"]["old_record"]`                        | `message.payload.old_record`                                              |
+| `payload["data"]["type"]`                              | `message.payload.event`                                                   |
+| `payload["data"]["schema"]`                            | `message.payload.schema_`                                                 |
+| `payload["data"]["commit_timestamp"]`, a `str`         | `message.payload.commit_timestamp`, a timezone-aware `datetime`           |
+| `payload["data"]["errors"]`, a `str`, a list or `None` | `message.payload.errors`, a `list[str]` that is empty when there are none |
+| `payload["ids"]`                                       | `message.payload.ids`                                                     |
+
+`record` is `None` for a delete and `old_record` is `None` for an insert. They are the `new` and `old` fields of supabase-js.
+
 ## Auth `persist_session` is removed and `storage_key` takes effect
 
 `AsyncSupabaseAuthClient` and `SyncSupabaseAuthClient` no longer take `persist_session`. It was never passed on to the session manager, so it had no effect. To keep the session only in memory, leave `storage` out. Each client then gets its own memory storage, so clients created per request do not share a session.
