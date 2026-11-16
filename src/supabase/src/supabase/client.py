@@ -152,7 +152,7 @@ class SupabaseException(SupabaseError):
     when `auth` is used on a client returned by `with_token()`."""
 
 
-def _validate_str_arg(name: str, value: object) -> None:
+def _validate_string_argument(name: str, value: object) -> None:
     if value is not None and not isinstance(value, str):
         raise SupabaseException(f"{name} must be a string, not {type(value).__name__}")
     if not value:
@@ -265,8 +265,8 @@ class SupabaseClient[
         functions
             Options for the edge functions client.
         """
-        _validate_str_arg("supabase_url", supabase_url)
-        _validate_str_arg("supabase_key", supabase_key)
+        _validate_string_argument("supabase_url", supabase_url)
+        _validate_string_argument("supabase_key", supabase_key)
 
         try:
             self.supabase_url = URL(

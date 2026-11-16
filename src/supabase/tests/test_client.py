@@ -45,8 +45,7 @@ INVALID_URLS = [
     "https://example.supabase.co:99999",
 ]
 
-INVALID_URL_AND_KEY: list[tuple[object, object, str]] = [
-    *[(url, KEY, "Invalid URL") for url in INVALID_URLS],
+MISSING_OR_NON_STRING_URL_AND_KEY: list[tuple[object, object, str]] = [
     ("", KEY, "supabase_url is required"),
     (None, KEY, "supabase_url is required"),
     (139, KEY, "supabase_url must be a string, not int"),
@@ -61,6 +60,11 @@ INVALID_URL_AND_KEY: list[tuple[object, object, str]] = [
     (URL, [], "supabase_key must be a string, not list"),
     (None, 139, "supabase_url is required"),
     (139, None, "supabase_url must be a string, not int"),
+]
+
+INVALID_URL_AND_KEY = [
+    *[(url, KEY, "Invalid URL") for url in INVALID_URLS],
+    *MISSING_OR_NON_STRING_URL_AND_KEY,
 ]
 
 
@@ -90,6 +94,31 @@ async def test_async_client_rejects_an_invalid_url_or_key(
                 key,  # pyrefly: ignore[bad-argument-type]
                 AsyncHttpxSession(client=http_client),
             )
+
+
+@pytest.mark.parametrize(("url", "key", "message"), MISSING_OR_NON_STRING_URL_AND_KEY)
+def test_factories_reject_an_invalid_url_or_key_before_creating_a_session(
+    url: object, key: object, message: str
+) -> None:
+    factories = [
+        supabase.httpx.create_client,
+        supabase.httpx.create_async_client,
+        supabase.aiohttp.create_async_client,
+    ]
+    for factory in factories:
+        with (
+            patch("supabase.aiohttp.ClientSession") as aiohttp_session,
+            patch("supabase.httpx.SyncHttpxClient") as sync_httpx_client,
+            patch("supabase.httpx.AsyncHttpxClient") as async_httpx_client,
+            pytest.raises(SupabaseException, match=re.escape(message)),
+        ):
+            factory(
+                url,  # pyrefly: ignore[bad-argument-type]
+                key,  # pyrefly: ignore[bad-argument-type]
+            )
+        aiohttp_session.assert_not_called()
+        sync_httpx_client.assert_not_called()
+        async_httpx_client.assert_not_called()
 
 
 def test_sync_client_keeps_a_lowercase_authorization_header() -> None:
