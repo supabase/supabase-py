@@ -8,7 +8,7 @@ from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
 from yarl import URL
 
-from supabase_auth.client import _append_flow_id, _parse_url_params
+from supabase_auth._pkce import _append_flow_id
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -19,6 +19,7 @@ from supabase_auth.errors import (
 )
 from supabase_auth.helpers import (
     _handle_error_response,
+    _parse_url_params,
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
