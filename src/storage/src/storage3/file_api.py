@@ -62,7 +62,7 @@ def relative_path_to_parts(path: str) -> tuple[str, ...]:
     return parts
 
 
-def normalize_object_key(path: str) -> str:
+def _normalize_object_key(path: str) -> str:
     return "/".join(relative_path_to_parts(path))
 
 
@@ -296,7 +296,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         body = CreateSignedUrlsBody(
             download=download,
             expiresIn=expires_in,
-            paths=[normalize_object_key(path) for path in paths],
+            paths=[_normalize_object_key(path) for path in paths],
         )
         response = yield JSONRequest(
             method="POST",
@@ -351,8 +351,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             path=["object", "move"],
             body={
                 "bucketId": self.id,
-                "sourceKey": normalize_object_key(from_path),
-                "destinationKey": normalize_object_key(to_path),
+                "sourceKey": _normalize_object_key(from_path),
+                "destinationKey": _normalize_object_key(to_path),
             },
         )
         return _validate_model(response, MessageResponse)
@@ -374,8 +374,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             path=["object", "copy"],
             body={
                 "bucketId": self.id,
-                "sourceKey": normalize_object_key(from_path),
-                "destinationKey": normalize_object_key(to_path),
+                "sourceKey": _normalize_object_key(from_path),
+                "destinationKey": _normalize_object_key(to_path),
             },
         )
 
@@ -394,7 +394,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         response = yield JSONRequest(
             method="DELETE",
             path=["object", self.id],
-            body={"prefixes": [normalize_object_key(path) for path in paths]},
+            body={"prefixes": [_normalize_object_key(path) for path in paths]},
         )
         return _validate_adapter(response, FileObjectsAdapter)
 
