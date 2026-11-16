@@ -9,7 +9,7 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Self, TypeGuard, override
-from urllib.parse import parse_qsl
+from urllib.parse import parse_qsl, urlsplit
 
 from jwt import get_algorithm_by_name
 from pydantic import BaseModel
@@ -102,15 +102,16 @@ if TYPE_CHECKING:
     from supabase_utils.types import JSON
 
 
-def _parse_url_params(url: URL) -> dict[str, str]:
-    """The implicit grant returns its tokens in the fragment. The query is
-    read as a fallback and wins over the fragment, as in supabase-js."""
-    params = dict(parse_qsl(url.raw_fragment, keep_blank_values=True))
-    params.update(url.query)
+def _parse_url_params(url: str) -> dict[str, str]:
+    """The implicit grant returns its tokens in the fragment; a query string
+    parameter wins over the fragment, as in supabase-js."""
+    parts = urlsplit(url)
+    params = dict(parse_qsl(parts.fragment))
+    params.update(parse_qsl(parts.query))
     return params
 
 
-def _is_implicit_grant_flow(url: URL) -> bool:
+def _is_implicit_grant_flow(url: str) -> bool:
     params = _parse_url_params(url)
     return "access_token" in params or "error_description" in params
 
@@ -616,10 +617,9 @@ class SupabaseAuthHttpClient[
         self,
         url: str,
     ) -> HttpMethod[tuple[Session, str | None]]:
-        result = URL(url)
-        if not _is_implicit_grant_flow(result):
+        if not _is_implicit_grant_flow(url):
             raise AuthImplicitGrantRedirectError("Not a valid implicit grant flow url.")
-        params = _parse_url_params(result)
+        params = _parse_url_params(url)
         error_description = params.get("error_description")
         if error_description:
             error_code = params.get("error_code")
@@ -829,7 +829,7 @@ class AsyncSupabaseAuthClient(
     # Initializations
 
     async def initialize(self, *, url: str | None = None) -> None:
-        if url and _is_implicit_grant_flow(URL(url)):
+        if url and _is_implicit_grant_flow(url):
             await self.initialize_from_url(url)
         else:
             await self.initialize_from_storage()
@@ -839,7 +839,7 @@ class AsyncSupabaseAuthClient(
 
     async def initialize_from_url(self, url: str) -> None:
         try:
-            if _is_implicit_grant_flow(URL(url)):
+            if _is_implicit_grant_flow(url):
                 session, redirect_type = await self._get_session_from_url(url)
                 await self.session_manager.save_session(session)
                 self.session_manager.notify_all_subscribers(
@@ -1382,7 +1382,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
     # Initializations
 
     def initialize(self, *, url: str | None = None) -> None:
-        if url and _is_implicit_grant_flow(URL(url)):
+        if url and _is_implicit_grant_flow(url):
             self.initialize_from_url(url)
         else:
             self.initialize_from_storage()
@@ -1392,7 +1392,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
 
     def initialize_from_url(self, url: str) -> None:
         try:
-            if _is_implicit_grant_flow(URL(url)):
+            if _is_implicit_grant_flow(url):
                 session, redirect_type = self._get_session_from_url(url)
                 self.session_manager.save_session(session)
                 self.session_manager.notify_all_subscribers(

@@ -368,6 +368,21 @@ def test_append_flow_id(redirect_to: str, expected: str) -> None:
             id="fragment-is-decoded",
         ),
         pytest.param(
+            "https://app.example/callback#provider_token=abc%2Bdef%3D&error_description=a%26b",
+            {"provider_token": "abc+def=", "error_description": "a&b"},
+            id="fragment-is-decoded-once",
+        ),
+        pytest.param(
+            "https://app.example/callback?provider_token=abc%2Bdef%3D&error_description=a%26b",
+            {"provider_token": "abc+def=", "error_description": "a&b"},
+            id="query-is-decoded-once",
+        ),
+        pytest.param(
+            "https://app.example/callback?access_token=#access_token=f",
+            {"access_token": "f"},
+            id="blank-values-are-dropped",
+        ),
+        pytest.param(
             "myapp://login-callback/#access_token=a",
             {"access_token": "a"},
             id="custom-scheme",
@@ -376,4 +391,4 @@ def test_append_flow_id(redirect_to: str, expected: str) -> None:
     ],
 )
 def test_parse_url_params(url: str, expected: dict[str, str]) -> None:
-    assert _parse_url_params(URL(url)) == expected
+    assert _parse_url_params(url) == expected
