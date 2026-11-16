@@ -385,7 +385,14 @@ OBJECT_KEYS = [
     ("a%20b.png", "a%2520b.png"),
     ("a%2Fb.png", "a%252Fb.png"),
     ("folder/%2E%2E/report.txt", "folder/%252E%252E/report.txt"),
+    ("caf\u00e9/\u00fc\u00f1\u00ee.png", "caf%C3%A9/%C3%BC%C3%B1%C3%AE.png"),
+    ("folder/", "folder/"),
 ]
+
+SIGNED_URL_RESPONSE = b'{"signedURL": "/object/sign/bucket/file.txt?token=t"}'
+SIGNED_UPLOAD_URL_RESPONSE = (
+    b'{"url": "/object/upload/sign/bucket/file.txt?token=t", "token": "t"}'
+)
 
 
 @use_async
@@ -395,6 +402,44 @@ async def test_upload_sends_the_whole_object_key(
 ) -> None:
     request = await run(use_async, lambda b: b.upload(path, b"hello"))
     assert request.url.raw_path.decode() == f"/storage/v1/object/bucket/{expected}"
+
+
+@use_async
+@pytest.mark.parametrize(("path", "expected"), OBJECT_KEYS)
+async def test_download_sends_the_whole_object_key(
+    use_async: bool, path: str, expected: str
+) -> None:
+    request = await run(use_async, lambda b: b.download(path), content=b"hello")
+    assert request.url.raw_path.decode() == f"/storage/v1/object/bucket/{expected}"
+
+
+@use_async
+@pytest.mark.parametrize(("path", "expected"), OBJECT_KEYS)
+async def test_create_signed_url_sends_the_whole_object_key(
+    use_async: bool, path: str, expected: str
+) -> None:
+    request = await run(
+        use_async,
+        lambda b: b.create_signed_url(path, 60),
+        content=SIGNED_URL_RESPONSE,
+    )
+    assert request.url.raw_path.decode() == f"/storage/v1/object/sign/bucket/{expected}"
+
+
+@use_async
+@pytest.mark.parametrize(("path", "expected"), OBJECT_KEYS)
+async def test_create_signed_upload_url_sends_the_whole_object_key(
+    use_async: bool, path: str, expected: str
+) -> None:
+    request = await run(
+        use_async,
+        lambda b: b.create_signed_upload_url(path),
+        content=SIGNED_UPLOAD_URL_RESPONSE,
+    )
+    assert (
+        request.url.raw_path.decode()
+        == f"/storage/v1/object/upload/sign/bucket/{expected}"
+    )
 
 
 @pytest.mark.parametrize(("path", "expected"), OBJECT_KEYS)
@@ -435,6 +480,36 @@ async def test_get_public_url_rejects_dot_segments(path: str) -> None:
         await call_with_client(
             False, handler, lambda client: client.from_("bucket").get_public_url(path)
         )
+
+
+INVALID_KEY_ACTIONS: list[Callable[[str], FileAction]] = [
+    lambda path: lambda b: b.upload(path, b"hello"),
+    lambda path: lambda b: b.download(path),
+    lambda path: lambda b: b.create_signed_url(path, 60),
+    lambda path: lambda b: b.create_signed_upload_url(path),
+    lambda path: lambda b: b.upload_to_signed_url(path, "token", b"hello"),
+    lambda path: lambda b: b.get_public_url(path),
+]
+
+
+@use_async
+@pytest.mark.parametrize("make_action", INVALID_KEY_ACTIONS)
+@pytest.mark.parametrize("path", ["a//b.txt", "folder//", "/a//b/c.txt"])
+async def test_empty_segments_in_object_key_raise(
+    use_async: bool, make_action: Callable[[str], FileAction], path: str
+) -> None:
+    with pytest.raises(ValueError, match="empty segments"):
+        await run(use_async, make_action(path))
+
+
+@use_async
+@pytest.mark.parametrize("make_action", INVALID_KEY_ACTIONS)
+@pytest.mark.parametrize("path", ["", "/", "//"])
+async def test_empty_object_key_raises(
+    use_async: bool, make_action: Callable[[str], FileAction], path: str
+) -> None:
+    with pytest.raises(ValueError, match="must not be empty"):
+        await run(use_async, make_action(path))
 
 
 @use_async
