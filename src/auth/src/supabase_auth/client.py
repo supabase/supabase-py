@@ -178,6 +178,18 @@ def _strip_password_recovery_suffix(code_verifier: str) -> str:
     return code_verifier.split("/", 1)[0]
 
 
+def _code_exchange_event(code_verifier: str) -> AuthChangeEvent:
+    if code_verifier.endswith(_PASSWORD_RECOVERY_SUFFIX):
+        return AuthChangeEvent.PASSWORD_RECOVERY
+    return AuthChangeEvent.SIGNED_IN
+
+
+def _verify_otp_event(params: VerifyOtpParams) -> AuthChangeEvent:
+    if params.body.type == "recovery":
+        return AuthChangeEvent.PASSWORD_RECOVERY
+    return AuthChangeEvent.SIGNED_IN
+
+
 @dataclass
 class SupabaseAuthHttpClient[
     HttpIO: (SyncHttpIO, AsyncHttpIO),
@@ -834,11 +846,15 @@ class AsyncSupabaseAuthClient(
             await self.session_manager.remove_session()
             raise e
 
-    async def _save_session_and_sign_in(self, auth_response: AuthResponse) -> None:
+    async def _save_session_and_sign_in(
+        self,
+        auth_response: AuthResponse,
+        event: AuthChangeEvent = AuthChangeEvent.SIGNED_IN,
+    ) -> None:
         if auth_response.session:
             await self.session_manager.save_session(auth_response.session)
             self.session_manager.notify_all_subscribers(
-                AuthStateChange(AuthChangeEvent.SIGNED_IN, auth_response.session)
+                AuthStateChange(event, auth_response.session)
             )
 
     async def _store_pkce_flow(
@@ -957,6 +973,9 @@ class AsyncSupabaseAuthClient(
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
 
+        Notifies listeners with `PASSWORD_RECOVERY` when the flow was started
+        by `reset_password_for_email`, and with `SIGNED_IN` otherwise.
+
         Raises `AuthPKCECodeVerifierMissingError`, without sending the code,
         when no verifier is stored for the flow.
         """
@@ -967,12 +986,14 @@ class AsyncSupabaseAuthClient(
                 code_verifier, auth_code, redirect_to
             )
         else:
-            pending_flow_id, verifier = await self._pending_code_verifier(flow_id)
+            pending_flow_id, code_verifier = await self._pending_code_verifier(flow_id)
             auth_response = await self._exchange_code_for_session(
-                verifier, auth_code, redirect_to
+                code_verifier, auth_code, redirect_to
             )
             await self._remove_pkce_flow(pending_flow_id)
-        await self._save_session_and_sign_in(auth_response)
+        await self._save_session_and_sign_in(
+            auth_response, _code_exchange_event(code_verifier)
+        )
         return auth_response
 
     # Public methods
@@ -1141,9 +1162,12 @@ class AsyncSupabaseAuthClient(
     async def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
         """
         Log in a user given a User supplied OTP received via mobile.
+
+        Notifies listeners with `PASSWORD_RECOVERY` for a `recovery` OTP and
+        with `SIGNED_IN` otherwise.
         """
         auth_response = await self._verify_otp(params)
-        await self._save_session_and_sign_in(auth_response)
+        await self._save_session_and_sign_in(auth_response, _verify_otp_event(params))
         return auth_response
 
     async def reauthenticate(self) -> AuthResponse:
@@ -1374,11 +1398,15 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             self.session_manager.remove_session()
             raise e
 
-    def _save_session_and_sign_in(self, auth_response: AuthResponse) -> None:
+    def _save_session_and_sign_in(
+        self,
+        auth_response: AuthResponse,
+        event: AuthChangeEvent = AuthChangeEvent.SIGNED_IN,
+    ) -> None:
         if auth_response.session:
             self.session_manager.save_session(auth_response.session)
             self.session_manager.notify_all_subscribers(
-                AuthStateChange(AuthChangeEvent.SIGNED_IN, auth_response.session)
+                AuthStateChange(event, auth_response.session)
             )
 
     def _store_pkce_flow(
@@ -1485,6 +1513,9 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
 
+        Notifies listeners with `PASSWORD_RECOVERY` when the flow was started
+        by `reset_password_for_email`, and with `SIGNED_IN` otherwise.
+
         Raises `AuthPKCECodeVerifierMissingError`, without sending the code,
         when no verifier is stored for the flow.
         """
@@ -1495,12 +1526,14 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
                 code_verifier, auth_code, redirect_to
             )
         else:
-            pending_flow_id, verifier = self._pending_code_verifier(flow_id)
+            pending_flow_id, code_verifier = self._pending_code_verifier(flow_id)
             auth_response = self._exchange_code_for_session(
-                verifier, auth_code, redirect_to
+                code_verifier, auth_code, redirect_to
             )
             self._remove_pkce_flow(pending_flow_id)
-        self._save_session_and_sign_in(auth_response)
+        self._save_session_and_sign_in(
+            auth_response, _code_exchange_event(code_verifier)
+        )
         return auth_response
 
     # Public methods
@@ -1665,9 +1698,12 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
     def verify_otp(self, params: VerifyOtpParams) -> AuthResponse:
         """
         Log in a user given a User supplied OTP received via mobile.
+
+        Notifies listeners with `PASSWORD_RECOVERY` for a `recovery` OTP and
+        with `SIGNED_IN` otherwise.
         """
         auth_response = self._verify_otp(params)
-        self._save_session_and_sign_in(auth_response)
+        self._save_session_and_sign_in(auth_response, _verify_otp_event(params))
         return auth_response
 
     def reauthenticate(self) -> AuthResponse:

@@ -247,16 +247,24 @@ async def test_update_user_without_email_omits_code_challenge() -> None:
 async def test_exchange_code_strips_recovery_suffix() -> None:
     requests: list[Request] = []
     client = mock_client(SESSION, requests)
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
     await client.exchange_code_for_session(
         "auth-code", code_verifier="verifier-value/PASSWORD_RECOVERY"
     )
 
     assert request_body(requests)["code_verifier"] == "verifier-value"
+    assert [change.event for change in changes] == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.PASSWORD_RECOVERY,
+    ]
 
 
 async def test_exchange_code_uses_and_removes_stored_verifier() -> None:
     requests: list[Request] = []
     client = mock_client(SESSION, requests)
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
     await client.session_manager.storage.set_item(
         legacy_verifier_key(client), "stored-verifier/PASSWORD_RECOVERY"
     )
@@ -264,6 +272,46 @@ async def test_exchange_code_uses_and_removes_stored_verifier() -> None:
 
     assert request_body(requests)["code_verifier"] == "stored-verifier"
     assert await legacy_verifier(client) is None
+    assert [change.event for change in changes] == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.PASSWORD_RECOVERY,
+    ]
+
+
+async def test_exchange_code_of_recovery_flow_notifies_password_recovery() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
+    await client.reset_password_for_email("a@example.com")
+    stored = await stored_verifier(client)
+    assert stored
+
+    response = await client.exchange_code_for_session("auth-code")
+
+    assert json.loads(requests[1].content)["code_verifier"] == stored.split("/")[0]
+    assert await stored_verifier(client) is None
+    assert [change.event for change in changes] == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.PASSWORD_RECOVERY,
+    ]
+    assert changes[-1].session == response.session
+    assert await client.get_session() == response.session
+
+
+async def test_exchange_code_of_sign_in_flow_notifies_signed_in() -> None:
+    requests: list[Request] = []
+    client = mock_client(SESSION, requests)
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
+    flow_id = await start_oauth_flow(client)
+
+    await client.exchange_code_for_session("auth-code", flow_id=flow_id)
+
+    assert [change.event for change in changes] == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.SIGNED_IN,
+    ]
 
 
 async def test_exchange_code_saves_session_and_signs_in() -> None:
