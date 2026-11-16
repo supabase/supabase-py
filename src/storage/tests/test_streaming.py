@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import override
@@ -276,3 +277,16 @@ def test_write_to_keeps_permissions_and_follows_a_symlink(
     assert link.is_symlink()
     assert target.read_bytes() == BODY
     assert target.stat().st_mode & 0o777 == 0o600
+
+
+def test_write_to_gives_a_new_file_the_default_mode(
+    storage: Storage, tmp_path: Path
+) -> None:
+    destination = tmp_path / "new.txt"
+    umask = os.umask(0o022)
+    try:
+        with storage.sync_client().from_("bucket").download_stream("a.txt") as download:
+            download.write_to(destination)
+    finally:
+        os.umask(umask)
+    assert destination.stat().st_mode & 0o777 == 0o644

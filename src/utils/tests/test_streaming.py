@@ -280,11 +280,11 @@ def test_file_content_iterations_keep_their_own_position() -> None:
     assert next(retried) == b"b"
 
 
-def redirecting(bodies: list[bytes]) -> httpx.MockTransport:
+def redirecting(bodies: list[bytes], status: int = 308) -> httpx.MockTransport:
     def handler(request: httpx.Request) -> httpx.Response:
         bodies.append(request.read())
         if request.url.path.endswith("/items"):
-            return httpx.Response(308, headers={"Location": "/api/moved"})
+            return httpx.Response(status, headers={"Location": "/api/moved"})
         return httpx.Response(200)
 
     return httpx.MockTransport(handler)
@@ -323,3 +323,26 @@ async def test_async_session_follows_a_body_keeping_redirect_only_with_a_replaya
     )
     assert response.status == status
     assert bodies == sent
+
+
+def test_sync_session_does_not_follow_a_method_keeping_301_with_a_one_shot_body() -> (
+    None
+):
+    bodies: list[bytes] = []
+    client = httpx.Client(transport=redirecting(bodies, 301), follow_redirects=True)
+    request = BytesRequest(path=["items"], method="PUT", body=chunks())
+    response = SyncHttpIO(HttpxSession(client)).communicate(
+        BASE_URL, Headers.empty(), upload(request)
+    )
+    assert response.status == 301
+    assert bodies == [b"hello world"]
+
+
+def test_sync_session_follows_a_301_that_turns_a_post_into_a_get() -> None:
+    bodies: list[bytes] = []
+    client = httpx.Client(transport=redirecting(bodies, 301), follow_redirects=True)
+    response = SyncHttpIO(HttpxSession(client)).communicate(
+        BASE_URL, Headers.empty(), upload(post(chunks()))
+    )
+    assert response.status == 200
+    assert bodies == [b"hello world", b""]

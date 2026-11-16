@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import secrets
-import shutil
+import stat
 from contextlib import asynccontextmanager, contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO
@@ -62,12 +62,37 @@ def _temporary_path(destination: Path) -> Path:
     return destination.with_name(f".{destination.name}.{secrets.token_hex(8)}.part")
 
 
+def _umask() -> int:
+    try:
+        with open("/proc/self/status") as status:
+            for line in status:
+                if line.startswith("Umask:"):
+                    return int(line.split()[1], 8)
+    except OSError:
+        pass
+    umask = os.umask(0o077)
+    os.umask(umask)
+    return umask
+
+
 def _open_new(path: Path, destination: Path) -> BinaryIO:
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
-    file = os.fdopen(descriptor, "wb")
-    if destination.exists():
-        shutil.copymode(destination, path)
-    return file
+    """Creates `path` readable by its owner only, then gives it the mode of
+    `destination`, or the default mode of a new file, before anything is
+    written, so no one else can open it with more access than the result."""
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        if destination.exists():
+            mode = stat.S_IMODE(destination.stat().st_mode)
+        else:
+            mode = 0o666 & ~_umask()
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, mode)
+        else:
+            os.chmod(path, mode)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return os.fdopen(descriptor, "wb")
 
 
 class StorageDownload(_DownloadHead):

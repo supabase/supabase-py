@@ -29,8 +29,6 @@ from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import AsyncStreamedResponse, Request, Response, StreamedResponse
 from ..retry import _is_replayable
 
-_BODY_KEEPING_REDIRECTS = frozenset({307, 308})
-
 
 def to_httpx_request(req: Request) -> HttpxRequest:
     content = req.content
@@ -57,13 +55,12 @@ def to_async_httpx_request(req: Request) -> HttpxRequest:
     return _httpx_request(req, content)
 
 
-def _follows(request: Request, response: HttpxResponse) -> bool:
-    """Whether to follow the redirect `response` answers `request` with. A
-    redirect that sends the body again is not followed for a body that can be
-    sent only once, so the caller gets the redirect response instead."""
-    return response.status_code not in _BODY_KEEPING_REDIRECTS or _is_replayable(
-        request
-    )
+def _follows(request: Request, next_request: HttpxRequest) -> bool:
+    """Whether to follow a redirect to `next_request`. httpx sends the body
+    again whenever the redirect keeps the method, so such a redirect is not
+    followed for a body that can be sent only once, and the caller gets the
+    redirect response instead."""
+    return next_request.method != request.method or _is_replayable(request)
 
 
 def _httpx_request(
@@ -175,7 +172,7 @@ class HttpxSession:
         while (
             self.client.follow_redirects
             and (next_request := response.next_request)
-            and _follows(request, response)
+            and _follows(request, next_request)
         ):
             redirects += 1
             response.close()
@@ -248,7 +245,7 @@ class AsyncHttpxSession:
         while (
             self.client.follow_redirects
             and (next_request := response.next_request)
-            and _follows(request, response)
+            and _follows(request, next_request)
         ):
             redirects += 1
             await response.aclose()
