@@ -62,6 +62,19 @@ key: str = os.environ["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 ```
 
+`SUPABASE_URL` must be an `https` URL. Plain `http` is only accepted for a loopback host (`localhost`, `127.0.0.0/8` or `::1`), such as `http://localhost:54321` from the Supabase CLI, since it sends the API key and the session of the user in clear text. For any other host, such as an emulator, a LAN address or a Docker service name, pass `allow_insecure_http=True`:
+
+```python
+import os
+from supabase import create_client
+
+supabase = create_client(
+    "http://192.168.1.20:54321",
+    os.environ["SUPABASE_KEY"],
+    allow_insecure_http=True,
+)
+```
+
 For the async client, use `create_async_client`, which returns an `AsyncClient`:
 
 ```python

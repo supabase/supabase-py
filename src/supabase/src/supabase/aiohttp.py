@@ -8,7 +8,7 @@ from supabase_utils.http.retry import RetryPolicy
 
 from ._defaults import DEFAULT_REQUEST_TIMEOUT
 from ._keys import _validate_string_argument
-from .client import AsyncClient
+from .client import AsyncClient, _parse_supabase_url
 from .types import (
     AuthClientOptions,
     FunctionsClientOptions,
@@ -42,6 +42,7 @@ def create_async_client(
     storage: StorageClientOptions | None = None,
     functions: FunctionsClientOptions | None = None,
     realtime: RealtimeClientOptions | None = None,
+    allow_insecure_http: bool = False,
 ) -> AsyncClient:
     """Create an async client that sends its requests with aiohttp.
 
@@ -49,7 +50,7 @@ def create_async_client(
     which is closed with the client. An `http_client` passed in keeps its own
     timeout and is left open. See `AsyncClient` for the other arguments.
     """
-    _validate_string_argument("supabase_url", supabase_url)
+    _parse_supabase_url(supabase_url, allow_insecure_http=allow_insecure_http)
     _validate_string_argument("supabase_key", supabase_key)
     validate_request_timeout(request_timeout)
     client = AsyncClient(
@@ -66,6 +67,7 @@ def create_async_client(
         storage=storage,
         functions=functions,
         realtime=realtime,
+        allow_insecure_http=allow_insecure_http,
     )
     client._owns_http_session = http_client is None
     return client
