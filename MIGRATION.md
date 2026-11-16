@@ -332,6 +332,13 @@ The payload of a `PostgresChangesMessage` is a `PostgresChangesPayload` model wi
 - `ErrorCode` is a `StrEnum`. `AuthError.code` is a member when the SDK knows the code the auth service sent, and the plain string otherwise, so a code added after this release is passed on instead of failing to parse. Members compare equal to their strings, so `error.code == "weak_password"` still works.
 - Starting a sign in with `sign_in_with_oauth`, `sign_in_with_otp` or `sign_in_with_sso`, and a `sign_up` or `verify_otp` that returns no session, keep the current session.
 
+## Auth `sign_out` follows the scope
+
+- `sign_out("local")` removes the local session before the request, so the device is signed out even when the request fails. The error is still raised.
+- An answer that the user is gone, or for `"local"` that the session is gone, counts as success instead of raising.
+- `sign_out("others")` raises `AuthSessionMissingError` when there is no session, instead of returning.
+- An invalid scope raises `ValueError`.
+
 ## Request timeouts
 
 `AsyncStorageClient` and `SyncStorageClient` no longer take a `timeout` parameter. It was ignored. Pass `request_timeout` as a keyword argument instead.

@@ -4,11 +4,13 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.types import JSON
 
 from supabase_auth import AsyncSupabaseAuthClient, SyncSupabaseAuthClient
+from supabase_auth.errors import AuthSessionMissingError
 from supabase_auth.types import AuthChangeEvent, AuthStateChange, Session, User
 
 USER: dict[str, JSON] = {
@@ -214,3 +216,78 @@ async def test_get_session_after_closing_the_client_starts_a_new_refresh() -> No
     assert session is not None
     assert session.access_token == "new-access"
     assert len(endpoint.requests) == 2
+
+
+async def test_a_refresh_in_flight_does_not_undo_a_sign_out() -> None:
+    endpoint = AsyncRefreshGate()
+    client = endpoint.client()
+    manager = client.session_manager
+    await manager.save_session(expired_session())
+
+    refresh = asyncio.create_task(client.get_session())
+    await asyncio.wait_for(endpoint.started.wait(), timeout=1)
+    sign_out = asyncio.create_task(client.sign_out("local"))
+    await asyncio.sleep(0)
+    endpoint.gate.set()
+    await asyncio.wait_for(asyncio.gather(refresh, sign_out), timeout=1)
+
+    assert await manager.storage.get_item(manager.storage_key) is None
+    assert [request.url.path for request in endpoint.requests] == [
+        "/token",
+        "/logout",
+    ]
+
+
+async def test_a_refresh_started_during_a_sign_out_finds_no_session() -> None:
+    endpoint = AsyncRefreshGate()
+    client = endpoint.client()
+    manager = client.session_manager
+    session = expired_session()
+    session.expires_at = round(time.time()) + 3600
+    await manager.save_session(session)
+
+    sign_out = asyncio.create_task(client.sign_out("global"))
+    await asyncio.wait_for(endpoint.started.wait(), timeout=1)
+    refresh = asyncio.create_task(client.refresh_session())
+    await asyncio.sleep(0)
+    endpoint.gate.set()
+    await asyncio.wait_for(sign_out, timeout=1)
+
+    with pytest.raises(AuthSessionMissingError):
+        await asyncio.wait_for(refresh, timeout=1)
+    assert await manager.storage.get_item(manager.storage_key) is None
+    assert [request.url.path for request in endpoint.requests] == ["/logout"]
+
+
+def test_a_sync_refresh_in_flight_does_not_undo_a_sign_out() -> None:
+    started = threading.Event()
+    gate = threading.Event()
+    paths: list[str] = []
+
+    def handler(request: Request) -> Response:
+        paths.append(request.url.path)
+        if request.url.path == "/logout":
+            return Response(204)
+        started.set()
+        gate.wait(timeout=1)
+        return refreshed(request)
+
+    client = SyncSupabaseAuthClient(
+        url="http://auth.test",
+        http_session=HttpxSession(client=Client(transport=MockTransport(handler))),
+        auto_refresh_token=False,
+    )
+    manager = client.session_manager
+    manager.save_session(expired_session())
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        refresh = pool.submit(client.get_session)
+        assert started.wait(timeout=1)
+        sign_out = pool.submit(client.sign_out, "local")
+        time.sleep(0.05)
+        gate.set()
+        refresh.result(timeout=1)
+        sign_out.result(timeout=1)
+
+    assert manager.storage.get_item(manager.storage_key) is None
+    assert paths == ["/token", "/logout"]

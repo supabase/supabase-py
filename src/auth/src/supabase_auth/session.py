@@ -5,6 +5,7 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from functools import partial
 from typing import TYPE_CHECKING, Any, Self
@@ -46,7 +47,7 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Coroutine
+    from collections.abc import AsyncGenerator, Callable, Coroutine, Generator
     from types import TracebackType
 
 
@@ -253,6 +254,10 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         default=None, init=False, repr=False
     )
     """The refresh in flight, shared by every caller that needs one."""
+    _session_lock: asyncio.Lock = field(
+        default_factory=asyncio.Lock, init=False, repr=False
+    )
+    """Held while a refresh or a sign-out runs, so one never undoes the other."""
 
     async def __aexit__(
         self,
@@ -371,9 +376,27 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         one waiter does not cancel it for the others."""
         task = self._refresh_task
         if task is None or task.done():
-            task = self._refresh_task = asyncio.create_task(refresh())
+            task = self._refresh_task = asyncio.create_task(self._locked(refresh))
             task.add_done_callback(_consume_exception)
         return await asyncio.shield(task)
+
+    async def _locked(
+        self, refresh: Callable[[], Coroutine[Any, Any, Session]]
+    ) -> Session:
+        async with self._session_lock:
+            return await refresh()
+
+    @asynccontextmanager
+    async def exclusive(self) -> AsyncGenerator[None]:
+        """Run the block once the refresh in flight has finished, and hold
+        back every refresh until it ends. A refresh that waited reads the
+        stored session again, so it never stores a session the block removed.
+
+        Inside the block, refresh with `_refresh_stored_session` or
+        `_refresh_and_save`, not through `_single_flight`, which would wait
+        for the block itself."""
+        async with self._session_lock:
+            yield
 
     async def _refresh_stored_session(
         self, *, only_if_expiring: bool = False, scheduled_for: str | None = None
@@ -402,11 +425,16 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
         if not refresh_token:
             raise AuthSessionMissingError
         try:
-            session = await self.refresh_access_token(refresh_token)
+            return await self._refresh_and_save(refresh_token)
         except Exception as error:
             if _is_terminal_refresh_error(error):
                 await self._sign_out_locally(SignOutReason.SESSION_EXPIRED)
             raise
+
+    async def _refresh_and_save(self, refresh_token: str) -> Session:
+        """Refresh with `refresh_token`, store the new session and notify
+        `TOKEN_REFRESHED`. A failed refresh leaves the stored session as is."""
+        session = await self.refresh_access_token(refresh_token)
         self._failed_refreshes = 0
         await self.save_session(session)
         self.notify_all_subscribers(
@@ -484,7 +512,8 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
     _refresh_lock: threading.RLock = field(
         default_factory=threading.RLock, init=False, repr=False
     )
-    """Held while a refresh runs, so threads refresh one at a time."""
+    """Held while a refresh or a sign-out runs, so threads refresh one at a
+    time and a refresh never undoes a sign-out."""
 
     def __exit__(
         self,
@@ -599,6 +628,14 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         with self._refresh_lock:
             return refresh()
 
+    @contextmanager
+    def exclusive(self) -> Generator[None]:
+        """Run the block once the running refresh has finished, and hold back
+        every refresh until it ends. A refresh that waited reads the stored
+        session again, so it never stores a session the block removed."""
+        with self._refresh_lock:
+            yield
+
     def _refresh_stored_session(
         self, *, only_if_expiring: bool = False, scheduled_for: str | None = None
     ) -> Session:
@@ -626,11 +663,16 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
         if not refresh_token:
             raise AuthSessionMissingError
         try:
-            session = self.refresh_access_token(refresh_token)
+            return self._refresh_and_save(refresh_token)
         except Exception as error:
             if _is_terminal_refresh_error(error):
                 self._sign_out_locally(SignOutReason.SESSION_EXPIRED)
             raise
+
+    def _refresh_and_save(self, refresh_token: str) -> Session:
+        """Refresh with `refresh_token`, store the new session and notify
+        `TOKEN_REFRESHED`. A failed refresh leaves the stored session as is."""
+        session = self.refresh_access_token(refresh_token)
         self._failed_refreshes = 0
         self.save_session(session)
         self.notify_all_subscribers(
