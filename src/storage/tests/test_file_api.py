@@ -174,26 +174,74 @@ async def test_upload_headers_override_defaults(use_async: bool) -> None:
     assert request.headers.get_list("x-upsert") == ["true"]
 
 
+NOT_FOUND_BODIES = [
+    (
+        400,
+        b'{"statusCode": "404", "error": "not_found", "message": "Object not found",'
+        b' "code": "NoSuchKey"}',
+    ),
+    (
+        404,
+        b'{"statusCode": "404", "error": "not_found", "message": "Object not found",'
+        b' "code": "NoSuchKey"}',
+    ),
+]
+
+
 @use_async
-@pytest.mark.parametrize("status", [400, 404])
-async def test_exists_false_on_headless_error(use_async: bool, status: int) -> None:
+@pytest.mark.parametrize(("status", "content"), NOT_FOUND_BODIES)
+async def test_exists_false_when_the_object_is_not_found(
+    use_async: bool, status: int, content: bytes
+) -> None:
     results: list[bool] = []
 
     async def collect_async(b: StorageFileApiClient[AsyncHttpIO]) -> None:
-        results.append(await b.exists("missing.txt"))
+        results.append(await b.exists("/folder/missing.txt"))
 
     def collect_sync(b: StorageFileApiClient[SyncHttpIO]) -> None:
-        results.append(b.exists("missing.txt"))
+        results.append(b.exists("/folder/missing.txt"))
 
-    await run(use_async, collect_async if use_async else collect_sync, status, b"")
+    request = await run(
+        use_async, collect_async if use_async else collect_sync, status, content
+    )
     assert results == [False]
+    assert request.method == "GET"
+    assert request.url.path == "/storage/v1/object/info/bucket/folder/missing.txt"
 
 
 @use_async
-async def test_exists_reraises_unexpected_status(use_async: bool) -> None:
+@pytest.mark.parametrize(
+    ("status", "content", "code"),
+    [
+        (
+            400,
+            b'{"statusCode": "404", "error": "Bucket not found",'
+            b' "message": "Bucket not found", "code": "NoSuchBucket"}',
+            "NoSuchBucket",
+        ),
+        (
+            400,
+            b'{"statusCode": "403", "error": "Unauthorized",'
+            b' "message": "invalid signature", "code": "InvalidJWT"}',
+            "InvalidJWT",
+        ),
+        (
+            400,
+            b'{"statusCode": "404", "error": "not_found",'
+            b' "message": "Bucket not found"}',
+            "not_found",
+        ),
+        (401, b"", "InternalError"),
+        (404, b"", "InternalError"),
+    ],
+)
+async def test_exists_raises_other_errors(
+    use_async: bool, status: int, content: bytes, code: str
+) -> None:
     with pytest.raises(StorageApiError) as error:
-        await run(use_async, lambda b: b.exists("missing.txt"), 401, b"")
-    assert error.value.status_code == 401
+        await run(use_async, lambda b: b.exists("missing.txt"), status, content)
+    assert error.value.status_code == status
+    assert error.value.code == code
 
 
 @use_async
@@ -490,6 +538,90 @@ INVALID_KEY_ACTIONS: list[Callable[[str], FileAction]] = [
     lambda path: lambda b: b.upload_to_signed_url(path, "token", b"hello"),
     lambda path: lambda b: b.get_public_url(path),
 ]
+
+
+@use_async
+@pytest.mark.parametrize("make_action", INVALID_KEY_ACTIONS)
+@pytest.mark.parametrize("path", ["a//b.txt", "folder//", "/a//b/c.txt"])
+async def test_empty_segments_in_object_key_raise(
+    use_async: bool, make_action: Callable[[str], FileAction], path: str
+) -> None:
+    with pytest.raises(ValueError, match="empty segments"):
+        await run(use_async, make_action(path))
+
+
+@use_async
+@pytest.mark.parametrize("make_action", INVALID_KEY_ACTIONS)
+@pytest.mark.parametrize("path", ["", "/", "//"])
+async def test_empty_object_key_raises(
+    use_async: bool, make_action: Callable[[str], FileAction], path: str
+) -> None:
+    with pytest.raises(ValueError, match="must not be empty"):
+        await run(use_async, make_action(path))
+
+
+@use_async
+@pytest.mark.parametrize("method", ["move", "copy"])
+async def test_move_and_copy_normalize_object_keys(
+    use_async: bool, method: str
+) -> None:
+    request = await run(
+        use_async,
+        lambda b: getattr(b, method)("/from/a.txt", "//to/b.txt"),
+        content=b'{"message": "ok", "Key": "bucket/to/b.txt", "Id": "id"}',
+    )
+    assert json.loads(request.content) == {
+        "bucketId": "bucket",
+        "sourceKey": "from/a.txt",
+        "destinationKey": "to/b.txt",
+    }
+
+
+@use_async
+async def test_remove_normalizes_object_keys(use_async: bool) -> None:
+    request = await run(
+        use_async, lambda b: b.remove(["/a.txt", "folder/b.txt"]), content=b"[]"
+    )
+    assert json.loads(request.content) == {"prefixes": ["a.txt", "folder/b.txt"]}
+
+
+@use_async
+async def test_create_signed_urls_normalizes_object_keys(use_async: bool) -> None:
+    request = await run(
+        use_async,
+        lambda b: b.create_signed_urls(["/a.txt", "folder/b.txt"], 60),
+        content=b"[]",
+    )
+    assert json.loads(request.content)["paths"] == ["a.txt", "folder/b.txt"]
+
+
+INVALID_KEY_ACTIONS: list[Callable[[str], FileAction]] = [
+    lambda path: lambda b: b.upload(path, b"hello"),
+    lambda path: lambda b: b.download(path),
+    lambda path: lambda b: b.create_signed_url(path, 60),
+    lambda path: lambda b: b.create_signed_upload_url(path),
+    lambda path: lambda b: b.upload_to_signed_url(path, "token", b"hello"),
+    lambda path: lambda b: b.get_public_url(path),
+    lambda path: lambda b: b.info(path),
+    lambda path: lambda b: b.exists(path),
+    lambda path: lambda b: b.update(path, b"hello"),
+    lambda path: lambda b: b.move(path, "to.txt"),
+    lambda path: lambda b: b.move("from.txt", path),
+    lambda path: lambda b: b.copy(path, "to.txt"),
+    lambda path: lambda b: b.copy("from.txt", path),
+    lambda path: lambda b: b.remove([path]),
+    lambda path: lambda b: b.create_signed_urls([path], 60),
+]
+
+
+@use_async
+@pytest.mark.parametrize("make_action", INVALID_KEY_ACTIONS)
+@pytest.mark.parametrize("path", ["folder/../report.txt", "a/./b.png"])
+async def test_dot_segments_raise_in_every_method(
+    use_async: bool, make_action: Callable[[str], FileAction], path: str
+) -> None:
+    with pytest.raises(ValueError, match="dot segments"):
+        await run(use_async, make_action(path))
 
 
 @use_async

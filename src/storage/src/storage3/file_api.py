@@ -62,6 +62,10 @@ def relative_path_to_parts(path: str) -> tuple[str, ...]:
     return parts
 
 
+def _normalize_object_key(path: str) -> str:
+    return "/".join(relative_path_to_parts(path))
+
+
 def _bool_header(value: bool) -> str:
     if not isinstance(value, bool):
         raise TypeError(f"upsert must be a bool, not {type(value).__name__}")
@@ -292,7 +296,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         body = CreateSignedUrlsBody(
             download=download,
             expiresIn=expires_in,
-            paths=paths,
+            paths=[_normalize_object_key(path) for path in paths],
         )
         response = yield JSONRequest(
             method="POST",
@@ -347,8 +351,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             path=["object", "move"],
             body={
                 "bucketId": self.id,
-                "sourceKey": from_path,
-                "destinationKey": to_path,
+                "sourceKey": _normalize_object_key(from_path),
+                "destinationKey": _normalize_object_key(to_path),
             },
         )
         return _validate_model(response, MessageResponse)
@@ -370,8 +374,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             path=["object", "copy"],
             body={
                 "bucketId": self.id,
-                "sourceKey": from_path,
-                "destinationKey": to_path,
+                "sourceKey": _normalize_object_key(from_path),
+                "destinationKey": _normalize_object_key(to_path),
             },
         )
 
@@ -390,7 +394,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         response = yield JSONRequest(
             method="DELETE",
             path=["object", self.id],
-            body={"prefixes": paths},
+            body={"prefixes": [_normalize_object_key(path) for path in paths]},
         )
         return _validate_adapter(response, FileObjectsAdapter)
 
@@ -420,24 +424,26 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         path: str,
     ) -> HttpMethod[bool]:
         """
-        Returns True if the file exists, False otherwise.
+        Returns True if the file exists, False if it does not.
+
+        Raises :class:`StorageApiError` for any other error, such as an
+        invalid token or a missing bucket.
 
         Parameters
         ----------
         path
             The path to the file.
         """
-        path_parts: tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
         response = yield EmptyRequest(
-            method="HEAD",
-            path=["object", self.id, *path_parts],
+            method="GET",
+            path=["object", "info", self.id, *relative_path_to_parts(path)],
         )
         if response.is_success:
             return True
-        elif response.status in (400, 404):
+        error = parse_api_error(response)
+        if error.code == "NoSuchKey":
             return False
-        else:
-            raise parse_api_error(response)
+        raise error
 
     @handle_http_io
     def list(

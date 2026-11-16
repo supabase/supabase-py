@@ -570,6 +570,20 @@ def test_client_exists(
     assert exists
 
 
+def test_client_exists_is_false_for_a_missing_file(
+    storage_file_client: StorageFileApiClient[SyncHttpIO],
+) -> None:
+    assert not storage_file_client.exists("missing/file.txt")
+
+
+def test_client_exists_raises_for_a_missing_bucket(
+    storage: SyncStorageClient, uuid_factory: Callable[[], str]
+) -> None:
+    with pytest.raises(StorageApiError) as exc_info:
+        storage.from_(uuid_factory()).exists("file.txt")
+    assert exc_info.value.code == "NoSuchBucket"
+
+
 def test_client_copy(
     storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:

@@ -576,6 +576,20 @@ async def test_client_exists(
     assert exists
 
 
+async def test_client_exists_is_false_for_a_missing_file(
+    storage_file_client: StorageFileApiClient[AsyncHttpIO],
+) -> None:
+    assert not await storage_file_client.exists("missing/file.txt")
+
+
+async def test_client_exists_raises_for_a_missing_bucket(
+    storage: AsyncStorageClient, uuid_factory: Callable[[], str]
+) -> None:
+    with pytest.raises(StorageApiError) as exc_info:
+        await storage.from_(uuid_factory()).exists("file.txt")
+    assert exc_info.value.code == "NoSuchBucket"
+
+
 async def test_client_copy(
     storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
 ) -> None:
