@@ -123,6 +123,10 @@ def test_api_error_without_json_body_keeps_the_status() -> None:
             [("Proxy-Status", 'PostgREST; details="a; b, error=x"; error=PGRST116')],
             "PGRST116",
         ),
+        (
+            [("Proxy-Status", 'PostgREST; details="x", PostgREST; error=PGRST301')],
+            "PGRST301",
+        ),
         ([("Proxy-Status", "cdn; error=connection_timeout")], "400"),
         ([("Proxy-Status", "PostgREST; error=")], "400"),
         ([("Proxy-Status", "PostgREST")], "400"),
@@ -211,6 +215,30 @@ def test_api_error_decodes_the_body_in_its_charset(
 
     assert exc_info.value.message == "Internal Server Error"
     assert exc_info.value.details == details
+
+
+@pytest.mark.parametrize(
+    "body",
+    [b'{"error": "unauthorized"}', b"{}", b'{"message": ""}', b'{"message": null}'],
+)
+def test_api_error_with_json_that_is_not_a_postgrest_error(body: bytes) -> None:
+    def handler(request: Request) -> Response:
+        return Response(
+            401, headers=[("Content-Type", "application/json")], content=body
+        )
+
+    with Client(transport=MockTransport(handler)) as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        with pytest.raises(APIError) as exc_info:
+            client.from_("test").select("a").execute()
+
+    error = exc_info.value
+    assert error.message == "Unauthorized"
+    assert error.code == "401"
+    assert error.hint is None
+    assert error.details == body.decode()
 
 
 def test_api_error_with_an_unknown_status_describes_it() -> None:
