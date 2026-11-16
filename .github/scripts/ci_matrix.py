@@ -39,7 +39,6 @@ DEPENDENTS = {
 }
 IGNORED_PATTERNS = [
     "*.md",
-    ".devcontainer/*",
     ".github/*",
     "LICENSE",
     "sdk-compliance.yaml",
