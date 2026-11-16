@@ -429,3 +429,17 @@ def test_others_refreshes_an_expired_token_like_any_call() -> None:
     assert [change.event for change in after_initial(changes)] == [
         AuthChangeEvent.TOKEN_REFRESHED
     ]
+
+
+def test_global_with_an_expired_session_without_refresh_token_signs_out() -> None:
+    endpoints = Endpoints()
+    session = stored_session(expired=True)
+    session.refresh_token = ""
+    client, changes = signed_in_client(endpoints, session)
+
+    with pytest.raises(AuthSessionMissingError):
+        client.sign_out("global")
+
+    assert endpoints.requests == []
+    assert stored_access_token(client) is None
+    assert after_initial(changes) == [USER_INITIATED]

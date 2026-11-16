@@ -144,10 +144,13 @@ _SESSION_GONE_ON_REFRESH = frozenset(
 )
 
 
+_SIGN_OUT_SCOPES: tuple[str, ...] = get_args(SignOutScope)
+
+
 def _check_sign_out_scope(scope: str) -> None:
-    if scope not in get_args(SignOutScope):
+    if scope not in _SIGN_OUT_SCOPES:
         raise ValueError(
-            f"Invalid sign out scope {scope!r}, expected one of {get_args(SignOutScope)}"
+            f"Invalid sign out scope {scope!r}, expected one of {_SIGN_OUT_SCOPES}"
         )
 
 
@@ -1363,7 +1366,10 @@ class AsyncSupabaseAuthClient(
 
     async def _sign_out_globally(self, session: Session) -> None:
         manager = self.session_manager
-        if manager._is_expiring(session) and session.refresh_token:
+        if manager._is_expiring(session):
+            if not session.refresh_token:
+                await self._remove_local_session()
+                raise AuthSessionMissingError
             try:
                 session = await manager._refresh_and_save(session.refresh_token)
             except Exception as error:
@@ -1388,14 +1394,8 @@ class AsyncSupabaseAuthClient(
         await self._sign_out(session, "local")
 
     async def _remove_local_session(self) -> None:
-        await self.session_manager.remove_session()
         await self._remove_all_pkce_flows()
-        self.session_manager.notify_all_subscribers(
-            AuthStateChange(
-                AuthChangeEvent.SIGNED_OUT,
-                sign_out_reason=SignOutReason.USER_INITIATED,
-            )
-        )
+        await self.session_manager._sign_out_locally(SignOutReason.USER_INITIATED)
 
     @override
     def on_auth_state_change(
@@ -1950,7 +1950,10 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
 
     def _sign_out_globally(self, session: Session) -> None:
         manager = self.session_manager
-        if manager._is_expiring(session) and session.refresh_token:
+        if manager._is_expiring(session):
+            if not session.refresh_token:
+                self._remove_local_session()
+                raise AuthSessionMissingError
             try:
                 session = manager._refresh_and_save(session.refresh_token)
             except Exception as error:
@@ -1975,14 +1978,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         self._sign_out(session, "local")
 
     def _remove_local_session(self) -> None:
-        self.session_manager.remove_session()
         self._remove_all_pkce_flows()
-        self.session_manager.notify_all_subscribers(
-            AuthStateChange(
-                AuthChangeEvent.SIGNED_OUT,
-                sign_out_reason=SignOutReason.USER_INITIATED,
-            )
-        )
+        self.session_manager._sign_out_locally(SignOutReason.USER_INITIATED)
 
     @override
     def on_auth_state_change(

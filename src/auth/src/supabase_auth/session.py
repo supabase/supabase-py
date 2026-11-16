@@ -389,8 +389,9 @@ class _AsyncSessionManager(_SessionManagerCommon[AsyncHttpIO]):
     @asynccontextmanager
     async def exclusive(self) -> AsyncGenerator[None]:
         """Run the block once the refresh in flight has finished, and hold
-        back every refresh until it ends. A refresh that waited reads the
-        stored session again, so it never stores a session the block removed.
+        back every refresh until it ends. A refresh of the stored session
+        that waited reads it again, so it never stores a session the block
+        removed.
 
         Inside the block, refresh with `_refresh_stored_session` or
         `_refresh_and_save`, not through `_single_flight`, which would wait
@@ -631,8 +632,8 @@ class _SyncSessionManager(_SessionManagerCommon[SyncHttpIO]):
     @contextmanager
     def exclusive(self) -> Generator[None]:
         """Run the block once the running refresh has finished, and hold back
-        every refresh until it ends. A refresh that waited reads the stored
-        session again, so it never stores a session the block removed."""
+        every refresh until it ends. A refresh of the stored session that
+        waited reads it again, so it never stores a session the block removed."""
         with self._refresh_lock:
             yield
 
