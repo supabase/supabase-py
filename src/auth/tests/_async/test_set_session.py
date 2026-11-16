@@ -105,8 +105,10 @@ async def test_set_session_stores_the_expiry_of_the_access_token() -> None:
         f"{base64url_segment({'typ': 'JWT'})}.{base64url_segment({'exp': 1})}.sig",
         f"{base64url_segment({'alg': 'HS256'})}.{base64url_segment(b'not json')}.sig",
         "\u00e9.\u00e9.\u00e9",
+        "opaque-token",
+        "header.payload",
     ],
-    ids=["alg-missing", "payload-not-json", "non-ascii"],
+    ids=["alg-missing", "payload-not-json", "non-ascii", "no-dots", "two-parts"],
 )
 async def test_set_session_raises_auth_error_for_malformed_jwt(
     access_token: str,
