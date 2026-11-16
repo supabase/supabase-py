@@ -91,6 +91,23 @@ def test_maybe_single_multiple_rows(
     assert exc_info.value.details == "The result contains more than one row."
 
 
+def test_head_query_error(postgrest_client: SyncPostgrestClient) -> None:
+    with pytest.raises(APIError) as exc_info:
+        (
+            postgrest_client.from_("countries")
+            .select("*", count=CountMethod.exact, head=True)
+            .eq("ref.othercol", 123)
+            .execute()
+        )
+
+    error = exc_info.value
+    assert error.code == "PGRST108"
+    assert error.message == "Bad Request"
+    assert error.hint is None
+    assert error.details is None
+    assert error.status_code == 400
+
+
 def test_equals(postgrest_client: SyncPostgrestClient) -> None:
     res = (
         postgrest_client.from_("countries")

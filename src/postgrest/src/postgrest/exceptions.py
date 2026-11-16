@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, override
 
 from pydantic import BaseModel
@@ -73,10 +75,93 @@ class APIError(SupabaseAPIError):
         return self._raw_error
 
 
-def generate_default_error_message(r: Response) -> dict[str, str]:
+def generate_default_error_message(response: Response) -> dict[str, Any]:
+    """The fields of an `APIError` for an error response whose body is not
+    PostgREST JSON, because there is none, as for a HEAD request, or because
+    a proxy answered instead, as with an HTML error page.
+
+    The message is the HTTP status phrase and `details` the decoded body.
+    PostgREST puts the error code of a bodiless response in the `Proxy-Status`
+    header, so the code comes from there when it is set and is the HTTP
+    status otherwise.
+    """
     return {
-        "message": "JSON could not be generated",
-        "code": str(r.status),
-        "hint": "Refer to full message for details",
-        "details": str(r.content),
+        "message": _status_phrase(response.status),
+        "code": _proxy_status_error_code(response) or str(response.status),
+        "hint": None,
+        "details": _decode_body(response),
     }
+
+
+def _decode_body(response: Response) -> str | None:
+    """The body of `response` as text, in the charset of its `Content-Type`
+    when it names one the Python codecs know, else as UTF-8 with undecodable
+    bytes replaced. None when the response has no body."""
+    if not response.content:
+        return None
+    try:
+        return response.content.decode(_charset(response))
+    except (LookupError, UnicodeDecodeError):
+        return response.content.decode("utf-8", errors="replace")
+
+
+def _charset(response: Response) -> str:
+    content_type = response.headers.get("Content-Type") or ""
+    for parameter in _split_outside_quotes(content_type, ";")[1:]:
+        key, _, value = parameter.partition("=")
+        if key.strip().lower() == "charset":
+            return _unquote(value) or "utf-8"
+    return "utf-8"
+
+
+def _status_phrase(status: int) -> str:
+    try:
+        return HTTPStatus(status).phrase
+    except ValueError:
+        return f"Request failed with status {status}"
+
+
+def _proxy_status_error_code(response: Response) -> str | None:
+    """The `error` parameter of the `PostgREST` member of the `Proxy-Status`
+    header, a structured field list (RFC 9209) in which each intermediary
+    gets a member, as in `cdn; error=connection_timeout, PostgREST;
+    error=PGRST301`. None when PostgREST set no member or no error."""
+    proxy_status = response.headers.get("Proxy-Status") or ""
+    for member in _split_outside_quotes(proxy_status, ","):
+        name, *parameters = _split_outside_quotes(member, ";")
+        if _unquote(name).lower() != "postgrest":
+            continue
+        for parameter in parameters:
+            key, _, value = parameter.partition("=")
+            if key.strip() == "error":
+                return _unquote(value) or None
+        return None
+    return None
+
+
+def _split_outside_quotes(value: str, separator: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    in_quotes = False
+    escaped = False
+    for char in value:
+        if escaped:
+            escaped = False
+        elif in_quotes and char == "\\":
+            escaped = True
+        elif char == '"':
+            in_quotes = not in_quotes
+        elif char == separator and not in_quotes:
+            parts.append("".join(current))
+            current = []
+            continue
+        current.append(char)
+    parts.append("".join(current))
+    return parts
+
+
+def _unquote(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        return re.sub(r"\\(.)", r"\1", value[1:-1])
+    return value
