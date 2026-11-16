@@ -85,9 +85,9 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         for key, value in parse_qsl(query_string, keep_blank_values=True):
             query_params = query_params.set(key, value)
 
-        if region and (resolved := FunctionRegion(region)) != FunctionRegion.Any:
-            new_headers = new_headers.override("x-region", resolved.value)
-            query_params = query_params.override("forceFunctionRegion", resolved.value)
+        if region and (resolved := str(region)) != FunctionRegion.Any:
+            new_headers = new_headers.override("x-region", resolved)
+            query_params = query_params.override("forceFunctionRegion", resolved)
         if body is None:
             return EmptyRequest(
                 method=method,
@@ -151,7 +151,8 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             with the request. A `#fragment` is dropped.
         body : the request body. A str is sent as text, bytes as binary data,
             and a dict or list as JSON.
-        region : the region to invoke the function in
+        region : the region to invoke the function in, a FunctionRegion or
+            any region name as a string
         headers : extra headers to send with the request
         method : the HTTP method to use, POST by default
         request_timeout : seconds the invocation may go without progress,
