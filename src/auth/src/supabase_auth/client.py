@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import secrets
 import threading
 import time
@@ -12,15 +11,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Literal,
-    NamedTuple,
     Self,
-    TypeGuard,
-    get_args,
     override,
 )
-from urllib.parse import parse_qsl, urlsplit
 
-from pydantic import BaseModel
 from supabase_utils.http.errors import SupabaseAPIError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -35,29 +29,47 @@ from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest, Response
 from yarl import URL
 
+from ._pkce import (
+    _append_flow_id,
+    _is_valid_flow_id,
+    _parse_code_verifier,
+    _parse_flow_index,
+    _pkce_challenge_params,
+    _PKCEFlow,
+    _push_flow,
+    _stored_code_verifier,
+    _with_pkce_challenge,
+)
+from ._sign_out import (
+    _check_sign_out_scope,
+    _is_already_signed_out,
+    _is_session_gone,
+)
 from .constants import STORAGE_KEY
 from .errors import (
-    AuthApiError,
-    AuthError,
     AuthImplicitGrantRedirectError,
     AuthInvalidJwtError,
     AuthPKCECodeVerifierMissingError,
     AuthRetryableError,
     AuthSessionMissingError,
-    ErrorCode,
     UserDoesNotExistError,
 )
 from .helpers import (
+    _JWKS_REFETCH_MAX_WAIT,
+    _JWKS_REFETCH_MIN_WAIT,
     _bind_algorithm,
     _handle_error_response,
     _header_names_algorithm,
+    _is_implicit_grant_flow,
     _is_locally_verifiable,
+    _jwk_by_kid,
+    _parse_url_params,
     _parse_verify_otp_response,
     _redirect_to_as_query,
     _validate_not_before,
+    _verify_otp_event,
     _verify_signature,
     decode_jwt,
-    generate_pkce_challenge,
     generate_pkce_verifier,
     parse_auth_otp_response,
     parse_auth_response,
@@ -115,157 +127,9 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable, Generator, Mapping
     from types import TracebackType
 
+    from pydantic import BaseModel
     from supabase_utils.http.retry import RetryPolicy
     from supabase_utils.types import JSON
-
-
-def _parse_url_params(url: str) -> dict[str, str]:
-    """The implicit grant returns its tokens in the fragment; a query string
-    parameter wins over the fragment, as in supabase-js."""
-    parts = urlsplit(url)
-    params = dict(parse_qsl(parts.fragment))
-    params.update(parse_qsl(parts.query))
-    return params
-
-
-def _is_implicit_grant_flow(url: str) -> bool:
-    params = _parse_url_params(url)
-    return "access_token" in params or "error_description" in params
-
-
-_JWKS_REFETCH_MIN_WAIT = 1.0
-_JWKS_REFETCH_MAX_WAIT = 16.0
-
-
-def _jwk_by_kid(jwks: JWKSet, kid: str) -> JWK | None:
-    return next((jwk for jwk in jwks.keys if jwk.kid == kid), None)
-
-
-_PASSWORD_RECOVERY_MARKER = "PASSWORD_RECOVERY"
-_MAX_PENDING_PKCE_FLOWS = 5
-_FLOW_ID_PARAMETER = "sb_flow_id"
-_FLOW_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{8,64}")
-
-
-_SESSION_GONE_ON_REFRESH = frozenset(
-    {
-        ErrorCode.REFRESH_TOKEN_NOT_FOUND,
-        ErrorCode.SESSION_NOT_FOUND,
-        ErrorCode.SESSION_EXPIRED,
-    }
-)
-
-
-_SIGN_OUT_SCOPES: tuple[str, ...] = get_args(SignOutScope)
-
-
-def _check_sign_out_scope(scope: str) -> None:
-    if scope not in _SIGN_OUT_SCOPES:
-        raise ValueError(
-            f"Invalid sign out scope {scope!r}, expected one of {_SIGN_OUT_SCOPES}"
-        )
-
-
-def _is_already_signed_out(error: AuthError, scope: SignOutScope) -> bool:
-    """Whether a logout answer means nothing is left to revoke for `scope`.
-    A gone user has no sessions left, and a gone current session is all that
-    `local` revokes."""
-    if not isinstance(error, AuthApiError) or error.status_code != 403:
-        return False
-    return error.code == ErrorCode.USER_NOT_FOUND or (
-        scope == "local" and error.code == ErrorCode.SESSION_NOT_FOUND
-    )
-
-
-def _is_session_gone(error: Exception) -> bool:
-    """Whether a failed refresh means the session can never be refreshed
-    again, so nothing is left to revoke for `local`."""
-    return (
-        isinstance(error, AuthApiError)
-        and error.status_code == 400
-        and error.code in _SESSION_GONE_ON_REFRESH
-    )
-
-
-class _PKCEFlow(NamedTuple):
-    flow_id: str
-    code_verifier: str
-
-
-def _is_valid_flow_id(flow_id: object) -> TypeGuard[str]:
-    return isinstance(flow_id, str) and _FLOW_ID_PATTERN.fullmatch(flow_id) is not None
-
-
-def _parse_flow_index(raw: str | None) -> list[str]:
-    """The storage may be client controlled, like a cookie, so anything that
-    is not a flow id is dropped before it is used in a storage key."""
-    if raw is None:
-        return []
-    try:
-        index: object = json.loads(raw)
-    except ValueError:
-        return []
-    if not isinstance(index, list):
-        return []
-    flow_ids: list[object] = index
-    return [flow_id for flow_id in flow_ids if _is_valid_flow_id(flow_id)]
-
-
-def _append_flow_id(redirect_to: str, flow_id: str) -> str:
-    """Edits the URL as a string, so custom schemes and the encoding of the
-    other parameters stay as they are."""
-    url, hash_sign, fragment = redirect_to.partition("#")
-    path, _, query = url.partition("?")
-    parameters = [
-        parameter
-        for parameter in query.split("&")
-        if parameter and parameter.partition("=")[0] != _FLOW_ID_PARAMETER
-    ]
-    parameters.append(f"{_FLOW_ID_PARAMETER}={flow_id}")
-    return f"{path}?{'&'.join(parameters)}{hash_sign}{fragment}"
-
-
-def _push_flow(index: list[str], flow_id: str) -> tuple[list[str], list[str]]:
-    index = [pending for pending in index if pending != flow_id] + [flow_id]
-    cut = max(len(index) - _MAX_PENDING_PKCE_FLOWS, 0)
-    return index[cut:], index[:cut]
-
-
-def _pkce_challenge_params(code_verifier: str) -> dict[str, str]:
-    code_challenge = generate_pkce_challenge(code_verifier)
-    code_challenge_method = "plain" if code_verifier == code_challenge else "s256"
-    return {
-        "code_challenge": code_challenge,
-        "code_challenge_method": code_challenge_method,
-    }
-
-
-def _with_pkce_challenge(
-    body: BaseModel | dict[str, JSON], pkce_flow: _PKCEFlow | None
-) -> BaseModel | dict[str, JSON]:
-    if pkce_flow is None:
-        return body
-    if isinstance(body, BaseModel):
-        body = body.model_dump(mode="json", exclude_none=True)
-    return {**body, **_pkce_challenge_params(pkce_flow.code_verifier)}
-
-
-def _parse_code_verifier(code_verifier: str) -> tuple[str, AuthChangeEvent]:
-    """
-    Splits a stored code verifier into the verifier to send and the event the
-    exchange notifies, which is `PASSWORD_RECOVERY` when the verifier carries
-    the password recovery suffix.
-    """
-    verifier, _, suffix = code_verifier.partition("/")
-    if suffix == _PASSWORD_RECOVERY_MARKER:
-        return verifier, AuthChangeEvent.PASSWORD_RECOVERY
-    return verifier, AuthChangeEvent.SIGNED_IN
-
-
-def _verify_otp_event(params: VerifyOtpParams) -> AuthChangeEvent:
-    if params.body.type == "recovery":
-        return AuthChangeEvent.PASSWORD_RECOVERY
-    return AuthChangeEvent.SIGNED_IN
 
 
 @dataclass
@@ -310,12 +174,6 @@ class SupabaseAuthHttpClient[
 
     def _flow_storage_key(self, flow_id: str) -> str:
         return f"{self.session_manager.storage_key}-flow-{flow_id}-code-verifier"
-
-    @staticmethod
-    def _stored_code_verifier(code_verifier: str, password_recovery: bool) -> str:
-        if password_recovery:
-            return f"{code_verifier}/{_PASSWORD_RECOVERY_MARKER}"
-        return code_verifier
 
     @handle_http_io
     def _sign_in_anonymously(
@@ -942,7 +800,7 @@ class AsyncSupabaseAuthClient(
         async with self._pkce_lock:
             await storage.set_item(
                 self._flow_storage_key(pkce_flow.flow_id),
-                self._stored_code_verifier(pkce_flow.code_verifier, password_recovery),
+                _stored_code_verifier(pkce_flow.code_verifier, password_recovery),
             )
             index, evicted = _push_flow(
                 _parse_flow_index(await storage.get_item(self._flow_index_storage_key)),
@@ -1560,7 +1418,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         with self._pkce_lock:
             storage.set_item(
                 self._flow_storage_key(pkce_flow.flow_id),
-                self._stored_code_verifier(pkce_flow.code_verifier, password_recovery),
+                _stored_code_verifier(pkce_flow.code_verifier, password_recovery),
             )
             index, evicted = _push_flow(
                 _parse_flow_index(storage.get_item(self._flow_index_storage_key)),

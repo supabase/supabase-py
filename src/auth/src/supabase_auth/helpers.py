@@ -9,7 +9,7 @@ from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse, urlsplit
 
 from cryptography.exceptions import UnsupportedAlgorithm
 from jwt import PyJWK
@@ -29,6 +29,7 @@ from .errors import (
 )
 from .types import (
     JWK,
+    AuthChangeEvent,
     AuthOtpResponse,
     AuthResponse,
     GenerateLinkProperties,
@@ -79,6 +80,12 @@ def _parse_verify_otp_response(
         else:
             return AuthResponse()
     return parse_auth_response(response)
+
+
+def _verify_otp_event(params: VerifyOtpParams) -> AuthChangeEvent:
+    if params.body.type == "recovery":
+        return AuthChangeEvent.PASSWORD_RECOVERY
+    return AuthChangeEvent.SIGNED_IN
 
 
 def parse_auth_otp_response(response: Response) -> AuthOtpResponse:
@@ -349,3 +356,25 @@ def _redirect_to_as_query(redirect_to: str | None) -> URLQuery:
     if redirect_to:
         return URLQuery.from_mapping({"redirect_to": redirect_to})
     return URLQuery.empty()
+
+
+def _parse_url_params(url: str) -> dict[str, str]:
+    """The implicit grant returns its tokens in the fragment; a query string
+    parameter wins over the fragment, as in supabase-js."""
+    parts = urlsplit(url)
+    params = dict(parse_qsl(parts.fragment))
+    params.update(parse_qsl(parts.query))
+    return params
+
+
+def _is_implicit_grant_flow(url: str) -> bool:
+    params = _parse_url_params(url)
+    return "access_token" in params or "error_description" in params
+
+
+_JWKS_REFETCH_MIN_WAIT = 1.0
+_JWKS_REFETCH_MAX_WAIT = 16.0
+
+
+def _jwk_by_kid(jwks: JWKSet, kid: str) -> JWK | None:
+    return next((jwk for jwk in jwks.keys if jwk.kid == kid), None)
