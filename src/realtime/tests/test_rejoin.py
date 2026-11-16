@@ -195,41 +195,13 @@ async def test_the_rejoin_keeps_the_bindings_and_sends_the_current_token(
     assert first.payload["config"] == second.payload["config"]
 
 
-async def test_the_tracked_presence_is_tracked_again(server: FakeServer) -> None:
-    client = RealtimeClient(server.url)
-    tracked = client.channel("tracked")
-    untracked = client.channel("untracked")
-    await tracked.subscribe()
-    await untracked.subscribe()
-    await tracked.track({"user": "a"})
-    await untracked.track({"user": "b"})
-    await untracked.untrack()
-    presences_before = len(server.sent(ChannelEvents.presence))
-
-    await server.drop_connections()
-    for channel in (tracked, untracked):
-        await next_message(channel)
-        await next_message(channel)
-    await asyncio.sleep(0.05)
-    await client.aclose()
-
-    presences = server.sent(ChannelEvents.presence)[presences_before:]
-    assert [(m.topic, m.payload) for m in presences] == [
-        (tracked.topic, {"event": "track", "payload": {"user": "a"}})
-    ]
-
-
-async def test_a_presence_tracked_before_unsubscribe_is_not_tracked_again(
+async def test_the_presence_is_not_tracked_again_after_a_rejoin(
     server: FakeServer,
 ) -> None:
     client = RealtimeClient(server.url)
     channel = client.channel("room")
-    other = client.channel("other")
-    await other.subscribe()
     await channel.subscribe()
     await channel.track({"user": "a"})
-    await channel.unsubscribe()
-    await channel.subscribe()
 
     await server.drop_connections()
     await next_message(channel)
@@ -238,6 +210,28 @@ async def test_a_presence_tracked_before_unsubscribe_is_not_tracked_again(
     await client.aclose()
 
     assert len(server.sent(ChannelEvents.presence)) == 1
+
+
+async def test_the_rejoin_sends_the_presence_flag_computed_at_subscribe(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    _listener = channel.presence_events()
+    await channel.subscribe()
+
+    await server.drop_connections()
+    await next_message(channel)
+    await next_message(channel)
+    await client.aclose()
+
+    first, second = server.sent(ChannelEvents.join)
+    for join in (first, second):
+        config = join.payload["config"]
+        assert isinstance(config, dict)
+        presence = config["presence"]
+        assert isinstance(presence, dict)
+        assert presence["enabled"] is True
 
 
 async def test_the_token_is_fetched_once_for_all_rejoins(server: FakeServer) -> None:

@@ -87,7 +87,7 @@ asyncio.run(main())
 
 ## Reconnecting
 
-When the connection drops, the client reconnects on its own until `aclose()` is called. Each wait is drawn at random between 0 and a backoff that starts at 1 second and doubles up to 30 seconds. Every joined channel is joined again with its options and the current access token, and the presence it tracked is tracked again.
+When the connection drops, the client reconnects on its own until `aclose()` is called. Each wait is drawn at random between 0 and a backoff that starts at 1 second and doubles up to 30 seconds. Every joined channel is joined again with its options and the current access token. The server removes the presence of a channel when the connection drops, so call `track()` again when the channel is joined again.
 
 `channel.messages` yields a `ChannelStateChange` when the connection of the channel drops, with the state `ERRORED` and the error, and when the channel is joined again, with the state `JOINED`. Messages sent while the connection was down are lost. If the server rejects the new join for good, for example with an `AuthorizationError`, the channel is closed and `channel.messages` raises that error.
 
@@ -165,23 +165,32 @@ async with client.channel("db-changes", options) as channel:
 
 ## Presence
 
-Your client can track and sync state that's stored in the channel.
+Your client can track and sync state that's stored in the channel. Call `presence_events()` before subscribing: a channel with a presence listener at subscribe turns presence on. Without a listener, turn it on with `RealtimeChannelOptions().presence(enabled=True)` to read `presence_state()`.
 
 ```python
-from realtime import RealtimeChannelOptions
-from realtime.presence import PresenceJoin, PresenceLeave
+from realtime import (
+    PresenceJoin,
+    PresenceLeave,
+    PresenceSync,
+    RealtimeChannelOptions,
+)
 
-options = RealtimeChannelOptions().presence(key="user-1", enabled=True)
+options = RealtimeChannelOptions().presence(key="user-1")
+channel = client.channel("presence-test", options)
+events = channel.presence_events()
 
-async with client.channel("presence-test", options) as channel:
+async with channel:
     await channel.track({"user_id": 1})
-    async for message in channel.messages:
-        if isinstance(message, PresenceJoin):
-            print("New users have joined: ", message.new_presences)
-        elif isinstance(message, PresenceLeave):
-            print("Users have left: ", message.left_presences)
-        print("Online users: ", channel.presence_state())
+    async for event in events:
+        if isinstance(event, PresenceJoin):
+            print("New users have joined: ", event.new_presences)
+        elif isinstance(event, PresenceLeave):
+            print("Users have left: ", event.left_presences)
+        elif isinstance(event, PresenceSync):
+            print("Online users: ", channel.presence_state())
 ```
+
+`track()` and `untrack()` raise `ChannelNotJoinedError` when the channel is not joined, and `PushRejectedError` when the server rejects them.
 
 ## Postgres CDC
 

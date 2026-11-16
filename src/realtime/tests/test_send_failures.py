@@ -6,6 +6,7 @@ import pytest
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
+from realtime import ChannelNotJoinedError
 from realtime._serializer import decode, encode
 from realtime.channel import RealtimeChannel, RealtimeChannelOptions
 from realtime.client import RealtimeClient, connect_once
@@ -77,10 +78,17 @@ SENDS: dict[str, Callable[[RealtimeChannel], Awaitable[object]]] = {
 }
 
 
+CLOSED_CONNECTION_ERRORS: dict[str, type[Exception]] = {
+    "send_broadcast": ConnectionClosed,
+    "track": ChannelNotJoinedError,
+    "untrack": ChannelNotJoinedError,
+}
+
+
 @pytest.mark.asyncio
-@pytest.mark.parametrize("send", SENDS.values(), ids=SENDS.keys())
+@pytest.mark.parametrize("name", SENDS.keys())
 async def test_send_raises_when_the_connection_is_closed(
-    server: FakeServer, send: Callable[[RealtimeChannel], Awaitable[object]]
+    server: FakeServer, name: str
 ) -> None:
     async with connect_once(server.url, get_token) as client:
         channel = client.channel("room")
@@ -90,8 +98,8 @@ async def test_send_raises_when_the_connection_is_closed(
         with pytest.raises(ConnectionClosed):
             await asyncio.wait_for(connection_failure(client), timeout=1)
 
-        with pytest.raises(ConnectionClosed):
-            await send(channel)
+        with pytest.raises(CLOSED_CONNECTION_ERRORS[name]):
+            await SENDS[name](channel)
 
 
 @pytest.mark.asyncio

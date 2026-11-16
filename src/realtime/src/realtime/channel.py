@@ -3,15 +3,18 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import weakref
 from collections.abc import Buffer, Sequence
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Self
 
 import websockets
 
 from .exceptions import (
     AuthorizationError,
+    ChannelNotJoinedError,
     NotConnectedError,
+    PushRejectedError,
     RealtimeError,
     RealtimeTimeoutError,
     _is_fatal,
@@ -21,6 +24,7 @@ from .message import (
     BroadcastMessage,
     ChannelCloseMessage,
     ChannelErrorMessage,
+    ErrorReplyMessage,
     Message,
     PostgresChangesMessage,
     PresenceDiffMessage,
@@ -30,7 +34,7 @@ from .message import (
     SuccessReplyMessage,
     SystemMessage,
 )
-from .presence import PresenceEvent, PresenceJoin, PresenceLeave, RealtimePresence
+from .presence import PresenceEvent, RealtimePresence
 from .types import (
     ChannelEvents,
     ChannelStates,
@@ -45,7 +49,7 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Mapping
+    from collections.abc import AsyncGenerator, AsyncIterator, Mapping
 
     from supabase_utils.types import JSON
     from yarl import URL
@@ -65,6 +69,7 @@ class RealtimeChannelOptions:
     broadcast_replication_ready: bool = False
     presence_key: str = ""
     presence_enabled: bool = False
+    """Turn presence on even when the channel has no presence listener."""
     is_private: bool = False
     token: str | None = None
     postgres_changes_bindings: Sequence[PostgresChangesBinding] = ()
@@ -100,6 +105,15 @@ class RealtimeChannelOptions:
         )
 
     def presence(self, key: str = "", enabled: bool = False) -> RealtimeChannelOptions:
+        """
+        Configure presence for the channel.
+
+        :param key: The key this connection's presence goes under. The server
+            picks a new one on each join when it is empty.
+        :param enabled: Turn presence on even when the channel has no
+            listener from `RealtimeChannel.presence_events()` at subscribe,
+            for an app that only reads `RealtimeChannel.presence_state()`.
+        """
         return replace(self, presence_key=key, presence_enabled=enabled)
 
     def private(self, private: bool = False) -> RealtimeChannelOptions:
@@ -190,7 +204,9 @@ class _ChannelFailed:
     error: Exception
 
 
-QueuedMessage = Message | ChannelStateChange | _ChannelFailed | PresenceEvent
+QueuedMessage = Message | ChannelStateChange | _ChannelFailed
+
+QueuedPresenceEvent = PresenceEvent | _ChannelFailed
 
 ChannelMessage = (
     SystemMessage
@@ -198,7 +214,6 @@ ChannelMessage = (
     | PostgresChangesMessage
     | ChannelErrorMessage
     | ChannelCloseMessage
-    | PresenceEvent
     | ChannelStateChange
 )
 
@@ -232,9 +247,9 @@ class RealtimeChannel:
         self._subscribe_attempt: object | None = None
         self._rejoin_pending = False
         self._rejoin_authorization_failed = False
-        self._tracked: dict[str, Any] | None = None
-        self._presence_version = 0
-        self._tracked_version = 0
+        self._presence_enabled = False
+        self._presence_on = False
+        self._presence_listeners: dict[asyncio.Queue[QueuedPresenceEvent], bool] = {}
         self._dropping_messages = False
         self.message_stream: asyncio.Queue[QueuedMessage] = asyncio.Queue(
             maxsize=socket.max_queued_messages
@@ -265,34 +280,48 @@ class RealtimeChannel:
         try:
             server_message = ServerMessageAdapter.validate_python(message)
         except ValueError:
-            self._enqueue(message)
+            logger.warning("Ignoring invalid presence message: %r", message)
             return
-        if isinstance(server_message, (PresenceStateMessage, PresenceDiffMessage)):
-            for event in self._presence_events(server_message):
-                self._enqueue(event)
+        if isinstance(server_message, PresenceStateMessage):
+            events = self.presence._on_state_event(
+                server_message.payload, message.join_ref
+            )
+        elif isinstance(server_message, PresenceDiffMessage):
+            events = self.presence._on_diff_event(
+                server_message.payload, message.join_ref
+            )
         else:
-            self._enqueue(message)
+            return
+        self._emit_presence(events)
 
-    def _presence_events(
-        self, message: PresenceStateMessage | PresenceDiffMessage
-    ) -> list[PresenceEvent]:
-        if isinstance(message, PresenceStateMessage):
-            return list(self.presence._on_state_event(message.payload))
-        return list(self.presence._on_diff_event(message.payload))
+    def _emit_presence(self, events: Sequence[QueuedPresenceEvent]) -> None:
+        for event in events:
+            for queue, dropping in list(self._presence_listeners.items()):
+                self._presence_listeners[queue] = self._put(queue, event, dropping)
 
     def _enqueue(self, message: QueuedMessage) -> None:
-        if self.message_stream.empty():
-            self._dropping_messages = False
-        elif self.message_stream.full():
-            self.message_stream.get_nowait()
-            if not self._dropping_messages:
+        self._dropping_messages = self._put(
+            self.message_stream, message, self._dropping_messages
+        )
+
+    def _put[T](self, queue: asyncio.Queue[T], message: T, dropping: bool) -> bool:
+        if queue.empty():
+            dropping = False
+        elif queue.full():
+            queue.get_nowait()
+            if not dropping:
                 logger.warning(
-                    "the message queue of channel %s is full, dropping its oldest "
+                    "a message queue of channel %s is full, dropping its oldest "
                     "messages until it is read",
                     self.topic,
                 )
-            self._dropping_messages = True
-        self.message_stream.put_nowait(message)
+            dropping = True
+        queue.put_nowait(message)
+        return dropping
+
+    def _fail(self, error: Exception) -> None:
+        self._enqueue(_ChannelFailed(error))
+        self._emit_presence([_ChannelFailed(error)])
 
     def _on_connection_lost(self, error: Exception) -> bool:
         if self._rejoin_pending:
@@ -305,15 +334,15 @@ class RealtimeChannel:
             self._enqueue(ChannelStateChange(ChannelStates.ERRORED, error))
             return True
         self._on_error()
-        self._enqueue(_ChannelFailed(error))
+        self._fail(error)
         return False
 
     def _on_client_stopped(self) -> None:
         if self.state == ChannelStates.JOINING:
             self._subscribe_attempt = None
         self._rejoin_pending = False
-        self._forget_tracked()
         self.state = ChannelStates.CLOSED
+        self._emit_presence(self.presence._on_unsubscribe())
 
     def _on_error(self) -> None:
         if self.state in (ChannelStates.LEAVING, ChannelStates.CLOSED):
@@ -361,6 +390,9 @@ class RealtimeChannel:
         self._subscribe_attempt = attempt
         self._rejoin_pending = False
         self._raise_if_topic_is_taken()
+        self._presence_enabled = self.options.presence_enabled or bool(
+            self._presence_listeners
+        )
         await self.socket.connect()
         await self.socket._refresh_token()
         return await self._join(attempt, clear_messages=True)
@@ -372,7 +404,12 @@ class RealtimeChannel:
         if clear_messages:
             while not self.message_stream.empty():
                 self.message_stream.get_nowait()
-        options = self.options
+            for queue in self._presence_listeners:
+                events = [queue.get_nowait() for _ in range(queue.qsize())]
+                for event in events:
+                    if not isinstance(event, _ChannelFailed):
+                        queue.put_nowait(event)
+        options = replace(self.options, presence_enabled=self._presence_enabled)
         if self.socket.last_token is not None:
             options = replace(options, token=self.socket.last_token)
         payload = options.to_payload()
@@ -385,6 +422,8 @@ class RealtimeChannel:
             join_ref=join_ref,
         )
         self.join_ref = join_ref
+        self.presence._on_join(join_ref)
+        self._presence_on = self._presence_enabled
         self.state = ChannelStates.JOINING
         failure = self.socket._connection_failure
         try:
@@ -457,24 +496,15 @@ class RealtimeChannel:
         self._rejoin_authorization_failed = False
         logger.info("joined channel %s again", self.topic)
         self._enqueue(ChannelStateChange(ChannelStates.JOINED))
-        if self._tracked is not None:
-            try:
-                await self.track(self._tracked)
-            except Exception as error:
-                logger.warning(
-                    "could not track the presence on channel %s again: %r",
-                    self.topic,
-                    error,
-                )
 
     def _fail_rejoin(self, error: Exception) -> None:
         logger.error("gave up joining channel %s again: %r", self.topic, error)
         self._rejoin_pending = False
-        self._forget_tracked()
         self._rejoin_authorization_failed = False
         self._subscribe_attempt = None
         self.state = ChannelStates.CLOSED
-        self._enqueue(_ChannelFailed(error))
+        self._emit_presence(self.presence._on_unsubscribe())
+        self._fail(error)
 
     def _postgres_changes_match(
         self, server_bindings: Sequence[PostgresRowChange] | None
@@ -540,8 +570,8 @@ class RealtimeChannel:
         joined channel drops and when the client joined it again. At most
         ``max_queued_messages`` of the client are kept until they are read;
         when the queue is full, the oldest message is dropped and a warning is
-        logged. Presence updates are applied to `presence_state()` when they
-        arrive, so a dropped presence event does not lose presence state.
+        logged. Presence events are not yielded here: read them from
+        `presence_events()`.
 
         :raises NotConnectedError: If the client is not connected, or is closed
             while waiting for a message.
@@ -555,25 +585,79 @@ class RealtimeChannel:
                 message = await self.socket._next_message(self.message_stream)
             else:
                 message = self.message_stream.get_nowait()
-            if isinstance(message, (ChannelStateChange, PresenceJoin, PresenceLeave)):
+            if isinstance(message, ChannelStateChange):
                 yield message
                 continue
             if isinstance(message, _ChannelFailed):
                 raise message.error
             server_message = ServerMessageAdapter.validate_python(message)
-            if isinstance(server_message, (PresenceStateMessage, PresenceDiffMessage)):
-                for presence_event in self._presence_events(server_message):
-                    yield presence_event
-            else:
+            if not isinstance(
+                server_message, (PresenceStateMessage, PresenceDiffMessage)
+            ):
                 yield server_message
+
+    def presence_events(self) -> AsyncIterator[PresenceEvent]:
+        """
+        Listen for the presence events of the channel.
+
+        The listener is registered when this is called, so call it before
+        `subscribe()`: a channel with a presence listener at subscribe turns
+        presence on. For each change of the presence state, it yields a
+        `PresenceJoin` per key with joined presences, then a `PresenceLeave`
+        per key with left presences, then a `PresenceSync`. Unsubscribing
+        yields a `PresenceLeave` for every key, then a `PresenceSync`. At most
+        ``max_queued_messages`` of the client are kept until they are read.
+        The listener is removed when the iterator is closed or garbage
+        collected.
+
+        :raises RealtimeError: If the channel is joining or joined with
+            presence off, since the listener would never receive an event.
+            Add the listener before `subscribe()`, or turn presence on with
+            `RealtimeChannelOptions.presence(enabled=True)`.
+        """
+        joining_or_joined = self.state in (
+            ChannelStates.JOINING,
+            ChannelStates.JOINED,
+            ChannelStates.ERRORED,
+        )
+        if joining_or_joined and not self._presence_on:
+            raise RealtimeError(
+                f"channel {self.topic!r} joined with presence off, so a presence "
+                "listener would never receive an event; call presence_events() "
+                "before subscribe() or set RealtimeChannelOptions.presence(enabled=True)"
+            )
+        queue: asyncio.Queue[QueuedPresenceEvent] = asyncio.Queue(
+            maxsize=self.socket.max_queued_messages
+        )
+        self._presence_listeners[queue] = False
+        events = self._listen_presence(queue)
+        weakref.finalize(events, self._presence_listeners.pop, queue, None)
+        return events
+
+    async def _listen_presence(
+        self, queue: asyncio.Queue[QueuedPresenceEvent]
+    ) -> AsyncGenerator[PresenceEvent]:
+        try:
+            while True:
+                if queue.empty():
+                    event = await self.socket._next_message(
+                        queue, "RealtimeChannel.presence_events"
+                    )
+                else:
+                    event = queue.get_nowait()
+                if isinstance(event, _ChannelFailed):
+                    raise event.error
+                yield event
+        finally:
+            self._presence_listeners.pop(queue, None)
 
     async def unsubscribe(self) -> None:
         self._subscribe_attempt = None
         self._rejoin_pending = False
-        self._forget_tracked()
         needs_leave = self.state in (ChannelStates.JOINED, ChannelStates.JOINING)
         self.state = ChannelStates.LEAVING
         self.socket._remove_channel(self)
+        self._emit_presence(self.presence._on_unsubscribe())
         try:
             if needs_leave:
                 await self._send_event(ChannelEvents.leave, payload={})
@@ -591,45 +675,43 @@ class RealtimeChannel:
             await self.socket._close_if_unused()
 
     # Presence methods
-    async def track(self, user_status: dict[str, Any]) -> ReplyMessage:
+    async def track(self, user_status: Mapping[str, JSON]) -> None:
         """
-        Track presence status for the current user.
+        Publish the presence of this connection, or replace it.
 
-        The client tracks it again when it joins the channel again after a
-        reconnect.
+        The server removes it when the channel ends, so after the channel is
+        joined again (`messages` yields a `ChannelStateChange` with the state
+        `JOINED`), call `track()` again to be present.
 
-        :param user_status: Dictionary containing the user's presence information
+        :param user_status: The presence payload, a JSON object.
+        :raises ChannelNotJoinedError: If the channel is not joined.
+        :raises PushRejectedError: If the server replies with an error.
+        :raises RealtimeTimeoutError: If the server does not reply in time.
         """
-        self._presence_version += 1
-        version = self._presence_version
-        reply = await self.send_presence("track", user_status)
-        if (
-            isinstance(reply.payload, SuccessReplyMessage)
-            and version > self._tracked_version
-        ):
-            self._tracked = user_status
-            self._tracked_version = version
-        return reply
+        join_ref = self.join_ref
+        await self.send_presence("track", dict(user_status))
+        if self.join_ref == join_ref:
+            self._presence_on = True
 
-    async def untrack(self) -> ReplyMessage:
+    async def untrack(self) -> None:
         """
-        Stop tracking presence for the current user.
-        """
-        self._forget_tracked()
-        return await self.send_presence("untrack", {})
+        Remove the presence of this connection.
 
-    def _forget_tracked(self) -> None:
-        self._presence_version += 1
-        self._tracked_version = self._presence_version
-        self._tracked = None
+        :raises ChannelNotJoinedError: If the channel is not joined.
+        :raises PushRejectedError: If the server replies with an error.
+        :raises RealtimeTimeoutError: If the server does not reply in time.
+        """
+        await self.send_presence("untrack", {})
 
     def presence_state(self) -> RealtimePresenceState:
         """
-        Get the current state of presence on this channel.
+        Get a snapshot of the presence state of this channel.
+
+        Later presence messages do not change the returned value.
 
         :return: Dictionary mapping presence keys to lists of presence payloads
         """
-        return self.presence.state
+        return {key: list(presences) for key, presences in self.presence.state.items()}
 
     async def _send_event(
         self, event: ChannelEvents, payload: Mapping[str, JSON | bytes]
@@ -689,7 +771,23 @@ class RealtimeChannel:
     def _broadcast_endpoint_url(self) -> URL:
         return self.socket.http_endpoint.joinpath("api", "broadcast")
 
-    async def send_presence(self, event: str, data: JSON) -> ReplyMessage:
-        return await self._send_event(
+    async def send_presence(self, event: str, data: JSON) -> None:
+        """
+        Send a ``presence`` message and wait for the server's reply.
+
+        :raises ChannelNotJoinedError: If the channel is not joined.
+        :raises PushRejectedError: If the server replies with an error.
+        :raises RealtimeTimeoutError: If the server does not reply in time.
+        """
+        if not self.joined:
+            raise ChannelNotJoinedError(f"RealtimeChannel.{event}", self.topic)
+        reply = await self._send_event(
             ChannelEvents.presence, {"event": event, "payload": data}
         )
+        if isinstance(reply.payload, ErrorReplyMessage):
+            reason = reply.payload.response.get("reason")
+            raise PushRejectedError(
+                f"presence {event}",
+                self.topic,
+                reason if isinstance(reason, str) else None,
+            )

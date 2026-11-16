@@ -299,7 +299,7 @@ Messages queued on a channel, like the close message of `unsubscribe()`, can sti
 
 ## Realtime clients reconnect and join their channels again
 
-`RealtimeClient`, and so `AsyncClient.realtime`, reconnects on its own when its connection drops, until `aclose()` is called or its last channel is removed. Each wait is drawn at random between 0 and a backoff that starts at 1 second and doubles up to 30 seconds. There is no attempt limit. Every channel that was joined is joined again with its options and the current access token, and the presence it tracked with `track()` is tracked again.
+`RealtimeClient`, and so `AsyncClient.realtime`, reconnects on its own when its connection drops, until `aclose()` is called or its last channel is removed. Each wait is drawn at random between 0 and a backoff that starts at 1 second and doubles up to 30 seconds. There is no attempt limit. Every channel that was joined is joined again with its options and the current access token. The server removes the presence of a channel when its connection drops, so call `track()` again once `channel.messages` yields a `ChannelStateChange` with the state `JOINED`.
 
 `automatically_reconnect`, `exponential_delay` and `MaxRetriesExceeded` are removed. Open the client with `connect_once` or `RealtimeClient` instead.
 
@@ -326,6 +326,30 @@ async for message in channel.messages:
 `subscribe()`, `unsubscribe()`, `track()`, `untrack()` and an acknowledged `send_broadcast()` raise `RealtimeTimeoutError`, also a built-in `TimeoutError`, when the server does not reply within `timeout` seconds, 10 by default. Before, they waited forever. Pass `timeout` to `connect_once`, `RealtimeClient` or `RealtimeClientOptions` to change it. A join that times out is left, so a late reply does not join the channel.
 
 A channel keeps at most `max_queued_messages` unread messages, 1000 by default. When its queue is full, the oldest message is dropped and a warning is logged. Pass `max_queued_messages` to `connect_once`, `RealtimeClient` or `RealtimeClientOptions` to change it.
+
+## Realtime presence events have their own listener
+
+`channel.messages` no longer yields `PresenceJoin` and `PresenceLeave`. Call `channel.presence_events()` before `subscribe()`; it yields `PresenceJoin`, `PresenceLeave` and the new `PresenceSync`. A channel with a presence listener at subscribe turns presence on, so `RealtimeChannelOptions.presence(enabled=True)` is only needed to read `presence_state()` without a listener.
+
+```python skip
+async with client.channel("room", RealtimeChannelOptions().presence(enabled=True)) as channel:
+    async for message in channel.messages:
+        if isinstance(message, PresenceJoin):
+            print(message.new_presences)
+```
+
+```python
+from realtime import PresenceJoin, RealtimeClient
+
+channel = RealtimeClient(url).channel("room")
+events = channel.presence_events()
+async with channel:
+    async for event in events:
+        if isinstance(event, PresenceJoin):
+            print(event.new_presences)
+```
+
+`track()`, `untrack()` and `send_presence()` return `None` instead of the server's reply. They raise `ChannelNotJoinedError` without sending when the channel is not joined, and `PushRejectedError` when the server replies with an error. `presence_state()` returns a copy, and `unsubscribe()` clears the presence state and yields a `PresenceLeave` for every key.
 
 ## Realtime `close()` is `aclose()`
 

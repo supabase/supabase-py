@@ -6,7 +6,7 @@ from pydantic import TypeAdapter
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed, ConnectionClosedOK
 
-from realtime import ChannelStateChange, ChannelStates
+from realtime import ChannelNotJoinedError, ChannelStateChange, ChannelStates
 from realtime._serializer import decode, encode
 from realtime.client import connect_once
 from realtime.message import (
@@ -130,11 +130,8 @@ async def test_raises_on_send_presence(server: RealtimeServer) -> None:
         client.channel("test-channel") as channel,
     ):
         await server.close()
-        try:
-            await channel.send_presence("presence", {})
-        except ConnectionClosedOK:
-            return
-        raise Exception("should have raised a connection error, but got nothing")
+        with pytest.raises((ConnectionClosedOK, ChannelNotJoinedError)):
+            await channel.send_presence("track", {})
 
 
 async def test_yields_the_errored_state_when_the_connection_drops(

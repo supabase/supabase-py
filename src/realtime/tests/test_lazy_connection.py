@@ -160,7 +160,7 @@ async def test_sending_without_a_connection_raises_not_connected() -> None:
     client = RealtimeClient("http://localhost")
 
     with pytest.raises(NotConnectedError):
-        await client.channel("room").track({"user": "a"})
+        await client.channel("room").send_broadcast("event", {"a": 1})
 
 
 async def test_close_wakes_a_reader_waiting_for_messages(server: FakeServer) -> None:
@@ -297,7 +297,7 @@ async def test_removing_all_channels_closes_the_connection(server: FakeServer) -
 
     await asyncio.wait_for(server.connections[0].wait_closed(), timeout=1)
     with pytest.raises(NotConnectedError):
-        await client.channel("room").track({"user": "a"})
+        await client.channel("room").send_broadcast("event", {"a": 1})
 
 
 async def test_connection_stays_open_while_a_channel_is_registered(
