@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -59,6 +60,50 @@ def sanitize_param(param: Any) -> str:
     if any(char in param_str for char in reserved_chars):
         return _quote(param_str)
     return param_str
+
+
+_CAST = re.compile(r"::[A-Za-z0-9]+$")
+_QUOTED_JSON_KEY = r'"(?:[^"\\]|\\.)*"'
+_JSON_PATH_STEP = re.compile(
+    rf"(->>?)({_QUOTED_JSON_KEY}(?=->|$)|(?:(?!->).)*)", re.DOTALL
+)
+_BARE_JSON_KEY = re.compile(
+    rf"-?[0-9]+|[A-Za-z_$][A-Za-z0-9_$]*|{_QUOTED_JSON_KEY}", re.DOTALL
+)
+
+
+def _sanitize_json_key(key: str) -> str:
+    """A JSON path operand as PostgREST reads it: an integer stays bare as an
+    array index, a key that is already double-quoted is kept, and any other
+    key that is not a plain identifier is quoted."""
+    if not key:
+        raise ValueError("a JSON path cannot end with an empty key")
+    if _BARE_JSON_KEY.fullmatch(key):
+        return key
+    return _quote(key)
+
+
+def _sanitize_column(column: str) -> str:
+    """A filter key as PostgREST reads it: the column name quoted when it
+    holds a reserved character, and each key of a JSON path such as
+    `data->>key` quoted on its own, so `data->>a,b` becomes `data->>"a,b"`
+    rather than one column named `data->>a,b`. A trailing cast such as
+    `::int` stays outside the quotes."""
+    cast_match = _CAST.search(column)
+    cast = cast_match.group() if cast_match else ""
+    column = column.removesuffix(cast)
+    path_start = column.find("->")
+    if path_start == -1:
+        return sanitize_param(column) + cast
+    sanitized = [sanitize_param(column[:path_start])]
+    position = path_start
+    while position < len(column):
+        step = _JSON_PATH_STEP.match(column, position)
+        assert step is not None
+        arrow, key = step.groups()
+        sanitized.append(arrow + _sanitize_json_key(key))
+        position = step.end()
+    return "".join(sanitized) + cast
 
 
 def _sanitize_array_element(element: Any) -> str:

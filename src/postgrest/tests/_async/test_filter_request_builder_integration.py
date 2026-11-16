@@ -810,3 +810,24 @@ async def test_rpc_as_csv(postgrest_client: AsyncPostgrestClient) -> None:
     )
 
     assert res.data == "iso\nAL"
+
+
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("data->>a.b", "dotted"),
+        ("data->>a,b", "comma"),
+        ('data->>"0"', "text zero"),
+        ("data->items->>0", "first"),
+        ("data->items->>-1", "second"),
+        ("data->items->>0::text", "first"),
+    ],
+)
+async def test_eq_on_a_json_path(
+    postgrest_client: AsyncPostgrestClient, column: str, value: str
+) -> None:
+    res = await (
+        postgrest_client.from_("documents").select("id").eq(column, value).execute()
+    )
+
+    assert res.data == [{"id": 1}]
