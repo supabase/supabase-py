@@ -69,7 +69,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         request_timeout: float | None,
         retry: RetryPolicy | bool | None,
     ) -> ToRequest:
-        if not is_valid_string_argument(function_name):
+        if not isinstance(function_name, str):
             raise ValueError("function_name must be a valid string value.")
         name, _, query_string = function_name.split("#", 1)[0].partition("?")
         if not is_valid_string_argument(name):
@@ -87,9 +87,7 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         if region and (resolved := FunctionRegion(region)) != FunctionRegion.Any:
             new_headers = new_headers.override("x-region", resolved.value)
-            query_params = query_params.merge(
-                URLQuery.from_mapping({"forceFunctionRegion": resolved.value})
-            )
+            query_params = query_params.override("forceFunctionRegion", resolved.value)
         if body is None:
             return EmptyRequest(
                 method=method,
