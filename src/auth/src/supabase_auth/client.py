@@ -37,6 +37,7 @@ from .errors import (
 )
 from .helpers import (
     _handle_error_response,
+    _parse_verify_otp_response,
     _redirect_to_as_query,
     decode_jwt,
     generate_pkce_challenge,
@@ -487,8 +488,7 @@ class SupabaseAuthHttpClient[
             body=params.body,
             query=query,
         )
-        auth_response = parse_auth_response(response)
-        return auth_response
+        return _parse_verify_otp_response(response, params)
 
     @handle_http_io
     def _reauthenticate(self, session: Session) -> HttpMethod[AuthResponse]:

@@ -209,6 +209,10 @@ class Factor(BaseModel):
     """
     Friendly name of the factor, useful to disambiguate between multiple factors.
     """
+    phone: str | None = None
+    """
+    Phone number of a phone factor.
+    """
     factor_type: Literal["totp", "phone"] | str  # noqa: PYI051
     """
     Type of factor. Only `totp` supported with this version but may change in
@@ -1110,7 +1114,7 @@ class OAuthClient(BaseModel):
 
     client_id: str
     """Unique client identifier"""
-    client_name: str
+    client_name: str | None = None
     """Human-readable name of the client application"""
     client_secret: str | None = None
     """Client secret for confidential clients (only returned on registration/regeneration)"""

@@ -283,6 +283,41 @@ def test_handle_error_response_treats_an_unparsable_gateway_error_as_retryable()
     assert error.code is ErrorCode.UNEXPECTED_FAILURE
 
 
+@pytest.mark.parametrize("status", [429, 502, 503, 504, 520])
+@pytest.mark.parametrize("content", [b"", b"<html>Service Unavailable</html>"])
+def test_handle_error_response_retries_a_retryable_status_whatever_the_body(
+    status: int, content: bytes
+) -> None:
+    response = Response(
+        content=content,
+        status=status,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthRetryableError)
+    assert error.status_code == status
+    assert error.code is ErrorCode.UNEXPECTED_FAILURE
+
+
+def test_handle_error_response_keeps_the_message_of_a_retryable_error() -> None:
+    response = Response(
+        content=b'{"msg": "upstream unavailable"}',
+        status=503,
+        headers=Headers.empty(),
+        request=valid_request(),
+    )
+
+    error = _handle_error_response(response)
+
+    assert isinstance(error, AuthRetryableError)
+    assert error.message == "upstream unavailable"
+    assert error.status_code == 503
+    assert error.code is None
+
+
 def test_handle_error_response_keeps_an_unparsable_client_error_unknown() -> None:
     response = Response(
         content=b"<html>404 Not Found</html>",

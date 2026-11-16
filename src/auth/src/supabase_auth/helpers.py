@@ -8,7 +8,7 @@ import uuid
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -37,6 +37,7 @@ from .types import (
     SSOResponse,
     User,
     UserResponse,
+    VerifyOtpParams,
 )
 
 if TYPE_CHECKING:
@@ -51,6 +52,28 @@ def parse_auth_response(response: Response) -> AuthResponse:
         session = None
         user = _validate_model(response, User)
     return AuthResponse(user=user, session=session)
+
+
+class _PendingSecureEmailChange(BaseModel):
+    """What auth answers to the first of the two confirmations of a secure
+    email change. It issues no session until the other address confirms too,
+    and it sends the status as a string."""
+
+    code: Literal["200"]
+    msg: str
+
+
+def _parse_verify_otp_response(
+    response: Response, params: VerifyOtpParams
+) -> AuthResponse:
+    if params.body.type == "email_change" and response.is_success:
+        try:
+            _PendingSecureEmailChange.model_validate_json(response.content)
+        except ValidationError:
+            pass
+        else:
+            return AuthResponse()
+    return parse_auth_response(response)
 
 
 def parse_auth_otp_response(response: Response) -> AuthOtpResponse:
