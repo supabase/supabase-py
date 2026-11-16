@@ -8,7 +8,16 @@ import threading
 import time
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Self, TypeGuard, override
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    NamedTuple,
+    Self,
+    TypeGuard,
+    get_args,
+    override,
+)
 from urllib.parse import parse_qsl, urlsplit
 
 from jwt import get_algorithm_by_name
@@ -29,11 +38,14 @@ from yarl import URL
 
 from .constants import STORAGE_KEY
 from .errors import (
+    AuthApiError,
+    AuthError,
     AuthImplicitGrantRedirectError,
     AuthInvalidJwtError,
     AuthPKCECodeVerifierMissingError,
     AuthRetryableError,
     AuthSessionMissingError,
+    ErrorCode,
     UserDoesNotExistError,
 )
 from .helpers import (
@@ -58,6 +70,7 @@ from .session import (
     SyncMemoryStorage,
     SyncSupportedStorage,
     _AsyncSessionManager,
+    _is_terminal_refresh_error,
     _SessionManagerCommon,
     _SyncSessionManager,
 )
@@ -120,6 +133,46 @@ _PASSWORD_RECOVERY_MARKER = "PASSWORD_RECOVERY"
 _MAX_PENDING_PKCE_FLOWS = 5
 _FLOW_ID_PARAMETER = "sb_flow_id"
 _FLOW_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{8,64}")
+
+
+_SESSION_GONE_ON_REFRESH = frozenset(
+    {
+        ErrorCode.REFRESH_TOKEN_NOT_FOUND,
+        ErrorCode.SESSION_NOT_FOUND,
+        ErrorCode.SESSION_EXPIRED,
+    }
+)
+
+
+_SIGN_OUT_SCOPES: tuple[str, ...] = get_args(SignOutScope)
+
+
+def _check_sign_out_scope(scope: str) -> None:
+    if scope not in _SIGN_OUT_SCOPES:
+        raise ValueError(
+            f"Invalid sign out scope {scope!r}, expected one of {_SIGN_OUT_SCOPES}"
+        )
+
+
+def _is_already_signed_out(error: AuthError, scope: SignOutScope) -> bool:
+    """Whether a logout answer means nothing is left to revoke for `scope`.
+    A gone user has no sessions left, and a gone current session is all that
+    `local` revokes."""
+    if not isinstance(error, AuthApiError) or error.status_code != 403:
+        return False
+    return error.code == ErrorCode.USER_NOT_FOUND or (
+        scope == "local" and error.code == ErrorCode.SESSION_NOT_FOUND
+    )
+
+
+def _is_session_gone(error: Exception) -> bool:
+    """Whether a failed refresh means the session can never be refreshed
+    again, so nothing is left to revoke for `local`."""
+    return (
+        isinstance(error, AuthApiError)
+        and error.status_code == 400
+        and error.code in _SESSION_GONE_ON_REFRESH
+    )
 
 
 class _PKCEFlow(NamedTuple):
@@ -363,8 +416,11 @@ class SupabaseAuthHttpClient[
             query=URLQuery.from_mapping({"scope": scope}),
             headers=session.encode_access_token(),
         )
-        if not response.is_success:
-            raise _handle_error_response(response)
+        if response.is_success:
+            return
+        error = _handle_error_response(response)
+        if not _is_already_signed_out(error, scope):
+            raise error
 
     def _sign_in_with_oauth(
         self,
@@ -1270,27 +1326,75 @@ class AsyncSupabaseAuthClient(
 
     async def sign_out(self, scope: SignOutScope = "global") -> None:
         """
-        `sign_out` will remove the logged in user from the
-        current session and log them out - removing all items from storage and then trigger a `"SIGNED_OUT"` event.
+        Signs the user out. `scope` picks which sessions end:
 
-        For advanced use cases, you can revoke all refresh tokens for a user by passing a user's JWT through to `admin.sign_out`.
+        - `"global"` ends every session of the user on the auth service, then
+          removes the local session. When the service fails to end them, the
+          local session is kept, so the sign-out can be retried.
+        - `"local"` removes the local session first, then ends this session on
+          the auth service. The device is signed out even when that fails.
+        - `"others"` ends every session of the user except this one, and keeps
+          the local session. Raises `AuthSessionMissingError` without one.
 
-        There is no way to revoke a user's access token jwt until it expires.
-        It is recommended to set a shorter expiry on the jwt for this reason.
+        Removing the local session also removes the stored PKCE code verifiers
+        and notifies `SIGNED_OUT`, also when there was no session. An answer
+        that the user or the session is already gone counts as success. A
+        failure raises the error of the logout request, or of the refresh of
+        an expired access token that comes before it.
+
+        An access token stays valid until it expires, since only refresh
+        tokens can be revoked.
         """
-        session = await self.get_session()
-        if session:
-            await self._sign_out(session, scope)
+        _check_sign_out_scope(scope)
+        manager = self.session_manager
+        async with manager.exclusive():
+            session = await manager.load_session()
+            if scope == "others":
+                if session is None:
+                    raise AuthSessionMissingError
+                if manager._is_expiring(session):
+                    session = await manager._refresh_stored_session()
+                await self._sign_out(session, scope)
+            elif session is None:
+                await self._remove_local_session()
+            elif scope == "local":
+                await self._remove_local_session()
+                await self._revoke_removed_session(session)
+            else:
+                await self._sign_out_globally(session)
 
-        if scope != "others":
-            await self.session_manager.remove_session()
-            await self._remove_all_pkce_flows()
-            self.session_manager.notify_all_subscribers(
-                AuthStateChange(
-                    AuthChangeEvent.SIGNED_OUT,
-                    sign_out_reason=SignOutReason.USER_INITIATED,
+    async def _sign_out_globally(self, session: Session) -> None:
+        manager = self.session_manager
+        if manager._is_expiring(session):
+            if not session.refresh_token:
+                await self._remove_local_session()
+                raise AuthSessionMissingError
+            try:
+                session = await manager._refresh_and_save(session.refresh_token)
+            except Exception as error:
+                if _is_terminal_refresh_error(error):
+                    await self._remove_local_session()
+                raise
+        await self._sign_out(session, "global")
+        await self._remove_local_session()
+
+    async def _revoke_removed_session(self, session: Session) -> None:
+        """Revoke a session that is no longer stored, refreshing an expired
+        access token in memory only."""
+        if self.session_manager._is_expiring(session) and session.refresh_token:
+            try:
+                session = await self.session_manager.refresh_access_token(
+                    session.refresh_token
                 )
-            )
+            except Exception as error:
+                if _is_session_gone(error):
+                    return
+                raise
+        await self._sign_out(session, "local")
+
+    async def _remove_local_session(self) -> None:
+        await self._remove_all_pkce_flows()
+        await self.session_manager._sign_out_locally(SignOutReason.USER_INITIATED)
 
     @override
     def on_auth_state_change(
@@ -1807,27 +1911,75 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
 
     def sign_out(self, scope: SignOutScope = "global") -> None:
         """
-        `sign_out` will remove the logged in user from the
-        current session and log them out - removing all items from storage and then trigger a `"SIGNED_OUT"` event.
+        Signs the user out. `scope` picks which sessions end:
 
-        For advanced use cases, you can revoke all refresh tokens for a user by passing a user's JWT through to `admin.sign_out`.
+        - `"global"` ends every session of the user on the auth service, then
+          removes the local session. When the service fails to end them, the
+          local session is kept, so the sign-out can be retried.
+        - `"local"` removes the local session first, then ends this session on
+          the auth service. The device is signed out even when that fails.
+        - `"others"` ends every session of the user except this one, and keeps
+          the local session. Raises `AuthSessionMissingError` without one.
 
-        There is no way to revoke a user's access token jwt until it expires.
-        It is recommended to set a shorter expiry on the jwt for this reason.
+        Removing the local session also removes the stored PKCE code verifiers
+        and notifies `SIGNED_OUT`, also when there was no session. An answer
+        that the user or the session is already gone counts as success. A
+        failure raises the error of the logout request, or of the refresh of
+        an expired access token that comes before it.
+
+        An access token stays valid until it expires, since only refresh
+        tokens can be revoked.
         """
-        session = self.get_session()
-        if session:
-            self._sign_out(session, scope)
+        _check_sign_out_scope(scope)
+        manager = self.session_manager
+        with manager.exclusive():
+            session = manager.load_session()
+            if scope == "others":
+                if session is None:
+                    raise AuthSessionMissingError
+                if manager._is_expiring(session):
+                    session = manager._refresh_stored_session()
+                self._sign_out(session, scope)
+            elif session is None:
+                self._remove_local_session()
+            elif scope == "local":
+                self._remove_local_session()
+                self._revoke_removed_session(session)
+            else:
+                self._sign_out_globally(session)
 
-        if scope != "others":
-            self.session_manager.remove_session()
-            self._remove_all_pkce_flows()
-            self.session_manager.notify_all_subscribers(
-                AuthStateChange(
-                    AuthChangeEvent.SIGNED_OUT,
-                    sign_out_reason=SignOutReason.USER_INITIATED,
+    def _sign_out_globally(self, session: Session) -> None:
+        manager = self.session_manager
+        if manager._is_expiring(session):
+            if not session.refresh_token:
+                self._remove_local_session()
+                raise AuthSessionMissingError
+            try:
+                session = manager._refresh_and_save(session.refresh_token)
+            except Exception as error:
+                if _is_terminal_refresh_error(error):
+                    self._remove_local_session()
+                raise
+        self._sign_out(session, "global")
+        self._remove_local_session()
+
+    def _revoke_removed_session(self, session: Session) -> None:
+        """Revoke a session that is no longer stored, refreshing an expired
+        access token in memory only."""
+        if self.session_manager._is_expiring(session) and session.refresh_token:
+            try:
+                session = self.session_manager.refresh_access_token(
+                    session.refresh_token
                 )
-            )
+            except Exception as error:
+                if _is_session_gone(error):
+                    return
+                raise
+        self._sign_out(session, "local")
+
+    def _remove_local_session(self) -> None:
+        self._remove_all_pkce_flows()
+        self.session_manager._sign_out_locally(SignOutReason.USER_INITIATED)
 
     @override
     def on_auth_state_change(
