@@ -5,8 +5,7 @@ from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Literal, Never, Self, overload
 
 from pydantic import TypeAdapter
-from pydantic_core import PydanticSerializationError, to_jsonable_python
-from supabase_utils.types import JSON, JSONParser
+from supabase_utils.types import JSON
 
 from .partial_row import PartialRow
 from .table import Table, _rows_adapter
@@ -19,6 +18,7 @@ from .table_request import (
     TableResult,
 )
 from .types import CountMethod
+from .utils import _jsonable
 
 if TYPE_CHECKING:
     from supabase_utils.http.retry import RetryPolicy
@@ -510,7 +510,8 @@ class TypedQueryBuilder[
         the table. A column left out of a row gets its database default, even
         when another row of the same request sets it; `None` writes `NULL`.
         Values are serialized the way pydantic serializes them, so a `date`
-        or a `UUID` can be given as it is.
+        or a `UUID` can be given as it is, and `bytes` is sent as the `\\x`
+        hex text PostgreSQL reads for `bytea`.
 
         The request resolves to `None`; a trailing `select()` returns the
         inserted rows instead. Raises `TypeError` for a payload that is
@@ -710,16 +711,6 @@ def _row_payload(values: object, method: str) -> JSON:
     if isinstance(payload, Mapping):
         return payload
     raise TypeError(error)
-
-
-def _jsonable(value: object, error: str) -> JSON:
-    """`value` as plain JSON, serialized the way pydantic serializes it, or
-    `TypeError` with `error` when it cannot be."""
-    try:
-        jsonable = to_jsonable_python(value)
-    except PydanticSerializationError as cause:
-        raise TypeError(error) from cause
-    return JSONParser.validate_python(jsonable)
 
 
 def _and_filter(current: Filter[Any] | None, filter: Filter[Any]) -> Filter[Any]:

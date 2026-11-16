@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
+
+from pydantic_core import PydanticSerializationError, to_jsonable_python
+from supabase_utils.types import JSONParser
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from supabase_utils.types import JSON
     from yarl import URL
 
 
@@ -32,6 +37,32 @@ def _serialize_filter_value(value: Any) -> str:
             value = value.replace(tzinfo=UTC)
         return value.isoformat()
     return str(value)
+
+
+def _hex_bytes(value: object) -> object:
+    """`value` with every `bytes` in it as the `\\x` hex text PostgreSQL reads
+    for `bytea`, which pydantic would otherwise send decoded as UTF-8."""
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return "\\x" + bytes(value).hex()
+    if isinstance(value, Mapping):
+        mapping: Mapping[object, object] = value
+        return {key: _hex_bytes(item) for key, item in mapping.items()}
+    if isinstance(value, (list, tuple, set, frozenset, Iterator)):
+        items: Iterable[object] = value
+        return [_hex_bytes(item) for item in items]
+    return value
+
+
+def _jsonable(value: object, error: str) -> JSON:
+    """`value` as plain JSON, serialized the way pydantic serializes it, so a
+    `datetime` or a `UUID` becomes its string, with `bytes` as the `\\x` hex
+    text PostgreSQL reads for `bytea`, or `TypeError` with `error` when it
+    cannot be."""
+    try:
+        jsonable = to_jsonable_python(_hex_bytes(value))
+    except PydanticSerializationError as cause:
+        raise TypeError(error) from cause
+    return JSONParser.validate_python(jsonable)
 
 
 def _in_members(values: Iterable[Any]) -> tuple[Any, ...]:
