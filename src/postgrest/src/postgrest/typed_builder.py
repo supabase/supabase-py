@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Literal, Never, Self, overload
 
@@ -18,7 +18,7 @@ from .table_request import (
     TableResult,
 )
 from .types import CountMethod
-from .utils import _jsonable
+from .utils import _row_payload, _rows_payload
 
 if TYPE_CHECKING:
     from supabase_utils.http.retry import RetryPolicy
@@ -684,33 +684,6 @@ def _selected[Row](
             "select_only() needs at least one column; use select() for every column"
         )
     return selected
-
-
-def _rows_payload(rows: object, method: str) -> JSON:
-    """`rows` as the payload of a write: one JSON object for a row, a list of
-    them for an iterable of rows."""
-    error = (
-        f"{method}() takes a row, a mapping of column names to values, or an "
-        "iterable of rows"
-    )
-    payload = _jsonable(rows, error)
-    if isinstance(payload, Mapping):
-        return payload
-    if (
-        isinstance(payload, Sequence)
-        and not isinstance(payload, str)
-        and all(isinstance(row, Mapping) for row in payload)
-    ):
-        return list(payload)
-    raise TypeError(error)
-
-
-def _row_payload(values: object, method: str) -> JSON:
-    error = f"{method}() takes a mapping of column names to values"
-    payload = _jsonable(values, error)
-    if isinstance(payload, Mapping):
-        return payload
-    raise TypeError(error)
 
 
 def _and_filter(current: Filter[Any] | None, filter: Filter[Any]) -> Filter[Any]:

@@ -208,7 +208,10 @@ legacy.upsert([insert_row, {"title": "y"}])
 legacy.update(update_row)
 legacy.update({"id": UUID(int=1), "cover": b"ab"})
 legacy.insert(date(2024, 5, 1))  # error:
+legacy.insert("x")  # error:
+legacy.insert([1, 2])  # error:
 legacy.update(UUID(int=1))  # error:
+legacy.update([update_row])  # error:
 
 
 async def main() -> None:

@@ -50,8 +50,9 @@ from .types import (
 )
 from .utils import (
     _in_members,
-    _jsonable,
     _quote,
+    _row_payload,
+    _rows_payload,
     _rpc_query_param,
     _sanitize_array_param,
     _sanitize_column,
@@ -76,16 +77,6 @@ def _unique_columns(json: list[JSON]) -> str:
         key for row in json if isinstance(row, Mapping) for key in row
     )
     return ",".join(_quote(key) for key in unique_keys)
-
-
-def _body(json: RequestBody, method: str) -> JSON:
-    """`json` as the plain JSON body of the write `method`, see
-    `RequestBody`. Raises `TypeError` for a value that does not serialize."""
-    return _jsonable(
-        json,
-        f"{method}() takes a row, a mapping of column names to values that "
-        "serialize to JSON, or a list of rows",
-    )
 
 
 def _cleaned_columns(columns: tuple[str, ...]) -> str:
@@ -1301,7 +1292,9 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 a list of rows. The `Insert` TypedDicts that `supabase gen
                 types --lang python` generates can be given as they are: a
                 `datetime` or a `UUID` is sent as its string and `bytes` as
-                the `\\x` hex text PostgreSQL reads for `bytea`.
+                the `\\x` hex text PostgreSQL reads for `bytea`. Raises
+                `TypeError` for a value that is neither a row nor a list of
+                rows, or that does not serialize.
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
             upsert: Whether the query should be an upsert.
@@ -1314,8 +1307,8 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             can be changed, with `select`, `single`, `maybe_single`, `csv`
             and `explain`.
         """
-        method, params, headers, json = pre_insert(
-            _body(json, "insert"),
+        method, params, headers, body = pre_insert(
+            _rows_payload(json, "insert"),
             count=count,
             returning=returning,
             upsert=upsert,
@@ -1327,7 +1320,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query=params,
             method=method,
             headers=headers,
-            body=json,
+            body=body,
         )
         return QueryRequestBuilder(
             executor=self.executor,
@@ -1365,8 +1358,8 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             can be changed, with `select`, `single`, `maybe_single`, `csv`
             and `explain`.
         """
-        method, params, headers, json = pre_upsert(
-            _body(json, "upsert"),
+        method, params, headers, body = pre_upsert(
+            _rows_payload(json, "upsert"),
             count=count,
             returning=returning,
             ignore_duplicates=ignore_duplicates,
@@ -1378,7 +1371,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query=params,
             method=method,
             headers=headers,
-            body=json,
+            body=body,
         )
         return QueryRequestBuilder(
             executor=self.executor,
@@ -1389,7 +1382,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
     def update(
         self,
-        json: RequestBody,
+        json: Mapping[str, object],
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
@@ -1406,8 +1399,8 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             raises `ValueError` before anything is sent, since it would
             update every row in the table. Call `all()` to do so on purpose.
         """
-        method, params, headers, json = pre_update(
-            _body(json, "update"),
+        method, params, headers, body = pre_update(
+            _row_payload(json, "update"),
             count=count,
             returning=returning,
         )
@@ -1416,7 +1409,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query=params,
             method=method,
             headers=headers,
-            body=json,
+            body=body,
             filter_required_by=Mutation.UPDATE,
         )
         return MutationRequestBuilder(

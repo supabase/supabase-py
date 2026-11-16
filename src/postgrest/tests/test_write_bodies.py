@@ -7,11 +7,12 @@ import datetime
 import json
 import uuid
 from collections.abc import Callable
-from typing import Annotated, NotRequired, TypedDict
+from dataclasses import dataclass
+from typing import Annotated, Any, NotRequired, TypedDict
 
 import pytest
 from httpx import Client, MockTransport, Request, Response
-from pydantic import Field, JsonValue
+from pydantic import BaseModel, Field, JsonValue
 from supabase_utils.http.adapters.httpx import HttpxSession
 
 from postgrest import SyncPostgrestClient
@@ -163,13 +164,45 @@ def test_bytes_are_sent_as_hex_for_bytea(payload: object, encoded: object) -> No
     assert json.loads(request.content) == {"payload": encoded}
 
 
-@pytest.mark.parametrize("method", ["insert", "upsert", "update"])
-def test_a_value_that_does_not_serialize_is_rejected(method: str) -> None:
+class Event(BaseModel):
+    name: str
+    payload: bytes | None = None
+
+
+@dataclass
+class EventRecord:
+    name: str
+    payload: bytes
+
+
+def test_bytes_inside_a_model_or_a_dataclass_are_sent_as_hex() -> None:
+    rows: list[Any] = [Event(name="a", payload=b"\x00\xff"), EventRecord("b", b"ab")]
+
+    request = send(lambda client: client.from_("events").insert(rows).execute())
+
+    assert json.loads(request.content) == [
+        {"name": "a", "payload": "\\x00ff"},
+        {"name": "b", "payload": "\\x6162"},
+    ]
+
+
+@pytest.mark.parametrize(
+    ("method", "body"),
+    [
+        ("insert", {"payload": object()}),
+        ("insert", "launch"),
+        ("insert", [{"name": "a"}, "b"]),
+        ("upsert", 7),
+        ("update", {"payload": object()}),
+        ("update", [{"name": "a"}]),
+    ],
+)
+def test_a_body_that_is_not_rows_of_json_is_rejected(method: str, body: object) -> None:
     with Client() as http:
         client = SyncPostgrestClient(
             "https://example.com", http_session=HttpxSession(client=http)
         )
         write = getattr(client.from_("events"), method)
 
-        with pytest.raises(TypeError, match=f"{method}\\(\\) takes a row"):
-            write({"payload": object()})
+        with pytest.raises(TypeError, match=f"{method}\\(\\) takes a"):
+            write(body)

@@ -3,13 +3,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from enum import StrEnum
 
-from supabase_utils.types import JSON
-
 FilterValue = str | int | float | bool
 
-type RequestBody = JSON | Mapping[str, object] | Sequence[Mapping[str, object]]
-"""The body of a write: one row, a mapping of column names to values, or a
-list of rows.
+type RequestBody = Mapping[str, object] | Sequence[Mapping[str, object]]
+"""The body of an insert or an upsert: one row, a mapping of column names to
+values, or a list of rows.
 
 A type checker sees a TypedDict, such as the `Insert` and `Update` types
 `supabase gen types --lang python` generates, as `Mapping[str, object]`,
