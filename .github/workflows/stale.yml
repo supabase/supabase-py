@@ -7,7 +7,6 @@ on:
 permissions:
   issues: write
   pull-requests: write
-  contents: write
 
 jobs:
   mark_stale:
@@ -24,7 +23,3 @@ jobs:
             This issue is stale because it has been open for 365 days with no activity.
           stale-pr-message: >
             This pull request is stale because it has been open for 365 days with no activity.
-          close-issue-message: >
-            This issue has been marked as stale and closed due to inactivity.
-          close-pr-message: >
-            This pull request has been marked as stale and closed due to inactivity.
