@@ -30,7 +30,7 @@ dependencies = [
   "supabase_functions == 3.0.0-a1", # x-release-please-version
   "storage3 == 3.0.0-a1", # x-release-please-version
   "supabase_auth == 3.0.0-a1", # x-release-please-version
-  "supabase_utils == 3.0.0-a1", # x-release-please-version
+  "supabase_utils[httpx] == 3.0.0-a1", # x-release-please-version
   "postgrest == 3.0.0-a1", # x-release-please-version
   "yarl>=1.22.0",
 ]
