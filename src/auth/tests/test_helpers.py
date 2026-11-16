@@ -8,7 +8,7 @@ from supabase_utils.http.headers import Headers
 from supabase_utils.http.request import Request, Response
 from yarl import URL
 
-from supabase_auth.client import _append_flow_id
+from supabase_auth.client import _append_flow_id, _parse_url_params
 from supabase_auth.errors import (
     AuthApiError,
     AuthInvalidJwtError,
@@ -342,3 +342,53 @@ def test_handle_error_response_keeps_an_unparsable_client_error_unknown() -> Non
 )
 def test_append_flow_id(redirect_to: str, expected: str) -> None:
     assert _append_flow_id(redirect_to, "abcdef0123456789") == expected
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        pytest.param(
+            "https://app.example/callback#access_token=a&refresh_token=r",
+            {"access_token": "a", "refresh_token": "r"},
+            id="fragment",
+        ),
+        pytest.param(
+            "https://app.example/callback?access_token=a&refresh_token=r",
+            {"access_token": "a", "refresh_token": "r"},
+            id="query",
+        ),
+        pytest.param(
+            "https://app.example/callback?access_token=q#access_token=f&type=recovery",
+            {"access_token": "q", "type": "recovery"},
+            id="query-wins-over-fragment",
+        ),
+        pytest.param(
+            "https://app.example/callback#error_description=Email+link+is%20invalid",
+            {"error_description": "Email link is invalid"},
+            id="fragment-is-decoded",
+        ),
+        pytest.param(
+            "https://app.example/callback#provider_token=abc%2Bdef%3D&error_description=a%26b",
+            {"provider_token": "abc+def=", "error_description": "a&b"},
+            id="fragment-is-decoded-once",
+        ),
+        pytest.param(
+            "https://app.example/callback?provider_token=abc%2Bdef%3D&error_description=a%26b",
+            {"provider_token": "abc+def=", "error_description": "a&b"},
+            id="query-is-decoded-once",
+        ),
+        pytest.param(
+            "https://app.example/callback?access_token=#access_token=f",
+            {"access_token": "f"},
+            id="blank-values-are-dropped",
+        ),
+        pytest.param(
+            "myapp://login-callback/#access_token=a",
+            {"access_token": "a"},
+            id="custom-scheme",
+        ),
+        pytest.param("https://app.example/callback", {}, id="no-parameters"),
+    ],
+)
+def test_parse_url_params(url: str, expected: dict[str, str]) -> None:
+    assert _parse_url_params(url) == expected
