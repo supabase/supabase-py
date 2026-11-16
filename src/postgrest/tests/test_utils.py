@@ -45,10 +45,23 @@ def test_sanitize_params(value: str, expected: str) -> None:
         ('data->>"0"', 'data->>"0"'),
         ("col:name->>key", '"col:name"->>key'),
         ("cities.data->>a,b", 'cities.data->>"a,b"'),
+        ('data->>"a->b"', 'data->>"a->b"'),
+        ('data->"a->b"->>c', 'data->"a->b"->>c'),
+        ('data->>"a"b', 'data->>"\\"a\\"b"'),
+        ('data->>"x\\"', 'data->>"\\"x\\\\\\""'),
+        ("data->>age::int", "data->>age::int"),
+        ("data->>a.b::int", 'data->>"a.b"::int'),
+        ("data->>a\nb", 'data->>"a\nb"'),
     ],
 )
 def test_sanitize_column_quotes_each_json_key(column: str, expected: str) -> None:
     assert _sanitize_column(column) == expected
+
+
+@pytest.mark.parametrize("column", ["data->>", "data->a->"])
+def test_sanitize_column_rejects_an_empty_json_key(column: str) -> None:
+    with pytest.raises(ValueError, match="empty key"):
+        _sanitize_column(column)
 
 
 @pytest.mark.parametrize(

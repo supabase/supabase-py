@@ -813,6 +813,7 @@ def test_rpc_as_csv(postgrest_client: SyncPostgrestClient) -> None:
         ('data->>"0"', "text zero"),
         ("data->items->>0", "first"),
         ("data->items->>-1", "second"),
+        ("data->items->>0::text", "first"),
     ],
 )
 def test_eq_on_a_json_path(

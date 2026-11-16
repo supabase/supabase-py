@@ -62,17 +62,23 @@ def sanitize_param(param: Any) -> str:
     return param_str
 
 
-_JSON_ARROW = re.compile(r"(->>?)")
-_BARE_JSON_KEY = re.compile(r"-?[0-9]+|[A-Za-z_$][A-Za-z0-9_$]*")
+_CAST = re.compile(r"::[A-Za-z0-9]+$")
+_QUOTED_JSON_KEY = r'"(?:[^"\\]|\\.)*"'
+_JSON_PATH_STEP = re.compile(
+    rf"(->>?)({_QUOTED_JSON_KEY}(?=->|$)|(?:(?!->).)*)", re.DOTALL
+)
+_BARE_JSON_KEY = re.compile(
+    rf"-?[0-9]+|[A-Za-z_$][A-Za-z0-9_$]*|{_QUOTED_JSON_KEY}", re.DOTALL
+)
 
 
 def _sanitize_json_key(key: str) -> str:
     """A JSON path operand as PostgREST reads it: an integer stays bare as an
     array index, a key that is already double-quoted is kept, and any other
     key that is not a plain identifier is quoted."""
-    if _BARE_JSON_KEY.fullmatch(key) or (
-        len(key) > 1 and key.startswith('"') and key.endswith('"')
-    ):
+    if not key:
+        raise ValueError("a JSON path cannot end with an empty key")
+    if _BARE_JSON_KEY.fullmatch(key):
         return key
     return _quote(key)
 
@@ -81,15 +87,23 @@ def _sanitize_column(column: str) -> str:
     """A filter key as PostgREST reads it: the column name quoted when it
     holds a reserved character, and each key of a JSON path such as
     `data->>key` quoted on its own, so `data->>a,b` becomes `data->>"a,b"`
-    rather than one column named `data->>a,b`."""
-    column_name, *path = _JSON_ARROW.split(column)
-    if not path:
-        return sanitize_param(column)
-    arrows = path[0::2]
-    keys = (_sanitize_json_key(key) for key in path[1::2])
-    return sanitize_param(column_name) + "".join(
-        arrow + key for arrow, key in zip(arrows, keys, strict=True)
-    )
+    rather than one column named `data->>a,b`. A trailing cast such as
+    `::int` stays outside the quotes."""
+    cast_match = _CAST.search(column)
+    cast = cast_match.group() if cast_match else ""
+    column = column.removesuffix(cast)
+    path_start = column.find("->")
+    if path_start == -1:
+        return sanitize_param(column) + cast
+    sanitized = [sanitize_param(column[:path_start])]
+    position = path_start
+    while position < len(column):
+        step = _JSON_PATH_STEP.match(column, position)
+        assert step is not None
+        arrow, key = step.groups()
+        sanitized.append(arrow + _sanitize_json_key(key))
+        position = step.end()
+    return "".join(sanitized) + cast
 
 
 def _sanitize_array_element(element: Any) -> str:
