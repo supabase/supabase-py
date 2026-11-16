@@ -85,10 +85,10 @@ jobs:
             uv run --no-sync python -I .github/scripts/import_without_httpx.py "$package"
             echo "::endgroup::"
           }
-          for package in supabase_utils supabase_functions postgrest storage3 supabase_auth realtime supabase; do
+          for package in supabase_utils supabase_functions postgrest storage3 supabase_auth realtime; do
             check "$package"
           done
-          check supabase --extra aiohttp
+          check supabase_utils --extra aiohttp
 
   markdown-snippets:
     name: Markdown snippets

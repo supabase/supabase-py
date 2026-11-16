@@ -109,8 +109,12 @@ What the legacy endpoint offered and `list()` does not:
 `ClientOptions`, `AsyncClientOptions`, their v2 names `SyncClientOptions` and `AClientOptions`, and the `supabase.lib.client_options` module are removed. `create_client`, `create_async_client`, `Client`, `AsyncClient` and their `create` methods take the settings as keyword-only arguments. Settings that apply to every service are arguments of their own. The settings of one service are grouped in an options class, passed in the argument named after the service.
 
 ```python
-from supabase import AuthClientOptions, PostgrestClientOptions, StorageClientOptions
-from supabase.httpx import create_client
+from supabase import (
+    AuthClientOptions,
+    PostgrestClientOptions,
+    StorageClientOptions,
+    create_client,
+)
 
 client = create_client(
     url,
@@ -368,8 +372,7 @@ Retries are configured with a `RetryPolicy`, exported from `supabase` and define
 To keep the retries exactly as they were, retrying only the database, only on a 503 or 520, after one, two and four seconds and not on a network error:
 
 ```python
-from supabase import PostgrestClientOptions, RetryPolicy
-from supabase.httpx import create_client
+from supabase import PostgrestClientOptions, RetryPolicy, create_client
 
 supabase = create_client(
     url,

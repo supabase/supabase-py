@@ -2405,16 +2405,13 @@ dependencies = [
     { name = "storage3" },
     { name = "supabase-auth" },
     { name = "supabase-functions" },
-    { name = "supabase-utils" },
+    { name = "supabase-utils", extra = ["httpx"] },
     { name = "yarl" },
 ]
 
 [package.optional-dependencies]
 aiohttp = [
     { name = "supabase-utils", extra = ["aiohttp"] },
-]
-httpx = [
-    { name = "supabase-utils", extra = ["httpx"] },
 ]
 iceberg = [
     { name = "storage3", extra = ["iceberg"] },
@@ -2454,12 +2451,11 @@ requires-dist = [
     { name = "storage3", extras = ["iceberg"], marker = "extra == 'iceberg'", editable = "src/storage" },
     { name = "supabase-auth", editable = "src/auth" },
     { name = "supabase-functions", editable = "src/functions" },
-    { name = "supabase-utils", editable = "src/utils" },
     { name = "supabase-utils", extras = ["aiohttp"], marker = "extra == 'aiohttp'", editable = "src/utils" },
-    { name = "supabase-utils", extras = ["httpx"], marker = "extra == 'httpx'", editable = "src/utils" },
+    { name = "supabase-utils", extras = ["httpx"], editable = "src/utils" },
     { name = "yarl", specifier = ">=1.22.0" },
 ]
-provides-extras = ["httpx", "aiohttp", "iceberg"]
+provides-extras = ["aiohttp", "iceberg"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -35,6 +35,7 @@ from supabase_utils.http.errors import (
 from supabase_utils.http.retry import RetryPolicy
 
 from .client import AsyncClient, Client, SupabaseException
+from .httpx import create_async_client, create_client
 from .types import (
     AuthClientOptions,
     FunctionsClientOptions,
@@ -85,4 +86,6 @@ __all__ = [
     "UserDoesNotExistError",
     "VectorBucketException",
     "__version__",
+    "create_async_client",
+    "create_client",
 ]

@@ -9,20 +9,20 @@ Python client for [Supabase](https://supabase.com)
 
 ### PyPI installation
 
-Install the package (for Python >= 3.12) with the HTTP library the client should use. The `httpx` extra supports both the sync and the async client, and the `aiohttp` extra supports the async client:
+Install the package (for Python >= 3.12):
 
 ```bash
 # with pip
-pip install "supabase[httpx]"
+pip install supabase
 
 # with uv
-uv add "supabase[httpx]"
+uv add supabase
 
 # with conda
-conda install -c conda-forge supabase httpx h2
+conda install -c conda-forge supabase
 ```
 
-Use `supabase[aiohttp]` instead to run the async client on aiohttp.
+The client sends its requests with httpx. To run the async client on aiohttp instead, install `supabase[aiohttp]` and use `create_async_client` from `supabase.aiohttp`.
 
 ## Supabase Service Compatibility
 
@@ -55,21 +55,20 @@ Init client:
 
 ```python
 import os
-from supabase import Client
-from supabase.httpx import create_client
+from supabase import Client, create_client
 
 url: str = os.environ["SUPABASE_URL"]
 key: str = os.environ["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 ```
 
-For the async client, use `create_async_client` from `supabase.httpx` or `supabase.aiohttp`, which returns an `AsyncClient`:
+For the async client, use `create_async_client`, which returns an `AsyncClient`:
 
 ```python
 import asyncio
 import os
 
-from supabase.httpx import create_async_client
+from supabase import create_async_client
 
 
 async def main() -> None:
@@ -88,8 +87,12 @@ Settings are keyword arguments. `headers` and `request_timeout` apply to the dat
 ```python
 import os
 
-from supabase import AuthClientOptions, PostgrestClientOptions, StorageClientOptions
-from supabase.httpx import create_client
+from supabase import (
+    AuthClientOptions,
+    PostgrestClientOptions,
+    StorageClientOptions,
+    create_client,
+)
 
 supabase = create_client(
     os.environ["SUPABASE_URL"],
@@ -109,8 +112,7 @@ supabase = create_client(
 ```python
 import os
 
-from supabase import RetryPolicy, StorageClientOptions
-from supabase.httpx import create_client
+from supabase import RetryPolicy, StorageClientOptions, create_client
 
 supabase = create_client(
     os.environ["SUPABASE_URL"],
@@ -132,7 +134,7 @@ A server such as a FastAPI or Django app acts for the user who sent the request,
 ```python
 import os
 
-from supabase.httpx import create_async_client
+from supabase import create_async_client
 
 shared = create_async_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
@@ -175,8 +177,7 @@ With the default PKCE flow, OAuth, SSO, magic link and password reset sign-ins r
 ```python
 import os
 
-from supabase import AuthClientOptions
-from supabase.httpx import create_client
+from supabase import AuthClientOptions, create_client
 
 supabase = create_client(
     os.environ["SUPABASE_URL"],
@@ -323,7 +324,7 @@ data = supabase.storage.from_(bucket_name).move(old_file_path, new_file_path)
 import os
 
 from realtime import BroadcastMessage
-from supabase.httpx import create_async_client
+from supabase import create_async_client
 
 async with create_async_client(
     os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]
@@ -388,7 +389,7 @@ The client keeps its HTTP connections open and refreshes the session in the back
 ```python
 import os
 
-from supabase.httpx import create_client
+from supabase import create_client
 
 with create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]) as supabase:
     data = supabase.table("countries").select("*").execute()

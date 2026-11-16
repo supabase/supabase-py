@@ -16,6 +16,7 @@ from supabase_utils.http.errors import (
 
 import supabase
 import supabase.client
+import supabase.httpx
 
 PACKAGES = [
     "postgrest",
@@ -85,6 +86,12 @@ def test_errors_are_exported_from_package_and_supabase(
         assert getattr(supabase, name) is getattr(package, name)
         assert name in supabase.client.__all__
         assert getattr(supabase.client, name) is getattr(package, name)
+
+
+@pytest.mark.parametrize("name", ["create_async_client", "create_client"])
+def test_httpx_factories_are_exported_from_supabase(name: str) -> None:
+    assert name in supabase.__all__
+    assert getattr(supabase, name) is getattr(supabase.httpx, name)
 
 
 def test_postgrest_error_is_exported_from_supabase() -> None:
