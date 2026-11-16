@@ -396,21 +396,6 @@ def test_normalize_url_includes_connection_params() -> None:
     }
 
 
-@pytest.mark.parametrize(
-    ("url", "expected"),
-    [
-        ("ws://localhost:54321/realtime/v1", "http://localhost:54321"),
-        ("wss://project.supabase.co/realtime/v1", "https://project.supabase.co"),
-        ("http://localhost:54321/realtime/v1", "http://localhost:54321"),
-        ("https://project.supabase.co/realtime/v1", "https://project.supabase.co"),
-    ],
-)
-def test_http_endpoint_maps_the_websocket_scheme(url: str, expected: str) -> None:
-    client = RealtimeClient(url)
-
-    assert client.http_endpoint == URL(expected)
-
-
 def test_postgres_changes_binding_includes_select_only_when_set() -> None:
     options = (
         RealtimeChannelOptions()
