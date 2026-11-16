@@ -103,11 +103,15 @@ class ListBody(BaseModel):
 
 
 class ListObject(BaseModel):
-    """An object of a listing page. ``name`` is the full key."""
+    """An object of a listing page. ``name`` is the full key.
+
+    ``created_at`` and ``last_accessed_at`` are ``None`` on Supabase Storage
+    releases before v1.27.0, which do not send them.
+    """
 
     id: str
     name: str
-    created_at: datetime
+    created_at: datetime | None = None
     updated_at: datetime
     last_accessed_at: datetime | None = None
     metadata: dict[str, Any] | None

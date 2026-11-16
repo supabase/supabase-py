@@ -307,6 +307,35 @@ async def test_list_returns_folder_rows_as_folders(use_async: bool) -> None:
 
 
 @use_async
+async def test_list_accepts_object_rows_without_created_at(use_async: bool) -> None:
+    """Supabase Storage releases before v1.27.0 send no created_at."""
+    response_body: dict[str, JSON] = {
+        "hasNext": False,
+        "folders": [],
+        "objects": [
+            {
+                "id": "object-id",
+                "name": "file.txt",
+                "updated_at": "2024-01-01T00:00:00Z",
+                "metadata": {"mimetype": "text/plain"},
+            }
+        ],
+    }
+
+    def handler(request: Request) -> Response:
+        return Response(200, json=response_body)
+
+    result = await call_with_client(
+        use_async, handler, lambda client: client.from_("bucket").list()
+    )
+
+    (object,) = result.objects
+    assert object.name == "file.txt"
+    assert object.created_at is None
+    assert object.last_accessed_at is None
+
+
+@use_async
 async def test_list_allows_null_object_metadata(use_async: bool) -> None:
     response_body: dict[str, JSON] = {
         "hasNext": False,

@@ -83,7 +83,7 @@ What the legacy endpoint offered and `list()` does not:
 - **Case-insensitive prefix matching.** The legacy endpoint lowercased both the prefix and the key. `list()` compares byte by byte, so `list("avatars/john")` no longer matches `avatars/John.png`.
 - **`offset` paging.** Page with the `nextCursor` of the previous page, sent together with the same arguments as the first page.
 - **`search`.** The legacy endpoint appended it to the prefix and matched the result as a prefix, so pass the joined prefix instead. The only difference is the case sensitivity above.
-- **Sorting by `last_accessed_at`.** `SortBy` takes `name`, `created_at` or `updated_at`. Each `ListObject` still has `last_accessed_at`, so a page can be sorted by it locally.
+- **Sorting by `last_accessed_at`.** `SortBy` takes `name`, `created_at` or `updated_at`. Each `ListObject` still has `last_accessed_at`, so a page can be sorted by it locally. Releases before Supabase Storage v1.27.0 send neither `last_accessed_at` nor `created_at` for objects, so both are `None` there.
 - **Old storage servers.** `POST /object/list-v2` first shipped in Supabase Storage v1.19.0. Older self-hosted servers cannot be listed.
 
 ## One implementation for `AsyncClient` and `Client`
