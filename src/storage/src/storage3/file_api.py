@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import os
-from collections.abc import AsyncIterable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal, cast, overload
@@ -103,8 +102,6 @@ def _upload_content(file: UploadBody) -> Generator[RequestContent]:
     elif isinstance(file, (str, os.PathLike)):
         with open(file, "rb") as opened:
             yield FileContent(opened)
-    elif isinstance(file, AsyncIterable):
-        yield file
     elif hasattr(file, "read"):
         yield FileContent(cast("BinaryIO", file))
     else:

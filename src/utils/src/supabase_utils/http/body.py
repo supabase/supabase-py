@@ -1,4 +1,5 @@
 import asyncio
+import threading
 from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator
 from io import SEEK_END
 from typing import BinaryIO
@@ -19,6 +20,7 @@ class FileContent:
     def __init__(self, file: BinaryIO) -> None:
         self.file = file
         self.start: int | None = file.tell() if file.seekable() else None
+        self._lock = threading.Lock()
 
     @property
     def replayable(self) -> bool:
@@ -29,14 +31,26 @@ class FileContent:
         """The number of bytes left to send, or None when it is not known."""
         if self.start is None:
             return None
-        end = self.file.seek(0, SEEK_END)
-        self.file.seek(self.start)
+        with self._lock:
+            end = self.file.seek(0, SEEK_END)
+            self.file.seek(self.start)
         return end - self.start
 
     def __iter__(self) -> Iterator[bytes]:
-        if self.start is not None:
-            self.file.seek(self.start)
-        while chunk := self.file.read(CHUNK_SIZE):
+        if self.start is None:
+            while chunk := self.file.read(CHUNK_SIZE):
+                yield chunk
+            return
+        position = self.start
+        while True:
+            # A retry can iterate while a worker thread of the abandoned
+            # attempt still reads, so every read seeks to its own position.
+            with self._lock:
+                self.file.seek(position)
+                chunk = self.file.read(CHUNK_SIZE)
+            if not chunk:
+                return
+            position += len(chunk)
             yield chunk
 
 

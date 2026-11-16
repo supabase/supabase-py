@@ -260,3 +260,19 @@ async def test_async_write_to_leaves_the_destination_on_failure(
             await download.write_to(destination)
     assert destination.read_bytes() == b"old"
     assert list(tmp_path.iterdir()) == [destination]
+
+
+def test_write_to_keeps_permissions_and_follows_a_symlink(
+    storage: Storage, tmp_path: Path
+) -> None:
+    target = tmp_path / "target.txt"
+    target.write_bytes(b"old")
+    target.chmod(0o600)
+    link = tmp_path / "link.txt"
+    link.symlink_to(target)
+    bucket = storage.sync_client().from_("bucket")
+    with bucket.download_stream("a.txt") as download:
+        download.write_to(link)
+    assert link.is_symlink()
+    assert target.read_bytes() == BODY
+    assert target.stat().st_mode & 0o777 == 0o600

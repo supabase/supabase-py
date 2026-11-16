@@ -11,7 +11,12 @@ from aiohttp.test_utils import TestServer
 from supabase_utils.http import io
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
-from supabase_utils.http.body import FileContent, RequestContent, async_chunks
+from supabase_utils.http.body import (
+    CHUNK_SIZE,
+    FileContent,
+    RequestContent,
+    async_chunks,
+)
 from supabase_utils.http.errors import SupabaseTransportError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpIO, HttpMethod, SyncHttpIO
@@ -263,3 +268,13 @@ async def test_aiohttp_failure_in_the_body_is_a_transport_error(
     async with AsyncAiohttpSession(aiohttp.ClientSession()) as session:
         with pytest.raises(SupabaseTransportError):
             await read_all(AsyncHttpIO(session), server.make_url("/api"), "truncated")
+
+
+def test_file_content_iterations_keep_their_own_position() -> None:
+    content = FileContent(stdlib_io.BytesIO(b"a" * CHUNK_SIZE + b"b"))
+    abandoned = iter(content)
+    retried = iter(content)
+    assert next(abandoned) == b"a" * CHUNK_SIZE
+    assert next(retried) == b"a" * CHUNK_SIZE
+    assert next(abandoned) == b"b"
+    assert next(retried) == b"b"

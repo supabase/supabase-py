@@ -159,10 +159,15 @@ class RequestsSession:
     def _request(self, request: Request, stream: bool) -> requests.Response:
         if request.content is not None and not isinstance(request.content, Iterable):
             raise TypeError("RequestsSession cannot send an async iterable body")
+        headers = dict(request.headers)
+        if not isinstance(request.content, bytes):
+            # requests sends an iterable body chunked, which a Content-Length
+            # would contradict.
+            headers.pop("content-length", None)
         return self.session.request(
             method=request.method,
             url=str(request.url),
-            headers=dict(request.headers),
+            headers=headers,
             data=request.content,
             timeout=request.timeout or 60,
             allow_redirects=False,

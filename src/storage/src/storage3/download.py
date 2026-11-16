@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import secrets
+import shutil
 from contextlib import asynccontextmanager, contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO
@@ -34,7 +35,9 @@ class _DownloadHead:
     @property
     def content_length(self) -> int | None:
         """The `Content-Length` of the body, or None when the server did not
-        send one, as for a transformed image."""
+        send one, as for a transformed image. For a body sent with a
+        `Content-Encoding` it counts the encoded bytes, not the decoded bytes
+        the download yields."""
         value = self.headers.get("Content-Length")
         return int(value) if value is not None and value.isdecimal() else None
 
@@ -49,13 +52,22 @@ def _check_size(size: int, max_bytes: int | None) -> None:
         raise StorageDownloadTooLargeError(max_bytes)
 
 
+def _destination(path: str | os.PathLike[str]) -> Path:
+    """The file `path` names, following a symlink so that the file it points
+    to is replaced rather than the link."""
+    return Path(path).resolve()
+
+
 def _temporary_path(destination: Path) -> Path:
     return destination.with_name(f".{destination.name}.{secrets.token_hex(8)}.part")
 
 
-def _open_new(path: Path) -> BinaryIO:
+def _open_new(path: Path, destination: Path) -> BinaryIO:
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
-    return os.fdopen(descriptor, "wb")
+    file = os.fdopen(descriptor, "wb")
+    if destination.exists():
+        shutil.copymode(destination, path)
+    return file
 
 
 class StorageDownload(_DownloadHead):
@@ -93,12 +105,13 @@ class StorageDownload(_DownloadHead):
 
         The body goes to a temporary file in the same directory first, which
         replaces `path` once the whole body arrived. On a failure `path` is
-        left as it was. The directory must exist.
+        left as it was. The directory must exist. A file that existed keeps
+        its permissions, and a symlink keeps pointing to the replaced file.
         """
-        destination = Path(path)
+        destination = _destination(path)
         temporary = _temporary_path(destination)
         try:
-            with _open_new(temporary) as file:
+            with _open_new(temporary, destination) as file:
                 for chunk in self:
                     file.write(chunk)
             temporary.replace(destination)
@@ -143,20 +156,21 @@ class AsyncStorageDownload(_DownloadHead):
 
         The body goes to a temporary file in the same directory first, which
         replaces `path` once the whole body arrived. On a failure or a
-        cancellation `path` is left as it was. The directory must exist.
-        Writing the file runs in worker threads, so it does not block the
-        event loop.
+        cancellation `path` is left as it was. The directory must exist. A
+        file that existed keeps its permissions, and a symlink keeps pointing
+        to the replaced file. The body is written in worker threads, so it
+        does not block the event loop.
         """
-        destination = Path(path)
+        destination = _destination(path)
         temporary = _temporary_path(destination)
         try:
-            file = await asyncio.to_thread(_open_new, temporary)
+            file = _open_new(temporary, destination)
             try:
                 async for chunk in self:
                     await asyncio.to_thread(file.write, chunk)
             finally:
                 file.close()
-            await asyncio.to_thread(temporary.replace, destination)
+            temporary.replace(destination)
         except BaseException:
             with suppress(OSError):
                 temporary.unlink(missing_ok=True)
