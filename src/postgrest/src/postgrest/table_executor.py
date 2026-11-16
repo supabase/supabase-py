@@ -129,6 +129,18 @@ class _HttpTableExecutor[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def __init__(self, client: PostgrestClient[HttpIO]) -> None:
         self.client = client
 
+    def __eq__(self, other: object) -> bool:
+        """Two executors of one client send the same way, so the typed
+        builders of that client compare by their requests."""
+        return (
+            isinstance(other, _HttpTableExecutor)
+            and type(other) is type(self)
+            and other.client is self.client
+        )
+
+    def __hash__(self) -> int:
+        return hash((type(self), id(self.client)))
+
     def _headers(self) -> Headers:
         """The headers of the client as they are now, so that a request sent
         later carries the current access token, with `typed-api` among the
@@ -504,11 +516,18 @@ def _committed_dry_run_error(response: Response) -> APIError:
 
 
 def _data(response: Response, request: TableRequest) -> JSON:
+    """The body of `response` decoded as the shape of `request`. A plan
+    describes the statement rather than its rows, so it comes back for a
+    write that returns no rows as well."""
+    content = response.content
+    if request.shape is ResultShape.EXPLAIN:
+        if request.explain is None or request.explain.format == "text":
+            return content.decode("utf-8")
+        return parse_json(content)
     if request.operation is TableOperation.COUNT:
         return None
     if request.operation in _WRITES and not request.returning:
         return None
-    content = response.content
     match request.shape:
         case ResultShape.NONE | ResultShape.HEAD:
             return None
@@ -523,10 +542,6 @@ def _data(response: Response, request: TableRequest) -> JSON:
             return rows[0] if rows else None
         case ResultShape.CSV:
             return content.decode("utf-8")
-        case ResultShape.EXPLAIN:
-            if request.explain is None or request.explain.format == "text":
-                return content.decode("utf-8")
-            return parse_json(content)
         case ResultShape.VALUE:
             return parse_json(content) if content else None
         case _:

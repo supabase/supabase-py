@@ -782,6 +782,26 @@ class TestDecodesByShape:
 
         assert result.data == [{"Plan": {}}]
 
+    def test_explain_of_a_write_that_returns_no_rows(self) -> None:
+        result = self.execute(
+            Transport(content=b"Insert on books"),
+            books(TableOperation.INSERT, payload=ROW, shape=ResultShape.EXPLAIN),
+        )
+
+        assert result.data == "Insert on books"
+
+        result = self.execute(
+            Transport(content=b'[{"Plan": {"Operation": "Insert"}}]'),
+            books(
+                TableOperation.INSERT,
+                payload=ROW,
+                shape=ResultShape.EXPLAIN,
+                explain=ExplainOptions(format="json"),
+            ),
+        )
+
+        assert result.data == [{"Plan": {"Operation": "Insert"}}]
+
     @pytest.mark.parametrize(
         ("content", "data"),
         [(b"42", 42), (b'"x"', "x"), (b'{"a": [1]}', {"a": [1]}), (b"", None)],

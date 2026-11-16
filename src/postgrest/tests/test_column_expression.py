@@ -42,7 +42,7 @@ def test_a_column_is_frozen() -> None:
 def test_a_column_has_a_readable_repr() -> None:
     assert repr(Todos.id) == "Column(name='id')"
     assert repr(Todos.due) == "NullableColumn(name='due')"
-    assert repr(Todos.full_name) == "ComputedField(name='full_name')"
+    assert repr(Todos.full_name) == "ComputedField(name='full_name', value_type=None)"
 
 
 def test_a_nullable_column_is_not_a_column() -> None:
