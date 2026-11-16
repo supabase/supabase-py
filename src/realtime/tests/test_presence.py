@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import gc
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from unittest.mock import AsyncMock
@@ -473,7 +474,7 @@ def test_presence_state_returns_a_snapshot() -> None:
 
 def test_presence_events_are_not_yielded_by_messages() -> None:
     channel = joined_channel(enabled=True)
-    channel.presence_events()
+    _listener = channel.presence_events()
 
     receive_state(channel, {"k": {"metas": [meta("A")]}})
 
@@ -487,7 +488,7 @@ def test_presence_events_are_not_yielded_by_messages() -> None:
 async def test_unsubscribe_clears_the_state_and_reports_every_leave() -> None:
     channel = joined_channel()
     channel.state = ChannelStates.CLOSED
-    channel.presence_events()
+    _listener = channel.presence_events()
     receive_state(
         channel, {"a": {"metas": [meta("A1"), meta("A2")]}, "b": {"metas": [meta("B")]}}
     )
@@ -511,7 +512,7 @@ async def test_the_first_state_after_resubscribing_reports_every_join() -> None:
     receive_state(channel, {"a": {"metas": [meta("A")]}})
     await channel.unsubscribe()
 
-    channel.presence_events()
+    _listener = channel.presence_events()
     channel.join_ref = "3"
     channel.presence._on_join("3")
     receive_state(channel, {"a": {"metas": [meta("A")]}}, join_ref="3")
@@ -551,7 +552,7 @@ async def test_presence_is_enabled_by_a_listener_or_the_option(
         "room", RealtimeChannelOptions().presence(enabled=enabled)
     )
     if listen:
-        channel.presence_events()
+        _listener = channel.presence_events()
     sent: list[Message] = []
 
     async def send(message: Message) -> ReplyMessage:
@@ -650,3 +651,30 @@ async def test_a_successful_track_turns_presence_on(
 
     assert channel._presence_on
     channel.presence_events()
+
+
+def test_an_abandoned_presence_listener_is_removed() -> None:
+    channel = RealtimeClient("http://localhost").channel("room")
+    events = channel.presence_events()
+    assert len(channel._presence_listeners) == 1
+
+    del events
+    gc.collect()
+
+    assert channel._presence_listeners == {}
+
+
+def test_a_channel_that_gives_up_rejoining_ends_its_presence_state() -> None:
+    channel = joined_channel(enabled=True)
+    _listener = channel.presence_events()
+    receive_state(channel, {"k": {"metas": [meta("A")]}})
+    queued_events(channel)
+    error = RealtimeError("gone")
+
+    channel._fail_rejoin(error)
+
+    assert channel.presence_state() == {}
+    leave, sync, failed = queued_events(channel)
+    assert leave == PresenceLeave("k", [], [Presence(presence_ref="A")])
+    assert sync == PresenceSync()
+    assert getattr(failed, "error", None) is error

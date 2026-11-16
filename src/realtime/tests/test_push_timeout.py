@@ -317,7 +317,7 @@ def test_a_full_queue_warns_again_after_it_was_read(
 
 def test_a_full_queue_keeps_the_presence_state() -> None:
     channel = RealtimeClient("http://localhost", max_queued_messages=1).channel("room")
-    channel.presence_events()
+    _listener = channel.presence_events()
 
     channel._receive(
         Message(

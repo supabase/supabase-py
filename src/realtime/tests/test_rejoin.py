@@ -217,7 +217,7 @@ async def test_the_rejoin_sends_the_presence_flag_computed_at_subscribe(
 ) -> None:
     client = RealtimeClient(server.url)
     channel = client.channel("room")
-    channel.presence_events()
+    _listener = channel.presence_events()
     await channel.subscribe()
 
     await server.drop_connections()

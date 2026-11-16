@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import weakref
 from collections.abc import Buffer, Sequence
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Self
@@ -341,6 +342,7 @@ class RealtimeChannel:
             self._subscribe_attempt = None
         self._rejoin_pending = False
         self.state = ChannelStates.CLOSED
+        self._emit_presence(self.presence._on_unsubscribe())
 
     def _on_error(self) -> None:
         if self.state in (ChannelStates.LEAVING, ChannelStates.CLOSED):
@@ -496,6 +498,7 @@ class RealtimeChannel:
         self._rejoin_authorization_failed = False
         self._subscribe_attempt = None
         self.state = ChannelStates.CLOSED
+        self._emit_presence(self.presence._on_unsubscribe())
         self._fail(error)
 
     def _postgres_changes_match(
@@ -599,6 +602,8 @@ class RealtimeChannel:
         per key with left presences, then a `PresenceSync`. Unsubscribing
         yields a `PresenceLeave` for every key, then a `PresenceSync`. At most
         ``max_queued_messages`` of the client are kept until they are read.
+        The listener is removed when the iterator is closed or garbage
+        collected.
 
         :raises RealtimeError: If the channel is joining or joined with
             presence off, since the listener would never receive an event.
@@ -620,7 +625,9 @@ class RealtimeChannel:
             maxsize=self.socket.max_queued_messages
         )
         self._presence_listeners[queue] = False
-        return self._listen_presence(queue)
+        events = self._listen_presence(queue)
+        weakref.finalize(events, self._presence_listeners.pop, queue, None)
+        return events
 
     async def _listen_presence(
         self, queue: asyncio.Queue[QueuedPresenceEvent]
@@ -628,7 +635,9 @@ class RealtimeChannel:
         try:
             while True:
                 if queue.empty():
-                    event = await self.socket._next_message(queue)
+                    event = await self.socket._next_message(
+                        queue, "RealtimeChannel.presence_events"
+                    )
                 else:
                     event = queue.get_nowait()
                 if isinstance(event, _ChannelFailed):

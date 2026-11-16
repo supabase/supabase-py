@@ -975,7 +975,7 @@ features:
       - RealtimePostgresChangesListenEvent
   realtime.subscriptions.subscribe_presence:
     status: implemented
-    note: "RealtimeChannel.presence_events() registers a presence listener, an async iterator of PresenceJoin, PresenceLeave and PresenceSync events. Presence is on when a listener is registered at subscribe or RealtimeChannelOptions.presence(enabled=True) is set; a listener added to a channel joined with presence off raises RealtimeError."
+    note: "RealtimeChannel.presence_events() registers a presence listener, an async iterator of PresenceJoin, PresenceLeave and PresenceSync events. Presence is on when a listener is registered at subscribe or RealtimeChannelOptions.presence(enabled=True) is set; a listener added to a joined channel raises RealtimeError unless the join enabled presence or a track() has succeeded since the join."
     symbols:
       - RealtimeChannel.presence_events
       - RealtimeChannelOptions.presence
