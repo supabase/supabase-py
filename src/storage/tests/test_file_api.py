@@ -1,21 +1,20 @@
+import base64
 import dataclasses
 import json
 import re
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 from httpx import Request, Response
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
+from supabase_utils.types import JSON
 
 from storage3 import StorageFileApiClient
 from storage3.exceptions import StorageApiError
-from storage3.types import SortBy, TransformOptions
+from storage3.types import SortBy, TransformOptions, UploadResponse
 
 from .utils import STORAGE_URL, call_with_client, use_async
-
-if TYPE_CHECKING:
-    from supabase_utils.types import JSON
 
 FileAction = Callable[[Any], Any]
 
@@ -643,3 +642,176 @@ async def test_list_sends_sort_by(
 def test_option_types_are_frozen(options: object) -> None:
     with pytest.raises(dataclasses.FrozenInstanceError):
         options.order = "desc"  # pyrefly: ignore[missing-attribute]
+
+
+async def run_returning(
+    use_async: bool, action: FileAction, content: JSON
+) -> tuple[Request, Any]:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json=content)
+
+    result = await call_with_client(
+        use_async, handler, lambda client: action(client.from_("bucket"))
+    )
+    (request,) = requests
+    return request, result
+
+
+UPLOAD_JSON: JSON = {"Key": "bucket/folder/a.txt", "Id": "object-id", "version": "v1"}
+
+
+UPLOAD_ACTIONS: list[FileAction] = [
+    lambda b: b.upload("/folder/a.txt", b"hello"),
+    lambda b: b.update("/folder/a.txt", b"hello"),
+]
+
+
+@use_async
+@pytest.mark.parametrize("action", UPLOAD_ACTIONS)
+async def test_upload_and_update_return_the_object(
+    use_async: bool, action: FileAction
+) -> None:
+    _, result = await run_returning(use_async, action, UPLOAD_JSON)
+    assert result == UploadResponse(
+        id="object-id",
+        path="folder/a.txt",
+        full_path="bucket/folder/a.txt",
+        version="v1",
+    )
+
+
+@use_async
+async def test_upload_to_signed_url_returns_the_object_without_an_id(
+    use_async: bool,
+) -> None:
+    _, result = await run_returning(
+        use_async,
+        lambda b: b.upload_to_signed_url("folder/a.txt", "token", b"hello"),
+        {"Key": "bucket/folder/a.txt", "version": "v1"},
+    )
+    assert result == UploadResponse(
+        id=None, path="folder/a.txt", full_path="bucket/folder/a.txt", version="v1"
+    )
+
+
+@use_async
+async def test_copy_sends_the_destination_options_and_returns_the_object(
+    use_async: bool,
+) -> None:
+    request, result = await run_returning(
+        use_async,
+        lambda b: b.copy(
+            "from/a.txt", "/to/b.txt", destination_bucket="other", upsert=True
+        ),
+        {"Key": "other/to/b.txt", "Id": "copy-id", "version": "v2", "name": "to/b.txt"},
+    )
+    assert json.loads(request.content) == {
+        "bucketId": "bucket",
+        "sourceKey": "from/a.txt",
+        "destinationKey": "to/b.txt",
+        "destinationBucket": "other",
+    }
+    assert request.headers["x-upsert"] == "true"
+    assert "x-metadata" not in request.headers
+    assert result == UploadResponse(
+        id="copy-id", path="to/b.txt", full_path="other/to/b.txt", version="v2"
+    )
+
+
+@use_async
+async def test_copy_without_upsert_sends_false(use_async: bool) -> None:
+    request, _ = await run_returning(
+        use_async, lambda b: b.copy("a.txt", "b.txt"), UPLOAD_JSON
+    )
+    assert request.headers["x-upsert"] == "false"
+
+
+@use_async
+async def test_copy_without_copy_metadata_sends_the_overrides(
+    use_async: bool,
+) -> None:
+    request, _ = await run_returning(
+        use_async,
+        lambda b: b.copy(
+            "a.txt",
+            "b.txt",
+            copy_metadata=False,
+            metadata={"owner": "me", "tags": ["a"]},
+            cache_control="max-age=60",
+            content_type="text/csv",
+            content_encoding="",
+        ),
+        UPLOAD_JSON,
+    )
+    assert json.loads(request.content) == {
+        "bucketId": "bucket",
+        "sourceKey": "a.txt",
+        "destinationKey": "b.txt",
+        "copyMetadata": False,
+        "metadata": {
+            "cacheControl": "max-age=60",
+            "mimetype": "text/csv",
+            "contentEncoding": "",
+        },
+    }
+    assert json.loads(base64.b64decode(request.headers["x-metadata"])) == {
+        "owner": "me",
+        "tags": ["a"],
+    }
+
+
+@use_async
+async def test_copy_without_copy_metadata_sends_only_the_flag(
+    use_async: bool,
+) -> None:
+    request, _ = await run_returning(
+        use_async, lambda b: b.copy("a.txt", "b.txt", copy_metadata=False), UPLOAD_JSON
+    )
+    assert json.loads(request.content) == {
+        "bucketId": "bucket",
+        "sourceKey": "a.txt",
+        "destinationKey": "b.txt",
+        "copyMetadata": False,
+    }
+    assert "x-metadata" not in request.headers
+
+
+@use_async
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"metadata": {}},
+        {"cache_control": "max-age=60"},
+        {"content_type": "text/csv"},
+        {"content_encoding": "gzip"},
+    ],
+)
+async def test_copy_overrides_require_copy_metadata_false(
+    use_async: bool, overrides: dict[str, Any]
+) -> None:
+    with pytest.raises(ValueError, match="require copy_metadata=False"):
+        await run(use_async, lambda b: b.copy("a.txt", "b.txt", **overrides))
+
+
+@use_async
+async def test_copy_rejects_non_bool_upsert(use_async: bool) -> None:
+    with pytest.raises(TypeError, match="upsert must be a bool, not str"):
+        await run(use_async, lambda b: b.copy("a.txt", "b.txt", upsert="true"))
+
+
+@use_async
+async def test_move_sends_the_destination_bucket(use_async: bool) -> None:
+    request, _ = await run_returning(
+        use_async,
+        lambda b: b.move("a.txt", "b.txt", destination_bucket="other"),
+        {"message": "Successfully moved"},
+    )
+    assert json.loads(request.content) == {
+        "bucketId": "bucket",
+        "sourceKey": "a.txt",
+        "destinationKey": "b.txt",
+        "destinationBucket": "other",
+    }
