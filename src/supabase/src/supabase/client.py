@@ -20,6 +20,7 @@ from supabase_auth import (
     SyncSupportedStorage,
 )
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient
+from supabase_utils._urls import check_secure_url
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
@@ -72,6 +73,23 @@ if TYPE_CHECKING:
 __all__ = ["AsyncClient", "Client", "SupabaseClient"]
 
 
+def _parse_supabase_url(supabase_url: str, *, allow_insecure_http: bool) -> URL:
+    _validate_string_argument("supabase_url", supabase_url)
+    try:
+        url = URL(supabase_url)
+        check_secure_url(
+            url,
+            name="supabase_url",
+            secure_schemes=("https",),
+            insecure_schemes=("http",),
+            allow_insecure_http=allow_insecure_http,
+            example="https://your-project.supabase.co",
+        )
+    except ValueError as error:
+        raise SupabaseException(f"Invalid URL: {error}") from error
+    return url if url.path.endswith("/") else url.with_path(url.path + "/")
+
+
 class SupabaseClient[
     HttpIO: (SyncHttpIO, AsyncHttpIO),
     Storage: (AsyncSupportedStorage, SyncSupportedStorage),
@@ -90,6 +108,7 @@ class SupabaseClient[
         auth: AuthClientOptions[Storage] | None,
         storage: StorageClientOptions | None,
         functions: FunctionsClientOptions | None,
+        allow_insecure_http: bool,
     ) -> None:
         """Instantiate the client.
 
@@ -128,23 +147,22 @@ class SupabaseClient[
             Options for the storage client.
         functions
             Options for the edge functions client.
+        allow_insecure_http
+            Accept an `http` URL whose host is not a loopback host, such as
+            an emulator, a LAN address or a Docker service name. Without it
+            only `https` URLs, and `http` URLs on `localhost`, `127.0.0.0/8`
+            or `::1`, are accepted, since `http` sends the API key and the
+            session of the user in clear text.
         """
         _validate_string_argument("supabase_url", supabase_url)
         _validate_string_argument("supabase_key", supabase_key)
-
-        try:
-            self.supabase_url = URL(
-                supabase_url if supabase_url.endswith("/") else supabase_url + "/"
-            )
-        except ValueError as error:
-            raise SupabaseException(f"Invalid URL: {supabase_url}") from error
-        if self.supabase_url.scheme not in ("http", "https") or not (
-            self.supabase_url.host
-        ):
-            raise SupabaseException(f"Invalid URL: {supabase_url}")
+        self.supabase_url = _parse_supabase_url(
+            supabase_url, allow_insecure_http=allow_insecure_http
+        )
 
         validate_request_timeout(request_timeout)
         self.supabase_key = supabase_key
+        self._allow_insecure_http = allow_insecure_http
         self._uses_secret_key = _is_secret_key(supabase_key)
         self._warned_about_secret_key_sign_in = False
         self._request_timeout = request_timeout
@@ -415,6 +433,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         storage: StorageClientOptions | None = None,
         functions: FunctionsClientOptions | None = None,
         realtime: RealtimeClientOptions | None = None,
+        allow_insecure_http: bool = False,
     ) -> None:
         """Instantiate the client.
 
@@ -436,6 +455,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             auth=auth,
             storage=storage,
             functions=functions,
+            allow_insecure_http=allow_insecure_http,
         )
         self.realtime_url = self.supabase_url.joinpath("realtime", "v1").with_scheme(
             "wss" if self.supabase_url.scheme == "https" else "ws"
@@ -470,6 +490,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         storage: StorageClientOptions | None = None,
         functions: FunctionsClientOptions | None = None,
         realtime: RealtimeClientOptions | None = None,
+        allow_insecure_http: bool = False,
     ) -> AsyncClient:
         """Create a client that uses the session in the session storage, if any.
 
@@ -490,6 +511,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             storage=storage,
             functions=functions,
             realtime=realtime,
+            allow_insecure_http=allow_insecure_http,
         )
         auth_header = _find_authorization(headers) if headers else None
 
@@ -548,6 +570,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             storage=self._storage_options,
             functions=self._functions_options,
             realtime=self._realtime_options,
+            allow_insecure_http=self._allow_insecure_http,
         )
         client._auth = None
         return client
@@ -651,6 +674,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             heartbeat_timeout=self._realtime_options.heartbeat_timeout,
             timeout=self._realtime_options.timeout,
             max_queued_messages=self._realtime_options.max_queued_messages,
+            allow_insecure_http=self._allow_insecure_http,
         )
 
 
@@ -670,6 +694,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         auth: AuthClientOptions[SyncSupportedStorage] | None = None,
         storage: StorageClientOptions | None = None,
         functions: FunctionsClientOptions | None = None,
+        allow_insecure_http: bool = False,
     ) -> None:
         """Instantiate the client.
 
@@ -688,6 +713,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             auth=auth,
             storage=storage,
             functions=functions,
+            allow_insecure_http=allow_insecure_http,
         )
         auth_client = SyncSupabaseAuthClient(
             url=str(self.auth_url),
@@ -718,6 +744,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         auth: AuthClientOptions[SyncSupportedStorage] | None = None,
         storage: StorageClientOptions | None = None,
         functions: FunctionsClientOptions | None = None,
+        allow_insecure_http: bool = False,
     ) -> Client:
         """Create a client that uses the session in the session storage, if any.
 
@@ -737,6 +764,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             auth=auth,
             storage=storage,
             functions=functions,
+            allow_insecure_http=allow_insecure_http,
         )
         auth_header = _find_authorization(headers) if headers else None
 
@@ -787,6 +815,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
             auth=self._auth_options,
             storage=self._storage_options,
             functions=self._functions_options,
+            allow_insecure_http=self._allow_insecure_http,
         )
         client._auth = None
         return client

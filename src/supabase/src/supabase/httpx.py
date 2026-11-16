@@ -9,7 +9,7 @@ from supabase_utils.http.retry import RetryPolicy
 
 from ._defaults import DEFAULT_REQUEST_TIMEOUT
 from ._keys import _validate_string_argument
-from .client import AsyncClient, Client
+from .client import AsyncClient, Client, _parse_supabase_url
 from .types import (
     AuthClientOptions,
     FunctionsClientOptions,
@@ -31,6 +31,7 @@ def create_client(
     auth: AuthClientOptions[SyncSupportedStorage] | None = None,
     storage: StorageClientOptions | None = None,
     functions: FunctionsClientOptions | None = None,
+    allow_insecure_http: bool = False,
 ) -> Client:
     """Create a sync client that sends its requests with httpx.
 
@@ -38,7 +39,7 @@ def create_client(
     which is closed with the client. An `http_client` passed in keeps its own
     timeout and is left open. See `Client` for the other arguments.
     """
-    _validate_string_argument("supabase_url", supabase_url)
+    _parse_supabase_url(supabase_url, allow_insecure_http=allow_insecure_http)
     _validate_string_argument("supabase_key", supabase_key)
     validate_request_timeout(request_timeout)
     httpx_client = http_client or SyncHttpxClient(
@@ -58,6 +59,7 @@ def create_client(
         auth=auth,
         storage=storage,
         functions=functions,
+        allow_insecure_http=allow_insecure_http,
     )
     client._owns_http_session = http_client is None
     return client
@@ -76,6 +78,7 @@ def create_async_client(
     storage: StorageClientOptions | None = None,
     functions: FunctionsClientOptions | None = None,
     realtime: RealtimeClientOptions | None = None,
+    allow_insecure_http: bool = False,
 ) -> AsyncClient:
     """Create an async client that sends its requests with httpx.
 
@@ -83,7 +86,7 @@ def create_async_client(
     which is closed with the client. An `http_client` passed in keeps its own
     timeout and is left open. See `AsyncClient` for the other arguments.
     """
-    _validate_string_argument("supabase_url", supabase_url)
+    _parse_supabase_url(supabase_url, allow_insecure_http=allow_insecure_http)
     _validate_string_argument("supabase_key", supabase_key)
     validate_request_timeout(request_timeout)
     httpx_client = http_client or AsyncHttpxClient(
@@ -104,6 +107,7 @@ def create_async_client(
         storage=storage,
         functions=functions,
         realtime=realtime,
+        allow_insecure_http=allow_insecure_http,
     )
     client._owns_http_session = http_client is None
     return client

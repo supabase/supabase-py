@@ -279,6 +279,12 @@ The members of an array sent by `cs()`, `cd()`, `contains()`, `contained_by()`, 
 
 Code that indexes `data` as a list, such as `res.data[0]["id"]`, keeps working at runtime for set returning functions, but needs a check such as `isinstance(res.data, list)` to type check.
 
+## Plain `http` URLs need a loopback host
+
+The supabase client raises `SupabaseException` for a `supabase_url` that is not `https`, and `RealtimeClient` and `connect_once` raise `ValueError` for a `ws` or `http` URL, unless the host is `localhost`, an address in `127.0.0.0/8` or `::1`. Before, a plain `http` URL sent the API key and the session of the user in clear text to any host.
+
+A name that goes through DNS, like `api.localhost`, is not treated as loopback. For an emulator (`10.0.2.2`), a LAN address, a Docker service name or a self-hosted server without TLS, pass `allow_insecure_http=True` to `create_client`, `create_async_client`, the client classes, `RealtimeClient` or `connect_once`.
+
 ## Realtime heartbeat intervals are used as given
 
 `heartbeat_interval` was raised to 15 seconds when it was lower. It is now used as given, so an interval below 15 seconds sends heartbeats more often than before. To keep the old timing, pass 15 or more.
