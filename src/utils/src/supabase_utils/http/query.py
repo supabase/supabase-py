@@ -34,6 +34,9 @@ class URLQuery:
         new_values = existing.append(value)
         return URLQuery(pmap=self._map.set(key, new_values))
 
+    def override(self, key: str, value: QueryValue) -> URLQuery:
+        return URLQuery(pmap=self._map.set(key, Vec(value)))
+
     def get(self, key: str) -> str | None:
         if val := self._map.get(key, None):
             return "&".join(str(v) for v in val)

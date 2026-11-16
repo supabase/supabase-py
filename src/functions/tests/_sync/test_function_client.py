@@ -265,3 +265,48 @@ def test_invoke_accepts_region_as_string() -> None:
     )
     assert response.request.headers.get_list("x-region") == ["us-east-1"]
     assert response.request.url.query["forceFunctionRegion"] == "us-east-1"
+
+
+@pytest.mark.parametrize("function_name", ["hello?name=bob", "hello?name=bob#top"])
+def test_invoke_keeps_query_string_in_function_name(function_name: str) -> None:
+    client = client_returning(content=b"", status=200)
+    response = client.invoke(function_name, region=FunctionRegion.UsEast1)
+    assert response.request.url.path == "/hello"
+    assert dict(response.request.url.query) == {
+        "name": "bob",
+        "forceFunctionRegion": "us-east-1",
+    }
+
+
+def test_invoke_plain_function_name_has_no_query() -> None:
+    client = client_returning(content=b"", status=200)
+    response = client.invoke("hello")
+    assert response.request.url.path == "/hello"
+    assert response.request.url.query_string == ""
+
+
+@pytest.mark.parametrize("function_name", ["?name=bob", "#top", " ?a=1"])
+def test_invoke_rejects_name_without_path(function_name: str) -> None:
+    client = client_returning(content=b"", status=200)
+    with pytest.raises(ValueError, match="function_name must be a valid string value"):
+        client.invoke(function_name)
+
+
+def test_invoke_query_string_keeps_repeated_and_encoded_values() -> None:
+    client = client_returning(content=b"", status=200)
+    response = client.invoke("dir/fn?a=1&a=2&q=a%20b&p=x%2By")
+    assert response.request.url.path == "/dir/fn"
+    assert sorted(response.request.url.query.items()) == [
+        ("a", "1"),
+        ("a", "2"),
+        ("p", "x+y"),
+        ("q", "a b"),
+    ]
+
+
+def test_invoke_region_replaces_force_function_region_in_function_name() -> None:
+    client = client_returning(content=b"", status=200)
+    response = client.invoke(
+        "hello?forceFunctionRegion=eu-west-1", region=FunctionRegion.UsEast1
+    )
+    assert response.request.url.query.getall("forceFunctionRegion") == ["us-east-1"]

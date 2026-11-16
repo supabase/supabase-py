@@ -32,6 +32,11 @@ def test_set_appends_values() -> None:
     assert query["id"] == "eq.1&2"
 
 
+def test_override_replaces_values() -> None:
+    query = URLQuery.empty().set("id", "eq.1").set("id", 2).override("id", "eq.3")
+    assert query.get_list("id") == ["eq.3"]
+
+
 def test_set_is_immutable() -> None:
     query = URLQuery.empty()
     query.set("a", "1")

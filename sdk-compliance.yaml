@@ -1610,6 +1610,7 @@ supporting_symbols:
   - CountedResponse
   - pre_rpc
   - Headers.with_client_info_features
+  - URLQuery.override
   - APIError
   - APIError.json
   - APIErrorFromJSON
