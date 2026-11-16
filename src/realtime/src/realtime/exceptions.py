@@ -1,5 +1,24 @@
 from supabase_utils.errors import SupabaseError
 
+_AUTHORIZATION_ERROR_CODES = frozenset(
+    {
+        "InvalidJWTToken",
+        "JwtSignatureError",
+        "JwtSignerError",
+        "MalformedJWT",
+        "Unauthorized",
+    }
+)
+_FATAL_JOIN_ERROR_CODES = frozenset(
+    {
+        "PrivateOnly",
+        "RealtimeDisabledForTenant",
+        "TenantNotFound",
+        "TopicNameRequired",
+        "UnableToReplayMessages",
+    }
+)
+
 
 class RealtimeError(SupabaseError):
     """Raised when a realtime operation fails."""
@@ -7,30 +26,69 @@ class RealtimeError(SupabaseError):
 
 class NotConnectedError(RealtimeError):
     """
-    Raised when operations requiring a connection are executed when socket is not connected
+    Raised when an operation needs a connection that is not established, or
+    that dropped before the server replied.
     """
 
-    def __init__(self, func_name: str) -> None:
+    def __init__(self, func_name: str, message: str | None = None) -> None:
         super().__init__(
-            "A WebSocket connection has not been established. Subscribe to a "
+            message
+            or "A WebSocket connection has not been established. Subscribe to a "
             "channel or call RealtimeClient.connect() before calling "
             f"{func_name}()"
         )
         self.offending_func_name: str = func_name
 
 
-class AuthorizationError(RealtimeError):
+class RealtimeTimeoutError(RealtimeError, TimeoutError):
+    """Raised when the server does not reply to a push within the timeout."""
+
+    def __init__(self, event: str, topic: str, timeout: float) -> None:
+        super().__init__(
+            f"the server did not reply to {event} on {topic!r} within {timeout} seconds"
+        )
+        self.event = event
+        self.topic = topic
+        self.timeout = timeout
+
+
+class ChannelJoinError(RealtimeError):
     """
-    Raised when there is an authorization failure for private channels
+    Raised when the server rejects the join of a channel.
+
+    `reason` is the reason the server gave, and `code` its prefix, such as
+    `ChannelRateLimitReached`, when the reason has one.
     """
 
-    def __init__(self, message: str | None = None) -> None:
-        super().__init__(message or "Authorization failed for private channel")
+    def __init__(self, topic: str, reason: str) -> None:
+        prefix, separator, _ = reason.partition(":")
+        super().__init__(
+            f"the server rejected the join of {topic!r}: {reason}",
+            code=prefix if separator and " " not in prefix else None,
+        )
+        self.topic = topic
+        self.reason = reason
 
 
-class MaxRetriesExceeded(RealtimeError):
-    """Raised when reconnecting failed `retries` times in a row."""
+class AuthorizationError(ChannelJoinError):
+    """
+    Raised when the server rejects the access token of a join, or when the
+    row level security policies deny the join of a private channel.
+    """
 
-    def __init__(self, retries: int) -> None:
-        super().__init__(f"Reconnecting failed after {retries} attempts")
-        self.retries = retries
+
+def _join_error(topic: str, reason: str) -> ChannelJoinError:
+    error = ChannelJoinError(topic, reason)
+    if error.code in _AUTHORIZATION_ERROR_CODES:
+        return AuthorizationError(topic, reason)
+    return error
+
+
+def _is_fatal(error: Exception) -> bool:
+    if isinstance(error, AuthorizationError):
+        return True
+    if isinstance(error, ChannelJoinError):
+        return error.code in _FATAL_JOIN_ERROR_CODES
+    return isinstance(error, RealtimeError) and not isinstance(
+        error, (NotConnectedError, RealtimeTimeoutError)
+    )

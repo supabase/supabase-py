@@ -3,9 +3,10 @@ from postgrest import APIResponse as PostgrestAPIResponse
 from postgrest import RPCResponse as PostgrestRPCResponse
 from realtime import (
     AuthorizationError,
-    MaxRetriesExceeded,
+    ChannelJoinError,
     NotConnectedError,
     RealtimeError,
+    RealtimeTimeoutError,
 )
 from storage3 import StorageApiError, StorageException, VectorBucketException
 from supabase_auth import (
@@ -60,12 +61,12 @@ __all__ = [
     "AuthUnknownError",
     "AuthWeakPasswordError",
     "AuthorizationError",
+    "ChannelJoinError",
     "Client",
     "FunctionsClientOptions",
     "FunctionsError",
     "FunctionsHttpError",
     "FunctionsRelayError",
-    "MaxRetriesExceeded",
     "NotConnectedError",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
@@ -73,6 +74,7 @@ __all__ = [
     "PostgrestRPCResponse",
     "RealtimeClientOptions",
     "RealtimeError",
+    "RealtimeTimeoutError",
     "RequestTimeoutError",
     "RetryPolicy",
     "StorageApiError",

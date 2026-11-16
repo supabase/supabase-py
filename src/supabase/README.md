@@ -374,12 +374,14 @@ SupabaseError
 ├── StorageException                Root of the storage errors: VectorBucketException
 ├── FunctionsError                  Root of the functions errors.
 ├── RealtimeError                   Root of the realtime errors: NotConnectedError,
-│                                   AuthorizationError, MaxRetriesExceeded
+│   │                               RealtimeTimeoutError, also a built-in `TimeoutError`.
+│   └── ChannelJoinError               The server rejected a join. `reason` and `code` say why.
+│       └── AuthorizationError            The token, or the RLS policies of a private channel.
 └── SupabaseException               The client was created with an invalid URL or key, or `auth`
                                     was used on a `with_token()` client.
 ```
 
-The response errors inherit both from the root of their package and from `SupabaseAPIError`, so `except AuthApiError` and `except AuthError` keep working. Arguments the client rejects before sending a request raise the built-in `ValueError` or `TypeError`, as they do everywhere in Python, except for a vector batch of the wrong size, which raises `VectorBucketException`. A lost realtime connection is reported as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, not as a `SupabaseError`.
+The response errors inherit both from the root of their package and from `SupabaseAPIError`, so `except AuthApiError` and `except AuthError` keep working. Arguments the client rejects before sending a request raise the built-in `ValueError` or `TypeError`, as they do everywhere in Python, except for a vector batch of the wrong size, which raises `VectorBucketException`. A send on a lost realtime connection raises the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, not a `SupabaseError`. The realtime client reconnects on its own and joins its channels again.
 
 ## Closing the client
 

@@ -275,7 +275,7 @@ Code that indexes `data` as a list, such as `res.data[0]["id"]`, keeps working a
 
 ## Realtime clients connect on the first subscribe
 
-`RealtimeClient` takes the realtime URL and a token callback instead of an open connection. It connects when the first channel subscribes, or when `connect()` is called, and every channel of the client shares that connection. The connection is closed when the last channel is unsubscribed or removed, so a client with no channels holds no connection. `aclose()` closes it too and leaves the channels unsubscribed. Subscribing again opens a new connection, which also replaces a connection that was lost.
+`RealtimeClient` takes the realtime URL and a token callback instead of an open connection. It connects when the first channel subscribes, or when `connect()` is called, and every channel of the client shares that connection. The connection is closed when the last channel is unsubscribed or removed, so a client with no channels holds no connection. `aclose()` closes it too and leaves the channels unsubscribed. Subscribing again opens a new connection.
 
 Messages queued on a channel, like the close message of `unsubscribe()`, can still be read from `channel.messages` after the connection is closed. Reading past them raises `NotConnectedError` instead of waiting.
 
@@ -284,6 +284,34 @@ Messages queued on a channel, like the close message of `unsubscribe()`, can sti
 `connect_once` keeps the client it connects in `connect_once.client`. The `websocket`, `listen_task` and `heartbeat_task` attributes are removed.
 
 `unsubscribe()` on a channel that is not joined, for example after `aclose()`, removes the channel without sending a leave message.
+
+## Realtime clients reconnect and join their channels again
+
+`RealtimeClient`, and so `AsyncClient.realtime`, reconnects on its own when its connection drops, until `aclose()` is called or its last channel is removed. Each wait is drawn at random between 0 and a backoff that starts at 1 second and doubles up to 30 seconds. There is no attempt limit. Every channel that was joined is joined again with its options and the current access token, and the presence it tracked with `track()` is tracked again.
+
+`automatically_reconnect`, `exponential_delay` and `MaxRetriesExceeded` are removed. Open the client with `connect_once` or `RealtimeClient` instead.
+
+```python skip
+await automatically_reconnect(url, get_token, handler, max_retries=3)
+```
+
+```python
+from realtime import ChannelStateChange, ChannelStates, RealtimeClient
+
+channel = RealtimeClient(url).channel("room")
+await channel.subscribe()
+async for message in channel.messages:
+    if isinstance(message, ChannelStateChange):
+        print("connection lost" if message.state == ChannelStates.ERRORED else "joined again")
+```
+
+`channel.messages` no longer raises the `websockets.ConnectionClosed` or `TimeoutError` that dropped the connection of a joined channel. It yields a `ChannelStateChange` with the state `ERRORED` and that error, then one with the state `JOINED` once the channel is joined again, and keeps yielding the channel's messages. When the server rejects the new join for good, for example with an `AuthorizationError`, the channel is closed and `channel.messages` raises that error. A rejected token is retried once with a fresh one first.
+
+## Realtime pushes time out and channel queues are bounded
+
+`subscribe()`, `unsubscribe()`, `track()`, `untrack()` and an acknowledged `send_broadcast()` raise `RealtimeTimeoutError`, also a built-in `TimeoutError`, when the server does not reply within `timeout` seconds, 10 by default. Before, they waited forever. Pass `timeout` to `connect_once`, `RealtimeClient` or `RealtimeClientOptions` to change it. A join that times out is left, so a late reply does not join the channel.
+
+A channel keeps at most `max_queued_messages` unread messages, 1000 by default. When its queue is full, the oldest message is dropped and a warning is logged. Pass `max_queued_messages` to `connect_once`, `RealtimeClient` or `RealtimeClientOptions` to change it.
 
 ## Realtime `close()` is `aclose()`
 
@@ -388,7 +416,7 @@ supabase = create_client(
 
 ## One exception hierarchy
 
-Every exception the packages raise themselves inherits from `supabase_utils.errors.SupabaseError`, re-exported as `supabase.SupabaseError`, so `except SupabaseError` catches any failure the SDK reports. The hierarchy is described in the [error handling](src/supabase/README.md#error-handling) section of the README. The realtime connection is the exception: a lost websocket still surfaces as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, as before.
+Every exception the packages raise themselves inherits from `supabase_utils.errors.SupabaseError`, re-exported as `supabase.SupabaseError`, so `except SupabaseError` catches any failure the SDK reports. The hierarchy is described in the [error handling](src/supabase/README.md#error-handling) section of the README. The realtime connection is the exception: a lost websocket still surfaces from a send as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, as before. A `subscribe()` it interrupts raises `NotConnectedError`.
 
 Errors a service answered with inherit from `SupabaseAPIError` and expose the HTTP status as `status_code`, with the `response` next to it. The `status` attributes are renamed and the constructors take the status as a keyword argument.
 
@@ -406,8 +434,9 @@ Errors a service answered with inherit from `SupabaseAPIError` and expose the HT
 | `supabase_functions` | `FunctionsError(message, name, status)`, `.name`, `.status` | `FunctionsError(message)`. Use `type(error).__name__` for the name; the status lives on the response errors                          |
 | `supabase_functions` | `FunctionsHttpError(message, code)`, `.status`              | `FunctionsHttpError(message, status_code=..., response=...)`, `.status_code`                                                         |
 | `supabase_functions` | `FunctionsRelayError(message, code)`, `.status`             | `FunctionsRelayError(message, status_code=..., response=...)`, `.status_code`                                                        |
-| `realtime`           | `realtime.client.MaxRetriesExceeded`, an `Exception`        | `realtime.MaxRetriesExceeded`, a `RealtimeError` with a `retries` attribute                                                          |
-| `realtime`           | A failed `subscribe()` raised `Exception`                   | It raises `RealtimeError`                                                                                                            |
+| `realtime`           | `realtime.client.MaxRetriesExceeded`, an `Exception`        | Removed. `RealtimeClient` reconnects on its own                                                                                      |
+| `realtime`           | A failed `subscribe()` raised `Exception`                   | It raises a `RealtimeError`: `ChannelJoinError`, `AuthorizationError`, `RealtimeTimeoutError` or `NotConnectedError`                 |
+| `realtime`           | `AuthorizationError(message)`, never raised                 | `AuthorizationError(topic, reason)`, a `ChannelJoinError` raised when the server rejects the token or the RLS policies deny the join |
 
 The auth errors are no longer dataclasses. `str(error)` returns the message for every error, as it does for the built-in exceptions, and `==` compares identity.
 

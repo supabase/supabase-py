@@ -79,10 +79,31 @@ asyncio.run(main())
 
 - `REALTIME_URL` is `http://localhost:54321/realtime/v1` when developing locally with the Supabase CLI and `https://<project_ref>.supabase.co/realtime/v1` when connecting to your Supabase project. The client switches to `ws`/`wss` and appends `/websocket` itself.
 - The token callback is awaited when connecting, on every channel join and on every heartbeat, so it can return a refreshed user access token. `client.set_auth()` awaits it right away and sends a new token to the joined channels. A token passed as `client.set_auth(token)` is used instead of the callback until `client.set_auth()` is called without one. It must return a JWT whose claims contain `exp` and `role` (an existing database role), or the publishable key. An error it raises fails `subscribe()`. After a heartbeat the error is logged instead and the channels keep their token.
-- `async with client.channel(...)` subscribes on entry and unsubscribes on exit. `subscribe()` raises if the server rejects the join.
+- `async with client.channel(...)` subscribes on entry and unsubscribes on exit. `subscribe()` raises `ChannelJoinError` with the server's `reason` if the server rejects the join, `AuthorizationError` (a `ChannelJoinError`) if it rejects the token or the RLS policies deny a private channel, `RealtimeTimeoutError` if it does not reply within `timeout` seconds and `NotConnectedError` if the connection drops first.
 - `RealtimeClient(url, get_token)` creates a client without connecting. It connects when the first channel subscribes, shares that connection with every channel, and closes it when the last channel is unsubscribed or `aclose()` is called.
 - Channel name can be any `string`.
-- Use `realtime.client.automatically_reconnect(url, get_token, handler)` instead of `connect_once` to reconnect with exponential backoff when the connection drops.
+- `subscribe()`, `unsubscribe()`, `track()`, `untrack()` and an acknowledged `send_broadcast()` wait `timeout` seconds for the server's reply, 10 by default, then raise `RealtimeTimeoutError`. Pass `timeout` to `connect_once` or `RealtimeClient` to change it.
+- A channel keeps at most `max_queued_messages` unread messages, 1000 by default. When its queue is full, the oldest message is dropped and a warning is logged.
+
+## Reconnecting
+
+When the connection drops, the client reconnects on its own until `aclose()` is called. Each wait is drawn at random between 0 and a backoff that starts at 1 second and doubles up to 30 seconds. Every joined channel is joined again with its options and the current access token, and the presence it tracked is tracked again.
+
+`channel.messages` yields a `ChannelStateChange` when the connection of the channel drops, with the state `ERRORED` and the error, and when the channel is joined again, with the state `JOINED`. Messages sent while the connection was down are lost. If the server rejects the new join for good, for example with an `AuthorizationError`, the channel is closed and `channel.messages` raises that error.
+
+```python
+from realtime import ChannelStateChange, ChannelStates
+
+async with client.channel("room") as channel:
+    async for message in channel.messages:
+        if isinstance(message, ChannelStateChange):
+            if message.state == ChannelStates.ERRORED:
+                print("Connection lost:", message.error)
+            else:
+                print("Joined again")
+        else:
+            print(message)
+```
 
 ## Broadcast
 

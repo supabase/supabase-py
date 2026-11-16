@@ -5,13 +5,14 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 from realtime.version import __version__
 
-from .channel import RealtimeChannel, RealtimeChannelOptions
+from .channel import ChannelStateChange, RealtimeChannel, RealtimeChannelOptions
 from .client import RealtimeClient, connect_once
 from .exceptions import (
     AuthorizationError,
-    MaxRetriesExceeded,
+    ChannelJoinError,
     NotConnectedError,
     RealtimeError,
+    RealtimeTimeoutError,
 )
 from .message import (
     AccessTokenMessage,
@@ -92,7 +93,9 @@ __all__ = [
     "ChannelCloseMessage",
     "ChannelErrorMessage",
     "ChannelEvents",
+    "ChannelJoinError",
     "ChannelLeaveMessage",
+    "ChannelStateChange",
     "ChannelStates",
     "ClientMessage",
     "ErrorReplyMessage",
@@ -100,7 +103,6 @@ __all__ = [
     "HeartbeatMessage",
     "HeartbeatPayload",
     "JoinMessage",
-    "MaxRetriesExceeded",
     "Message",
     "NotConnectedError",
     "Payload",
@@ -136,6 +138,7 @@ __all__ = [
     "RealtimePresenceListenEvents",
     "RealtimePresenceState",
     "RealtimeSubscribeStates",
+    "RealtimeTimeoutError",
     "ReplayOption",
     "ReplyMessage",
     "ReplyPostgresChanges",

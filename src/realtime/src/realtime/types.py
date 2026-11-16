@@ -20,6 +20,7 @@ PHOENIX_CHANNEL = "phoenix"
 PROTOCOL_VERSION = "2.0.0"
 DEFAULT_HEARTBEAT_INTERVAL = 25
 DEFAULT_HEARTBEAT_TIMEOUT = 5
+DEFAULT_MAX_QUEUED_MESSAGES = 1000
 
 
 def validate_heartbeat(interval: float, timeout: float) -> None:
@@ -28,6 +29,16 @@ def validate_heartbeat(interval: float, timeout: float) -> None:
         raise ValueError(f"heartbeat_interval must be positive, got {interval}")
     if not timeout > 0:
         raise ValueError(f"heartbeat_timeout must be positive, got {timeout}")
+
+
+def validate_push_options(timeout: float, max_queued_messages: int) -> None:
+    """Raise `ValueError` unless the push timeout and the queue size are positive."""
+    if not timeout > 0:
+        raise ValueError(f"timeout must be positive, got {timeout}")
+    if not max_queued_messages > 0:
+        raise ValueError(
+            f"max_queued_messages must be positive, got {max_queued_messages}"
+        )
 
 
 # Type variables and custom types

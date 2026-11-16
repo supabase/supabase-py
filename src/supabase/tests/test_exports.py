@@ -69,9 +69,10 @@ def test_package_declares_all(name: str) -> None:
             realtime,
             [
                 "AuthorizationError",
-                "MaxRetriesExceeded",
+                "ChannelJoinError",
                 "NotConnectedError",
                 "RealtimeError",
+                "RealtimeTimeoutError",
             ],
         ),
     ],

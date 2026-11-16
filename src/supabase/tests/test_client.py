@@ -171,11 +171,18 @@ async def test_async_client_passes_realtime_options_to_connections() -> None:
             URL,
             KEY,
             AsyncHttpxSession(client=http_client),
-            realtime=RealtimeClientOptions(heartbeat_interval=30, heartbeat_timeout=10),
+            realtime=RealtimeClientOptions(
+                heartbeat_interval=30,
+                heartbeat_timeout=10,
+                timeout=4,
+                max_queued_messages=50,
+            ),
         )
 
     assert client.realtime.heartbeat_interval == 30
     assert client.realtime.heartbeat_timeout == 10
+    assert client.realtime.timeout == 4
+    assert client.realtime.max_queued_messages == 50
 
 
 async def test_async_client_reuses_one_realtime_client() -> None:
