@@ -22,6 +22,7 @@ class HeartbeatServer:
         self.reply = reply
         self.ws_server: Server | None = None
         self.url = ""
+        self.disconnected = asyncio.Event()
 
     async def __aenter__(self) -> "HeartbeatServer":
         self.ws_server = await serve(self.handler, HOST, 0)
@@ -36,6 +37,12 @@ class HeartbeatServer:
         await self.ws_server.wait_closed()
 
     async def handler(self, connection: ServerConnection) -> None:
+        try:
+            await self.reply_to_heartbeats(connection)
+        finally:
+            self.disconnected.set()
+
+    async def reply_to_heartbeats(self, connection: ServerConnection) -> None:
         async for raw in connection:
             message = decode(raw)
             if message.event != ChannelEvents.heartbeat or self.reply == "none":
@@ -176,6 +183,7 @@ async def test_failed_heartbeat_closes_the_connection(
                 ConnectionState.CLOSED,
             ]
             assert client.connection_state == ConnectionState.CLOSED
+            await asyncio.wait_for(server.disconnected.wait(), timeout=5)
         finally:
             await heartbeats.aclose()
             await states.aclose()

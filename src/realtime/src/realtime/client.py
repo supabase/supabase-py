@@ -249,7 +249,9 @@ class RealtimeClient:
             if self._session is None:
                 self._session = loop.create_future()
             self._listen_task = asyncio.create_task(self._listen(websocket, failure))
-            self._heartbeat_task = asyncio.create_task(self._heartbeat(failure))
+            self._heartbeat_task = asyncio.create_task(
+                self._heartbeat(websocket, failure)
+            )
             self._set_connection_state(ConnectionState.CONNECTED)
 
     @property
@@ -478,7 +480,9 @@ class RealtimeClient:
         finally:
             get.cancel()
 
-    async def _heartbeat(self, failure: asyncio.Future[Message]) -> None:
+    async def _heartbeat(
+        self, websocket: ClientConnection, failure: asyncio.Future[Message]
+    ) -> None:
         try:
             while True:
                 data = Message(
@@ -507,6 +511,7 @@ class RealtimeClient:
             if isinstance(exc, TimeoutError):
                 _publish(self._heartbeat_listeners, HeartbeatStatus.TIMEOUT)
             self._fail_connection(failure, exc)
+            await websocket.close()
 
     async def _refresh_token_after_heartbeat(self) -> None:
         try:
