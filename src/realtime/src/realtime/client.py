@@ -67,7 +67,7 @@ def _publish[T](listeners: set[asyncio.Queue[T]], value: T) -> None:
         queue.put_nowait(value)
 
 
-def http_endpoint_url(url: URL) -> URL:
+def _http_endpoint_url(url: URL) -> URL:
     scheme = {"ws": "http", "wss": "https", "http": "http"}.get(url.scheme, "https")
     return url.with_scheme(scheme).with_path("")
 
@@ -193,7 +193,7 @@ class RealtimeClient:
         self.url = URL(url)
         self.last_token: str | None = None
         self.get_access_token = token_callback
-        self.http_endpoint = http_endpoint_url(self.url)
+        self.http_endpoint = _http_endpoint_url(self.url)
 
         self._ws_connection: ClientConnection | None = None
         self._connection_failure: asyncio.Future[Message] | None = None
