@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from typing import Literal, cast, overload
+from urllib.parse import parse_qsl
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -70,19 +71,25 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     ) -> ToRequest:
         if not is_valid_string_argument(function_name):
             raise ValueError("function_name must be a valid string value.")
+        name, _, query_string = function_name.split("#", 1)[0].partition("?")
+        if not is_valid_string_argument(name):
+            raise ValueError("function_name must be a valid string value.")
 
-        path = [function_name]
+        path = [name]
         new_headers = Headers.from_mapping(headers) if headers else Headers.empty()
         if "content-type" not in new_headers and (
             client_content_type := self.default_headers.get("Content-Type")
         ):
             new_headers = new_headers.set("Content-Type", client_content_type)
         query_params = URLQuery.empty()
+        for key, value in parse_qsl(query_string, keep_blank_values=True):
+            query_params = query_params.set(key, value)
 
         if region and (resolved := FunctionRegion(region)) != FunctionRegion.Any:
             new_headers = new_headers.override("x-region", resolved.value)
-            # Add region as query parameter
-            query_params = query_params.set("forceFunctionRegion", resolved.value)
+            query_params = query_params.merge(
+                URLQuery.from_mapping({"forceFunctionRegion": resolved.value})
+            )
         if body is None:
             return EmptyRequest(
                 method=method,
@@ -141,7 +148,9 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Parameters
         ----------
-        function_name : the name of the function to invoke
+        function_name : the name of the function to invoke. It may carry a
+            query string, as in `hello?name=bob`, whose parameters are sent
+            with the request. A `#fragment` is dropped.
         body : the request body. A str is sent as text, bytes as binary data,
             and a dict or list as JSON.
         region : the region to invoke the function in
