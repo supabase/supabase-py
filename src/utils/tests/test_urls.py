@@ -1,5 +1,4 @@
 import pytest
-
 from supabase_utils._urls import is_loopback_host
 
 
