@@ -713,8 +713,6 @@ class SupabaseAuthHttpClient[
         # jwk isn't cached in memory so we need to fetch it from the well-known endpoint
         response = yield EmptyRequest(method="GET", path=[".well-known", "jwks.json"])
         jwks = parse_jwks(response)
-        if not response:
-            raise AuthInvalidJwtError("JWT has no valid kid")
 
         self._jwks = jwks
         self._jwks_cached_at = time.time()
