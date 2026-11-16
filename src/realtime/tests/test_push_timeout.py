@@ -9,6 +9,7 @@ from websockets.exceptions import ConnectionClosed
 
 from realtime import (
     AuthorizationError,
+    ChannelClosedError,
     ChannelJoinError,
     ChannelStates,
     NotConnectedError,
@@ -39,6 +40,7 @@ class FakeServer:
             "response": {"postgres_changes": []},
         }
         self.drop_on_join = False
+        self.presence_received = asyncio.Event()
 
     async def __aenter__(self) -> "FakeServer":
         self.ws_server = await serve(self.handler, HOST, 0)
@@ -57,6 +59,8 @@ class FakeServer:
         async for raw in connection:
             message = decode(raw)
             self.received.append(message)
+            if message.event == ChannelEvents.presence:
+                self.presence_received.set()
             if message.ref is None or message.event in self.silent_events:
                 continue
             if message.event == ChannelEvents.join and self.drop_on_join:
@@ -129,6 +133,131 @@ async def test_a_presence_update_without_a_reply_times_out(
 
     assert connected
     assert client.message_refs == {}
+
+
+async def test_a_presence_update_can_be_given_a_shorter_timeout(
+    server: FakeServer,
+) -> None:
+    server.silent_events = {ChannelEvents.presence}
+    async with connect_once(server.url, timeout=10) as client:
+        channel = client.channel("room")
+        await channel.subscribe()
+        with pytest.raises(TimeoutError):
+            async with asyncio.timeout(0.1):
+                await channel.track({"user": "a"})
+        joined = channel.joined
+
+    assert joined
+    assert client.message_refs == {}
+    assert channel._pending_presence == set()
+
+
+async def send_to_client(server: FakeServer, message: Message) -> None:
+    await server.connections[-1].send(encode(message))
+
+
+@pytest.mark.parametrize("event", [ChannelEvents.close, ChannelEvents.error])
+@pytest.mark.parametrize("untrack", [False, True], ids=["track", "untrack"])
+async def test_a_presence_update_fails_at_once_when_the_channel_closes(
+    server: FakeServer, event: ChannelEvents, untrack: bool
+) -> None:
+    server.silent_events = {ChannelEvents.presence}
+    async with connect_once(server.url, timeout=10) as client:
+        channel = client.channel("room")
+        await channel.subscribe()
+        call = channel.untrack() if untrack else channel.track({"user": "a"})
+        pending = asyncio.ensure_future(call)
+        await asyncio.wait_for(server.presence_received.wait(), timeout=1)
+        await send_to_client(
+            server,
+            Message(
+                event=event,
+                topic=channel.topic,
+                payload={},
+                join_ref=channel.join_ref,
+            ),
+        )
+        with pytest.raises(ChannelClosedError) as error:
+            await asyncio.wait_for(pending, timeout=1)
+
+    assert error.value.reason is None
+    assert error.value.topic == channel.topic
+    assert client.message_refs == {}
+
+
+async def test_a_presence_update_fails_with_the_servers_system_error(
+    server: FakeServer,
+) -> None:
+    server.silent_events = {ChannelEvents.presence}
+    async with connect_once(server.url, timeout=10) as client:
+        channel = client.channel("room")
+        await channel.subscribe()
+        pending = asyncio.ensure_future(channel.track({"user": "a"}))
+        await asyncio.wait_for(server.presence_received.wait(), timeout=1)
+        reason = "Client presence rate limit exceeded"
+        await send_to_client(
+            server,
+            Message(
+                event=ChannelEvents.system,
+                topic=channel.topic,
+                payload={
+                    "channel": "room",
+                    "extension": "presence",
+                    "message": reason,
+                    "status": "error",
+                },
+            ),
+        )
+        await send_to_client(
+            server,
+            Message(
+                event=ChannelEvents.close,
+                topic=channel.topic,
+                payload={},
+                join_ref=channel.join_ref,
+            ),
+        )
+        with pytest.raises(ChannelClosedError) as error:
+            await asyncio.wait_for(pending, timeout=1)
+
+    assert error.value.reason == reason
+    assert reason in str(error.value)
+
+
+async def test_a_presence_update_fails_at_once_on_unsubscribe(
+    server: FakeServer,
+) -> None:
+    server.silent_events = {ChannelEvents.presence}
+    async with connect_once(server.url, timeout=10) as client:
+        channel = client.channel("room")
+        await channel.subscribe()
+        pending = asyncio.ensure_future(channel.track({"user": "a"}))
+        await asyncio.wait_for(server.presence_received.wait(), timeout=1)
+        await channel.unsubscribe()
+        with pytest.raises(ChannelClosedError):
+            await asyncio.wait_for(pending, timeout=1)
+
+
+async def test_a_presence_update_of_an_earlier_join_is_not_failed_by_its_close(
+    server: FakeServer,
+) -> None:
+    server.silent_events = {ChannelEvents.presence}
+    async with connect_once(server.url, timeout=0.3) as client:
+        channel = client.channel("room")
+        await channel.subscribe()
+        pending = asyncio.ensure_future(channel.track({"user": "a"}))
+        await asyncio.wait_for(server.presence_received.wait(), timeout=1)
+        await send_to_client(
+            server,
+            Message(
+                event=ChannelEvents.close,
+                topic=channel.topic,
+                payload={},
+                join_ref="earlier",
+            ),
+        )
+        with pytest.raises(RealtimeTimeoutError):
+            await asyncio.wait_for(pending, timeout=1)
 
 
 async def test_an_unsubscribe_without_a_reply_times_out(server: FakeServer) -> None:

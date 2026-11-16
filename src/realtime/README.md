@@ -82,7 +82,7 @@ asyncio.run(main())
 - `async with client.channel(...)` subscribes on entry and unsubscribes on exit. `subscribe()` raises `ChannelJoinError` with the server's `reason` if the server rejects the join, `AuthorizationError` (a `ChannelJoinError`) if it rejects the token or the RLS policies deny a private channel, `RealtimeTimeoutError` if it does not reply within `timeout` seconds and `NotConnectedError` if the connection drops first.
 - `RealtimeClient(url, get_token)` creates a client without connecting. It connects when the first channel subscribes, shares that connection with every channel, and closes it when the last channel is unsubscribed or `aclose()` is called.
 - Channel name can be any `string`.
-- `subscribe()`, `unsubscribe()`, `track()`, `untrack()` and an acknowledged `send_broadcast()` wait `timeout` seconds for the server's reply, 10 by default, then raise `RealtimeTimeoutError`. Pass `timeout` to `connect_once` or `RealtimeClient` to change it.
+- `subscribe()`, `unsubscribe()`, `track()`, `untrack()` and an acknowledged `send_broadcast()` wait `timeout` seconds for the server's reply, 10 by default, then raise `RealtimeTimeoutError`. Pass `timeout` to `connect_once` or `RealtimeClient` to change it, or wrap one call in `asyncio.timeout()` for a shorter wait.
 - A channel keeps at most `max_queued_messages` unread messages, 1000 by default. When its queue is full, the oldest message is dropped and a warning is logged.
 
 ## Reconnecting
@@ -190,7 +190,7 @@ async with channel:
             print("Online users: ", channel.presence_state())
 ```
 
-`track()` and `untrack()` raise `ChannelNotJoinedError` when the channel is not joined, and `PushRejectedError` when the server rejects them.
+`track()` and `untrack()` raise `ChannelNotJoinedError` when the channel is not joined, `PushRejectedError` when the server rejects them, and `ChannelClosedError` at once when the channel closes before the server replies, for example when the server closes it for going over the presence rate limit. Its `reason` holds the server's message.
 
 ## Postgres CDC
 

@@ -1032,15 +1032,17 @@ features:
 
   realtime.presence.track:
     status: implemented
-    note: "Raises ChannelNotJoinedError without sending when the channel is not joined, and PushRejectedError when the server replies with an error. The presence is not tracked again after a rejoin."
+    note: "Raises ChannelNotJoinedError without sending when the channel is not joined, PushRejectedError when the server replies with an error, RealtimeTimeoutError after the client's timeout, and ChannelClosedError at once when the channel closes or errors before the reply, with the server's system error message as its reason. A shorter timeout for one call is set with asyncio.timeout(). The presence is not tracked again after a rejoin."
     symbols:
       - RealtimeChannel.track
     supporting_symbols:
       - RealtimeChannel.send_presence
       - ChannelNotJoinedError
+      - ChannelClosedError
       - PushRejectedError
   realtime.presence.untrack:
     status: implemented
+    note: "Raises the same errors as track()."
     symbols:
       - RealtimeChannel.untrack
   realtime.presence.presence_state:

@@ -349,7 +349,7 @@ async with channel:
             print(event.new_presences)
 ```
 
-`track()`, `untrack()` and `send_presence()` return `None` instead of the server's reply. They raise `ChannelNotJoinedError` without sending when the channel is not joined, and `PushRejectedError` when the server replies with an error. `presence_state()` returns a copy, and `unsubscribe()` clears the presence state and yields a `PresenceLeave` for every key.
+`track()`, `untrack()` and `send_presence()` return `None` instead of the server's reply. They raise `ChannelNotJoinedError` without sending when the channel is not joined, `PushRejectedError` when the server replies with an error, and `ChannelClosedError` when the channel closes before the server replies. `presence_state()` returns a copy, and `unsubscribe()` clears the presence state and yields a `PresenceLeave` for every key.
 
 ## Realtime `close()` is `aclose()`
 
