@@ -875,7 +875,7 @@ features:
 
   realtime.client.connect:
     status: implemented
-    note: "RealtimeClient connects when the first channel subscribes, or when connect() is called, and reuses that connection for every channel until the last channel is removed. AsyncClient.realtime is one RealtimeClient per supabase client, closed when the supabase client exits. connect_once(url, ...) is awaitable and an async context manager that connects a RealtimeClient and closes it on exit. A dropped connection is reopened with full-jitter backoff until aclose(), and every joined channel is joined again with its options and the current token, without tracking its presence again; RealtimeChannel.messages yields a ChannelStateChange when the connection drops and when the channel is joined again."
+    note: "RealtimeClient connects when the first channel subscribes, or when connect() is called, and reuses that connection for every channel until the last channel is removed. AsyncClient.realtime is one RealtimeClient per supabase client, closed when the supabase client exits. connect_once(url, ...) is awaitable and an async context manager that connects a RealtimeClient and closes it on exit. A dropped connection is reopened with full-jitter backoff until aclose(), and every joined channel is joined again with its options and the current token, without tracking its presence again; RealtimeChannel.messages yields a ChannelStateChange when the connection drops and when the channel is joined again. RealtimeClient and connect_once raise a ValueError for a ws or http URL unless its host is a loopback host (localhost, 127.0.0.0/8 or ::1) or allow_insecure_http is set."
     symbols:
       - RealtimeClient.connect
       - connect_once

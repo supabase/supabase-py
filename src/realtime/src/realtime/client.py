@@ -5,6 +5,7 @@ from types import TracebackType
 from warnings import warn
 
 import websockets
+from supabase_utils._urls import check_secure_url
 from supabase_utils.http.retry import RetryPolicy
 from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import InvalidStatus
@@ -67,6 +68,14 @@ def _publish[T](listeners: set[asyncio.Queue[T]], value: T) -> None:
         queue.put_nowait(value)
 
 
+def _http_endpoint_url(url: URL) -> URL:
+    scheme = {"ws": "http", "wss": "https"}.get(url.scheme, url.scheme)
+    path = url.path.rstrip("/")
+    for suffix in ("/socket/websocket", "/websocket", "/socket"):
+        path = path.removesuffix(suffix)
+    return url.with_scheme(scheme).with_path(path).with_query(None).with_fragment(None)
+
+
 def normalize_url(url: URL, token: str | None) -> URL:
     if url.scheme not in {"ws", "wss", "http", "https"}:
         raise ValueError("url must be a valid WebSocket URL or HTTP URL string")
@@ -94,6 +103,7 @@ class connect_once:
     :param heartbeat_timeout: Seconds to wait for a heartbeat reply before the connection is considered lost, must be positive
     :param timeout: Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast, must be positive
     :param max_queued_messages: Messages each channel keeps until they are read from `RealtimeChannel.messages`, must be positive
+    :param allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host
     """
 
     def __init__(
@@ -104,6 +114,7 @@ class connect_once:
         heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT,
         timeout: float = DEFAULT_TIMEOUT,
         max_queued_messages: int = DEFAULT_MAX_QUEUED_MESSAGES,
+        allow_insecure_http: bool = False,
     ) -> None:
         self.client = RealtimeClient(
             url,
@@ -112,6 +123,7 @@ class connect_once:
             heartbeat_timeout=heartbeat_timeout,
             timeout=timeout,
             max_queued_messages=max_queued_messages,
+            allow_insecure_http=allow_insecure_http,
         )
 
     def __await__(self) -> Generator[None, None, "RealtimeClient"]:
@@ -172,6 +184,8 @@ class RealtimeClient:
     :param timeout: Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast, must be positive
     :param max_queued_messages: Messages each channel keeps until they are read from `RealtimeChannel.messages`, must be positive.
         When a channel's queue is full, its oldest message is dropped and a warning is logged.
+    :param allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host, such as an emulator, a LAN address or a Docker service name.
+        Without it such a URL raises a `ValueError`, since it sends the token in clear text. `wss` and `https` URLs are always accepted.
     """
 
     def __init__(
@@ -182,13 +196,22 @@ class RealtimeClient:
         heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT,
         timeout: float = DEFAULT_TIMEOUT,
         max_queued_messages: int = DEFAULT_MAX_QUEUED_MESSAGES,
+        allow_insecure_http: bool = False,
     ) -> None:
         validate_heartbeat(heartbeat_interval, heartbeat_timeout)
         validate_push_options(timeout, max_queued_messages)
         self.url = URL(url)
+        check_secure_url(
+            self.url,
+            name="url",
+            secure_schemes=("wss", "https"),
+            insecure_schemes=("ws", "http"),
+            allow_insecure_http=allow_insecure_http,
+            example="wss://your-project.supabase.co/realtime/v1",
+        )
         self.last_token: str | None = None
         self.get_access_token = token_callback
-        self.http_endpoint = self.url.with_scheme("https").with_path("")
+        self.http_endpoint = _http_endpoint_url(self.url)
 
         self._ws_connection: ClientConnection | None = None
         self._connection_failure: asyncio.Future[Message] | None = None
