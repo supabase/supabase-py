@@ -41,15 +41,16 @@ LEGACY_KEY = "header.payload.signature"
 SESSION_KEYS = ["sb_publishable_abc123", "sb_futuretype_abc123"]
 
 
-def legacy_jwt(role: str) -> str:
+def legacy_jwt(role: str, alg: str = "HS256") -> str:
     def encode(value: dict[str, str]) -> str:
         raw = json.dumps(value).encode()
         return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
 
-    return f"{encode({'alg': 'HS256', 'typ': 'JWT'})}.{encode({'role': role})}.sig"
+    return f"{encode({'alg': alg, 'typ': 'JWT'})}.{encode({'role': role})}.sig"
 
 
-SECRET_KEYS = ["sb_secret_abc123", legacy_jwt("service_role")]
+SERVICE_ROLE_JWT = legacy_jwt("service_role", alg="HS512")
+SECRET_KEYS = ["sb_secret_abc123", SERVICE_ROLE_JWT]
 PUBLIC_KEYS = [KEY, "sb_publishable_abc123", legacy_jwt("anon")]
 
 INVALID_URLS = [
@@ -656,20 +657,48 @@ def test_sync_client_sends_the_session_token_with_a_public_key(key: str) -> None
     assert authorization_headers(client) == ["Bearer userjwt"] * 4
 
 
-@pytest.mark.parametrize("key", SECRET_KEYS)
-def test_sync_client_keeps_a_secret_key_after_a_sign_in(key: str) -> None:
+SECRET_KEY_FUNCTIONS_AUTHORIZATION = [
+    ("sb_secret_abc123", None),
+    (SERVICE_ROLE_JWT, f"Bearer {SERVICE_ROLE_JWT}"),
+]
+
+
+@pytest.mark.parametrize(
+    ("key", "functions_authorization"), SECRET_KEY_FUNCTIONS_AUTHORIZATION
+)
+def test_sync_client_keeps_a_secret_key_after_a_sign_in(
+    key: str, functions_authorization: str | None, caplog: pytest.LogCaptureFixture
+) -> None:
     requests: list[httpx.Request] = []
     with SyncHttpxClient(transport=recording_transport(requests)) as http_client:
         client = Client(URL, key, HttpxSession(client=http_client))
         sign_in(client)
+        sign_in(client)
         client.functions.invoke("hello")
 
     assert authorization_headers(client) == [f"Bearer {key}"] * 4
-    assert requests[0].headers.get("authorization") != "Bearer userjwt"
+    assert requests[0].headers.get("authorization") == functions_authorization
+    assert [record.levelname for record in caplog.records] == ["WARNING"]
+    assert "service_role" in caplog.records[0].getMessage()
 
 
-@pytest.mark.parametrize("key", SECRET_KEYS)
-async def test_async_client_keeps_a_secret_key_after_a_sign_in(key: str) -> None:
+@pytest.mark.parametrize("key", PUBLIC_KEYS)
+def test_sync_client_does_not_warn_on_a_sign_in_with_a_public_key(
+    key: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with SyncHttpxClient() as http_client:
+        client = Client(URL, key, HttpxSession(client=http_client))
+        sign_in(client)
+
+    assert caplog.records == []
+
+
+@pytest.mark.parametrize(
+    ("key", "functions_authorization"), SECRET_KEY_FUNCTIONS_AUTHORIZATION
+)
+async def test_async_client_keeps_a_secret_key_after_a_sign_in(
+    key: str, functions_authorization: str | None
+) -> None:
     requests: list[httpx.Request] = []
     async with AsyncHttpxClient(transport=recording_transport(requests)) as http_client:
         client = AsyncClient(URL, key, AsyncHttpxSession(client=http_client))
@@ -683,7 +712,7 @@ async def test_async_client_keeps_a_secret_key_after_a_sign_in(key: str) -> None
             realtime_token = await client._realtime_access_token()
 
     assert authorization_headers(client) == [f"Bearer {key}"] * 4
-    assert requests[0].headers.get("authorization") != "Bearer userjwt"
+    assert requests[0].headers.get("authorization") == functions_authorization
     assert realtime_token == key
 
 

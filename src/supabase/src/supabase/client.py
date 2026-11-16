@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
+import json
 import logging
 import platform
 from abc import ABC, abstractmethod
@@ -44,7 +47,6 @@ from supabase_auth import (
     SyncSupportedStorage,
     UserDoesNotExistError,
 )
-from supabase_auth.helpers import decode_jwt
 from supabase_functions import (
     AsyncFunctionsClient,
     FunctionsError,
@@ -174,10 +176,16 @@ def _is_new_api_key(key: str) -> bool:
 def _is_secret_key(key: str) -> bool:
     if key.startswith("sb_secret_"):
         return True
-    try:
-        return decode_jwt(key).payload.role == "service_role"
-    except AuthInvalidJwtError:
+    parts = key.split(".")
+    if len(parts) != 3:
         return False
+    try:
+        payload = json.loads(
+            base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4))
+        )
+    except (binascii.Error, ValueError):
+        return False
+    return isinstance(payload, dict) and payload.get("role") == "service_role"
 
 
 class _SharedHttpSession:
@@ -295,6 +303,7 @@ class SupabaseClient[
         validate_request_timeout(request_timeout)
         self.supabase_key = supabase_key
         self._uses_secret_key = _is_secret_key(supabase_key)
+        self._warned_about_secret_key_sign_in = False
         self._request_timeout = request_timeout
         self._retry = retry
         self._postgrest_options = postgrest or PostgrestClientOptions()
@@ -507,6 +516,16 @@ class SupabaseClient[
 
     def _listen_to_auth_events(self, change: AuthStateChange) -> None:
         if self._uses_secret_key:
+            if change.session is not None and not (
+                self._warned_about_secret_key_sign_in
+            ):
+                self._warned_about_secret_key_sign_in = True
+                logger.warning(
+                    "A user signed in on a client created with a secret or"
+                    " service_role key. Its data calls keep using the key and"
+                    " bypass row level security. Sign users in on a separate"
+                    " client created with the publishable key."
+                )
             return
         if change.session is not None:
             self._set_access_token(change.session.access_token)
