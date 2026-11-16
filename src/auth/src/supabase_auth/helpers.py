@@ -56,10 +56,11 @@ def parse_auth_response(response: Response) -> AuthResponse:
 
 class _PendingSecureEmailChange(BaseModel):
     """What auth answers to the first of the two confirmations of a secure
-    email change. It issues no session until the other address confirms too,
-    and it sends the status as a string."""
+    email change. It issues no session until the other address confirms too.
+    It sends the status as a string today, so a number is accepted too in
+    case that changes."""
 
-    code: Literal["200"]
+    code: Literal["200", 200]
     msg: str
 
 

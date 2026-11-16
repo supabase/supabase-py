@@ -215,8 +215,8 @@ class Factor(BaseModel):
     """
     factor_type: Literal["totp", "phone"] | str  # noqa: PYI051
     """
-    Type of factor. Only `totp` supported with this version but may change in
-    future versions.
+    Type of factor. `totp` and `phone` are supported with this version but
+    more may come in future versions.
     """
     status: Literal["verified", "unverified"]
     """

@@ -24,10 +24,13 @@ NAMELESS_CLIENT: dict[str, Any] = {
 }
 
 
-def admin_client(body: dict[str, Any]) -> AsyncSupabaseAuthAdmin:
+def admin_client(
+    body: dict[str, Any], requests: list[Request] | None = None
+) -> AsyncSupabaseAuthAdmin:
     def handler(request: Request) -> Response:
+        if requests is not None:
+            requests.append(request)
         assert request.method == "GET"
-        assert request.url.path.startswith("/auth/v1/admin/oauth/clients")
         return Response(200, json=body)
 
     return AsyncSupabaseAuthAdmin(
@@ -51,8 +54,13 @@ async def test_list_oauth_clients_when_none_are_registered(
 
 
 async def test_list_oauth_clients_preserves_registered_clients() -> None:
-    response = await admin_client({"clients": [CLIENT]}).oauth.list_clients()
+    requests: list[Request] = []
 
+    response = await admin_client({"clients": [CLIENT]}, requests).oauth.list_clients()
+
+    assert [request.url.path for request in requests] == [
+        "/auth/v1/admin/oauth/clients"
+    ]
     assert len(response.clients) == 1
     assert response.clients[0].client_id == CLIENT["client_id"]
     assert response.clients[0].client_name == CLIENT["client_name"]
@@ -70,8 +78,15 @@ async def test_list_oauth_clients_accepts_a_client_without_a_name() -> None:
 
 
 async def test_get_oauth_client_accepts_a_client_without_a_name() -> None:
-    response = await admin_client(NAMELESS_CLIENT).oauth.get_client(CLIENT["client_id"])
+    requests: list[Request] = []
 
+    response = await admin_client(NAMELESS_CLIENT, requests).oauth.get_client(
+        CLIENT["client_id"]
+    )
+
+    assert [request.url.path for request in requests] == [
+        f"/auth/v1/admin/oauth/clients/{CLIENT['client_id']}"
+    ]
     assert response.client is not None
     assert response.client.client_id == CLIENT["client_id"]
     assert response.client.client_name is None

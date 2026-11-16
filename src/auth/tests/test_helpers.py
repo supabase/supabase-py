@@ -266,23 +266,6 @@ def test_handle_error_response_passes_an_unknown_error_code_through() -> None:
     assert error.code == "brand_new_code"
 
 
-def test_handle_error_response_treats_an_unparsable_gateway_error_as_retryable() -> (
-    None
-):
-    response = Response(
-        content=b"<html>502 Bad Gateway</html>",
-        status=502,
-        headers=Headers.empty(),
-        request=valid_request(),
-    )
-
-    error = _handle_error_response(response)
-
-    assert isinstance(error, AuthRetryableError)
-    assert error.status_code == 502
-    assert error.code is ErrorCode.UNEXPECTED_FAILURE
-
-
 @pytest.mark.parametrize("status", [429, 502, 503, 504, 520])
 @pytest.mark.parametrize("content", [b"", b"<html>Service Unavailable</html>"])
 def test_handle_error_response_retries_a_retryable_status_whatever_the_body(
