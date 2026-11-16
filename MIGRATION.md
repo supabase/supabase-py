@@ -127,11 +127,17 @@ Option and parameter dataclasses are frozen. Setting a field raises `dataclasses
 
 This covers `PostgrestClientOptions`, `AuthClientOptions`, `StorageClientOptions`, `FunctionsClientOptions`, `RealtimeClientOptions`, `realtime.RealtimeChannelOptions`, `realtime.PostgresChangesBinding`, the `storage3.types` `SortByType`, `SortByV2` and `TransformOptions`, and the `supabase_auth` credential and parameter classes such as `SignUpWithEmailAndPasswordCredentials` and `VerifyEmailOtpParams`.
 
-| Before                                                 | After                                                    |
-| ------------------------------------------------------ | -------------------------------------------------------- |
-| `options.schema = "other"`                             | `options = dataclasses.replace(options, schema="other")` |
-| `options.broadcast(ack=True)` without using the result | `options = options.broadcast(ack=True)`                  |
-| `options.postgres_changes_bindings.append(binding)`    | `options = options.postgres_changes(...)`                |
+| Before                                                 | After                                                                     |
+| ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `payload["data"]["record"]`                            | `message.payload.record`                                                  |
+| `payload["data"]["old_record"]`                        | `message.payload.old_record`                                              |
+| `payload["data"]["type"]`                              | `message.payload.event`                                                   |
+| `payload["data"]["schema"]`                            | `message.payload.schema_`                                                 |
+| `payload["data"]["table"]`                             | `message.payload.table`                                                   |
+| `payload["data"]["columns"]`                           | `message.payload.columns`                                                 |
+| `payload["data"]["commit_timestamp"]`, a `str`         | `message.payload.commit_timestamp`, a timezone-aware `datetime`           |
+| `payload["data"]["errors"]`, a `str`, a list or `None` | `message.payload.errors`, a `list[str]` that is empty when there are none |
+| `payload["ids"]`                                       | `message.payload.ids`                                                     |
 
 The `RealtimeChannelOptions` builder methods return a new copy and leave the original unchanged, so chained calls keep working. `postgres_changes_bindings` and `PostgresChangesBinding.select` are stored as tuples.
 

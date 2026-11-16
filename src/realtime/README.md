@@ -189,8 +189,8 @@ async with client.channel("db-changes", options) as channel:
 
 `record` is the row after the change and is `None` for a delete. `old_record`
 is the row before the change and is `None` for an insert. Without
-`REPLICA IDENTITY FULL` on the table, `old_record` holds only the primary key
-columns. `errors` lists the errors the server reported for the change, such as
+`REPLICA IDENTITY FULL` on the table, or under row level security,
+`old_record` holds only the primary key columns. `errors` lists the errors the server reported for the change, such as
 a row too large to send.
 
 ### Filters

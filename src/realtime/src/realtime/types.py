@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Annotated, Any, Literal, TypeVar
 
@@ -12,7 +12,6 @@ from pydantic import (
     Field,
     Strict,
     field_validator,
-    model_validator,
 )
 
 # Constants
@@ -115,11 +114,7 @@ class PostgresChangesBinding:
 
 
 class PostgresChangesPayload(BaseModel):
-    """A row change the server read from the Postgres write-ahead log.
-
-    The server nests the change under ``data``, next to the ``ids`` of the
-    bindings it matched; both are read into this one model.
-    """
+    """A row change the server read from the Postgres write-ahead log."""
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -133,9 +128,9 @@ class PostgresChangesPayload(BaseModel):
     """The changed table."""
 
     commit_timestamp: datetime
-    """When the transaction committed."""
+    """When the transaction committed, as a timezone-aware `datetime`."""
 
-    columns: list[PostgresChangesColumn] = []
+    columns: list[PostgresChangesColumn]
     """The columns of the table, with their Postgres type names."""
 
     record: dict[str, Any] | None = None
@@ -156,11 +151,18 @@ class PostgresChangesPayload(BaseModel):
     ids: list[int] = []
     """The ids of the bindings of the channel the change matched."""
 
-    @model_validator(mode="before")
+    @field_validator("commit_timestamp", mode="before")
     @classmethod
-    def _unwrap_data(cls, value: object) -> object:
-        if isinstance(value, Mapping) and "data" in value:
-            return {**value["data"], "ids": value.get("ids", [])}
+    def _parse_commit_timestamp(cls, value: object) -> object:
+        if isinstance(value, str):
+            return datetime.fromisoformat(value)
+        return value
+
+    @field_validator("commit_timestamp")
+    @classmethod
+    def _assume_utc(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
         return value
 
     @field_validator("errors", mode="before")
