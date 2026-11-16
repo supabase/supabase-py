@@ -38,6 +38,7 @@ from .types import (
     JWTHeader,
     JWTPayload,
     LinkIdentityResponse,
+    Pagination,
     Session,
     SSOResponse,
     User,
@@ -124,6 +125,30 @@ def _validate_model[Model: BaseModel](response: Response, model: type[Model]) ->
     if response.is_success:
         return model.model_validate_json(response.content)
     raise _handle_error_response(response)
+
+
+def _validate_paginated_model[Model: Pagination](
+    response: Response, model: type[Model]
+) -> Model:
+    result = _validate_model(response, model)
+    if total := response.headers.get("x-total-count"):
+        result.total = int(total)
+    for link in (response.headers.get("link") or "").split(","):
+        target, _, parameters = link.partition(";")
+        query = dict(parse_qsl(urlsplit(target.strip().strip("<>")).query))
+        page = query.get("page", "")
+        if not page.isdigit():
+            continue
+        for parameter in parameters.split(";"):
+            key, _, value = parameter.partition("=")
+            if key.strip() != "rel":
+                continue
+            rel = value.strip().strip('"')
+            if rel == "next":
+                result.next_page = int(page)
+            elif rel == "last":
+                result.last_page = int(page)
+    return result
 
 
 def _validate_adapter[Inner](response: Response, adapter: TypeAdapter[Inner]) -> Inner:

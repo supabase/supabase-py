@@ -302,8 +302,11 @@ features:
     status: implemented
     symbols:
       - SupabaseAuthAdmin.list_users
+      - SyncSupabaseAuthAdmin.iter_users
+      - AsyncSupabaseAuthAdmin.aiter_users
     supporting_symbols:
       - UserList
+      - Pagination
   auth.admin.invite_user:
     status: implemented
     symbols:

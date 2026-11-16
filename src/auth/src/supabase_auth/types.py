@@ -136,8 +136,23 @@ class IdentitiesResponse(BaseModel):
     identities: list[UserIdentity]
 
 
-class UserList(BaseModel):
+class Pagination(BaseModel):
+    """
+    Pagination information for list responses.
+    """
+
+    next_page: int | None = None
+    last_page: int = 0
+    total: int = 0
+
+
+class UserList(Pagination):
+    """
+    A page of users with the pagination information of the full list.
+    """
+
     users: list[User]
+    aud: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -1193,17 +1208,7 @@ class OAuthClientResponse(BaseModel):
     client: OAuthClient | None = None
 
 
-class Pagination(BaseModel):
-    """
-    Pagination information for list responses.
-    """
-
-    next_page: int | None = None
-    last_page: int = 0
-    total: int = 0
-
-
-class OAuthClientListResponse(BaseModel):
+class OAuthClientListResponse(Pagination):
     """
     Response type for listing OAuth clients.
     Only relevant when the OAuth 2.1 server is enabled in Supabase Auth.
@@ -1211,6 +1216,3 @@ class OAuthClientListResponse(BaseModel):
 
     clients: list[OAuthClient] = Field(default_factory=list)
     aud: str | None = None
-    next_page: int | None = None
-    last_page: int = 0
-    total: int = 0

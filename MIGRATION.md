@@ -411,6 +411,26 @@ The payload of a `PostgresChangesMessage` is a `PostgresChangesPayload` model wi
 - `sign_out("others")` raises `AuthSessionMissingError` when there is no session, instead of returning.
 - An invalid scope raises `ValueError`.
 
+## Auth admin `list_users()` returns a page
+
+`admin.list_users()` returns a `UserList` instead of a `list[User]`. The users are in `users`, next to the `next_page`, `last_page` and `total` the auth service sends.
+
+| Before                             | After                                      |
+| ---------------------------------- | ------------------------------------------ |
+| `users = admin.list_users()`       | `users = admin.list_users().users`         |
+| `users = await admin.list_users()` | `users = (await admin.list_users()).users` |
+
+To go through every user, `iter_users()` on the sync client and `aiter_users()` on the async client fetch one page at a time.
+
+```python
+from supabase_auth import SyncSupabaseAuthAdmin
+
+
+def print_emails(admin: SyncSupabaseAuthAdmin) -> None:
+    for user in admin.iter_users(per_page=100):
+        print(user.email)
+```
+
 ## Request timeouts
 
 `AsyncStorageClient` and `SyncStorageClient` no longer take a `timeout` parameter. It was ignored. Pass `request_timeout` as a keyword argument instead.
