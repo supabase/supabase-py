@@ -105,7 +105,7 @@ supabase = create_client(
 )
 ```
 
-`request_timeout` is in seconds. The `request_timeout` of a service's options overrides the global one for that service.
+`request_timeout` is in seconds. The `request_timeout` of a service's options overrides the global one for that service. Without either, a request fails after 60 seconds without progress, with httpx and with aiohttp alike. An `http_client` you pass in keeps its own timeout instead.
 
 `retry` is a `RetryPolicy`, exported from `supabase`, that says how a request that failed in a way worth repeating is retried. By default a GET or HEAD request is sent up to three more times on a rate limit, a gateway error or a network error, a timeout included, after the wait the service asked for with `Retry-After` or an exponential backoff with jitter. A response that asks for a longer wait than the `max_delay` of the policy, 30 seconds by default, is not retried. Writes are not retried unless you opt in with `retry(True)` on a query, or the `retry` argument of `functions.invoke()`, for a write that is safe to send twice. The `retry` of a service's options overrides the global one, and `RetryPolicy(max_retries=0)` turns retries off:
 
