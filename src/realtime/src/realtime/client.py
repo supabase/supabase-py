@@ -70,7 +70,10 @@ def _publish[T](listeners: set[asyncio.Queue[T]], value: T) -> None:
 
 def _http_endpoint_url(url: URL) -> URL:
     scheme = {"ws": "http", "wss": "https"}.get(url.scheme, url.scheme)
-    return url.with_scheme(scheme).with_path("")
+    path = url.path.rstrip("/")
+    for suffix in ("/socket/websocket", "/websocket", "/socket"):
+        path = path.removesuffix(suffix)
+    return url.with_scheme(scheme).with_path(path).with_query(None).with_fragment(None)
 
 
 def normalize_url(url: URL, token: str | None) -> URL:
@@ -204,6 +207,7 @@ class RealtimeClient:
             secure_schemes=("wss", "https"),
             insecure_schemes=("ws", "http"),
             allow_insecure_http=allow_insecure_http,
+            example="wss://your-project.supabase.co/realtime/v1",
         )
         self.last_token: str | None = None
         self.get_access_token = token_callback

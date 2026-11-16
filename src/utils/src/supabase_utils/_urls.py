@@ -35,16 +35,19 @@ def check_secure_url(
     secure_schemes: Collection[str],
     insecure_schemes: Collection[str],
     allow_insecure_http: bool,
+    example: str,
 ) -> None:
     """
     Raise a `ValueError` unless `url` is absolute and uses one of
     `secure_schemes`, or one of `insecure_schemes` with a loopback host or
     `allow_insecure_http` set.
+
+    The message shows `url` without its credentials, query and fragment.
     """
+    shown = repr(_redact(url))
     if not url.is_absolute() or not url.host:
         raise ValueError(
-            f"{name} {str(url)!r} must be an absolute URL with a host, "
-            "such as https://your-project.supabase.co"
+            f"{name} {shown} must be an absolute URL with a host, such as {example}"
         )
     if url.scheme in secure_schemes:
         return
@@ -52,16 +55,23 @@ def check_secure_url(
         if allow_insecure_http or is_loopback_host(url.host):
             return
         raise ValueError(
-            f"{name} {str(url)!r} must use {_either(secure_schemes)}, since "
+            f"{name} {shown} must use {_either(secure_schemes)}, since "
             f"{url.scheme} sends the API key and the session of the user in "
             f"clear text. {url.scheme} is only accepted for a loopback host, "
             "such as localhost, or when allow_insecure_http is set"
         )
     raise ValueError(
-        f"{name} {str(url)!r} must use {_either([*secure_schemes, *insecure_schemes])}"
+        f"{name} {shown} must use {_either([*secure_schemes, *insecure_schemes])}"
     )
 
 
 def _either(schemes: Collection[str]) -> str:
     *rest, last = schemes
     return f"{', '.join(rest)} or {last}" if rest else last
+
+
+def _redact(url: URL) -> str:
+    url = url.with_query(None).with_fragment(None)
+    if url.is_absolute() and url.host:
+        url = url.with_user(None)
+    return str(url)

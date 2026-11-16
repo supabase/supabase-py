@@ -8,11 +8,17 @@ from realtime.client import connect_once
 @pytest.mark.parametrize(
     ("url", "expected"),
     [
-        ("ws://localhost:54321/realtime/v1", "http://localhost:54321"),
-        ("wss://project.supabase.co/realtime/v1", "https://project.supabase.co"),
-        ("http://localhost:54321/realtime/v1", "http://localhost:54321"),
-        ("https://project.supabase.co/realtime/v1", "https://project.supabase.co"),
-        ("ws://10.0.2.2:54321/realtime/v1", "http://10.0.2.2:54321"),
+        ("ws://localhost:54321/realtime/v1", "http://localhost:54321/realtime/v1"),
+        (
+            "wss://project.supabase.co/realtime/v1",
+            "https://project.supabase.co/realtime/v1",
+        ),
+        ("http://localhost:54321/realtime/v1/", "http://localhost:54321/realtime/v1"),
+        (
+            "https://project.supabase.co/realtime/v1/websocket?apikey=key",
+            "https://project.supabase.co/realtime/v1",
+        ),
+        ("ws://10.0.2.2:54321/realtime/v1/socket", "http://10.0.2.2:54321/realtime/v1"),
     ],
 )
 def test_http_endpoint_maps_the_websocket_scheme(url: str, expected: str) -> None:
@@ -92,7 +98,7 @@ def test_allow_insecure_http_accepts_any_host() -> None:
         "ws://192.168.1.20:8000/realtime/v1", allow_insecure_http=True
     )
 
-    assert client.http_endpoint == URL("http://192.168.1.20:8000")
+    assert client.http_endpoint == URL("http://192.168.1.20:8000/realtime/v1")
 
 
 def test_connect_once_passes_allow_insecure_http_on() -> None:
@@ -104,3 +110,12 @@ def test_connect_once_passes_allow_insecure_http_on() -> None:
     )
 
     assert connection.client.url == URL("ws://192.168.1.20:8000/realtime/v1")
+
+
+def test_the_message_leaves_out_credentials_and_the_query() -> None:
+    with pytest.raises(ValueError, match="must use wss or https") as error:
+        RealtimeClient("ws://user:secret@10.0.0.5/realtime/v1?apikey=key#a")
+
+    assert "secret" not in str(error.value)
+    assert "apikey" not in str(error.value)
+    assert "'ws://10.0.0.5/realtime/v1'" in str(error.value)
