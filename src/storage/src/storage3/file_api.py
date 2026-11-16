@@ -47,6 +47,7 @@ from .types import (
 
 if TYPE_CHECKING:
     import builtins
+    from collections.abc import AsyncIterator, Iterator
     from pathlib import Path
 
 __all__ = ["StorageFileApiClient"]
@@ -590,6 +591,64 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             body=body,
         )
         return _validate_model(response, ListResult)
+
+    def iter_objects(
+        self: StorageFileApiClient[SyncHttpIO],
+        prefix: str | None = None,
+        *,
+        limit: int | None = None,
+        with_delimiter: bool | None = None,
+        sort_by: SortBy | None = None,
+    ) -> Iterator[ListResult]:
+        """
+        Lists the objects in the bucket page by page, following the cursor of
+        each page.
+
+        Each page is fetched only when the iterator reaches it. The parameters
+        are those of `list`.
+        """
+        cursor = None
+        while True:
+            page = self.list(
+                prefix,
+                limit=limit,
+                cursor=cursor,
+                with_delimiter=with_delimiter,
+                sort_by=sort_by,
+            )
+            yield page
+            if not page.hasNext or page.nextCursor is None:
+                return
+            cursor = page.nextCursor
+
+    async def aiter_objects(
+        self: StorageFileApiClient[AsyncHttpIO],
+        prefix: str | None = None,
+        *,
+        limit: int | None = None,
+        with_delimiter: bool | None = None,
+        sort_by: SortBy | None = None,
+    ) -> AsyncIterator[ListResult]:
+        """
+        Lists the objects in the bucket page by page, following the cursor of
+        each page.
+
+        Each page is fetched only when the iterator reaches it. The parameters
+        are those of `list`.
+        """
+        cursor = None
+        while True:
+            page = await self.list(
+                prefix,
+                limit=limit,
+                cursor=cursor,
+                with_delimiter=with_delimiter,
+                sort_by=sort_by,
+            )
+            yield page
+            if not page.hasNext or page.nextCursor is None:
+                return
+            cursor = page.nextCursor
 
     @handle_http_io
     def download(

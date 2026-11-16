@@ -833,3 +833,116 @@ async def test_move_sends_the_destination_bucket(use_async: bool) -> None:
         "destinationKey": "b.txt",
         "destinationBucket": "other",
     }
+
+
+def cursor_pages_handler(requests: list[Request]) -> Callable[[Request], Response]:
+    pages: dict[str | None, dict[str, Any]] = {
+        None: {
+            "hasNext": True,
+            "nextCursor": "second",
+            "folders": [],
+            "objects": [object_row("a.png")],
+        },
+        "second": {
+            "hasNext": True,
+            "nextCursor": "third",
+            "folders": [],
+            "objects": [object_row("b.png")],
+        },
+        "third": {
+            "hasNext": False,
+            "folders": [],
+            "objects": [object_row("c.png")],
+        },
+    }
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json=pages[json.loads(request.content).get("cursor")])
+
+    return handler
+
+
+def object_row(name: str) -> dict[str, Any]:
+    return {
+        "id": name,
+        "name": name,
+        "updated_at": "2026-01-01T00:00:00Z",
+        "metadata": None,
+    }
+
+
+def collect_pages(use_async: bool, **options: Any) -> FileAction:
+    if use_async:
+
+        async def collect_async(client: Any) -> list[Any]:
+            return [
+                page async for page in client.from_("bucket").aiter_objects(**options)
+            ]
+
+        return collect_async
+
+    def collect(client: Any) -> list[Any]:
+        return list(client.from_("bucket").iter_objects(**options))
+
+    return collect
+
+
+@use_async
+async def test_iter_objects_follows_the_cursor_of_each_page(use_async: bool) -> None:
+    requests: list[Request] = []
+
+    pages = await call_with_client(
+        use_async,
+        cursor_pages_handler(requests),
+        collect_pages(use_async, prefix="photos/", limit=1, with_delimiter=True),
+    )
+
+    assert [[o.name for o in page.objects] for page in pages] == [
+        ["a.png"],
+        ["b.png"],
+        ["c.png"],
+    ]
+    assert [json.loads(request.content) for request in requests] == [
+        {"prefix": "photos/", "limit": 1, "with_delimiter": True},
+        {"prefix": "photos/", "limit": 1, "with_delimiter": True, "cursor": "second"},
+        {"prefix": "photos/", "limit": 1, "with_delimiter": True, "cursor": "third"},
+    ]
+
+
+@use_async
+async def test_iter_objects_stops_after_a_single_page(use_async: bool) -> None:
+    requests: list[Request] = []
+
+    pages = await call_with_client(
+        use_async, empty_page_handler(requests), collect_pages(use_async)
+    )
+
+    assert len(pages) == 1
+    assert len(requests) == 1
+
+
+@use_async
+async def test_iter_objects_stops_when_a_page_has_no_cursor(use_async: bool) -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json={"hasNext": True, "folders": [], "objects": []})
+
+    pages = await call_with_client(use_async, handler, collect_pages(use_async))
+
+    assert len(pages) == 1
+    assert len(requests) == 1
+
+
+async def test_iter_objects_fetches_a_page_only_when_it_is_reached() -> None:
+    requests: list[Request] = []
+
+    def take_first(client: Any) -> Any:
+        return next(client.from_("bucket").iter_objects())
+
+    first = await call_with_client(False, cursor_pages_handler(requests), take_first)
+
+    assert [o.name for o in first.objects] == ["a.png"]
+    assert len(requests) == 1

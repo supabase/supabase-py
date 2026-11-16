@@ -888,3 +888,25 @@ def test_client_list_paginated(
         assert all(f.name.startswith(file.bucket_path) for f in result.objects)
         pages += 1
     assert pages == 4
+
+
+def test_client_iter_objects(
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
+) -> None:
+    """Ensure iter_objects() follows the cursors through every page"""
+    suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]
+    for suffix in suffixes:
+        storage_file_client.upload(
+            file.bucket_path + suffix, file.local_path, content_type=file.mime_type
+        )
+
+    pages = list(
+        storage_file_client.iter_objects(
+            f"{file.bucket_folder}/", with_delimiter=True, limit=3
+        )
+    )
+
+    assert [len(page.objects) for page in pages] == [3, 3, 2]
+    assert sorted(o.name for page in pages for o in page.objects) == sorted(
+        file.bucket_path + suffix for suffix in suffixes
+    )

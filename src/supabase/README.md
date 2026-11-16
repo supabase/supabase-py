@@ -306,17 +306,24 @@ data = supabase.storage.from_(bucket_name).remove(["old_photo.png", "image5.jpg"
 
 ### List files
 
-`list()` returns one page. With `with_delimiter=True` it lists one level, with the folders apart from the objects. Pass the `nextCursor` of a page to fetch the next one.
+`list()` returns one page. With `with_delimiter=True` it lists one level, with the folders apart from the objects. Pass the `nextCursor` of a page to fetch the next one, or let `iter_objects()` follow the cursors, fetching each page only when the loop reaches it. The async client has `aiter_objects()` for `async for`.
 
 ```python
 bucket_name: str = "charts"
 
 bucket = supabase.storage.from_(bucket_name)
-page = bucket.list("2024/", with_delimiter=True)
-print(page.folders, page.objects)
-while page.hasNext:
-    page = bucket.list("2024/", with_delimiter=True, cursor=page.nextCursor)
-    print(page.objects)
+for page in bucket.iter_objects("2024/", with_delimiter=True):
+    print(page.folders, page.objects)
+```
+
+### List buckets
+
+`list_buckets()` returns every bucket. Pass `limit` and `offset` to page through them, `search` to filter them by name, and `sort_column` and `sort_order` to sort them.
+
+```python
+buckets = supabase.storage.list_buckets(
+    limit=10, offset=0, search="photo", sort_column="created_at", sort_order="desc"
+)
 ```
 
 ### Move and rename files
