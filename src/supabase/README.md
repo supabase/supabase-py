@@ -121,6 +121,10 @@ supabase = create_client(
 supabase.table("countries").select("*").retry(False).execute()
 ```
 
+### Secret and `service_role` keys
+
+A client created with a secret key (`sb_secret_...`) or a legacy `service_role` key bypasses row level security. It keeps sending that key after a sign-in, so its data calls never switch to the signed in user. Do not sign users in on such a client. Use a separate client created with the publishable key, or `with_token()` to act for a user.
+
 ### One client per request on a server
 
 A server such as a FastAPI or Django app acts for the user who sent the request, so that row level security applies to them. Create one client when the app starts and call `with_token()` with the user's JWT in each request. It returns a client that shares the HTTP connections, headers and options of the first one, and only differs in the `Authorization` header. It does no I/O, so creating one per request is cheap. It never refreshes or replaces the token, and leaving it with `async with` does not close the shared connections. It has no auth client, so using its `auth` raises `SupabaseException`.
