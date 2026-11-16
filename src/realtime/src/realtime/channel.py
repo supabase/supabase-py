@@ -30,7 +30,7 @@ from .message import (
     SuccessReplyMessage,
     SystemMessage,
 )
-from .presence import PresenceEvent, RealtimePresence
+from .presence import PresenceEvent, PresenceJoin, PresenceLeave, RealtimePresence
 from .types import (
     ChannelEvents,
     ChannelStates,
@@ -190,7 +190,7 @@ class _ChannelFailed:
     error: Exception
 
 
-QueuedMessage = Message | ChannelStateChange | _ChannelFailed
+QueuedMessage = Message | ChannelStateChange | _ChannelFailed | PresenceEvent
 
 ChannelMessage = (
     SystemMessage
@@ -255,7 +255,29 @@ class RealtimeChannel:
                 self._on_error()
             else:
                 self._on_close()
+        if message.event in (ChannelEvents.presence_state, ChannelEvents.presence_diff):
+            self._apply_presence(message)
+            return
         self._enqueue(message)
+
+    def _apply_presence(self, message: Message) -> None:
+        try:
+            server_message = ServerMessageAdapter.validate_python(message)
+        except ValueError:
+            self._enqueue(message)
+            return
+        if isinstance(server_message, (PresenceStateMessage, PresenceDiffMessage)):
+            for event in self._presence_events(server_message):
+                self._enqueue(event)
+        else:
+            self._enqueue(message)
+
+    def _presence_events(
+        self, message: PresenceStateMessage | PresenceDiffMessage
+    ) -> list[PresenceEvent]:
+        if isinstance(message, PresenceStateMessage):
+            return list(self.presence._on_state_event(message.payload))
+        return list(self.presence._on_diff_event(message.payload))
 
     def _enqueue(self, message: QueuedMessage) -> None:
         if self.message_stream.empty():
@@ -499,7 +521,8 @@ class RealtimeChannel:
             payload={},
         )
         with contextlib.suppress(Exception):
-            await self.socket._send_no_wait(leave)
+            async with asyncio.timeout(self.socket.timeout):
+                await self.socket._send_no_wait(leave)
 
     def _raise_if_topic_is_taken(self) -> None:
         if self.socket.channels.get(self.topic, self) is not self:
@@ -516,7 +539,8 @@ class RealtimeChannel:
         joined channel drops and when the client joined it again. At most
         ``max_queued_messages`` of the client are kept until they are read;
         when the queue is full, the oldest message is dropped and a warning is
-        logged.
+        logged. Presence updates are applied to `presence_state()` when they
+        arrive, so a dropped presence event does not lose presence state.
 
         :raises NotConnectedError: If the client is not connected, or is closed
             while waiting for a message.
@@ -530,21 +554,14 @@ class RealtimeChannel:
                 message = await self.socket._next_message(self.message_stream)
             else:
                 message = self.message_stream.get_nowait()
-            if isinstance(message, ChannelStateChange):
+            if isinstance(message, (ChannelStateChange, PresenceJoin, PresenceLeave)):
                 yield message
                 continue
             if isinstance(message, _ChannelFailed):
                 raise message.error
             server_message = ServerMessageAdapter.validate_python(message)
-            if isinstance(server_message, PresenceStateMessage):
-                for presence_event in self.presence._on_state_event(
-                    server_message.payload
-                ):
-                    yield presence_event
-            elif isinstance(server_message, PresenceDiffMessage):
-                for presence_event in self.presence._on_diff_event(
-                    server_message.payload
-                ):
+            if isinstance(server_message, (PresenceStateMessage, PresenceDiffMessage)):
+                for presence_event in self._presence_events(server_message):
                     yield presence_event
             else:
                 yield server_message

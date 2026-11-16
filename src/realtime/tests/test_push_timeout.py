@@ -313,3 +313,28 @@ def test_a_full_queue_warns_again_after_it_was_read(
         channel._receive(message)
 
     assert len([r for r in caplog.records if "is full" in r.message]) == 2
+
+
+def test_a_full_queue_keeps_the_presence_state() -> None:
+    channel = RealtimeClient("http://localhost", max_queued_messages=1).channel("room")
+
+    channel._receive(
+        Message(
+            event=ChannelEvents.presence_state,
+            topic=channel.topic,
+            payload={"alice": {"metas": [{"phx_ref": "ref-alice"}]}},
+        )
+    )
+    channel._receive(
+        Message(
+            event=ChannelEvents.presence_diff,
+            topic=channel.topic,
+            payload={
+                "joins": {"bob": {"metas": [{"phx_ref": "ref-bob"}]}},
+                "leaves": {},
+            },
+        )
+    )
+
+    assert set(channel.presence_state()) == {"alice", "bob"}
+    assert channel.message_stream.qsize() == 1
