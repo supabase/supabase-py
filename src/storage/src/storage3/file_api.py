@@ -53,8 +53,12 @@ __all__ = ["StorageFileApiClient"]
 
 def relative_path_to_parts(path: str) -> tuple[str, ...]:
     parts = tuple(path.lstrip("/").split("/"))
+    if parts == ("",):
+        raise ValueError("Object keys must not be empty")
     if {".", ".."} & set(parts):
         raise ValueError(f"Object keys must not contain dot segments: {path!r}")
+    if "" in parts[:-1]:
+        raise ValueError(f"Object keys must not contain empty segments: {path!r}")
     return parts
 
 
