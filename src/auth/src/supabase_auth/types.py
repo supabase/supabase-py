@@ -1035,7 +1035,7 @@ SignOutScope = Literal["global", "local", "others"]
 
 class JWTHeader(BaseModel, extra="allow"):
     alg: Literal["RS256", "ES256", "HS256"]
-    typ: str
+    typ: str | None = None
     kid: str | None = None
 
 
