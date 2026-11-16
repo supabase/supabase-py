@@ -6,7 +6,8 @@ from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from supabase_utils.http.request import validate_request_timeout
 from supabase_utils.http.retry import RetryPolicy
 
-from .client import AsyncClient, _validate_string_argument
+from ._keys import _validate_string_argument
+from .client import AsyncClient
 from .types import (
     AuthClientOptions,
     FunctionsClientOptions,

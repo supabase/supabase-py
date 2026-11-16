@@ -104,6 +104,14 @@ What the legacy endpoint offered and `list()` does not:
 
 `SupabaseException` is one class, so `except SupabaseException` also catches errors raised by `AsyncClient`.
 
+`supabase.client` only exports the client classes. Import the errors, `RetryPolicy`, `PostgrestAPIResponse`, `PostgrestRPCResponse` and `__version__` from `supabase` instead.
+
+| Before                                          | After                                    |
+| ----------------------------------------------- | ---------------------------------------- |
+| `from supabase.client import AuthApiError`      | `from supabase import AuthApiError`      |
+| `from supabase.client import SupabaseException` | `from supabase import SupabaseException` |
+| `from supabase.client import RetryPolicy`       | `from supabase import RetryPolicy`       |
+
 ## Client options are keyword arguments
 
 `ClientOptions`, `AsyncClientOptions`, their v2 names `SyncClientOptions` and `AClientOptions`, and the `supabase.lib.client_options` module are removed. `create_client`, `create_async_client`, `Client`, `AsyncClient` and their `create` methods take the settings as keyword-only arguments. Settings that apply to every service are arguments of their own. The settings of one service are grouped in an options class, passed in the argument named after the service.

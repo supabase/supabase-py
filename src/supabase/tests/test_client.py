@@ -499,7 +499,6 @@ async def test_create_async_clients_pass_the_retry_policy() -> None:
 def test_retry_policy_is_exported_from_supabase() -> None:
     assert ExportedRetryPolicy is RetryPolicy
     assert "RetryPolicy" in supabase.__all__
-    assert "RetryPolicy" in supabase.client.__all__
 
 
 @pytest.mark.parametrize("request_timeout", [0, -1, float("nan"), float("inf")])

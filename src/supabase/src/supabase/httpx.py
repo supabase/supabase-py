@@ -7,7 +7,8 @@ from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.request import validate_request_timeout
 from supabase_utils.http.retry import RetryPolicy
 
-from .client import AsyncClient, Client, _validate_string_argument
+from ._keys import _validate_string_argument
+from .client import AsyncClient, Client
 from .types import (
     AuthClientOptions,
     FunctionsClientOptions,

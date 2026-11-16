@@ -58,6 +58,48 @@ class AsyncHttpSession(Protocol):
     ) -> None: ...
 
 
+class _SharedHttpSession:
+    """Sends the requests with a session that another client closes."""
+
+    def __init__(self, session: HttpSession) -> None:
+        self.session = session
+
+    def send(self, request: Request) -> Response:
+        return self.session.send(request)
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        pass
+
+
+class _SharedAsyncHttpSession:
+    """Sends the requests with a session that another client closes."""
+
+    def __init__(self, session: AsyncHttpSession) -> None:
+        self.session = session
+
+    async def send(self, request: Request) -> Response:
+        return await self.session.send(request)
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        pass
+
+
 class _Retries:
     """The retries of one request: the attempt to send next, and how many
     were made before it."""

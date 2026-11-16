@@ -1,76 +1,42 @@
 from __future__ import annotations
 
 import asyncio
-import base64
-import binascii
-import json
 import logging
-import platform
 from abc import ABC, abstractmethod
 from functools import cached_property
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, Self, overload, override
 
-from postgrest import APIError as PostgrestAPIError
-from postgrest import APIResponse as PostgrestAPIResponse
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
-from postgrest import RPCResponse as PostgrestRPCResponse
-from realtime import (
-    AuthorizationError,
-    ChannelJoinError,
-    NotConnectedError,
-    RealtimeClient,
-    RealtimeError,
-    RealtimeTimeoutError,
-)
-from storage3 import (
-    AsyncStorageClient,
-    StorageApiError,
-    StorageException,
-    SyncStorageClient,
-    VectorBucketException,
-)
+from realtime import RealtimeClient
+from storage3 import AsyncStorageClient, SyncStorageClient
 from supabase_auth import (
     AsyncSupabaseAuthClient,
     AsyncSupportedStorage,
-    AuthApiError,
     AuthChangeEvent,
-    AuthError,
-    AuthImplicitGrantRedirectError,
-    AuthInvalidCredentialsError,
-    AuthInvalidJwtError,
-    AuthPKCECodeVerifierMissingError,
-    AuthRetryableError,
-    AuthSessionMissingError,
-    AuthUnknownError,
-    AuthWeakPasswordError,
     SyncSupabaseAuthClient,
     SyncSupportedStorage,
-    UserDoesNotExistError,
 )
-from supabase_functions import (
-    AsyncFunctionsClient,
-    FunctionsError,
-    FunctionsHttpError,
-    FunctionsRelayError,
-    SyncFunctionsClient,
-)
-from supabase_utils.errors import SupabaseError
-from supabase_utils.http.errors import (
-    RequestTimeoutError,
-    SupabaseAPIError,
-    SupabaseTransportError,
-)
+from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient
 from supabase_utils.http.io import (
     AsyncHttpIO,
     AsyncHttpSession,
     HttpSession,
     SyncHttpIO,
+    _SharedAsyncHttpSession,
+    _SharedHttpSession,
 )
 from supabase_utils.http.request import validate_request_timeout
-from supabase_utils.http.retry import RetryPolicy
 from yarl import URL
 
+from ._keys import (
+    _DEFAULT_HEADERS,
+    _find_authorization,
+    _is_new_api_key,
+    _is_secret_key,
+    _validate_string_argument,
+)
+from .errors import SupabaseException
 from .types import (
     AuthClientOptions,
     FunctionsClientOptions,
@@ -78,7 +44,6 @@ from .types import (
     RealtimeClientOptions,
     StorageClientOptions,
 )
-from .version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -97,139 +62,12 @@ if TYPE_CHECKING:
     from supabase_auth.client import SupabaseAuthHttpClient
     from supabase_auth.types import AuthStateChange
     from supabase_functions.client import FunctionsClient
-    from supabase_utils.http.request import Request, Response
+    from supabase_utils.http.retry import RetryPolicy
     from supabase_utils.types import JSON
 
     from .types import _ServiceClientOptions
 
-__all__ = [
-    "AsyncClient",
-    "AuthApiError",
-    "AuthError",
-    "AuthImplicitGrantRedirectError",
-    "AuthInvalidCredentialsError",
-    "AuthInvalidJwtError",
-    "AuthPKCECodeVerifierMissingError",
-    "AuthRetryableError",
-    "AuthSessionMissingError",
-    "AuthUnknownError",
-    "AuthWeakPasswordError",
-    "AuthorizationError",
-    "ChannelJoinError",
-    "Client",
-    "FunctionsError",
-    "FunctionsHttpError",
-    "FunctionsRelayError",
-    "NotConnectedError",
-    "PostgrestAPIError",
-    "PostgrestAPIResponse",
-    "PostgrestRPCResponse",
-    "RealtimeError",
-    "RealtimeTimeoutError",
-    "RequestTimeoutError",
-    "RetryPolicy",
-    "StorageApiError",
-    "StorageException",
-    "SupabaseAPIError",
-    "SupabaseClient",
-    "SupabaseError",
-    "SupabaseException",
-    "SupabaseTransportError",
-    "UserDoesNotExistError",
-    "VectorBucketException",
-    "__version__",
-]
-
-
-_DEFAULT_HEADERS = {
-    "X-Client-Info": (
-        f"supabase-py/{__version__}"
-        f"; platform={platform.system()}"
-        f"; platform-version={platform.release()}"
-        f"; runtime=python"
-        f"; runtime-version={platform.python_version()}"
-    )
-}
-
-
-class SupabaseException(SupabaseError):
-    """Raised when the client is created with a missing or invalid URL or key, or
-    when `auth` is used on a client returned by `with_token()`."""
-
-
-def _validate_string_argument(name: str, value: object) -> None:
-    if value is not None and not isinstance(value, str):
-        raise SupabaseException(f"{name} must be a string, not {type(value).__name__}")
-    if not value:
-        raise SupabaseException(f"{name} is required")
-
-
-def _find_authorization(headers: Mapping[str, str]) -> str | None:
-    return next(
-        (value for key, value in headers.items() if key.lower() == "authorization"),
-        None,
-    )
-
-
-def _is_new_api_key(key: str) -> bool:
-    return key.startswith("sb_")
-
-
-def _is_secret_key(key: str) -> bool:
-    if key.startswith("sb_secret_"):
-        return True
-    parts = key.split(".")
-    if len(parts) != 3:
-        return False
-    try:
-        payload = json.loads(
-            base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4))
-        )
-    except (binascii.Error, ValueError):
-        return False
-    return isinstance(payload, dict) and payload.get("role") == "service_role"
-
-
-class _SharedHttpSession:
-    """Sends the requests with a session that another client closes."""
-
-    def __init__(self, session: HttpSession) -> None:
-        self.session = session
-
-    def send(self, request: Request) -> Response:
-        return self.session.send(request)
-
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        pass
-
-
-class _SharedAsyncHttpSession:
-    """Sends the requests with a session that another client closes."""
-
-    def __init__(self, session: AsyncHttpSession) -> None:
-        self.session = session
-
-    async def send(self, request: Request) -> Response:
-        return await self.session.send(request)
-
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        pass
+__all__ = ["AsyncClient", "Client", "SupabaseClient"]
 
 
 class SupabaseClient[
