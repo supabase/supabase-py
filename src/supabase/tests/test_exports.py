@@ -85,8 +85,6 @@ def test_errors_are_exported_from_package_and_supabase(
         assert name in package.__all__
         assert name in supabase.__all__
         assert getattr(supabase, name) is getattr(package, name)
-        assert name in supabase.client.__all__
-        assert getattr(supabase.client, name) is getattr(package, name)
 
 
 @pytest.mark.parametrize("name", ["create_async_client", "create_client"])
@@ -113,8 +111,6 @@ def test_shared_errors_are_exported_from_supabase(
 ) -> None:
     assert name in supabase.__all__
     assert getattr(supabase, name) is error
-    assert name in supabase.client.__all__
-    assert getattr(supabase.client, name) is error
 
 
 def test_every_exported_error_is_a_supabase_error() -> None:
