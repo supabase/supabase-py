@@ -279,6 +279,9 @@ class RealtimeClient:
         try:
             while True:
                 frame = await websocket.recv()
+                if failure.done():
+                    logger.debug("Ignoring %s on a failed connection", _loggable(frame))
+                    return
                 try:
                     message = decode(frame)
                 except ValueError as e:
@@ -286,9 +289,12 @@ class RealtimeClient:
                         "Unrecognized message format %s\n%s", _loggable(frame), e
                     )
                     continue
-                if message.ref is not None and (
-                    fut := self.message_refs.get(message.ref)
-                ):
+                fut = (
+                    self.message_refs.get(message.ref)
+                    if message.ref is not None
+                    else None
+                )
+                if fut is not None and not fut.done():
                     fut.set_result(message)
                 elif message.event == ChannelEvents.reply:
                     logger.info("Ignoring reply nobody is waiting on: %r", message)
@@ -420,12 +426,9 @@ class RealtimeClient:
         stored and sent in the join message when they subscribe again.
 
         Raises:
-            websockets.ConnectionClosed: If the connection is closed while a
-                channel is joined. The token is not stored, so calling this
-                method again with the same token sends it again.
-            Exception: If the connection already failed while a channel is
-                joined, the exception that failed it, such as a TimeoutError
-                when a heartbeat timed out.
+            websockets.ConnectionClosed: If the connection closes while the
+                token is sent to a joined channel. The token is not stored, so
+                calling this method again with the same token sends it again.
         """
         if token is None and self.get_access_token is None:
             logger.warning("tried setting auth but no token callback was registered")

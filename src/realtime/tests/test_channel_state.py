@@ -2,12 +2,18 @@ import asyncio
 from collections.abc import AsyncIterator
 
 import pytest
+from supabase_utils.types import JSON
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
 from realtime import ChannelStates, RealtimeClient
 from realtime._serializer import decode, encode
-from realtime.message import ChannelCloseMessage, ChannelErrorMessage, Message
+from realtime.message import (
+    BroadcastMessage,
+    ChannelCloseMessage,
+    ChannelErrorMessage,
+    Message,
+)
 from realtime.types import ChannelEvents
 
 HOST = "127.0.0.1"
@@ -19,6 +25,8 @@ class FakeServer:
         self.url = ""
         self.connections: list[ServerConnection] = []
         self.received: list[Message] = []
+        self.reply_heartbeats = True
+        self.error_after_join = False
 
     async def __aenter__(self) -> "FakeServer":
         self.ws_server = await serve(self.handler, HOST, 0)
@@ -39,22 +47,43 @@ class FakeServer:
             self.received.append(message)
             if message.ref is None:
                 continue
+            if message.event == ChannelEvents.heartbeat and not self.reply_heartbeats:
+                continue
             reply = Message(
                 event=ChannelEvents.reply,
                 topic=message.topic,
                 ref=message.ref,
                 payload={"status": "ok", "response": {"postgres_changes": []}},
             )
+            frames = [encode(reply)]
+            if message.event == ChannelEvents.join and self.error_after_join:
+                error = Message(
+                    event=ChannelEvents.error,
+                    topic=message.topic,
+                    ref=message.ref,
+                    join_ref=message.ref,
+                    payload={},
+                )
+                frames.append(encode(error))
             try:
-                await connection.send(encode(reply))
+                for frame in frames:
+                    await connection.send(frame)
             except ConnectionClosed:
                 return
 
     async def send(
-        self, topic: str, event: ChannelEvents, join_ref: str | None
+        self,
+        topic: str,
+        event: ChannelEvents,
+        join_ref: str | None,
+        payload: dict[str, JSON] | None = None,
     ) -> None:
         message = Message(
-            event=event, topic=topic, ref=join_ref, join_ref=join_ref, payload={}
+            event=event,
+            topic=topic,
+            ref=join_ref,
+            join_ref=join_ref,
+            payload=payload or {},
         )
         await self.connections[-1].send(encode(message))
 
@@ -63,10 +92,16 @@ class FakeServer:
             await connection.close()
 
     def joins(self) -> list[Message]:
-        return [m for m in self.received if m.event == ChannelEvents.join]
+        return [
+            message for message in self.received if message.event == ChannelEvents.join
+        ]
 
     def events(self) -> list[str]:
-        return [m.event for m in self.received if m.event != ChannelEvents.heartbeat]
+        return [
+            message.event
+            for message in self.received
+            if message.event != ChannelEvents.heartbeat
+        ]
 
 
 @pytest.fixture
@@ -75,9 +110,11 @@ async def server() -> AsyncIterator[FakeServer]:
         yield server
 
 
-async def wait_for_failure(client: RealtimeClient) -> None:
+async def wait_for_failure(
+    client: RealtimeClient, exception: type[Exception] = ConnectionClosed
+) -> None:
     assert client._connection_failure is not None
-    with pytest.raises(ConnectionClosed):
+    with pytest.raises(exception):
         await asyncio.wait_for(client._connection_failure, timeout=1)
 
 
@@ -110,7 +147,7 @@ async def test_phx_close_moves_the_channel_to_closed(server: FakeServer) -> None
 
 
 @pytest.mark.parametrize("event", [ChannelEvents.error, ChannelEvents.close])
-async def test_a_message_for_an_earlier_join_keeps_the_channel_joined(
+async def test_a_message_for_an_earlier_join_is_dropped(
     server: FakeServer, event: ChannelEvents
 ) -> None:
     client = RealtimeClient(server.url)
@@ -118,11 +155,33 @@ async def test_a_message_for_an_earlier_join_keeps_the_channel_joined(
     await channel.subscribe()
 
     await server.send(channel.topic, event, "stale-join-ref")
-    await asyncio.wait_for(channel.messages.__anext__(), timeout=1)
+    await server.send(
+        channel.topic, ChannelEvents.broadcast, None, {"event": "a", "payload": {}}
+    )
+    message = await asyncio.wait_for(channel.messages.__anext__(), timeout=1)
     state = channel.state
     await client.aclose()
 
+    assert isinstance(message, BroadcastMessage)
     assert state == ChannelStates.JOINED
+
+
+async def test_phx_error_right_after_the_join_reply_leaves_the_channel_errored(
+    server: FakeServer,
+) -> None:
+    server.error_after_join = True
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+
+    reply = await channel.subscribe()
+    message = await asyncio.wait_for(channel.messages.__anext__(), timeout=1)
+    state = channel.state
+    await client.aclose()
+
+    assert reply.payload.status == "ok"
+    assert isinstance(message, ChannelErrorMessage)
+    assert state == ChannelStates.ERRORED
+    assert client.get_channels() == [channel]
 
 
 async def test_unsubscribe_after_phx_error_sends_no_leave(server: FakeServer) -> None:
@@ -183,6 +242,26 @@ async def test_unsubscribe_after_a_dropped_connection_does_not_raise(
     assert channel.state == ChannelStates.CLOSED
     assert client.get_channels() == []
     assert server.events() == [ChannelEvents.join]
+
+
+async def test_a_heartbeat_timeout_moves_joined_channels_to_errored(
+    server: FakeServer,
+) -> None:
+    server.reply_heartbeats = False
+    client = RealtimeClient(server.url, heartbeat_interval=0.05, heartbeat_timeout=0.05)
+    channel = client.channel("room")
+    await channel.subscribe()
+
+    await wait_for_failure(client, TimeoutError)
+    errored = channel.state
+    await server.send(channel.topic, ChannelEvents.close, channel.join_ref)
+    await asyncio.sleep(0.05)
+    after_close = channel.state
+    await client.aclose()
+
+    assert errored == ChannelStates.ERRORED
+    assert after_close == ChannelStates.ERRORED
+    assert channel.message_stream.empty()
 
 
 async def test_aclose_moves_joined_channels_to_closed(server: FakeServer) -> None:

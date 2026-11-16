@@ -75,10 +75,6 @@ SENDS: dict[str, Callable[[RealtimeChannel], Awaitable[object]]] = {
     "track": lambda channel: channel.track({"user": "a"}),
     "untrack": lambda channel: channel.untrack(),
 }
-LEAVES: dict[str, Callable[[RealtimeChannel], Awaitable[object]]] = {
-    **SENDS,
-    "unsubscribe": lambda channel: channel.unsubscribe(),
-}
 
 
 @pytest.mark.asyncio
@@ -99,7 +95,7 @@ async def test_send_raises_when_the_connection_is_closed(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("send", LEAVES.values(), ids=LEAVES.keys())
+@pytest.mark.parametrize("send", SENDS.values(), ids=SENDS.keys())
 async def test_send_raises_when_the_connection_already_failed(
     server: FakeServer,
     send: Callable[[RealtimeChannel], Awaitable[object]],
@@ -136,15 +132,18 @@ async def test_acknowledged_broadcast_raises_when_the_connection_is_closed(
 
 @pytest.mark.asyncio
 async def test_set_auth_raises_and_keeps_the_previous_token_when_the_send_fails(
-    server: FakeServer,
+    server: FakeServer, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with connect_once(server.url) as client:
         await client.channel("room").subscribe()
         await client.set_auth("first-token")
         assert client.last_token == "first-token"
 
-        connection_failure(client).set_exception(TimeoutError())
+        async def fail(message: Message) -> None:
+            raise OSError("socket closed")
 
-        with pytest.raises(TimeoutError):
+        monkeypatch.setattr(client, "_send_no_wait", fail)
+
+        with pytest.raises(OSError, match="socket closed"):
             await client.set_auth("second-token")
         assert client.last_token == "first-token"
