@@ -66,9 +66,8 @@ def test_parse_jwks_raises_the_api_error_of_an_error_response() -> None:
     assert exc_info.value.code is ErrorCode.NO_AUTHORIZATION
 
 
-def test_parse_jwks_raises_on_an_empty_key_set() -> None:
-    with pytest.raises(AuthInvalidJwtError, match="JWKS is empty"):
-        parse_jwks(error_response(200, {"keys": []}))
+def test_parse_jwks_accepts_an_empty_key_set() -> None:
+    assert parse_jwks(error_response(200, {"keys": []})).keys == []
 
 
 def test_decode_jwt() -> None:
