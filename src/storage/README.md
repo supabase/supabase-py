@@ -6,7 +6,7 @@ Python Client library to interact with Supabase Storage.
 
 `storage3` only guarantees compatibility with the [latest Supabase Storage release](https://github.com/supabase/storage/releases). Older Supabase Storage releases are supported on a best-effort basis, but compatibility is not guaranteed.
 
-If you self-host Supabase Storage, we recommend upgrading to the latest release when upgrading this SDK.
+If you self-host Supabase Storage, we recommend upgrading to the latest release when upgrading this SDK. Listing objects with `list()` needs Supabase Storage v1.19.0 or newer, which added `POST /object/list-v2`.
 
 ## Installation
 

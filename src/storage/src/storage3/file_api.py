@@ -32,16 +32,13 @@ from .types import (
     CreateSignedUrlsBody,
     FileObject,
     ListBody,
-    ListFileObject,
+    ListResult,
     MessageResponse,
-    SearchV2Body,
-    SearchV2Result,
     SignedUploadURL,
     SignedUploadUrlResponse,
     SignedUrlJsonResponse,
     SignedUrlsJsonResponse,
-    SortByType,
-    SortByV2,
+    SortBy,
     TransformOptions,
     UploadResponse,
     transform_to_dict,
@@ -79,7 +76,6 @@ def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> byte
 
 
 FileObjectsAdapter = TypeAdapter(list[FileObject])
-ListFileObjectsAdapter = TypeAdapter(list[ListFileObject])
 
 
 @dataclass
@@ -442,48 +438,40 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     @handle_http_io
     def list(
         self,
-        path: str | None = None,
-        limit: int = 100,
-        offset: int = 0,
-        search: str | None = None,
-        sortBy: SortByType | None = None,
-    ) -> HttpMethod[builtins.list[ListFileObject]]:
+        prefix: str | None = None,
+        *,
+        limit: int | None = None,
+        cursor: str | None = None,
+        with_delimiter: bool | None = None,
+        sort_by: SortBy | None = None,
+    ) -> HttpMethod[ListResult]:
         """
-        Lists all the files within a bucket.
+        Lists one page of the objects in the bucket.
+
+        Needs Supabase Storage v1.19.0 or newer.
 
         Parameters
         ----------
-        path
-            The folder path.
-        options
-            Search options, including `limit`, `offset`, `sortBy` and `search`.
+        prefix
+            The start of the object keys to list. It is sent as given: `photos`
+            also selects `photos-old/a.png`, while `photos/` selects the keys
+            under that folder.
+        limit
+            The page size. The server default and maximum are 1000.
+        cursor
+            The `nextCursor` of the previous page. Pass it with the same
+            arguments as the first page.
+        with_delimiter
+            When `True`, lists one level: the keys below the next `/` after
+            `prefix` are collapsed into `folders`, named by their full prefix
+            ending in `/`. Otherwise every key at every depth is listed and
+            `folders` is empty.
+        sort_by
+            The column and order to sort by. Defaults to `name` ascending.
         """
         body = ListBody(
-            prefix=path or "",
-            limit=limit,
-            offset=offset,
-            sortBy=sortBy or SortByType(),
-            search=search,
-        )
-        response = yield JSONRequest(
-            method="POST",
-            path=["object", "list", self.id],
-            body=body,
-        )
-        return _validate_adapter(response, ListFileObjectsAdapter)
-
-    @handle_http_io
-    def list_v2(
-        self,
-        limit: int | None = None,
-        prefix: str | None = None,
-        cursor: str | None = None,
-        with_delimiter: bool | None = None,
-        sort_by: SortByV2 | None = None,
-    ) -> HttpMethod[SearchV2Result]:
-        body = SearchV2Body(
-            limit=limit,
             prefix=prefix,
+            limit=limit,
             cursor=cursor,
             with_delimiter=with_delimiter,
             sortBy=sort_by,
@@ -492,9 +480,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             method="POST",
             path=["object", "list-v2", self.id],
             body=body,
-            exclude_none=True,
         )
-        return _validate_model(response, SearchV2Result)
+        return _validate_model(response, ListResult)
 
     @handle_http_io
     def download(

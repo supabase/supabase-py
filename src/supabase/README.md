@@ -40,6 +40,8 @@ If you self-host Supabase, we recommend upgrading your services to their latest 
 | PostgREST | [`postgrest`](https://pypi.org/project/postgrest)                   | [PostgREST/postgrest](https://github.com/PostgREST/postgrest/releases)     | Latest release           |
 | Realtime  | [`realtime`](https://pypi.org/project/realtime)                     | [supabase/realtime](https://github.com/supabase/realtime/releases)         | Latest release           |
 
+Listing objects with `list()` needs Supabase Storage v1.19.0 or newer, which added `POST /object/list-v2`.
+
 ## Usage
 
 Set your Supabase environment variables in a dotenv file, or using the shell:
@@ -284,12 +286,19 @@ bucket_name: str = "photos"
 data = supabase.storage.from_(bucket_name).remove(["old_photo.png", "image5.jpg"])
 ```
 
-### List all files
+### List files
+
+`list()` returns one page. With `with_delimiter=True` it lists one level, with the folders apart from the objects. Pass the `nextCursor` of a page to fetch the next one.
 
 ```python
 bucket_name: str = "charts"
 
-data = supabase.storage.from_(bucket_name).list()
+bucket = supabase.storage.from_(bucket_name)
+page = bucket.list("2024/", with_delimiter=True)
+print(page.folders, page.objects)
+while page.hasNext:
+    page = bucket.list("2024/", with_delimiter=True, cursor=page.nextCursor)
+    print(page.objects)
 ```
 
 ### Move and rename files
