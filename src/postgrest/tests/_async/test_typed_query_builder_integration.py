@@ -185,6 +185,10 @@ async def test_explain(books: TypedBooks) -> None:
     plan_json = await books.select().explain(analyze=True, format="json").execute()
     assert isinstance(plan_json, list)
 
+    plan = await books.insert({"title": "Plan"}).explain().execute()
+    assert "Insert on books" in plan
+    assert await books.count().where(Books.title.eq("Plan")).execute() == 0
+
 
 async def test_geojson(postgrest_client: AsyncPostgrestClient) -> None:
     collection = (

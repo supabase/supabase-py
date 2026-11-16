@@ -181,6 +181,10 @@ def test_explain(books: TypedBooks) -> None:
     plan_json = books.select().explain(analyze=True, format="json").execute()
     assert isinstance(plan_json, list)
 
+    plan = books.insert({"title": "Plan"}).explain().execute()
+    assert "Insert on books" in plan
+    assert books.count().where(Books.title.eq("Plan")).execute() == 0
+
 
 def test_geojson(postgrest_client: SyncPostgrestClient) -> None:
     collection = (

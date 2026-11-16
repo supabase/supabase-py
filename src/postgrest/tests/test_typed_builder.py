@@ -349,6 +349,10 @@ class TestShapes:
         assert builder.select().explain(format="json").execute() == [{"Plan": {}}]
         assert executor.only_request.explain == ExplainOptions(format="json")
 
+        builder, executor = books(TableResult(data="Insert on books"))
+        assert builder.insert({"title": "x"}).explain().execute() == "Insert on books"
+        assert executor.only_request.returning is False
+
     def test_geojson_resolves_to_the_collection(self) -> None:
         collection = {"type": "FeatureCollection", "features": []}
         builder, executor = books(TableResult(data=collection))
