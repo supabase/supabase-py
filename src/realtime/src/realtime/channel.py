@@ -234,6 +234,7 @@ class RealtimeChannel:
         self._rejoin_authorization_failed = False
         self._tracked: dict[str, Any] | None = None
         self._presence_version = 0
+        self._tracked_version = 0
         self._dropping_messages = False
         self.message_stream: asyncio.Queue[QueuedMessage] = asyncio.Queue(
             maxsize=socket.max_queued_messages
@@ -311,7 +312,7 @@ class RealtimeChannel:
         if self.state == ChannelStates.JOINING:
             self._subscribe_attempt = None
         self._rejoin_pending = False
-        self._tracked = None
+        self._forget_tracked()
         self.state = ChannelStates.CLOSED
 
     def _on_error(self) -> None:
@@ -469,7 +470,7 @@ class RealtimeChannel:
     def _fail_rejoin(self, error: Exception) -> None:
         logger.error("gave up joining channel %s again: %r", self.topic, error)
         self._rejoin_pending = False
-        self._tracked = None
+        self._forget_tracked()
         self._rejoin_authorization_failed = False
         self._subscribe_attempt = None
         self.state = ChannelStates.CLOSED
@@ -569,7 +570,7 @@ class RealtimeChannel:
     async def unsubscribe(self) -> None:
         self._subscribe_attempt = None
         self._rejoin_pending = False
-        self._tracked = None
+        self._forget_tracked()
         needs_leave = self.state in (ChannelStates.JOINED, ChannelStates.JOINING)
         self.state = ChannelStates.LEAVING
         self.socket._remove_channel(self)
@@ -604,18 +605,23 @@ class RealtimeChannel:
         reply = await self.send_presence("track", user_status)
         if (
             isinstance(reply.payload, SuccessReplyMessage)
-            and version == self._presence_version
+            and version > self._tracked_version
         ):
             self._tracked = user_status
+            self._tracked_version = version
         return reply
 
     async def untrack(self) -> ReplyMessage:
         """
         Stop tracking presence for the current user.
         """
-        self._presence_version += 1
-        self._tracked = None
+        self._forget_tracked()
         return await self.send_presence("untrack", {})
+
+    def _forget_tracked(self) -> None:
+        self._presence_version += 1
+        self._tracked_version = self._presence_version
+        self._tracked = None
 
     def presence_state(self) -> RealtimePresenceState:
         """

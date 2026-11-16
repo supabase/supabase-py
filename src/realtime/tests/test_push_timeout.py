@@ -1,9 +1,9 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING
 
 import pytest
+from supabase_utils.types import JSON
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
@@ -18,11 +18,8 @@ from realtime import (
 )
 from realtime._serializer import decode, encode
 from realtime.client import connect_once
-from realtime.message import Message
+from realtime.message import Message, ReplyMessage
 from realtime.types import ChannelEvents
-
-if TYPE_CHECKING:
-    from supabase_utils.types import JSON
 
 HOST = "127.0.0.1"
 
@@ -338,3 +335,61 @@ def test_a_full_queue_keeps_the_presence_state() -> None:
 
     assert set(channel.presence_state()) == {"alice", "bob"}
     assert channel.message_stream.qsize() == 1
+
+
+def presence_reply(status: str) -> ReplyMessage:
+    response: dict[str, JSON] = {"postgres_changes": []} if status == "ok" else {}
+    return ReplyMessage.model_validate(
+        {
+            "event": ChannelEvents.reply,
+            "topic": "realtime:room",
+            "payload": {"status": status, "response": response},
+            "ref": "1",
+        }
+    )
+
+
+class ControlledPresence:
+    def __init__(self) -> None:
+        self.replies: list[asyncio.Future[ReplyMessage]] = []
+
+    async def send_presence(self, event: str, data: JSON) -> ReplyMessage:
+        if event == "untrack":
+            return presence_reply("ok")
+        reply: asyncio.Future[ReplyMessage] = asyncio.get_running_loop().create_future()
+        self.replies.append(reply)
+        return await reply
+
+
+async def test_a_track_reply_after_unsubscribe_is_not_saved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    channel = RealtimeClient("http://localhost").channel("room")
+    presence = ControlledPresence()
+    monkeypatch.setattr(channel, "send_presence", presence.send_presence)
+
+    track = asyncio.create_task(channel.track({"user": "a"}))
+    await asyncio.sleep(0)
+    await channel.unsubscribe()
+    presence.replies[0].set_result(presence_reply("ok"))
+    await track
+
+    assert channel._tracked is None
+
+
+async def test_a_failed_later_track_keeps_the_earlier_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    channel = RealtimeClient("http://localhost").channel("room")
+    presence = ControlledPresence()
+    monkeypatch.setattr(channel, "send_presence", presence.send_presence)
+
+    first = asyncio.create_task(channel.track({"user": "a"}))
+    second = asyncio.create_task(channel.track({"user": "b"}))
+    await asyncio.sleep(0)
+    presence.replies[0].set_result(presence_reply("ok"))
+    await first
+    presence.replies[1].set_result(presence_reply("error"))
+    await second
+
+    assert channel._tracked == {"user": "a"}
