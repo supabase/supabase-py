@@ -509,6 +509,20 @@ class TestWrites:
             {"title": "y"},
         ]
 
+    def test_insert_leaves_the_unset_fields_of_a_model_type_out(self) -> None:
+        executor = Recording(TableResult())
+        table = Table("books", BooksRow, insert_type=Insert)
+        builder = TypedQueryBuilder(table, executor)
+        mapping: Any = {"title": "x"}
+
+        builder.insert(mapping).execute()
+        builder.insert(Insert(title="y", published_on=None)).execute()
+
+        assert [request.payload for request in executor.requests] == [
+            {"title": "x"},
+            {"title": "y", "published_on": None},
+        ]
+
     def test_writes_send_an_aliased_key_under_its_column_name(self) -> None:
         executor = Recording(TableResult())
         tickets = TypedQueryBuilder(Tickets.table, executor)

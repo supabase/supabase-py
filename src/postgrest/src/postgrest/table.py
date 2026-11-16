@@ -128,9 +128,10 @@ def _insert_payload(table: Table[Any, Any, Any], rows: object, method: str) -> J
     if isinstance(rows, (Mapping, BaseModel, str, bytes)) or not isinstance(
         rows, Iterable
     ):
-        return _rows_payload(_written(table.insert_type, rows), method)
+        return _rows_payload(_written(_row_adapter(table.insert_type), rows), method)
     given: Iterable[object] = rows
-    return _rows_payload(_written(list[table.insert_type], list(given)), method)
+    adapter = _rows_adapter(table.insert_type)
+    return _rows_payload(_written(adapter, list(given)), method)
 
 
 def _update_payload(table: Table[Any, Any, Any], values: object) -> JSON:
@@ -138,20 +139,22 @@ def _update_payload(table: Table[Any, Any, Any], values: object) -> JSON:
     its `update_type` and dumped by alias when it has one."""
     if table.update_type is None:
         return _row_payload(values, "update")
-    return _row_payload(_written(table.update_type, values), "update")
+    adapter = _row_adapter(table.update_type)
+    return _row_payload(_written(adapter, values), "update")
 
 
-def _written(write_type: Any, given: object) -> object:
-    """`given` validated against `write_type` and dumped to plain Python by
-    alias, ready to be serialized.
+def _written(adapter: TypeAdapter[Any], given: object) -> object:
+    """`given` validated by `adapter` and dumped to plain Python by alias,
+    ready to be serialized.
 
     A row is validated by field name and by alias, so both the key of a
     generated `TypedDict` and the column name are accepted. A key the type
-    does not declare fails validation, rather than being dropped.
+    does not declare fails validation, rather than being dropped, and a
+    field a model leaves unset stays out, so the column gets its database
+    default.
     """
-    adapter = _cached_adapter(write_type)
     validated = adapter.validate_python(
         given, by_alias=True, by_name=True, extra="forbid"
     )
-    written: object = adapter.dump_python(validated, by_alias=True)
+    written: object = adapter.dump_python(validated, by_alias=True, exclude_unset=True)
     return written

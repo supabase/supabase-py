@@ -514,9 +514,11 @@ class TypedQueryBuilder[
         `insert_type`, every row is validated against it and sent by alias.
 
         The request resolves to `None`; a trailing `select()` returns the
-        inserted rows instead. Raises `pydantic.ValidationError` for a row
-        that does not validate against the `insert_type`, and `TypeError`
-        for a payload that is neither a row nor an iterable of rows.
+        inserted rows instead. Raises `pydantic.ValidationError` for a
+        payload that does not validate against the `insert_type`, including
+        one that is not a row at all; on a table without one, raises
+        `TypeError` for a payload that is neither a row nor an iterable of
+        rows.
         """
         request = replace(
             self._request(TableOperation.INSERT),
@@ -569,7 +571,8 @@ class TypedQueryBuilder[
         `None`; a trailing `select()` returns the updated rows instead. On a
         table with an `update_type`, `values` is validated against it and
         sent by alias. Raises `pydantic.ValidationError` for `values` that
-        does not validate against the `update_type`, and `TypeError` for
+        does not validate against the `update_type`, including `values` that
+        is not a mapping; on a table without one, raises `TypeError` for
         `values` that is not a mapping.
         """
         request = replace(
