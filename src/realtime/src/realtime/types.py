@@ -75,6 +75,30 @@ class ChannelStates(str, Enum):
     LEAVING = "leaving"
 
 
+class ConnectionState(str, Enum):
+    """The state of the WebSocket connection of a `RealtimeClient`."""
+
+    CONNECTING = "connecting"
+    CONNECTED = "connected"
+    CLOSED = "closed"
+
+
+class HeartbeatStatus(str, Enum):
+    """What happened to a heartbeat the `RealtimeClient` sent."""
+
+    SENT = "sent"
+    """The heartbeat was sent."""
+
+    OK = "ok"
+    """The server acknowledged the heartbeat."""
+
+    ERROR = "error"
+    """The server replied with an error, so the connection is dropped."""
+
+    TIMEOUT = "timeout"
+    """The server did not reply within ``heartbeat_timeout``, so the connection is dropped."""
+
+
 class RealtimeSubscribeStates(str, Enum):
     SUBSCRIBED = "SUBSCRIBED"
     TIMED_OUT = "TIMED_OUT"

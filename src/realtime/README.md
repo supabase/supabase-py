@@ -105,6 +105,16 @@ async with client.channel("room") as channel:
             print(message)
 ```
 
+`client.connection_state` is the `ConnectionState` of the connection: `CONNECTING`, `CONNECTED` or `CLOSED`. `client.connection_states()` yields the current state, then every change. `client.heartbeats()` yields a `HeartbeatStatus` for every heartbeat: `SENT`, then `OK` when the server acknowledges it, or `ERROR` or `TIMEOUT`, which drop the connection.
+
+```python
+from realtime import ConnectionState
+
+async for state in client.connection_states():
+    if state == ConnectionState.CLOSED:
+        print("Disconnected")
+```
+
 ## Broadcast
 
 Your client can send and receive messages based on the `event`.
