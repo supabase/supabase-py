@@ -274,7 +274,7 @@ def validate_expiration(expires_at: int | None) -> None:
         raise AuthInvalidJwtError("JWT has expired")
 
 
-def validate_not_before(not_before: int | None) -> None:
+def validate_not_before(not_before: float | None) -> None:
     if not_before is not None and not_before > datetime.now(UTC).timestamp():
         raise AuthInvalidJwtError("JWT is not yet valid")
 

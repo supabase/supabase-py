@@ -820,14 +820,13 @@ class SupabaseAuthHttpClient[
 
         if header.kid and is_locally_verifiable(header.alg):
             jwk = yield from self._find_jwk(header.kid, jwks)
-            bound = bind_algorithm(jwk) if jwk else None
-            if jwk and bound:
+            if jwk and (bound := bind_algorithm(jwk)):
                 if not header_names_algorithm(header.alg, bound):
                     raise AuthInvalidJwtError("Invalid JWT signature")
                 verified = verify_signature(decoded_jwt, jwk, bound)
-                if verified is False:
-                    raise AuthInvalidJwtError("Invalid JWT signature")
-                if verified:
+                if verified is not None:
+                    if not verified:
+                        raise AuthInvalidJwtError("Invalid JWT signature")
                     return claims
 
         yield from self.session_manager._get_user(jwt)
@@ -1443,7 +1442,8 @@ class AsyncSupabaseAuthClient(
         Set, which is cached for ten minutes. Any other token is verified by
         calling `get_user`. `jwks` adds keys to look up before the cached set.
         `allow_expired` skips the expiry check, so a token that already
-        expired can still be inspected. The signature is still verified.
+        expired can still be inspected. The signature is still verified, and
+        a token verified by `get_user` is still rejected by the server.
         """
         if not jwt:
             session = await self.get_session()
@@ -2042,7 +2042,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         Set, which is cached for ten minutes. Any other token is verified by
         calling `get_user`. `jwks` adds keys to look up before the cached set.
         `allow_expired` skips the expiry check, so a token that already
-        expired can still be inspected. The signature is still verified.
+        expired can still be inspected. The signature is still verified, and
+        a token verified by `get_user` is still rejected by the server.
         """
         if not jwt:
             session = self.get_session()

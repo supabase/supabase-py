@@ -187,8 +187,18 @@ async def test_get_claims_falls_back_to_get_user_without_fetching_jwks(
         [ec_jwk("key", alg="ES384")],
         [{"kty": "EC", "crv": "P-384", "kid": "key", "x": "AA", "y": "AA"}],
         [{"kty": "unknown", "kid": "key"}],
+        [{"kty": "EC", "crv": "P-256", "kid": "key"}],
+        [{"kty": "EC", "crv": "P-256", "kid": "key", "x": "AA", "y": "AA"}],
     ],
-    ids=["empty", "unknown-kid", "unsupported-jwk-alg", "unsupported-crv", "kty"],
+    ids=[
+        "empty",
+        "unknown-kid",
+        "unsupported-jwk-alg",
+        "unsupported-crv",
+        "kty",
+        "missing-coordinates",
+        "point-not-on-curve",
+    ],
 )
 async def test_get_claims_falls_back_to_get_user_when_no_key_binds(
     keys: list[dict[str, Any]],
