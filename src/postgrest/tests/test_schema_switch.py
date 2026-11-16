@@ -14,10 +14,21 @@ class ItemRow(BaseModel):
 ITEMS = Table("items", ItemRow)
 
 
-def profiles(request: Request) -> tuple[list[str], list[str]]:
+HEADERS = {"apikey": "key"}
+EXPECTED = [
+    (["public"], ["public"], ["key"]),
+    (["other"], ["other"], ["key"]),
+    (["other"], ["other"], ["key"]),
+    (["other"], ["other"], ["key"]),
+    (["other"], ["other"], ["key"]),
+]
+
+
+def profiles(request: Request) -> tuple[list[str], list[str], list[str]]:
     return (
         request.headers.get_list("Accept-Profile"),
         request.headers.get_list("Content-Profile"),
+        request.headers.get_list("apikey"),
     )
 
 
@@ -36,6 +47,7 @@ def test_sync_schema_switches_replace_the_profile_headers() -> None:
         http_session=HttpxSession(
             client=Client(transport=MockTransport(recording_handler(seen)))
         ),
+        headers=HEADERS,
     )
 
     other = client.schema("private").schema("other")
@@ -45,20 +57,16 @@ def test_sync_schema_switches_replace_the_profile_headers() -> None:
     other.table(ITEMS).select().execute()
     other.from_("items").insert({"id": 1}).execute()
 
-    assert [profiles(request) for request in seen] == [
-        (["public"], ["public"]),
-        (["other"], ["other"]),
-        (["other"], ["other"]),
-        (["other"], ["other"]),
-        (["other"], ["other"]),
-    ]
+    assert [profiles(request) for request in seen] == EXPECTED
 
 
 async def test_async_schema_switches_replace_the_profile_headers() -> None:
     seen: list[Request] = []
     async with AsyncClient(transport=MockTransport(recording_handler(seen))) as http:
         client = AsyncPostgrestClient(
-            "https://example.com", http_session=AsyncHttpxSession(client=http)
+            "https://example.com",
+            http_session=AsyncHttpxSession(client=http),
+            headers=HEADERS,
         )
 
         other = client.schema("private").schema("other")
@@ -68,10 +76,4 @@ async def test_async_schema_switches_replace_the_profile_headers() -> None:
         await other.table(ITEMS).select().execute()
         await other.from_("items").insert({"id": 1}).execute()
 
-    assert [profiles(request) for request in seen] == [
-        (["public"], ["public"]),
-        (["other"], ["other"]),
-        (["other"], ["other"]),
-        (["other"], ["other"]),
-        (["other"], ["other"]),
-    ]
+    assert [profiles(request) for request in seen] == EXPECTED
