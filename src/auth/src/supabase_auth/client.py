@@ -105,7 +105,7 @@ def _is_implicit_grant_flow(url: URL) -> bool:
     return "access_token" in params or "error_description" in params
 
 
-_PASSWORD_RECOVERY_SUFFIX = "/PASSWORD_RECOVERY"
+_PASSWORD_RECOVERY_MARKER = "PASSWORD_RECOVERY"
 _MAX_PENDING_PKCE_FLOWS = 5
 _FLOW_ID_PARAMETER = "sb_flow_id"
 _FLOW_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{8,64}")
@@ -174,14 +174,16 @@ def _with_pkce_challenge(
     return {**body, **_pkce_challenge_params(pkce_flow.code_verifier)}
 
 
-def _strip_password_recovery_suffix(code_verifier: str) -> str:
-    return code_verifier.split("/", 1)[0]
-
-
-def _code_exchange_event(code_verifier: str) -> AuthChangeEvent:
-    if code_verifier.endswith(_PASSWORD_RECOVERY_SUFFIX):
-        return AuthChangeEvent.PASSWORD_RECOVERY
-    return AuthChangeEvent.SIGNED_IN
+def _parse_code_verifier(code_verifier: str) -> tuple[str, AuthChangeEvent]:
+    """
+    Splits a stored code verifier into the verifier to send and the event the
+    exchange notifies, which is `PASSWORD_RECOVERY` when the verifier carries
+    the password recovery suffix.
+    """
+    verifier, _, suffix = code_verifier.partition("/")
+    if suffix == _PASSWORD_RECOVERY_MARKER:
+        return verifier, AuthChangeEvent.PASSWORD_RECOVERY
+    return verifier, AuthChangeEvent.SIGNED_IN
 
 
 def _verify_otp_event(params: VerifyOtpParams) -> AuthChangeEvent:
@@ -234,7 +236,7 @@ class SupabaseAuthHttpClient[
     @staticmethod
     def _stored_code_verifier(code_verifier: str, password_recovery: bool) -> str:
         if password_recovery:
-            return code_verifier + _PASSWORD_RECOVERY_SUFFIX
+            return f"{code_verifier}/{_PASSWORD_RECOVERY_MARKER}"
         return code_verifier
 
     @handle_http_io
@@ -667,17 +669,13 @@ class SupabaseAuthHttpClient[
 
     @handle_http_io
     def _exchange_code_for_session(
-        self, code_verifier: str | None, auth_code: str, redirect_to: str | None
+        self, code_verifier: str, auth_code: str, redirect_to: str | None
     ) -> HttpMethod[AuthResponse]:
         query = _redirect_to_as_query(redirect_to).set("grant_type", "pkce")
         response = yield JSONRequest(
             method="POST",
             path=["token"],
-            body={
-                "auth_code": auth_code,
-                "code_verifier": code_verifier
-                and _strip_password_recovery_suffix(code_verifier),
-            },
+            body={"auth_code": auth_code, "code_verifier": code_verifier},
             query=query,
         )
         auth_response = parse_auth_response(response)
@@ -846,7 +844,7 @@ class AsyncSupabaseAuthClient(
             await self.session_manager.remove_session()
             raise e
 
-    async def _save_session_and_sign_in(
+    async def _save_session_and_notify(
         self,
         auth_response: AuthResponse,
         event: AuthChangeEvent = AuthChangeEvent.SIGNED_IN,
@@ -973,8 +971,9 @@ class AsyncSupabaseAuthClient(
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
 
-        Notifies listeners with `PASSWORD_RECOVERY` when the flow was started
-        by `reset_password_for_email`, and with `SIGNED_IN` otherwise.
+        Notifies listeners with `PASSWORD_RECOVERY` when the verifier carries
+        the `/PASSWORD_RECOVERY` suffix that `reset_password_for_email` stores,
+        and with `SIGNED_IN` otherwise.
 
         Raises `AuthPKCECodeVerifierMissingError`, without sending the code,
         when no verifier is stored for the flow.
@@ -982,18 +981,18 @@ class AsyncSupabaseAuthClient(
         if flow_id is not None and code_verifier is not None:
             raise ValueError("Pass either flow_id or code_verifier, not both")
         if code_verifier is not None:
+            verifier, event = _parse_code_verifier(code_verifier)
             auth_response = await self._exchange_code_for_session(
-                code_verifier, auth_code, redirect_to
+                verifier, auth_code, redirect_to
             )
         else:
-            pending_flow_id, code_verifier = await self._pending_code_verifier(flow_id)
+            pending_flow_id, stored = await self._pending_code_verifier(flow_id)
+            verifier, event = _parse_code_verifier(stored)
             auth_response = await self._exchange_code_for_session(
-                code_verifier, auth_code, redirect_to
+                verifier, auth_code, redirect_to
             )
             await self._remove_pkce_flow(pending_flow_id)
-        await self._save_session_and_sign_in(
-            auth_response, _code_exchange_event(code_verifier)
-        )
+        await self._save_session_and_notify(auth_response, event)
         return auth_response
 
     # Public methods
@@ -1005,7 +1004,7 @@ class AsyncSupabaseAuthClient(
         Creates a new anonymous user.
         """
         auth_response = await self._sign_in_anonymously(data, captcha_token)
-        await self._save_session_and_sign_in(auth_response)
+        await self._save_session_and_notify(auth_response)
         return auth_response
 
     async def sign_up(
@@ -1024,7 +1023,7 @@ class AsyncSupabaseAuthClient(
             auth_response = await self._sign_up(credentials, pkce_flow)
         if pkce_flow and auth_response.session:
             await self._remove_pkce_flow(pkce_flow.flow_id)
-        await self._save_session_and_sign_in(auth_response)
+        await self._save_session_and_notify(auth_response)
         return auth_response
 
     async def sign_in_with_password(
@@ -1035,7 +1034,7 @@ class AsyncSupabaseAuthClient(
         Log in an existing user with an email or phone and password.
         """
         auth_response = await self._sign_in_with_password(credentials)
-        await self._save_session_and_sign_in(auth_response)
+        await self._save_session_and_notify(auth_response)
         return auth_response
 
     async def sign_in_with_id_token(
@@ -1052,7 +1051,7 @@ class AsyncSupabaseAuthClient(
         auth_response = await self._sign_in_with_id_token(
             provider, token, access_token, nonce, captcha_token
         )
-        await self._save_session_and_sign_in(auth_response)
+        await self._save_session_and_notify(auth_response)
         return auth_response
 
     async def sign_in_with_oauth(
@@ -1167,7 +1166,7 @@ class AsyncSupabaseAuthClient(
         with `SIGNED_IN` otherwise.
         """
         auth_response = await self._verify_otp(params)
-        await self._save_session_and_sign_in(auth_response, _verify_otp_event(params))
+        await self._save_session_and_notify(auth_response, _verify_otp_event(params))
         return auth_response
 
     async def reauthenticate(self) -> AuthResponse:
@@ -1398,7 +1397,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             self.session_manager.remove_session()
             raise e
 
-    def _save_session_and_sign_in(
+    def _save_session_and_notify(
         self,
         auth_response: AuthResponse,
         event: AuthChangeEvent = AuthChangeEvent.SIGNED_IN,
@@ -1513,8 +1512,9 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         Pass `code_verifier` instead of `flow_id` to use a verifier you stored
         yourself.
 
-        Notifies listeners with `PASSWORD_RECOVERY` when the flow was started
-        by `reset_password_for_email`, and with `SIGNED_IN` otherwise.
+        Notifies listeners with `PASSWORD_RECOVERY` when the verifier carries
+        the `/PASSWORD_RECOVERY` suffix that `reset_password_for_email` stores,
+        and with `SIGNED_IN` otherwise.
 
         Raises `AuthPKCECodeVerifierMissingError`, without sending the code,
         when no verifier is stored for the flow.
@@ -1522,18 +1522,18 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         if flow_id is not None and code_verifier is not None:
             raise ValueError("Pass either flow_id or code_verifier, not both")
         if code_verifier is not None:
+            verifier, event = _parse_code_verifier(code_verifier)
             auth_response = self._exchange_code_for_session(
-                code_verifier, auth_code, redirect_to
+                verifier, auth_code, redirect_to
             )
         else:
-            pending_flow_id, code_verifier = self._pending_code_verifier(flow_id)
+            pending_flow_id, stored = self._pending_code_verifier(flow_id)
+            verifier, event = _parse_code_verifier(stored)
             auth_response = self._exchange_code_for_session(
-                code_verifier, auth_code, redirect_to
+                verifier, auth_code, redirect_to
             )
             self._remove_pkce_flow(pending_flow_id)
-        self._save_session_and_sign_in(
-            auth_response, _code_exchange_event(code_verifier)
-        )
+        self._save_session_and_notify(auth_response, event)
         return auth_response
 
     # Public methods
@@ -1545,7 +1545,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         Creates a new anonymous user.
         """
         auth_response = self._sign_in_anonymously(data, captcha_token)
-        self._save_session_and_sign_in(auth_response)
+        self._save_session_and_notify(auth_response)
         return auth_response
 
     def sign_up(
@@ -1564,7 +1564,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             auth_response = self._sign_up(credentials, pkce_flow)
         if pkce_flow and auth_response.session:
             self._remove_pkce_flow(pkce_flow.flow_id)
-        self._save_session_and_sign_in(auth_response)
+        self._save_session_and_notify(auth_response)
         return auth_response
 
     def sign_in_with_password(
@@ -1575,7 +1575,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         Log in an existing user with an email or phone and password.
         """
         auth_response = self._sign_in_with_password(credentials)
-        self._save_session_and_sign_in(auth_response)
+        self._save_session_and_notify(auth_response)
         return auth_response
 
     def sign_in_with_id_token(
@@ -1592,7 +1592,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         auth_response = self._sign_in_with_id_token(
             provider, token, access_token, nonce, captcha_token
         )
-        self._save_session_and_sign_in(auth_response)
+        self._save_session_and_notify(auth_response)
         return auth_response
 
     def sign_in_with_oauth(
@@ -1703,7 +1703,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         with `SIGNED_IN` otherwise.
         """
         auth_response = self._verify_otp(params)
-        self._save_session_and_sign_in(auth_response, _verify_otp_event(params))
+        self._save_session_and_notify(auth_response, _verify_otp_event(params))
         return auth_response
 
     def reauthenticate(self) -> AuthResponse:

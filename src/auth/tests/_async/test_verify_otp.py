@@ -26,10 +26,10 @@ SESSION: dict[str, JSON] = {
 }
 
 
-def mock_client() -> AsyncSupabaseAuthClient:
+def mock_client(payload: JSON = SESSION) -> AsyncSupabaseAuthClient:
     def handler(request: Request) -> Response:
         assert request.url.path.endswith("/verify")
-        return Response(200, json=SESSION)
+        return Response(200, json=payload)
 
     return AsyncSupabaseAuthClient(
         url="https://example.supabase.co/auth/v1",
@@ -85,3 +85,17 @@ async def test_verify_otp_notifies_the_event_of_the_otp_type(
     ]
     assert changes[-1].session == response.session
     assert await client.get_session() == response.session
+
+
+async def test_verify_otp_without_a_session_notifies_nothing() -> None:
+    client = mock_client(SESSION["user"])
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
+
+    response = await client.verify_otp(
+        VerifyOtp.token_hash(token_hash="token-hash", type="recovery")
+    )
+
+    assert response.session is None
+    assert await client.get_session() is None
+    assert [change.event for change in changes] == [AuthChangeEvent.INITIAL_SESSION]
