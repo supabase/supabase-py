@@ -73,6 +73,41 @@ def test_parse_api_error_falls_back_with_real_status(body: bytes) -> None:
     assert err.status_code == 502
 
 
+def test_parse_api_error_reads_analytics_wire_format() -> None:
+    """The analytics endpoints wrap the error in an `error` object."""
+    err = parse_api_error(
+        _response(
+            b'{"error":{"message":"Bucket not found","type":"NoSuchBucket","code":404}}',
+            status=404,
+        )
+    )
+    assert err.message == "Bucket not found"
+    assert err.code == "NoSuchBucket"
+    assert err.status_code == 404
+
+
+def test_parse_api_error_keeps_an_analytics_message_without_a_type() -> None:
+    err = parse_api_error(
+        _response(b'{"error":{"message":"Bucket not found"}}', status=404)
+    )
+    assert err.message == "Bucket not found"
+    assert err.code == "InternalError"
+    assert err.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"error":{"type":"NoSuchBucket"}}',
+        b'{"error":"NoSuchBucket"}',
+    ],
+)
+def test_parse_api_error_rejects_partial_analytics_bodies(body: bytes) -> None:
+    err = parse_api_error(_response(body, status=404))
+    assert err.code == "InternalError"
+    assert err.status_code == 404
+
+
 def test_storage_errors_inherit_the_shared_roots() -> None:
     assert issubclass(StorageException, SupabaseError)
     assert not issubclass(StorageException, SupabaseAPIError)

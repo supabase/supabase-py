@@ -35,6 +35,17 @@ class StorageApiErrorMessage(BaseModel):
 VectorBucketErrorMessage = StorageApiErrorMessage
 
 
+class _AnalyticsApiErrorDetail(BaseModel):
+    message: str
+    type: str | None = None
+
+
+class _AnalyticsApiErrorMessage(BaseModel):
+    """Wire format of an analytics bucket error body."""
+
+    error: _AnalyticsApiErrorDetail
+
+
 class StorageApiError(StorageException, SupabaseAPIError):
     """Raised when the storage service answered a request with an error.
     `code` is the error code of the service, such as `NoSuchKey`."""
@@ -50,7 +61,9 @@ class StorageApiError(StorageException, SupabaseAPIError):
         super().__init__(message, status_code=status_code, code=code, response=response)
 
 
-StorageApiErrorParser = TypeAdapter(StorageApiErrorMessage)
+StorageApiErrorParser = TypeAdapter[StorageApiErrorMessage | _AnalyticsApiErrorMessage](
+    StorageApiErrorMessage | _AnalyticsApiErrorMessage
+)
 
 
 def parse_api_error(response: Response) -> StorageApiError:
@@ -65,10 +78,16 @@ def parse_api_error(response: Response) -> StorageApiError:
             code="InternalError",
             response=response,
         )
+    match parsed:
+        case StorageApiErrorMessage():
+            message, code = parsed.message, parsed.code or parsed.error
+        case _AnalyticsApiErrorMessage():
+            message = parsed.error.message
+            code = parsed.error.type or "InternalError"
     return StorageApiError(
-        parsed.message,
+        message,
         status_code=response.status,
-        code=parsed.code or parsed.error,
+        code=code,
         response=response,
     )
 
