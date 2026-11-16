@@ -881,6 +881,12 @@ async def test_sign_out_when_logout_request_fails(
 @pytest.mark.parametrize(
     ("scope", "response", "raises", "cleared"),
     [
+        ("global", (429, {"msg": "rate limited"}), AuthApiError, False),
+        ("local", (429, {"msg": "rate limited"}), AuthApiError, True),
+        ("others", (429, {"msg": "rate limited"}), AuthApiError, False),
+        ("global", (500, {"msg": "unavailable"}), AuthApiError, False),
+        ("local", (500, {"msg": "unavailable"}), AuthApiError, True),
+        ("others", (500, {"msg": "unavailable"}), AuthApiError, False),
         ("global", (503, {"msg": "unavailable"}), AuthRetryableError, False),
         ("local", (503, {"msg": "unavailable"}), AuthRetryableError, True),
         ("others", (503, {"msg": "unavailable"}), AuthRetryableError, False),

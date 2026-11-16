@@ -810,7 +810,14 @@ class SyncGoTrueClient(SyncGoTrueBaseAPI):
             session = self.get_session()
         except AuthSessionMissingError:
             session = None
-        except AuthApiError:
+        except AuthApiError as e:
+            # A rate limit or server failure does not reject the refresh token.
+            # Preserve it for a retry unless this device is signing out locally.
+            if e.status == 429 or e.status >= 500:
+                if scope == "local":
+                    self._remove_session()
+                    self._notify_all_subscribers("SIGNED_OUT", None)
+                raise
             # The refresh was rejected, so there is no session left to revoke.
             # The other sessions could not be revoked either.
             if scope == "others":
