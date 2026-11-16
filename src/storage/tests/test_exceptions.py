@@ -86,10 +86,18 @@ def test_parse_api_error_reads_analytics_wire_format() -> None:
     assert err.status_code == 404
 
 
+def test_parse_api_error_keeps_an_analytics_message_without_a_type() -> None:
+    err = parse_api_error(
+        _response(b'{"error":{"message":"Bucket not found"}}', status=404)
+    )
+    assert err.message == "Bucket not found"
+    assert err.code == "InternalError"
+    assert err.status_code == 404
+
+
 @pytest.mark.parametrize(
     "body",
     [
-        b'{"error":{"message":"Bucket not found"}}',
         b'{"error":{"type":"NoSuchBucket"}}',
         b'{"error":"NoSuchBucket"}',
     ],

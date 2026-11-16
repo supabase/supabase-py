@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import AliasChoices, BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
 from supabase_utils.types import JSON
 
@@ -177,9 +177,13 @@ SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
 DistanceMetric = Literal["cosine", "euclidean"]
 
 
-class MetadataConfiguration(BaseModel, extra="ignore", populate_by_name=True):
+class MetadataConfiguration(BaseModel, extra="ignore"):
     non_filterable_metadata_keys: list[str] | None = Field(
-        alias="nonFilterableMetadataKeys", default=None
+        default=None,
+        validation_alias=AliasChoices(
+            "non_filterable_metadata_keys", "nonFilterableMetadataKeys"
+        ),
+        serialization_alias="nonFilterableMetadataKeys",
     )
 
 

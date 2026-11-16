@@ -35,17 +35,15 @@ class StorageApiErrorMessage(BaseModel):
 VectorBucketErrorMessage = StorageApiErrorMessage
 
 
-class AnalyticsApiErrorDetail(BaseModel):
-    """The `error` object of an analytics bucket error body."""
-
+class _AnalyticsApiErrorDetail(BaseModel):
     message: str
-    type: str
+    type: str | None = None
 
 
-class AnalyticsApiErrorMessage(BaseModel):
+class _AnalyticsApiErrorMessage(BaseModel):
     """Wire format of an analytics bucket error body."""
 
-    error: AnalyticsApiErrorDetail
+    error: _AnalyticsApiErrorDetail
 
 
 class StorageApiError(StorageException, SupabaseAPIError):
@@ -63,8 +61,8 @@ class StorageApiError(StorageException, SupabaseAPIError):
         super().__init__(message, status_code=status_code, code=code, response=response)
 
 
-StorageApiErrorParser = TypeAdapter[StorageApiErrorMessage | AnalyticsApiErrorMessage](
-    StorageApiErrorMessage | AnalyticsApiErrorMessage
+StorageApiErrorParser = TypeAdapter[StorageApiErrorMessage | _AnalyticsApiErrorMessage](
+    StorageApiErrorMessage | _AnalyticsApiErrorMessage
 )
 
 
@@ -83,8 +81,9 @@ def parse_api_error(response: Response) -> StorageApiError:
     match parsed:
         case StorageApiErrorMessage():
             message, code = parsed.message, parsed.code or parsed.error
-        case AnalyticsApiErrorMessage():
-            message, code = parsed.error.message, parsed.error.type
+        case _AnalyticsApiErrorMessage():
+            message = parsed.error.message
+            code = parsed.error.type or "InternalError"
     return StorageApiError(
         message,
         status_code=response.status,
