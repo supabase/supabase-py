@@ -53,8 +53,8 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self.base_url = base_url
         self.default_headers = (
             supabase_headers.update(default_headers)
-            .set("Accept-Profile", schema)
-            .set("Content-Profile", schema)
+            .override("Accept-Profile", schema)
+            .override("Content-Profile", schema)
         )
 
     def set_auth(
