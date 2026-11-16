@@ -74,6 +74,9 @@ SENDS: dict[str, Callable[[RealtimeChannel], Awaitable[object]]] = {
     "send_broadcast": lambda channel: channel.send_broadcast("event", {"a": 1}),
     "track": lambda channel: channel.track({"user": "a"}),
     "untrack": lambda channel: channel.untrack(),
+}
+LEAVES: dict[str, Callable[[RealtimeChannel], Awaitable[object]]] = {
+    **SENDS,
     "unsubscribe": lambda channel: channel.unsubscribe(),
 }
 
@@ -96,7 +99,7 @@ async def test_send_raises_when_the_connection_is_closed(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("send", SENDS.values(), ids=SENDS.keys())
+@pytest.mark.parametrize("send", LEAVES.values(), ids=LEAVES.keys())
 async def test_send_raises_when_the_connection_already_failed(
     server: FakeServer,
     send: Callable[[RealtimeChannel], Awaitable[object]],
@@ -140,10 +143,8 @@ async def test_set_auth_raises_and_keeps_the_previous_token_when_the_send_fails(
         await client.set_auth("first-token")
         assert client.last_token == "first-token"
 
-        await server.drop_connections()
-        with pytest.raises(ConnectionClosed):
-            await asyncio.wait_for(connection_failure(client), timeout=1)
+        connection_failure(client).set_exception(TimeoutError())
 
-        with pytest.raises(ConnectionClosed):
+        with pytest.raises(TimeoutError):
             await client.set_auth("second-token")
         assert client.last_token == "first-token"

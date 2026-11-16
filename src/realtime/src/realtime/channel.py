@@ -210,6 +210,26 @@ class RealtimeChannel:
     def joined(self) -> bool:
         return self.state == ChannelStates.JOINED
 
+    def _receive(self, message: Message) -> None:
+        if message.join_ref is None or message.join_ref == self.join_ref:
+            if message.event == ChannelEvents.error:
+                self._on_error()
+            elif message.event == ChannelEvents.close:
+                self._on_close()
+        self.message_stream.put_nowait(message)
+
+    def _on_error(self) -> None:
+        if self.state in (ChannelStates.LEAVING, ChannelStates.CLOSED):
+            return
+        logger.info("channel %s errored", self.topic)
+        self.state = ChannelStates.ERRORED
+
+    def _on_close(self) -> None:
+        if self.state == ChannelStates.LEAVING:
+            return
+        logger.info("channel %s was closed by the server", self.topic)
+        self.state = ChannelStates.CLOSED
+
     async def __aenter__(self) -> Self:
         await self.subscribe()
         return self

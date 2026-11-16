@@ -293,12 +293,22 @@ class RealtimeClient:
                 elif message.event == ChannelEvents.reply:
                     logger.info("Ignoring reply nobody is waiting on: %r", message)
                 elif channel := self.channels.get(message.topic):
-                    await channel.message_stream.put(message)
+                    channel._receive(message)
                 else:
                     logger.info("Ignoring message: %r", message)
         except Exception as exc:
-            if not failure.done():
-                failure.set_exception(exc)
+            self._fail_connection(failure, exc)
+
+    def _fail_connection(
+        self, failure: asyncio.Future[Message], exc: BaseException
+    ) -> None:
+        if failure.done():
+            return
+        failure.set_exception(exc)
+        if failure is not self._connection_failure:
+            return
+        for channel in self.channels.values():
+            channel._on_error()
 
     async def _get_message_or_raise(self, fut: asyncio.Future[Message]) -> Message:
         try:
@@ -326,8 +336,7 @@ class RealtimeClient:
         except asyncio.CancelledError:
             return
         except (TimeoutError, websockets.ConnectionClosed) as exc:
-            if not failure.done():
-                failure.set_exception(exc)
+            self._fail_connection(failure, exc)
 
     async def _refresh_token_after_heartbeat(self) -> None:
         try:
@@ -406,12 +415,17 @@ class RealtimeClient:
                 then on. Nothing changes if there is no callback or it returns
                 no token.
 
+        Channels of a connection that dropped or that the server closed or
+        errored are not joined, so nothing is sent to them. The token is still
+        stored and sent in the join message when they subscribe again.
+
         Raises:
-            websockets.ConnectionClosed: If the connection is closed. The token is
-                not stored, so calling this method again with the same token sends
-                it again.
-            Exception: If the connection already failed, the exception that failed
-                it, such as a TimeoutError when a heartbeat timed out.
+            websockets.ConnectionClosed: If the connection is closed while a
+                channel is joined. The token is not stored, so calling this
+                method again with the same token sends it again.
+            Exception: If the connection already failed while a channel is
+                joined, the exception that failed it, such as a TimeoutError
+                when a heartbeat timed out.
         """
         if token is None and self.get_access_token is None:
             logger.warning("tried setting auth but no token callback was registered")
