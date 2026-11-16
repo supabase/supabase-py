@@ -142,6 +142,10 @@ async def list_todos(access_token: str) -> object:
 
 In FastAPI, read the token with the `HTTPBearer` security dependency, which parses the `Authorization` header and rejects a request without one, and create `shared` with `async with` in the lifespan of the app, so that it is closed when the app shuts down. To check the token, use `shared.auth.get_claims(access_token)`, which caches the signing keys of the project between requests.
 
+### Secret and `service_role` keys
+
+A client created with a secret key (`sb_secret_...`) or a legacy `service_role` key bypasses row level security. It keeps sending that key after a sign-in, so its data calls never switch to the signed in user. Do not sign users in on such a client. Use a separate client created with the publishable key, or `with_token()` to act for a user.
+
 Use the supabase client to interface with your database.
 
 ### Sign-up

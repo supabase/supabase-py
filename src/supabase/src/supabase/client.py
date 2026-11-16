@@ -44,6 +44,7 @@ from supabase_auth import (
     SyncSupportedStorage,
     UserDoesNotExistError,
 )
+from supabase_auth.helpers import decode_jwt
 from supabase_functions import (
     AsyncFunctionsClient,
     FunctionsError,
@@ -170,6 +171,15 @@ def _is_new_api_key(key: str) -> bool:
     return key.startswith("sb_")
 
 
+def _is_secret_key(key: str) -> bool:
+    if key.startswith("sb_secret_"):
+        return True
+    try:
+        return decode_jwt(key).payload.role == "service_role"
+    except AuthInvalidJwtError:
+        return False
+
+
 class _SharedHttpSession:
     """Sends the requests with a session that another client closes."""
 
@@ -239,6 +249,9 @@ class SupabaseClient[
             The URL to the Supabase instance that should be connected to.
         supabase_key: str
             The API key to the Supabase instance that should be connected to.
+            With a secret or `service_role` key, the client keeps sending the
+            key after a sign-in instead of the user's access token. Sign users
+            in on a separate client created with the publishable key.
         headers
             Headers sent with every request, on top of the default ones.
         request_timeout
@@ -281,6 +294,7 @@ class SupabaseClient[
 
         validate_request_timeout(request_timeout)
         self.supabase_key = supabase_key
+        self._uses_secret_key = _is_secret_key(supabase_key)
         self._request_timeout = request_timeout
         self._retry = retry
         self._postgrest_options = postgrest or PostgrestClientOptions()
@@ -320,7 +334,9 @@ class SupabaseClient[
         """The headers sent with every request.
 
         `Authorization` follows the session: it holds the access token of the
-        signed in user, or the API key when nobody is signed in.
+        signed in user, or the API key when nobody is signed in. A client
+        created with a secret or `service_role` key always sends that key, so
+        a sign-in on it does not make its data calls run as the user.
         """
         return MappingProxyType(self._headers)
 
@@ -490,6 +506,8 @@ class SupabaseClient[
         )
 
     def _listen_to_auth_events(self, change: AuthStateChange) -> None:
+        if self._uses_secret_key:
+            return
         if change.session is not None:
             self._set_access_token(change.session.access_token)
         elif change.event is not AuthChangeEvent.INITIAL_SESSION:
@@ -607,7 +625,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         )
         auth_header = _find_authorization(headers) if headers else None
 
-        if auth_header is None:
+        if auth_header is None and not client._uses_secret_key:
             try:
                 session = await client.auth.get_session()
             except Exception:
@@ -736,7 +754,7 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             )
 
     async def _realtime_access_token(self) -> str | None:
-        if self._auth is None:
+        if self._auth is None or self._uses_secret_key:
             return self._access_token
         session = await self._auth.get_session()
         return self._access_token if session is None else session.access_token
@@ -747,8 +765,9 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
 
         It reads the token through `auth.get_session()` when it connects,
         joins a channel or sends a heartbeat, so an expiring session is
-        refreshed first. Without a session it sends the `Authorization`
-        token of this client, which is the API key by default. A refresh
+        refreshed first. Without a session, or on a client created with a
+        secret or `service_role` key, it sends the `Authorization` token of
+        this client, which is the API key by default. A refresh
         that fails raises from `subscribe()`.
 
         It connects when the first channel subscribes, and disconnects when
@@ -842,7 +861,7 @@ class Client(SupabaseClient[SyncHttpIO, SyncSupportedStorage]):
         )
         auth_header = _find_authorization(headers) if headers else None
 
-        if auth_header is None:
+        if auth_header is None and not client._uses_secret_key:
             try:
                 session = client.auth.get_session()
             except Exception:

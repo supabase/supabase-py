@@ -1,3 +1,5 @@
+import base64
+import json
 import re
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -36,6 +38,19 @@ URL = "https://example.supabase.co"
 KEY = "publishable-key"
 NEW_KEYS = ["sb_publishable_abc123", "sb_secret_abc123", "sb_futuretype_abc123"]
 LEGACY_KEY = "header.payload.signature"
+SESSION_KEYS = ["sb_publishable_abc123", "sb_futuretype_abc123"]
+
+
+def legacy_jwt(role: str) -> str:
+    def encode(value: dict[str, str]) -> str:
+        raw = json.dumps(value).encode()
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    return f"{encode({'alg': 'HS256', 'typ': 'JWT'})}.{encode({'role': role})}.sig"
+
+
+SECRET_KEYS = ["sb_secret_abc123", legacy_jwt("service_role")]
+PUBLIC_KEYS = [KEY, "sb_publishable_abc123", legacy_jwt("anon")]
 
 INVALID_URLS = [
     "example.supabase.co",
@@ -308,7 +323,7 @@ async def test_async_functions_send_a_legacy_key_as_bearer() -> None:
     assert requests[0].headers.get("authorization") == f"Bearer {LEGACY_KEY}"
 
 
-@pytest.mark.parametrize("key", NEW_KEYS)
+@pytest.mark.parametrize("key", SESSION_KEYS)
 def test_sync_functions_send_the_session_token_with_a_new_format_key(
     key: str,
 ) -> None:
@@ -334,7 +349,7 @@ def test_sync_functions_send_the_session_token_with_a_new_format_key(
     assert client.postgrest.default_headers.get("Authorization") == f"Bearer {key}"
 
 
-@pytest.mark.parametrize("key", NEW_KEYS)
+@pytest.mark.parametrize("key", SESSION_KEYS)
 async def test_async_functions_send_the_session_token_with_a_new_format_key(
     key: str,
 ) -> None:
@@ -615,6 +630,89 @@ def test_client_headers_follow_the_session() -> None:
         )
 
     assert headers["Authorization"] == "Bearer userjwt"
+
+
+def sign_in(client: Client | AsyncClient) -> None:
+    client.auth.session_manager.notify_all_subscribers(
+        AuthStateChange(AuthChangeEvent.SIGNED_IN, MagicMock(access_token="userjwt"))
+    )
+
+
+def authorization_headers(client: Client | AsyncClient) -> list[str | None]:
+    return [
+        client.headers["Authorization"],
+        client.auth.default_headers.get("Authorization"),
+        client.postgrest.default_headers.get("Authorization"),
+        client.storage.default_headers.get("Authorization"),
+    ]
+
+
+@pytest.mark.parametrize("key", PUBLIC_KEYS)
+def test_sync_client_sends_the_session_token_with_a_public_key(key: str) -> None:
+    with SyncHttpxClient() as http_client:
+        client = Client(URL, key, HttpxSession(client=http_client))
+        sign_in(client)
+
+    assert authorization_headers(client) == ["Bearer userjwt"] * 4
+
+
+@pytest.mark.parametrize("key", SECRET_KEYS)
+def test_sync_client_keeps_a_secret_key_after_a_sign_in(key: str) -> None:
+    requests: list[httpx.Request] = []
+    with SyncHttpxClient(transport=recording_transport(requests)) as http_client:
+        client = Client(URL, key, HttpxSession(client=http_client))
+        sign_in(client)
+        client.functions.invoke("hello")
+
+    assert authorization_headers(client) == [f"Bearer {key}"] * 4
+    assert requests[0].headers.get("authorization") != "Bearer userjwt"
+
+
+@pytest.mark.parametrize("key", SECRET_KEYS)
+async def test_async_client_keeps_a_secret_key_after_a_sign_in(key: str) -> None:
+    requests: list[httpx.Request] = []
+    async with AsyncHttpxClient(transport=recording_transport(requests)) as http_client:
+        client = AsyncClient(URL, key, AsyncHttpxSession(client=http_client))
+        sign_in(client)
+        await client.functions.invoke("hello")
+        with patch.object(
+            AsyncSupabaseAuthClient,
+            "get_session",
+            AsyncMock(return_value=MagicMock(access_token="userjwt")),
+        ):
+            realtime_token = await client._realtime_access_token()
+
+    assert authorization_headers(client) == [f"Bearer {key}"] * 4
+    assert requests[0].headers.get("authorization") != "Bearer userjwt"
+    assert realtime_token == key
+
+
+@pytest.mark.parametrize("key", SECRET_KEYS)
+def test_sync_create_keeps_a_secret_key_with_a_stored_session(key: str) -> None:
+    session = MagicMock(access_token="storedjwt")
+    with (
+        SyncHttpxClient() as http_client,
+        patch.object(
+            SyncSupabaseAuthClient, "get_session", MagicMock(return_value=session)
+        ),
+    ):
+        client = Client.create(URL, key, HttpxSession(client=http_client))
+
+    assert authorization_headers(client) == [f"Bearer {key}"] * 4
+
+
+@pytest.mark.parametrize("key", SECRET_KEYS)
+async def test_async_create_keeps_a_secret_key_with_a_stored_session(key: str) -> None:
+    session = MagicMock(access_token="storedjwt")
+    async with AsyncHttpxClient() as http_client:
+        with patch.object(
+            AsyncSupabaseAuthClient, "get_session", AsyncMock(return_value=session)
+        ):
+            client = await AsyncClient.create(
+                URL, key, AsyncHttpxSession(client=http_client)
+            )
+
+    assert authorization_headers(client) == [f"Bearer {key}"] * 4
 
 
 @pytest.mark.parametrize("request_timeout", [0, -1, float("nan"), float("inf")])
