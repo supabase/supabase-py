@@ -10,7 +10,9 @@ from .client import RealtimeClient, connect_once
 from .exceptions import (
     AuthorizationError,
     ChannelJoinError,
+    ChannelNotJoinedError,
     NotConnectedError,
+    PushRejectedError,
     RealtimeError,
     RealtimeTimeoutError,
 )
@@ -41,7 +43,13 @@ from .message import (
     SuccessSystemPayload,
     SystemMessage,
 )
-from .presence import RealtimePresence
+from .presence import (
+    PresenceEvent,
+    PresenceJoin,
+    PresenceLeave,
+    PresenceSync,
+    RealtimePresence,
+)
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
     DEFAULT_TIMEOUT,
@@ -97,6 +105,7 @@ __all__ = [
     "ChannelEvents",
     "ChannelJoinError",
     "ChannelLeaveMessage",
+    "ChannelNotJoinedError",
     "ChannelStateChange",
     "ChannelStates",
     "ClientMessage",
@@ -118,11 +127,16 @@ __all__ = [
     "Presence",
     "PresenceDiff",
     "PresenceDiffMessage",
+    "PresenceEvent",
     "PresenceEvents",
+    "PresenceJoin",
+    "PresenceLeave",
     "PresenceMessage",
     "PresenceMeta",
     "PresenceOptions",
     "PresenceStateMessage",
+    "PresenceSync",
+    "PushRejectedError",
     "RawPresenceDiff",
     "RawPresenceState",
     "RawPresenceStateEntry",

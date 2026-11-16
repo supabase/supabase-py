@@ -52,6 +52,38 @@ class RealtimeTimeoutError(RealtimeError, TimeoutError):
         self.timeout = timeout
 
 
+class ChannelNotJoinedError(RealtimeError):
+    """
+    Raised when an operation needs a joined channel and the channel is not
+    joined: before `subscribe()` completes, after `unsubscribe()`, or while
+    the client joins it again after a reconnect. Nothing was sent.
+    """
+
+    def __init__(self, func_name: str, topic: str) -> None:
+        super().__init__(
+            f"{func_name}() needs the channel {topic!r} to be joined; nothing was sent"
+        )
+        self.offending_func_name: str = func_name
+        self.topic = topic
+
+
+class PushRejectedError(RealtimeError):
+    """
+    Raised when the server replies to a push with an error.
+
+    `reason` is the reason the server gave, or ``None`` when it gave none.
+    """
+
+    def __init__(self, event: str, topic: str, reason: str | None) -> None:
+        super().__init__(
+            f"the server rejected {event} on {topic!r}"
+            + (f": {reason}" if reason else "")
+        )
+        self.event = event
+        self.topic = topic
+        self.reason = reason
+
+
 class ChannelJoinError(RealtimeError):
     """
     Raised when the server rejects the join of a channel.

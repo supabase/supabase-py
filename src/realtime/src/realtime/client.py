@@ -12,7 +12,7 @@ from yarl import URL
 
 from ._redact import RedactingLoggerAdapter
 from ._serializer import decode, encode
-from .channel import QueuedMessage, RealtimeChannel, RealtimeChannelOptions
+from .channel import RealtimeChannel, RealtimeChannelOptions
 from .exceptions import (
     AuthorizationError,
     NotConnectedError,
@@ -464,7 +464,7 @@ class RealtimeClient:
                 *(channel._rejoin() for channel in self._channels_to_rejoin())
             )
 
-    async def _next_message(self, queue: asyncio.Queue[QueuedMessage]) -> QueuedMessage:
+    async def _next_message[T](self, queue: asyncio.Queue[T]) -> T:
         session = self._session
         if session is None:
             raise NotConnectedError("RealtimeChannel.messages")

@@ -875,7 +875,7 @@ features:
 
   realtime.client.connect:
     status: implemented
-    note: "RealtimeClient connects when the first channel subscribes, or when connect() is called, and reuses that connection for every channel until the last channel is removed. AsyncClient.realtime is one RealtimeClient per supabase client, closed when the supabase client exits. connect_once(url, ...) is awaitable and an async context manager that connects a RealtimeClient and closes it on exit. A dropped connection is reopened with full-jitter backoff until aclose(), and every joined channel is joined again with its options, the current token and its tracked presence; RealtimeChannel.messages yields a ChannelStateChange when the connection drops and when the channel is joined again."
+    note: "RealtimeClient connects when the first channel subscribes, or when connect() is called, and reuses that connection for every channel until the last channel is removed. AsyncClient.realtime is one RealtimeClient per supabase client, closed when the supabase client exits. connect_once(url, ...) is awaitable and an async context manager that connects a RealtimeClient and closes it on exit. A dropped connection is reopened with full-jitter backoff until aclose(), and every joined channel is joined again with its options and the current token, without tracking its presence again; RealtimeChannel.messages yields a ChannelStateChange when the connection drops and when the channel is joined again."
     symbols:
       - RealtimeClient.connect
       - connect_once
@@ -975,12 +975,15 @@ features:
       - RealtimePostgresChangesListenEvent
   realtime.subscriptions.subscribe_presence:
     status: implemented
-    note: "Enable presence with RealtimeChannelOptions.presence(enabled=True); PresenceJoin and PresenceLeave events are yielded by RealtimeChannel.messages."
+    note: "RealtimeChannel.presence_events() registers a presence listener, an async iterator of PresenceJoin, PresenceLeave and PresenceSync events. Presence is on when a listener is registered at subscribe or RealtimeChannelOptions.presence(enabled=True) is set; a listener added to a channel joined with presence off raises RealtimeError."
     symbols:
+      - RealtimeChannel.presence_events
       - RealtimeChannelOptions.presence
     supporting_symbols:
+      - PresenceEvent
       - PresenceJoin
       - PresenceLeave
+      - PresenceSync
       - RealtimePresence
       - RealtimeChannelPresenceConfig
       - PresenceOptions
@@ -1029,10 +1032,13 @@ features:
 
   realtime.presence.track:
     status: implemented
+    note: "Raises ChannelNotJoinedError without sending when the channel is not joined, and PushRejectedError when the server replies with an error. The presence is not tracked again after a rejoin."
     symbols:
       - RealtimeChannel.track
     supporting_symbols:
       - RealtimeChannel.send_presence
+      - ChannelNotJoinedError
+      - PushRejectedError
   realtime.presence.untrack:
     status: implemented
     symbols:
