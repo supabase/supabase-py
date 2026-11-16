@@ -96,7 +96,8 @@ class StorageAnalyticsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         catalog_uri = self.base_url
         s3_endpoint = self.base_url.parent.joinpath("s3")
         service_key = self.default_headers.get("apiKey")
-        assert service_key, "apiKey must be passed in the headers."
+        if not service_key:
+            raise ValueError("apiKey must be passed in the headers.")
         return RestCatalog(
             catalog_name,
             warehouse=catalog_name,
