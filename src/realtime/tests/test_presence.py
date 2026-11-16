@@ -596,7 +596,7 @@ async def test_track_and_untrack_raise_when_the_channel_is_not_joined(
     channel = RealtimeClient("http://localhost").channel("room")
     channel.state = state
     send = AsyncMock()
-    monkeypatch.setattr(channel, "_send_event", send)
+    monkeypatch.setattr(channel.socket, "_send", send)
 
     with pytest.raises(ChannelNotJoinedError):
         await call(channel)
@@ -630,7 +630,7 @@ async def test_track_raises_the_servers_error(
 ) -> None:
     channel = joined_channel()
     monkeypatch.setattr(
-        channel, "_send_event", AsyncMock(return_value=reply("error", response))
+        channel.socket, "_send", AsyncMock(return_value=reply("error", response))
     )
 
     with pytest.raises(PushRejectedError) as error:
@@ -645,7 +645,7 @@ async def test_a_successful_track_turns_presence_on(
 ) -> None:
     channel = joined_channel()
     ok = reply("ok", {"postgres_changes": []})
-    monkeypatch.setattr(channel, "_send_event", AsyncMock(return_value=ok))
+    monkeypatch.setattr(channel.socket, "_send", AsyncMock(return_value=ok))
 
     await channel.track({"user": "a"})
 

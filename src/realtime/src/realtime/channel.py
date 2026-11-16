@@ -12,6 +12,7 @@ import websockets
 
 from .exceptions import (
     AuthorizationError,
+    ChannelClosedError,
     ChannelNotJoinedError,
     NotConnectedError,
     PushRejectedError,
@@ -250,6 +251,8 @@ class RealtimeChannel:
         self._presence_enabled = False
         self._presence_on = False
         self._presence_listeners: dict[asyncio.Queue[QueuedPresenceEvent], bool] = {}
+        self._closed: asyncio.Future[Message] | None = None
+        self._system_error: str | None = None
         self._dropping_messages = False
         self.message_stream: asyncio.Queue[QueuedMessage] = asyncio.Queue(
             maxsize=socket.max_queued_messages
@@ -261,12 +264,17 @@ class RealtimeChannel:
         return self.state == ChannelStates.JOINED
 
     def _receive(self, message: Message) -> None:
+        if message.event == ChannelEvents.system:
+            self._remember_system_error(message)
+        elif message.event not in (ChannelEvents.error, ChannelEvents.close):
+            self._system_error = None
         if message.event in (ChannelEvents.error, ChannelEvents.close):
             if message.join_ref is not None and message.join_ref != self.join_ref:
                 logger.info(
                     "Ignoring %s of an earlier join: %r", message.event, message
                 )
                 return
+            self._fail_pending_pushes()
             if message.event == ChannelEvents.error:
                 self._on_error()
             else:
@@ -275,6 +283,19 @@ class RealtimeChannel:
             self._apply_presence(message)
             return
         self._enqueue(message)
+
+    def _remember_system_error(self, message: Message) -> None:
+        reason = message.payload.get("message")
+        error = message.payload.get("status") == "error" and isinstance(reason, str)
+        self._system_error = reason if error else None
+
+    def _fail_pending_pushes(self) -> None:
+        closed = self._closed
+        self._closed = None
+        if closed is None or closed.done():
+            return
+        closed.set_exception(ChannelClosedError(self.topic, self._system_error))
+        closed.exception()
 
     def _apply_presence(self, message: Message) -> None:
         try:
@@ -342,6 +363,7 @@ class RealtimeChannel:
             self._subscribe_attempt = None
         self._rejoin_pending = False
         self.state = ChannelStates.CLOSED
+        self._fail_pending_pushes()
         self._emit_presence(self.presence._on_unsubscribe())
 
     def _on_error(self) -> None:
@@ -421,7 +443,10 @@ class RealtimeChannel:
             ref=join_ref,
             join_ref=join_ref,
         )
+        self._fail_pending_pushes()
         self.join_ref = join_ref
+        self._system_error = None
+        self._closed = asyncio.get_running_loop().create_future()
         self.presence._on_join(join_ref)
         self._presence_on = self._presence_enabled
         self.state = ChannelStates.JOINING
@@ -503,6 +528,7 @@ class RealtimeChannel:
         self._rejoin_authorization_failed = False
         self._subscribe_attempt = None
         self.state = ChannelStates.CLOSED
+        self._fail_pending_pushes()
         self._emit_presence(self.presence._on_unsubscribe())
         self._fail(error)
 
@@ -658,6 +684,7 @@ class RealtimeChannel:
         self.state = ChannelStates.LEAVING
         self.socket._remove_channel(self)
         self._emit_presence(self.presence._on_unsubscribe())
+        self._fail_pending_pushes()
         try:
             if needs_leave:
                 await self._send_event(ChannelEvents.leave, payload={})
@@ -683,10 +710,16 @@ class RealtimeChannel:
         joined again (`messages` yields a `ChannelStateChange` with the state
         `JOINED`), call `track()` again to be present.
 
+        Wait at most ``timeout`` seconds of the client for the reply, or
+        wrap the call in ``asyncio.timeout()`` for a shorter wait.
+
         :param user_status: The presence payload, a JSON object.
         :raises ChannelNotJoinedError: If the channel is not joined.
         :raises PushRejectedError: If the server replies with an error.
         :raises RealtimeTimeoutError: If the server does not reply in time.
+        :raises ChannelClosedError: If the channel closes or errors before the
+            server replies, for example when the server closes it for going
+            over the presence rate limit.
         """
         join_ref = self.join_ref
         await self.send_presence("track", dict(user_status))
@@ -697,9 +730,14 @@ class RealtimeChannel:
         """
         Remove the presence of this connection.
 
+        Wait at most ``timeout`` seconds of the client for the reply, or
+        wrap the call in ``asyncio.timeout()`` for a shorter wait.
+
         :raises ChannelNotJoinedError: If the channel is not joined.
         :raises PushRejectedError: If the server replies with an error.
         :raises RealtimeTimeoutError: If the server does not reply in time.
+        :raises ChannelClosedError: If the channel closes or errors before the
+            server replies.
         """
         await self.send_presence("untrack", {})
 
@@ -778,12 +816,19 @@ class RealtimeChannel:
         :raises ChannelNotJoinedError: If the channel is not joined.
         :raises PushRejectedError: If the server replies with an error.
         :raises RealtimeTimeoutError: If the server does not reply in time.
+        :raises ChannelClosedError: If the channel closes or errors before the
+            server replies.
         """
         if not self.joined:
             raise ChannelNotJoinedError(f"RealtimeChannel.{event}", self.topic)
-        reply = await self._send_event(
-            ChannelEvents.presence, {"event": event, "payload": data}
+        message = Message(
+            topic=self.topic,
+            event=ChannelEvents.presence,
+            ref=self.socket._make_ref(),
+            join_ref=self.join_ref,
+            payload={"event": event, "payload": data},
         )
+        reply = await self.socket._send(message, channel_closed=self._closed)
         if isinstance(reply.payload, ErrorReplyMessage):
             reason = reply.payload.response.get("reason")
             raise PushRejectedError(

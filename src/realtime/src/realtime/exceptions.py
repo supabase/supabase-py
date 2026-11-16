@@ -84,6 +84,25 @@ class PushRejectedError(RealtimeError):
         self.reason = reason
 
 
+class ChannelClosedError(RealtimeError):
+    """
+    Raised when the channel closes or errors while a call waits for the
+    server's reply.
+
+    `reason` is the message of the ``system`` error the server sent before it
+    closed the channel, such as ``Client presence rate limit exceeded``, or
+    ``None`` when it sent none.
+    """
+
+    def __init__(self, topic: str, reason: str | None) -> None:
+        super().__init__(
+            f"the channel {topic!r} closed before the server replied"
+            + (f": {reason}" if reason else "")
+        )
+        self.topic = topic
+        self.reason = reason
+
+
 class ChannelJoinError(RealtimeError):
     """
     Raised when the server rejects the join of a channel.

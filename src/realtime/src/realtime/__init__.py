@@ -9,6 +9,7 @@ from .channel import ChannelStateChange, RealtimeChannel, RealtimeChannelOptions
 from .client import RealtimeClient, connect_once
 from .exceptions import (
     AuthorizationError,
+    ChannelClosedError,
     ChannelJoinError,
     ChannelNotJoinedError,
     NotConnectedError,
@@ -101,6 +102,7 @@ __all__ = [
     "BroadcastPayload",
     "Callback",
     "ChannelCloseMessage",
+    "ChannelClosedError",
     "ChannelErrorMessage",
     "ChannelEvents",
     "ChannelJoinError",
