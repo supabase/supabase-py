@@ -36,7 +36,12 @@ from supabase_utils.types import JSON
 from yarl import URL
 
 from ._parsing import InvalidResponseBodyError, parse_json, parse_object, parse_rows
-from .exceptions import APIError, APIErrorFromJSON, generate_default_error_message
+from .exceptions import (
+    APIError,
+    APIErrorFromJSON,
+    _decode_body,
+    generate_default_error_message,
+)
 from .types import (
     _TEXT_SEARCH_OPERATORS,
     CountMethod,
@@ -889,8 +894,15 @@ def _api_error(response: Response) -> APIError:
 
 
 def _invalid_response_error(response: Response) -> APIError:
+    """The error of a success response whose body is not in the shape the
+    query asked for, with the body in `details`."""
     return APIError(
-        generate_default_error_message(response),
+        {
+            "message": "The response body is not the JSON the query asked for",
+            "code": str(response.status),
+            "hint": None,
+            "details": _decode_body(response),
+        },
         status_code=response.status,
         response=response,
     )
