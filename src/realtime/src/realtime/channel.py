@@ -251,7 +251,7 @@ class RealtimeChannel:
         self._presence_enabled = False
         self._presence_on = False
         self._presence_listeners: dict[asyncio.Queue[QueuedPresenceEvent], bool] = {}
-        self._pending_presence: set[asyncio.Future[str | None]] = set()
+        self._closed: asyncio.Future[Message] | None = None
         self._system_error: str | None = None
         self._dropping_messages = False
         self.message_stream: asyncio.Queue[QueuedMessage] = asyncio.Queue(
@@ -266,13 +266,15 @@ class RealtimeChannel:
     def _receive(self, message: Message) -> None:
         if message.event == ChannelEvents.system:
             self._remember_system_error(message)
+        elif message.event not in (ChannelEvents.error, ChannelEvents.close):
+            self._system_error = None
         if message.event in (ChannelEvents.error, ChannelEvents.close):
             if message.join_ref is not None and message.join_ref != self.join_ref:
                 logger.info(
                     "Ignoring %s of an earlier join: %r", message.event, message
                 )
                 return
-            self._fail_pending_presence()
+            self._fail_pending_pushes()
             if message.event == ChannelEvents.error:
                 self._on_error()
             else:
@@ -283,16 +285,17 @@ class RealtimeChannel:
         self._enqueue(message)
 
     def _remember_system_error(self, message: Message) -> None:
-        if message.payload.get("status") != "error":
-            return
         reason = message.payload.get("message")
-        self._system_error = reason if isinstance(reason, str) else None
+        error = message.payload.get("status") == "error" and isinstance(reason, str)
+        self._system_error = reason if error else None
 
-    def _fail_pending_presence(self) -> None:
-        for closed in self._pending_presence:
-            if not closed.done():
-                closed.set_result(self._system_error)
-        self._pending_presence.clear()
+    def _fail_pending_pushes(self) -> None:
+        closed = self._closed
+        self._closed = None
+        if closed is None or closed.done():
+            return
+        closed.set_exception(ChannelClosedError(self.topic, self._system_error))
+        closed.exception()
 
     def _apply_presence(self, message: Message) -> None:
         try:
@@ -360,6 +363,7 @@ class RealtimeChannel:
             self._subscribe_attempt = None
         self._rejoin_pending = False
         self.state = ChannelStates.CLOSED
+        self._fail_pending_pushes()
         self._emit_presence(self.presence._on_unsubscribe())
 
     def _on_error(self) -> None:
@@ -439,8 +443,10 @@ class RealtimeChannel:
             ref=join_ref,
             join_ref=join_ref,
         )
+        self._fail_pending_pushes()
         self.join_ref = join_ref
         self._system_error = None
+        self._closed = asyncio.get_running_loop().create_future()
         self.presence._on_join(join_ref)
         self._presence_on = self._presence_enabled
         self.state = ChannelStates.JOINING
@@ -522,6 +528,7 @@ class RealtimeChannel:
         self._rejoin_authorization_failed = False
         self._subscribe_attempt = None
         self.state = ChannelStates.CLOSED
+        self._fail_pending_pushes()
         self._emit_presence(self.presence._on_unsubscribe())
         self._fail(error)
 
@@ -677,7 +684,7 @@ class RealtimeChannel:
         self.state = ChannelStates.LEAVING
         self.socket._remove_channel(self)
         self._emit_presence(self.presence._on_unsubscribe())
-        self._fail_pending_presence()
+        self._fail_pending_pushes()
         try:
             if needs_leave:
                 await self._send_event(ChannelEvents.leave, payload={})
@@ -814,26 +821,14 @@ class RealtimeChannel:
         """
         if not self.joined:
             raise ChannelNotJoinedError(f"RealtimeChannel.{event}", self.topic)
-        closed: asyncio.Future[str | None] = asyncio.get_running_loop().create_future()
-        self._pending_presence.add(closed)
-        send = asyncio.ensure_future(
-            self._send_event(ChannelEvents.presence, {"event": event, "payload": data})
+        message = Message(
+            topic=self.topic,
+            event=ChannelEvents.presence,
+            ref=self.socket._make_ref(),
+            join_ref=self.join_ref,
+            payload={"event": event, "payload": data},
         )
-        try:
-            await asyncio.wait((send, closed), return_when=asyncio.FIRST_COMPLETED)
-        except asyncio.CancelledError:
-            send.cancel()
-            raise
-        finally:
-            self._pending_presence.discard(closed)
-        if not send.done():
-            send.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await send
-            raise ChannelClosedError(
-                f"RealtimeChannel.{event}", self.topic, closed.result()
-            )
-        reply = send.result()
+        reply = await self.socket._send(message, channel_closed=self._closed)
         if isinstance(reply.payload, ErrorReplyMessage):
             reason = reply.payload.response.get("reason")
             raise PushRejectedError(

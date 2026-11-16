@@ -94,12 +94,11 @@ class ChannelClosedError(RealtimeError):
     ``None`` when it sent none.
     """
 
-    def __init__(self, func_name: str, topic: str, reason: str | None) -> None:
+    def __init__(self, topic: str, reason: str | None) -> None:
         super().__init__(
-            f"the channel {topic!r} closed before {func_name}() got a reply"
+            f"the channel {topic!r} closed before the server replied"
             + (f": {reason}" if reason else "")
         )
-        self.offending_func_name: str = func_name
         self.topic = topic
         self.reason = reason
 

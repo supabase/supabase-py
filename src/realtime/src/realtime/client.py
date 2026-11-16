@@ -49,14 +49,14 @@ def _raise_connection_failure(failure: asyncio.Future[Message]) -> None:
 
 
 async def _wait_or_raise(
-    fut: asyncio.Future[Message], failure: asyncio.Future[Message]
+    fut: asyncio.Future[Message], *failures: asyncio.Future[Message]
 ) -> Message:
-    done, _pending = await asyncio.wait(
-        (fut, failure), return_when=asyncio.FIRST_COMPLETED
-    )
-    if fut not in done:
+    await asyncio.wait((fut, *failures), return_when=asyncio.FIRST_COMPLETED)
+    if not fut.done():
         fut.cancel()
-        await failure
+        for failure in failures:
+            if failure.done():
+                await failure
     return fut.result()
 
 
@@ -658,7 +658,10 @@ class RealtimeClient:
         return f"{self.ref}"
 
     async def _send(
-        self, message: Message, reply_timeout: float | None = None
+        self,
+        message: Message,
+        reply_timeout: float | None = None,
+        channel_closed: asyncio.Future[Message] | None = None,
     ) -> ReplyMessage:
         assert message.ref, "Cannot wait for reponse on a message without ref"
 
@@ -675,7 +678,10 @@ class RealtimeClient:
             async with deadline:
                 await websocket.send(frame)
                 logger.debug("waiting for ref=%r", message.ref)
-                response = await _wait_or_raise(receive, failure)
+                failures = (
+                    (failure,) if channel_closed is None else (failure, channel_closed)
+                )
+                response = await _wait_or_raise(receive, *failures)
         except TimeoutError:
             if deadline.expired():
                 raise RealtimeTimeoutError(
