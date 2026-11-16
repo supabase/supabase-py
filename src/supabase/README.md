@@ -286,12 +286,19 @@ bucket_name: str = "photos"
 data = supabase.storage.from_(bucket_name).remove(["old_photo.png", "image5.jpg"])
 ```
 
-### List all files
+### List files
+
+`list()` returns one page. With `with_delimiter=True` it lists one level, with the folders apart from the objects. Pass the `nextCursor` of a page to fetch the next one.
 
 ```python
 bucket_name: str = "charts"
 
-data = supabase.storage.from_(bucket_name).list()
+bucket = supabase.storage.from_(bucket_name)
+page = bucket.list("2024/", with_delimiter=True)
+print(page.folders, page.objects)
+while page.hasNext:
+    page = bucket.list("2024/", with_delimiter=True, cursor=page.nextCursor)
+    print(page.objects)
 ```
 
 ### Move and rename files

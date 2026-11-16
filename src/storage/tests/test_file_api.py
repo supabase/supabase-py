@@ -203,17 +203,21 @@ async def test_error_with_binary_body_raises_storage_api_error(use_async: bool) 
     assert error.value.status_code == 502
 
 
-@use_async
-async def test_list_sends_the_given_options_to_list_v2(use_async: bool) -> None:
-    requests: list[Request] = []
-
+def empty_page_handler(requests: list[Request]) -> Callable[[Request], Response]:
     def handler(request: Request) -> Response:
         requests.append(request)
         return Response(200, json={"hasNext": False, "folders": [], "objects": []})
 
+    return handler
+
+
+@use_async
+async def test_list_sends_the_given_options_to_list_v2(use_async: bool) -> None:
+    requests: list[Request] = []
+
     result = await call_with_client(
         use_async,
-        handler,
+        empty_page_handler(requests),
         lambda client: client.from_("bucket").list(
             "photos/", limit=2, cursor="opaque", with_delimiter=True
         ),
@@ -236,12 +240,10 @@ async def test_list_sends_the_given_options_to_list_v2(use_async: bool) -> None:
 async def test_list_sends_an_empty_body_by_default(use_async: bool) -> None:
     requests: list[Request] = []
 
-    def handler(request: Request) -> Response:
-        requests.append(request)
-        return Response(200, json={"hasNext": False, "folders": [], "objects": []})
-
     await call_with_client(
-        use_async, handler, lambda client: client.from_("bucket").list()
+        use_async,
+        empty_page_handler(requests),
+        lambda client: client.from_("bucket").list(),
     )
 
     assert json.loads(requests[0].content) == {}
@@ -422,13 +424,9 @@ async def test_list_sends_sort_by(
 ) -> None:
     requests: list[Request] = []
 
-    def handler(request: Request) -> Response:
-        requests.append(request)
-        return Response(200, json={"hasNext": False, "folders": [], "objects": []})
-
     await call_with_client(
         use_async,
-        handler,
+        empty_page_handler(requests),
         lambda client: client.from_("bucket").list(sort_by=sort_by),
     )
 
