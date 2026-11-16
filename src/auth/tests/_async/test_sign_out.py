@@ -447,3 +447,16 @@ async def test_global_with_an_expired_session_without_refresh_token_signs_out() 
     assert endpoints.requests == []
     assert await stored_access_token(client) is None
     assert after_initial(changes) == [USER_INITIATED]
+
+
+async def test_others_keeps_a_valid_session_without_refresh_token() -> None:
+    endpoints = Endpoints()
+    session = stored_session()
+    session.refresh_token = ""
+    client, changes = await signed_in_client(endpoints, session)
+
+    await client.sign_out("others")
+
+    assert endpoints.paths == ["/logout"]
+    assert await stored_access_token(client) == "old-access"
+    assert after_initial(changes) == []

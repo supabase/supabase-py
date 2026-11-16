@@ -1354,7 +1354,8 @@ class AsyncSupabaseAuthClient(
             if scope == "others":
                 if session is None:
                     raise AuthSessionMissingError
-                session = await manager._refresh_stored_session(only_if_expiring=True)
+                if manager._is_expiring(session):
+                    session = await manager._refresh_stored_session()
                 await self._sign_out(session, scope)
             elif session is None:
                 await self._remove_local_session()
@@ -1938,7 +1939,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
             if scope == "others":
                 if session is None:
                     raise AuthSessionMissingError
-                session = manager._refresh_stored_session(only_if_expiring=True)
+                if manager._is_expiring(session):
+                    session = manager._refresh_stored_session()
                 self._sign_out(session, scope)
             elif session is None:
                 self._remove_local_session()
