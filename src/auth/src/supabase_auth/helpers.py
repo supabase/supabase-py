@@ -105,11 +105,8 @@ def parse_sso_response(response: Response) -> SSOResponse:
     return _validate_model(response, SSOResponse)
 
 
-JWKSetParser = TypeAdapter(JWKSet)
-
-
 def parse_jwks(response: Response) -> JWKSet:
-    jwk = JWKSetParser.validate_json(response.content)
+    jwk = _validate_model(response, JWKSet)
     if len(jwk.keys) == 0:
         raise AuthInvalidJwtError("JWKS is empty")
 

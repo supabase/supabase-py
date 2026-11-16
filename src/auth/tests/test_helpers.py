@@ -22,6 +22,7 @@ from supabase_auth.helpers import (
     decode_jwt,
     generate_pkce_challenge,
     generate_pkce_verifier,
+    parse_jwks,
     parse_link_identity_response,
     validate_expiration,
 )
@@ -50,6 +51,24 @@ def test_parse_link_identity_response() -> None:
         request=valid_request(),
     )
     assert parse_link_identity_response(resp)
+
+
+def test_parse_jwks_raises_the_api_error_of_an_error_response() -> None:
+    response = error_response(
+        401, {"code": 401, "error_code": "no_authorization", "msg": "denied"}
+    )
+
+    with pytest.raises(AuthApiError) as exc_info:
+        parse_jwks(response)
+
+    assert exc_info.value.message == "denied"
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.code is ErrorCode.NO_AUTHORIZATION
+
+
+def test_parse_jwks_raises_on_an_empty_key_set() -> None:
+    with pytest.raises(AuthInvalidJwtError, match="JWKS is empty"):
+        parse_jwks(error_response(200, {"keys": []}))
 
 
 def test_decode_jwt() -> None:
