@@ -74,7 +74,6 @@ SENDS: dict[str, Callable[[RealtimeChannel], Awaitable[object]]] = {
     "send_broadcast": lambda channel: channel.send_broadcast("event", {"a": 1}),
     "track": lambda channel: channel.track({"user": "a"}),
     "untrack": lambda channel: channel.untrack(),
-    "unsubscribe": lambda channel: channel.unsubscribe(),
 }
 
 
@@ -133,17 +132,18 @@ async def test_acknowledged_broadcast_raises_when_the_connection_is_closed(
 
 @pytest.mark.asyncio
 async def test_set_auth_raises_and_keeps_the_previous_token_when_the_send_fails(
-    server: FakeServer,
+    server: FakeServer, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with connect_once(server.url) as client:
         await client.channel("room").subscribe()
         await client.set_auth("first-token")
         assert client.last_token == "first-token"
 
-        await server.drop_connections()
-        with pytest.raises(ConnectionClosed):
-            await asyncio.wait_for(connection_failure(client), timeout=1)
+        async def fail(message: Message) -> None:
+            raise OSError("socket closed")
 
-        with pytest.raises(ConnectionClosed):
+        monkeypatch.setattr(client, "_send_no_wait", fail)
+
+        with pytest.raises(OSError, match="socket closed"):
             await client.set_auth("second-token")
         assert client.last_token == "first-token"

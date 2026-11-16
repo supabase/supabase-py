@@ -210,6 +210,31 @@ class RealtimeChannel:
     def joined(self) -> bool:
         return self.state == ChannelStates.JOINED
 
+    def _receive(self, message: Message) -> None:
+        if message.event in (ChannelEvents.error, ChannelEvents.close):
+            if message.join_ref is not None and message.join_ref != self.join_ref:
+                logger.info(
+                    "Ignoring %s of an earlier join: %r", message.event, message
+                )
+                return
+            if message.event == ChannelEvents.error:
+                self._on_error()
+            else:
+                self._on_close()
+        self.message_stream.put_nowait(message)
+
+    def _on_error(self) -> None:
+        if self.state in (ChannelStates.LEAVING, ChannelStates.CLOSED):
+            return
+        logger.info("channel %s errored", self.topic)
+        self.state = ChannelStates.ERRORED
+
+    def _on_close(self) -> None:
+        if self.state == ChannelStates.LEAVING:
+            return
+        logger.info("channel %s was closed by the server", self.topic)
+        self.state = ChannelStates.CLOSED
+
     async def __aenter__(self) -> Self:
         await self.subscribe()
         return self
@@ -275,7 +300,8 @@ class RealtimeChannel:
             raise RealtimeError(
                 "mismatch between server and client bindings for postgres changes"
             )
-        self.state = ChannelStates.JOINED
+        if self.state == ChannelStates.JOINING:
+            self.state = ChannelStates.JOINED
         try:
             await self.socket._send_token_if_changed(self, payload.access_token)
         except asyncio.CancelledError:
