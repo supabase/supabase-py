@@ -3,7 +3,6 @@ name: CI/CD
 on:
   push:
     paths-ignore:
-      - '.devcontainer/**'
       - 'CHANGELOG.md'
     branches:
       - main
