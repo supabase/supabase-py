@@ -102,7 +102,8 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     ) -> HttpMethod[list[Bucket]]:
         """Retrieves the details of the storage buckets.
 
-        Without arguments, every bucket is returned.
+        Without arguments, every bucket is returned. The arguments need
+        Supabase Storage v1.25.0 or newer; older releases ignore them.
 
         Parameters
         ----------
