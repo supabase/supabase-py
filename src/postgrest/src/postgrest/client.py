@@ -107,9 +107,9 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         func: str,
         params: Mapping[str, JSON],
         *,
-        head: Literal[False],
-        count: CountMethod | None,
-        get: bool = ...,
+        head: Literal[False] = False,
+        count: CountMethod | None = None,
+        get: bool = False,
     ) -> RPCFilterRequestBuilder[HttpIO]: ...
 
     @overload
@@ -119,54 +119,8 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         params: Mapping[str, JSON],
         *,
         head: Literal[True],
-        count: CountMethod | None,
-        get: bool,
-    ) -> RPCCountRequestBuilder[HttpIO]: ...
-
-    @overload
-    def rpc(
-        self,
-        func: str,
-        params: Mapping[str, JSON],
-    ) -> RPCFilterRequestBuilder[HttpIO]: ...
-
-    @overload
-    def rpc(
-        self,
-        func: str,
-        params: Mapping[str, JSON],
-        *,
-        get: Literal[True],
-    ) -> RPCFilterRequestBuilder[HttpIO]: ...
-
-    @overload
-    def rpc(
-        self,
-        func: str,
-        params: Mapping[str, JSON],
-        *,
-        count: CountMethod | None,
-        get: Literal[False],
-    ) -> RPCFilterRequestBuilder[HttpIO]: ...
-
-    @overload
-    def rpc(
-        self,
-        func: str,
-        params: Mapping[str, JSON],
-        *,
-        count: CountMethod | None,
-        get: Literal[True],
-    ) -> RPCFilterRequestBuilder[HttpIO]: ...
-
-    @overload
-    def rpc(
-        self,
-        func: str,
-        params: Mapping[str, JSON],
-        *,
-        count: CountMethod | None,
-        head: Literal[True],
+        count: CountMethod | None = None,
+        get: bool = False,
     ) -> RPCCountRequestBuilder[HttpIO]: ...
 
     @overload
@@ -175,9 +129,9 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         func: str,
         params: Mapping[str, JSON],
         *,
-        head: bool = ...,
-        count: CountMethod | None = ...,
-        get: bool = ...,
+        head: bool,
+        count: CountMethod | None = None,
+        get: bool = False,
     ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]: ...
 
     def rpc(
