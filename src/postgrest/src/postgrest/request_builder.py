@@ -48,6 +48,7 @@ from .types import (
     Filters,
     FilterValue,
     Mutation,
+    RequestBody,
     ResponseShape,
     ReturnMethod,
     TextSearchType,
@@ -55,6 +56,8 @@ from .types import (
 from .utils import (
     _in_members,
     _quote,
+    _row_payload,
+    _rows_payload,
     _rpc_query_param,
     _sanitize_array_param,
     _sanitize_column,
@@ -1292,7 +1295,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
     def insert(
         self,
-        json: JSON,
+        json: RequestBody,
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
@@ -1302,7 +1305,13 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """Run an INSERT query.
 
         Args:
-            json: The row to be inserted.
+            json: The row to insert, a mapping of column names to values, or
+                a list of rows. The `Insert` TypedDicts that `supabase gen
+                types --lang python` generates can be given as they are: a
+                `datetime` or a `UUID` is sent as its string and `bytes` as
+                the `\\x` hex text PostgreSQL reads for `bytea`. Raises
+                `TypeError` for a value that is neither a row nor a list of
+                rows, or that does not serialize.
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
             upsert: Whether the query should be an upsert.
@@ -1315,8 +1324,8 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             can be changed, with `select`, `single`, `maybe_single`, `csv`
             and `explain`.
         """
-        method, params, headers, json = pre_insert(
-            json,
+        method, params, headers, body = pre_insert(
+            _rows_payload(json, "insert"),
             count=count,
             returning=returning,
             upsert=upsert,
@@ -1328,7 +1337,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query=params,
             method=method,
             headers=headers,
-            body=json,
+            body=body,
         )
         return QueryRequestBuilder(
             executor=self.executor,
@@ -1339,7 +1348,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
     def upsert(
         self,
-        json: JSON,
+        json: RequestBody,
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
@@ -1350,7 +1359,8 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """Run an upsert (INSERT ... ON CONFLICT DO UPDATE) query.
 
         Args:
-            json: The row to be inserted.
+            json: The row to insert, a mapping of column names to values, or
+                a list of rows, serialized as `insert()` does.
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
             ignore_duplicates: Whether duplicate rows should be ignored.
@@ -1365,8 +1375,8 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             can be changed, with `select`, `single`, `maybe_single`, `csv`
             and `explain`.
         """
-        method, params, headers, json = pre_upsert(
-            json,
+        method, params, headers, body = pre_upsert(
+            _rows_payload(json, "upsert"),
             count=count,
             returning=returning,
             ignore_duplicates=ignore_duplicates,
@@ -1378,7 +1388,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query=params,
             method=method,
             headers=headers,
-            body=json,
+            body=body,
         )
         return QueryRequestBuilder(
             executor=self.executor,
@@ -1389,7 +1399,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
     def update(
         self,
-        json: JSON,
+        json: Mapping[str, object],
         *,
         count: CountMethod | None = None,
         returning: ReturnMethod = ReturnMethod.representation,
@@ -1397,7 +1407,8 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """Run an UPDATE query.
 
         Args:
-            json: The updated fields.
+            json: The updated fields, a mapping of column names to values,
+                serialized as `insert()` does.
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
         Returns:
@@ -1405,8 +1416,8 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             raises `ValueError` before anything is sent, since it would
             update every row in the table. Call `all()` to do so on purpose.
         """
-        method, params, headers, json = pre_update(
-            json,
+        method, params, headers, body = pre_update(
+            _row_payload(json, "update"),
             count=count,
             returning=returning,
         )
@@ -1415,7 +1426,7 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query=params,
             method=method,
             headers=headers,
-            body=json,
+            body=body,
             filter_required_by=Mutation.UPDATE,
         )
         return MutationRequestBuilder(

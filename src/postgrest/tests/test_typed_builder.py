@@ -361,6 +361,10 @@ class TestShapes:
         assert executor.only_request.shape is ResultShape.GEOJSON
 
 
+class Cover(BaseModel):
+    data: bytes
+
+
 class Insert(BaseModel):
     title: str
     published_on: date | None = None
@@ -413,6 +417,22 @@ class TestWrites:
         assert executor.requests[1].payload == [
             {"title": "y", "published_on": "2020-01-02"}
         ]
+
+    def test_insert_sends_bytes_as_hex_for_bytea(self) -> None:
+        _, executor = books(TableResult())
+        legacy = TypedQueryBuilder(
+            Table[dict[str, Any], Any, Any]("books", dict), executor
+        )
+
+        legacy.insert({"cover": b"\x00\xff"}).execute()
+        legacy.insert(row for row in [{"cover": bytearray(b"ab")}]).execute()
+        legacy.update({"cover": memoryview(b"ab")}).all().execute()
+        legacy.insert(Cover(data=b"\x00\xff")).execute()
+
+        assert executor.requests[0].payload == {"cover": "\\x00ff"}
+        assert executor.requests[1].payload == [{"cover": "\\x6162"}]
+        assert executor.requests[2].payload == {"cover": "\\x6162"}
+        assert executor.requests[3].payload == {"data": "\\x00ff"}
 
     @pytest.mark.parametrize(
         "rows", ["title", 7, [1], [{"title": "x"}, "y"], object(), [object()]]

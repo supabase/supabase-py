@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
 
 FilterValue = str | int | float | bool
+
+type RequestBody = Mapping[str, object] | Sequence[Mapping[str, object]]
+"""The body of an insert or an upsert: one row, a mapping of column names to
+values, or a list of rows.
+
+A type checker sees a TypedDict, such as the `Insert` and `Update` types
+`supabase gen types --lang python` generates, as `Mapping[str, object]`,
+which `JSON` does not cover. The values are serialized the way pydantic
+serializes them, so a `datetime` or a `UUID` is sent as its string, and
+`bytes` as the `\\x` hex text PostgreSQL reads for `bytea`.
+"""
 
 
 class CountMethod(StrEnum):

@@ -2,13 +2,19 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
-    from collections.abc import Iterable
+from pydantic import TypeAdapter
+from pydantic_core import PydanticSerializationError, to_jsonable_python
+from supabase_utils.types import JSONParser
 
+if TYPE_CHECKING:
+    from supabase_utils.types import JSON
     from yarl import URL
+
+_PYTHON: TypeAdapter[Any] = TypeAdapter(Any)
 
 
 def _serialize_filter_value(value: Any) -> str:
@@ -32,6 +38,67 @@ def _serialize_filter_value(value: Any) -> str:
             value = value.replace(tzinfo=UTC)
         return value.isoformat()
     return str(value)
+
+
+def _hex_bytes(value: object) -> object:
+    """`value`, dumped to plain Python, with every `bytes` in it as the `\\x`
+    hex text PostgreSQL reads for `bytea`, which pydantic would otherwise
+    send decoded as UTF-8."""
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return "\\x" + bytes(value).hex()
+    if isinstance(value, Mapping):
+        mapping: Mapping[object, object] = value
+        return {key: _hex_bytes(item) for key, item in mapping.items()}
+    if isinstance(value, Iterable) and not isinstance(value, str):
+        items: Iterable[object] = value
+        return [_hex_bytes(item) for item in items]
+    return value
+
+
+def _jsonable(value: object, error: str) -> JSON:
+    """`value` as plain JSON, serialized the way pydantic serializes it, so a
+    `datetime` or a `UUID` becomes its string, with `bytes` as the `\\x` hex
+    text PostgreSQL reads for `bytea`, or `TypeError` with `error` when it
+    cannot be.
+
+    Pydantic first dumps the value to plain Python, so a model or a
+    dataclass becomes a mapping and the `bytes` it holds are reached.
+    """
+    try:
+        plain = _hex_bytes(_PYTHON.dump_python(value, mode="python"))
+        jsonable = to_jsonable_python(plain)
+    except PydanticSerializationError as cause:
+        raise TypeError(error) from cause
+    return JSONParser.validate_python(jsonable)
+
+
+def _rows_payload(rows: object, method: str) -> JSON:
+    """`rows` as the payload of the write `method`: one JSON object for a
+    row, a list of them for an iterable of rows, or `TypeError`."""
+    error = (
+        f"{method}() takes a row, a mapping of column names to values, or an "
+        "iterable of rows"
+    )
+    payload = _jsonable(rows, error)
+    if isinstance(payload, Mapping):
+        return payload
+    if (
+        isinstance(payload, Sequence)
+        and not isinstance(payload, str)
+        and all(isinstance(row, Mapping) for row in payload)
+    ):
+        return list(payload)
+    raise TypeError(error)
+
+
+def _row_payload(values: object, method: str) -> JSON:
+    """`values` as the payload of the write `method`: one JSON object, or
+    `TypeError`."""
+    error = f"{method}() takes a mapping of column names to values"
+    payload = _jsonable(values, error)
+    if isinstance(payload, Mapping):
+        return payload
+    raise TypeError(error)
 
 
 def _in_members(values: Iterable[Any]) -> tuple[Any, ...]:

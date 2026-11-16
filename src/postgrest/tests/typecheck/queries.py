@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Any, Never, NotRequired, TypedDict, assert_type
+from uuid import UUID
 
 from httpx import AsyncClient, Client
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
@@ -193,6 +194,24 @@ titles.upsert({"title": "x"})  # error:
 titles.update({"title": "x"})  # error:
 titles.delete().all()  # error:
 titles.delete().where(BookTitles.id.eq(1))  # error:
+
+legacy = sync_client.table("books")
+insert_row: BooksInsert = {"title": "x", "published_on": date(2024, 5, 1)}
+update_row: BooksUpdate = {"title": "y"}
+legacy.insert(insert_row)
+legacy.insert([insert_row, {"title": "y"}])
+legacy.insert((insert_row, {"title": "y"}))
+legacy.insert({"title": "x"})
+legacy.insert({"id": UUID(int=1), "cover": b"ab"})
+legacy.upsert(insert_row)
+legacy.upsert([insert_row, {"title": "y"}])
+legacy.update(update_row)
+legacy.update({"id": UUID(int=1), "cover": b"ab"})
+legacy.insert(date(2024, 5, 1))  # error:
+legacy.insert("x")  # error:
+legacy.insert([1, 2])  # error:
+legacy.update(UUID(int=1))  # error:
+legacy.update([update_row])  # error:
 
 
 async def main() -> None:

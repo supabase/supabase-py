@@ -1,4 +1,9 @@
+from datetime import UTC, date, datetime
+from typing import Annotated, NotRequired, TypedDict
+from uuid import UUID, uuid4
+
 import pytest
+from pydantic import Field
 
 from postgrest import AsyncPostgrestClient, CountMethod
 from postgrest.exceptions import APIError
@@ -848,3 +853,54 @@ async def test_eq_on_a_json_path(
     )
 
     assert res.data == [{"id": 1}]
+
+
+class FilesInsert(TypedDict):
+    id: NotRequired[Annotated[UUID, Field(alias="id")]]
+    name: Annotated[str, Field(alias="name")]
+    content: NotRequired[Annotated[bytes | None, Field(alias="content")]]
+    uploaded_at: NotRequired[Annotated[datetime | None, Field(alias="uploaded_at")]]
+    uploaded_on: NotRequired[Annotated[date | None, Field(alias="uploaded_on")]]
+
+
+class FilesUpdate(TypedDict, total=False):
+    name: Annotated[str, Field(alias="name")]
+    content: Annotated[bytes | None, Field(alias="content")]
+
+
+async def test_writes_of_a_generated_row_round_trip(
+    postgrest_client: AsyncPostgrestClient,
+) -> None:
+    file_id = uuid4()
+    row: FilesInsert = {
+        "id": file_id,
+        "name": "notes.txt",
+        "content": b"\x00\xffab",
+        "uploaded_at": datetime(2024, 5, 1, 12, 30, tzinfo=UTC),
+        "uploaded_on": date(2024, 5, 1),
+    }
+    files = postgrest_client.from_("files")
+    try:
+        inserted = await files.insert(row).execute()
+        assert inserted.data == [
+            {
+                "id": str(file_id),
+                "name": "notes.txt",
+                "content": "\\x00ff6162",
+                "uploaded_at": "2024-05-01T12:30:00+00:00",
+                "uploaded_on": "2024-05-01",
+            }
+        ]
+
+        changes: FilesUpdate = {"content": b"xy"}
+        updated = await files.update(changes).eq("id", str(file_id)).execute()
+        assert updated.data == [{**inserted.data[0], "content": "\\x7879"}]
+
+        upserted = await (
+            files.upsert({"id": file_id, "name": "renamed.txt", "content": None})
+            .select("name, content")
+            .execute()
+        )
+        assert upserted.data == [{"name": "renamed.txt", "content": None}]
+    finally:
+        await files.delete().eq("id", str(file_id)).execute()
