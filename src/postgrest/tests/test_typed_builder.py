@@ -1,13 +1,13 @@
 from collections.abc import Awaitable, Iterator
-from dataclasses import FrozenInstanceError, dataclass, field
+from dataclasses import FrozenInstanceError, dataclass, field, replace
 from datetime import date
-from typing import Any
+from typing import Annotated, Any, NotRequired, TypedDict
 
 import pytest
 from httpx import AsyncClient, Client, MockTransport
 from httpx import Request as HttpxRequest
 from httpx import Response as HttpxResponse
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.retry import RetryPolicy
 
@@ -85,6 +85,12 @@ class AsyncRecording:
 def books(result: TableResult = ROWS) -> tuple[SyncBooks, Recording]:
     executor = Recording(result)
     return TypedQueryBuilder(Books.table, executor), executor
+
+
+def untyped_books() -> tuple[SyncBooks, Recording]:
+    executor = Recording(TableResult())
+    table = replace(Books.table, insert_type=None, update_type=None)
+    return TypedQueryBuilder(table, executor), executor
 
 
 def request(operation: TableOperation, **fields: Any) -> TableRequest:
@@ -370,6 +376,25 @@ class Insert(BaseModel):
     published_on: date | None = None
 
 
+class TicketsRow(BaseModel):
+    victory_road: Annotated[str, Field(alias="victory road")]
+
+
+class TicketsInsert(TypedDict):
+    victory_road: Annotated[str, Field(alias="victory road")]
+    day: NotRequired[date]
+
+
+class TicketsUpdate(TypedDict, total=False):
+    victory_road: Annotated[str, Field(alias="victory road")]
+
+
+class Tickets:
+    table = Table(
+        "tickets", TicketsRow, insert_type=TicketsInsert, update_type=TicketsUpdate
+    )
+
+
 class TestWrites:
     def test_insert_sends_one_row_silently(self) -> None:
         builder, executor = books(TableResult())
@@ -438,10 +463,68 @@ class TestWrites:
         "rows", ["title", 7, [1], [{"title": "x"}, "y"], object(), [object()]]
     )
     def test_insert_rejects_what_is_not_a_row(self, rows: Any) -> None:
-        builder, _ = books()
+        builder, _ = untyped_books()
 
         with pytest.raises(TypeError, match="insert\\(\\) takes a row"):
             builder.insert(rows)
+
+    @pytest.mark.parametrize(
+        ("rows", "location"),
+        [
+            ("title", ()),
+            (7, ()),
+            ({"pages": 1}, ("title",)),
+            ({"title": 1}, ("title",)),
+            ({"title": "x", "author": "y"}, ("author",)),
+            ([{"title": "x"}, {"title": "y", "pages": "many"}], (1, "pages")),
+            (iter([{"title": "x"}, {"titel": "y"}]), (1, "title")),
+        ],
+        ids=["text", "number", "missing", "wrong type", "unknown", "list", "iterator"],
+    )
+    def test_insert_rejects_a_row_the_insert_type_does_not_validate(
+        self, rows: Any, location: tuple[int | str, ...]
+    ) -> None:
+        builder, executor = books()
+
+        with pytest.raises(ValidationError) as raised:
+            builder.insert(rows)
+
+        assert raised.value.errors()[0]["loc"] == location
+        assert executor.requests == []
+
+    def test_upsert_rejects_a_row_the_insert_type_does_not_validate(self) -> None:
+        builder, _ = books()
+        rows: Any = [{"title": "x"}, {"title": 1}]
+
+        with pytest.raises(ValidationError, match="title"):
+            builder.upsert(rows)
+
+    def test_insert_keeps_left_out_columns_out_and_sends_none_as_null(self) -> None:
+        builder, executor = books(TableResult())
+
+        builder.insert([{"title": "x", "isbn": None}, {"title": "y"}]).execute()
+
+        assert executor.only_request.payload == [
+            {"title": "x", "isbn": None},
+            {"title": "y"},
+        ]
+
+    def test_writes_send_an_aliased_key_under_its_column_name(self) -> None:
+        executor = Recording(TableResult())
+        tickets = TypedQueryBuilder(Tickets.table, executor)
+
+        tickets.insert({"victory_road": "x", "day": date(2020, 1, 2)}).execute()
+        by_column_name: Any = [{"victory road": "y"}]
+        tickets.insert(by_column_name).execute()
+        tickets.upsert({"victory_road": "z"}).execute()
+        tickets.update({"victory_road": "w"}).all().execute()
+
+        assert [request.payload for request in executor.requests] == [
+            {"victory road": "x", "day": "2020-01-02"},
+            [{"victory road": "y"}],
+            {"victory road": "z"},
+            {"victory road": "w"},
+        ]
 
     def test_insert_returns_the_rows_with_select(self) -> None:
         builder, executor = books()
@@ -523,10 +606,36 @@ class TestWrites:
 
     @pytest.mark.parametrize("values", [[{"title": "x"}], object()])
     def test_update_rejects_what_is_not_a_row(self, values: Any) -> None:
-        builder, _ = books()
+        builder, _ = untyped_books()
 
         with pytest.raises(TypeError, match="update\\(\\) takes a mapping"):
             builder.update(values)
+
+    @pytest.mark.parametrize(
+        ("values", "location"),
+        [
+            ([{"title": "x"}], ()),
+            ({"title": 1}, ("title",)),
+            ({"titel": "x"}, ("titel",)),
+        ],
+        ids=["list", "wrong type", "unknown"],
+    )
+    def test_update_rejects_values_the_update_type_does_not_validate(
+        self, values: Any, location: tuple[str, ...]
+    ) -> None:
+        builder, _ = books()
+
+        with pytest.raises(ValidationError) as raised:
+            builder.update(values)
+
+        assert raised.value.errors()[0]["loc"] == location
+
+    def test_update_sends_none_as_null(self) -> None:
+        builder, executor = books(TableResult())
+
+        builder.update({"isbn": None}).all().execute()
+
+        assert executor.only_request.payload == {"isbn": None}
 
     def test_update_returns_the_rows_with_select(self) -> None:
         builder, executor = books()

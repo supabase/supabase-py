@@ -8,7 +8,7 @@ from pydantic import TypeAdapter
 from supabase_utils.types import JSON
 
 from .partial_row import PartialRow
-from .table import Table, _rows_adapter
+from .table import Table, _insert_payload, _rows_adapter, _update_payload
 from .table_executor import _WRITES, AsyncTableExecutor, TableExecutor
 from .table_request import (
     ExplainOptions,
@@ -18,7 +18,6 @@ from .table_request import (
     TableResult,
 )
 from .types import CountMethod
-from .utils import _row_payload, _rows_payload
 
 if TYPE_CHECKING:
     from supabase_utils.http.retry import RetryPolicy
@@ -511,15 +510,17 @@ class TypedQueryBuilder[
         when another row of the same request sets it; `None` writes `NULL`.
         Values are serialized the way pydantic serializes them, so a `date`
         or a `UUID` can be given as it is, and `bytes` is sent as the `\\x`
-        hex text PostgreSQL reads for `bytea`.
+        hex text PostgreSQL reads for `bytea`. On a table with an
+        `insert_type`, every row is validated against it and sent by alias.
 
         The request resolves to `None`; a trailing `select()` returns the
-        inserted rows instead. Raises `TypeError` for a payload that is
-        neither a row nor an iterable of rows.
+        inserted rows instead. Raises `pydantic.ValidationError` for a row
+        that does not validate against the `insert_type`, and `TypeError`
+        for a payload that is neither a row nor an iterable of rows.
         """
         request = replace(
             self._request(TableOperation.INSERT),
-            payload=_rows_payload(rows, "insert"),
+            payload=_insert_payload(self.table, rows, "insert"),
             shape=ResultShape.NONE,
         )
         return TypedTransformBuilder(request, self.executor, _none)
@@ -551,7 +552,7 @@ class TypedQueryBuilder[
             raise ValueError("on_conflict needs at least one column")
         request = replace(
             self._request(TableOperation.UPSERT),
-            payload=_rows_payload(rows, "upsert"),
+            payload=_insert_payload(self.table, rows, "upsert"),
             shape=ResultShape.NONE,
             on_conflict=conflict,
             ignore_duplicates=ignore_duplicates,
@@ -565,12 +566,15 @@ class TypedQueryBuilder[
             client.table(Books.table).update({"title": "x"}).where(Books.id.eq(1)).execute()
 
         Nothing is sent before one of them is called. The request resolves to
-        `None`; a trailing `select()` returns the updated rows instead.
-        Raises `TypeError` for `values` that is not a mapping.
+        `None`; a trailing `select()` returns the updated rows instead. On a
+        table with an `update_type`, `values` is validated against it and
+        sent by alias. Raises `pydantic.ValidationError` for `values` that
+        does not validate against the `update_type`, and `TypeError` for
+        `values` that is not a mapping.
         """
         request = replace(
             self._request(TableOperation.UPDATE),
-            payload=_row_payload(values, "update"),
+            payload=_update_payload(self.table, values),
             shape=ResultShape.NONE,
         )
         return TypedMutationBuilder(request, self.executor)

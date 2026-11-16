@@ -24,7 +24,7 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-  "pydantic >=2,<3",
+  "pydantic >=2.12,<3",
   "yarl>=1.20.1",
   "supabase_utils==3.0.0-a1", # x-release-please-version
   "typing-extensions>=4.12.0",
