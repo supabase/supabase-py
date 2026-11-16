@@ -9,6 +9,7 @@ import time
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, Self, TypeGuard, override
+from urllib.parse import parse_qsl
 
 from jwt import get_algorithm_by_name
 from pydantic import BaseModel
@@ -101,8 +102,16 @@ if TYPE_CHECKING:
     from supabase_utils.types import JSON
 
 
+def _parse_url_params(url: URL) -> dict[str, str]:
+    """The implicit grant returns its tokens in the fragment. The query is
+    read as a fallback and wins over the fragment, as in supabase-js."""
+    params = dict(parse_qsl(url.raw_fragment, keep_blank_values=True))
+    params.update(url.query)
+    return params
+
+
 def _is_implicit_grant_flow(url: URL) -> bool:
-    params = url.query
+    params = _parse_url_params(url)
     return "access_token" in params or "error_description" in params
 
 
@@ -610,7 +619,7 @@ class SupabaseAuthHttpClient[
         result = URL(url)
         if not _is_implicit_grant_flow(result):
             raise AuthImplicitGrantRedirectError("Not a valid implicit grant flow url.")
-        params = result.query
+        params = _parse_url_params(result)
         error_description = params.get("error_description")
         if error_description:
             error_code = params.get("error_code")
