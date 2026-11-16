@@ -6,7 +6,7 @@ from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from supabase_utils.http.request import validate_request_timeout
 from supabase_utils.http.retry import RetryPolicy
 
-from .client import AsyncClient
+from .client import AsyncClient, _validate_string_argument
 from .types import (
     AuthClientOptions,
     FunctionsClientOptions,
@@ -36,6 +36,8 @@ def create_async_client(
     client. An `http_client` passed in is left open. See `AsyncClient` for the
     other arguments.
     """
+    _validate_string_argument("supabase_url", supabase_url)
+    _validate_string_argument("supabase_key", supabase_key)
     validate_request_timeout(request_timeout)
     client = AsyncClient(
         supabase_url,
