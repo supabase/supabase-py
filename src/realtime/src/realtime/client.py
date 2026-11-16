@@ -16,7 +16,6 @@ from .channel import QueuedMessage, RealtimeChannel, RealtimeChannelOptions
 from .exceptions import (
     AuthorizationError,
     NotConnectedError,
-    RealtimeError,
     RealtimeTimeoutError,
 )
 from .message import ErrorReplyMessage, Message, ReplyMessage
@@ -63,6 +62,8 @@ async def _wait_or_raise(
 
 def _publish[T](listeners: set[asyncio.Queue[T]], value: T) -> None:
     for queue in listeners:
+        if queue.full():
+            queue.get_nowait()
         queue.put_nowait(value)
 
 
@@ -262,9 +263,13 @@ class RealtimeClient:
         moves to, until the caller stops iterating.
 
         A dropped connection moves to `ConnectionState.CLOSED`, and to
-        `ConnectionState.CONNECTING` again when the client reconnects.
+        `ConnectionState.CONNECTING` again when the client reconnects. At most
+        ``max_queued_messages`` states are kept until they are read; older ones
+        are dropped.
         """
-        queue: asyncio.Queue[ConnectionState] = asyncio.Queue()
+        queue: asyncio.Queue[ConnectionState] = asyncio.Queue(
+            maxsize=self.max_queued_messages
+        )
         self._connection_state_listeners.add(queue)
         try:
             yield self._connection_state
@@ -282,9 +287,12 @@ class RealtimeClient:
         when the server acknowledges it. An error reply yields
         `HeartbeatStatus.ERROR`, and no reply within ``heartbeat_timeout``
         yields `HeartbeatStatus.TIMEOUT`. Both drop the connection, which the
-        client then reopens.
+        client reopens when a channel is joined. At most ``max_queued_messages``
+        statuses are kept until they are read; older ones are dropped.
         """
-        queue: asyncio.Queue[HeartbeatStatus] = asyncio.Queue()
+        queue: asyncio.Queue[HeartbeatStatus] = asyncio.Queue(
+            maxsize=self.max_queued_messages
+        )
         self._heartbeat_listeners.add(queue)
         try:
             while True:
@@ -481,28 +489,23 @@ class RealtimeClient:
                 )
                 logger.info("sending heartbeat")
                 _publish(self._heartbeat_listeners, HeartbeatStatus.SENT)
-                try:
-                    res = await self._send(data, reply_timeout=self.heartbeat_timeout)
-                except TimeoutError:
-                    _publish(self._heartbeat_listeners, HeartbeatStatus.TIMEOUT)
-                    raise
+                res = await self._send(data, reply_timeout=self.heartbeat_timeout)
                 logger.info("heartbeat response: %r", res)
                 if isinstance(res.payload, ErrorReplyMessage):
                     _publish(self._heartbeat_listeners, HeartbeatStatus.ERROR)
-                    self._fail_connection(
-                        failure,
-                        RealtimeError(
-                            "the server replied to a heartbeat with an error: "
-                            f"{res.payload.response!r}"
-                        ),
+                    raise NotConnectedError(
+                        "RealtimeClient.heartbeats",
+                        "the server replied to a heartbeat with an error: "
+                        f"{res.payload.response!r}",
                     )
-                    return
                 _publish(self._heartbeat_listeners, HeartbeatStatus.OK)
                 await self._refresh_token_after_heartbeat()
                 await asyncio.sleep(self.heartbeat_interval)
         except asyncio.CancelledError:
             return
-        except (TimeoutError, websockets.ConnectionClosed) as exc:
+        except Exception as exc:
+            if isinstance(exc, TimeoutError):
+                _publish(self._heartbeat_listeners, HeartbeatStatus.TIMEOUT)
             self._fail_connection(failure, exc)
 
     async def _refresh_token_after_heartbeat(self) -> None:

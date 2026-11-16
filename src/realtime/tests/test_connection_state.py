@@ -95,6 +95,21 @@ async def test_connection_states_yields_the_current_state_first(
         await client.aclose()
 
 
+async def test_unread_states_are_bounded(ok_server: HeartbeatServer) -> None:
+    client = RealtimeClient(ok_server.url, max_queued_messages=2)
+    states = client.connection_states()
+    await anext(states)
+
+    await client.connect()
+    await client.aclose()
+
+    assert await take(states, 2) == [
+        ConnectionState.CONNECTED,
+        ConnectionState.CLOSED,
+    ]
+    await states.aclose()
+
+
 async def test_failed_connect_moves_back_to_closed() -> None:
     with socket.socket() as unused:
         unused.bind((HOST, 0))
