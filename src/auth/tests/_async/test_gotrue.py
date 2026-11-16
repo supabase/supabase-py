@@ -890,6 +890,12 @@ async def test_sign_out_when_logout_request_fails(
         ("global", (400, {"msg": "invalid refresh token"}), None, True),
         ("local", (400, {"msg": "invalid refresh token"}), None, True),
         ("others", (400, {"msg": "invalid refresh token"}), AuthApiError, False),
+        ("global", (429, {"msg": "rate limited"}), AuthApiError, False),
+        ("local", (429, {"msg": "rate limited"}), AuthApiError, True),
+        ("others", (429, {"msg": "rate limited"}), AuthApiError, False),
+        ("global", (500, {"msg": "server error"}), AuthApiError, False),
+        ("local", (500, {"msg": "server error"}), AuthApiError, True),
+        ("others", (500, {"msg": "server error"}), AuthApiError, False),
     ],
 )
 async def test_sign_out_when_refresh_fails(

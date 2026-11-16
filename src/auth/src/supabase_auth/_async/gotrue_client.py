@@ -814,7 +814,12 @@ class AsyncGoTrueClient(AsyncGoTrueBaseAPI):
             session = await self.get_session()
         except AuthSessionMissingError:
             session = None
-        except AuthApiError:
+        except AuthApiError as error:
+            if error.status == 429 or (error.status is not None and error.status >= 500):
+                if scope == "local":
+                    await self._remove_session()
+                    self._notify_all_subscribers("SIGNED_OUT", None)
+                raise
             # The refresh was rejected, so there is no session left to revoke.
             # The other sessions could not be revoked either.
             if scope == "others":
