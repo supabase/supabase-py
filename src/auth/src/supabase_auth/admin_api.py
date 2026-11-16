@@ -403,7 +403,8 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
     def iter_users(self, per_page: int | None = None) -> Iterator[User]:
         """
         Iterate over every user, fetching one page at a time as the iteration
-        reaches it.
+        reaches it. Pages are numbered, so users created or deleted while
+        iterating can shift the pages and be skipped or returned twice.
 
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
@@ -412,7 +413,10 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
         while page is not None:
             result = self.list_users(page=page, per_page=per_page)
             yield from result.users
-            page = result.next_page if result.users else None
+            next_page = result.next_page
+            page = (
+                next_page if result.users and next_page and next_page > page else None
+            )
 
     def __enter__(self) -> Self:
         self.executor.session.__enter__()
@@ -450,7 +454,8 @@ class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
     async def aiter_users(self, per_page: int | None = None) -> AsyncIterator[User]:
         """
         Iterate over every user, fetching one page at a time as the iteration
-        reaches it.
+        reaches it. Pages are numbered, so users created or deleted while
+        iterating can shift the pages and be skipped or returned twice.
 
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
@@ -460,7 +465,10 @@ class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
             result = await self.list_users(page=page, per_page=per_page)
             for user in result.users:
                 yield user
-            page = result.next_page if result.users else None
+            next_page = result.next_page
+            page = (
+                next_page if result.users and next_page and next_page > page else None
+            )
 
     async def __aenter__(self) -> Self:
         await self.executor.session.__aenter__()

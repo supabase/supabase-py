@@ -131,7 +131,8 @@ def _validate_paginated_model[Model: Pagination](
     response: Response, model: type[Model]
 ) -> Model:
     result = _validate_model(response, model)
-    if total := response.headers.get("x-total-count"):
+    total = (response.headers.get("x-total-count") or "").strip()
+    if total.isdigit():
         result.total = int(total)
     for link in (response.headers.get("link") or "").split(","):
         target, _, parameters = link.partition(";")

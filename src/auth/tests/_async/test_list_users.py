@@ -117,8 +117,48 @@ async def test_iter_users_fetches_every_page_lazily() -> None:
     ] == [("1", "2"), ("2", "2"), ("3", "2")]
 
 
-async def test_iter_users_stops_on_an_empty_page() -> None:
-    client, requests = admin_client([[]])
+async def test_iter_users_stops_on_an_empty_page_with_a_next_link() -> None:
+    client, requests = admin_client([[], [user(1)]])
 
     assert await anext(client.aiter_users(), None) is None
     assert len(requests) == 1
+
+
+async def test_iter_users_stops_when_the_next_page_does_not_advance() -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(
+            200,
+            json={"users": [user(1)]},
+            headers={"link": '</admin/users?page=1>; rel="next"'},
+        )
+
+    client = AsyncSupabaseAuthAdmin(
+        url="https://example.supabase.co/auth/v1",
+        http_session=AsyncHttpxSession(
+            client=AsyncClient(transport=MockTransport(handler))
+        ),
+    )
+
+    assert [item.email async for item in client.aiter_users()] == ["user1@example.com"]
+    assert len(requests) == 1
+
+
+async def test_list_users_ignores_a_non_numeric_total() -> None:
+    def handler(_request: Request) -> Response:
+        return Response(
+            200, json={"users": [user(1)]}, headers={"x-total-count": "unknown"}
+        )
+
+    client = AsyncSupabaseAuthAdmin(
+        url="https://example.supabase.co/auth/v1",
+        http_session=AsyncHttpxSession(
+            client=AsyncClient(transport=MockTransport(handler))
+        ),
+    )
+
+    response = await client.list_users()
+
+    assert response.total == 0
