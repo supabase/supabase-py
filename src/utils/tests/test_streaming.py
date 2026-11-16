@@ -278,3 +278,48 @@ def test_file_content_iterations_keep_their_own_position() -> None:
     assert next(retried) == b"a" * CHUNK_SIZE
     assert next(abandoned) == b"b"
     assert next(retried) == b"b"
+
+
+def redirecting(bodies: list[bytes]) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(request.read())
+        if request.url.path.endswith("/items"):
+            return httpx.Response(308, headers={"Location": "/api/moved"})
+        return httpx.Response(200)
+
+    return httpx.MockTransport(handler)
+
+
+@pytest.mark.parametrize(
+    ("content", "status", "sent"),
+    [(file_content, 200, [b"hello world"] * 2), (chunks, 308, [b"hello world"])],
+)
+def test_sync_session_follows_a_body_keeping_redirect_only_with_a_replayable_body(
+    content: Callable[[], RequestContent], status: int, sent: list[bytes]
+) -> None:
+    bodies: list[bytes] = []
+    client = httpx.Client(transport=redirecting(bodies), follow_redirects=True)
+    response = SyncHttpIO(HttpxSession(client)).communicate(
+        BASE_URL, Headers.empty(), upload(post(content()))
+    )
+    assert response.status == status
+    assert bodies == sent
+
+
+@pytest.mark.parametrize(
+    ("content", "status", "sent"),
+    [
+        (file_content, 200, [b"hello world"] * 2),
+        (async_body, 308, [b"hello world"]),
+    ],
+)
+async def test_async_session_follows_a_body_keeping_redirect_only_with_a_replayable_body(
+    content: Callable[[], RequestContent], status: int, sent: list[bytes]
+) -> None:
+    bodies: list[bytes] = []
+    client = httpx.AsyncClient(transport=redirecting(bodies), follow_redirects=True)
+    response = await AsyncHttpIO(AsyncHttpxSession(client)).communicate(
+        BASE_URL, Headers.empty(), upload(post(content()))
+    )
+    assert response.status == status
+    assert bodies == sent

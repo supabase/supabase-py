@@ -1,4 +1,11 @@
-from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterable, Iterator
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterable,
+    AsyncIterator,
+    Generator,
+    Iterable,
+    Iterator,
+)
 from contextlib import asynccontextmanager, contextmanager
 from types import TracebackType
 
@@ -20,6 +27,9 @@ from ..errors import RequestTimeoutError, SupabaseTransportError
 from ..headers import Headers
 from ..redirects import CREDENTIAL_HEADERS, keeps_credentials
 from ..request import AsyncStreamedResponse, Request, Response, StreamedResponse
+from ..retry import _is_replayable
+
+_BODY_KEEPING_REDIRECTS = frozenset({307, 308})
 
 
 def to_httpx_request(req: Request) -> HttpxRequest:
@@ -29,16 +39,36 @@ def to_httpx_request(req: Request) -> HttpxRequest:
     return _httpx_request(req, content)
 
 
+class _AsyncBody:
+    """A body httpx can iterate again, as it does when it follows a redirect
+    that keeps the body, with every iteration reading `content` anew."""
+
+    def __init__(self, content: Iterable[bytes] | AsyncIterable[bytes]) -> None:
+        self.content = content
+
+    def __aiter__(self) -> AsyncIterator[bytes]:
+        return async_chunks(self.content)
+
+
 def to_async_httpx_request(req: Request) -> HttpxRequest:
     content = req.content
     if content is not None and not isinstance(content, bytes):
-        content = async_chunks(content)
+        content = _AsyncBody(content)
     return _httpx_request(req, content)
+
+
+def _follows(request: Request, response: HttpxResponse) -> bool:
+    """Whether to follow the redirect `response` answers `request` with. A
+    redirect that sends the body again is not followed for a body that can be
+    sent only once, so the caller gets the redirect response instead."""
+    return response.status_code not in _BODY_KEEPING_REDIRECTS or _is_replayable(
+        request
+    )
 
 
 def _httpx_request(
     req: Request,
-    content: bytes | Iterable[bytes] | AsyncIterator[bytes] | None,
+    content: bytes | Iterable[bytes] | AsyncIterable[bytes] | None,
 ) -> HttpxRequest:
     return HttpxRequest(
         method=req.method,
@@ -142,7 +172,11 @@ class HttpxSession:
             stream=stream,
         )
         redirects = 0
-        while self.client.follow_redirects and (next_request := response.next_request):
+        while (
+            self.client.follow_redirects
+            and (next_request := response.next_request)
+            and _follows(request, response)
+        ):
             redirects += 1
             response.close()
             response = self.client.send(
@@ -211,7 +245,11 @@ class AsyncHttpxSession:
             stream=stream,
         )
         redirects = 0
-        while self.client.follow_redirects and (next_request := response.next_request):
+        while (
+            self.client.follow_redirects
+            and (next_request := response.next_request)
+            and _follows(request, response)
+        ):
             redirects += 1
             await response.aclose()
             response = await self.client.send(
