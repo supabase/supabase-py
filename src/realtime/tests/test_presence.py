@@ -678,3 +678,27 @@ def test_a_channel_that_gives_up_rejoining_ends_its_presence_state() -> None:
     assert leave == PresenceLeave("k", [], [Presence(presence_ref="A")])
     assert sync == PresenceSync()
     assert getattr(failed, "error", None) is error
+
+
+async def test_a_new_subscribe_drops_an_earlier_failure_but_keeps_presence_events(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    channel = joined_channel(enabled=True)
+    _listener = channel.presence_events()
+    receive_state(channel, {"k": {"metas": [meta("A")]}})
+    queued_events(channel)
+    channel.state = ChannelStates.CLOSED
+    await channel.unsubscribe()
+    channel._fail(RealtimeError("old"))
+
+    async def send(message: Message) -> ReplyMessage:
+        raise RuntimeError("stop")
+
+    monkeypatch.setattr(channel.socket, "_send", send)
+    with pytest.raises(RuntimeError):
+        await channel._join(channel._subscribe_attempt, clear_messages=True)
+
+    assert queued_events(channel) == [
+        PresenceLeave("k", [], [Presence(presence_ref="A")]),
+        PresenceSync(),
+    ]

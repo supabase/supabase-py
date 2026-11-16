@@ -404,6 +404,11 @@ class RealtimeChannel:
         if clear_messages:
             while not self.message_stream.empty():
                 self.message_stream.get_nowait()
+            for queue in self._presence_listeners:
+                events = [queue.get_nowait() for _ in range(queue.qsize())]
+                for event in events:
+                    if not isinstance(event, _ChannelFailed):
+                        queue.put_nowait(event)
         options = replace(self.options, presence_enabled=self._presence_enabled)
         if self.socket.last_token is not None:
             options = replace(options, token=self.socket.last_token)
