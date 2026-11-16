@@ -219,6 +219,74 @@ async def test_the_tracked_presence_is_tracked_again(server: FakeServer) -> None
     ]
 
 
+async def test_a_presence_tracked_before_unsubscribe_is_not_tracked_again(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    other = client.channel("other")
+    await other.subscribe()
+    await channel.subscribe()
+    await channel.track({"user": "a"})
+    await channel.unsubscribe()
+    await channel.subscribe()
+
+    await server.drop_connections()
+    await next_message(channel)
+    await next_message(channel)
+    await asyncio.sleep(0.05)
+    await client.aclose()
+
+    assert len(server.sent(ChannelEvents.presence)) == 1
+
+
+async def test_the_token_is_fetched_once_for_all_rejoins(server: FakeServer) -> None:
+    calls = 0
+
+    async def get_token() -> str:
+        nonlocal calls
+        calls += 1
+        return "token"
+
+    client = RealtimeClient(server.url, get_token)
+    channels = [client.channel(f"room-{index}") for index in range(3)]
+    for channel in channels:
+        await channel.subscribe()
+    calls_before = calls
+
+    await server.drop_connections()
+    for channel in channels:
+        await next_message(channel)
+        await next_message(channel)
+    await client.aclose()
+
+    assert calls - calls_before < 2 + len(channels)
+
+
+async def test_a_reader_of_a_closed_channel_sees_the_dropped_connection(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    await channel.subscribe()
+    close = Message(
+        event=ChannelEvents.close,
+        topic=channel.topic,
+        payload={},
+        ref=channel.join_ref,
+        join_ref=channel.join_ref,
+    )
+    await server.connections[-1].send(encode(close))
+    await next_message(channel)
+
+    await server.drop_connections()
+    with pytest.raises(ConnectionClosed):
+        await next_message(channel)
+    await client.aclose()
+
+    assert len(server.connections) == 1
+
+
 async def test_a_transient_join_error_is_retried(server: FakeServer) -> None:
     client = RealtimeClient(server.url)
     channel = client.channel("room")

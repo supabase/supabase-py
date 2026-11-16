@@ -1,11 +1,11 @@
 import asyncio
 import logging
-import random
 from collections.abc import Awaitable, Callable, Generator
 from types import TracebackType
 from warnings import warn
 
 import websockets
+from supabase_utils.http.retry import RetryPolicy
 from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import InvalidStatus
 from yarl import URL
@@ -122,7 +122,9 @@ class connect_once:
 
 RECONNECT_BASE_DELAY = 1.0
 MAX_RECONNECT_DELAY = 30.0
-_MAX_BACKOFF_EXPONENT = 30
+_RECONNECT_BACKOFF = RetryPolicy(
+    base_delay=RECONNECT_BASE_DELAY, max_delay=MAX_RECONNECT_DELAY, jitter=1.0
+)
 
 
 def reconnect_delay(attempt: int) -> float:
@@ -132,10 +134,7 @@ def reconnect_delay(attempt: int) -> float:
     Full jitter: a random wait between 0 and the exponential backoff, which
     doubles from `RECONNECT_BASE_DELAY` and is capped at `MAX_RECONNECT_DELAY`.
     """
-    exponent = min(max(attempt - 1, 0), _MAX_BACKOFF_EXPONENT)
-    return random.uniform(
-        0, min(MAX_RECONNECT_DELAY, RECONNECT_BASE_DELAY * 2**exponent)
-    )
+    return _RECONNECT_BACKOFF.backoff(attempt)
 
 
 def _refused_with(error: Exception) -> int | None:
@@ -372,6 +371,16 @@ class RealtimeClient:
                 logger.warning("could not reconnect: %r", exc)
                 continue
             refused = False
+            try:
+                await self._refresh_token()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning(
+                    "could not refresh the access token to rejoin: %s",
+                    type(exc).__name__,
+                )
+                continue
             await asyncio.gather(
                 *(channel._rejoin() for channel in self._channels_to_rejoin())
             )

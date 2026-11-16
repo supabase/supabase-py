@@ -233,6 +233,7 @@ class RealtimeChannel:
         self._rejoin_pending = False
         self._rejoin_authorization_failed = False
         self._tracked: dict[str, Any] | None = None
+        self._presence_version = 0
         self._dropping_messages = False
         self.message_stream: asyncio.Queue[QueuedMessage] = asyncio.Queue(
             maxsize=socket.max_queued_messages
@@ -280,8 +281,6 @@ class RealtimeChannel:
             self._rejoin_pending = True
             self._enqueue(ChannelStateChange(ChannelStates.ERRORED, error))
             return True
-        if self.state in (ChannelStates.LEAVING, ChannelStates.CLOSED):
-            return False
         self._on_error()
         self._enqueue(_ChannelFailed(error))
         return False
@@ -290,6 +289,7 @@ class RealtimeChannel:
         if self.state == ChannelStates.JOINING:
             self._subscribe_attempt = None
         self._rejoin_pending = False
+        self._tracked = None
         self.state = ChannelStates.CLOSED
 
     def _on_error(self) -> None:
@@ -309,8 +309,10 @@ class RealtimeChannel:
         return self
 
     async def __aexit__(self, *args: object) -> None:
-        with contextlib.suppress(websockets.ConnectionClosed):
+        try:
             await self.unsubscribe()
+        except (websockets.ConnectionClosed, TimeoutError, NotConnectedError) as error:
+            logger.warning("could not leave channel %s: %r", self.topic, error)
 
     async def subscribe(self) -> ReplyMessage:
         """
@@ -337,10 +339,10 @@ class RealtimeChannel:
         self._rejoin_pending = False
         self._raise_if_topic_is_taken()
         await self.socket.connect()
+        await self.socket._refresh_token()
         return await self._join(attempt, clear_messages=True)
 
     async def _join(self, attempt: object, *, clear_messages: bool) -> ReplyMessage:
-        await self.socket._refresh_token()
         self._raise_if_join_was_stopped(attempt)
         self._raise_if_topic_is_taken()
         self.socket.channels[self.topic] = self
@@ -368,21 +370,20 @@ class RealtimeChannel:
             self.state = ChannelStates.CLOSED
             await self._stop_cancelled_join(attempt, join_ref, failure)
             raise
-        except RealtimeTimeoutError:
+        except Exception as exc:
             self.state = ChannelStates.CLOSED
             self._raise_if_join_was_stopped(attempt)
-            await self._leave_cancelled_join(join_ref, failure)
-            raise
-        except (websockets.ConnectionClosed, TimeoutError, OSError) as exc:
-            self.state = ChannelStates.CLOSED
-            self._raise_if_join_was_stopped(attempt)
-            raise NotConnectedError(
-                "RealtimeChannel.subscribe",
-                f"the connection dropped before the join of {self.topic!r} completed",
-            ) from exc
-        except Exception:
-            self.state = ChannelStates.CLOSED
-            self._raise_if_join_was_stopped(attempt)
+            connection_failed = failure is not None and failure.done()
+            if isinstance(exc, RealtimeTimeoutError) and not connection_failed:
+                await self._leave_cancelled_join(join_ref, failure)
+                raise
+            if connection_failed or isinstance(
+                exc, (websockets.ConnectionClosed, OSError)
+            ):
+                raise NotConnectedError(
+                    "RealtimeChannel.subscribe",
+                    f"the connection dropped before the join of {self.topic!r} completed",
+                ) from exc
             raise
         logger.info("Subscribe reply: %r", msg)
         self._raise_if_join_was_stopped(attempt)
@@ -446,6 +447,7 @@ class RealtimeChannel:
     def _fail_rejoin(self, error: Exception) -> None:
         logger.error("gave up joining channel %s again: %r", self.topic, error)
         self._rejoin_pending = False
+        self._tracked = None
         self._rejoin_authorization_failed = False
         self._subscribe_attempt = None
         self.state = ChannelStates.CLOSED
@@ -521,7 +523,7 @@ class RealtimeChannel:
         :raises Exception: The error that ended the channel, such as an
             `AuthorizationError` when the client could not join it again after
             a reconnect, or the error that dropped the connection of a channel
-            that was not joined.
+            that was not joined, like a channel the server closed.
         """
         while True:
             if self.message_stream.empty():
@@ -550,6 +552,7 @@ class RealtimeChannel:
     async def unsubscribe(self) -> None:
         self._subscribe_attempt = None
         self._rejoin_pending = False
+        self._tracked = None
         needs_leave = self.state in (ChannelStates.JOINED, ChannelStates.JOINING)
         self.state = ChannelStates.LEAVING
         self.socket._remove_channel(self)
@@ -579,8 +582,13 @@ class RealtimeChannel:
 
         :param user_status: Dictionary containing the user's presence information
         """
+        self._presence_version += 1
+        version = self._presence_version
         reply = await self.send_presence("track", user_status)
-        if isinstance(reply.payload, SuccessReplyMessage):
+        if (
+            isinstance(reply.payload, SuccessReplyMessage)
+            and version == self._presence_version
+        ):
             self._tracked = user_status
         return reply
 
@@ -588,6 +596,7 @@ class RealtimeChannel:
         """
         Stop tracking presence for the current user.
         """
+        self._presence_version += 1
         self._tracked = None
         return await self.send_presence("untrack", {})
 

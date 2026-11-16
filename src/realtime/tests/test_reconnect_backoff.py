@@ -5,12 +5,12 @@ import pytest
 from realtime.client import MAX_RECONNECT_DELAY, reconnect_delay
 
 
-def upper_bound(low: float, high: float) -> float:
-    return high
+def no_jitter() -> float:
+    return 0.0
 
 
 def test_the_backoff_doubles_from_one_second_and_is_capped() -> None:
-    with patch("realtime.client.random.uniform", upper_bound):
+    with patch("supabase_utils.http.retry.random.random", no_jitter):
         delays = [reconnect_delay(attempt) for attempt in range(1, 9)]
 
     assert delays == [1, 2, 4, 8, 16, 30, 30, 30]
@@ -18,7 +18,7 @@ def test_the_backoff_doubles_from_one_second_and_is_capped() -> None:
 
 
 def test_the_backoff_does_not_overflow_after_many_attempts() -> None:
-    with patch("realtime.client.random.uniform", upper_bound):
+    with patch("supabase_utils.http.retry.random.random", no_jitter):
         assert reconnect_delay(100_000) == MAX_RECONNECT_DELAY
 
 

@@ -169,6 +169,38 @@ async def test_the_heartbeat_uses_its_own_timeout(server: FakeServer) -> None:
     assert error.value.timeout == 0.05
 
 
+async def test_a_heartbeat_timeout_during_a_join_raises_not_connected(
+    server: FakeServer,
+) -> None:
+    server.silent_events = {ChannelEvents.join, ChannelEvents.heartbeat}
+    client = RealtimeClient(
+        server.url, heartbeat_interval=0.05, heartbeat_timeout=0.05, timeout=10
+    )
+    channel = client.channel("room")
+
+    with pytest.raises(NotConnectedError) as error:
+        await asyncio.wait_for(channel.subscribe(), timeout=2)
+    await client.aclose()
+
+    cause = error.value.__cause__
+    assert isinstance(cause, RealtimeTimeoutError)
+    assert cause.event == ChannelEvents.heartbeat
+    assert server.sent(ChannelEvents.leave) == []
+
+
+async def test_leaving_on_exit_without_a_reply_does_not_raise(
+    server: FakeServer,
+) -> None:
+    server.silent_events = {ChannelEvents.leave}
+    client = RealtimeClient(server.url, timeout=0.1)
+
+    async with client.channel("room") as channel:
+        pass
+
+    assert channel.state == ChannelStates.CLOSED
+    await client.aclose()
+
+
 @pytest.mark.parametrize(
     ("reason", "error_class", "code"),
     [
