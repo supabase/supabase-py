@@ -177,9 +177,9 @@ SignedUrlsJsonResponse = TypeAdapter(list[SignedUrlsJsonItem])
 DistanceMetric = Literal["cosine", "euclidean"]
 
 
-class MetadataConfiguration(BaseModel, extra="ignore"):
+class MetadataConfiguration(BaseModel, extra="ignore", populate_by_name=True):
     non_filterable_metadata_keys: list[str] | None = Field(
-        alias="nonFilterableMetadataKeys"
+        alias="nonFilterableMetadataKeys", default=None
     )
 
 

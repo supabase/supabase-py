@@ -1250,6 +1250,8 @@ features:
     symbols:
       - StorageApiError
     supporting_symbols:
+      - AnalyticsApiErrorDetail
+      - AnalyticsApiErrorMessage
       - StorageApiErrorMessage
       - StorageException
       - parse_api_error

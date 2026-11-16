@@ -60,14 +60,15 @@ class VectorBucketScope[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         data_type: str,
         metadata: MetadataConfiguration | None = None,
     ) -> HttpMethod[None]:
+        metadata_configuration = (
+            metadata.model_dump(by_alias=True, exclude_none=True) if metadata else None
+        )
         body = self._with_metadata(
             indexName=index_name,
             dimension=dimension,
             distanceMetric=distance_metric,
             dataType=data_type,
-            metadataConfiguration=metadata.model_dump(by_alias=True)
-            if metadata
-            else None,
+            metadataConfiguration=metadata_configuration or None,
         )
         response = yield JSONRequest(
             method="POST",
@@ -199,7 +200,7 @@ class VectorIndexScope[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def query(
         self,
         query_vector: VectorData,
-        topK: int | None = None,
+        topK: int,
         filter: VectorFilter | None = None,
         return_distance: bool = True,
         return_metadata: bool = True,

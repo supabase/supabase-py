@@ -1,14 +1,16 @@
 import json
+from collections.abc import Callable
 from io import BytesIO
 from typing import Any
 from unittest.mock import patch
 from urllib.parse import urlparse
 
+import pytest
 import requests
 from httpx import Client, Request, Response
 from supabase_utils.http.adapters.httpx import HttpxSession
 
-from storage3 import SyncStorageClient
+from storage3 import StorageApiError, SyncStorageClient
 
 from .utils import STORAGE_URL, call_with_client, use_async
 
@@ -41,6 +43,40 @@ async def test_analytics_list_sends_camel_case_sort_params(use_async: bool) -> N
         "sortOrder": "desc",
         "search": "logs",
     }
+
+
+def _analytics_error(request: Request) -> Response:
+    return Response(
+        404,
+        json={
+            "error": {
+                "message": "Bucket not found",
+                "type": "NoSuchBucket",
+                "code": 404,
+            }
+        },
+        request=request,
+    )
+
+
+_ANALYTICS_CALLS: list[Callable[[Any], Any]] = [
+    lambda client: client.analytics().create("missing"),
+    lambda client: client.analytics().list(),
+    lambda client: client.analytics().delete("missing"),
+]
+
+
+@use_async
+@pytest.mark.parametrize("action", _ANALYTICS_CALLS, ids=["create", "list", "delete"])
+async def test_analytics_raises_the_server_error(
+    use_async: bool, action: Callable[[Any], Any]
+) -> None:
+    with pytest.raises(StorageApiError) as exc_info:
+        await call_with_client(use_async, _analytics_error, action)
+
+    assert exc_info.value.message == "Bucket not found"
+    assert exc_info.value.code == "NoSuchBucket"
+    assert exc_info.value.status_code == 404
 
 
 def test_analytics_catalog_loads_table() -> None:
