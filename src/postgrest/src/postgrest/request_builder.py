@@ -52,6 +52,7 @@ from .utils import (
     _quote,
     _rpc_query_param,
     _sanitize_array_param,
+    _sanitize_column,
     _serialize_filter_value,
     sanitize_param,
 )
@@ -275,7 +276,8 @@ def _filters_embedded_resource(key: str) -> bool:
     narrow the rows an update or delete of the table affects. A quoted key is a
     single column name, whatever it contains.
     """
-    return not key.startswith('"') and "." in key
+    column_name = key.split("->", 1)[0]
+    return not column_name.startswith('"') and "." in column_name
 
 
 _SHAPES_WITHOUT_STRIP_NULLS = {
@@ -482,14 +484,16 @@ class BaseFilterRequestBuilder:
         """Apply filters on a query.
 
         Args:
-            column: The name of the column to apply a filter on
+            column: The name of the column to apply a filter on, or a JSON
+                path such as `data->>key`, where an integer is an array index
+                and a key in double quotes, such as `data->>"0"`, is a text key
             operator: The operator to use while filtering. A `Filters` member,
                 or a string for an operator it does not list, such as `match`
             criteria: The value to filter by
         """
         if self.negate_next:
             operator = f"{Filters.NOT}.{operator}"
-        key = sanitize_param(column)
+        key = _sanitize_column(column)
         val = f"{operator}.{_serialize_filter_value(criteria)}"
         request = replace(
             self.request,

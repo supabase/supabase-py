@@ -180,6 +180,13 @@ class TestRendering:
             'or=("col:name".eq.1,id.eq.3)'
         ]
 
+    def test_each_json_path_key_is_quoted_on_its_own(self) -> None:
+        assert rendered(Column("data->>a,b").eq(1)) == ['data->>"a,b"=eq.1']
+        assert rendered(Column("data->items->>0").eq(1) | Todos.id.eq(3)) == [
+            "or=(data->items->>0.eq.1,id.eq.3)"
+        ]
+        assert rendered(Column("data->>a.b").raw("eq.1")) == ['data->>"a.b"=eq.1']
+
     def test_a_filter_is_a_value(self) -> None:
         assert Todos.a.eq(1) == Todos.a.eq(1)
         assert Todos.a.eq(1) != Todos.a.eq(2)

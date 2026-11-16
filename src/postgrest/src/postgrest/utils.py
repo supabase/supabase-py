@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -59,6 +60,36 @@ def sanitize_param(param: Any) -> str:
     if any(char in param_str for char in reserved_chars):
         return _quote(param_str)
     return param_str
+
+
+_JSON_ARROW = re.compile(r"(->>?)")
+_BARE_JSON_KEY = re.compile(r"-?[0-9]+|[A-Za-z_$][A-Za-z0-9_$]*")
+
+
+def _sanitize_json_key(key: str) -> str:
+    """A JSON path operand as PostgREST reads it: an integer stays bare as an
+    array index, a key that is already double-quoted is kept, and any other
+    key that is not a plain identifier is quoted."""
+    if _BARE_JSON_KEY.fullmatch(key) or (
+        len(key) > 1 and key.startswith('"') and key.endswith('"')
+    ):
+        return key
+    return _quote(key)
+
+
+def _sanitize_column(column: str) -> str:
+    """A filter key as PostgREST reads it: the column name quoted when it
+    holds a reserved character, and each key of a JSON path such as
+    `data->>key` quoted on its own, so `data->>a,b` becomes `data->>"a,b"`
+    rather than one column named `data->>a,b`."""
+    column_name, *path = _JSON_ARROW.split(column)
+    if not path:
+        return sanitize_param(column)
+    arrows = path[0::2]
+    keys = (_sanitize_json_key(key) for key in path[1::2])
+    return sanitize_param(column_name) + "".join(
+        arrow + key for arrow, key in zip(arrows, keys, strict=True)
+    )
 
 
 def _sanitize_array_element(element: Any) -> str:

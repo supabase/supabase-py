@@ -54,6 +54,10 @@ FINISHES: dict[str, Finish] = {
 SCOPES: dict[str, tuple[Scope, QueryParameters]] = {
     "eq": (lambda query: query.eq("id", 1), [("id", "eq.1")]),
     "quoted_column": (lambda query: query.eq("a:b.c", 1), [('"a:b.c"', "eq.1")]),
+    "json_key_with_a_dot": (
+        lambda query: query.eq("data->>a.b", 1),
+        [('data->>"a.b"', "eq.1")],
+    ),
     "not_eq": (lambda query: query.not_.eq("id", 1), [("id", "not.eq.1")]),
     "match": (lambda query: query.match({"id": 1}), [("id", "eq.1")]),
     "in_": (lambda query: query.in_("id", ["1", "2"]), [("id", "in.(1,2)")]),
@@ -66,6 +70,7 @@ SCOPES: dict[str, tuple[Scope, QueryParameters]] = {
 EMBEDDED_FILTERS: dict[str, Scope] = {
     "dotted_column": lambda query: query.eq("cities.name", "Paris"),
     "not_dotted_column": lambda query: query.not_.eq("cities.name", "Paris"),
+    "dotted_json_path": lambda query: query.eq("cities.data->>a.b", "Paris"),
     "reference_table_or": lambda query: query.or_(
         "name.eq.Paris,name.eq.Lyon", reference_table="cities"
     ),

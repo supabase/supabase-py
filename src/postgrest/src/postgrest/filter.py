@@ -13,6 +13,7 @@ from .types import _TEXT_SEARCH_OPERATORS, Filters, TextSearchType
 from .utils import (
     _in_members,
     _sanitize_array_param,
+    _sanitize_column,
     _serialize_filter_value,
     sanitize_param,
 )
@@ -459,7 +460,7 @@ class ColumnExpression(Ordering[Row], ABC, Generic[Row, Value]):
         operand is sent as written, so keep the filter out of any subtree
         beneath `|` or `~` unless it is valid inside `or=(…)`.
         """
-        return Filter(_Raw(sanitize_param(self.expression), operand))
+        return Filter(_Raw(_sanitize_column(self.expression), operand))
 
 
 def _members(values: Iterable[Any], method: str) -> tuple[Any, ...]:
@@ -638,7 +639,7 @@ def _or_parts(node: _Node[Row]) -> tuple[_Node[Row], ...]:
 
 
 def _key(node: _Comparison[Any]) -> str:
-    return sanitize_param(node.column.expression)
+    return _sanitize_column(node.column.expression)
 
 
 def _operand(node: _Comparison[Any]) -> str:
