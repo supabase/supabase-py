@@ -70,6 +70,14 @@ class Authors:
 
 view = Table[BooksRow, Never, Never]("books_view", BooksRow)
 keyless = Table[BooksRow, BooksInsert, BooksUpdate]("books", BooksRow)
+inferred = Table("books", BooksRow, insert_type=BooksInsert, update_type=BooksUpdate)
+inferred_insert: Table[BooksRow, BooksInsert, BooksUpdate] = inferred
+not_inferred_as_update: Table[BooksRow, BooksUpdate, BooksUpdate] = inferred  # error:
+wrong_insert = Table[BooksRow, BooksInsert, BooksUpdate](
+    "books",
+    BooksRow,
+    insert_type=BooksUpdate,  # error:
+)
 
 wrong_row = Table[BooksRow, BooksInsert, BooksUpdate]("books", AuthorsRow)  # error:
 foreign_key = Table[BooksRow, BooksInsert, BooksUpdate](
