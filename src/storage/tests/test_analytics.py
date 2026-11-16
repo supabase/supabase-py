@@ -7,10 +7,10 @@ from urllib.parse import urlparse
 
 import pytest
 import requests
-from httpx import Client, Request, Response
-from supabase_utils.http.adapters.httpx import HttpxSession
+from httpx import AsyncClient, Client, Request, Response
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 
-from storage3 import StorageApiError, SyncStorageClient
+from storage3 import AsyncStorageClient, StorageApiError, SyncStorageClient
 
 from .utils import STORAGE_URL, call_with_client, use_async
 
@@ -131,3 +131,17 @@ def test_analytics_catalog_loads_table() -> None:
 
     assert table.name() == ("analytics", "events")
     assert table.schema().find_field("id").field_id == 1
+
+
+def test_analytics_catalog_without_api_key_raises_value_error() -> None:
+    sync_client = SyncStorageClient(
+        STORAGE_URL, {}, http_session=HttpxSession(Client())
+    )
+    async_client = AsyncStorageClient(
+        STORAGE_URL, {}, http_session=AsyncHttpxSession(AsyncClient())
+    )
+
+    with pytest.raises(ValueError, match="apiKey"):
+        sync_client.analytics().catalog("warehouse", "access-key", "secret-key")
+    with pytest.raises(ValueError, match="apiKey"):
+        async_client.analytics().catalog("warehouse", "access-key", "secret-key")
