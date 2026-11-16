@@ -1,3 +1,4 @@
+import re
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -37,7 +38,6 @@ NEW_KEYS = ["sb_publishable_abc123", "sb_secret_abc123", "sb_futuretype_abc123"]
 LEGACY_KEY = "header.payload.signature"
 
 INVALID_URLS = [
-    "",
     "example.supabase.co",
     "ftp://example.supabase.co",
     "https://",
@@ -45,29 +45,51 @@ INVALID_URLS = [
     "https://example.supabase.co:99999",
 ]
 
+INVALID_URL_AND_KEY: list[tuple[object, object, str]] = [
+    *[(url, KEY, "Invalid URL") for url in INVALID_URLS],
+    ("", KEY, "supabase_url is required"),
+    (None, KEY, "supabase_url is required"),
+    (139, KEY, "supabase_url must be a string, not int"),
+    (b"https://example.supabase.co", KEY, "supabase_url must be a string, not bytes"),
+    ({}, KEY, "supabase_url must be a string, not dict"),
+    ([], KEY, "supabase_url must be a string, not list"),
+    (URL, "", "supabase_key is required"),
+    (URL, None, "supabase_key is required"),
+    (URL, 139, "supabase_key must be a string, not int"),
+    (URL, b"publishable-key", "supabase_key must be a string, not bytes"),
+    (URL, {}, "supabase_key must be a string, not dict"),
+    (URL, [], "supabase_key must be a string, not list"),
+    (None, 139, "supabase_url is required"),
+    (139, None, "supabase_url must be a string, not int"),
+]
 
-@pytest.mark.parametrize("url", INVALID_URLS)
-def test_sync_client_rejects_invalid_urls(url: str) -> None:
-    with SyncHttpxClient() as http_client, pytest.raises(SupabaseException):
-        Client(url, KEY, HttpxSession(client=http_client))
+
+@pytest.mark.parametrize(("url", "key", "message"), INVALID_URL_AND_KEY)
+def test_sync_client_rejects_an_invalid_url_or_key(
+    url: object, key: object, message: str
+) -> None:
+    with (
+        SyncHttpxClient() as http_client,
+        pytest.raises(SupabaseException, match=re.escape(message)),
+    ):
+        Client(
+            url,  # pyrefly: ignore[bad-argument-type]
+            key,  # pyrefly: ignore[bad-argument-type]
+            HttpxSession(client=http_client),
+        )
 
 
-@pytest.mark.parametrize("url", INVALID_URLS)
-async def test_async_client_rejects_invalid_urls(url: str) -> None:
+@pytest.mark.parametrize(("url", "key", "message"), INVALID_URL_AND_KEY)
+async def test_async_client_rejects_an_invalid_url_or_key(
+    url: object, key: object, message: str
+) -> None:
     async with AsyncHttpxClient() as http_client:
-        with pytest.raises(SupabaseException):
-            AsyncClient(url, KEY, AsyncHttpxSession(client=http_client))
-
-
-def test_sync_client_requires_a_key() -> None:
-    with SyncHttpxClient() as http_client, pytest.raises(SupabaseException):
-        Client(URL, "", HttpxSession(client=http_client))
-
-
-async def test_async_client_requires_a_key() -> None:
-    async with AsyncHttpxClient() as http_client:
-        with pytest.raises(SupabaseException):
-            AsyncClient(URL, "", AsyncHttpxSession(client=http_client))
+        with pytest.raises(SupabaseException, match=re.escape(message)):
+            AsyncClient(
+                url,  # pyrefly: ignore[bad-argument-type]
+                key,  # pyrefly: ignore[bad-argument-type]
+                AsyncHttpxSession(client=http_client),
+            )
 
 
 def test_sync_client_keeps_a_lowercase_authorization_header() -> None:
