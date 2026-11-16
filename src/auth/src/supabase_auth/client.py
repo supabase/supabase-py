@@ -1227,6 +1227,8 @@ class AsyncSupabaseAuthClient(
 
         If the current session does not contain at `expires_at` field,
         `set_session` will use the exp claim defined in the access token.
+        An access token that is not a well-formed JWT raises
+        `AuthInvalidJwtError`.
 
         The current session that minimally contains an access token,
         refresh token and a user.
@@ -1762,6 +1764,8 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
 
         If the current session does not contain at `expires_at` field,
         `set_session` will use the exp claim defined in the access token.
+        An access token that is not a well-formed JWT raises
+        `AuthInvalidJwtError`.
 
         The current session that minimally contains an access token,
         refresh token and a user.
