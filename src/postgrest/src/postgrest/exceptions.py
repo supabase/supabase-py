@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from email.message import Message
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, override
 
@@ -106,12 +107,9 @@ def _decode_body(response: Response) -> str | None:
 
 
 def _charset(response: Response) -> str:
-    content_type = response.headers.get("Content-Type") or ""
-    for parameter in _split_outside_quotes(content_type, ";")[1:]:
-        key, _, value = parameter.partition("=")
-        if key.strip().lower() == "charset":
-            return _unquote(value) or "utf-8"
-    return "utf-8"
+    content_type = Message()
+    content_type["Content-Type"] = response.headers.get("Content-Type") or ""
+    return content_type.get_content_charset() or "utf-8"
 
 
 def _status_phrase(status: int) -> str:
@@ -135,7 +133,6 @@ def _proxy_status_error_code(response: Response) -> str | None:
             key, _, value = parameter.partition("=")
             if key.strip() == "error":
                 return _unquote(value) or None
-        return None
     return None
 
 

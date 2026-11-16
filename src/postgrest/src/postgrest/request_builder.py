@@ -884,9 +884,14 @@ class BaseRequestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
 
 def _api_error(response: Response) -> APIError:
+    """The `APIError` of an error response. A body that is not a PostgREST
+    error, as a proxy or a gateway sends, is described by its status and
+    kept in `details`: PostgREST always names its errors in `message`."""
     try:
         json_obj = APIErrorFromJSON.model_validate_json(response.content)
     except ValidationError:
+        json_obj = None
+    if json_obj is None or not json_obj.message:
         error = generate_default_error_message(response)
     else:
         error = dict(json_obj)
