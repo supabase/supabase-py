@@ -1221,8 +1221,6 @@ features:
     note: "Pass destination_bucket to copy()."
     symbols:
       - StorageFileApiClient.copy
-    supporting_symbols:
-      - UploadResponse
   storage.file_buckets.move_cross_bucket:
     status: implemented
     note: "Pass destination_bucket to move()."

@@ -73,6 +73,12 @@ def _bool_header(value: bool) -> str:
     return "true" if value else "false"
 
 
+def _cache_control_header(value: str | None) -> str | None:
+    if value is not None and value.isdecimal():
+        return f"max-age={value}"
+    return value
+
+
 def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:
     if isinstance(file, (BufferedReader, FileIO)):
         # bytes or byte-stream-like object received
@@ -371,7 +377,11 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         response = yield JSONRequest(
             method="POST",
             path=["object", "move"],
-            body=self._destination_body(from_path, to_path, destination_bucket),
+            body=self._destination_body(
+                _normalize_object_key(from_path),
+                _normalize_object_key(to_path),
+                destination_bucket,
+            ),
         )
         return _validate_model(response, MessageResponse)
 
@@ -409,8 +419,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         metadata
             The custom metadata of the copy. Requires `copy_metadata=False`.
         cache_control
-            The full `Cache-Control` value of the copy, for example
-            `max-age=3600`. Requires `copy_metadata=False`.
+            The `Cache-Control` of the copy. A number of seconds, as in
+            `upload()`, is sent as `max-age=<seconds>`; any other value, like
+            `no-cache`, is sent as given. Requires `copy_metadata=False`.
         content_type
             The `Content-Type` of the copy. Requires `copy_metadata=False`.
         content_encoding
@@ -421,7 +432,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         file_metadata = {
             key: value
             for key, value in (
-                ("cacheControl", cache_control),
+                ("cacheControl", _cache_control_header(cache_control)),
                 ("mimetype", content_type),
                 ("contentEncoding", content_encoding),
             )
@@ -435,7 +446,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         headers = Headers.empty().set("x-upsert", _bool_header(upsert))
         to_key = _normalize_object_key(to_path)
-        body = self._destination_body(from_path, to_key, destination_bucket)
+        body = self._destination_body(
+            _normalize_object_key(from_path), to_key, destination_bucket
+        )
         if not copy_metadata:
             body["copyMetadata"] = False
             if file_metadata:
@@ -455,12 +468,12 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         return _parse_upload_response(response, to_key)
 
     def _destination_body(
-        self, from_path: str, to_path: str, destination_bucket: str | None
+        self, from_key: str, to_key: str, destination_bucket: str | None
     ) -> dict[str, JSON]:
         body: dict[str, JSON] = {
             "bucketId": self.id,
-            "sourceKey": _normalize_object_key(from_path),
-            "destinationKey": _normalize_object_key(to_path),
+            "sourceKey": from_key,
+            "destinationKey": to_key,
         }
         if destination_bucket is not None:
             body["destinationBucket"] = destination_bucket

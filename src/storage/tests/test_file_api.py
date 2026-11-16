@@ -764,6 +764,24 @@ async def test_copy_without_copy_metadata_sends_the_overrides(
 
 
 @use_async
+@pytest.mark.parametrize(
+    ("cache_control", "expected"),
+    [("3600", "max-age=3600"), ("no-cache", "no-cache")],
+)
+async def test_copy_sends_seconds_as_max_age(
+    use_async: bool, cache_control: str, expected: str
+) -> None:
+    request, _ = await run_returning(
+        use_async,
+        lambda b: b.copy(
+            "a.txt", "b.txt", copy_metadata=False, cache_control=cache_control
+        ),
+        UPLOAD_JSON,
+    )
+    assert json.loads(request.content)["metadata"] == {"cacheControl": expected}
+
+
+@use_async
 async def test_copy_without_copy_metadata_sends_only_the_flag(
     use_async: bool,
 ) -> None:

@@ -710,7 +710,7 @@ def test_client_copy_overrides_metadata(
         new_path,
         copy_metadata=False,
         metadata={"source": "copy"},
-        cache_control="max-age=60",
+        cache_control="60",
         content_type="text/plain",
     )
 
