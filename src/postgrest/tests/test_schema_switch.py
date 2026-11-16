@@ -24,7 +24,7 @@ EXPECTED = [
 ]
 
 
-def profiles(request: Request) -> tuple[list[str], list[str], list[str]]:
+def sent_headers(request: Request) -> tuple[list[str], list[str], list[str]]:
     return (
         request.headers.get_list("Accept-Profile"),
         request.headers.get_list("Content-Profile"),
@@ -57,7 +57,7 @@ def test_sync_schema_switches_replace_the_profile_headers() -> None:
     other.table(ITEMS).select().execute()
     other.from_("items").insert({"id": 1}).execute()
 
-    assert [profiles(request) for request in seen] == EXPECTED
+    assert [sent_headers(request) for request in seen] == EXPECTED
 
 
 async def test_async_schema_switches_replace_the_profile_headers() -> None:
@@ -76,4 +76,4 @@ async def test_async_schema_switches_replace_the_profile_headers() -> None:
         await other.table(ITEMS).select().execute()
         await other.from_("items").insert({"id": 1}).execute()
 
-    assert [profiles(request) for request in seen] == EXPECTED
+    assert [sent_headers(request) for request in seen] == EXPECTED
