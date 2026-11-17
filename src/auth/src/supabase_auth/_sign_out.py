@@ -1,9 +1,17 @@
 from __future__ import annotations
 
-from typing import get_args
+from typing import TYPE_CHECKING, get_args
+
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.query import URLQuery
+from supabase_utils.http.request import EmptyRequest
 
 from .errors import AuthApiError, AuthError, ErrorCode
+from .helpers import _handle_error_response
 from .types import SignOutScope
+
+if TYPE_CHECKING:
+    from supabase_utils.http.io import HttpMethod
 
 _SESSION_GONE_ON_REFRESH = frozenset(
     {
@@ -43,3 +51,17 @@ def _is_session_gone(error: Exception) -> bool:
         and error.status_code == 400
         and error.code in _SESSION_GONE_ON_REFRESH
     )
+
+
+def _logout(access_token: str, scope: SignOutScope) -> HttpMethod[None]:
+    response = yield EmptyRequest(
+        method="POST",
+        path=["logout"],
+        query=URLQuery.from_mapping({"scope": scope}),
+        headers=Headers.from_mapping({"Authorization": f"Bearer {access_token}"}),
+    )
+    if response.is_success:
+        return
+    error = _handle_error_response(response)
+    if not _is_already_signed_out(error, scope):
+        raise error
