@@ -12,6 +12,8 @@ rules = (
         additional_replacements={
             "AsyncClient": "Client",
             "aclose": "close",
+            "aiter_users": "iter_users",
+            "anext": "next",
             "AsyncHttpSession": "HttpSession",
             "AsyncHttpxSession": "HttpxSession",
             "async_http_sessions": "sync_http_sessions",

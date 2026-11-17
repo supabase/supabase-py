@@ -21,6 +21,7 @@ from .helpers import (
     _redirect_to_as_query,
     _validate_adapter,
     _validate_model,
+    _validate_paginated_model,
     parse_link_response,
     parse_user_response,
     validate_uuid,
@@ -44,6 +45,7 @@ from .types import (
 from .version import __version__
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Iterator
     from types import TracebackType
 
     from supabase_utils.http.retry import RetryPolicy
@@ -128,28 +130,7 @@ class SupabaseAuthAdminOAuth[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query=query,
         )
 
-        result = _validate_model(response, OAuthClientListResponse)
-
-        # Parse pagination headers
-        total = response.headers.get("x-total-count")
-        if total:
-            result.total = int(total)
-
-        links = response.headers.get("link")
-        if links:
-            for link in links.split(","):
-                parts = link.split(";")
-                if len(parts) >= 2:
-                    page_match = parts[0].split("page=")
-                    if len(page_match) >= 2:
-                        page_num = int(page_match[1].split("&")[0].rstrip(">"))
-                        rel = parts[1].split("=")[1].strip('"')
-                        if rel == "next":
-                            result.next_page = page_num
-                        elif rel == "last":
-                            result.last_page = page_num
-
-        return result
+        return _validate_paginated_model(response, OAuthClientListResponse)
 
     @handle_http_io
     def create_client(
@@ -320,9 +301,13 @@ class SupabaseAuthAdmin[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     @handle_http_io
     def list_users(
         self, page: int | None = None, per_page: int | None = None
-    ) -> HttpMethod[list[User]]:
+    ) -> HttpMethod[UserList]:
         """
-        Get a list of users.
+        Get a page of users, together with the next page, the last page and
+        the total number of users.
+
+        Use `iter_users` on the sync client or `aiter_users` on the async
+        client to go through every user without handling pages.
 
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
@@ -338,7 +323,7 @@ class SupabaseAuthAdmin[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             path=["admin", "users"],
             query=query,
         )
-        return _validate_model(response, UserList).users
+        return _validate_paginated_model(response, UserList)
 
     @handle_http_io
     def get_user_by_id(self, user_id: str) -> HttpMethod[UserResponse]:
@@ -415,6 +400,24 @@ class SyncSupabaseAuthAdmin(SupabaseAuthAdmin[SyncHttpIO]):
             else Headers.empty(),
         )
 
+    def iter_users(self, per_page: int | None = None) -> Iterator[User]:
+        """
+        Iterate over every user, fetching one page at a time as the iteration
+        reaches it. Pages are numbered, so users created or deleted while
+        iterating can shift the pages and be skipped or returned twice.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        page: int | None = 1
+        while page is not None:
+            result = self.list_users(page=page, per_page=per_page)
+            yield from result.users
+            next_page = result.next_page
+            page = (
+                next_page if result.users and next_page and next_page > page else None
+            )
+
     def __enter__(self) -> Self:
         self.executor.session.__enter__()
         return self
@@ -447,6 +450,25 @@ class AsyncSupabaseAuthAdmin(SupabaseAuthAdmin[AsyncHttpIO]):
             if default_headers
             else Headers.empty(),
         )
+
+    async def aiter_users(self, per_page: int | None = None) -> AsyncIterator[User]:
+        """
+        Iterate over every user, fetching one page at a time as the iteration
+        reaches it. Pages are numbered, so users created or deleted while
+        iterating can shift the pages and be skipped or returned twice.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        page: int | None = 1
+        while page is not None:
+            result = await self.list_users(page=page, per_page=per_page)
+            for user in result.users:
+                yield user
+            next_page = result.next_page
+            page = (
+                next_page if result.users and next_page and next_page > page else None
+            )
 
     async def __aenter__(self) -> Self:
         await self.executor.session.__aenter__()

@@ -65,9 +65,10 @@ async def test_list_users_should_return_registered_users(
     ],
 ) -> None:
     (admin_client, _user, credentials) = admin_client_with_user_and_credentials
-    users = await admin_client.list_users()
-    assert users
-    emails = [user.email for user in users]
+    response = await admin_client.list_users()
+    assert response.users
+    assert response.total >= len(response.users)
+    emails = [user.email for user in response.users]
     assert emails
     assert credentials.email in emails
 
@@ -203,10 +204,10 @@ async def test_delete_user_should_be_able_delete_an_existing_user(
     )
     assert response.user.email == credentials.email
     users = await secret_key_api_client.list_users()
-    assert response.user.email in [user.email for user in users]
+    assert response.user.email in [user.email for user in users.users]
     await secret_key_api_client.delete_user(response.user.id)
     users = await secret_key_api_client.list_users()
-    assert response.user.email not in [user.email for user in users]
+    assert response.user.email not in [user.email for user in users.users]
 
 
 async def test_generate_link_supports_sign_up_with_generate_confirmation_signup_link(
