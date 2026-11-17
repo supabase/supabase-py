@@ -313,6 +313,19 @@ class TestScopes:
         with pytest.raises(ValueError, match="returns no rows"):
             _render(request)
 
+    def test_a_returning_write_takes_no_requiring_scope(self) -> None:
+        request = TableRequest(
+            table=Novels.table,
+            operation=TableOperation.DELETE,
+            filter=Novels.id.gt(0),
+            columns=(Novels.id, Novels.author.select()),
+            returning=True,
+            embedded_scopes=(EmbeddedScope(Novels.author, requires_match=True),),
+        )
+
+        with pytest.raises(ValueError, match="only the ones it returns"):
+            _render(request)
+
     def test_a_returning_write_scopes_its_embeds(self) -> None:
         request = TableRequest(
             table=Novels.table,

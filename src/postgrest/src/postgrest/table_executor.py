@@ -373,6 +373,13 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
     if (request.operation in _WRITES and request.returning) or (
         request.operation is TableOperation.RPC and request.columns
     ):
+        if request.operation in _WRITES and any(
+            scope.requires_match for scope in request.embedded_scopes
+        ):
+            raise ValueError(
+                f"requiring() cannot narrow the rows the {request.operation} "
+                "affects, only the ones it returns; filter them with where()"
+            )
         rendered = _select_returned(rendered, *_select_list(request))
     elif request.operation is not TableOperation.SELECT and request.embedded_scopes:
         raise ValueError(

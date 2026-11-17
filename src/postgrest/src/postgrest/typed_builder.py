@@ -242,9 +242,11 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
             )
             # select=name,books!inner(title)&books.title=ilike.%dune%
 
-        See `Relation.is_null()` for a test that composes with `|`. After a
-        write it drops rows from the returned representation only, not from
-        the rows the write affects, which `where()` alone decides.
+        See `Relation.is_null()` for a test that composes with `|`. A write
+        would still affect the rows without a match and only leave them out
+        of its response, so `execute()` raises `ValueError` for `requiring()`
+        after one; nested in the scope of `embedded()` it is accepted, since
+        it narrows embedded rows only.
         """
         return self._with(
             embedded_scopes=(
