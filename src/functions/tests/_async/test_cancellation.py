@@ -1,7 +1,8 @@
 import asyncio
-from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from types import SimpleNamespace
+from typing import Any, NoReturn
 
 import aiohttp
 import httpx
@@ -12,11 +13,13 @@ from supabase_utils.http import io
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession
 from supabase_utils.http.io import AsyncHttpSession
+from supabase_utils.http.request import HTTPRequestMethod
 from supabase_utils.http.retry import RetryPolicy
 
 from supabase_functions.client import AsyncFunctionsClient
 
 WAIT = 5
+RETRY_DELAY = 0.1
 
 
 class FunctionsServer:
@@ -25,14 +28,13 @@ class FunctionsServer:
         self.disconnected = asyncio.Event()
         self.flaky_requests = 0
 
-    async def hang(self, request: web.Request) -> web.Response:
+    async def hang(self, request: web.Request) -> NoReturn:
         self.received.set()
         try:
-            await asyncio.Event().wait()
-        except asyncio.CancelledError:
+            await asyncio.get_running_loop().create_future()
+        finally:
             self.disconnected.set()
-            raise
-        raise AssertionError("unreachable")
+        raise AssertionError("the client never disconnected")
 
     async def flaky(self, request: web.Request) -> web.Response:
         self.flaky_requests += 1
@@ -86,24 +88,43 @@ async def client(
             url=str(server.make_url("/functions/v1")),
             headers={},
             http_session=session,
-            retry=RetryPolicy(base_delay=60, max_delay=60, jitter=0),
+            retry=RetryPolicy(base_delay=RETRY_DELAY, jitter=0),
         )
 
 
-async def assert_connection_is_free(client: AsyncFunctionsClient) -> None:
-    """The pool of the client holds one connection, so a connection that the
-    cancelled invocation kept would make this invocation wait forever."""
+async def invoke(
+    client: AsyncFunctionsClient, name: str, method: HTTPRequestMethod
+) -> None:
+    await client.invoke(name, method=method)
+
+
+async def invoke_stream(
+    client: AsyncFunctionsClient, name: str, method: HTTPRequestMethod
+) -> None:
+    async with client.invoke_stream(name, method=method):
+        pass
+
+
+Invocation = Callable[
+    [AsyncFunctionsClient, str, HTTPRequestMethod], Coroutine[Any, Any, None]
+]
+invocations = pytest.mark.parametrize("invocation", [invoke, invoke_stream])
+
+
+async def assert_pool_has_a_free_connection(client: AsyncFunctionsClient) -> None:
     async with asyncio.timeout(WAIT):
         response = await client.invoke("ok")
     assert response.content == b"ok"
 
 
-async def test_cancelling_invoke_aborts_the_request(
+@invocations
+async def test_cancelling_an_invocation_aborts_the_request(
     client: AsyncFunctionsClient,
     functions_server: tuple[FunctionsServer, TestServer],
+    invocation: Invocation,
 ) -> None:
     functions, _ = functions_server
-    task = asyncio.create_task(client.invoke("hang"))
+    task = asyncio.create_task(invocation(client, "hang", "POST"))
     async with asyncio.timeout(WAIT):
         await functions.received.wait()
 
@@ -113,12 +134,14 @@ async def test_cancelling_invoke_aborts_the_request(
         await task
     async with asyncio.timeout(WAIT):
         await functions.disconnected.wait()
-    await assert_connection_is_free(client)
+    await assert_pool_has_a_free_connection(client)
 
 
-async def test_cancelling_invoke_while_it_waits_to_retry_stops_retrying(
+@invocations
+async def test_cancelling_an_invocation_waiting_to_retry_stops_retrying(
     client: AsyncFunctionsClient,
     functions_server: tuple[FunctionsServer, TestServer],
+    invocation: Invocation,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     functions, _ = functions_server
@@ -128,8 +151,10 @@ async def test_cancelling_invoke_while_it_waits_to_retry_stops_retrying(
         waiting.set()
         await asyncio.sleep(delay)
 
-    monkeypatch.setattr(io, "asyncio", SimpleNamespace(sleep=sleep))
-    task = asyncio.create_task(client.invoke("flaky", method="GET"))
+    monkeypatch.setattr(
+        io, "asyncio", SimpleNamespace(**vars(asyncio) | {"sleep": sleep})
+    )
+    task = asyncio.create_task(invocation(client, "flaky", "GET"))
     async with asyncio.timeout(WAIT):
         await waiting.wait()
 
@@ -137,5 +162,6 @@ async def test_cancelling_invoke_while_it_waits_to_retry_stops_retrying(
 
     with pytest.raises(asyncio.CancelledError):
         await task
+    await asyncio.sleep(RETRY_DELAY * 3)
     assert functions.flaky_requests == 1
-    await assert_connection_is_free(client)
+    await assert_pool_has_a_free_connection(client)
