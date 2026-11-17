@@ -1,6 +1,5 @@
 import base64
 import json
-import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import override
@@ -180,7 +179,6 @@ async def test_async_client_passes_realtime_options_to_connections() -> None:
                 timeout=4,
                 max_queued_messages=50,
                 disconnect_on_empty_channels_after=3,
-                logger=logging.getLogger("my_app.realtime"),
             ),
         )
 
@@ -189,7 +187,6 @@ async def test_async_client_passes_realtime_options_to_connections() -> None:
     assert client.realtime.timeout == 4
     assert client.realtime.max_queued_messages == 50
     assert client.realtime.disconnect_on_empty_channels_after == 3
-    assert client.realtime._logger.logger.name == "my_app.realtime"
 
 
 async def test_async_client_reuses_one_realtime_client() -> None:

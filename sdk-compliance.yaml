@@ -1138,13 +1138,7 @@ features:
     supporting_symbols:
       - RealtimeClientOptions
       - validate_disconnect_delay
-  realtime.configuration.custom_logger:
-    status: implemented
-    note: "logger parameter on connect_once and RealtimeClient, and RealtimeClientOptions.logger on the supabase client, take a logging.Logger that replaces supabase.realtime. Channels log to its channel child and the websockets library to its websockets child, and access tokens are redacted. The level is the logger's own, as with any Python logger."
-    symbols:
-      - connect_once
-    supporting_symbols:
-      - RealtimeClientOptions
+  realtime.configuration.custom_logger: not_applicable
   realtime.configuration.binary_protocol:
     status: implemented
     note: "The client always speaks protocol 2.0.0. send_broadcast() sends a bytes payload as a binary frame, and binary broadcasts are received as bytes in BroadcastPayload.payload."

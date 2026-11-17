@@ -679,7 +679,6 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             headers=self._headers,
             transport=self._realtime_options.transport,
             disconnect_on_empty_channels_after=self._realtime_options.disconnect_on_empty_channels_after,
-            logger=self._realtime_options.logger,
         )
 
 

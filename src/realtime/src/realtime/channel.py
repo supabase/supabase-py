@@ -10,10 +10,11 @@ from urllib.parse import quote
 
 import websockets
 from pydantic import ValidationError
+from supabase_utils._logging import get_logger
 from supabase_utils.http.request import Request, validate_request_timeout
 from supabase_utils.types import JSONParser
 
-from ._redact import describe
+from ._redact import RedactingLoggerAdapter, describe
 from .exceptions import (
     AuthorizationError,
     ChannelClosedError,
@@ -63,6 +64,8 @@ if TYPE_CHECKING:
 
     from .client import RealtimeClient
     from .message import PostgresRowChange
+
+logger = RedactingLoggerAdapter(get_logger("realtime.channel"))
 
 
 @dataclass(frozen=True)
@@ -244,7 +247,6 @@ class RealtimeChannel:
         :param options: Optional channel options.
         """
         self.socket = socket
-        self._logger = socket._channel_logger
         self.options = options or RealtimeChannelOptions()
         self.topic = topic
         self.presence: RealtimePresence = RealtimePresence()
@@ -275,7 +277,7 @@ class RealtimeChannel:
             self._system_error = None
         if message.event in (ChannelEvents.error, ChannelEvents.close):
             if message.join_ref is not None and message.join_ref != self.join_ref:
-                self._logger.debug("Ignoring %s of an earlier join", describe(message))
+                logger.debug("Ignoring %s of an earlier join", describe(message))
                 return
             self._fail_pending_pushes()
             if message.event == ChannelEvents.error:
@@ -304,7 +306,7 @@ class RealtimeChannel:
         try:
             server_message = ServerMessageAdapter.validate_python(message)
         except ValueError:
-            self._logger.warning(
+            logger.warning(
                 "Ignoring an invalid presence message: %s", describe(message)
             )
             return
@@ -336,7 +338,7 @@ class RealtimeChannel:
         elif queue.full():
             queue.get_nowait()
             if not dropping:
-                self._logger.warning(
+                logger.warning(
                     "a message queue of channel %s is full, dropping its oldest "
                     "messages until it is read",
                     self.topic,
@@ -354,7 +356,7 @@ class RealtimeChannel:
             self.state = ChannelStates.ERRORED
             return True
         if self.state == ChannelStates.JOINED:
-            self._logger.info("channel %s lost its connection", self.topic)
+            logger.info("channel %s lost its connection", self.topic)
             self.state = ChannelStates.ERRORED
             self._rejoin_pending = True
             self._enqueue(ChannelStateChange(ChannelStates.ERRORED, error))
@@ -374,13 +376,13 @@ class RealtimeChannel:
     def _on_error(self) -> None:
         if self.state in (ChannelStates.LEAVING, ChannelStates.CLOSED):
             return
-        self._logger.info("channel %s errored", self.topic)
+        logger.info("channel %s errored", self.topic)
         self.state = ChannelStates.ERRORED
 
     def _on_close(self) -> None:
         if self.state == ChannelStates.LEAVING:
             return
-        self._logger.info("channel %s was closed by the server", self.topic)
+        logger.info("channel %s was closed by the server", self.topic)
         self.state = ChannelStates.CLOSED
 
     async def __aenter__(self) -> Self:
@@ -391,7 +393,7 @@ class RealtimeChannel:
         try:
             await self.unsubscribe()
         except (websockets.ConnectionClosed, OSError, NotConnectedError) as error:
-            self._logger.warning("could not leave channel %s: %r", self.topic, error)
+            logger.warning("could not leave channel %s: %r", self.topic, error)
 
     async def subscribe(self) -> ReplyMessage:
         """
@@ -477,7 +479,7 @@ class RealtimeChannel:
                     f"the connection dropped before the join of {self.topic!r} completed",
                 ) from exc
             raise
-        self._logger.debug("join reply on %s: %s", self.topic, msg.payload.status)
+        logger.debug("join reply on %s: %s", self.topic, msg.payload.status)
         self._raise_if_join_was_stopped(attempt)
         if not isinstance(msg.payload, SuccessReplyMessage):
             self.state = ChannelStates.CLOSED
@@ -518,19 +520,17 @@ class RealtimeChannel:
                 return
             self._rejoin_authorization_failed = isinstance(error, AuthorizationError)
             self.state = ChannelStates.ERRORED
-            self._logger.warning(
-                "could not join channel %s again: %r", self.topic, error
-            )
+            logger.warning("could not join channel %s again: %r", self.topic, error)
             return
         if self._subscribe_attempt is not attempt:
             return
         self._rejoin_pending = False
         self._rejoin_authorization_failed = False
-        self._logger.info("joined channel %s again", self.topic)
+        logger.info("joined channel %s again", self.topic)
         self._enqueue(ChannelStateChange(ChannelStates.JOINED))
 
     def _fail_rejoin(self, error: Exception) -> None:
-        self._logger.error("gave up joining channel %s again: %r", self.topic, error)
+        logger.error("gave up joining channel %s again: %r", self.topic, error)
         self._rejoin_pending = False
         self._rejoin_authorization_failed = False
         self._subscribe_attempt = None

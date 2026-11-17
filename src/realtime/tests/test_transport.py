@@ -1,5 +1,4 @@
 import asyncio
-import logging
 
 import pytest
 
@@ -231,21 +230,3 @@ def test_the_disconnect_delay_defaults_to_twice_the_heartbeat_interval() -> None
 def test_a_negative_disconnect_delay_is_rejected() -> None:
     with pytest.raises(ValueError, match="disconnect_on_empty_channels_after"):
         RealtimeClient(URL, disconnect_on_empty_channels_after=-1)
-
-
-async def test_the_client_logs_to_the_given_logger(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    transport = InMemoryTransport()
-    custom = logging.getLogger("my_app.realtime")
-
-    with caplog.at_level(logging.DEBUG, logger="my_app.realtime"):
-        async with connect_once(URL, transport=transport, logger=custom) as client:
-            await client.set_auth("secret-token")
-            await client.channel("room").subscribe()
-
-    names = {record.name for record in caplog.records}
-    assert "my_app.realtime" in names
-    assert "my_app.realtime.channel" in names
-    assert not any("supabase" in name for name in names)
-    assert all("secret-token" not in record.getMessage() for record in caplog.records)

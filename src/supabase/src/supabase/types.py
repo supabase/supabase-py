@@ -1,4 +1,3 @@
-import logging
 from dataclasses import dataclass
 
 from realtime.transport import WebSocketTransport
@@ -38,9 +37,6 @@ class RealtimeClientOptions:
 
     disconnect_on_empty_channels_after: float | None = None
     """Seconds to keep the connection open after the last channel is removed. Defaults to twice ``heartbeat_interval``, and ``0`` disconnects at once. Must not be negative."""
-
-    logger: logging.Logger | None = None
-    """The logger the realtime client logs to, instead of ``supabase.realtime``."""
 
     def __post_init__(self) -> None:
         validate_heartbeat(self.heartbeat_interval, self.heartbeat_timeout)
