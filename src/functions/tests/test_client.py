@@ -1,5 +1,7 @@
 import inspect
 import re
+from collections.abc import Generator
+from contextlib import contextmanager
 from types import SimpleNamespace, TracebackType
 from typing import Self, override
 
@@ -7,7 +9,12 @@ import pytest
 from supabase_utils.http import io
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpSession, HttpSession
-from supabase_utils.http.request import JSONRequest, Request, Response
+from supabase_utils.http.request import (
+    JSONRequest,
+    Request,
+    Response,
+    StreamedResponse,
+)
 from supabase_utils.http.retry import RetryPolicy
 from supabase_utils.types import JSON
 from yarl import URL
@@ -171,6 +178,16 @@ class RecordingSession:
         self.requests.append(request)
         return Response(
             headers=Headers.empty(), content=b"", status=200, request=request
+        )
+
+    @contextmanager
+    def stream(self, request: Request) -> Generator[StreamedResponse]:
+        response = self.send(request)
+        yield StreamedResponse(
+            headers=response.headers,
+            status=response.status,
+            request=request,
+            body=iter([response.content]),
         )
 
     def __enter__(self) -> Self:

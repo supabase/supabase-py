@@ -1,7 +1,6 @@
 import base64
 import dataclasses
 import json
-import re
 from collections.abc import Callable
 from typing import Any
 
@@ -17,17 +16,6 @@ from storage3.types import SortBy, TransformOptions, UploadResponse
 from .utils import STORAGE_URL, call_with_client, use_async
 
 FileAction = Callable[[Any], Any]
-
-
-def form_fields(request: Request) -> dict[str, bytes]:
-    content_type = request.headers["content-type"]
-    boundary = content_type.split("boundary=")[1].encode()
-    fields: dict[str, bytes] = {}
-    for part in request.content.split(b"--" + boundary):
-        header, _, body = part.partition(b"\r\n\r\n")
-        if match := re.search(rb'name="([^"]+)"', header):
-            fields[match.group(1).decode()] = body.removesuffix(b"\r\n")
-    return fields
 
 
 async def run(
@@ -52,17 +40,20 @@ async def run(
 
 
 @use_async
-async def test_upload_sends_default_cache_control_as_form_data(
+async def test_upload_sends_the_raw_body_with_default_headers(
     use_async: bool,
 ) -> None:
     request = await run(use_async, lambda b: b.upload("file.txt", b"hello"))
-    assert "cache-control" not in request.headers
-    assert form_fields(request)["cacheControl"] == b"3600"
+    assert request.content == b"hello"
+    assert request.headers["content-type"] == "text/plain;charset=UTF-8"
+    assert request.headers["cache-control"] == "max-age=3600"
+    assert request.headers["content-length"] == "5"
     assert request.headers["x-upsert"] == "false"
+    assert "x-metadata" not in request.headers
 
 
 @use_async
-async def test_upload_sends_custom_cache_control_as_form_data(
+async def test_upload_sends_custom_cache_control_as_a_header(
     use_async: bool,
 ) -> None:
     request = await run(
@@ -74,19 +65,18 @@ async def test_upload_sends_custom_cache_control_as_form_data(
             headers={"x-custom-header": "custom-value"},
         ),
     )
-    assert "cache-control" not in request.headers
-    assert form_fields(request)["cacheControl"] == b"86400"
+    assert request.headers.get_list("cache-control") == ["max-age=86400"]
     assert request.headers["x-custom-header"] == "custom-value"
 
 
 @use_async
-async def test_update_sends_cache_control_as_form_data(use_async: bool) -> None:
+async def test_update_sends_the_raw_body(use_async: bool) -> None:
     request = await run(
         use_async, lambda b: b.update("file.txt", b"hello", cache_control="7200")
     )
     assert request.method == "PUT"
-    assert "cache-control" not in request.headers
-    assert form_fields(request)["cacheControl"] == b"7200"
+    assert request.content == b"hello"
+    assert request.headers["cache-control"] == "max-age=7200"
     assert "x-upsert" not in request.headers
 
 
@@ -95,8 +85,9 @@ async def test_signed_upload_sends_default_cache_control(use_async: bool) -> Non
     request = await run(
         use_async, lambda b: b.upload_to_signed_url("file.txt", "token", b"hello")
     )
-    assert "cache-control" not in request.headers
-    assert form_fields(request)["cacheControl"] == b"3600"
+    assert request.content == b"hello"
+    assert request.headers["cache-control"] == "max-age=3600"
+    assert request.headers["x-upsert"] == "false"
 
 
 @use_async
@@ -115,13 +106,13 @@ async def test_upload_to_signed_url_forwards_all_file_options(
             headers={"x-custom-header": "custom-value"},
         ),
     )
-    fields = form_fields(request)
-    assert fields["cacheControl"] == b"86400"
-    assert fields["metadata"].replace(b" ", b"") == b'{"owner":"alice"}'
+    assert request.content == b"hello"
+    assert request.headers["cache-control"] == "max-age=86400"
+    assert request.headers["content-type"] == "text/custom"
+    assert json.loads(base64.b64decode(request.headers["x-metadata"])) == {
+        "owner": "alice"
+    }
     assert request.headers["x-custom-header"] == "custom-value"
-    assert "cache-control" not in request.headers
-    assert "x-metadata" not in request.headers
-    assert b"Content-Type: text/custom" in request.content
     assert request.url.params["token"] == "token"
 
 

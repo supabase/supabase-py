@@ -141,7 +141,7 @@ def test_json_request_with_json_body() -> None:
     request = JSONRequest(path=["items"], method="POST", body=body).finalize(
         BASE_URL, DEFAULT_HEADERS
     )
-    assert request.content is not None
+    assert isinstance(request.content, bytes)
     assert json.loads(request.content) == body
     assert request.headers.get("content-type") == "application/json"
 
@@ -150,7 +150,7 @@ def test_json_request_with_model_excludes_none() -> None:
     request = JSONRequest(path=["items"], method="POST", body=Item(name="x")).finalize(
         BASE_URL, Headers.empty()
     )
-    assert request.content is not None
+    assert isinstance(request.content, bytes)
     assert json.loads(request.content) == {"name": "x"}
 
 
@@ -158,7 +158,7 @@ def test_json_request_with_model_keeps_none_when_asked() -> None:
     request = JSONRequest(
         path=["items"], method="PATCH", body=Item(name="x"), exclude_none=False
     ).finalize(BASE_URL, Headers.empty())
-    assert request.content is not None
+    assert isinstance(request.content, bytes)
     assert json.loads(request.content) == {"name": "x", "description": None}
 
 
@@ -240,5 +240,5 @@ def test_multipart_request_overrides_content_type() -> None:
     assert content_type is not None
     assert len(content_type) == 1
     assert content_type[0].startswith("multipart/form-data; boundary=")
-    assert request.content is not None
+    assert isinstance(request.content, bytes)
     assert b'name="a"' in request.content

@@ -1,4 +1,6 @@
 import inspect
+from collections.abc import AsyncGenerator, AsyncIterator, Generator
+from contextlib import asynccontextmanager, contextmanager
 from types import SimpleNamespace, TracebackType
 
 import pytest
@@ -11,7 +13,14 @@ from supabase_utils.http.io import (
     SyncHttpIO,
     handle_http_io,
 )
-from supabase_utils.http.request import EmptyRequest, JSONRequest, Request, Response
+from supabase_utils.http.request import (
+    AsyncStreamedResponse,
+    EmptyRequest,
+    JSONRequest,
+    Request,
+    Response,
+    StreamedResponse,
+)
 from supabase_utils.http.retry import RetryPolicy
 from yarl import URL
 
@@ -48,6 +57,16 @@ class FakeSession(Responder):
     def send(self, request: Request) -> Response:
         return self.respond(request)
 
+    @contextmanager
+    def stream(self, request: Request) -> Generator[StreamedResponse]:
+        response = self.respond(request)
+        yield StreamedResponse(
+            headers=response.headers,
+            status=response.status,
+            request=request,
+            body=iter([response.content]),
+        )
+
     def __enter__(self) -> "FakeSession":
         return self
 
@@ -63,6 +82,20 @@ class FakeSession(Responder):
 class AsyncFakeSession(Responder):
     async def send(self, request: Request) -> Response:
         return self.respond(request)
+
+    @asynccontextmanager
+    async def stream(self, request: Request) -> AsyncGenerator[AsyncStreamedResponse]:
+        response = self.respond(request)
+
+        async def body() -> AsyncIterator[bytes]:
+            yield response.content
+
+        yield AsyncStreamedResponse(
+            headers=response.headers,
+            status=response.status,
+            request=request,
+            body=body(),
+        )
 
     async def __aenter__(self) -> "AsyncFakeSession":
         return self

@@ -9,11 +9,12 @@ from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING, get_args
 
 from ..types import HTTPRequestMethod
+from .body import FileContent
 from .errors import SupabaseTransportError
 
 if TYPE_CHECKING:
     from .headers import Headers
-    from .request import Request, Response
+    from .request import AsyncStreamedResponse, Request, Response, StreamedResponse
 
 DEFAULT_RETRYABLE_STATUSES: frozenset[int] = frozenset(
     {408, 429, 502, 503, 504, 520, 521, 522, 523, 524, 530}
@@ -153,7 +154,12 @@ class RetryPolicy:
         return delay * (1 - self.jitter * random.random())
 
     def delay(
-        self, outcome: Response | SupabaseTransportError, retries: int
+        self,
+        outcome: Response
+        | StreamedResponse
+        | AsyncStreamedResponse
+        | SupabaseTransportError,
+        retries: int,
     ) -> float | None:
         """Seconds to wait before sending a request again after `outcome`, the
         response it got or the transport error that failed it, when `retries`
@@ -175,14 +181,26 @@ class RetryPolicy:
         return requested if requested <= self.max_delay else None
 
 
+def _is_replayable(request: Request) -> bool:
+    """Whether the body of `request` can be sent again, for a retry."""
+    content = request.content
+    if content is None or isinstance(content, bytes):
+        return True
+    return isinstance(content, FileContent) and content.replayable
+
+
 def _policy_for(request: Request, default: RetryPolicy) -> RetryPolicy | None:
     """The policy that retries `request`, or None when it is never retried.
 
     `request.retry` decides: None leaves it to `default`, which retries the
     request when its method is one of its `retryable_methods`. True retries it
     with `default` whatever its method, False never retries it, and a
-    `RetryPolicy` retries it with that policy whatever its method.
+    `RetryPolicy` retries it with that policy whatever its method. A request
+    whose body is streamed from an iterator is never retried, since its body
+    cannot be sent again.
     """
+    if not _is_replayable(request):
+        return None
     if request.retry is None:
         return default if request.method in default.retryable_methods else None
     if request.retry is False:

@@ -2,7 +2,19 @@ import asyncio
 import inspect
 import logging
 import time
-from collections.abc import Awaitable, Callable, Generator
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterable,
+    Awaitable,
+    Callable,
+    Generator,
+)
+from contextlib import (
+    AbstractAsyncContextManager,
+    AbstractContextManager,
+    asynccontextmanager,
+    contextmanager,
+)
 from dataclasses import dataclass, field, replace
 from functools import cached_property, update_wrapper
 from types import TracebackType
@@ -12,13 +24,21 @@ from typing import (
     Protocol,
     Self,
     overload,
+    override,
 )
 
 from yarl import URL
 
 from .errors import SupabaseTransportError
 from .headers import Headers
-from .request import Request, Response, ToRequest, validate_request_timeout
+from .request import (
+    AsyncStreamedResponse,
+    Request,
+    Response,
+    StreamedResponse,
+    ToRequest,
+    validate_request_timeout,
+)
 from .retry import RetryPolicy, _policy_for
 
 type HttpMethod[Success] = Generator[ToRequest, Response, Success]
@@ -38,6 +58,7 @@ class LoopReturnValue[Success]:
 
 class HttpSession(Protocol):
     def send(self, request: Request) -> Response: ...
+    def stream(self, request: Request) -> AbstractContextManager[StreamedResponse]: ...
     def __enter__(self) -> Self: ...
     def __exit__(
         self,
@@ -49,6 +70,9 @@ class HttpSession(Protocol):
 
 class AsyncHttpSession(Protocol):
     async def send(self, request: Request) -> Response: ...
+    def stream(
+        self, request: Request
+    ) -> AbstractAsyncContextManager[AsyncStreamedResponse]: ...
     async def __aenter__(self) -> Self: ...
     async def __aexit__(
         self,
@@ -66,6 +90,9 @@ class _SharedHttpSession:
 
     def send(self, request: Request) -> Response:
         return self.session.send(request)
+
+    def stream(self, request: Request) -> AbstractContextManager[StreamedResponse]:
+        return self.session.stream(request)
 
     def __enter__(self) -> Self:
         return self
@@ -87,6 +114,11 @@ class _SharedAsyncHttpSession:
 
     async def send(self, request: Request) -> Response:
         return await self.session.send(request)
+
+    def stream(
+        self, request: Request
+    ) -> AbstractAsyncContextManager[AsyncStreamedResponse]:
+        return self.session.stream(request)
 
     async def __aenter__(self) -> Self:
         return self
@@ -110,7 +142,13 @@ class _Retries:
         self.attempt = request
         self.count = 0
 
-    def delay_after(self, outcome: Response | SupabaseTransportError) -> float | None:
+    def delay_after(
+        self,
+        outcome: Response
+        | StreamedResponse
+        | AsyncStreamedResponse
+        | SupabaseTransportError,
+    ) -> float | None:
         """Seconds to wait before the next attempt, or None when `outcome` is
         the final one. Prepares the next attempt when there is one."""
         delay = self.policy.delay(outcome, self.count)
@@ -158,6 +196,18 @@ class _HttpIO[Session]:
 
 
 class SyncHttpIO(_HttpIO[HttpSession]):
+    @override
+    def _finalize(
+        self, http_request: ToRequest, base_url: URL, default_headers: Headers
+    ) -> Request:
+        request = super()._finalize(http_request, base_url, default_headers)
+        if isinstance(request.content, AsyncIterable):
+            raise TypeError(
+                "A sync client cannot send an async iterable body, "
+                "pass a sync iterable or use the async client"
+            )
+        return request
+
     def communicate[Success](
         self,
         base_url: URL,
@@ -176,6 +226,38 @@ class SyncHttpIO(_HttpIO[HttpSession]):
                 http_request = iterator.send(response)
         except StopIteration:
             return return_value_iterator.return_value
+        finally:
+            iterator.close()
+
+    @contextmanager
+    def stream(
+        self, base_url: URL, default_headers: Headers, http_request: ToRequest
+    ) -> Generator[StreamedResponse]:
+        """Sends `http_request` and yields the response once its head arrives,
+        with the body still to read. The request is retried only before that,
+        as `communicate` retries it. Leaving the context closes the response."""
+        request = self._finalize(http_request, base_url, default_headers)
+        if request.delay:
+            time.sleep(request.delay)
+        retries = self._retries(request)
+        while True:
+            returned = False
+            try:
+                with self.session.stream(
+                    request if retries is None else retries.attempt
+                ) as response:
+                    delay = None if retries is None else retries.delay_after(response)
+                    if delay is None:
+                        returned = True
+                        yield response
+                        return
+            except SupabaseTransportError as error:
+                if returned or retries is None:
+                    raise
+                delay = retries.delay_after(error)
+                if delay is None:
+                    raise
+            time.sleep(delay)
 
     def _send(self, request: Request) -> Response:
         retries = self._retries(request)
@@ -214,6 +296,38 @@ class AsyncHttpIO(_HttpIO[AsyncHttpSession]):
                 http_request = iterator.send(response)
         except StopIteration:
             return return_value_iterator.return_value
+        finally:
+            iterator.close()
+
+    @asynccontextmanager
+    async def stream(
+        self, base_url: URL, default_headers: Headers, http_request: ToRequest
+    ) -> AsyncGenerator[AsyncStreamedResponse]:
+        """Sends `http_request` and yields the response once its head arrives,
+        with the body still to read. The request is retried only before that,
+        as `communicate` retries it. Leaving the context closes the response."""
+        request = self._finalize(http_request, base_url, default_headers)
+        if request.delay:
+            await asyncio.sleep(request.delay)
+        retries = self._retries(request)
+        while True:
+            returned = False
+            try:
+                async with self.session.stream(
+                    request if retries is None else retries.attempt
+                ) as response:
+                    delay = None if retries is None else retries.delay_after(response)
+                    if delay is None:
+                        returned = True
+                        yield response
+                        return
+            except SupabaseTransportError as error:
+                if returned or retries is None:
+                    raise
+                delay = retries.delay_after(error)
+                if delay is None:
+                    raise
+            await asyncio.sleep(delay)
 
     async def _send(self, request: Request) -> Response:
         retries = self._retries(request)

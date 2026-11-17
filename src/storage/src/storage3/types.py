@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterable, Iterable
 from datetime import datetime
-from typing import Any, Literal
+from os import PathLike
+from typing import Any, BinaryIO, Literal
 
 from pydantic import AliasChoices, BaseModel, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
 from supabase_utils.types import JSON
+
+type UploadBody = (
+    bytes | str | PathLike[str] | BinaryIO | Iterable[bytes] | AsyncIterable[bytes]
+)
+"""What an upload sends: the bytes themselves, the path of a file as a `str`
+or `Path`, a binary file opened for reading, or an iterator over the bytes.
+A file is streamed from disk, and an iterator is streamed as it is read. Only
+the async client takes an async iterator."""
 
 
 class Bucket(BaseModel, extra="ignore"):

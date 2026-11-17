@@ -135,6 +135,7 @@ class Wire:
 
 
 def wire(request: Request) -> Wire:
+    assert request.content is None or isinstance(request.content, bytes)
     return Wire(
         method=request.method,
         path=request.url.path,

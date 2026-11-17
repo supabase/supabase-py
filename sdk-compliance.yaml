@@ -1135,6 +1135,7 @@ features:
       - StorageFileApiClient
   storage.file_buckets.upload:
     status: implemented
+    note: "upload(), update() and upload_to_signed_url() send the raw file body. They take bytes, a path, a binary file or an iterator over bytes (an async iterator on the async client), and stream a file or an iterator instead of reading it into memory."
     symbols:
       - StorageFileApiClient.upload
     supporting_symbols:
@@ -1232,7 +1233,7 @@ features:
       - StorageFileApiClient.move
   storage.file_buckets.upload_with_metadata:
     status: implemented
-    note: "Pass metadata (and content_type/cache_control) when calling upload(); metadata is sent as a multipart field."
+    note: "Pass metadata (and content_type/cache_control) when calling upload(); metadata is sent base64 encoded in the x-metadata header."
     symbols:
       - StorageFileApiClient.upload
   storage.file_buckets.url_cache_nonce:
@@ -1242,7 +1243,19 @@ features:
       - StorageFileApiClient.download
   storage.file_buckets.resumable_upload: not_implemented
   storage.file_buckets.transfer_progress: not_implemented
-  storage.file_buckets.download_as_stream: not_implemented
+  storage.file_buckets.download_as_stream:
+    status: implemented
+    note: "download_stream() returns a context manager that sends the request on entry and gives a StorageDownload (AsyncStorageDownload on the async client) once a 2xx head arrived, with status and headers, or raises StorageApiError. Iterate over it, read(max_bytes) it into memory or write_to(path) it atomically. There is no byte range argument yet."
+    symbols:
+      - StorageFileApiClient.download_stream
+    supporting_symbols:
+      - StorageDownload
+      - StorageDownload.read
+      - StorageDownload.write_to
+      - AsyncStorageDownload
+      - AsyncStorageDownload.read
+      - AsyncStorageDownload.write_to
+      - StorageDownloadTooLargeError
   storage.file_buckets.bucket_versioning_status: not_implemented
   storage.file_buckets.copy_specific_version: not_implemented
   storage.file_buckets.delete_bucket_lifecycle: not_implemented
@@ -1638,6 +1651,24 @@ supporting_symbols:
   - CountedResponse
   - pre_rpc
   - Headers.with_client_info_features
+  - FileContent
+  - FileContent.length
+  - FileContent.replayable
+  - async_chunks
+  - StreamedResponse
+  - StreamedResponse.is_success
+  - StreamedResponse.read
+  - AsyncStreamedResponse
+  - AsyncStreamedResponse.is_success
+  - AsyncStreamedResponse.read
+  - HttpSession.stream
+  - AsyncHttpSession.stream
+  - SyncHttpIO.stream
+  - AsyncHttpIO.stream
+  - HttpxSession.stream
+  - AsyncHttpxSession.stream
+  - AsyncAiohttpSession.stream
+  - to_async_httpx_request
   - URLQuery.override
   - APIError
   - APIError.json
