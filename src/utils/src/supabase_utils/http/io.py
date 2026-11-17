@@ -48,24 +48,39 @@ logger = get_logger("http")
 
 
 def _log_response(request: Request, started: float, response: Response) -> None:
+    duration = perf_counter() - started
     logger.debug(
-        "%s %s %d in %.1f milliseconds",
+        "%s %s %d in %.3f seconds",
         request.method,
         request.url.path,
         response.status,
-        (perf_counter() - started) * 1000,
+        duration,
+        extra={
+            "http_method": request.method,
+            "http_path": request.url.path,
+            "http_status": response.status,
+            "duration": duration,
+        },
     )
 
 
 def _log_transport_error(
     request: Request, started: float, error: SupabaseTransportError
 ) -> None:
+    duration = perf_counter() - started
+    error_type = type(error).__name__
     logger.debug(
-        "%s %s failed in %.1f milliseconds with %s",
+        "%s %s failed in %.3f seconds with %s",
         request.method,
         request.url.path,
-        (perf_counter() - started) * 1000,
-        type(error).__name__,
+        duration,
+        error_type,
+        extra={
+            "http_method": request.method,
+            "http_path": request.url.path,
+            "duration": duration,
+            "error_type": error_type,
+        },
     )
 
 
@@ -189,6 +204,12 @@ class _Retries:
             self.count,
             self.policy.max_retries,
             delay,
+            extra={
+                "http_method": self.request.method,
+                "http_path": self.request.url.path,
+                "retry": self.count,
+                "delay": delay,
+            },
         )
         return delay
 

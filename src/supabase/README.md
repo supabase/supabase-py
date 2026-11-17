@@ -406,7 +406,7 @@ The response errors inherit both from the root of their package and from `Supaba
 
 ## Logging
 
-Every package logs through the standard `logging` module under the `supabase` logger: `supabase.http` for requests and retries, `supabase.auth` for the session refresh, `supabase.realtime` for the realtime connection, `supabase.realtime.websockets` for its websocket frames and `supabase.client` for the client. The packages only add a `NullHandler`, so nothing is printed until you configure logging. Each request is logged at `DEBUG` with its method, path, status and duration:
+Every package logs through the standard `logging` module under the `supabase` logger: `supabase.http` for requests and retries, `supabase.auth` for the session refresh, `supabase.realtime` for the realtime connection, `supabase.realtime.websockets` for its websocket frames and `supabase.client` for the client. The packages only add a `NullHandler`, so nothing is printed until you configure logging. Each request is logged at `DEBUG` with its method, path, status and duration in seconds, which are also set on the log record as the `http_method`, `http_path`, `http_status` and `duration` attributes for structured formatters:
 
 ```python
 import logging
@@ -415,7 +415,13 @@ logging.basicConfig()
 logging.getLogger("supabase").setLevel(logging.DEBUG)
 ```
 
-Setting the `SUPABASE_LOG` environment variable to `debug`, `info`, `warning` or `error` does the same without code, printing the logs of that level and above to standard error. The logs never contain keys, tokens, header values, query strings or the bodies of requests and messages.
+Setting the `SUPABASE_LOG` environment variable to `debug`, `info`, `warning` or `error` does the same without code, printing the logs of that level and above to standard error. The `supabase` logs never contain keys, tokens, header values, query strings or the bodies of requests and messages. The HTTP clients have loggers of their own outside it: httpx logs every request at `INFO` under the `httpx` logger with its full URL, query string included. Raise its level when you log at `INFO` or below:
+
+```python
+import logging
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+```
 
 ## Closing the client
 
