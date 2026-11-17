@@ -907,7 +907,7 @@ async def test_writes_of_a_generated_row_round_trip(
 
 
 async def test_is_distinct(postgrest_client: AsyncPostgrestClient) -> None:
-    res = await (
+    response = await (
         postgrest_client.from_("books")
         .select("id")
         .is_distinct("isbn", "9780441013593")
@@ -915,11 +915,11 @@ async def test_is_distinct(postgrest_client: AsyncPostgrestClient) -> None:
         .execute()
     )
 
-    assert res.data == [{"id": 2}, {"id": 3}]
+    assert response.data == [{"id": 2}, {"id": 3}]
 
 
 async def test_geojson(postgrest_client: AsyncPostgrestClient) -> None:
-    res = (
+    response = (
         await postgrest_client.from_("places")
         .select("*")
         .order("id")
@@ -927,8 +927,8 @@ async def test_geojson(postgrest_client: AsyncPostgrestClient) -> None:
         .execute()
     )
 
-    assert res.data["type"] == "FeatureCollection"
-    features = res.data["features"]
+    assert response.data["type"] == "FeatureCollection"
+    features = response.data["features"]
     assert isinstance(features, list)
     assert len(features) == 2
     null_island = features[0]
@@ -939,9 +939,9 @@ async def test_geojson(postgrest_client: AsyncPostgrestClient) -> None:
 async def test_dry_run_of_an_insert(postgrest_client: AsyncPostgrestClient) -> None:
     books = postgrest_client.from_("books")
 
-    res = await books.insert({"title": "Ghost"}).single().dry_run().execute()
+    response = await books.insert({"title": "Ghost"}).single().dry_run().execute()
 
-    assert res.data["title"] == "Ghost"
+    assert response.data["title"] == "Ghost"
     count = (
         await books.select("id", count=CountMethod.exact).eq("title", "Ghost").execute()
     )
@@ -950,9 +950,19 @@ async def test_dry_run_of_an_insert(postgrest_client: AsyncPostgrestClient) -> N
 
 async def test_dry_run_of_an_update(postgrest_client: AsyncPostgrestClient) -> None:
     books = postgrest_client.from_("books")
+    inserted = await books.insert({"title": "Draft", "pages": 10}).single().execute()
+    book_id = inserted.data["id"]
+    try:
+        response = await (
+            books.update({"pages": 1})
+            .eq("id", book_id)
+            .dry_run()
+            .select("pages")
+            .execute()
+        )
 
-    res = await books.update({"pages": 1}).all().dry_run().select("pages").execute()
-
-    assert res.data == [{"pages": 1}] * 3
-    dune = await books.select("pages").eq("id", 1).single().execute()
-    assert dune.data == {"pages": 412}
+        assert response.data == [{"pages": 1}]
+        stored = await books.select("pages").eq("id", book_id).single().execute()
+        assert stored.data == {"pages": 10}
+    finally:
+        await books.delete().eq("id", book_id).execute()

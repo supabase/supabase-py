@@ -456,10 +456,8 @@ def _with_options(
 def _decode(response: Response, request: TableRequest) -> TableResult:
     """The `TableResult` of `response`, decoded by the shape of `request`.
 
-    Raises `APIError` for an answer that is not a success, whose body is not
-    in the shape asked for, or that committed a dry run: PostgREST accepts
-    `tx=rollback` whatever its `db-tx-end` setting, and lists it in
-    `Preference-Applied` only when it rolled back.
+    Raises `APIError` for an answer that `_raise_for_failure` rejects, or
+    whose body is not in the shape asked for.
     """
     _raise_for_failure(response, dry_run=request.dry_run)
     count = APIResponse._get_count_from_http_request_response(response)
