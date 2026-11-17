@@ -1624,6 +1624,27 @@ supporting_symbols:
   - ComputedField
   - ComputedField.expression
   - ComputedField.is_null
+  - Expression
+  - Expression.expression
+  - Expression.response_key
+  - Expression.cast
+  - Expression.sum
+  - Expression.avg
+  - Expression.min
+  - Expression.max
+  - Expression.count
+  - ColumnExpression.json_text
+  - ColumnExpression.json_text_at
+  - ColumnExpression.json_object
+  - ColumnExpression.json_object_at
+  - JsonPath
+  - JsonPath.expression
+  - JsonPath.response_key
+  - JsonPath.is_null
+  - DerivedExpression
+  - DerivedExpression.count_all
+  - DerivedExpression.expression
+  - DerivedExpression.response_key
   - Filter
   - Filter.raw
   - Filter.comparison

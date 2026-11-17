@@ -275,7 +275,7 @@ def _operation(request: TableRequest) -> PostgrestRequest:
 def _select_list(request: TableRequest) -> tuple[str, ...]:
     """The entries of the `select` list, which `pre_select` cleans and
     replaces with `*` when there are none."""
-    return tuple(column.expression for column in request.columns)
+    return tuple(column._selected_as for column in request.columns)
 
 
 def _return_method(request: TableRequest) -> ReturnMethod:

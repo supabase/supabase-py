@@ -12,6 +12,7 @@ from typing import Any, Never, NotRequired, TypedDict, assert_type
 from uuid import UUID
 
 from httpx import AsyncClient, Client
+from pydantic import JsonValue
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 from supabase_utils.types import JSON
@@ -23,6 +24,8 @@ from postgrest import (
     ComputedField,
     CountedResponse,
     CountMethod,
+    DerivedExpression,
+    JsonPath,
     NullableColumn,
     PartialRow,
     SyncPostgrestClient,
@@ -56,6 +59,8 @@ class Books:
     id = Column[BooksRow, int]("id")
     title = Column[BooksRow, str]("title")
     published_on = NullableColumn[BooksRow, date]("published_on")
+    rating = Column[BooksRow, float]("rating")
+    metadata = NullableColumn[BooksRow, JsonValue]("metadata")
     full_title = ComputedField[BooksRow, str]("full_title")
     next_publication = ComputedField[BooksRow, date]("next_publication", date)
     table = Table[BooksRow, BooksInsert, BooksUpdate](
@@ -145,6 +150,50 @@ assert_type(row[Column("legacy")], Any)
 assert_type(row.to_row(), BooksRow)
 row[Authors.id]  # error:
 books.select_only([Books.id, Authors.name])  # error:
+
+name = Books.metadata.json_text("name")
+awards = Books.metadata.json_object("awards")
+assert_type(name, JsonPath[BooksRow, str])
+assert_type(awards, JsonPath[BooksRow, JsonValue])
+assert_type(awards.json_text_at(0), JsonPath[BooksRow, str])
+assert_type(awards.json_object_at(0), JsonPath[BooksRow, JsonValue])
+books.select().where(name.eq("Ada") & awards.json_object_at(0).eq("Hugo"))
+books.select().where(~name.is_null()).order(name.desc())
+books.select().where(name.eq(1))  # error:
+name.json_text("deeper")  # error:
+Books.title.json_text("name")  # error:
+
+assert_type(Books.id.cast("text", str), DerivedExpression[BooksRow, str])
+assert_type(Books.id.sum(), DerivedExpression[BooksRow, int])
+assert_type(Books.rating.sum(), DerivedExpression[BooksRow, float])
+assert_type(Books.id.avg(), DerivedExpression[BooksRow, float])
+assert_type(Books.published_on.min(), DerivedExpression[BooksRow, date])
+assert_type(Books.title.max(), DerivedExpression[BooksRow, str])
+assert_type(Books.title.count(), DerivedExpression[BooksRow, int])
+assert_type(Books.id.sum().cast("text", str), DerivedExpression[BooksRow, str])
+assert_type(DerivedExpression.count_all(), DerivedExpression[Any, int])
+Books.title.sum()  # error:
+Books.published_on.avg()  # error:
+Books.id.sum().eq(1)  # error:
+Books.id.cast("text", str).eq("1")  # error:
+books.select().order(Books.id.sum())  # error:
+books.select().order(Books.id.cast("text", str))  # error:
+
+derived = books.select_only(
+    [
+        Books.title,
+        name,
+        Books.id.sum(),
+        Books.id.cast("text", str),
+        DerivedExpression.count_all(),
+    ]
+).execute()[0]
+assert_type(derived[name], str | None)
+assert_type(derived[Books.id.sum()], int | None)
+assert_type(derived[Books.id.cast("text", str)], str | None)
+assert_type(derived[DerivedExpression.count_all()], int | None)
+derived[Authors.id.sum()]  # error:
+books.select_only([Books.id.sum(), Authors.id.sum()])  # error:
 
 assert_type(books.insert({"title": "x"}).execute(), None)
 assert_type(books.insert([{"title": "x"}, {"title": "y", "id": 2}]).execute(), None)
