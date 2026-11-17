@@ -14,6 +14,7 @@ from .exceptions import (
     ChannelNotJoinedError,
     NotConnectedError,
     PushRejectedError,
+    RealtimeAPIError,
     RealtimeError,
     RealtimeTimeoutError,
 )
@@ -142,6 +143,7 @@ __all__ = [
     "RawPresenceDiff",
     "RawPresenceState",
     "RawPresenceStateEntry",
+    "RealtimeAPIError",
     "RealtimeAcknowledgementStatus",
     "RealtimeChannel",
     "RealtimeChannelBroadcastConfig",

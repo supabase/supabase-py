@@ -1,4 +1,5 @@
 from supabase_utils.errors import SupabaseError
+from supabase_utils.http.errors import SupabaseAPIError
 
 _AUTHORIZATION_ERROR_CODES = frozenset(
     {
@@ -82,6 +83,13 @@ class PushRejectedError(RealtimeError):
         self.event = event
         self.topic = topic
         self.reason = reason
+
+
+class RealtimeAPIError(RealtimeError, SupabaseAPIError):
+    """
+    Raised when the Realtime REST API answers a request with an error, such as
+    `RealtimeChannel.http_send()` with a status other than 202.
+    """
 
 
 class ChannelClosedError(RealtimeError):

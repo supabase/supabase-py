@@ -233,6 +233,14 @@ async def test_realtime_reads_the_token_from_the_session(
         assert client.headers.get("Authorization") == f"Bearer {key}"
 
 
+async def test_realtime_sends_http_requests_with_the_client_session_and_api_key(
+    create_async_client: AsyncClientCallable,
+) -> None:
+    async with create_async_client(url, key) as client:
+        assert client.realtime.http_session is client.http_session
+        assert client.realtime.headers["apikey"] == key
+
+
 async def test_realtime_uses_the_authorization_token_without_a_session(
     create_async_client: AsyncClientCallable,
 ) -> None:
