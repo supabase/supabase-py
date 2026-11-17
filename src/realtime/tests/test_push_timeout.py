@@ -488,7 +488,7 @@ def test_a_full_queue_drops_its_oldest_message_and_warns_once(
 ) -> None:
     channel = RealtimeClient("http://localhost", max_queued_messages=2).channel("room")
 
-    with caplog.at_level(logging.WARNING, logger="realtime.channel"):
+    with caplog.at_level(logging.WARNING, logger="supabase.realtime.channel"):
         for index in range(4):
             channel._receive(
                 Message(
@@ -509,7 +509,7 @@ def test_a_full_queue_warns_again_after_it_was_read(
     channel = RealtimeClient("http://localhost", max_queued_messages=1).channel("room")
     message = Message(event=ChannelEvents.broadcast, topic=channel.topic, payload={})
 
-    with caplog.at_level(logging.WARNING, logger="realtime.channel"):
+    with caplog.at_level(logging.WARNING, logger="supabase.realtime.channel"):
         channel._receive(message)
         channel._receive(message)
         channel.message_stream.get_nowait()

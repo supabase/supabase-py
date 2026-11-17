@@ -288,10 +288,10 @@ async def test_binary_broadcast_round_trip(
     assert frame.endswith(b"realtime:roomblob\x00\x01\xff")
 
 
-async def test_binary_frames_are_logged_by_size_only(
+async def test_binary_frames_are_logged_without_their_content(
     server: BroadcastServer, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with caplog.at_level(logging.DEBUG, logger="realtime"):
+    with caplog.at_level(logging.DEBUG, logger="supabase.realtime"):
         async with (
             connect_once(server.url) as client,
             client.channel("room") as channel,
@@ -302,8 +302,8 @@ async def test_binary_frames_are_logged_by_size_only(
     client_logs = "\n".join(
         record.getMessage()
         for record in caplog.records
-        if record.name.startswith("realtime")
+        if record.name.startswith("supabase.realtime")
     )
-    assert "<binary frame of 45 bytes>" in client_logs
+    assert "sending broadcast on realtime:room" in client_logs
     assert "<binary frame of 13 bytes>" in client_logs
     assert "secret-binary-token" not in client_logs
