@@ -196,7 +196,7 @@ async def test_a_failed_send_after_the_join_is_logged(
 
     monkeypatch.setattr(client, "_send_no_wait", fail)
     server.release_join.set()
-    with caplog.at_level(logging.WARNING, logger="realtime.client"):
+    with caplog.at_level(logging.WARNING, logger="supabase.realtime"):
         reply = await subscribe
     await client.aclose()
 
@@ -326,7 +326,7 @@ async def test_a_failing_token_callback_keeps_the_heartbeat_running(
 ) -> None:
     token = TokenFailingAfterFirstCall()
 
-    with caplog.at_level(logging.WARNING, logger="realtime.client"):
+    with caplog.at_level(logging.WARNING, logger="supabase.realtime"):
         async with connect_once(server.url, token, heartbeat_interval=0.05):
             async with asyncio.timeout(5):
                 await server.third_heartbeat_received.wait()

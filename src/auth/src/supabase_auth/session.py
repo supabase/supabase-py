@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -11,6 +10,7 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, Self
 from uuid import uuid4
 
+from supabase_utils._logging import get_logger
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from types import TracebackType
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger("auth")
 
 
 def _retry_delay(attempt: int) -> float:

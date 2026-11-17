@@ -5,6 +5,7 @@ from types import TracebackType
 from warnings import warn
 
 import websockets
+from supabase_utils._logging import get_logger
 from supabase_utils._urls import check_secure_url
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpSession
@@ -13,7 +14,7 @@ from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import InvalidStatus
 from yarl import URL
 
-from ._redact import RedactingLoggerAdapter
+from ._redact import RedactingLoggerAdapter, describe
 from ._serializer import decode, encode
 from .channel import RealtimeChannel, RealtimeChannelOptions
 from .exceptions import (
@@ -37,13 +38,13 @@ from .types import (
 )
 from .version import __version__
 
-logger = RedactingLoggerAdapter(logging.getLogger(__name__))
+logger = RedactingLoggerAdapter(get_logger("realtime"))
 websockets_logger = RedactingLoggerAdapter(logging.getLogger("websockets.client"))
 
 
 def _loggable(frame: str | bytes) -> str:
     if isinstance(frame, str):
-        return frame
+        return f"<text frame of {len(frame)} characters>"
     return f"<binary frame of {len(frame)} bytes>"
 
 
@@ -424,9 +425,9 @@ class RealtimeClient:
                     return
                 try:
                     message = decode(frame)
-                except ValueError as e:
+                except ValueError:
                     logger.error(
-                        "Unrecognized message format %s\n%s", _loggable(frame), e
+                        "Ignoring a %s in an unrecognized format", _loggable(frame)
                     )
                     continue
                 fut = (
@@ -437,11 +438,13 @@ class RealtimeClient:
                 if fut is not None and not fut.done():
                     fut.set_result(message)
                 elif message.event == ChannelEvents.reply:
-                    logger.info("Ignoring reply nobody is waiting on: %r", message)
+                    logger.debug(
+                        "Ignoring a reply nobody is waiting on: %s", describe(message)
+                    )
                 elif channel := self.channels.get(message.topic):
                     channel._receive(message)
                 else:
-                    logger.info("Ignoring message: %r", message)
+                    logger.debug("Ignoring %s", describe(message))
         except Exception as exc:
             self._fail_connection(failure, exc)
 
@@ -537,10 +540,10 @@ class RealtimeClient:
                     payload={},
                     ref=self._make_ref(),
                 )
-                logger.info("sending heartbeat")
+                logger.debug("sending heartbeat")
                 _publish(self._heartbeat_listeners, HeartbeatStatus.SENT)
                 res = await self._send(data, reply_timeout=self.heartbeat_timeout)
-                logger.info("heartbeat response: %r", res)
+                logger.debug("heartbeat reply: %s", res.payload.status)
                 if isinstance(res.payload, ErrorReplyMessage):
                     _publish(self._heartbeat_listeners, HeartbeatStatus.ERROR)
                     raise NotConnectedError(
@@ -717,7 +720,7 @@ class RealtimeClient:
         websocket, failure = self._connection("RealtimeClient._send")
         _raise_connection_failure(failure)
         frame = encode(message)
-        logger.debug("sending: %s", _loggable(frame))
+        logger.debug("sending %s", describe(message))
 
         seconds = self.timeout if reply_timeout is None else reply_timeout
         deadline = asyncio.timeout(seconds)
@@ -746,7 +749,7 @@ class RealtimeClient:
         websocket, failure = self._connection("RealtimeClient._send_no_wait")
         _raise_connection_failure(failure)
         frame = encode(message)
-        logger.debug("sending: %s", _loggable(frame))
+        logger.debug("sending %s", describe(message))
         await websocket.send(frame)
 
     def endpoint_url(self) -> str:

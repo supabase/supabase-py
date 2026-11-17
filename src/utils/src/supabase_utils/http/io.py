@@ -1,6 +1,5 @@
 import asyncio
 import inspect
-import logging
 import time
 from collections.abc import (
     AsyncGenerator,
@@ -17,6 +16,7 @@ from contextlib import (
 )
 from dataclasses import dataclass, field, replace
 from functools import cached_property, update_wrapper
+from time import perf_counter
 from types import TracebackType
 from typing import (
     Any,
@@ -29,6 +29,7 @@ from typing import (
 
 from yarl import URL
 
+from .._logging import get_logger
 from .errors import SupabaseTransportError
 from .headers import Headers
 from .request import (
@@ -43,7 +44,29 @@ from .retry import RetryPolicy, _policy_for
 
 type HttpMethod[Success] = Generator[ToRequest, Response, Success]
 
-logger = logging.getLogger(__name__)
+logger = get_logger("http")
+
+
+def _log_response(request: Request, started: float, response: Response) -> None:
+    logger.debug(
+        "%s %s %d in %.1f ms",
+        request.method,
+        request.url.path,
+        response.status,
+        (perf_counter() - started) * 1000,
+    )
+
+
+def _log_transport_error(
+    request: Request, started: float, error: SupabaseTransportError
+) -> None:
+    logger.debug(
+        "%s %s failed in %.1f ms with %s",
+        request.method,
+        request.url.path,
+        (perf_counter() - started) * 1000,
+        type(error).__name__,
+    )
 
 
 @dataclass
@@ -162,7 +185,7 @@ class _Retries:
         logger.debug(
             "%s %s failed, retry %d of %d in %.2f seconds",
             self.request.method,
-            self.request.url.with_query(None),
+            self.request.url.path,
             self.count,
             self.policy.max_retries,
             delay,
@@ -259,13 +282,23 @@ class SyncHttpIO(_HttpIO[HttpSession]):
                     raise
             time.sleep(delay)
 
+    def _send_once(self, request: Request) -> Response:
+        started = perf_counter()
+        try:
+            response = self.session.send(request)
+        except SupabaseTransportError as error:
+            _log_transport_error(request, started, error)
+            raise
+        _log_response(request, started, response)
+        return response
+
     def _send(self, request: Request) -> Response:
         retries = self._retries(request)
         if retries is None:
-            return self.session.send(request)
+            return self._send_once(request)
         while True:
             try:
-                response = self.session.send(retries.attempt)
+                response = self._send_once(retries.attempt)
             except SupabaseTransportError as error:
                 delay = retries.delay_after(error)
                 if delay is None:
@@ -329,13 +362,23 @@ class AsyncHttpIO(_HttpIO[AsyncHttpSession]):
                     raise
             await asyncio.sleep(delay)
 
+    async def _send_once(self, request: Request) -> Response:
+        started = perf_counter()
+        try:
+            response = await self.session.send(request)
+        except SupabaseTransportError as error:
+            _log_transport_error(request, started, error)
+            raise
+        _log_response(request, started, response)
+        return response
+
     async def _send(self, request: Request) -> Response:
         retries = self._retries(request)
         if retries is None:
-            return await self.session.send(request)
+            return await self._send_once(request)
         while True:
             try:
-                response = await self.session.send(retries.attempt)
+                response = await self._send_once(retries.attempt)
             except SupabaseTransportError as error:
                 delay = retries.delay_after(error)
                 if delay is None:

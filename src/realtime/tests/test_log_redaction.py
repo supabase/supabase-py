@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 
@@ -8,6 +9,7 @@ from websockets.frames import Frame
 
 from realtime._redact import RedactingLoggerAdapter, redact
 from realtime._serializer import decode, encode
+from realtime.channel import RealtimeChannelOptions
 from realtime.client import connect_once
 from realtime.message import Message
 from realtime.types import ChannelEvents
@@ -72,8 +74,33 @@ async def test_tokens_are_not_logged(
     assert {
         record.filename
         for record in caplog.records
-        if record.name in {"realtime.client", "websockets.client"}
+        if record.name in {"supabase.realtime", "websockets.client"}
     }.isdisjoint({"_redact.py", "__init__.py"})
+
+
+async def test_payloads_are_not_logged_and_heartbeats_are_debug(
+    server_url: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.DEBUG, logger="supabase"):
+        async with connect_once(server_url, heartbeat_interval=0.01) as client:
+            channel = client.channel(
+                "room", RealtimeChannelOptions().broadcast(ack=True)
+            )
+            await channel.subscribe()
+            await channel.send_broadcast("note", {"password": "secret-payload"})
+            await asyncio.sleep(0.05)
+
+    records = [
+        record for record in caplog.records if record.name.startswith("supabase.")
+    ]
+    messages = [record.getMessage() for record in records]
+    assert "sending broadcast on realtime:room (ref=3)" in messages
+    assert "join reply on realtime:room: ok" in messages
+    assert "sending heartbeat" in messages
+    assert all("secret-payload" not in message for message in messages)
+    assert {
+        record.levelno for record in records if "heartbeat" in record.getMessage()
+    } == {logging.DEBUG}
 
 
 @pytest.mark.parametrize(

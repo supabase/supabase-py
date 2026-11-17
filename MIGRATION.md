@@ -491,6 +491,10 @@ supabase = create_client(
 )
 ```
 
+## Logs go through the `supabase` logger
+
+Every package logs under the `supabase` logger instead of a logger named after its module, so `logging.getLogger("supabase")` configures all of them. The realtime logs moved from `realtime.client` and `realtime.channel` to `supabase.realtime` and `supabase.realtime.channel`, the auth logs from `supabase_auth.session` to `supabase.auth`, and the retry logs from `supabase_utils.http.io` to `supabase.http`, which also logs every request at `DEBUG`. Heartbeats are logged at `DEBUG` instead of `INFO`, and realtime messages are logged by event, topic and ref instead of with their payload. The [logging](src/supabase/README.md#logging) section of the README has the details.
+
 ## One exception hierarchy
 
 Every exception the packages raise themselves inherits from `supabase_utils.errors.SupabaseError`, re-exported as `supabase.SupabaseError`, so `except SupabaseError` catches any failure the SDK reports. The hierarchy is described in the [error handling](src/supabase/README.md#error-handling) section of the README. The realtime connection is the exception: a lost websocket still surfaces from a send as the `websockets.ConnectionClosed` or built-in `TimeoutError` that failed it, as before. A `subscribe()` it interrupts raises `NotConnectedError`.

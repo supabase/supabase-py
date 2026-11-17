@@ -480,7 +480,10 @@ features:
       - SupabaseClient.headers
 
   client.observability.trace_propagation: not_implemented
-  client.observability.diagnostic_logging: not_implemented
+  client.observability.diagnostic_logging:
+    status: implemented
+    note: "Records go through the `supabase` logger hierarchy of the standard `logging` module, configured with `logging.getLogger(\"supabase\")` or the `SUPABASE_LOG` environment variable."
+    no_public_symbols: true
 
   # ── Database ───────────────────────────────────────────────────────────────
 

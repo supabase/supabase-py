@@ -2,7 +2,6 @@
 Defines the RealtimePresence class and its dependencies.
 """
 
-import logging
 from dataclasses import dataclass
 
 from .types import (
@@ -11,8 +10,6 @@ from .types import (
     RawPresenceState,
     RealtimePresenceState,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _transform_state(

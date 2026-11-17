@@ -5,12 +5,19 @@ from typing import Any, override
 
 from websockets.frames import Frame
 
+from .message import Message, ReplyMessage
+
 REDACTED = "<redacted>"
 
 _SECRET_PATTERNS = (
     re.compile(r"(\bapikey=)[^&\s]*", re.IGNORECASE),
     re.compile(r"""(\baccess_token\b["']?\s*[:=]\s*["'])[^"']*"""),
 )
+
+
+def describe(message: Message | ReplyMessage) -> str:
+    """The event, topic and ref of `message`, without its payload."""
+    return f"{message.event} on {message.topic} (ref={message.ref})"
 
 
 def redact(text: str) -> str:

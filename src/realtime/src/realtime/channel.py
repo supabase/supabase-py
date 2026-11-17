@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import logging
 import weakref
 from collections.abc import Buffer, Sequence
 from dataclasses import dataclass, replace
@@ -11,9 +10,11 @@ from urllib.parse import quote
 
 import websockets
 from pydantic import ValidationError
+from supabase_utils._logging import get_logger
 from supabase_utils.http.request import Request, validate_request_timeout
 from supabase_utils.types import JSONParser
 
+from ._redact import describe
 from .exceptions import (
     AuthorizationError,
     ChannelClosedError,
@@ -64,7 +65,7 @@ if TYPE_CHECKING:
     from .client import RealtimeClient
     from .message import PostgresRowChange
 
-logger = logging.getLogger(__name__)
+logger = get_logger("realtime.channel")
 
 
 @dataclass(frozen=True)
@@ -276,9 +277,7 @@ class RealtimeChannel:
             self._system_error = None
         if message.event in (ChannelEvents.error, ChannelEvents.close):
             if message.join_ref is not None and message.join_ref != self.join_ref:
-                logger.info(
-                    "Ignoring %s of an earlier join: %r", message.event, message
-                )
+                logger.debug("Ignoring %s of an earlier join", describe(message))
                 return
             self._fail_pending_pushes()
             if message.event == ChannelEvents.error:
@@ -307,7 +306,9 @@ class RealtimeChannel:
         try:
             server_message = ServerMessageAdapter.validate_python(message)
         except ValueError:
-            logger.warning("Ignoring invalid presence message: %r", message)
+            logger.warning(
+                "Ignoring an invalid presence message: %s", describe(message)
+            )
             return
         if isinstance(server_message, PresenceStateMessage):
             events = self.presence._on_state_event(
@@ -478,7 +479,7 @@ class RealtimeChannel:
                     f"the connection dropped before the join of {self.topic!r} completed",
                 ) from exc
             raise
-        logger.info("Subscribe reply: %r", msg)
+        logger.debug("join reply on %s: %s", self.topic, msg.payload.status)
         self._raise_if_join_was_stopped(attempt)
         if not isinstance(msg.payload, SuccessReplyMessage):
             self.state = ChannelStates.CLOSED
