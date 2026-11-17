@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO
 
 from .exceptions import StorageDownloadTooLargeError, parse_api_error
-from .progress import _async_counted, _counted, _download_total, _Progress
+from .progress import _async_downloaded, _download_total, _downloaded
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterator
@@ -49,8 +49,9 @@ class _DownloadHead:
         """The `Content-Type` of the body."""
         return self.headers.get("Content-Type")
 
-    def _progress(self, callback: ProgressCallback) -> _Progress:
-        return _Progress(callback, _download_total(self.headers, self.content_length))
+    @property
+    def _total(self) -> int | None:
+        return _download_total(self.headers, self.content_length)
 
 
 def _check_size(size: int, max_bytes: int | None) -> None:
@@ -116,7 +117,7 @@ class StorageDownload(_DownloadHead):
         super().__init__(response.status, response.headers)
         self._body = response.body
         if on_progress is not None:
-            self._body = _counted(self._body, self._progress(on_progress))
+            self._body = _downloaded(self._body, on_progress, self._total)
 
     def __iter__(self) -> Iterator[bytes]:
         return self._body
@@ -173,7 +174,7 @@ class AsyncStorageDownload(_DownloadHead):
         super().__init__(response.status, response.headers)
         self._body = response.body
         if on_progress is not None:
-            self._body = _async_counted(self._body, self._progress(on_progress))
+            self._body = _async_downloaded(self._body, on_progress, self._total)
 
     def __aiter__(self) -> AsyncIterator[bytes]:
         return self._body

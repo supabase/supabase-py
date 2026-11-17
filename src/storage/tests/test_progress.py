@@ -203,6 +203,15 @@ def test_download_stream_reports_bytes_read(storage: Storage, reports: Reports) 
     assert reports == [(0, 10), (10, 10)]
 
 
+def test_download_reports_a_chunk_when_it_is_handed_over(
+    storage: Storage, reports: Reports
+) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    with bucket.download_stream("a.txt", on_progress=record(reports)) as download:
+        assert next(iter(download)) == BODY
+        assert reports == [(0, 10), (10, 10)]
+
+
 @pytest.mark.parametrize("name", ["encoded.txt", "unsized.txt"])
 def test_download_without_a_usable_length_has_no_total(
     storage: Storage, reports: Reports, name: str

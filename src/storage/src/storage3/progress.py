@@ -26,11 +26,13 @@ the transfer is complete: the operation returning or the body ending does.
 
 
 class _Progress:
-    """Reports the bytes one transfer moved to a callback.
+    """Reports the bytes an upload sent to a callback.
 
     Every pass over the body is an attempt that counts from 0. A report of an
     attempt that a later one replaced, or that comes after `end`, is dropped,
-    so a worker thread still reading an abandoned attempt reports nothing.
+    so a worker thread still reading an abandoned attempt reports nothing. The
+    callback runs without the lock held, so a slow callback never blocks
+    `end` on the event loop.
     """
 
     def __init__(self, callback: ProgressCallback, total: int | None) -> None:
@@ -49,8 +51,9 @@ class _Progress:
 
     def report(self, attempt: int, moved: int) -> None:
         with self._lock:
-            if not self._ended and attempt == self._attempt:
-                self.callback(moved, self.total)
+            current = not self._ended and attempt == self._attempt
+        if current:
+            self.callback(moved, self.total)
 
     def end(self) -> None:
         with self._lock:
@@ -81,9 +84,14 @@ class _CountedFileContent(FileContent):
     """A `FileContent` that reports every pass over the file to `progress`,
     so it keeps its `Content-Length` and can still be retried."""
 
-    def __init__(self, file: BinaryIO, progress: _Progress) -> None:
+    def __init__(self, file: BinaryIO, callback: ProgressCallback) -> None:
         super().__init__(file)
-        self.progress = progress
+        self.progress = _Progress(callback, super().length)
+
+    @property
+    @override
+    def length(self) -> int | None:
+        return self.progress.total
 
     @override
     def __iter__(self) -> Iterator[bytes]:
@@ -98,12 +106,36 @@ def _counted_upload(
     if isinstance(content, bytes):
         content = FileContent(BytesIO(content))
     if isinstance(content, FileContent):
-        progress = _Progress(callback, content.length)
-        return _CountedFileContent(content.file, progress), progress
+        counted = _CountedFileContent(content.file, callback)
+        return counted, counted.progress
     progress = _Progress(callback, None)
     if isinstance(content, AsyncIterable):
         return _async_counted(content, progress), progress
     return _counted(content, progress), progress
+
+
+def _downloaded(
+    chunks: Iterable[bytes], callback: ProgressCallback, total: int | None
+) -> Iterator[bytes]:
+    """`chunks` with each one reported to `callback` as it is handed over."""
+    moved = 0
+    callback(moved, total)
+    for chunk in chunks:
+        moved += len(chunk)
+        callback(moved, total)
+        yield chunk
+
+
+async def _async_downloaded(
+    chunks: AsyncIterable[bytes], callback: ProgressCallback, total: int | None
+) -> AsyncIterator[bytes]:
+    """`chunks` with each one reported to `callback` as it is handed over."""
+    moved = 0
+    callback(moved, total)
+    async for chunk in chunks:
+        moved += len(chunk)
+        callback(moved, total)
+        yield chunk
 
 
 def _download_total(headers: Headers, content_length: int | None) -> int | None:
