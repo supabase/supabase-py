@@ -376,9 +376,27 @@ def test_is_distinct(filter_request_builder: BaseFilterRequestBuilder) -> None:
 
 
 def test_not_is_distinct(filter_request_builder: BaseFilterRequestBuilder) -> None:
+    builder = filter_request_builder.not_.is_distinct("x", "a")
+
+    assert builder.request.query.get("x") == "not.isdistinct.a"
+
+
+def test_is_distinct_from_none_is_not_null(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
+    builder = filter_request_builder.is_distinct("x", None)
+
+    assert builder.request.query.get("x") == "not.is.null"
+    assert not builder.negate_next
+
+
+def test_not_is_distinct_from_none_is_null(
+    filter_request_builder: BaseFilterRequestBuilder,
+) -> None:
     builder = filter_request_builder.not_.is_distinct("x", None)
 
-    assert builder.request.query.get("x") == "not.isdistinct.null"
+    assert builder.request.query.get("x") == "is.null"
+    assert not builder.negate_next
 
 
 def test_in_(filter_request_builder: BaseFilterRequestBuilder) -> None:

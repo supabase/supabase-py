@@ -911,11 +911,23 @@ async def test_is_distinct(postgrest_client: AsyncPostgrestClient) -> None:
         postgrest_client.from_("books")
         .select("id")
         .is_distinct("isbn", "9780441013593")
+        .lt("id", 100)
         .order("id")
         .execute()
     )
 
     assert response.data == [{"id": 2}, {"id": 3}]
+
+    response = await (
+        postgrest_client.from_("books")
+        .select("id")
+        .is_distinct("isbn", None)
+        .lt("id", 100)
+        .order("id")
+        .execute()
+    )
+
+    assert response.data == [{"id": 1}, {"id": 2}]
 
 
 async def test_geojson(postgrest_client: AsyncPostgrestClient) -> None:

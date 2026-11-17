@@ -601,12 +601,16 @@ class BaseFilterRequestBuilder:
     def is_distinct(self: Self, column: str, value: Any) -> Self:
         """An 'IS DISTINCT FROM' filter. Unlike `neq()`, it treats `NULL`
         as a value, so a row whose column is `NULL` matches any non-null
-        `value`.
+        `value`. PostgREST reads a `null` operand as text, so `None` is sent
+        as the `is` filter it means, `not.is.null`.
 
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
         """
+        if value is None:
+            negated = replace(self, negate_next=not self.negate_next)
+            return negated.filter(column, Filters.IS, None)
         return self.filter(column, Filters.IS_DISTINCT, value)
 
     def is_(self: Self, column: str, value: Any) -> Self:
