@@ -606,8 +606,9 @@ class RealtimeChannel:
         logged. Presence events are not yielded here: read them from
         `presence_events()`.
 
-        :raises NotConnectedError: If the client is not connected, or is closed
-            while waiting for a message.
+        :raises NotConnectedError: If the client is not connected, is closed
+            while waiting for a message, or the channel was unsubscribed and
+            its queued messages were read.
         :raises Exception: The error that ended the channel, such as an
             `AuthorizationError` when the client could not join it again after
             a reconnect, or the error that dropped the connection of a channel
@@ -615,6 +616,10 @@ class RealtimeChannel:
         """
         while True:
             if self.message_stream.empty():
+                if self.socket.channels.get(self.topic) is not self:
+                    raise NotConnectedError(
+                        "RealtimeChannel.messages", "the channel was unsubscribed"
+                    )
                 message = await self.socket._next_message(self.message_stream)
             else:
                 message = self.message_stream.get_nowait()

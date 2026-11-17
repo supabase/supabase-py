@@ -7,8 +7,9 @@ class WebSocketConnection(Protocol):
     An open WebSocket connection, as returned by a `WebSocketTransport`.
 
     A ``websockets`` client connection already satisfies it. Once the
-    connection is closed, `send` and `recv` must raise, preferably a
-    ``websockets.ConnectionClosed`` or an `OSError` such as `ConnectionError`.
+    connection is closed, `send` and `recv` must raise a
+    ``websockets.ConnectionClosed`` or an `OSError` such as `ConnectionError`,
+    so the client treats it as a lost connection.
     """
 
     async def send(self, message: str | bytes, /) -> None:

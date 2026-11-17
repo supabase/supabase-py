@@ -6,6 +6,8 @@ import pytest
 from realtime import (
     ChannelNotJoinedError,
     ConnectionState,
+    NotConnectedError,
+    RealtimeChannel,
     RealtimeClient,
     WebSocketConnection,
     connect_once,
@@ -110,6 +112,15 @@ async def test_a_connection_error_from_the_transport_drops_the_connection() -> N
     await client.aclose()
 
 
+async def wait_until_closed(client: RealtimeClient) -> None:
+    async def closed() -> None:
+        async for state in client.connection_states():
+            if state == ConnectionState.CLOSED:
+                return
+
+    await asyncio.wait_for(closed(), timeout=5)
+
+
 async def test_the_connection_closes_once_the_delay_after_the_last_channel_passes() -> (
     None
 ):
@@ -123,43 +134,75 @@ async def test_the_connection_closes_once_the_delay_after_the_last_channel_passe
     await channel.unsubscribe()
     assert client.connection_state == ConnectionState.CONNECTED
 
-    await asyncio.sleep(0.1)
-    assert client.connection_state == ConnectionState.CLOSED
+    await wait_until_closed(client)
     assert transport.connections[0].closed
 
 
 async def test_a_channel_joined_within_the_delay_reuses_the_connection() -> None:
     transport = InMemoryTransport()
     client = RealtimeClient(
-        URL, transport=transport, disconnect_on_empty_channels_after=0.05
+        URL, transport=transport, disconnect_on_empty_channels_after=60
     )
     await client.channel("first").subscribe()
     await client.remove_all_channels()
+    pending = client._disconnect_task
+    assert pending is not None
 
     await client.channel("second").subscribe()
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(0)
 
+    assert pending.cancelled()
     assert client.connection_state == ConnectionState.CONNECTED
     assert len(transport.connections) == 1
     await client.aclose()
 
 
-async def test_the_delay_restarts_when_the_last_channel_is_removed_again() -> None:
+async def test_removing_the_last_channel_again_restarts_the_delay() -> None:
     transport = InMemoryTransport()
     client = RealtimeClient(
-        URL, transport=transport, disconnect_on_empty_channels_after=0.1
+        URL, transport=transport, disconnect_on_empty_channels_after=60
     )
     await client.channel("first").subscribe()
     await client.remove_all_channels()
-    await asyncio.sleep(0.06)
+    first = client._disconnect_task
     await client.channel("second").subscribe()
     await client.remove_all_channels()
+    await asyncio.sleep(0)
 
-    await asyncio.sleep(0.06)
-    assert client.connection_state == ConnectionState.CONNECTED
+    assert first is not None
+    assert first.cancelled()
+    assert client._disconnect_task is not None
+    assert not client._disconnect_task.done()
+    await client.aclose()
 
-    await asyncio.sleep(0.06)
-    assert client.connection_state == ConnectionState.CLOSED
+
+async def test_unsubscribing_without_a_connection_schedules_no_disconnect() -> None:
+    client = RealtimeClient(
+        URL, transport=InMemoryTransport(), disconnect_on_empty_channels_after=60
+    )
+    channel = client.channel("room")
+
+    await channel.unsubscribe()
+
+    assert client._disconnect_task is None
+
+
+async def read_all(channel: RealtimeChannel) -> None:
+    async for _ in channel.messages:
+        pass
+
+
+async def test_reading_past_the_close_of_an_unsubscribed_channel_raises() -> None:
+    client = RealtimeClient(
+        URL, transport=InMemoryTransport(), disconnect_on_empty_channels_after=60
+    )
+    channel = client.channel("room")
+    await channel.subscribe()
+    await channel.unsubscribe()
+
+    with pytest.raises(NotConnectedError, match="unsubscribed"):
+        await asyncio.wait_for(read_all(channel), timeout=5)
+    await client.aclose()
 
 
 async def test_aclose_cancels_a_pending_disconnect() -> None:

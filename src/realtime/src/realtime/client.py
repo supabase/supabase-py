@@ -261,7 +261,7 @@ class RealtimeClient:
         self._websockets_logger = RedactingLoggerAdapter(
             base_logger.getChild("websockets")
         )
-        self._channel_logger = base_logger.getChild("channel")
+        self._channel_logger = RedactingLoggerAdapter(base_logger.getChild("channel"))
         self._transport = transport or self._connect_websockets
         self.disconnect_on_empty_channels_after = disconnect_on_empty_channels_after
         self._disconnect_task: asyncio.Task[None] | None = None
@@ -298,6 +298,7 @@ class RealtimeClient:
         before the first subscribe. When an open connection drops, the client
         reconnects on its own and joins its joined channels again.
         """
+        self._cancel_pending_disconnect()
         async with self._connect_lock:
             if self._is_connected():
                 return
@@ -398,7 +399,7 @@ class RealtimeClient:
         if self.channels:
             return
         self._cancel_pending_disconnect()
-        if self.disconnect_on_empty_channels_after == 0:
+        if self.disconnect_on_empty_channels_after == 0 or not self._is_connected():
             await self._close_if_still_unused()
             return
         self._logger.debug(
@@ -409,8 +410,16 @@ class RealtimeClient:
 
     async def _disconnect_later(self) -> None:
         await asyncio.sleep(self.disconnect_on_empty_channels_after)
-        self._disconnect_task = None
-        await self._close_if_still_unused()
+        async with self._connect_lock:
+            if self._disconnect_task is not asyncio.current_task():
+                return
+            self._disconnect_task = None
+            if self.channels:
+                return
+            try:
+                await self._stop()
+            except Exception as error:
+                self._logger.warning("could not close the unused connection: %r", error)
 
     async def _close_if_still_unused(self) -> None:
         async with self._connect_lock:
