@@ -32,6 +32,7 @@ class Filters(StrEnum):
     LT = "lt"
     LTE = "lte"
     IS = "is"
+    IS_DISTINCT = "isdistinct"
     LIKE = "like"
     LIKE_ALL = "like(all)"
     LIKE_ANY = "like(any)"

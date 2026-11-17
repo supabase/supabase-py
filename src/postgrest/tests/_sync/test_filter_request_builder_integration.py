@@ -895,3 +895,71 @@ def test_writes_of_a_generated_row_round_trip(
         assert upserted.data == [{"name": "renamed.txt", "content": None}]
     finally:
         files.delete().eq("id", str(file_id)).execute()
+
+
+def test_is_distinct(postgrest_client: SyncPostgrestClient) -> None:
+    response = (
+        postgrest_client.from_("books")
+        .select("id")
+        .is_distinct("isbn", "9780441013593")
+        .lt("id", 100)
+        .order("id")
+        .execute()
+    )
+
+    assert response.data == [{"id": 2}, {"id": 3}]
+
+    response = (
+        postgrest_client.from_("books")
+        .select("id")
+        .is_distinct("isbn", None)
+        .lt("id", 100)
+        .order("id")
+        .execute()
+    )
+
+    assert response.data == [{"id": 1}, {"id": 2}]
+
+
+def test_geojson(postgrest_client: SyncPostgrestClient) -> None:
+    response = (
+        postgrest_client.from_("places").select("*").order("id").geojson().execute()
+    )
+
+    assert response.data["type"] == "FeatureCollection"
+    features = response.data["features"]
+    assert isinstance(features, list)
+    assert len(features) == 2
+    null_island = features[0]
+    assert isinstance(null_island, dict)
+    assert null_island["geometry"] == {"type": "Point", "coordinates": [0, 0]}
+
+
+def test_dry_run_of_an_insert(postgrest_client: SyncPostgrestClient) -> None:
+    books = postgrest_client.from_("books")
+
+    response = books.insert({"title": "Ghost"}).single().dry_run().execute()
+
+    assert response.data["title"] == "Ghost"
+    count = books.select("id", count=CountMethod.exact).eq("title", "Ghost").execute()
+    assert count.count == 0
+
+
+def test_dry_run_of_an_update(postgrest_client: SyncPostgrestClient) -> None:
+    books = postgrest_client.from_("books")
+    inserted = books.insert({"title": "Draft", "pages": 10}).single().execute()
+    book_id = inserted.data["id"]
+    try:
+        response = (
+            books.update({"pages": 1})
+            .eq("id", book_id)
+            .dry_run()
+            .select("pages")
+            .execute()
+        )
+
+        assert response.data == [{"pages": 1}]
+        stored = books.select("pages").eq("id", book_id).single().execute()
+        assert stored.data == {"pages": 10}
+    finally:
+        books.delete().eq("id", book_id).execute()

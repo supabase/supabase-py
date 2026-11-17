@@ -703,7 +703,10 @@ features:
     note: "No dedicated method; use filter(column, \"imatch\", pattern)."
     symbols:
       - BaseFilterRequestBuilder.filter
-  database.using_filters.is_distinct: not_implemented
+  database.using_filters.is_distinct:
+    status: implemented
+    symbols:
+      - BaseFilterRequestBuilder.is_distinct
   database.using_filters.not_in:
     status: implemented
     note: "Achieved by chaining .not_.in_()."
@@ -776,7 +779,15 @@ features:
       - TextAPIResponse
       - TextAPIResponse.from_http_request_response
       - ResponseShape
-  database.using_modifiers.format_geojson: not_implemented
+  database.using_modifiers.format_geojson:
+    status: implemented
+    note: "geojson() returns a SingleRequestBuilder whose response data is the FeatureCollection."
+    symbols:
+      - QueryRequestBuilder.geojson
+      - RPCFilterRequestBuilder.geojson
+    supporting_symbols:
+      - SingleRequestBuilder
+      - ResponseShape
   database.using_modifiers.explain:
     status: implemented
     symbols:
@@ -798,7 +809,11 @@ features:
     note: "Supported via query-string syntax in select() (e.g. 'user(*)'); no dedicated relationship builder API."
     symbols:
       - RequestBuilder.select
-  database.using_modifiers.dry_run: not_implemented
+  database.using_modifiers.dry_run:
+    status: implemented
+    note: "dry_run() sends Prefer: tx=rollback, and execute() raises APIError when Preference-Applied shows that PostgREST committed instead."
+    symbols:
+      - BaseRequestClient.dry_run
 
   database.configuration.auto_retry:
     status: implemented

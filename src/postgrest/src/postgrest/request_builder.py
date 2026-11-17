@@ -306,6 +306,9 @@ class PostgrestRequest(JSONRequest):
     plan_options: tuple[str, ...] = ()
     """The PostgreSQL `EXPLAIN` options `explain()` asks for, such as
     `analyze`."""
+    dry_run: bool = False
+    """Whether the request asks PostgREST to roll its transaction back, which
+    `dry_run()` sets along with `Prefer: tx=rollback`."""
     filter_required_by: Mutation | None = None
     """The write that refuses to send until a filter on the table names the
     rows it affects.
@@ -437,6 +440,35 @@ def _max_affected(request: PostgrestRequest, value: int) -> PostgrestRequest:
     return replace(request, headers=headers)
 
 
+def _preferring(headers: Headers, preferences: str) -> Headers:
+    """`headers` with the comma-separated `preferences` added to `Prefer`,
+    each replacing the preference of the same name, so that a second
+    `return=` or `count=` does not contradict the first."""
+    given = [preference.strip() for preference in preferences.split(",")]
+    given = [preference for preference in given if preference]
+    names = {_preference_name(preference) for preference in given}
+    kept = [
+        preference.strip()
+        for value in headers.get_list("Prefer") or []
+        for preference in value.split(",")
+        if preference.strip() and _preference_name(preference) not in names
+    ]
+    headers = headers.remove("Prefer")
+    for preference in (*kept, *given):
+        headers = headers.set("Prefer", preference)
+    return headers
+
+
+def _preference_name(preference: str) -> str:
+    return preference.partition("=")[0].strip().lower()
+
+
+def _dry_run(request: PostgrestRequest) -> PostgrestRequest:
+    """`request` asking PostgREST to roll its transaction back."""
+    headers = _preferring(request.headers, "tx=rollback")
+    return replace(request, headers=headers, dry_run=True)
+
+
 def _explain(
     request: PostgrestRequest,
     *,
@@ -565,6 +597,21 @@ class BaseFilterRequestBuilder:
             value: The value to filter by
         """
         return self.filter(column, Filters.LTE, value)
+
+    def is_distinct(self: Self, column: str, value: Any) -> Self:
+        """An 'IS DISTINCT FROM' filter. Unlike `neq()`, it treats `NULL`
+        as a value, so a row whose column is `NULL` matches any non-null
+        `value`. PostgREST reads a `null` operand as text, so `None` is sent
+        as the `is` filter it means, `not.is.null`.
+
+        Args:
+            column: The name of the column to apply a filter on
+            value: The value to filter by
+        """
+        if value is None:
+            negated = replace(self, negate_next=not self.negate_next)
+            return negated.filter(column, Filters.IS, None)
+        return self.filter(column, Filters.IS_DISTINCT, value)
 
     def is_(self: Self, column: str, value: Any) -> Self:
         """An 'is' filter
@@ -803,7 +850,8 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         """Strip null values from the response data.
 
         Only available in PostgREST v11.2+. It cannot be combined with
-        `csv()` or `explain()`, and raises `ValueError` when it is.
+        `csv()`, `geojson()` or `explain()`, and raises `ValueError` when it
+        is.
         """
         return replace(self, request=replace(self.request, strip_nulls=True))
 
@@ -879,6 +927,23 @@ class BaseRequestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         return replace(self, request=replace(self.request, retry=policy))
 
+    def dry_run(self) -> Self:
+        """Run the request and roll its transaction back, so that nothing is
+        persisted while the response is what it would have been:
+
+            response = (
+                client.table("countries")
+                .insert({"name": "Atlantis"})
+                .dry_run()
+                .execute()
+            )
+
+        PostgREST rolls back only when its `db-tx-end` setting allows the
+        override; `execute()` raises `APIError` when the response shows that
+        it committed instead.
+        """
+        return replace(self, request=_dry_run(self.request))
+
     def request_timeout(self, seconds: float) -> Self:
         """Fail with `RequestTimeoutError` once a request of this query goes
         `seconds` without progress, overriding the timeout of the client."""
@@ -899,6 +964,35 @@ def _api_error(response: Response) -> APIError:
     else:
         error = dict(json_obj)
     return APIError(error, status_code=response.status, response=response)
+
+
+def _rolled_back(response: Response) -> bool:
+    applied = response.headers.get("Preference-Applied") or ""
+    return "tx=rollback" in {preference.strip() for preference in applied.split(",")}
+
+
+def _committed_dry_run_error(response: Response) -> APIError:
+    return APIError(
+        {
+            "message": "The dry run was committed: PostgREST applied no tx=rollback",
+            "code": str(response.status),
+            "hint": "A rollback needs db-tx-end = commit-allow-override on the server",
+            "details": response.headers.get("Preference-Applied"),
+        },
+        status_code=response.status,
+        response=response,
+    )
+
+
+def _raise_for_failure(response: Response, *, dry_run: bool) -> None:
+    """Raise `APIError` for an answer that is not a success, or that
+    committed a dry run: PostgREST accepts `tx=rollback` whatever its
+    `db-tx-end` setting, and lists it in `Preference-Applied` only when it
+    rolled back."""
+    if not response.is_success:
+        raise _api_error(response)
+    if dry_run and not _rolled_back(response):
+        raise _committed_dry_run_error(response)
 
 
 def _invalid_response_error(response: Response) -> APIError:
@@ -950,6 +1044,20 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
             base_url=self.base_url,
             default_headers=self.default_headers,
             request=replace(self.request, shape=ResponseShape.CSV),
+        )
+
+    def geojson(self) -> SingleRequestBuilder[HttpIO]:
+        """Specify that the query must retrieve the rows as one GeoJSON
+        `FeatureCollection`, which needs the PostGIS extension.
+
+        The response is a `SingleAPIResponse` whose `data` is the
+        `FeatureCollection`.
+        """
+        return SingleRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=replace(self.request, shape=ResponseShape.GEOJSON),
         )
 
     @overload
@@ -1026,8 +1134,7 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
             :class:`APIError` If the API raised an error.
         """
         r = yield self.request
-        if not r.is_success:
-            raise _api_error(r)
+        _raise_for_failure(r, dry_run=self.request.dry_run)
         try:
             return APIResponse.from_http_request_response(r)
         except InvalidResponseBodyError as e:
@@ -1052,8 +1159,7 @@ class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             :class:`APIError` If the API raised an error.
         """
         response = yield self.request
-        if not response.is_success:
-            raise _api_error(response)
+        _raise_for_failure(response, dry_run=self.request.dry_run)
         try:
             return SingleAPIResponse.from_http_request_response(response)
         except InvalidResponseBodyError as e:
@@ -1076,8 +1182,7 @@ class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[Ht
             :class:`APIError` If the API raised an error.
         """
         response = yield self.request
-        if not response.is_success:
-            raise _api_error(response)
+        _raise_for_failure(response, dry_run=self.request.dry_run)
         try:
             return TextAPIResponse.from_http_request_response(response)
         except UnicodeDecodeError as e:
@@ -1091,8 +1196,7 @@ class ExplainRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     @handle_http_io
     def execute(self) -> HttpMethod[str]:
         r = yield self.request
-        if not r.is_success:
-            raise _api_error(r)
+        _raise_for_failure(r, dry_run=self.request.dry_run)
         return r.content.decode("utf-8")
 
 
@@ -1103,19 +1207,16 @@ class MaybeSingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     @handle_http_io
     def execute(self) -> HttpMethod[SingleAPIResponse | None]:
         response = yield self.request
-        if response.is_success:
-            try:
-                parsed = APIResponse.from_http_request_response(response)
-            except InvalidResponseBodyError as e:
-                raise _invalid_response_error(response) from e
-            if len(parsed.data) == 0:
-                return None
-            if len(parsed.data) == 1:
-                return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
-            else:
-                raise _multiple_rows_error()
-        else:
-            raise _api_error(response)
+        _raise_for_failure(response, dry_run=self.request.dry_run)
+        try:
+            parsed = APIResponse.from_http_request_response(response)
+        except InvalidResponseBodyError as e:
+            raise _invalid_response_error(response) from e
+        if len(parsed.data) == 0:
+            return None
+        if len(parsed.data) == 1:
+            return SingleAPIResponse(data=parsed.data[0], count=parsed.count)
+        raise _multiple_rows_error()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1136,6 +1237,20 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             base_url=self.base_url,
             default_headers=self.default_headers,
             request=replace(self.request, shape=ResponseShape.CSV),
+        )
+
+    def geojson(self) -> SingleRequestBuilder[HttpIO]:
+        """Specify that the query must retrieve the rows as one GeoJSON
+        `FeatureCollection`, which needs the PostGIS extension.
+
+        The response is a `SingleAPIResponse` whose `data` is the
+        `FeatureCollection`.
+        """
+        return SingleRequestBuilder(
+            executor=self.executor,
+            base_url=self.base_url,
+            default_headers=self.default_headers,
+            request=replace(self.request, shape=ResponseShape.GEOJSON),
         )
 
     def single(self) -> SingleRequestBuilder[HttpIO]:
@@ -1174,8 +1289,7 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             :class:`APIError` If the API raised an error.
         """
         r = yield self.request
-        if not r.is_success:
-            raise _api_error(r)
+        _raise_for_failure(r, dry_run=self.request.dry_run)
         try:
             return RPCResponse.from_http_request_response(r)
         except InvalidResponseBodyError as e:
@@ -1200,11 +1314,8 @@ class RPCCountRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             :class:`APIError` If the API raised an error.
         """
         response = yield self.request
-        if response.is_success:
-            count = APIResponse._get_count_from_http_request_response(response)
-            return count
-        else:
-            raise _api_error(response)
+        _raise_for_failure(response, dry_run=self.request.dry_run)
+        return APIResponse._get_count_from_http_request_response(response)
 
 
 @dataclass(frozen=True, kw_only=True)
