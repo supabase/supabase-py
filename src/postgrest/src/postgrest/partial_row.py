@@ -2,15 +2,27 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import cache, cached_property
-from typing import TYPE_CHECKING, Annotated, Any, get_type_hints, overload
+from decimal import Decimal
+from functools import cache, cached_property, reduce
+from operator import or_
+from types import UnionType
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+    overload,
+)
 
 from pydantic import BaseModel, TypeAdapter
 from supabase_utils.types import JSON
 
 from .column_expression import ComputedField
 from .filter import DerivedExpression, Expression, JsonPath
-from .table import Table, _cached_adapter, _row_adapter
+from .table import Table, _row_adapter
 
 if TYPE_CHECKING:
     from .column_expression import Column, NullableColumn
@@ -96,9 +108,15 @@ class PartialRow[Row]:
 
         It decodes the row the way `select()` does, so it raises
         `pydantic.ValidationError` when the list left out a column `Row`
-        requires.
+        requires. JSON paths, casts and aggregates are left out of it.
         """
-        return _row_adapter(self.table.row_type).validate_python(self.json)
+        derived = {
+            column.response_key
+            for column in self.columns
+            if isinstance(column, (JsonPath, DerivedExpression))
+        }
+        row = {key: value for key, value in self.json.items() if key not in derived}
+        return _row_adapter(self.table.row_type).validate_python(row)
 
     def __repr__(self) -> str:
         return f"PartialRow({dict(self.json)!r})"
@@ -108,70 +126,78 @@ class PartialRow[Row]:
         return frozenset(column.response_key for column in self.columns)
 
 
-_KEEPS_SOURCE_TYPE = frozenset({".min()", ".max()"})
-"""The derivations whose value is decoded as the expression they apply to."""
+@cache
+def _adapter(entry: Expression[Any, Any], row_type: Any) -> TypeAdapter[Any] | None:
+    """The validator of a value of `entry`, or `None` to read the decoded
+    JSON, see `_annotation`."""
+    annotation = _annotation(entry, row_type)
+    return None if annotation is None else TypeAdapter(annotation)
 
-_KEEPS_UNCONSTRAINED_SOURCE_TYPE = frozenset({".sum()"})
-"""The derivations whose value is decoded as the expression they apply to,
-without the constraints of its `Field`, which a sum can exceed."""
 
-
-def _adapter(
-    entry: Expression[Any, Any], row_type: Any, *, constrained: bool = True
-) -> TypeAdapter[Any] | None:
-    """The validator of a value of `entry`: its `value_type` when it has
-    one, the validator of what an aggregate keeping its type applies to,
-    nothing for a JSON path, and otherwise the field of `row_type` the entry
-    is named after."""
+def _annotation(entry: Expression[Any, Any], row_type: Any) -> Any:
+    """The type a value of `entry` is decoded into, or `None` for the decoded
+    JSON: its `value_type` when it has one; for `min()` and `max()` the type
+    of what they apply to, for `sum()` that type without the constraints of
+    its `Field`, which a sum can exceed, and for `avg()` a `Decimal` over a
+    `Decimal` and a `float` otherwise; nothing for a JSON path; and the
+    field of `row_type` a column is named after."""
     match entry:
         case (
             ComputedField(value_type=value_type)
             | DerivedExpression(value_type=value_type)
         ) if value_type is not None:
-            return _cached_adapter(value_type)
+            return value_type
         case DerivedExpression(source=source, derivation=derivation) if (
             source is not None
         ):
-            if derivation in _KEEPS_SOURCE_TYPE:
-                return _adapter(source, row_type, constrained=constrained)
-            if derivation in _KEEPS_UNCONSTRAINED_SOURCE_TYPE:
-                return _adapter(source, row_type, constrained=False)
-            return None
+            source_type = _annotation(source, row_type)
+            match derivation:
+                case ".min()" | ".max()":
+                    return source_type
+                case ".sum()":
+                    return _without_constraints(source_type)
+                case ".avg()":
+                    return Decimal if _holds(source_type, Decimal) else float
+                case _:
+                    return None
         case DerivedExpression() | JsonPath():
             return None
         case _:
-            return _field_adapter(row_type, entry.expression, constrained)
+            return _field_annotations(row_type).get(entry.expression)
+
+
+def _without_constraints(annotation: Any) -> Any:
+    """`annotation` with every `Annotated` in it, and so every constraint of
+    a `Field`, removed."""
+    origin: object = get_origin(annotation)
+    if origin is Annotated:
+        return _without_constraints(get_args(annotation)[0])
+    if origin is Union or origin is UnionType:
+        return reduce(or_, map(_without_constraints, get_args(annotation)))
+    return annotation
+
+
+def _holds(annotation: Any, wanted: type) -> bool:
+    """Whether `wanted` is `annotation` or appears in it."""
+    return annotation is wanted or any(
+        _holds(argument, wanted) for argument in get_args(annotation)
+    )
 
 
 @cache
-def _field_adapter(
-    row_type: Any, name: str, constrained: bool
-) -> TypeAdapter[Any] | None:
-    """The validator of the field of `row_type` that a response row carries
-    under `name`, with or without the constraints of its `Field`, or `None`
-    when it has no such field."""
-    annotation = _field_annotations(row_type, constrained).get(name)
-    return None if annotation is None else TypeAdapter(annotation)
-
-
-@cache
-def _field_annotations(row_type: Any, constrained: bool) -> Mapping[str, Any]:
-    """The declared type of every field of `row_type`, with or without the
-    constraints of its `Field`, by the key the field is read from a response
-    row under: the alias of a pydantic field that has one, and the attribute
-    name otherwise."""
+def _field_annotations(row_type: Any) -> Mapping[str, Any]:
+    """The declared type of every field of `row_type`, with the constraints
+    of its `Field`, by the key the field is read from a response row under:
+    the alias of a pydantic field that has one, and the attribute name
+    otherwise."""
     if isinstance(row_type, type) and issubclass(row_type, BaseModel):
         return {
-            field.alias or name: (
-                _constrained(field.annotation, field.metadata)
-                if constrained
-                else field.annotation
-            )
+            field.alias or name: _constrained(field.annotation, field.metadata)
             for name, field in row_type.model_fields.items()
             if field.annotation is not None
         }
     try:
-        return get_type_hints(row_type, include_extras=constrained)
+        return get_type_hints(row_type, include_extras=True)
     except Exception:
         return {}
 

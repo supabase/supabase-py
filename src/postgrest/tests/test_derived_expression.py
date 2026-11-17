@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Annotated, Any
 
 import pytest
-from pydantic import BaseModel, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from postgrest import (
     Column,
@@ -29,6 +30,8 @@ class ItemRow(BaseModel):
     price: float
     sold_on: date | None = None
     data: dict[str, JsonValue] | None = None
+    stock: Annotated[int, Field(le=10)] | None = None
+    cost: Decimal = Decimal(0)
 
 
 class Items:
@@ -37,6 +40,8 @@ class Items:
     price = Column[ItemRow, float]("price")
     sold_on = NullableColumn[ItemRow, date]("sold_on")
     data = NullableColumn[ItemRow, JsonValue]("data")
+    stock = NullableColumn[ItemRow, int]("stock")
+    cost = Column[ItemRow, Decimal]("cost")
     table = Table("items", ItemRow, primary_key=(id,))
 
 
@@ -93,6 +98,19 @@ class TestJsonPaths:
             ('data->"name"', 'cs.{"a":[1]}')
         ]
 
+    def test_an_object_path_sends_a_datetime_with_its_offset(self) -> None:
+        moment = datetime(2024, 1, 2, 3, 4, 5)  # noqa: DTZ001
+
+        assert parameters(JsonPath(Column("data"), "->", "at").eq(moment)) == [
+            ('data->"at"', f'eq."{moment.replace(tzinfo=UTC).isoformat()}"')
+        ]
+
+    def test_an_object_path_rejects_an_operand_that_is_not_json(self) -> None:
+        filter = JsonPath(Column("data"), "->", "at").eq(object())
+
+        with pytest.raises(TypeError, match="JSON value"):
+            parameters(filter)
+
     def test_null_is_tested_with_is_null(self) -> None:
         name = Items.data.json_object("name")
 
@@ -143,6 +161,10 @@ class TestCasts:
         assert cast.expression == 'data->>"n"::int'
         assert select_list(cast) == '"data->>\\"n\\"::int":data->>"n"::int'
 
+    def test_a_cast_of_a_cast_raises(self) -> None:
+        with pytest.raises(ValueError, match="cast already"):
+            Items.price.cast("int", int).cast("text", str)
+
     @pytest.mark.parametrize("sql_type", ["double precision", "int)", ""])
     def test_a_type_postgrest_cannot_read_raises(self, sql_type: str) -> None:
         with pytest.raises(ValueError, match="float8"):
@@ -171,6 +193,12 @@ class TestAggregates:
     def test_a_cast_before_and_after_an_aggregate(self) -> None:
         assert Items.price.cast("int", int).sum().expression == "price::int.sum()"
         assert Items.price.sum().cast("text", str).expression == "price.sum()::text"
+
+    def test_an_aggregate_of_an_aggregate_raises(self) -> None:
+        with pytest.raises(ValueError, match="aggregated already"):
+            Items.price.sum().sum()
+        with pytest.raises(ValueError, match="aggregated already"):
+            Items.price.sum().cast("int8", int).max()
 
     def test_count_all_belongs_to_no_column(self) -> None:
         count = DerivedExpression.count_all()
@@ -249,6 +277,16 @@ class TestReads:
         assert partial[Items.price.sum()] == 3.0
         assert isinstance(partial[Items.price.sum()], float)
 
+    def test_a_sum_drops_constraints_nested_in_an_optional(self) -> None:
+        partial = row(Items.stock.sum(), json={"stock.sum()": 25})
+
+        assert partial[Items.stock.sum()] == 25
+
+    def test_avg_of_a_decimal_is_a_decimal(self) -> None:
+        partial = row(Items.cost.avg(), json={"cost.avg()": "3.3333333333333333"})
+
+        assert partial[Items.cost.avg()] == Decimal("3.3333333333333333")
+
     def test_avg_and_count_decode_as_their_type(self) -> None:
         partial = row(
             Items.price.avg(),
@@ -279,6 +317,25 @@ class TestReads:
 
         with pytest.raises(KeyError, match=r"price\.avg\(\) was not selected"):
             partial[Items.price.avg()]
+
+
+class StrictItemRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: int
+    data: dict[str, JsonValue] | None = None
+
+
+def test_to_row_leaves_out_derived_entries() -> None:
+    id = Column[StrictItemRow, int]("id")
+    data = NullableColumn[StrictItemRow, JsonValue]("data")
+    name = data.json_text("name")
+    partial = PartialRow(
+        Table("items", StrictItemRow),
+        (id, data, name, id.max()),
+        {"id": 1, "data": None, name.response_key: None, "id.max()": 1},
+    )
+
+    assert partial.to_row() == StrictItemRow(id=1)
 
 
 def test_select_cleaning_keeps_whitespace_after_an_escaped_quote() -> None:

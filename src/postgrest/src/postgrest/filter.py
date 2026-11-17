@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
+from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -215,8 +216,14 @@ class Expression(ABC, Generic[Row, Value]):
         casts only and rejects a JSON path on a cast. A type whose name has a
         space is spelled by its alias, `float8` for `double precision`.
 
-        Raises `ValueError` for a `sql_type` PostgREST cannot read as a cast.
+        Raises `ValueError` for a cast of a cast, and for a `sql_type`
+        PostgREST cannot read as a cast.
         """
+        if isinstance(self, DerivedExpression) and self.derivation.startswith("::"):
+            raise ValueError(
+                f"{self.expression} is a cast already; PostgREST applies the "
+                "first of two casts only"
+            )
         if not _SQL_TYPE.fullmatch(sql_type):
             raise ValueError(
                 f"{sql_type!r} is not a type PostgREST can cast to; use the "
@@ -242,38 +249,40 @@ class Expression(ABC, Generic[Row, Value]):
         `alter role authenticator set pgrst.db_aggregates_enabled = 'true'`
         followed by `notify pgrst, 'reload config'`; without it the request
         fails. `sum()`, `avg()`, `min()` and `max()` read as `None` when no
-        row matches.
+        row matches. Raises `ValueError` for an aggregate of an aggregate,
+        which PostgREST rejects.
         """
-        return DerivedExpression(self, ".sum()")
+        return _aggregate(self, ".sum()")
 
     @overload
     def avg(self: Expression[Row, int]) -> DerivedExpression[Row, float]: ...
     @overload
     def avg(self: Expression[Row, float]) -> DerivedExpression[Row, float]: ...
     @overload
-    def avg(self: Expression[Row, Decimal]) -> DerivedExpression[Row, float]: ...
-    def avg(self) -> DerivedExpression[Row, float]:
+    def avg(self: Expression[Row, Decimal]) -> DerivedExpression[Row, Decimal]: ...
+    def avg(self) -> DerivedExpression[Row, Any]:
         """The mean of this expression across the group, `pages.avg()`,
-        read as a `float`. See `sum()` for where an aggregate applies."""
-        return DerivedExpression(self, ".avg()", float)
+        read as a `Decimal` over a `Decimal` expression and as a `float`
+        otherwise. See `sum()` for where an aggregate applies."""
+        return _aggregate(self, ".avg()")
 
     def min(self) -> DerivedExpression[Row, Value]:
         """The smallest value of this expression in the group,
         `pages.min()`, decoded as this expression's type. See `sum()` for
         where an aggregate applies."""
-        return DerivedExpression(self, ".min()")
+        return _aggregate(self, ".min()")
 
     def max(self) -> DerivedExpression[Row, Value]:
         """The largest value of this expression in the group, `pages.max()`,
         decoded as this expression's type. See `sum()` for where an
         aggregate applies."""
-        return DerivedExpression(self, ".max()")
+        return _aggregate(self, ".max()")
 
     def count(self) -> DerivedExpression[Row, int]:
         """How many values of this expression in the group are not `NULL`,
         `pages.count()`. `DerivedExpression.count_all()` counts rows instead.
         See `sum()` for where an aggregate applies."""
-        return DerivedExpression(self, ".count()", int)
+        return _aggregate(self, ".count()", int)
 
 
 class ColumnExpression(Expression[Row, Value], Ordering[Row], ABC, Generic[Row, Value]):
@@ -710,8 +719,9 @@ class DerivedExpression(Expression[Row, Value]):
     value_type: type[Value] | None = None
     """The type a present value is decoded into when read from a
     `PartialRow`. `None` decodes `min()` and `max()` as `source`, `sum()` as
-    `source` without the constraints of its `Field`, and anything else as
-    the decoded JSON."""
+    `source` without the constraints of its `Field`, `avg()` as a `Decimal`
+    over a `Decimal` and a `float` otherwise, and anything else as the
+    decoded JSON."""
 
     @staticmethod
     def count_all() -> DerivedExpression[Any, int]:
@@ -736,6 +746,22 @@ class DerivedExpression(Expression[Row, Value]):
         return _aliased(self.expression)
 
 
+def _aggregate(
+    source: Expression[Any, Any], function: str, value_type: type | None = None
+) -> DerivedExpression[Any, Any]:
+    """The aggregate `function` of `source`, rejecting one whose `source`
+    is aggregated already."""
+    inner: Expression[Any, Any] | None = source
+    while isinstance(inner, DerivedExpression):
+        if inner.derivation.endswith("()"):
+            raise ValueError(
+                f"{source.expression} is aggregated already; PostgREST rejects "
+                "an aggregate of an aggregate"
+            )
+        inner = inner.source
+    return DerivedExpression(source, function, value_type)
+
+
 _SQL_TYPE = re.compile(r"[A-Za-z0-9_]+")
 """A type name PostgREST reads after `::`."""
 
@@ -743,6 +769,7 @@ _MAXIMUM_NAME_BYTES = 63
 """The bytes of a name PostgreSQL keeps, `NAMEDATALEN - 1`."""
 
 
+@lru_cache(maxsize=1024)
 def _expression_key(expression: str) -> str:
     """`expression` as a response key: itself, or when it is longer than
     PostgreSQL keeps of a name, a prefix of it followed by a digest of the
