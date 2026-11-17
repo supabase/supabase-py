@@ -1,6 +1,6 @@
 import asyncio
 import json
-from types import TracebackType
+from types import MappingProxyType, TracebackType
 from typing import Self
 
 import pytest
@@ -92,6 +92,17 @@ async def test_posts_the_payload_without_subscribing() -> None:
     assert json.loads(request.content) == {"text": "hi"}
     assert client.connection_state == ConnectionState.CLOSED
     assert not channel.joined
+
+
+async def test_sends_any_mapping_as_json() -> None:
+    session = FakeSession()
+    client = RealtimeClient(REALTIME_URL, get_token, http_session=session)
+
+    await client.channel("room").http_send("event", MappingProxyType({"a": 1}))
+
+    [request] = session.requests
+    assert request.content is not None
+    assert json.loads(request.content) == {"a": 1}
 
 
 async def test_sends_bytes_as_octet_stream() -> None:

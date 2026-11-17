@@ -345,7 +345,7 @@ A channel keeps at most `max_queued_messages` unread messages, 1000 by default. 
 
 `send_broadcast()` raises `ChannelNotJoinedError` without sending when the channel is not joined. Before, the server's error was only logged. With `ack=True`, it raises `PushRejectedError` when the server rejects the broadcast, instead of returning the error reply. To broadcast without subscribing, call `http_send()`.
 
-`http_send()` takes `request_timeout` instead of `timeout`, and sends its request with the `http_session` of the client. It raises `RealtimeAPIError` when the server rejects the broadcast and `RealtimeTimeoutError` when it times out, instead of `RealtimeHTTPError`. A `RealtimeClient` created without the `supabase` client needs `http_session` and an `apikey` header for it.
+`http_send()` takes `request_timeout` instead of `timeout`, and sends its request with the `http_session` of the client. It raises `RealtimeAPIError` when the server rejects the broadcast and `RealtimeTimeoutError` when it times out, instead of `RealtimeHTTPError`. Its payload is a JSON object or bytes, the only payloads the server accepts, so a list, a string, a number or `None` is a type error instead of a server error or a `ValueError`. A `RealtimeClient` created without the `supabase` client needs `http_session` and an `apikey` header for it.
 
 ## Realtime presence events have their own listener
 

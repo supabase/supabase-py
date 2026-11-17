@@ -816,23 +816,11 @@ class RealtimeChannel:
             raise ChannelNotJoinedError("RealtimeChannel.send_broadcast", self.topic)
         if isinstance(data, Buffer):
             data = bytes(data)
-        message = Message(
-            topic=self.topic,
-            event=ChannelEvents.broadcast,
-            ref=self.socket._make_ref(),
-            join_ref=self.join_ref,
-            payload={"type": "broadcast", "event": event, "payload": data},
-        )
+        payload = {"type": "broadcast", "event": event, "payload": data}
         if not self.options.broadcast_ack:
-            await self.socket._send_no_wait(message)
+            await self._send_event_no_wait(ChannelEvents.broadcast, payload)
             return None
-        reply = await self.socket._send(message, channel_closed=self._closed)
-        if isinstance(reply.payload, ErrorReplyMessage):
-            reason = reply.payload.response.get("reason")
-            raise PushRejectedError(
-                "broadcast", self.topic, reason if isinstance(reason, str) else None
-            )
-        return reply
+        return await self._push("broadcast", ChannelEvents.broadcast, payload)
 
     async def http_send(
         self,
@@ -892,7 +880,7 @@ class RealtimeChannel:
         if isinstance(data, Buffer):
             content, content_type = bytes(data), "application/octet-stream"
         else:
-            content, content_type = JSONParser.dump_json(data), "application/json"
+            content, content_type = JSONParser.dump_json(dict(data)), "application/json"
         headers = self.socket.headers.override("Content-Type", content_type)
         if token := await self.socket._access_token():
             headers = headers.override("Authorization", f"Bearer {token}")
@@ -930,21 +918,29 @@ class RealtimeChannel:
         """
         if not self.joined:
             raise ChannelNotJoinedError(f"RealtimeChannel.{event}", self.topic)
+        await self._push(
+            f"presence {event}",
+            ChannelEvents.presence,
+            {"event": event, "payload": data},
+        )
+
+    async def _push(
+        self, label: str, event: ChannelEvents, payload: Mapping[str, JSON | bytes]
+    ) -> ReplyMessage:
         message = Message(
             topic=self.topic,
-            event=ChannelEvents.presence,
+            event=event,
             ref=self.socket._make_ref(),
             join_ref=self.join_ref,
-            payload={"event": event, "payload": data},
+            payload=payload,
         )
         reply = await self.socket._send(message, channel_closed=self._closed)
         if isinstance(reply.payload, ErrorReplyMessage):
             reason = reply.payload.response.get("reason")
             raise PushRejectedError(
-                f"presence {event}",
-                self.topic,
-                reason if isinstance(reason, str) else None,
+                label, self.topic, reason if isinstance(reason, str) else None
             )
+        return reply
 
 
 def _error_message(response: Response) -> str:
