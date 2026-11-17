@@ -10,12 +10,14 @@ from storage3.exceptions import (
     VectorBucketException,
 )
 from storage3.file_api import StorageFileApiClient
+from storage3.progress import ProgressCallback
 from storage3.types import UploadBody
 from storage3.version import __version__
 
 __all__ = [
     "AsyncStorageClient",
     "AsyncStorageDownload",
+    "ProgressCallback",
     "StorageApiError",
     "StorageApiErrorMessage",
     "StorageDownload",

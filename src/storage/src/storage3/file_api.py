@@ -29,7 +29,9 @@ from .download import (
     AsyncStorageDownload,
     StorageDownload,
     _async_download,
+    _async_read,
     _sync_download,
+    _sync_read,
 )
 from .exceptions import (
     StorageException,
@@ -37,6 +39,7 @@ from .exceptions import (
     _validate_model,
     parse_api_error,
 )
+from .progress import _counted_upload
 from .types import (
     CreateSignedUrlBody,
     CreateSignedUrlResponse,
@@ -58,10 +61,12 @@ from .types import (
 
 if TYPE_CHECKING:
     import builtins
-    from collections.abc import AsyncIterator, Generator, Iterator
+    from collections.abc import AsyncIterator, Coroutine, Generator, Iterator
     from contextlib import AbstractAsyncContextManager, AbstractContextManager
 
     from supabase_utils.http.body import RequestContent
+
+    from .progress import ProgressCallback
 
 __all__ = ["StorageFileApiClient"]
 
@@ -94,9 +99,24 @@ def _cache_control_header(value: str | None) -> str | None:
 
 
 @contextmanager
-def _upload_content(file: UploadBody) -> Generator[RequestContent]:
+def _upload_content(
+    file: UploadBody, on_progress: ProgressCallback | None
+) -> Generator[RequestContent]:
     """The request body that streams `file`, with a file at a path open while
-    it is sent."""
+    it is sent and every chunk reported to `on_progress` until it returned."""
+    with _raw_upload_content(file) as content:
+        if on_progress is None:
+            yield content
+            return
+        counted, progress = _counted_upload(content, on_progress)
+        try:
+            yield counted
+        finally:
+            progress.end()
+
+
+@contextmanager
+def _raw_upload_content(file: UploadBody) -> Generator[RequestContent]:
     if isinstance(file, bytes):
         yield file
     elif isinstance(file, (str, os.PathLike)):
@@ -261,6 +281,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_control: str = "3600",
         metadata: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
+        *,
+        on_progress: ProgressCallback | None = None,
     ) -> HttpMethod[UploadResponse]:
         """
         Upload a file with a token generated from :meth:`.create_signed_upload_url`
@@ -275,12 +297,16 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             What to upload: the bytes, the path of a file, a binary file or an
             iterator over the bytes. A file or an iterator is streamed instead
             of read into memory first.
+        on_progress
+            Called with the bytes sent so far and the total, or None when the
+            total is not known, as the body is sent. It restarts from 0 when
+            the body is sent again.
         """
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
         http_headers = _upload_headers(
             content_type, cache_control, metadata, upsert=False, headers=headers
         )
-        with _upload_content(file) as content:
+        with _upload_content(file, on_progress) as content:
             response = yield BytesRequest(
                 method="PUT",
                 path=["object", "upload", "sign", self.id, *path_parts],
@@ -726,13 +752,34 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query=params,
         )
 
-    @handle_http_io
+    @overload
     def download(
-        self,
+        self: StorageFileApiClient[SyncHttpIO],
         path: str,
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
-    ) -> HttpMethod[bytes]:
+        *,
+        on_progress: ProgressCallback | None = None,
+    ) -> bytes: ...
+
+    @overload
+    def download(
+        self: StorageFileApiClient[AsyncHttpIO],
+        path: str,
+        transform: TransformOptions | None = None,
+        query_params: dict[str, str] | None = None,
+        *,
+        on_progress: ProgressCallback | None = None,
+    ) -> Coroutine[Any, Any, bytes]: ...
+
+    def download(
+        self: StorageFileApiClient[Any],
+        path: str,
+        transform: TransformOptions | None = None,
+        query_params: dict[str, str] | None = None,
+        *,
+        on_progress: ProgressCallback | None = None,
+    ) -> bytes | Coroutine[Any, Any, bytes]:
         """
         Downloads a file into memory. Use :meth:`download_stream` for a file
         too large to hold in memory.
@@ -741,11 +788,18 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         ----------
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
+        on_progress
+            Called with the bytes received so far and the total, or None when
+            the total is not known, as the body arrives.
         """
-        response = yield self._download_request(path, transform, query_params)
-        if not response.is_success:
-            raise parse_api_error(response)
-        return response.content
+        request = self._download_request(path, transform, query_params)
+        if isinstance(self.executor, AsyncHttpIO):
+            return _async_read(
+                self.executor, self.base_url, self.default_headers, request, on_progress
+            )
+        return _sync_read(
+            self.executor, self.base_url, self.default_headers, request, on_progress
+        )
 
     @overload
     def download_stream(
@@ -753,6 +807,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         path: str,
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
+        *,
+        on_progress: ProgressCallback | None = None,
     ) -> AbstractContextManager[StorageDownload]: ...
 
     @overload
@@ -761,6 +817,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         path: str,
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
+        *,
+        on_progress: ProgressCallback | None = None,
     ) -> AbstractAsyncContextManager[AsyncStorageDownload]: ...
 
     def download_stream(
@@ -768,6 +826,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         path: str,
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
+        *,
+        on_progress: ProgressCallback | None = None,
     ) -> (
         AbstractContextManager[StorageDownload]
         | AbstractAsyncContextManager[AsyncStorageDownload]
@@ -794,14 +854,17 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         ----------
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
+        on_progress
+            Called with the bytes of the body read so far and the total, or
+            None when the total is not known, as the body is read.
         """
         request = self._download_request(path, transform, query_params)
         if isinstance(self.executor, AsyncHttpIO):
             return _async_download(
-                self.executor, self.base_url, self.default_headers, request
+                self.executor, self.base_url, self.default_headers, request, on_progress
             )
         return _sync_download(
-            self.executor, self.base_url, self.default_headers, request
+            self.executor, self.base_url, self.default_headers, request, on_progress
         )
 
     def _upload_or_update(
@@ -814,11 +877,12 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         upsert: bool | None,
         metadata: dict[str, Any] | None,
         headers: dict[str, str] | None,
+        on_progress: ProgressCallback | None,
     ) -> HttpMethod[UploadResponse]:
         http_headers = _upload_headers(
             content_type, cache_control, metadata, upsert, headers
         )
-        with _upload_content(file) as content:
+        with _upload_content(file, on_progress) as content:
             response = yield BytesRequest(
                 method=method,
                 path=["object", self.id, *path],
@@ -838,6 +902,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         upsert: bool = False,
         metadata: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
+        *,
+        on_progress: ProgressCallback | None = None,
     ) -> HttpMethod[UploadResponse]:
         """
         Uploads a file to an existing bucket.
@@ -854,6 +920,10 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             a file that cannot seek, is never retried.
         upsert
             Whether to overwrite the file if it already exists.
+        on_progress
+            Called with the bytes sent so far and the total, or None when the
+            total is not known, as the body is sent. It restarts from 0 when
+            the body is sent again.
         """
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(
@@ -865,6 +935,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             upsert=upsert,
             metadata=metadata,
             headers=headers,
+            on_progress=on_progress,
         )
 
     @handle_http_io
@@ -876,7 +947,12 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         content_type: str = "text/plain;charset=UTF-8",
         metadata: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
+        *,
+        on_progress: ProgressCallback | None = None,
     ) -> HttpMethod[UploadResponse]:
+        """
+        Replaces an existing file, taking the same arguments as :meth:`upload`.
+        """
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(
             method="PUT",
@@ -887,4 +963,5 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             upsert=None,
             metadata=metadata,
             headers=headers,
+            on_progress=on_progress,
         )
