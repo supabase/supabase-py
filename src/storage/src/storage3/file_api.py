@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 from dataclasses import dataclass
 from io import BufferedReader, FileIO
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 from pydantic import BaseModel, TypeAdapter
 from supabase_utils.http.headers import Headers
@@ -94,6 +94,50 @@ def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> byte
     # str or pathlib.path received
     with open(file, "rb") as f:
         return f.read()
+
+
+@dataclass(frozen=True)
+class _ListOptions:
+    prefix: str | None
+    limit: int | None
+    with_delimiter: bool | None
+    sort_by: SortBy | None
+
+
+def _sync_pages(
+    client: StorageFileApiClient[SyncHttpIO], options: _ListOptions
+) -> Iterator[ListResult]:
+    cursor = None
+    while True:
+        page = client.list(
+            options.prefix,
+            limit=options.limit,
+            cursor=cursor,
+            with_delimiter=options.with_delimiter,
+            sort_by=options.sort_by,
+        )
+        yield page
+        cursor = _next_cursor(page, cursor)
+        if cursor is None:
+            return
+
+
+async def _async_pages(
+    client: StorageFileApiClient[AsyncHttpIO], options: _ListOptions
+) -> AsyncIterator[ListResult]:
+    cursor = None
+    while True:
+        page = await client.list(
+            options.prefix,
+            limit=options.limit,
+            cursor=cursor,
+            with_delimiter=options.with_delimiter,
+            sort_by=options.sort_by,
+        )
+        yield page
+        cursor = _next_cursor(page, cursor)
+        if cursor is None:
+            return
 
 
 def _next_cursor(page: ListResult, cursor: str | None) -> str | None:
@@ -605,65 +649,47 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         )
         return _validate_model(response, ListResult)
 
-    def iter_objects(
+    @overload
+    def pages(
         self: StorageFileApiClient[SyncHttpIO],
         prefix: str | None = None,
         *,
         limit: int | None = None,
         with_delimiter: bool | None = None,
         sort_by: SortBy | None = None,
-    ) -> Iterator[ListResult]:
-        """
-        Lists the objects in the bucket page by page, following the cursor of
-        each page.
+    ) -> Iterator[ListResult]: ...
 
-        Each page is fetched only when the iterator reaches it. The parameters
-        are those of `list`. Raises `StorageException` when a page returns the
-        cursor it was fetched with, instead of fetching it forever.
-        """
-        cursor = None
-        while True:
-            page = self.list(
-                prefix,
-                limit=limit,
-                cursor=cursor,
-                with_delimiter=with_delimiter,
-                sort_by=sort_by,
-            )
-            yield page
-            cursor = _next_cursor(page, cursor)
-            if cursor is None:
-                return
-
-    async def aiter_objects(
+    @overload
+    def pages(
         self: StorageFileApiClient[AsyncHttpIO],
         prefix: str | None = None,
         *,
         limit: int | None = None,
         with_delimiter: bool | None = None,
         sort_by: SortBy | None = None,
-    ) -> AsyncIterator[ListResult]:
+    ) -> AsyncIterator[ListResult]: ...
+
+    def pages(
+        self: StorageFileApiClient[Any],
+        prefix: str | None = None,
+        *,
+        limit: int | None = None,
+        with_delimiter: bool | None = None,
+        sort_by: SortBy | None = None,
+    ) -> Iterator[ListResult] | AsyncIterator[ListResult]:
         """
         Lists the objects in the bucket page by page, following the cursor of
         each page.
 
-        Each page is fetched only when the iterator reaches it. The parameters
-        are those of `list`. Raises `StorageException` when a page returns the
-        cursor it was fetched with, instead of fetching it forever.
+        Iterate with `for` on the sync client and with `async for` on the async
+        client. Each page is fetched only when the loop reaches it. The
+        parameters are those of `list`. Raises `StorageException` when a page
+        returns the cursor it was fetched with, instead of fetching it forever.
         """
-        cursor = None
-        while True:
-            page = await self.list(
-                prefix,
-                limit=limit,
-                cursor=cursor,
-                with_delimiter=with_delimiter,
-                sort_by=sort_by,
-            )
-            yield page
-            cursor = _next_cursor(page, cursor)
-            if cursor is None:
-                return
+        options = _ListOptions(prefix, limit, with_delimiter, sort_by)
+        if isinstance(self.executor, AsyncHttpIO):
+            return _async_pages(self, options)
+        return _sync_pages(self, options)
 
     @handle_http_io
     def download(

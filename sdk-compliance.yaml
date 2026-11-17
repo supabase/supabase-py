@@ -1147,8 +1147,7 @@ features:
     status: implemented
     symbols:
       - StorageFileApiClient.list
-      - StorageFileApiClient.iter_objects
-      - StorageFileApiClient.aiter_objects
+      - StorageFileApiClient.pages
     supporting_symbols:
       - ListBody
       - ListFolder

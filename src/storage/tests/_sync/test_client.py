@@ -890,10 +890,10 @@ def test_client_list_paginated(
     assert pages == 4
 
 
-def test_client_iter_objects(
+def test_client_pages(
     storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
-    """Ensure iter_objects() follows the cursors through every page"""
+    """Ensure pages() follows the cursors through every page"""
     suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]
     for suffix in suffixes:
         storage_file_client.upload(
@@ -901,7 +901,7 @@ def test_client_iter_objects(
         )
 
     pages = list(
-        storage_file_client.iter_objects(
+        storage_file_client.pages(
             f"{file.bucket_folder}/", with_delimiter=True, limit=3
         )
     )

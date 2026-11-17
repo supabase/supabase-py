@@ -306,13 +306,13 @@ data = supabase.storage.from_(bucket_name).remove(["old_photo.png", "image5.jpg"
 
 ### List files
 
-`list()` returns one page. With `with_delimiter=True` it lists one level, with the folders apart from the objects. Pass the `nextCursor` of a page to fetch the next one, or let `iter_objects()` follow the cursors, fetching each page only when the loop reaches it. The async client has `aiter_objects()` for `async for`.
+`list()` returns one page. With `with_delimiter=True` it lists one level, with the folders apart from the objects. Pass the `nextCursor` of a page to fetch the next one, or let `pages()` follow the cursors, fetching each page only when the loop reaches it. On the async client, loop over it with `async for`.
 
 ```python
 bucket_name: str = "charts"
 
 bucket = supabase.storage.from_(bucket_name)
-for page in bucket.iter_objects("2024/", with_delimiter=True):
+for page in bucket.pages("2024/", with_delimiter=True):
     print(page.folders, page.objects)
 ```
 

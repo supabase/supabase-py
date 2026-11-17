@@ -876,20 +876,18 @@ def collect_pages(use_async: bool, **options: Any) -> FileAction:
     if use_async:
 
         async def collect_async(client: Any) -> list[Any]:
-            return [
-                page async for page in client.from_("bucket").aiter_objects(**options)
-            ]
+            return [page async for page in client.from_("bucket").pages(**options)]
 
         return collect_async
 
     def collect(client: Any) -> list[Any]:
-        return list(client.from_("bucket").iter_objects(**options))
+        return list(client.from_("bucket").pages(**options))
 
     return collect
 
 
 @use_async
-async def test_iter_objects_follows_the_cursor_of_each_page(use_async: bool) -> None:
+async def test_pages_follows_the_cursor_of_each_page(use_async: bool) -> None:
     requests: list[Request] = []
 
     pages = await call_with_client(
@@ -911,7 +909,7 @@ async def test_iter_objects_follows_the_cursor_of_each_page(use_async: bool) -> 
 
 
 @use_async
-async def test_iter_objects_stops_after_a_single_page(use_async: bool) -> None:
+async def test_pages_stops_after_a_single_page(use_async: bool) -> None:
     requests: list[Request] = []
 
     pages = await call_with_client(
@@ -923,7 +921,7 @@ async def test_iter_objects_stops_after_a_single_page(use_async: bool) -> None:
 
 
 @use_async
-async def test_iter_objects_stops_when_a_page_has_no_cursor(use_async: bool) -> None:
+async def test_pages_stops_when_a_page_has_no_cursor(use_async: bool) -> None:
     requests: list[Request] = []
 
     def handler(request: Request) -> Response:
@@ -936,11 +934,11 @@ async def test_iter_objects_stops_when_a_page_has_no_cursor(use_async: bool) -> 
     assert len(requests) == 1
 
 
-async def test_iter_objects_fetches_a_page_only_when_it_is_reached() -> None:
+async def test_pages_fetches_a_page_only_when_it_is_reached() -> None:
     requests: list[Request] = []
 
     def take_first(client: Any) -> Any:
-        return next(client.from_("bucket").iter_objects())
+        return next(client.from_("bucket").pages())
 
     first = await call_with_client(False, cursor_pages_handler(requests), take_first)
 
@@ -949,7 +947,7 @@ async def test_iter_objects_fetches_a_page_only_when_it_is_reached() -> None:
 
 
 @use_async
-async def test_iter_objects_raises_when_the_cursor_does_not_advance(
+async def test_pages_raises_when_the_cursor_does_not_advance(
     use_async: bool,
 ) -> None:
     def handler(request: Request) -> Response:
