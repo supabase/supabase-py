@@ -1100,7 +1100,17 @@ features:
     symbols:
       - RealtimeChannelOptions.presence
 
-  realtime.configuration.custom_websocket_transport: not_implemented
+  realtime.configuration.custom_websocket_transport:
+    status: implemented
+    note: "transport parameter on connect_once and RealtimeClient, and RealtimeClientOptions.transport on the supabase client: an async callable that takes the URL and returns a WebSocketConnection (send, recv and close), such as another WebSocket library or an in-memory connection for tests. Without it the client connects with the websockets library."
+    symbols:
+      - connect_once
+    supporting_symbols:
+      - RealtimeClientOptions
+      - WebSocketConnection
+      - WebSocketConnection.send
+      - WebSocketConnection.recv
+      - WebSocketConnection.close
   realtime.configuration.reconnect_backoff:
     status: partially_implemented
     note: "RealtimeClient reconnects a dropped connection with full jitter: each wait is random between 0 and a backoff that starts at 1 second and doubles up to 30 seconds, with no attempt limit. The attempt count resets once a connection has stayed up for 30 seconds. supabase-js accepts a custom reconnect function mapping attempt count to delay; Python only supports the fixed strategy."
@@ -1120,8 +1130,21 @@ features:
     note: "token_callback parameter on connect_once and RealtimeClient, awaited on connect, on every channel join and on each heartbeat. Every join carries the token, and a token that changes while a join is pending is sent once the join completes. AsyncClient.realtime passes a callback that reads the session through auth.get_session(), so an expiring session is refreshed first, and returns its access token, or the Authorization token of the client, the project key by default, when there is none (see cross_client_token_sync)."
     symbols:
       - connect_once
-  realtime.configuration.deferred_disconnect: not_implemented
-  realtime.configuration.custom_logger: not_applicable
+  realtime.configuration.deferred_disconnect:
+    status: implemented
+    note: "disconnect_on_empty_channels_after parameter (float seconds) on connect_once and RealtimeClient, and RealtimeClientOptions on the supabase client. The connection closes that long after the last channel is removed, unless a channel is created in the meantime. Defaults to twice heartbeat_interval, and 0 disconnects at once."
+    symbols:
+      - connect_once
+    supporting_symbols:
+      - RealtimeClientOptions
+      - validate_disconnect_delay
+  realtime.configuration.custom_logger:
+    status: implemented
+    note: "logger parameter on connect_once and RealtimeClient, and RealtimeClientOptions.logger on the supabase client, take a logging.Logger that replaces supabase.realtime. Channels log to its channel child and the websockets library to its websockets child, and access tokens are redacted. The level is the logger's own, as with any Python logger."
+    symbols:
+      - connect_once
+    supporting_symbols:
+      - RealtimeClientOptions
   realtime.configuration.binary_protocol:
     status: implemented
     note: "The client always speaks protocol 2.0.0. send_broadcast() sends a bytes payload as a binary frame, and binary broadcasts are received as bytes in BroadcastPayload.payload."

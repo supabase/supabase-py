@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Mapping
 from types import TracebackType
 from warnings import warn
@@ -9,7 +10,6 @@ from supabase_utils._urls import check_secure_url
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpSession
 from supabase_utils.http.retry import RetryPolicy
-from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import InvalidStatus
 from yarl import URL
 
@@ -22,6 +22,7 @@ from .exceptions import (
     RealtimeTimeoutError,
 )
 from .message import ErrorReplyMessage, Message, ReplyMessage
+from .transport import WebSocketConnection, WebSocketTransport
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
     DEFAULT_HEARTBEAT_TIMEOUT,
@@ -32,13 +33,11 @@ from .types import (
     ChannelEvents,
     ConnectionState,
     HeartbeatStatus,
+    validate_disconnect_delay,
     validate_heartbeat,
     validate_push_options,
 )
 from .version import __version__
-
-logger = RedactingLoggerAdapter(get_logger("realtime"))
-websockets_logger = RedactingLoggerAdapter(get_logger("realtime.websockets"))
 
 
 def _loggable(frame: str | bytes) -> str:
@@ -109,6 +108,10 @@ class connect_once:
     :param allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host
     :param http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests
     :param headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey``
+    :param transport: Opens the WebSocket connection, instead of the ``websockets`` library
+    :param disconnect_on_empty_channels_after: Seconds to keep the connection open after the last channel is removed.
+        Defaults to twice ``heartbeat_interval``, and ``0`` disconnects at once. Must not be negative.
+    :param logger: The logger the client logs to, instead of ``supabase.realtime``
     """
 
     def __init__(
@@ -123,6 +126,9 @@ class connect_once:
         *,
         http_session: AsyncHttpSession | None = None,
         headers: Mapping[str, str] | None = None,
+        transport: WebSocketTransport | None = None,
+        disconnect_on_empty_channels_after: float | None = None,
+        logger: logging.Logger | None = None,
     ) -> None:
         self.client = RealtimeClient(
             url,
@@ -134,6 +140,9 @@ class connect_once:
             allow_insecure_http=allow_insecure_http,
             http_session=http_session,
             headers=headers,
+            transport=transport,
+            disconnect_on_empty_channels_after=disconnect_on_empty_channels_after,
+            logger=logger,
         )
 
     def __await__(self) -> Generator[None, None, "RealtimeClient"]:
@@ -181,7 +190,7 @@ def _refused_with(error: Exception) -> int | None:
 class RealtimeClient:
     """
     A realtime client that connects when the first channel subscribes and
-    disconnects when the last channel is removed.
+    disconnects a while after the last channel is removed.
 
     When the connection drops, it reconnects with full-jitter backoff until it
     is closed, and joins its joined channels again.
@@ -200,6 +209,13 @@ class RealtimeClient:
     :param http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests. It stays open when the client is closed.
         Without it, `RealtimeChannel.http_send()` raises a `RealtimeError`.
     :param headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey`` of the project.
+    :param transport: Opens the WebSocket connection, instead of the ``websockets`` library. Use it to connect with another
+        WebSocket library, or with an in-memory connection in tests.
+    :param disconnect_on_empty_channels_after: Seconds to keep the connection open after the last channel is removed,
+        so a channel joined in the meantime reuses it. Defaults to twice ``heartbeat_interval``, and ``0`` disconnects
+        at once. Must not be negative.
+    :param logger: The logger the client logs to, instead of ``supabase.realtime``. Channels log to its ``channel``
+        child and the ``websockets`` library to its ``websockets`` child. Access tokens are redacted either way.
     """
 
     def __init__(
@@ -214,9 +230,15 @@ class RealtimeClient:
         *,
         http_session: AsyncHttpSession | None = None,
         headers: Mapping[str, str] | None = None,
+        transport: WebSocketTransport | None = None,
+        disconnect_on_empty_channels_after: float | None = None,
+        logger: logging.Logger | None = None,
     ) -> None:
         validate_heartbeat(heartbeat_interval, heartbeat_timeout)
         validate_push_options(timeout, max_queued_messages)
+        if disconnect_on_empty_channels_after is None:
+            disconnect_on_empty_channels_after = 2 * heartbeat_interval
+        validate_disconnect_delay(disconnect_on_empty_channels_after)
         self.url = URL(url)
         check_secure_url(
             self.url,
@@ -234,7 +256,17 @@ class RealtimeClient:
             Headers.from_mapping(headers or {})
         )
 
-        self._ws_connection: ClientConnection | None = None
+        base_logger = logger or get_logger("realtime")
+        self._logger = RedactingLoggerAdapter(base_logger)
+        self._websockets_logger = RedactingLoggerAdapter(
+            base_logger.getChild("websockets")
+        )
+        self._channel_logger = base_logger.getChild("channel")
+        self._transport = transport or self._connect_websockets
+        self.disconnect_on_empty_channels_after = disconnect_on_empty_channels_after
+        self._disconnect_task: asyncio.Task[None] | None = None
+
+        self._ws_connection: WebSocketConnection | None = None
         self._connection_failure: asyncio.Future[Message] | None = None
         self._connected_at = 0.0
         self._session: asyncio.Future[None] | None = None
@@ -277,9 +309,7 @@ class RealtimeClient:
                     if self.get_access_token is not None
                     else None
                 )
-                websocket = await websockets.connect(
-                    str(normalize_url(self.url, token)), logger=websockets_logger
-                )
+                websocket = await self._transport(str(normalize_url(self.url, token)))
             except BaseException:
                 self._set_connection_state(ConnectionState.CLOSED)
                 raise
@@ -297,6 +327,9 @@ class RealtimeClient:
                 self._heartbeat(websocket, failure)
             )
             self._set_connection_state(ConnectionState.CONNECTED)
+
+    async def _connect_websockets(self, url: str) -> WebSocketConnection:
+        return await websockets.connect(url, logger=self._websockets_logger)
 
     @property
     def connection_state(self) -> ConnectionState:
@@ -362,9 +395,33 @@ class RealtimeClient:
             await self._stop()
 
     async def _close_if_unused(self) -> None:
+        if self.channels:
+            return
+        self._cancel_pending_disconnect()
+        if self.disconnect_on_empty_channels_after == 0:
+            await self._close_if_still_unused()
+            return
+        self._logger.debug(
+            "no channels left, disconnecting in %.1f seconds",
+            self.disconnect_on_empty_channels_after,
+        )
+        self._disconnect_task = asyncio.create_task(self._disconnect_later())
+
+    async def _disconnect_later(self) -> None:
+        await asyncio.sleep(self.disconnect_on_empty_channels_after)
+        self._disconnect_task = None
+        await self._close_if_still_unused()
+
+    async def _close_if_still_unused(self) -> None:
         async with self._connect_lock:
             if not self.channels:
                 await self._stop()
+
+    def _cancel_pending_disconnect(self) -> None:
+        task = self._disconnect_task
+        self._disconnect_task = None
+        if task is not None and task is not asyncio.current_task():
+            task.cancel()
 
     def _is_connected(self) -> bool:
         return (
@@ -374,6 +431,7 @@ class RealtimeClient:
         )
 
     async def _stop(self) -> None:
+        self._cancel_pending_disconnect()
         if (
             self._reconnect_task is not None
             and self._reconnect_task is not asyncio.current_task()
@@ -408,24 +466,26 @@ class RealtimeClient:
 
     def _connection(
         self, func_name: str
-    ) -> tuple[ClientConnection, asyncio.Future[Message]]:
+    ) -> tuple[WebSocketConnection, asyncio.Future[Message]]:
         if self._ws_connection is None or self._connection_failure is None:
             raise NotConnectedError(func_name)
         return self._ws_connection, self._connection_failure
 
     async def _listen(
-        self, websocket: ClientConnection, failure: asyncio.Future[Message]
+        self, websocket: WebSocketConnection, failure: asyncio.Future[Message]
     ) -> None:
         try:
             while True:
                 frame = await websocket.recv()
                 if failure.done():
-                    logger.debug("Ignoring %s on a failed connection", _loggable(frame))
+                    self._logger.debug(
+                        "Ignoring %s on a failed connection", _loggable(frame)
+                    )
                     return
                 try:
                     message = decode(frame)
                 except ValueError as error:
-                    logger.error(
+                    self._logger.error(
                         "Ignoring a %s in an unrecognized format: %s",
                         _loggable(frame),
                         type(error).__name__,
@@ -439,13 +499,13 @@ class RealtimeClient:
                 if fut is not None and not fut.done():
                     fut.set_result(message)
                 elif message.event == ChannelEvents.reply:
-                    logger.debug(
+                    self._logger.debug(
                         "Ignoring a reply nobody is waiting on: %s", describe(message)
                     )
                 elif channel := self.channels.get(message.topic):
                     channel._receive(message)
                 else:
-                    logger.debug("Ignoring %s", describe(message))
+                    self._logger.debug("Ignoring %s", describe(message))
         except Exception as exc:
             self._fail_connection(failure, exc)
 
@@ -477,7 +537,7 @@ class RealtimeClient:
         while self._channels_to_rejoin():
             self._reconnect_attempt += 1
             delay = reconnect_delay(self._reconnect_attempt)
-            logger.info(
+            self._logger.info(
                 "reconnecting in %.1f seconds (attempt %d)",
                 delay,
                 self._reconnect_attempt,
@@ -495,7 +555,7 @@ class RealtimeClient:
                         channel._fail_rejoin(AuthorizationError(channel.topic, reason))
                     return
                 refused = status in (401, 403)
-                logger.warning("could not reconnect: %r", exc)
+                self._logger.warning("could not reconnect: %r", exc)
                 continue
             refused = False
             try:
@@ -503,7 +563,7 @@ class RealtimeClient:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.warning(
+                self._logger.warning(
                     "could not refresh the access token to rejoin: %s",
                     type(exc).__name__,
                 )
@@ -531,7 +591,7 @@ class RealtimeClient:
             get.cancel()
 
     async def _heartbeat(
-        self, websocket: ClientConnection, failure: asyncio.Future[Message]
+        self, websocket: WebSocketConnection, failure: asyncio.Future[Message]
     ) -> None:
         try:
             while True:
@@ -541,10 +601,10 @@ class RealtimeClient:
                     payload={},
                     ref=self._make_ref(),
                 )
-                logger.debug("sending heartbeat")
+                self._logger.debug("sending heartbeat")
                 _publish(self._heartbeat_listeners, HeartbeatStatus.SENT)
                 res = await self._send(data, reply_timeout=self.heartbeat_timeout)
-                logger.debug("heartbeat reply: %s", res.payload.status)
+                self._logger.debug("heartbeat reply: %s", res.payload.status)
                 if isinstance(res.payload, ErrorReplyMessage):
                     _publish(self._heartbeat_listeners, HeartbeatStatus.ERROR)
                     raise NotConnectedError(
@@ -566,10 +626,10 @@ class RealtimeClient:
     async def _refresh_token_after_heartbeat(self) -> None:
         try:
             await self._refresh_token()
-        except websockets.ConnectionClosed:
+        except (websockets.ConnectionClosed, OSError):
             raise
         except Exception as exception:
-            logger.warning(
+            self._logger.warning(
                 "could not refresh the access token after the heartbeat: %s",
                 type(exception).__name__,
             )
@@ -623,7 +683,7 @@ class RealtimeClient:
         )
         for result in results:
             if isinstance(result, Exception):
-                logger.warning("failed to unsubscribe a channel: %r", result)
+                self._logger.warning("failed to unsubscribe a channel: %r", result)
 
     async def set_auth(self, token: str | None = None) -> None:
         """
@@ -650,7 +710,9 @@ class RealtimeClient:
                 calling this method again with the same token sends it again.
         """
         if token is None and self.get_access_token is None:
-            logger.warning("tried setting auth but no token callback was registered")
+            self._logger.warning(
+                "tried setting auth but no token callback was registered"
+            )
             return
         async with self._auth_lock:
             self._token_is_manual = token is not None
@@ -679,7 +741,7 @@ class RealtimeClient:
 
     async def _send_token(self, token: str) -> None:
         if token == self.last_token:
-            logger.info("generated access token is still the same, skipping")
+            self._logger.info("generated access token is still the same, skipping")
             return
         for channel in list(self.channels.values()):
             if channel.joined:
@@ -700,7 +762,7 @@ class RealtimeClient:
                     ChannelEvents.access_token, {"access_token": token}
                 )
             except Exception as exception:
-                logger.warning(
+                self._logger.warning(
                     "could not send the new access token to %s: %r",
                     channel.topic,
                     exception,
@@ -721,7 +783,7 @@ class RealtimeClient:
         websocket, failure = self._connection("RealtimeClient._send")
         _raise_connection_failure(failure)
         frame = encode(message)
-        logger.debug("sending %s", describe(message))
+        self._logger.debug("sending %s", describe(message))
 
         seconds = self.timeout if reply_timeout is None else reply_timeout
         deadline = asyncio.timeout(seconds)
@@ -730,7 +792,7 @@ class RealtimeClient:
         try:
             async with deadline:
                 await websocket.send(frame)
-                logger.debug("waiting for ref=%r", message.ref)
+                self._logger.debug("waiting for ref=%r", message.ref)
                 failures = (
                     (failure,) if channel_closed is None else (failure, channel_closed)
                 )
@@ -750,7 +812,7 @@ class RealtimeClient:
         websocket, failure = self._connection("RealtimeClient._send_no_wait")
         _raise_connection_failure(failure)
         frame = encode(message)
-        logger.debug("sending %s", describe(message))
+        self._logger.debug("sending %s", describe(message))
         await websocket.send(frame)
 
     def endpoint_url(self) -> str:

@@ -47,6 +47,7 @@ from .presence import (
     PresenceSync,
     RealtimePresence,
 )
+from .transport import WebSocketConnection, WebSocketTransport
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
     DEFAULT_TIMEOUT,
@@ -164,6 +165,8 @@ __all__ = [
     "SuccessReplyMessage",
     "SuccessSystemPayload",
     "SystemMessage",
+    "WebSocketConnection",
+    "WebSocketTransport",
     "__version__",
     "connect_once",
 ]

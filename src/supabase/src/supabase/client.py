@@ -663,8 +663,8 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
         this client, which is the API key by default. A refresh
         that fails raises from `subscribe()`.
 
-        It connects when the first channel subscribes, and disconnects when
-        its last channel is removed or this client is closed. When the
+        It connects when the first channel subscribes, and disconnects a while
+        after its last channel is removed, or when this client is closed. When the
         connection drops, it reconnects and joins its channels again.
         """
         return RealtimeClient(
@@ -677,6 +677,9 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             allow_insecure_http=self._allow_insecure_http,
             http_session=self.http_session,
             headers=self._headers,
+            transport=self._realtime_options.transport,
+            disconnect_on_empty_channels_after=self._realtime_options.disconnect_on_empty_channels_after,
+            logger=self._realtime_options.logger,
         )
 
 

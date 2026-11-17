@@ -301,7 +301,7 @@ A name that goes through DNS, like `api.localhost`, is not treated as loopback. 
 
 ## Realtime clients connect on the first subscribe
 
-`RealtimeClient` takes the realtime URL and a token callback instead of an open connection. It connects when the first channel subscribes, or when `connect()` is called, and every channel of the client shares that connection. The connection is closed when the last channel is unsubscribed or removed, so a client with no channels holds no connection. `aclose()` closes it too and leaves the channels unsubscribed. Subscribing again opens a new connection.
+`RealtimeClient` takes the realtime URL and a token callback instead of an open connection. It connects when the first channel subscribes, or when `connect()` is called, and every channel of the client shares that connection. The connection is closed `disconnect_on_empty_channels_after` seconds after the last channel is unsubscribed or removed, twice `heartbeat_interval` by default, so a channel joined in the meantime reuses it. Pass `0` to close it at once. `aclose()` closes it too and leaves the channels unsubscribed. Subscribing again opens a new connection.
 
 Messages queued on a channel, like the close message of `unsubscribe()`, can still be read from `channel.messages` after the connection is closed. Reading past them raises `NotConnectedError` instead of waiting.
 
