@@ -341,6 +341,12 @@ async for message in channel.messages:
 
 A channel keeps at most `max_queued_messages` unread messages, 1000 by default. When its queue is full, the oldest message is dropped and a warning is logged. Pass `max_queued_messages` to `connect_once`, `RealtimeClient` or `RealtimeClientOptions` to change it.
 
+## Realtime broadcasts need a joined channel
+
+`send_broadcast()` raises `ChannelNotJoinedError` without sending when the channel is not joined. Before, the server's error was only logged. With `ack=True`, it raises `PushRejectedError` when the server rejects the broadcast, instead of returning the error reply. To broadcast without subscribing, call `http_send()`.
+
+`http_send()` takes `request_timeout` instead of `timeout`, and sends its request with the `http_session` of the client. It raises `RealtimeAPIError` when the server rejects the broadcast and `RealtimeTimeoutError` when it times out, instead of `RealtimeHTTPError`. A `RealtimeClient` created without the `supabase` client needs `http_session` and an `apikey` header for it.
+
 ## Realtime presence events have their own listener
 
 `channel.messages` no longer yields `PresenceJoin` and `PresenceLeave`. Call `channel.presence_events()` before `subscribe()`; it yields `PresenceJoin`, `PresenceLeave` and the new `PresenceSync`. A channel with a presence listener at subscribe turns presence on, so `RealtimeChannelOptions.presence(enabled=True)` is only needed to read `presence_state()` without a listener.

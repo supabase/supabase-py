@@ -7,8 +7,12 @@ import weakref
 from collections.abc import Buffer, Sequence
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Self
+from urllib.parse import quote
 
 import websockets
+from pydantic import ValidationError
+from supabase_utils.http.request import Request, validate_request_timeout
+from supabase_utils.types import JSONParser
 
 from .exceptions import (
     AuthorizationError,
@@ -16,6 +20,7 @@ from .exceptions import (
     ChannelNotJoinedError,
     NotConnectedError,
     PushRejectedError,
+    RealtimeAPIError,
     RealtimeError,
     RealtimeTimeoutError,
     _is_fatal,
@@ -52,6 +57,7 @@ from .types import (
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator, Mapping
 
+    from supabase_utils.http.request import Response
     from supabase_utils.types import JSON
     from yarl import URL
 
@@ -782,27 +788,130 @@ class RealtimeChannel:
         """
         Send a broadcast message through this channel.
 
-        Without ``broadcast_ack``, returning means the message was written to the
-        connection, not that the server received it.
+        The channel must be joined. To broadcast without subscribing, use
+        `http_send()`. Without ``broadcast_ack``, returning means the message
+        was written to the connection, not that the server received it. With
+        it, the call waits at most ``timeout`` seconds of the client for the
+        server's reply and returns it.
 
         :param event: The name of the broadcast event
         :param data: The payload to broadcast. A bytes-like object, such as
             ``bytes``, ``bytearray`` or ``memoryview``, is sent as a binary frame,
             and receivers get it as ``bytes`` in ``BroadcastPayload.payload``.
             Anything else is sent as JSON.
+        :raises ChannelNotJoinedError: If the channel is not joined.
         :raises ValueError: If ``data`` is bytes-like and the topic or the event
             is longer than 255 bytes in UTF-8.
+        :raises PushRejectedError: With ``broadcast_ack``, if the server replies
+            with an error.
+        :raises RealtimeTimeoutError: With ``broadcast_ack``, if the server does
+            not reply in time.
+        :raises ChannelClosedError: With ``broadcast_ack``, if the channel closes
+            or errors before the server replies.
         :raises websockets.ConnectionClosed: If the connection is closed.
         :raises Exception: If the connection already failed, the exception that
             failed it, such as a TimeoutError when a heartbeat timed out.
         """
+        if not self.joined:
+            raise ChannelNotJoinedError("RealtimeChannel.send_broadcast", self.topic)
         if isinstance(data, Buffer):
             data = bytes(data)
-        payload = {"type": "broadcast", "event": event, "payload": data}
-        if self.options.broadcast_ack:
-            return await self._send_event(ChannelEvents.broadcast, payload)
-        await self._send_event_no_wait(ChannelEvents.broadcast, payload)
-        return None
+        message = Message(
+            topic=self.topic,
+            event=ChannelEvents.broadcast,
+            ref=self.socket._make_ref(),
+            join_ref=self.join_ref,
+            payload={"type": "broadcast", "event": event, "payload": data},
+        )
+        if not self.options.broadcast_ack:
+            await self.socket._send_no_wait(message)
+            return None
+        reply = await self.socket._send(message, channel_closed=self._closed)
+        if isinstance(reply.payload, ErrorReplyMessage):
+            reason = reply.payload.response.get("reason")
+            raise PushRejectedError(
+                "broadcast", self.topic, reason if isinstance(reason, str) else None
+            )
+        return reply
+
+    async def http_send(
+        self,
+        event: str,
+        data: Mapping[str, JSON] | Buffer,
+        *,
+        request_timeout: float | None = None,
+    ) -> None:
+        """
+        Send a broadcast message through the Realtime REST API.
+
+        The channel does not need to be subscribed, and the WebSocket
+        connection is not used, so this suits fire and forget broadcasts from
+        server code. The request is never retried, since a retry could
+        deliver the broadcast twice. Returning means the server accepted the
+        broadcast.
+
+        :param event: The name of the broadcast event
+        :param data: The payload to broadcast, a JSON object. A bytes-like
+            object is sent unchanged as ``application/octet-stream``.
+        :param request_timeout: Seconds the whole call may take. None uses the
+            ``timeout`` of the client.
+        :raises RealtimeError: If the client has no ``http_session``.
+        :raises RealtimeAPIError: If the server answers with a status other
+            than 202.
+        :raises RealtimeTimeoutError: If the call takes longer than the timeout.
+        :raises SupabaseTransportError: If the request fails before a response
+            is read.
+        """
+        validate_request_timeout(request_timeout)
+        session = self.socket.http_session
+        if session is None:
+            raise RealtimeError(
+                "RealtimeChannel.http_send() needs the http_session of the RealtimeClient"
+            )
+        seconds = self.socket.timeout if request_timeout is None else request_timeout
+        deadline = asyncio.timeout(seconds)
+        try:
+            async with deadline:
+                response = await session.send(
+                    await self._http_send_request(event, data)
+                )
+        except TimeoutError:
+            if deadline.expired():
+                raise RealtimeTimeoutError("broadcast", self.topic, seconds) from None
+            raise
+        if response.status != 202:
+            raise RealtimeAPIError(
+                _error_message(response),
+                status_code=response.status,
+                response=response,
+            )
+
+    async def _http_send_request(
+        self, event: str, data: Mapping[str, JSON] | Buffer
+    ) -> Request:
+        if isinstance(data, Buffer):
+            content, content_type = bytes(data), "application/octet-stream"
+        else:
+            content, content_type = JSONParser.dump_json(data), "application/json"
+        headers = self.socket.headers.override("Content-Type", content_type)
+        if token := await self.socket._access_token():
+            headers = headers.override("Authorization", f"Bearer {token}")
+        url = self.broadcast_endpoint_url.joinpath(
+            quote(self.topic.removeprefix("realtime:"), safe=""),
+            "events",
+            quote(event, safe=""),
+            encoded=True,
+        )
+        if self.options.is_private:
+            url = url.update_query(private="true")
+        return Request(
+            url=url,
+            method="POST",
+            headers=headers,
+            content=content,
+            delay=None,
+            retry=False,
+        )
 
     # Internal methods
 
@@ -836,3 +945,15 @@ class RealtimeChannel:
                 self.topic,
                 reason if isinstance(reason, str) else None,
             )
+
+
+def _error_message(response: Response) -> str:
+    try:
+        body = JSONParser.validate_json(response.content)
+    except ValidationError:
+        body = None
+    if isinstance(body, dict):
+        for key in ("error", "message"):
+            if isinstance(message := body.get(key), str) and message:
+                return message
+    return f"the server answered the broadcast with status {response.status}"

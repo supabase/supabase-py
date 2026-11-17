@@ -1,11 +1,13 @@
 import asyncio
 import logging
-from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Mapping
 from types import TracebackType
 from warnings import warn
 
 import websockets
 from supabase_utils._urls import check_secure_url
+from supabase_utils.http.headers import Headers
+from supabase_utils.http.io import AsyncHttpSession
 from supabase_utils.http.retry import RetryPolicy
 from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import InvalidStatus
@@ -33,6 +35,7 @@ from .types import (
     validate_heartbeat,
     validate_push_options,
 )
+from .version import __version__
 
 logger = RedactingLoggerAdapter(logging.getLogger(__name__))
 websockets_logger = RedactingLoggerAdapter(logging.getLogger("websockets.client"))
@@ -104,6 +107,8 @@ class connect_once:
     :param timeout: Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast, must be positive
     :param max_queued_messages: Messages each channel keeps until they are read from `RealtimeChannel.messages`, must be positive
     :param allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host
+    :param http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests
+    :param headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey``
     """
 
     def __init__(
@@ -115,6 +120,9 @@ class connect_once:
         timeout: float = DEFAULT_TIMEOUT,
         max_queued_messages: int = DEFAULT_MAX_QUEUED_MESSAGES,
         allow_insecure_http: bool = False,
+        *,
+        http_session: AsyncHttpSession | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> None:
         self.client = RealtimeClient(
             url,
@@ -124,6 +132,8 @@ class connect_once:
             timeout=timeout,
             max_queued_messages=max_queued_messages,
             allow_insecure_http=allow_insecure_http,
+            http_session=http_session,
+            headers=headers,
         )
 
     def __await__(self) -> Generator[None, None, "RealtimeClient"]:
@@ -181,11 +191,15 @@ class RealtimeClient:
         An error it raises fails the connect or the join. After a heartbeat it is logged and the channels keep their token.
     :param heartbeat_interval: Seconds between heartbeats, must be positive
     :param heartbeat_timeout: Seconds to wait for a heartbeat reply before the connection is considered lost, must be positive
-    :param timeout: Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast, must be positive
+    :param timeout: Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast,
+        and for `RealtimeChannel.http_send()` to complete, must be positive
     :param max_queued_messages: Messages each channel keeps until they are read from `RealtimeChannel.messages`, must be positive.
         When a channel's queue is full, its oldest message is dropped and a warning is logged.
     :param allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host, such as an emulator, a LAN address or a Docker service name.
         Without it such a URL raises a `ValueError`, since it sends the token in clear text. `wss` and `https` URLs are always accepted.
+    :param http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests. It stays open when the client is closed.
+        Without it, `RealtimeChannel.http_send()` raises a `RealtimeError`.
+    :param headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey`` of the project.
     """
 
     def __init__(
@@ -197,6 +211,9 @@ class RealtimeClient:
         timeout: float = DEFAULT_TIMEOUT,
         max_queued_messages: int = DEFAULT_MAX_QUEUED_MESSAGES,
         allow_insecure_http: bool = False,
+        *,
+        http_session: AsyncHttpSession | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> None:
         validate_heartbeat(heartbeat_interval, heartbeat_timeout)
         validate_push_options(timeout, max_queued_messages)
@@ -212,6 +229,10 @@ class RealtimeClient:
         self.last_token: str | None = None
         self.get_access_token = token_callback
         self.http_endpoint = _http_endpoint_url(self.url)
+        self.http_session = http_session
+        self.headers = Headers.supabase_client_headers("realtime", __version__).update(
+            Headers.from_mapping(headers or {})
+        )
 
         self._ws_connection: ClientConnection | None = None
         self._connection_failure: asyncio.Future[Message] | None = None
@@ -640,6 +661,11 @@ class RealtimeClient:
         async with self._auth_lock:
             if not self._token_is_manual:
                 await self._send_callback_token()
+
+    async def _access_token(self) -> str | None:
+        if self._token_is_manual or self.get_access_token is None:
+            return self.last_token
+        return await self.get_access_token() or self.last_token
 
     async def _send_callback_token(self) -> None:
         assert self.get_access_token is not None

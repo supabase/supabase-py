@@ -1,12 +1,14 @@
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import override
 from unittest.mock import AsyncMock
 
 import pytest
+from supabase_utils.types import JSON
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
-from realtime import ChannelNotJoinedError
+from realtime import ChannelNotJoinedError, PushRejectedError
 from realtime._serializer import decode, encode
 from realtime.channel import RealtimeChannel, RealtimeChannelOptions
 from realtime.client import RealtimeClient, connect_once
@@ -53,12 +55,15 @@ class FakeServer:
                 event=ChannelEvents.reply,
                 topic=message.topic,
                 ref=message.ref,
-                payload={"status": "ok", "response": {"postgres_changes": []}},
+                payload=self.reply_payload(message),
             )
             try:
                 await connection.send(encode(reply))
             except ConnectionClosed:
                 return
+
+    def reply_payload(self, message: Message) -> dict[str, JSON]:
+        return {"status": "ok", "response": {"postgres_changes": []}}
 
     async def drop_connections(self) -> None:
         for connection in self.connections:
@@ -79,7 +84,7 @@ SENDS: dict[str, Callable[[RealtimeChannel], Awaitable[object]]] = {
 
 
 CLOSED_CONNECTION_ERRORS: dict[str, type[Exception]] = {
-    "send_broadcast": ConnectionClosed,
+    "send_broadcast": ChannelNotJoinedError,
     "track": ChannelNotJoinedError,
     "untrack": ChannelNotJoinedError,
 }
@@ -134,8 +139,31 @@ async def test_acknowledged_broadcast_raises_when_the_connection_is_closed(
         with pytest.raises(ConnectionClosed):
             await asyncio.wait_for(connection_failure(client), timeout=1)
 
-        with pytest.raises(ConnectionClosed):
+        with pytest.raises(ChannelNotJoinedError):
             await channel.send_broadcast("event", {"a": 1})
+
+
+class RejectingServer(FakeServer):
+    @override
+    def reply_payload(self, message: Message) -> dict[str, JSON]:
+        if message.event == ChannelEvents.broadcast:
+            return {"status": "error", "response": {"reason": "rate limited"}}
+        return super().reply_payload(message)
+
+
+@pytest.mark.asyncio
+async def test_acknowledged_broadcast_raises_when_the_server_rejects_it() -> None:
+    async with (
+        RejectingServer() as server,
+        connect_once(server.url, get_token) as client,
+    ):
+        channel = client.channel("room", RealtimeChannelOptions().broadcast(ack=True))
+        await channel.subscribe()
+
+        with pytest.raises(PushRejectedError, match="rate limited") as error:
+            await channel.send_broadcast("event", {"a": 1})
+
+        assert error.value.reason == "rate limited"
 
 
 @pytest.mark.asyncio

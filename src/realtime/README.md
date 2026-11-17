@@ -134,7 +134,8 @@ async with client.channel("broadcast-test", options) as channel:
 
 ### Notes:
 
-- With `ack=True`, `send_broadcast()` waits for the server to acknowledge the message and returns its reply.
+- `send_broadcast()` raises `ChannelNotJoinedError` without sending when the channel is not joined.
+- With `ack=True`, `send_broadcast()` waits for the server to acknowledge the message and returns its reply, or raises `PushRejectedError` when the server rejects it.
 - With `listen_self=True`, the client receives the broadcast messages it sends.
 - A `bytes` payload is sent as a binary WebSocket frame, without JSON encoding, and receivers get it back as `bytes` in `message.payload.payload`.
 - `RealtimeChannelOptions().private(True)` makes the server use RLS to decide whether the user may join the channel.
@@ -163,6 +164,34 @@ async with client.channel("db-changes", options) as channel:
         elif isinstance(message, PostgresChangesMessage):
             print("Change received!", message.payload)
 ```
+
+### Broadcast without subscribing
+
+`http_send()` posts a broadcast to the Realtime REST API. The channel does not need to be subscribed and no WebSocket connection is opened, which suits server code that only sends. The client needs an `http_session` and the `apikey` header of your project. The `supabase` client passes both to `client.realtime`.
+
+```python
+import aiohttp
+from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
+
+from realtime import RealtimeClient
+
+
+async def get_token() -> str:
+    return "your-publishable-key"
+
+
+async with AsyncAiohttpSession(aiohttp.ClientSession()) as session:
+    sender = RealtimeClient(
+        "http://localhost:54321/realtime/v1",
+        get_token,
+        http_session=session,
+        headers={"apikey": "your-publishable-key"},
+    )
+    await sender.channel("broadcast-test").http_send("some-event", {"hello": "world"})
+```
+
+- The payload is a JSON object, or a `bytes` payload sent as `application/octet-stream`.
+- It raises `RealtimeAPIError` when the server answers with a status other than 202, and `RealtimeTimeoutError` after `request_timeout` seconds, the `timeout` of the client by default. The request is never retried, since a retry could deliver the broadcast twice.
 
 ## Presence
 

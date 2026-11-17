@@ -5,7 +5,14 @@ import pytest
 from websockets.asyncio.server import Server, ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
-from realtime import ChannelStates, NotConnectedError, RealtimeClient, RealtimeError
+from realtime import (
+    ChannelNotJoinedError,
+    ChannelStates,
+    ConnectionState,
+    NotConnectedError,
+    RealtimeClient,
+    RealtimeError,
+)
 from realtime._serializer import decode, encode
 from realtime.message import ChannelCloseMessage, Message
 from realtime.types import ChannelEvents
@@ -156,10 +163,10 @@ async def test_close_without_a_connection_does_nothing() -> None:
     await client.aclose()
 
 
-async def test_sending_without_a_connection_raises_not_connected() -> None:
+async def test_sending_on_an_unjoined_channel_raises_not_joined() -> None:
     client = RealtimeClient("http://localhost")
 
-    with pytest.raises(NotConnectedError):
+    with pytest.raises(ChannelNotJoinedError):
         await client.channel("room").send_broadcast("event", {"a": 1})
 
 
@@ -296,8 +303,7 @@ async def test_removing_all_channels_closes_the_connection(server: FakeServer) -
     await client.remove_all_channels()
 
     await asyncio.wait_for(server.connections[0].wait_closed(), timeout=1)
-    with pytest.raises(NotConnectedError):
-        await client.channel("room").send_broadcast("event", {"a": 1})
+    assert client.connection_state == ConnectionState.CLOSED
 
 
 async def test_connection_stays_open_while_a_channel_is_registered(

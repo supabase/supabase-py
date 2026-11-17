@@ -675,6 +675,8 @@ class AsyncClient(SupabaseClient[AsyncHttpIO, AsyncSupportedStorage]):
             timeout=self._realtime_options.timeout,
             max_queued_messages=self._realtime_options.max_queued_messages,
             allow_insecure_http=self._allow_insecure_http,
+            http_session=self.http_session,
+            headers=self._headers,
         )
 
 

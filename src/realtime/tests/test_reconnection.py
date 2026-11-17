@@ -117,11 +117,8 @@ async def test_raises_on_send_broadcast(server: RealtimeServer) -> None:
         client.channel("test-channel") as channel,
     ):
         await server.close()
-        try:
+        with pytest.raises((ConnectionClosedOK, ChannelNotJoinedError)):
             await channel.send_broadcast("test", {})
-        except ConnectionClosedOK:
-            return
-        raise Exception("should have raised a connection error, but got nothing")
 
 
 async def test_raises_on_send_presence(server: RealtimeServer) -> None:

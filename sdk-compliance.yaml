@@ -952,7 +952,12 @@ features:
     status: implemented
     symbols:
       - RealtimeChannel.send_broadcast
-  realtime.channel.broadcast_http: not_implemented
+  realtime.channel.broadcast_http:
+    status: implemented
+    symbols:
+      - RealtimeChannel.http_send
+    supporting_symbols:
+      - RealtimeAPIError
   realtime.channel.broadcast_persist: not_implemented
 
   realtime.subscriptions.broadcast:

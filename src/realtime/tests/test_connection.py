@@ -9,10 +9,13 @@ import aiohttp
 import pytest
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from yarl import URL
 
 from realtime import (
+    ChannelNotJoinedError,
     ChannelStates,
+    ConnectionState,
     RealtimeClient,
     RealtimeError,
     RealtimePostgresChangesListenEvent,
@@ -151,6 +154,47 @@ async def test_binary_broadcast_events(socket: RealtimeClient) -> None:
         assert isinstance(message, BroadcastMessage)
         assert message.payload.event == "binary-event"
         assert message.payload.payload == data
+
+
+@pytest.mark.asyncio
+async def test_http_send_reaches_subscribers_without_subscribing(
+    socket: RealtimeClient,
+) -> None:
+    async with (
+        socket.channel("test-http-send") as receiver,
+        AsyncAiohttpSession(aiohttp.ClientSession()) as session,
+    ):
+        sender = RealtimeClient(
+            f"{SUPABASE_URL}/realtime/v1",
+            get_token,
+            http_session=session,
+            headers={"apikey": PUBLISHABLE_KEY},
+        )
+        channel = sender.channel("test-http-send")
+
+        await channel.http_send("http-event", {"message": "over http"})
+        await channel.http_send("binary-event", bytes(range(256)))
+
+        assert not channel.joined
+        assert sender.connection_state == ConnectionState.CLOSED
+        message = await anext(receiver.messages)
+        assert isinstance(message, BroadcastMessage)
+        assert message.payload.event == "http-event"
+        assert message.payload.payload == {"message": "over http"}
+        message = await anext(receiver.messages)
+        assert isinstance(message, BroadcastMessage)
+        assert message.payload.event == "binary-event"
+        assert message.payload.payload == bytes(range(256))
+
+
+@pytest.mark.asyncio
+async def test_send_broadcast_raises_on_an_unjoined_channel(
+    socket: RealtimeClient,
+) -> None:
+    channel = socket.channel("test-unjoined-broadcast")
+
+    with pytest.raises(ChannelNotJoinedError):
+        await channel.send_broadcast("event", {"message": "lost"})
 
 
 @pytest.mark.asyncio
