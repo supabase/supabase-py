@@ -1,12 +1,14 @@
 import asyncio
 import json
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager
 from types import MappingProxyType, TracebackType
 from typing import Self
 
 import pytest
 from supabase_utils.http.errors import SupabaseTransportError
 from supabase_utils.http.headers import Headers
-from supabase_utils.http.request import Request, Response
+from supabase_utils.http.request import AsyncStreamedResponse, Request, Response
 from yarl import URL
 
 from realtime import (
@@ -45,6 +47,20 @@ class FakeSession:
             content=self.content,
             status=self.status,
             request=request,
+        )
+
+    @asynccontextmanager
+    async def stream(self, request: Request) -> AsyncGenerator[AsyncStreamedResponse]:
+        response = await self.send(request)
+
+        async def body() -> AsyncIterator[bytes]:
+            yield response.content
+
+        yield AsyncStreamedResponse(
+            headers=response.headers,
+            status=response.status,
+            request=request,
+            body=body(),
         )
 
     async def __aenter__(self) -> Self:
@@ -88,7 +104,7 @@ async def test_posts_the_payload_without_subscribing() -> None:
     assert request.headers["Authorization"] == "Bearer user-token"
     assert request.headers["Content-Type"] == "application/json"
     assert "supabase-py/realtime" in request.headers["X-Client-Info"]
-    assert request.content is not None
+    assert isinstance(request.content, bytes)
     assert json.loads(request.content) == {"text": "hi"}
     assert client.connection_state == ConnectionState.CLOSED
     assert not channel.joined
@@ -101,7 +117,7 @@ async def test_sends_any_mapping_as_json() -> None:
     await client.channel("room").http_send("event", MappingProxyType({"a": 1}))
 
     [request] = session.requests
-    assert request.content is not None
+    assert isinstance(request.content, bytes)
     assert json.loads(request.content) == {"a": 1}
 
 
