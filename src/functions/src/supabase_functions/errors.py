@@ -8,7 +8,11 @@ from supabase_utils.http.errors import SupabaseAPIError
 from supabase_utils.types import JSONParser
 
 if TYPE_CHECKING:
-    from supabase_utils.http.request import Response
+    from supabase_utils.http.request import (
+        AsyncStreamedResponse,
+        Response,
+        StreamedResponse,
+    )
 
 
 class FunctionsError(SupabaseError):
@@ -24,7 +28,9 @@ class FunctionsRelayError(FunctionsError, SupabaseAPIError):
     error, marked by the `x-relay-error` header."""
 
 
-def _is_relay_error(response: Response) -> bool:
+def _is_relay_error(
+    response: Response | StreamedResponse | AsyncStreamedResponse,
+) -> bool:
     return response.headers.get("x-relay-error") == "true"
 
 

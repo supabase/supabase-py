@@ -89,3 +89,23 @@ with HttpxSession(Client(follow_redirects=True)) as session:
     except (FunctionsHttpError, FunctionsRelayError) as error:
         print(error.status_code, error.message)
 ```
+
+### Streaming responses
+
+`invoke_stream()` takes the arguments of `invoke()` and gives the response once its head arrived, for a function that streams, such as one that sends server-sent events. Entering the context raises the same errors as `invoke()`, and the response reads its body once with `iter_text()`, `iter_events()`, `read()` or by iterating over its chunks. Leaving the context closes the connection. `request_timeout` limits how long the body may go without a new chunk, not how long the whole stream may take. A total timeout of the HTTP client still applies, such as the 300 seconds of a default aiohttp `ClientSession`, so pass a client without one for a stream that may run longer.
+
+```python
+from httpx import AsyncClient
+from supabase_functions import AsyncFunctionsClient
+from supabase_utils.http.adapters.httpx import AsyncHttpxSession
+
+async with AsyncHttpxSession(AsyncClient()) as session:
+    functions = AsyncFunctionsClient(
+        "https://<project_ref>.supabase.co/functions/v1",
+        {"apikey": "your-publishable-key"},
+        session,
+    )
+    async with functions.invoke_stream("chat", body={"prompt": "Hello"}) as response:
+        async for event in response.iter_events():
+            print(event.event, event.data)
+```

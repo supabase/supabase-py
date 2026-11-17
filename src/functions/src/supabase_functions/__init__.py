@@ -6,12 +6,15 @@ from .errors import (
     FunctionsHttpError,
     FunctionsRelayError,
 )
+from .stream import AsyncFunctionResponseStream, FunctionResponseStream
 from .utils import FunctionRegion
 from .version import __version__
 
 __all__ = [
+    "AsyncFunctionResponseStream",
     "AsyncFunctionsClient",
     "FunctionRegion",
+    "FunctionResponseStream",
     "FunctionsError",
     "FunctionsHttpError",
     "FunctionsRelayError",

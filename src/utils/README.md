@@ -91,6 +91,7 @@ The main modules are:
 | `supabase_utils.http.query`     | `URLQuery`, an immutable multi map of query parameters.                                                                                         |
 | `supabase_utils.http.io`        | The `HttpSession` and `AsyncHttpSession` protocols, the `SyncHttpIO` and `AsyncHttpIO` executors and `handle_http_io`.                          |
 | `supabase_utils.http.retry`     | `RetryPolicy`, how the executors retry a request, with `DEFAULT_RETRYABLE_STATUSES` and `DEFAULT_RETRYABLE_METHODS`.                            |
+| `supabase_utils.http.sse`       | `ServerSentEvent` and `ServerSentEventDecoder`, which parses a `text/event-stream` body.                                                        |
 | `supabase_utils.errors`         | `SupabaseError`, the base class of every exception the packages raise.                                                                          |
 | `supabase_utils.http.errors`    | `SupabaseAPIError` for error responses, and `SupabaseTransportError` and its subclass `RequestTimeoutError`, raised by an adapter.              |
 | `supabase_utils.http.redirects` | `keeps_credentials` and `CREDENTIAL_HEADERS`, for adapters that follow redirects.                                                               |

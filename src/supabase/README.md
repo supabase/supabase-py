@@ -276,6 +276,14 @@ except (FunctionsRelayError, FunctionsHttpError) as error:
     print(error.status_code, error.message)
 ```
 
+`invoke_stream()` reads the response of a function that streams, such as one that sends server-sent events, as it arrives. It takes the arguments of `invoke()` and gives a response whose body is read once with `iter_text()`, `iter_events()`, `read()` or by iterating over its chunks:
+
+```python
+with supabase.functions.invoke_stream("chat", body={"prompt": "Hello"}) as response:
+    for event in response.iter_events():
+        print(event.event, event.data)
+```
+
 ### Download a file from Storage
 
 ```python
