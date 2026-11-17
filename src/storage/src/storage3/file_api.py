@@ -26,7 +26,12 @@ from supabase_utils.http.request import (
 from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
-from .exceptions import _validate_adapter, _validate_model, parse_api_error
+from .exceptions import (
+    StorageException,
+    _validate_adapter,
+    _validate_model,
+    parse_api_error,
+)
 from .types import (
     CreateSignedUrlBody,
     CreateSignedUrlResponse,
@@ -89,6 +94,14 @@ def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> byte
     # str or pathlib.path received
     with open(file, "rb") as f:
         return f.read()
+
+
+def _next_cursor(page: ListResult, cursor: str | None) -> str | None:
+    if not page.hasNext or page.nextCursor is None:
+        return None
+    if page.nextCursor == cursor:
+        raise StorageException(f"The listing did not advance past cursor {cursor!r}")
+    return page.nextCursor
 
 
 FileObjectsAdapter = TypeAdapter(list[FileObject])
@@ -605,7 +618,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         each page.
 
         Each page is fetched only when the iterator reaches it. The parameters
-        are those of `list`.
+        are those of `list`. Raises `StorageException` when a page returns the
+        cursor it was fetched with, instead of fetching it forever.
         """
         cursor = None
         while True:
@@ -617,9 +631,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 sort_by=sort_by,
             )
             yield page
-            if not page.hasNext or page.nextCursor is None:
+            cursor = _next_cursor(page, cursor)
+            if cursor is None:
                 return
-            cursor = page.nextCursor
 
     async def aiter_objects(
         self: StorageFileApiClient[AsyncHttpIO],
@@ -634,7 +648,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         each page.
 
         Each page is fetched only when the iterator reaches it. The parameters
-        are those of `list`.
+        are those of `list`. Raises `StorageException` when a page returns the
+        cursor it was fetched with, instead of fetching it forever.
         """
         cursor = None
         while True:
@@ -646,9 +661,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 sort_by=sort_by,
             )
             yield page
-            if not page.hasNext or page.nextCursor is None:
+            cursor = _next_cursor(page, cursor)
+            if cursor is None:
                 return
-            cursor = page.nextCursor
 
     @handle_http_io
     def download(

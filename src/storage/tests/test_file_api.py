@@ -11,7 +11,7 @@ from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 from supabase_utils.types import JSON
 
 from storage3 import StorageFileApiClient
-from storage3.exceptions import StorageApiError
+from storage3.exceptions import StorageApiError, StorageException
 from storage3.types import SortBy, TransformOptions, UploadResponse
 
 from .utils import STORAGE_URL, call_with_client, use_async
@@ -946,3 +946,17 @@ async def test_iter_objects_fetches_a_page_only_when_it_is_reached() -> None:
 
     assert [o.name for o in first.objects] == ["a.png"]
     assert len(requests) == 1
+
+
+@use_async
+async def test_iter_objects_raises_when_the_cursor_does_not_advance(
+    use_async: bool,
+) -> None:
+    def handler(request: Request) -> Response:
+        return Response(
+            200,
+            json={"hasNext": True, "nextCursor": "same", "folders": [], "objects": []},
+        )
+
+    with pytest.raises(StorageException, match="did not advance"):
+        await call_with_client(use_async, handler, collect_pages(use_async))
