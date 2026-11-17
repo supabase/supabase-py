@@ -293,9 +293,10 @@ class SupabaseAuthAdmin[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         ends only the session of `jwt`, and `"others"` ends every session
         except the one of `jwt`.
 
-        An answer that the user or the session is already gone counts as
-        success. An access token stays valid until it expires, since only
-        refresh tokens can be revoked.
+        `jwt` must not have expired. An answer that the user is already gone
+        counts as success, and so does one that the session is already gone
+        for `"local"`. An access token stays valid until it expires, since
+        only refresh tokens can be revoked.
 
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.

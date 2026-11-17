@@ -1,7 +1,7 @@
 import pytest
 
 from supabase_auth import SyncSupabaseAuthAdmin, SyncSupabaseAuthClient
-from supabase_auth.errors import AuthApiError
+from supabase_auth.errors import AuthApiError, ErrorCode
 from supabase_auth.types import (
     AdminUserAttributes,
     CreateOAuthClientParams,
@@ -204,8 +204,9 @@ def test_sign_out_revokes_the_sessions_of_the_token_owner(
 
     secret_key_api_client.sign_out(session.access_token)
 
-    with pytest.raises(AuthApiError):
+    with pytest.raises(AuthApiError) as error:
         auth_client_with_session.refresh_session(session.refresh_token)
+    assert error.value.code == ErrorCode.REFRESH_TOKEN_NOT_FOUND
 
 
 def test_delete_user_should_be_able_delete_an_existing_user(
