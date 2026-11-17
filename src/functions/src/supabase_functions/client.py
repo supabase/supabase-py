@@ -1,5 +1,11 @@
-from collections.abc import Mapping
-from typing import Literal, cast, overload
+from collections.abc import AsyncGenerator, Generator, Mapping
+from contextlib import (
+    AbstractAsyncContextManager,
+    AbstractContextManager,
+    asynccontextmanager,
+    contextmanager,
+)
+from typing import Any, Literal, cast, overload
 from urllib.parse import parse_qsl
 
 from supabase_utils.http.headers import Headers
@@ -26,6 +32,7 @@ from supabase_utils.types import JSON
 from yarl import URL
 
 from .errors import _is_relay_error, _on_error_response
+from .stream import AsyncFunctionResponseStream, FunctionResponseStream
 from .utils import (
     FunctionRegion,
     is_valid_string_argument,
@@ -170,6 +177,97 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         if _is_relay_error(response) or not response.is_success:
             raise _on_error_response(response)
         return response
+
+    @overload
+    def invoke_stream(
+        self: "FunctionsClient[SyncHttpIO]",
+        function_name: str,
+        body: bytes | bytearray | str | dict[str, JSON] | list[JSON] | None = None,
+        region: FunctionRegion | str | None = None,
+        headers: dict[str, str] | None = None,
+        method: HTTPRequestMethod = "POST",
+        request_timeout: float | None = None,
+        retry: RetryPolicy | bool | None = None,
+    ) -> AbstractContextManager[FunctionResponseStream]: ...
+
+    @overload
+    def invoke_stream(
+        self: "FunctionsClient[AsyncHttpIO]",
+        function_name: str,
+        body: bytes | bytearray | str | dict[str, JSON] | list[JSON] | None = None,
+        region: FunctionRegion | str | None = None,
+        headers: dict[str, str] | None = None,
+        method: HTTPRequestMethod = "POST",
+        request_timeout: float | None = None,
+        retry: RetryPolicy | bool | None = None,
+    ) -> AbstractAsyncContextManager[AsyncFunctionResponseStream]: ...
+
+    def invoke_stream(
+        self: "FunctionsClient[Any]",
+        function_name: str,
+        body: bytes | bytearray | str | dict[str, JSON] | list[JSON] | None = None,
+        region: FunctionRegion | str | None = None,
+        headers: dict[str, str] | None = None,
+        method: HTTPRequestMethod = "POST",
+        request_timeout: float | None = None,
+        retry: RetryPolicy | bool | None = None,
+    ) -> (
+        AbstractContextManager[FunctionResponseStream]
+        | AbstractAsyncContextManager[AsyncFunctionResponseStream]
+    ):
+        """Invokes a function and reads its response as it arrives, for a
+        function that streams, such as one that sends server-sent events.
+
+        Entering the returned context sends the request and gives the response
+        once its head arrived, with its status and headers. Its body is read
+        with `iter_text()`, `iter_events()`, `read()` or by iterating over the
+        chunks. An error response raises the same errors as `invoke()`.
+        Leaving the context closes the connection.
+
+        ```python
+        with functions.invoke_stream("chat", body={"prompt": "Hi"}) as response:
+            for event in response.iter_events():
+                print(event.data)
+
+        async with functions.invoke_stream("chat", body={"prompt": "Hi"}) as response:
+            async for event in response.iter_events():
+                print(event.data)
+        ```
+
+        The parameters are those of `invoke()`. `request_timeout` limits how
+        long the body may go without a new chunk, not how long it may take
+        in total, though a total timeout of the HTTP client still applies.
+        """
+        request = self._invoke_options_to_request(
+            function_name, body, region, headers, method, request_timeout, retry
+        )
+        if isinstance(self.executor, AsyncHttpIO):
+            return _async_invoke_stream(
+                self.executor, self.base_url, self.default_headers, request
+            )
+        return _sync_invoke_stream(
+            self.executor, self.base_url, self.default_headers, request
+        )
+
+
+@contextmanager
+def _sync_invoke_stream(
+    executor: SyncHttpIO, base_url: URL, headers: Headers, request: ToRequest
+) -> Generator[FunctionResponseStream]:
+    with executor.stream(base_url, headers, request) as response:
+        if _is_relay_error(response) or not response.is_success:
+            raise _on_error_response(response.read())
+        yield FunctionResponseStream(response)
+
+
+@asynccontextmanager
+async def _async_invoke_stream(
+    executor: AsyncHttpIO, base_url: URL, headers: Headers, request: ToRequest
+) -> AsyncGenerator[AsyncFunctionResponseStream]:
+    async with executor.stream(base_url, headers, request) as response:
+        if _is_relay_error(response) or not response.is_success:
+            raise _on_error_response(await response.read())
+        yield AsyncFunctionResponseStream(response)
 
 
 class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):

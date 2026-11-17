@@ -377,3 +377,40 @@ async def test_invoke_region_replaces_force_function_region_in_function_name() -
         "hello?forceFunctionRegion=eu-west-1", region=FunctionRegion.UsEast1
     )
     assert response.request.url.query.getall("forceFunctionRegion") == ["us-east-1"]
+
+
+async def test_invoke_stream_gives_the_events_of_the_body() -> None:
+    client = client_returning(
+        content=b"event: token\ndata: Hi\n\ndata: [DONE]\n\n",
+        status=200,
+        headers=Headers.from_mapping({"Content-Type": "text/event-stream"}),
+    )
+    async with client.invoke_stream(
+        "chat?model=small", body={"prompt": "Hi"}, region=FunctionRegion.UsEast1
+    ) as response:
+        assert response.status == 200
+        assert response.headers.get("content-type") == "text/event-stream"
+        events = [event async for event in response.iter_events()]
+    assert [(event.event, event.data) for event in events] == [
+        ("token", "Hi"),
+        ("message", "[DONE]"),
+    ]
+
+
+async def test_invoke_stream_raises_http_error_with_the_body() -> None:
+    client = client_returning(content=b'{"error": "Custom error message"}', status=400)
+    with pytest.raises(FunctionsHttpError, match="Custom error message") as exc_info:
+        async with client.invoke_stream("test-function"):
+            pytest.fail("the body of an error was given out")
+    assert exc_info.value.status_code == 400
+
+
+async def test_invoke_stream_raises_relay_error() -> None:
+    client = client_returning(
+        content=b"relay exploded",
+        status=200,
+        headers=Headers.from_mapping({"x-relay-error": "true"}),
+    )
+    with pytest.raises(FunctionsRelayError, match="relay exploded"):
+        async with client.invoke_stream("test-function"):
+            pytest.fail("the body of an error was given out")

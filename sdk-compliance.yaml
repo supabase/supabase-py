@@ -853,7 +853,23 @@ features:
     note: "Passed via the method argument of invoke() (defaults to POST)."
     symbols:
       - FunctionsClient.invoke
-  functions.invocation.streaming_response: not_implemented
+  functions.invocation.streaming_response:
+    status: implemented
+    note: "invoke_stream() takes the arguments of invoke() and returns a context manager (an async one on AsyncFunctionsClient) that sends the request on entry and gives a FunctionResponseStream (AsyncFunctionResponseStream) once a 2xx head arrived, with status and headers, or raises FunctionsHttpError or FunctionsRelayError with the whole body. The body is read once by iterating over its chunks, or with iter_text(), iter_events(), which parses server-sent events, or read()."
+    symbols:
+      - FunctionsClient.invoke_stream
+      - FunctionResponseStream.iter_text
+      - FunctionResponseStream.iter_events
+      - FunctionResponseStream.read
+      - AsyncFunctionResponseStream.iter_text
+      - AsyncFunctionResponseStream.iter_events
+      - AsyncFunctionResponseStream.read
+    supporting_symbols:
+      - FunctionResponseStream
+      - AsyncFunctionResponseStream
+      - ServerSentEvent
+      - ServerSentEventDecoder
+      - ServerSentEventDecoder.feed
   functions.invocation.region_selection:
     status: implemented
     note: "Passed via the region argument of invoke(); maps to the x-region header and forceFunctionRegion query param. Accepts a FunctionRegion or any region name as a string, so new regions work without an SDK update."

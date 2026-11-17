@@ -3,7 +3,7 @@ import re
 from collections.abc import Generator
 from contextlib import contextmanager
 from types import SimpleNamespace, TracebackType
-from typing import Self, override
+from typing import Any, Self, override
 
 import pytest
 from supabase_utils.http import io
@@ -21,6 +21,7 @@ from yarl import URL
 
 from supabase_functions import (
     AsyncFunctionsClient,
+    FunctionRegion,
     FunctionsHttpError,
     SyncFunctionsClient,
     create_client,
@@ -352,3 +353,27 @@ def test_invocation_retry_policy_replaces_the_one_of_the_client(
         client.invoke("hello", method="GET", retry=own)
     assert len(session.requests) == 2
     assert sleeps == [3]
+
+
+def test_invoke_stream_sends_the_request_of_invoke(valid_url: str) -> None:
+    session = RecordingSession()
+    client = SyncFunctionsClient(
+        url=valid_url, headers={}, http_session=session, request_timeout=30
+    )
+    arguments: dict[str, Any] = {
+        "body": {"prompt": "Hi"},
+        "region": FunctionRegion.UsEast1,
+        "headers": {"X-Custom": "1"},
+        "method": "PUT",
+        "retry": False,
+    }
+    client.invoke("chat?model=small", **arguments)
+    with client.invoke_stream("chat?model=small", **arguments) as response:
+        assert response.read() == b""
+    invoked, streamed = session.requests
+    assert streamed.url == invoked.url
+    assert streamed.method == invoked.method == "PUT"
+    assert streamed.content == invoked.content
+    assert sorted(streamed.headers.iter_items()) == sorted(invoked.headers.iter_items())
+    assert streamed.timeout == invoked.timeout == 30
+    assert streamed.retry is invoked.retry is False

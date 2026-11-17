@@ -342,3 +342,41 @@ def test_invoke_region_replaces_force_function_region_in_function_name() -> None
         "hello?forceFunctionRegion=eu-west-1", region=FunctionRegion.UsEast1
     )
     assert response.request.url.query.getall("forceFunctionRegion") == ["us-east-1"]
+
+
+def test_invoke_stream_gives_the_body_as_it_arrives() -> None:
+    client = client_returning(content="héllo".encode(), status=200)
+    with client.invoke_stream("test-function", body="hi", method="PUT") as response:
+        assert response.status == 200
+        assert "".join(response.iter_text()) == "héllo"
+
+
+def test_invoke_stream_gives_the_events_of_the_body() -> None:
+    client = client_returning(content=b"data: a\n\ndata: b\n\n", status=200)
+    with client.invoke_stream("chat") as response:
+        assert [event.data for event in response.iter_events()] == ["a", "b"]
+
+
+def test_invoke_stream_raises_http_error_with_the_body() -> None:
+    client = client_returning(content=b"not json", status=500)
+    with (
+        pytest.raises(FunctionsHttpError, match="not json") as exc_info,
+        client.invoke_stream("test-function"),
+    ):
+        pytest.fail("the body of an error was given out")
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.response is not None
+    assert exc_info.value.response.content == b"not json"
+
+
+def test_invoke_stream_raises_relay_error() -> None:
+    client = client_returning(
+        content=b"relay exploded",
+        status=546,
+        headers=Headers.from_mapping({"x-relay-error": "true"}),
+    )
+    with (
+        pytest.raises(FunctionsRelayError, match="relay exploded"),
+        client.invoke_stream("test-function"),
+    ):
+        pytest.fail("the body of an error was given out")
