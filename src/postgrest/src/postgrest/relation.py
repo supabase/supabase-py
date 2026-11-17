@@ -65,19 +65,45 @@ class Relation(Generic[Row, Target]):
     `authors!books_author_id_fkey` so PostgREST can tell two keys between
     the same tables apart, or `None` when there is only one."""
 
+    alias: str | None = None
+    """The key the embedded rows come back under instead of `name`, sent as
+    `editor:authors!books_editor_id_fkey`, or `None` for `name`.
+
+    Two relations to the same table both come back under its name, so all
+    but one of them need an alias to be embedded side by side:
+
+        class Books:
+            author = ToOneRelation[BooksRow, AuthorsRow](
+                "authors", AuthorsRow, constraint="books_author_id_fkey"
+            )
+            editor = ToOneRelation[BooksRow, AuthorsRow](
+                "authors",
+                AuthorsRow,
+                constraint="books_editor_id_fkey",
+                alias="editor",
+            )
+    """
+
     @property
     def response_key(self) -> str:
         """The key the embedded rows come back under in the parent row, and
-        that addresses the embed in a filter or a scope: the name of the
-        table, without the constraint."""
-        return self.name
+        that addresses the embed in a filter or a scope: the `alias`, or the
+        name of the table without the constraint."""
+        return self.alias if self.alias is not None else self.name
 
     @property
-    def _head(self) -> str:
-        """The embed as named in a `select` list, with its constraint."""
+    def _target(self) -> str:
+        """The table as named in a `select` list, with its constraint."""
         if self.constraint is None:
             return self.name
         return f"{self.name}!{self.constraint}"
+
+    @property
+    def _head(self) -> str:
+        """The embed as named in a `select` list, with its alias."""
+        if self.alias is None:
+            return self._target
+        return f"{self.alias}:{self._target}"
 
     def select(
         self, columns: Iterable[Selectable[Target]] | None = None
@@ -209,7 +235,7 @@ class EmbeddedCount(Selectable[Row]):
     @property
     @override
     def _selected_as(self) -> str:
-        return f"{_quote(self.response_key)}:{self.relation._head}(count)"
+        return f"{_quote(self.response_key)}:{self.relation._target}(count)"
 
 
 @dataclass(frozen=True)
@@ -352,7 +378,8 @@ def _selected[Row](columns: Iterable[Selectable[Row]]) -> tuple[Selectable[Row],
             if column.response_key in seen:
                 raise ValueError(
                     f"{column.response_key} is embedded twice; select its "
-                    "columns in one select()"
+                    "columns in one select(), or give one of two relations "
+                    "to the same table an alias"
                 )
             seen.add(column.response_key)
     return selected
@@ -421,21 +448,32 @@ def _scope_parameters(
 ) -> list[tuple[str, str]]:
     """The query parameters of `scopes` and of every scope nested in them,
     each under the dotted path of its embed: `books.title=eq.Dune`,
-    `books.order=title`, `books.limit=1`, `books.reviews.offset=2`."""
-    parameters: list[tuple[str, str]] = []
+    `books.order=title`, `books.limit=1`, `books.reviews.offset=2`.
+
+    Several scopes on one embed combine as repeated calls on one scope do:
+    their filters all apply, their sort keys go into one `order`, since
+    PostgREST reads the first one only, and the last row window wins.
+    """
+    grouped: dict[str, list[EmbeddedScope[Any]]] = {}
     for scope in scopes:
-        path = f"{prefix}{scope.relation.response_key}"
-        if scope.filter is not None:
-            parameters.extend(
-                (f"{path}.{key}", value)
-                for key, value in scope.filter._query_parameters()
-            )
-        if scope.orderings:
-            order = ",".join(ordering.order_key for ordering in scope.orderings)
-            parameters.append((f"{path}.order", order))
-        if scope.row_offset is not None:
-            parameters.append((f"{path}.offset", str(scope.row_offset)))
-        if scope.row_limit is not None:
-            parameters.append((f"{path}.limit", str(scope.row_limit)))
-        parameters.extend(_scope_parameters(scope.scopes, f"{path}."))
+        grouped.setdefault(f"{prefix}{scope.relation.response_key}", []).append(scope)
+    parameters: list[tuple[str, str]] = []
+    for path, group in grouped.items():
+        windows: dict[str, str] = {}
+        for scope in group:
+            if scope.filter is not None:
+                parameters.extend(
+                    (f"{path}.{key}", value)
+                    for key, value in scope.filter._query_parameters()
+                )
+            if scope.row_offset is not None:
+                windows["offset"] = str(scope.row_offset)
+            if scope.row_limit is not None:
+                windows["limit"] = str(scope.row_limit)
+        order = [ordering.order_key for scope in group for ordering in scope.orderings]
+        if order:
+            parameters.append((f"{path}.order", ",".join(order)))
+        parameters.extend((f"{path}.{key}", value) for key, value in windows.items())
+        nested = tuple(inner for scope in group for inner in scope.scopes)
+        parameters.extend(_scope_parameters(nested, f"{path}."))
     return parameters

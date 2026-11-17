@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal, Never, Self, overload
 from pydantic import TypeAdapter
 from supabase_utils.types import JSON
 
-from .partial_row import PartialRow
+from .partial_row import _ROWS, PartialRow
 from .relation import EmbeddedScope, _requiring
 from .relation import _selected as _distinct_embeds
 from .table import Table, _insert_payload, _rows_adapter, _update_payload
@@ -242,7 +242,9 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
             )
             # select=name,books!inner(title)&books.title=ilike.%dune%
 
-        See `Relation.is_null()` for a test that composes with `|`.
+        See `Relation.is_null()` for a test that composes with `|`. After a
+        write it drops rows from the returned representation only, not from
+        the rows the write affects, which `where()` alone decides.
         """
         return self._with(
             embedded_scopes=(
@@ -698,7 +700,6 @@ class TypedQueryBuilder[
 
 
 _TEXT = TypeAdapter(str)
-_ROWS = TypeAdapter(list[dict[str, JSON]])
 _OBJECT = TypeAdapter(dict[str, JSON])
 
 

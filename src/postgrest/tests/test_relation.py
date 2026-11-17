@@ -58,6 +58,9 @@ class Novels:
         "authors", AuthorsRow, constraint="novels_author_id_fkey"
     )
     reviews = ToManyRelation[NovelsRow, ReviewsRow]("reviews", ReviewsRow)
+    editor = ToOneRelation[NovelsRow, AuthorsRow](
+        "authors", AuthorsRow, constraint="novels_editor_id_fkey", alias="editor"
+    )
     table = Table[NovelsRow, dict[str, Any], dict[str, Any]](
         "novels", NovelsRow, primary_key=(id,)
     )
@@ -131,6 +134,29 @@ class TestSelectList:
             "title,authors!novels_author_id_fkey(name)"
         )
 
+    def test_an_alias_tells_two_relations_to_one_table_apart(self) -> None:
+        scope = EmbeddedScope(Novels.editor, requires_match=True).where(
+            Authors.id.eq(1)
+        )
+        request = replace(
+            select(
+                Novels.author.select([Authors.name]),
+                Novels.editor.select([Authors.name]),
+                scopes=(scope,),
+            ),
+            filter=Novels.editor.is_null(),
+        )
+
+        assert Novels.editor.response_key == "editor"
+        assert query(request) == {
+            "select": (
+                "authors!novels_author_id_fkey(name),"
+                "editor:authors!novels_editor_id_fkey!inner(name)"
+            ),
+            "editor": "is.null",
+            "editor.id": "eq.1",
+        }
+
     def test_embeds_nest(self) -> None:
         embed = Authors.novels.select(
             [Novels.title, Novels.reviews.select([Reviews.rating])]
@@ -195,6 +221,29 @@ class TestScopes:
         assert query(select(Novels.author.select(), scopes=(scope,))) == {
             "select": "authors!novels_author_id_fkey(*)",
             "authors.name": "eq.Ada",
+        }
+
+    def test_scopes_on_one_embed_combine(self) -> None:
+        scopes = (
+            EmbeddedScope(Authors.novels, requires_match=True)
+            .order(Novels.title)
+            .range(2, 5)
+            .embedded(Novels.reviews, lambda reviews: reviews.limit(1)),
+            EmbeddedScope(Authors.novels)
+            .where(Novels.id.gt(1))
+            .order(Novels.id.desc())
+            .limit(2)
+            .embedded(Novels.reviews, lambda reviews: reviews.limit(3)),
+        )
+        embed = Authors.novels.select([Novels.reviews.select()])
+
+        assert query(select(embed, scopes=scopes, table=Authors.table)) == {
+            "select": "novels!inner(reviews(*))",
+            "novels.id": "gt.1",
+            "novels.order": "title,id.desc",
+            "novels.offset": "2",
+            "novels.limit": "2",
+            "novels.reviews.limit": "3",
         }
 
     def test_requiring_joins_the_embed_as_inner(self) -> None:
