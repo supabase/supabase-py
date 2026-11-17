@@ -8,6 +8,8 @@ from pydantic import TypeAdapter
 from supabase_utils.types import JSON
 
 from .partial_row import PartialRow
+from .relation import EmbeddedScope, _requiring
+from .relation import _selected as _distinct_embeds
 from .table import Table, _insert_payload, _rows_adapter, _update_payload
 from .table_executor import _WRITES, AsyncTableExecutor, TableExecutor
 from .table_request import (
@@ -23,7 +25,8 @@ if TYPE_CHECKING:
     from supabase_utils.http.retry import RetryPolicy
 
     from .column_expression import Column, NullableColumn
-    from .filter import Expression, Filter, Ordering
+    from .filter import Filter, Ordering, Selectable
+    from .relation import Relation
 
 
 @dataclass(frozen=True)
@@ -135,7 +138,7 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
         return TypedTransformBuilder(request, self.executor, _rows(self.request.table))
 
     def select_only(
-        self, columns: Iterable[Expression[Row, Any]]
+        self, columns: Iterable[Selectable[Row]]
     ) -> TypedTransformBuilder[Executor, Row, list[PartialRow[Row]]]:
         """Return `columns` of the rows a write affected, as `PartialRow`s
         read through the same entries:
@@ -184,6 +187,69 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
                 f"range() needs end ({end}) to be at least start ({start})"
             )
         return self._with(offset=start, limit=end - start + 1)
+
+    def embedded[Target](
+        self,
+        relation: Relation[Row, Target],
+        scope: Callable[[EmbeddedScope[Target]], EmbeddedScope[Target]],
+    ) -> Self:
+        """Filter, sort and limit the rows embedded through `relation`, per
+        parent row, with the methods of the `EmbeddedScope` that `scope`
+        gets:
+
+            authors = (
+                client.table(Authors.table)
+                .select_only([Authors.name, Authors.books.select([Books.title])])
+                .embedded(
+                    Authors.books,
+                    lambda books: books.order(Books.published_on.desc()).limit(1),
+                )
+                .execute()
+            )
+
+        A filter in `scope` narrows the embedded rows only, so an author
+        with no matching book still comes back, with an empty list; see
+        `requiring()` to drop such rows instead.
+
+        `relation` has to be embedded in the `select_only()` list, so a write
+        needs a trailing `select_only()` that embeds it; `execute()` raises
+        `ValueError` otherwise.
+        """
+        return self._with(
+            embedded_scopes=(
+                *self.request.embedded_scopes,
+                scope(EmbeddedScope(relation)),
+            )
+        )
+
+    def requiring[Target](
+        self,
+        relation: Relation[Row, Target],
+        scope: Callable[[EmbeddedScope[Target]], EmbeddedScope[Target]] | None = None,
+    ) -> Self:
+        """Drop the rows that have no row embedded through `relation`, an
+        inner join, with `scope` applied to the embedded rows as in
+        `embedded()`:
+
+            authors = (
+                client.table(Authors.table)
+                .select_only([Authors.name, Authors.books.select([Books.title])])
+                .requiring(
+                    Authors.books,
+                    lambda books: books.where(Books.title.ilike("%dune%")),
+                )
+                .execute()
+            )
+            # select=name,books!inner(title)&books.title=ilike.%dune%
+
+        See `Relation.is_null()` for a test that composes with `|`.
+        """
+        return self._with(
+            embedded_scopes=(
+                *self.request.embedded_scopes,
+                _requiring(relation, scope),
+            )
+        )
 
     def strip_nulls(self) -> Self:
         """Leave the `NULL` values out of the returned rows, with the
@@ -481,7 +547,7 @@ class TypedQueryBuilder[
         return TypedFilterBuilder(request, self.executor, _rows(self.table))
 
     def select_only(
-        self, columns: Iterable[Expression[Row, Any]]
+        self, columns: Iterable[Selectable[Row]]
     ) -> TypedFilterBuilder[Executor, Row, list[PartialRow[Row]]]:
         """Read `columns` of the rows only, as `PartialRow`s read through the
         same entries, so a column left out cannot be read by mistake:
@@ -495,8 +561,13 @@ class TypedQueryBuilder[
 
             Books.author_id, Books.pages.sum(), DerivedExpression.count_all()
 
-        Raises `ValueError` for an empty `columns`; use `select()` for every
-        column.
+        An entry can also embed the rows of a related table, or count them,
+        through a relation of this table:
+
+            Books.author.select([Authors.name]), Authors.books.count()
+
+        Raises `ValueError` for an empty `columns`, use `select()` for every
+        column, and for two embeds of the same relation.
         """
         selected = _selected(columns)
         request = replace(self._request(TableOperation.SELECT), columns=selected)
@@ -637,7 +708,7 @@ def _rows[Row](table: Table[Row, Any, Any]) -> Callable[[TableResult], list[Row]
 
 
 def _partial_rows[Row](
-    table: Table[Row, Any, Any], columns: tuple[Expression[Row, Any], ...]
+    table: Table[Row, Any, Any], columns: tuple[Selectable[Row], ...]
 ) -> Callable[[TableResult], list[PartialRow[Row]]]:
     return lambda result: [
         PartialRow(table, columns, row) for row in _ROWS.validate_python(result.data)
@@ -689,9 +760,9 @@ def _count(result: TableResult) -> int:
 
 
 def _selected[Row](
-    columns: Iterable[Expression[Row, Any]],
-) -> tuple[Expression[Row, Any], ...]:
-    selected = tuple(columns)
+    columns: Iterable[Selectable[Row]],
+) -> tuple[Selectable[Row], ...]:
+    selected = _distinct_embeds(columns)
     if not selected:
         raise ValueError(
             "select_only() needs at least one column; use select() for every column"

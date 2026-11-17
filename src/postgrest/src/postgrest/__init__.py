@@ -12,9 +12,18 @@ from .filter import (
     FilterOperator,
     JsonPath,
     Ordering,
+    Selectable,
 )
 from .partial_row import PartialRow
 from .range import Range, RangeBounds
+from .relation import (
+    Embed,
+    EmbeddedCount,
+    EmbeddedScope,
+    Relation,
+    ToManyRelation,
+    ToOneRelation,
+)
 from .request_builder import APIResponse, RPCResponse, TextAPIResponse
 from .table import Table
 from .table_executor import (
@@ -63,6 +72,9 @@ __all__ = [
     "CountMethod",
     "CountedResponse",
     "DerivedExpression",
+    "Embed",
+    "EmbeddedCount",
+    "EmbeddedScope",
     "ExplainOptions",
     "Expression",
     "Filter",
@@ -77,10 +89,12 @@ __all__ = [
     "RPCResponse",
     "Range",
     "RangeBounds",
+    "Relation",
     "RequestOptions",
     "ResponseShape",
     "ResultShape",
     "ReturnMethod",
+    "Selectable",
     "SyncPostgrestClient",
     "Table",
     "TableExecutor",
@@ -89,6 +103,8 @@ __all__ = [
     "TableResult",
     "TextAPIResponse",
     "TextSearchType",
+    "ToManyRelation",
+    "ToOneRelation",
     "TypedBuilder",
     "TypedCountBuilder",
     "TypedFilterBuilder",
