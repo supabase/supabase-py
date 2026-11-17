@@ -406,7 +406,7 @@ The response errors inherit both from the root of their package and from `Supaba
 
 ## Logging
 
-Every package logs through the standard `logging` module under the `supabase` logger: `supabase.http` for requests and retries, `supabase.auth` for the session refresh, `supabase.realtime` for the realtime connection and `supabase.client` for the client. The packages only add a `NullHandler`, so nothing is printed until you configure logging. Each request is logged at `DEBUG` with its method, path, status and duration:
+Every package logs through the standard `logging` module under the `supabase` logger: `supabase.http` for requests and retries, `supabase.auth` for the session refresh, `supabase.realtime` for the realtime connection, `supabase.realtime.websockets` for its websocket frames and `supabase.client` for the client. The packages only add a `NullHandler`, so nothing is printed until you configure logging. Each request is logged at `DEBUG` with its method, path, status and duration:
 
 ```python
 import logging

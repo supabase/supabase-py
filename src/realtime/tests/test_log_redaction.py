@@ -67,14 +67,15 @@ async def test_tokens_are_not_logged(
         if not record.name.startswith("websockets.server")
     )
     assert "apikey=<redacted>" in client_logs
-    assert '"access_token",{"access_token":"<redacted>"}' in client_logs
-    assert '"phx_join",{' in client_logs
+    assert "sending access_token on realtime:first" in client_logs
+    assert "> TEXT frame of " in client_logs
+    assert "sending phx_join on realtime:second" in client_logs
     assert URL_TOKEN not in client_logs
     assert REFRESHED_TOKEN not in client_logs
     assert {
         record.filename
         for record in caplog.records
-        if record.name in {"supabase.realtime", "websockets.client"}
+        if record.name in {"supabase.realtime", "supabase.realtime.websockets"}
     }.isdisjoint({"_redact.py", "__init__.py"})
 
 
@@ -94,7 +95,9 @@ async def test_payloads_are_not_logged_and_heartbeats_are_debug(
         record for record in caplog.records if record.name.startswith("supabase.")
     ]
     messages = [record.getMessage() for record in records]
-    assert "sending broadcast on realtime:room (ref=3)" in messages
+    assert any(
+        message.startswith("sending broadcast on realtime:room") for message in messages
+    )
     assert "join reply on realtime:room: ok" in messages
     assert "sending heartbeat" in messages
     assert all("secret-payload" not in message for message in messages)

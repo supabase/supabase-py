@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from abc import ABC, abstractmethod
 from functools import cached_property
 from types import MappingProxyType
@@ -20,6 +19,7 @@ from supabase_auth import (
     SyncSupportedStorage,
 )
 from supabase_functions import AsyncFunctionsClient, SyncFunctionsClient
+from supabase_utils._logging import get_logger
 from supabase_utils._urls import check_secure_url
 from supabase_utils.http.io import (
     AsyncHttpIO,
@@ -48,7 +48,7 @@ from .types import (
     StorageClientOptions,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger("client")
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

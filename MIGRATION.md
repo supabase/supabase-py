@@ -493,7 +493,7 @@ supabase = create_client(
 
 ## Logs go through the `supabase` logger
 
-Every package logs under the `supabase` logger instead of a logger named after its module, so `logging.getLogger("supabase")` configures all of them. The realtime logs moved from `realtime.client` and `realtime.channel` to `supabase.realtime` and `supabase.realtime.channel`, the auth logs from `supabase_auth.session` to `supabase.auth`, and the retry logs from `supabase_utils.http.io` to `supabase.http`, which also logs every request at `DEBUG`. Heartbeats are logged at `DEBUG` instead of `INFO`, and realtime messages are logged by event, topic and ref instead of with their payload. The [logging](src/supabase/README.md#logging) section of the README has the details.
+Every package logs under the `supabase` logger instead of a logger named after its module, so `logging.getLogger("supabase")` configures all of them. The realtime logs moved from `realtime.client` and `realtime.channel` to `supabase.realtime` and `supabase.realtime.channel`, the websocket logs from `websockets.client` to `supabase.realtime.websockets`, the auth logs from `supabase_auth.session` to `supabase.auth`, and the retry logs from `supabase_utils.http.io` to `supabase.http`, which also logs every request at `DEBUG`. Heartbeats are logged at `DEBUG` instead of `INFO`, and realtime messages and websocket frames are logged without their payload. The [logging](src/supabase/README.md#logging) section of the README has the details.
 
 ## One exception hierarchy
 

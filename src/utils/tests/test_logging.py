@@ -60,7 +60,7 @@ def test_sync_requests_are_logged_without_secrets(
     assert logs[0].startswith("POST /rest/v1/items 503 in ")
     assert logs[1].startswith("POST /rest/v1/items failed, retry 1 of ")
     assert logs[2].startswith("POST /rest/v1/items 201 in ")
-    assert logs[2].endswith(" ms")
+    assert logs[2].endswith(" milliseconds")
     assert all(record.levelno == logging.DEBUG for record in caplog.records)
     assert_no_secrets(caplog)
 
@@ -77,7 +77,7 @@ async def test_async_requests_are_logged_without_secrets(
 
     logs = http_logs(caplog)
     assert logs[0].startswith("POST /rest/v1/items failed in ")
-    assert logs[0].endswith(" ms with SupabaseTransportError")
+    assert logs[0].endswith(" milliseconds with SupabaseTransportError")
     assert logs[-1].startswith("POST /rest/v1/items 201 in ")
     assert_no_secrets(caplog)
 

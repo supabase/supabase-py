@@ -49,7 +49,7 @@ logger = get_logger("http")
 
 def _log_response(request: Request, started: float, response: Response) -> None:
     logger.debug(
-        "%s %s %d in %.1f ms",
+        "%s %s %d in %.1f milliseconds",
         request.method,
         request.url.path,
         response.status,
@@ -61,7 +61,7 @@ def _log_transport_error(
     request: Request, started: float, error: SupabaseTransportError
 ) -> None:
     logger.debug(
-        "%s %s failed in %.1f ms with %s",
+        "%s %s failed in %.1f milliseconds with %s",
         request.method,
         request.url.path,
         (perf_counter() - started) * 1000,

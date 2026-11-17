@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Mapping
 from types import TracebackType
 from warnings import warn
@@ -39,7 +38,7 @@ from .types import (
 from .version import __version__
 
 logger = RedactingLoggerAdapter(get_logger("realtime"))
-websockets_logger = RedactingLoggerAdapter(logging.getLogger("websockets.client"))
+websockets_logger = RedactingLoggerAdapter(get_logger("realtime.websockets"))
 
 
 def _loggable(frame: str | bytes) -> str:
@@ -425,9 +424,11 @@ class RealtimeClient:
                     return
                 try:
                     message = decode(frame)
-                except ValueError:
+                except ValueError as error:
                     logger.error(
-                        "Ignoring a %s in an unrecognized format", _loggable(frame)
+                        "Ignoring a %s in an unrecognized format: %s",
+                        _loggable(frame),
+                        type(error).__name__,
                     )
                     continue
                 fut = (

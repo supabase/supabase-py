@@ -1,11 +1,10 @@
 import logging
 import re
-from dataclasses import replace
 from typing import Any, override
 
 from websockets.frames import Frame
 
-from .message import Message, ReplyMessage
+from .message import Message
 
 REDACTED = "<redacted>"
 
@@ -15,7 +14,7 @@ _SECRET_PATTERNS = (
 )
 
 
-def describe(message: Message | ReplyMessage) -> str:
+def describe(message: Message) -> str:
     """The event, topic and ref of `message`, without its payload."""
     return f"{message.event} on {message.topic} (ref={message.ref})"
 
@@ -30,14 +29,7 @@ def _redact_argument(argument: object) -> object:
     if isinstance(argument, str):
         return redact(argument)
     if isinstance(argument, Frame):
-        try:
-            text = bytes(argument.data).decode()
-        except UnicodeDecodeError:
-            return argument
-        redacted = redact(text)
-        if redacted == text:
-            return argument
-        return str(replace(argument, data=redacted.encode()))
+        return f"{argument.opcode.name} frame of {len(argument.data)} bytes"
     return argument
 
 
