@@ -140,7 +140,17 @@ class ListResult(BaseModel):
 
 
 class UploadResponse(BaseModel):
-    Key: str
+    """The object written by an upload, update or copy.
+
+    ``path`` is the object key within the bucket and ``full_path`` is prefixed
+    with the bucket name. ``id`` is ``None`` for an upload to a signed URL,
+    whose response has no object id.
+    """
+
+    id: str | None
+    path: str
+    full_path: str
+    version: str | None
 
 
 @dataclass

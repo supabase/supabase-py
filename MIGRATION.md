@@ -43,6 +43,14 @@ Names that mirror a wire format keep their wire spelling, for example the JWT cl
 
 `update()` no longer takes `upsert`. It never sent the header, so the option had no effect.
 
+## Storage `UploadResponse` has `id`, `path`, `full_path` and `version`
+
+`upload()`, `update()`, `upload_to_signed_url()` and `copy()` return an `UploadResponse` with the object `id`, its `path` within the bucket, its `full_path` prefixed with the bucket name, and its `version`. The `Key` field is removed.
+
+| Before         | After                |
+| -------------- | -------------------- |
+| `response.Key` | `response.full_path` |
+
 ## Storage `list()` is the cursor-paged listing
 
 The legacy `POST /object/list` endpoint is gone. `list()` now calls `POST /object/list-v2`, which `list_v2()` used to call, and `list_v2()` is removed. The listing types lose their version number. `ListBody` reuses the name of the removed legacy request body, with the shape of the former `SearchV2Body`.

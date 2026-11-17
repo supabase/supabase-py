@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass
 from io import BufferedReader, FileIO
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
     AsyncHttpIO,
@@ -22,7 +23,7 @@ from supabase_utils.http.request import (
     PartField,
     Response,
 )
-from supabase_utils.types import JSONParser
+from supabase_utils.types import JSON, JSONParser
 from yarl import URL
 
 from .exceptions import _validate_adapter, _validate_model, parse_api_error
@@ -72,6 +73,12 @@ def _bool_header(value: bool) -> str:
     return "true" if value else "false"
 
 
+def _cache_control_header(value: str | None) -> str | None:
+    if value is not None and value.isdecimal():
+        return f"max-age={value}"
+    return value
+
+
 def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> bytes:
     if isinstance(file, (BufferedReader, FileIO)):
         # bytes or byte-stream-like object received
@@ -84,6 +91,19 @@ def _maybe_read_file(file: BufferedReader | bytes | FileIO | str | Path) -> byte
 
 
 FileObjectsAdapter = TypeAdapter(list[FileObject])
+
+
+class _UploadJsonResponse(BaseModel, extra="ignore"):
+    Key: str
+    Id: str | None = None
+    version: str | None = None
+
+
+def _parse_upload_response(response: Response, path: str) -> UploadResponse:
+    data = _validate_model(response, _UploadJsonResponse)
+    return UploadResponse(
+        id=data.Id, path=path, full_path=data.Key, version=data.version
+    )
 
 
 @dataclass
@@ -196,7 +216,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             query=query_params,
         )
 
-        return _validate_model(response, UploadResponse)
+        return _parse_upload_response(response, "/".join(path_parts))
 
     def _make_signed_url(self, signed_url: str, download_query: URLQuery) -> str:
         url = URL(signed_url[1:])  # ignore starting slash
@@ -335,7 +355,13 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         return str(url)
 
     @handle_http_io
-    def move(self, from_path: str, to_path: str) -> HttpMethod[MessageResponse]:
+    def move(
+        self,
+        from_path: str,
+        to_path: str,
+        *,
+        destination_bucket: str | None = None,
+    ) -> HttpMethod[MessageResponse]:
         """
         Moves an existing file, optionally renaming it at the same time.
 
@@ -345,22 +371,36 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             The original file path, including the current file name. For example `folder/image.png`.
         to_path
             The new file path, including the new file name. For example `folder/image-copy.png`.
+        destination_bucket
+            The bucket to move the file to. Defaults to this bucket.
         """
         response = yield JSONRequest(
             method="POST",
             path=["object", "move"],
-            body={
-                "bucketId": self.id,
-                "sourceKey": _normalize_object_key(from_path),
-                "destinationKey": _normalize_object_key(to_path),
-            },
+            body=self._destination_body(
+                _normalize_object_key(from_path),
+                _normalize_object_key(to_path),
+                destination_bucket,
+            ),
         )
         return _validate_model(response, MessageResponse)
 
     @handle_http_io
-    def copy(self, from_path: str, to_path: str) -> HttpMethod[UploadResponse]:
+    def copy(
+        self,
+        from_path: str,
+        to_path: str,
+        *,
+        destination_bucket: str | None = None,
+        upsert: bool = False,
+        copy_metadata: bool = True,
+        metadata: dict[str, Any] | None = None,
+        cache_control: str | None = None,
+        content_type: str | None = None,
+        content_encoding: str | None = None,
+    ) -> HttpMethod[UploadResponse]:
         """
-        Copies an existing file to a new path in the same bucket.
+        Copies an existing file to a new path.
 
         Parameters
         ----------
@@ -368,18 +408,76 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             The original file path, including the current file name. For example `folder/image.png`.
         to_path
             The new file path, including the new file name. For example `folder/image-copy.png`.
+        destination_bucket
+            The bucket to copy the file to. Defaults to this bucket.
+        upsert
+            Whether to overwrite the file at `to_path` if it already exists.
+        copy_metadata
+            Whether the copy keeps the metadata of the original file. Set it to
+            `False` to replace the custom metadata with `metadata` and to
+            override the file metadata given below.
+        metadata
+            The custom metadata of the copy. Requires `copy_metadata=False`.
+        cache_control
+            The `Cache-Control` of the copy. A number of seconds, as in
+            `upload()`, is sent as `max-age=<seconds>`; any other value, like
+            `no-cache`, is sent as given. Requires `copy_metadata=False`.
+        content_type
+            The `Content-Type` of the copy. Requires `copy_metadata=False`.
+        content_encoding
+            The `Content-Encoding` of the copy. An empty string clears it. It
+            changes the metadata only, not the bytes of the file. Requires
+            `copy_metadata=False` and Supabase Storage v1.80.0 or newer.
         """
+        file_metadata = {
+            key: value
+            for key, value in (
+                ("cacheControl", _cache_control_header(cache_control)),
+                ("mimetype", content_type),
+                ("contentEncoding", content_encoding),
+            )
+            if value is not None
+        }
+        if copy_metadata and (metadata is not None or file_metadata):
+            raise ValueError(
+                "metadata, cache_control, content_type and content_encoding "
+                "require copy_metadata=False"
+            )
+
+        headers = Headers.empty().set("x-upsert", _bool_header(upsert))
+        to_key = _normalize_object_key(to_path)
+        body = self._destination_body(
+            _normalize_object_key(from_path), to_key, destination_bucket
+        )
+        if not copy_metadata:
+            body["copyMetadata"] = False
+            if file_metadata:
+                body["metadata"] = file_metadata
+            if metadata is not None:
+                headers = headers.set(
+                    "x-metadata",
+                    base64.b64encode(JSONParser.dump_json(metadata)).decode("ascii"),
+                )
+
         response = yield JSONRequest(
             method="POST",
             path=["object", "copy"],
-            body={
-                "bucketId": self.id,
-                "sourceKey": _normalize_object_key(from_path),
-                "destinationKey": _normalize_object_key(to_path),
-            },
+            body=body,
+            headers=headers,
         )
+        return _parse_upload_response(response, to_key)
 
-        return _validate_model(response, UploadResponse)
+    def _destination_body(
+        self, from_key: str, to_key: str, destination_bucket: str | None
+    ) -> dict[str, JSON]:
+        body: dict[str, JSON] = {
+            "bucketId": self.id,
+            "sourceKey": from_key,
+            "destinationKey": to_key,
+        }
+        if destination_bucket is not None:
+            body["destinationBucket"] = destination_bucket
+        return body
 
     @handle_http_io
     def remove(self, paths: list[str]) -> HttpMethod[list[FileObject]]:
@@ -583,7 +681,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             headers=http_headers,
         )
 
-        return _validate_model(response, UploadResponse)
+        return _parse_upload_response(response, "/".join(path))
 
     @handle_http_io
     def upload(

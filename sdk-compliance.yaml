@@ -1219,8 +1219,16 @@ features:
     supporting_symbols:
       - TransformOptions
       - transform_to_dict
-  storage.file_buckets.copy_cross_bucket: not_implemented
-  storage.file_buckets.move_cross_bucket: not_implemented
+  storage.file_buckets.copy_cross_bucket:
+    status: implemented
+    note: "Pass destination_bucket to copy()."
+    symbols:
+      - StorageFileApiClient.copy
+  storage.file_buckets.move_cross_bucket:
+    status: implemented
+    note: "Pass destination_bucket to move()."
+    symbols:
+      - StorageFileApiClient.move
   storage.file_buckets.upload_with_metadata:
     status: implemented
     note: "Pass metadata (and content_type/cache_control) when calling upload(); metadata is sent as a multipart field."

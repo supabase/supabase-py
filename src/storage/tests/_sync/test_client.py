@@ -638,6 +638,108 @@ def test_client_move(
     assert moved_info.metadata.get("mimetype") == file.mime_type
 
 
+def test_client_upload_returns_the_object(
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
+) -> None:
+    result = storage_file_client.upload(
+        file.bucket_path, file.local_path, content_type=file.mime_type
+    )
+
+    info = storage_file_client.info(file.bucket_path)
+    assert result.id == info.id
+    assert result.path == file.bucket_path
+    assert result.full_path == f"{storage_file_client.id}/{file.bucket_path}"
+    assert result.version in (None, info.version)
+
+
+def test_client_copy_to_another_bucket(
+    storage_file_client: StorageFileApiClient[SyncHttpIO],
+    storage_file_client_public: StorageFileApiClient[SyncHttpIO],
+    file: FileForTesting,
+) -> None:
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, content_type=file.mime_type
+    )
+
+    result = storage_file_client.copy(
+        file.bucket_path,
+        file.bucket_path,
+        destination_bucket=storage_file_client_public.id,
+    )
+
+    copied = storage_file_client_public.download(file.bucket_path)
+    assert copied == file.file_content
+    info = storage_file_client_public.info(file.bucket_path)
+    assert result.id == info.id
+    assert result.path == file.bucket_path
+    assert result.full_path == f"{storage_file_client_public.id}/{file.bucket_path}"
+
+
+def test_client_copy_upsert(
+    storage_file_client: StorageFileApiClient[SyncHttpIO],
+    two_files: list[FileForTesting],
+) -> None:
+    for each in two_files:
+        storage_file_client.upload(
+            each.bucket_path, each.local_path, content_type=each.mime_type
+        )
+
+    with pytest.raises(StorageApiError):
+        storage_file_client.copy(two_files[0].bucket_path, two_files[1].bucket_path)
+
+    storage_file_client.copy(
+        two_files[0].bucket_path, two_files[1].bucket_path, upsert=True
+    )
+    copied = storage_file_client.download(two_files[1].bucket_path)
+    assert copied == two_files[0].file_content
+
+
+def test_client_copy_overrides_metadata(
+    storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
+) -> None:
+    storage_file_client.upload(
+        file.bucket_path,
+        file.local_path,
+        content_type=file.mime_type,
+        metadata={"source": "upload"},
+    )
+
+    new_path = f"{file.bucket_folder}/copied_{file.name}"
+    storage_file_client.copy(
+        file.bucket_path,
+        new_path,
+        copy_metadata=False,
+        metadata={"source": "copy"},
+        cache_control="60",
+        content_type="text/plain",
+    )
+
+    info = storage_file_client.info(new_path)
+    assert info.metadata == {"source": "copy"}
+    assert info.cache_control == "max-age=60"
+    assert info.content_type == "text/plain"
+
+
+def test_client_move_to_another_bucket(
+    storage_file_client: StorageFileApiClient[SyncHttpIO],
+    storage_file_client_public: StorageFileApiClient[SyncHttpIO],
+    file: FileForTesting,
+) -> None:
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, content_type=file.mime_type
+    )
+
+    storage_file_client.move(
+        file.bucket_path,
+        file.bucket_path,
+        destination_bucket=storage_file_client_public.id,
+    )
+
+    assert not storage_file_client.exists(file.bucket_path)
+    moved = storage_file_client_public.download(file.bucket_path)
+    assert moved == file.file_content
+
+
 def test_client_remove(
     storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
