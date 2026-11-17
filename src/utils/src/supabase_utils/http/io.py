@@ -52,12 +52,12 @@ def _log_response(request: Request, started: float, response: Response) -> None:
     logger.debug(
         "%s %s %d in %.3f seconds",
         request.method,
-        request.url.path,
+        request.url.raw_path,
         response.status,
         duration,
         extra={
             "http_method": request.method,
-            "http_path": request.url.path,
+            "http_path": request.url.raw_path,
             "http_status": response.status,
             "duration": duration,
         },
@@ -72,12 +72,12 @@ def _log_transport_error(
     logger.debug(
         "%s %s failed in %.3f seconds with %s",
         request.method,
-        request.url.path,
+        request.url.raw_path,
         duration,
         error_type,
         extra={
             "http_method": request.method,
-            "http_path": request.url.path,
+            "http_path": request.url.raw_path,
             "duration": duration,
             "error_type": error_type,
         },
@@ -200,13 +200,13 @@ class _Retries:
         logger.debug(
             "%s %s failed, retry %d of %d in %.2f seconds",
             self.request.method,
-            self.request.url.path,
+            self.request.url.raw_path,
             self.count,
             self.policy.max_retries,
             delay,
             extra={
                 "http_method": self.request.method,
-                "http_path": self.request.url.path,
+                "http_path": self.request.url.raw_path,
                 "retry": self.count,
                 "delay": delay,
             },

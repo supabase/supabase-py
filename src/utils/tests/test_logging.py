@@ -7,7 +7,7 @@ from supabase_utils.http.errors import SupabaseTransportError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpIO, HttpMethod, SyncHttpIO
 from supabase_utils.http.query import URLQuery
-from supabase_utils.http.request import JSONRequest
+from supabase_utils.http.request import EmptyRequest, JSONRequest
 from supabase_utils.http.retry import RetryPolicy
 from yarl import URL
 
@@ -87,6 +87,24 @@ async def test_async_requests_are_logged_without_secrets(
     assert caplog.records[0].__dict__["error_type"] == "SupabaseTransportError"
     assert logs[-1].startswith("POST /rest/v1/items 201 in ")
     assert_no_secrets(caplog)
+
+
+def get_item(key: str) -> HttpMethod[int]:
+    response = yield EmptyRequest(path=["items", key], method="GET")
+    return response.status
+
+
+def test_paths_are_logged_percent_encoded(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.DEBUG, logger="supabase"):
+        SyncHttpIO(FakeSession([200])).communicate(
+            BASE_URL, HEADERS, get_item("a\nforged line")
+        )
+
+    [record] = caplog.records
+    assert record.getMessage().startswith(
+        "GET /rest/v1/items/a%0Aforged%20line 200 in "
+    )
+    assert record.__dict__["http_path"] == "/rest/v1/items/a%0Aforged%20line"
 
 
 def test_requests_are_not_logged_above_debug(
