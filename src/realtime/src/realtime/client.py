@@ -633,15 +633,30 @@ class RealtimeClient:
             await websocket.close()
 
     async def _refresh_token_after_heartbeat(self) -> None:
-        try:
-            await self._refresh_token()
-        except (websockets.ConnectionClosed, OSError):
-            raise
-        except Exception as exception:
-            self._logger.warning(
-                "could not refresh the access token after the heartbeat: %s",
-                type(exception).__name__,
-            )
+        if self.get_access_token is None:
+            return
+        async with self._auth_lock:
+            if self._token_is_manual:
+                return
+            try:
+                token = await self.get_access_token()
+                if not token:
+                    return
+            except Exception as exception:
+                self._logger.warning(
+                    "could not refresh the access token after the heartbeat: %s",
+                    type(exception).__name__,
+                )
+                return
+            try:
+                await self._send_token(token)
+            except (websockets.ConnectionClosed, OSError):
+                raise
+            except Exception as exception:
+                self._logger.warning(
+                    "could not send the access token after the heartbeat: %s",
+                    type(exception).__name__,
+                )
 
     def channel(
         self, topic: str, options: RealtimeChannelOptions | None = None
