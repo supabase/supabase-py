@@ -4,8 +4,8 @@ import time
 from collections.abc import (
     AsyncGenerator,
     AsyncIterable,
-    Awaitable,
     Callable,
+    Coroutine,
     Generator,
 )
 from contextlib import (
@@ -432,16 +432,16 @@ class handle_http_io[**Params, Success]:
     @overload
     def __get__(
         self, obj: _HasExecutor[AsyncHttpIO], objtype: type | None = None
-    ) -> Callable[Params, Awaitable[Success]]: ...
+    ) -> Callable[Params, Coroutine[Any, Any, Success]]: ...
 
     def __get__(
         self,
         obj: _HasExecutor[SyncHttpIO] | _HasExecutor[AsyncHttpIO],
         objtype: type | None = None,
-    ) -> Callable[Params, Success | Awaitable[Success]]:
+    ) -> Callable[Params, Success | Coroutine[Any, Any, Success]]:
         def bound_method(
             *args: Params.args, **kwargs: Params.kwargs
-        ) -> Success | Awaitable[Success]:
+        ) -> Success | Coroutine[Any, Any, Success]:
             iterator = self.method(obj, *args, **kwargs)
             return obj.executor.communicate(obj.base_url, obj.default_headers, iterator)
 
