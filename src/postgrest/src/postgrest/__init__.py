@@ -3,7 +3,16 @@ from __future__ import annotations
 from .client import AsyncPostgrestClient, SyncPostgrestClient
 from .column_expression import Column, ComputedField, NullableColumn
 from .exceptions import APIError
-from .filter import ColumnExpression, Comparison, Filter, FilterOperator, Ordering
+from .filter import (
+    ColumnExpression,
+    Comparison,
+    DerivedExpression,
+    Expression,
+    Filter,
+    FilterOperator,
+    JsonPath,
+    Ordering,
+)
 from .partial_row import PartialRow
 from .range import Range, RangeBounds
 from .request_builder import APIResponse, RPCResponse, TextAPIResponse
@@ -53,11 +62,14 @@ __all__ = [
     "ComputedField",
     "CountMethod",
     "CountedResponse",
+    "DerivedExpression",
     "ExplainOptions",
+    "Expression",
     "Filter",
     "FilterOperator",
     "Filters",
     "HttpTableExecutor",
+    "JsonPath",
     "Mutation",
     "NullableColumn",
     "Ordering",

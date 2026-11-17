@@ -90,10 +90,15 @@ def _cleaned_columns(columns: tuple[str, ...]) -> str:
 
     for column in columns:
         clean_column = ""
+        escaped = False
         for char in column:
             if char.isspace() and not quoted:
                 continue
-            if char == '"':
+            if escaped:
+                escaped = False
+            elif char == "\\" and quoted:
+                escaped = True
+            elif char == '"':
                 quoted = not quoted
             clean_column += char
         cleaned.append(clean_column)

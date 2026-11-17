@@ -1,10 +1,21 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Generic, Literal, assert_never, overload
+from functools import lru_cache
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Literal,
+    assert_never,
+    overload,
+    override,
+)
 
 from typing_extensions import TypeVar
 
@@ -12,13 +23,17 @@ from .range import Bound, Range
 from .types import _TEXT_SEARCH_OPERATORS, Filters, TextSearchType
 from .utils import (
     _in_members,
+    _quote,
     _sanitize_array_param,
     _sanitize_column,
     _serialize_filter_value,
+    _serialize_json_filter_value,
     sanitize_param,
 )
 
 if TYPE_CHECKING:
+    from decimal import Decimal
+
     from pydantic import JsonValue
 
 Row = TypeVar("Row", default=Any)
@@ -31,6 +46,9 @@ operand."""
 
 Element = TypeVar("Element")
 """The element type of an array column."""
+
+Target = TypeVar("Target")
+"""The Python type a cast produces."""
 
 
 class FilterOperator(StrEnum):
@@ -152,10 +170,126 @@ class _Ordering(Ordering[Row]):
         return replace(self, nulls="nullslast")
 
 
-class ColumnExpression(Ordering[Row], ABC, Generic[Row, Value]):
+class Expression(ABC, Generic[Row, Value]):
+    """A single value of a row that a `select_only()` list reads: a
+    `ColumnExpression`, which filters and orders too, or a
+    `DerivedExpression`, a cast or an aggregate, which is select-only.
+
+    `Row` is the row type of the table the expression belongs to, and
+    `Value` the Python type of a present value.
+    """
+
+    @property
+    @abstractmethod
+    def expression(self) -> str:
+        """The text PostgREST reads for this expression, such as `title`,
+        `metadata->>"name"` or `pages.sum()`."""
+
+    @property
+    def response_key(self) -> str:
+        """The key the value comes back under in a response row.
+
+        A stored column or a computed field comes back under its name. A
+        JSON path, a cast or an aggregate comes back under its whole
+        expression, which the `select` list sends as an alias, so it never
+        shares a key with what it was derived from or another derivation of
+        it. An expression longer than the 63 bytes PostgreSQL keeps of a
+        name is shortened to a prefix and a digest of the whole.
+        """
+        return self.expression
+
+    @property
+    def _selected_as(self) -> str:
+        """The entry as sent in a `select` list."""
+        return self.expression
+
+    def cast(
+        self, sql_type: str, value_type: type[Target]
+    ) -> DerivedExpression[Row, Target]:
+        """This expression cast to the PostgreSQL type `sql_type`, read from
+        a `PartialRow` as `value_type`: `Books.pages.cast("text", str)`
+        selects `pages::text`.
+
+        Select-only: PostgREST drops a cast from a filter, so `pages::text=eq.10`
+        would compare the uncast column, and rejects one in `order`. Make it
+        the last step of a chain, since PostgREST applies the first of two
+        casts only and rejects a JSON path on a cast. A type whose name has a
+        space is spelled by its alias, `float8` for `double precision`.
+
+        Raises `ValueError` for a cast of a cast, and for a `sql_type`
+        PostgREST cannot read as a cast.
+        """
+        if isinstance(self, DerivedExpression) and self.derivation.startswith("::"):
+            raise ValueError(
+                f"{self.expression} is a cast already; PostgREST applies the "
+                "first of two casts only"
+            )
+        if not _SQL_TYPE.fullmatch(sql_type):
+            raise ValueError(
+                f"{sql_type!r} is not a type PostgREST can cast to; use the "
+                "alias of a type whose name has a space, such as float8"
+            )
+        return DerivedExpression(self, f"::{sql_type}", value_type)
+
+    @overload
+    def sum(self: Expression[Row, int]) -> DerivedExpression[Row, int]: ...
+    @overload
+    def sum(self: Expression[Row, float]) -> DerivedExpression[Row, float]: ...
+    @overload
+    def sum(self: Expression[Row, Decimal]) -> DerivedExpression[Row, Decimal]: ...
+    def sum(self) -> DerivedExpression[Row, Any]:
+        """The sum of this expression across the group, `pages.sum()`,
+        decoded as this expression's type without the constraints of its
+        `Field`.
+
+        Select-only: PostgREST has no `HAVING` and rejects an aggregate in
+        `order`. Selecting a plain column next to an aggregate groups by it.
+        Aggregates need the `db-aggregates-enabled` setting of PostgREST,
+        which is off by default and is turned on with
+        `alter role authenticator set pgrst.db_aggregates_enabled = 'true'`
+        followed by `notify pgrst, 'reload config'`; without it the request
+        fails. `sum()`, `avg()`, `min()` and `max()` read as `None` when no
+        row matches. Raises `ValueError` for an aggregate of an aggregate,
+        which PostgREST rejects.
+        """
+        return _aggregate(self, ".sum()")
+
+    @overload
+    def avg(self: Expression[Row, int]) -> DerivedExpression[Row, float]: ...
+    @overload
+    def avg(self: Expression[Row, float]) -> DerivedExpression[Row, float]: ...
+    @overload
+    def avg(self: Expression[Row, Decimal]) -> DerivedExpression[Row, Decimal]: ...
+    def avg(self) -> DerivedExpression[Row, Any]:
+        """The mean of this expression across the group, `pages.avg()`,
+        read as a `Decimal` over a `Decimal` expression and as a `float`
+        otherwise. See `sum()` for where an aggregate applies."""
+        return _aggregate(self, ".avg()")
+
+    def min(self) -> DerivedExpression[Row, Value]:
+        """The smallest value of this expression in the group,
+        `pages.min()`, decoded as this expression's type. See `sum()` for
+        where an aggregate applies."""
+        return _aggregate(self, ".min()")
+
+    def max(self) -> DerivedExpression[Row, Value]:
+        """The largest value of this expression in the group, `pages.max()`,
+        decoded as this expression's type. See `sum()` for where an
+        aggregate applies."""
+        return _aggregate(self, ".max()")
+
+    def count(self) -> DerivedExpression[Row, int]:
+        """How many values of this expression in the group are not `NULL`,
+        `pages.count()`. `DerivedExpression.count_all()` counts rows instead.
+        See `sum()` for where an aggregate applies."""
+        return _aggregate(self, ".count()", int)
+
+
+class ColumnExpression(Expression[Row, Value], Ordering[Row], ABC, Generic[Row, Value]):
     """A single value of a row that a filter applies an operator to, or that a
-    query orders by: a stored column, a computed field, or an expression
-    derived from one.
+    query orders by: a stored column, a computed field, or a `JsonPath` read
+    from one. A cast or an aggregate is a `DerivedExpression` instead, which
+    filters and orders nothing.
 
     `Row` is the row type of the table the expression belongs to, and every
     filter and ordering built from it carries it, so a filter on one table is
@@ -166,7 +300,8 @@ class ColumnExpression(Ordering[Row], ABC, Generic[Row, Value]):
 
     The operators of one kind of value exist on that kind only: `like()` on a
     `str` expression, `contains()` on a `list`, a `Range` or a `JsonValue`
-    one, `range_lt()` on a `Range` one. Operators are methods, not Python's
+    one, `range_lt()` on a `Range` one, `json_text()` on a `JsonValue` one.
+    Operators are methods, not Python's
     comparison operators, so a column keeps its equality and hash. There is
     no `not_in()` or `is_not_null()`: negate the filter with `~` instead.
     """
@@ -175,6 +310,12 @@ class ColumnExpression(Ordering[Row], ABC, Generic[Row, Value]):
     @abstractmethod
     def expression(self) -> str:
         """The text PostgREST expects on the left of an operator."""
+
+    @property
+    def _encodes_json(self) -> bool:
+        """Whether the operands of a filter on this expression are sent as
+        JSON, as they are on a JSON path read with `->`."""
+        return False
 
     @property
     def order_key(self) -> str:
@@ -452,6 +593,47 @@ class ColumnExpression(Ordering[Row], ABC, Generic[Row, Value]):
         """Only rows where this boolean expression `IS FALSE`."""
         return self._compare(FilterOperator.IS, False)
 
+    def json_text(
+        self: ColumnExpression[Row, JsonValue], key: str
+    ) -> JsonPath[Row, str]:
+        """The object key `key` of this JSON expression as text, with `->>`:
+        `Books.metadata.json_text("name").eq("Ada")` renders
+        `metadata->>"name"=eq.Ada`.
+
+        Comparison is textual, so `metadata->>"n"=gt.2` leaves out a row
+        where `n` is `10`; use `json_object()` to compare numbers. `key` is
+        always sent quoted, so `json_text("0")` reads the key `"0"` and not
+        an array element; chain calls to go deeper,
+        `json_object("tags").json_text_at(0)`.
+        """
+        return JsonPath(self, "->>", key)
+
+    def json_text_at(
+        self: ColumnExpression[Row, JsonValue], index: int
+    ) -> JsonPath[Row, str]:
+        """The array element at `index` of this JSON expression as text, with
+        `->>`. `index` is zero-based and a negative one counts from the end."""
+        return JsonPath(self, "->>", index)
+
+    def json_object(
+        self: ColumnExpression[Row, JsonValue], key: str
+    ) -> JsonPath[Row, JsonValue]:
+        """The object key `key` of this JSON expression as JSON, with `->`.
+
+        The operands of a filter on it are sent as JSON, so
+        `json_object("n").gt(2)` compares numbers and includes a row where
+        `n` is `10`, and `json_object("name").eq("Ada")` sends `eq."Ada"`.
+        `key` is always sent quoted, as for `json_text()`.
+        """
+        return JsonPath(self, "->", key)
+
+    def json_object_at(
+        self: ColumnExpression[Row, JsonValue], index: int
+    ) -> JsonPath[Row, JsonValue]:
+        """The array element at `index` of this JSON expression as JSON, with
+        `->`, see `json_object()` and `json_text_at()`."""
+        return JsonPath(self, "->", index)
+
     def raw(self, operand: str) -> Filter[Row]:
         """Apply an operator this package has no method for, keeping the
         column type-checked.
@@ -461,6 +643,150 @@ class ColumnExpression(Ordering[Row], ABC, Generic[Row, Value]):
         beneath `|` or `~` unless it is valid inside `or=(…)`.
         """
         return Filter(_Raw(_sanitize_column(self.expression), operand))
+
+
+@dataclass(frozen=True)
+class JsonPath(ColumnExpression[Row, Value]):
+    """A key or an array element read from a JSON column expression, built by
+    `json_text()`, `json_text_at()`, `json_object()` and `json_object_at()`.
+
+    It filters and orders like the column it is read from, and has
+    `is_null()` whatever the column's nullability, since the path is `NULL`
+    when the key is absent. It comes back under its own expression, see
+    `response_key`, and is read from a `PartialRow` as the decoded JSON.
+    """
+
+    column: ColumnExpression[Row, Any]
+    """The JSON expression the path reads from."""
+
+    operator: Literal["->", "->>"]
+    """`->` to read JSON, `->>` to read text."""
+
+    key: str | int
+    """The object key, always sent quoted, or the array index."""
+
+    @property
+    def expression(self) -> str:
+        key = _quote(self.key) if isinstance(self.key, str) else str(self.key)
+        return f"{self.column.expression}{self.operator}{key}"
+
+    @property
+    @override
+    def response_key(self) -> str:
+        return _expression_key(self.expression)
+
+    @property
+    @override
+    def _selected_as(self) -> str:
+        return _aliased(self.expression)
+
+    @property
+    @override
+    def _encodes_json(self) -> bool:
+        return self.operator == "->"
+
+    def is_null(self) -> Filter[Row]:
+        """Only rows where this path is SQL `NULL`, which it is when the key
+        is absent, or JSON `null` when read with `->>`.
+
+        There is no `is_not_null()`; negate instead:
+        `~Books.metadata.json_text("name").is_null()`.
+        """
+        return self._compare(FilterOperator.IS, None)
+
+
+@dataclass(frozen=True)
+class DerivedExpression(Expression[Row, Value]):
+    """A cast or an aggregate applied to an expression, or `count_all()`:
+    select-only, whatever it was applied to.
+
+    PostgREST drops a cast from a filter, has no `HAVING` for an aggregate,
+    and rejects both in `order`, so a derived expression has no operators and
+    is no `Ordering`. It comes back under its own expression, see
+    `response_key`, and is read from a `PartialRow` as `Value | None`: a cast
+    keeps the nullability of what it was applied to, and `sum()`, `avg()`,
+    `min()` and `max()` are `NULL` when no row matches.
+    """
+
+    source: Expression[Row, Any] | None
+    """The expression the derivation applies to, or `None` for
+    `count_all()`."""
+
+    derivation: str
+    """What is applied to `source`, as PostgREST reads it: `::text`,
+    `.sum()`, or `count()` on its own."""
+
+    value_type: type[Value] | None = None
+    """The type a present value is decoded into when read from a
+    `PartialRow`. `None` decodes `min()` and `max()` as `source`, `sum()` as
+    `source` without the constraints of its `Field`, `avg()` as a `Decimal`
+    over a `Decimal` and a `float` otherwise, and anything else as the
+    decoded JSON."""
+
+    @staticmethod
+    def count_all() -> DerivedExpression[Any, int]:
+        """The number of rows in the group, `count()`, which belongs to every
+        table. See `Expression.sum()` for where an aggregate applies."""
+        return DerivedExpression(None, "count()", int)
+
+    @property
+    def expression(self) -> str:
+        if self.source is None:
+            return self.derivation
+        return f"{self.source.expression}{self.derivation}"
+
+    @property
+    @override
+    def response_key(self) -> str:
+        return _expression_key(self.expression)
+
+    @property
+    @override
+    def _selected_as(self) -> str:
+        return _aliased(self.expression)
+
+
+def _aggregate(
+    source: Expression[Any, Any], function: str, value_type: type | None = None
+) -> DerivedExpression[Any, Any]:
+    """The aggregate `function` of `source`, rejecting one whose `source`
+    is aggregated already."""
+    inner: Expression[Any, Any] | None = source
+    while isinstance(inner, DerivedExpression):
+        if inner.derivation.endswith("()"):
+            raise ValueError(
+                f"{source.expression} is aggregated already; PostgREST rejects "
+                "an aggregate of an aggregate"
+            )
+        inner = inner.source
+    return DerivedExpression(source, function, value_type)
+
+
+_SQL_TYPE = re.compile(r"[A-Za-z0-9_]+")
+"""A type name PostgREST reads after `::`."""
+
+_MAXIMUM_NAME_BYTES = 63
+"""The bytes of a name PostgreSQL keeps, `NAMEDATALEN - 1`."""
+
+
+@lru_cache(maxsize=1024)
+def _expression_key(expression: str) -> str:
+    """`expression` as a response key: itself, or when it is longer than
+    PostgreSQL keeps of a name, a prefix of it followed by a digest of the
+    whole, so two long expressions sharing a prefix get different keys. The
+    same key as supabase-flutter gives."""
+    encoded = expression.encode()
+    if len(encoded) <= _MAXIMUM_NAME_BYTES:
+        return expression
+    suffix = f"~{hashlib.sha256(encoded).hexdigest()[:16]}"
+    budget = _MAXIMUM_NAME_BYTES - len(suffix)
+    prefix = encoded[:budget].decode(errors="ignore")
+    return f"{prefix}{suffix}"
+
+
+def _aliased(expression: str) -> str:
+    """`expression` renamed to its response key in a `select` list."""
+    return f"{_quote(_expression_key(expression))}:{expression}"
 
 
 def _members(values: Iterable[Any], method: str) -> tuple[Any, ...]:
@@ -647,15 +973,19 @@ def _operand(node: _Comparison[Any]) -> str:
     after the operator as the value. The members of an `in` list are escaped,
     since its parentheses and commas are syntax, and a collection given to an
     array operator is sent as the array literal `{a,b}`, with its members
-    escaped as that literal requires."""
+    escaped as that literal requires. The operand of a JSON path read with
+    `->` is sent as JSON, apart from the `null` of `is_null()`."""
+    serialize = (
+        _serialize_json_filter_value
+        if node.column._encodes_json and node.operator is not FilterOperator.IS
+        else _serialize_filter_value
+    )
     if node.operator is FilterOperator.IN:
-        members = ",".join(
-            sanitize_param(_serialize_filter_value(member)) for member in node.value
-        )
+        members = ",".join(sanitize_param(serialize(member)) for member in node.value)
         return f"({members})"
     if node.operator in _ARRAY_OPERATORS and isinstance(node.value, tuple):
         return _sanitize_array_param(node.value)
-    return _serialize_filter_value(node.value)
+    return serialize(node.value)
 
 
 def _group_operand(node: _Comparison[Any]) -> str:

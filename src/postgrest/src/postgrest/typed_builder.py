@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from supabase_utils.http.retry import RetryPolicy
 
     from .column_expression import Column, NullableColumn
-    from .filter import ColumnExpression, Filter, Ordering
+    from .filter import Expression, Filter, Ordering
 
 
 @dataclass(frozen=True)
@@ -135,7 +135,7 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
         return TypedTransformBuilder(request, self.executor, _rows(self.request.table))
 
     def select_only(
-        self, columns: Iterable[ColumnExpression[Row, Any]]
+        self, columns: Iterable[Expression[Row, Any]]
     ) -> TypedTransformBuilder[Executor, Row, list[PartialRow[Row]]]:
         """Return `columns` of the rows a write affected, as `PartialRow`s
         read through the same entries:
@@ -481,7 +481,7 @@ class TypedQueryBuilder[
         return TypedFilterBuilder(request, self.executor, _rows(self.table))
 
     def select_only(
-        self, columns: Iterable[ColumnExpression[Row, Any]]
+        self, columns: Iterable[Expression[Row, Any]]
     ) -> TypedFilterBuilder[Executor, Row, list[PartialRow[Row]]]:
         """Read `columns` of the rows only, as `PartialRow`s read through the
         same entries, so a column left out cannot be read by mistake:
@@ -489,8 +489,14 @@ class TypedQueryBuilder[
             books = client.table(Books.table).select_only([Books.id, Books.title]).execute()
             title: str = books[0][Books.title]
 
-        Every entry has to belong to this table. Raises `ValueError` for an
-        empty `columns`; use `select()` for every column.
+        Every entry has to belong to this table. An entry is a column, a
+        computed field, a JSON path, a cast or an aggregate; selecting a
+        column next to an aggregate groups by the column:
+
+            Books.author_id, Books.pages.sum(), DerivedExpression.count_all()
+
+        Raises `ValueError` for an empty `columns`; use `select()` for every
+        column.
         """
         selected = _selected(columns)
         request = replace(self._request(TableOperation.SELECT), columns=selected)
@@ -631,7 +637,7 @@ def _rows[Row](table: Table[Row, Any, Any]) -> Callable[[TableResult], list[Row]
 
 
 def _partial_rows[Row](
-    table: Table[Row, Any, Any], columns: tuple[ColumnExpression[Row, Any], ...]
+    table: Table[Row, Any, Any], columns: tuple[Expression[Row, Any], ...]
 ) -> Callable[[TableResult], list[PartialRow[Row]]]:
     return lambda result: [
         PartialRow(table, columns, row) for row in _ROWS.validate_python(result.data)
@@ -683,8 +689,8 @@ def _count(result: TableResult) -> int:
 
 
 def _selected[Row](
-    columns: Iterable[ColumnExpression[Row, Any]],
-) -> tuple[ColumnExpression[Row, Any], ...]:
+    columns: Iterable[Expression[Row, Any]],
+) -> tuple[Expression[Row, Any], ...]:
     selected = tuple(columns)
     if not selected:
         raise ValueError(

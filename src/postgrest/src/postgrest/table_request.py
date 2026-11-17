@@ -10,7 +10,7 @@ from supabase_utils.http.retry import RetryPolicy
 from supabase_utils.types import JSON
 
 from .column_expression import Column, NullableColumn
-from .filter import ColumnExpression, Filter, Ordering
+from .filter import Expression, Filter, Ordering
 from .table import Table
 from .types import CountMethod
 
@@ -160,7 +160,7 @@ class TableRequest:
     """The schema to query `table` in, or `None` for the schema the table
     carries and, when it carries none, the schema of the client."""
 
-    columns: tuple[ColumnExpression[Any, Any], ...] = ()
+    columns: tuple[Expression[Any, Any], ...] = ()
     """The entries of the `select` list to read back; empty for every column.
 
     For a write these are the columns of the returned rows, and only apply

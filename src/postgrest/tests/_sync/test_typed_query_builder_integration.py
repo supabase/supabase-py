@@ -7,6 +7,7 @@ from postgrest import (
     APIError,
     CountedResponse,
     CountMethod,
+    DerivedExpression,
     SyncPostgrestClient,
     TableExecutor,
     TypedQueryBuilder,
@@ -120,6 +121,73 @@ def test_array_and_json_filters(books: TypedBooks) -> None:
         .execute()
     )
     assert [row.id for row in rows] == [1, 2]
+
+
+def test_json_paths_filter_order_and_select(books: TypedBooks) -> None:
+    first_award = Books.metadata.json_object("awards").json_text_at(0)
+    third_award = Books.metadata.json_object("awards").json_text_at(2)
+    rows = (
+        books.select_only([Books.id, first_award, third_award])
+        .where(~first_award.is_null())
+        .order(third_award.desc().nulls_last())
+        .execute()
+    )
+
+    assert [row[Books.id] for row in rows] == [2, 1]
+    assert [row[first_award] for row in rows] == ["Hugo", "Hugo"]
+    assert [row[third_award] for row in rows] == ["Philip K. Dick", None]
+
+
+def test_a_json_object_path_sends_its_operand_as_json(books: TypedBooks) -> None:
+    awards = Books.metadata.json_object("awards")
+    rows = (
+        books.select_only([Books.id, awards])
+        .where(awards.json_object_at(1).eq("Nebula"))
+        .order(Books.id)
+        .execute()
+    )
+
+    assert [row[Books.id] for row in rows] == [1, 2]
+    assert rows[0][awards] == ["Hugo", "Nebula"]
+
+
+def test_a_json_path_whose_key_needs_quoting_or_shortening(books: TypedBooks) -> None:
+    quoted = Books.metadata.json_text('a "quoted", spaced key')
+    long = Books.metadata.json_text("k" * 80)
+    rows = books.select_only([Books.id, quoted, long]).where(Books.id.eq(1)).execute()
+
+    assert rows[0][quoted] is None
+    assert rows[0][long] is None
+    assert rows[0].json.keys() == {"id", quoted.response_key, long.response_key}
+
+
+def test_a_cast_reads_as_its_value_type(books: TypedBooks) -> None:
+    pages = Books.pages.cast("text", str)
+    rows = books.select_only([Books.pages, pages]).where(Books.id.eq(1)).execute()
+
+    assert rows[0][Books.pages] == 412
+    assert rows[0][pages] == "412"
+
+
+def test_aggregates(books: TypedBooks) -> None:
+    entries = [
+        Books.pages.sum(),
+        Books.pages.avg(),
+        Books.pages.min(),
+        Books.published_on.max(),
+        Books.isbn.count(),
+        DerivedExpression.count_all(),
+    ]
+    row = books.select_only(entries).single().execute()
+
+    assert [row[entry] for entry in entries] == [
+        683,
+        pytest.approx(683 / 3),
+        0,
+        date(1984, 7, 1),
+        2,
+        3,
+    ]
 
 
 def test_order_limit_and_range(books: TypedBooks) -> None:

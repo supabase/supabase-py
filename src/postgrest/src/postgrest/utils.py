@@ -40,6 +40,17 @@ def _serialize_filter_value(value: Any) -> str:
     return str(value)
 
 
+def _serialize_json_filter_value(value: Any) -> str:
+    """Serialize a filter value as compact JSON, the operand of a filter on
+    a JSON path read with `->`, so the string `Ada` is sent as `"Ada"`. A
+    `datetime` is sent as `_serialize_filter_value` sends it, and a value
+    that is not JSON raises `TypeError`."""
+    if isinstance(value, datetime):
+        value = _serialize_filter_value(value)
+    jsonable = _jsonable(value, "a filter on a JSON path takes a JSON value")
+    return json.dumps(jsonable, separators=(",", ":"))
+
+
 def _hex_bytes(value: object) -> object:
     """`value`, dumped to plain Python, with every `bytes` in it as the `\\x`
     hex text PostgreSQL reads for `bytea`, which pydantic would otherwise
