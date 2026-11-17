@@ -904,3 +904,55 @@ async def test_writes_of_a_generated_row_round_trip(
         assert upserted.data == [{"name": "renamed.txt", "content": None}]
     finally:
         await files.delete().eq("id", str(file_id)).execute()
+
+
+async def test_is_distinct(postgrest_client: AsyncPostgrestClient) -> None:
+    res = await (
+        postgrest_client.from_("books")
+        .select("id")
+        .is_distinct("isbn", "9780441013593")
+        .order("id")
+        .execute()
+    )
+
+    assert res.data == [{"id": 2}, {"id": 3}]
+
+
+async def test_geojson(postgrest_client: AsyncPostgrestClient) -> None:
+    res = (
+        await postgrest_client.from_("places")
+        .select("*")
+        .order("id")
+        .geojson()
+        .execute()
+    )
+
+    assert res.data["type"] == "FeatureCollection"
+    features = res.data["features"]
+    assert isinstance(features, list)
+    assert len(features) == 2
+    null_island = features[0]
+    assert isinstance(null_island, dict)
+    assert null_island["geometry"] == {"type": "Point", "coordinates": [0, 0]}
+
+
+async def test_dry_run_of_an_insert(postgrest_client: AsyncPostgrestClient) -> None:
+    books = postgrest_client.from_("books")
+
+    res = await books.insert({"title": "Ghost"}).single().dry_run().execute()
+
+    assert res.data["title"] == "Ghost"
+    count = (
+        await books.select("id", count=CountMethod.exact).eq("title", "Ghost").execute()
+    )
+    assert count.count == 0
+
+
+async def test_dry_run_of_an_update(postgrest_client: AsyncPostgrestClient) -> None:
+    books = postgrest_client.from_("books")
+
+    res = await books.update({"pages": 1}).all().dry_run().select("pages").execute()
+
+    assert res.data == [{"pages": 1}] * 3
+    dune = await books.select("pages").eq("id", 1).single().execute()
+    assert dune.data == {"pages": 412}

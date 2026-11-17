@@ -7,16 +7,17 @@ from typing import TYPE_CHECKING, Protocol, assert_never
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 
 from ._parsing import InvalidResponseBodyError, parse_json, parse_object, parse_rows
-from .exceptions import APIError
 from .request_builder import (
     APIResponse,
     PostgrestRequest,
-    _api_error,
+    _dry_run,
     _explain,
     _filters_embedded_resource,
     _invalid_response_error,
     _max_affected,
     _multiple_rows_error,
+    _preferring,
+    _raise_for_failure,
     _select_returned,
     pre_delete,
     pre_insert,
@@ -376,9 +377,7 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
     if request.max_affected is not None:
         rendered = _max_affected(rendered, request.max_affected)
     if request.dry_run:
-        rendered = replace(
-            rendered, headers=_preferring(rendered.headers, "tx=rollback")
-        )
+        rendered = _dry_run(rendered)
     if request.strip_nulls:
         rendered = replace(rendered, strip_nulls=True)
     return rendered
@@ -454,29 +453,6 @@ def _with_options(
     )
 
 
-def _preferring(headers: Headers, preferences: str) -> Headers:
-    """`headers` with the comma-separated `preferences` added to `Prefer`,
-    each replacing the preference of the same name, so that a second
-    `return=` or `count=` does not contradict the first."""
-    given = [preference.strip() for preference in preferences.split(",")]
-    given = [preference for preference in given if preference]
-    names = {_preference_name(preference) for preference in given}
-    kept = [
-        preference.strip()
-        for value in headers.get_list("Prefer") or []
-        for preference in value.split(",")
-        if preference.strip() and _preference_name(preference) not in names
-    ]
-    headers = headers.remove("Prefer")
-    for preference in (*kept, *given):
-        headers = headers.set("Prefer", preference)
-    return headers
-
-
-def _preference_name(preference: str) -> str:
-    return preference.partition("=")[0].strip().lower()
-
-
 def _decode(response: Response, request: TableRequest) -> TableResult:
     """The `TableResult` of `response`, decoded by the shape of `request`.
 
@@ -485,34 +461,13 @@ def _decode(response: Response, request: TableRequest) -> TableResult:
     `tx=rollback` whatever its `db-tx-end` setting, and lists it in
     `Preference-Applied` only when it rolled back.
     """
-    if not response.is_success:
-        raise _api_error(response)
-    if request.dry_run and not _rolled_back(response):
-        raise _committed_dry_run_error(response)
+    _raise_for_failure(response, dry_run=request.dry_run)
     count = APIResponse._get_count_from_http_request_response(response)
     try:
         data = _data(response, request)
     except InvalidResponseBodyError as error:
         raise _invalid_response_error(response) from error
     return TableResult(data=data, count=count)
-
-
-def _rolled_back(response: Response) -> bool:
-    applied = response.headers.get("Preference-Applied") or ""
-    return "tx=rollback" in {preference.strip() for preference in applied.split(",")}
-
-
-def _committed_dry_run_error(response: Response) -> APIError:
-    return APIError(
-        {
-            "message": "The dry run was committed: PostgREST applied no tx=rollback",
-            "code": str(response.status),
-            "hint": "A rollback needs db-tx-end = commit-allow-override on the server",
-            "details": response.headers.get("Preference-Applied"),
-        },
-        status_code=response.status,
-        response=response,
-    )
 
 
 def _data(response: Response, request: TableRequest) -> JSON:
