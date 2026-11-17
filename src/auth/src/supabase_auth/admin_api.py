@@ -16,6 +16,7 @@ from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
+from ._sign_out import _check_sign_out_scope, _logout
 from .helpers import (
     _handle_error_response,
     _redirect_to_as_query,
@@ -37,6 +38,7 @@ from .types import (
     OAuthClient,
     OAuthClientListResponse,
     OAuthClientResponse,
+    SignOutScope,
     UpdateOAuthClientParams,
     User,
     UserList,
@@ -282,6 +284,24 @@ class SupabaseAuthAdmin[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         )
 
         return parse_link_response(response)
+
+    @handle_http_io
+    def sign_out(self, jwt: str, scope: SignOutScope = "global") -> HttpMethod[None]:
+        """
+        Signs out the user the access token `jwt` belongs to. `scope` picks
+        which of their sessions end: `"global"` ends all of them, `"local"`
+        ends only the session of `jwt`, and `"others"` ends every session
+        except the one of `jwt`.
+
+        An answer that the user or the session is already gone counts as
+        success. An access token stays valid until it expires, since only
+        refresh tokens can be revoked.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        _check_sign_out_scope(scope)
+        yield from _logout(jwt, scope)
 
     # User Admin API
 

@@ -1,4 +1,7 @@
+import pytest
+
 from supabase_auth import AsyncSupabaseAuthAdmin, AsyncSupabaseAuthClient
+from supabase_auth.errors import AuthApiError
 from supabase_auth.types import (
     AdminUserAttributes,
     CreateOAuthClientParams,
@@ -190,6 +193,19 @@ async def test_sign_in_anonymously(
     auth_client_with_session: AsyncSupabaseAuthClient,
 ) -> None:
     await auth_client_with_session.sign_in_anonymously()
+
+
+async def test_sign_out_revokes_the_sessions_of_the_token_owner(
+    secret_key_api_client: AsyncSupabaseAuthAdmin,
+    auth_client_with_session: AsyncSupabaseAuthClient,
+) -> None:
+    session = await auth_client_with_session.get_session()
+    assert session is not None
+
+    await secret_key_api_client.sign_out(session.access_token)
+
+    with pytest.raises(AuthApiError):
+        await auth_client_with_session.refresh_session(session.refresh_token)
 
 
 async def test_delete_user_should_be_able_delete_an_existing_user(

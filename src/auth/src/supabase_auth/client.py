@@ -42,8 +42,8 @@ from ._pkce import (
 )
 from ._sign_out import (
     _check_sign_out_scope,
-    _is_already_signed_out,
     _is_session_gone,
+    _logout,
 )
 from .constants import STORAGE_KEY
 from .errors import (
@@ -282,17 +282,7 @@ class SupabaseAuthHttpClient[
 
     @handle_http_io
     def _sign_out(self, session: Session, scope: SignOutScope) -> HttpMethod[None]:
-        response = yield EmptyRequest(
-            method="POST",
-            path=["logout"],
-            query=URLQuery.from_mapping({"scope": scope}),
-            headers=session.encode_access_token(),
-        )
-        if response.is_success:
-            return
-        error = _handle_error_response(response)
-        if not _is_already_signed_out(error, scope):
-            raise error
+        yield from _logout(session.access_token, scope)
 
     def _sign_in_with_oauth(
         self,

@@ -312,8 +312,9 @@ features:
     symbols:
       - SupabaseAuthAdmin.invite_user_by_email
   auth.admin.sign_out:
-    status: not_implemented
-    note: "The v3 admin client has no sign_out method."
+    status: implemented
+    symbols:
+      - SupabaseAuthAdmin.sign_out
   auth.admin.generate_link:
     status: implemented
     symbols:
