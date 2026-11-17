@@ -66,7 +66,10 @@ async def test_tokens_are_not_logged(
         for record in caplog.records
         if not record.name.startswith("websockets.server")
     )
-    assert "apikey=<redacted>" in client_logs
+    assert "> GET /websocket HTTP/1.1" in client_logs
+    assert "> Sec-WebSocket-Key: <redacted>" in client_logs
+    assert "< Sec-WebSocket-Accept: <redacted>" in client_logs
+    assert "apikey" not in client_logs
     assert "sending access_token on realtime:first" in client_logs
     assert "> TEXT frame of " in client_logs
     assert "sending phx_join on realtime:second" in client_logs
