@@ -900,3 +900,26 @@ async def test_client_list_paginated(
         assert all(f.name.startswith(file.bucket_path) for f in result.objects)
         pages += 1
     assert pages == 4
+
+
+async def test_client_pages(
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
+) -> None:
+    """Ensure pages() follows the cursors through every page"""
+    suffixes = ["zz", "bb", "xx", "ww", "cc", "aa", "yy", "oo"]
+    for suffix in suffixes:
+        await storage_file_client.upload(
+            file.bucket_path + suffix, file.local_path, content_type=file.mime_type
+        )
+
+    pages = [
+        page
+        async for page in storage_file_client.pages(
+            f"{file.bucket_folder}/", with_delimiter=True, limit=3
+        )
+    ]
+
+    assert [len(page.objects) for page in pages] == [3, 3, 2]
+    assert sorted(o.name for page in pages for o in page.objects) == sorted(
+        file.bucket_path + suffix for suffix in suffixes
+    )

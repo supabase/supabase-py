@@ -13,13 +13,21 @@ from supabase_utils.http.io import (
     SyncHttpIO,
     handle_http_io,
 )
+from supabase_utils.http.query import URLQuery
 from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
 from .analytics import StorageAnalyticsClient
 from .exceptions import _validate_adapter, _validate_model
 from .file_api import StorageFileApiClient
-from .types import Bucket, BucketName, CreateOrUpdateBucketBody, MessageResponse
+from .types import (
+    Bucket,
+    BucketName,
+    CreateOrUpdateBucketBody,
+    MessageResponse,
+    SortColumn,
+    SortOrder,
+)
 from .vectors import StorageVectorsClient
 from .version import __version__
 
@@ -83,12 +91,46 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         )
 
     @handle_http_io
-    def list_buckets(self) -> HttpMethod[list[Bucket]]:
-        """Retrieves the details of all storage buckets within an existing product."""
-        # if the request doesn't error, it is assured to return a list
+    def list_buckets(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int | None = None,
+        search: str | None = None,
+        sort_column: SortColumn | None = None,
+        sort_order: SortOrder | None = None,
+    ) -> HttpMethod[list[Bucket]]:
+        """Retrieves the details of the storage buckets.
+
+        Without arguments, every bucket is returned. The arguments need
+        Supabase Storage v1.25.0 or newer; older releases ignore them.
+
+        Parameters
+        ----------
+        limit
+            The maximum number of buckets to return.
+        offset
+            The number of buckets to skip.
+        search
+            Only returns the buckets whose name contains this text, ignoring case.
+        sort_column
+            The column to sort the buckets by.
+        sort_order
+            The direction to sort the buckets in.
+        """
+        params = {
+            "limit": limit,
+            "offset": offset,
+            "search": search,
+            "sortColumn": sort_column,
+            "sortOrder": sort_order,
+        }
         response = yield EmptyRequest(
             method="GET",
             path=["bucket"],
+            query=URLQuery.from_mapping(
+                {key: value for key, value in params.items() if value is not None}
+            ),
         )
         return _validate_adapter(response, ListBucketAdapter)
 
