@@ -18,21 +18,23 @@ from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
 from .analytics import StorageAnalyticsClient
-from .exceptions import _validate_adapter, _validate_model
+from .exceptions import _validate_adapter, _validate_model, parse_api_error
 from .file_api import StorageFileApiClient
 from .types import (
     Bucket,
     BucketName,
     CreateOrUpdateBucketBody,
+    LifecycleRule,
     MessageResponse,
     SortColumn,
     SortOrder,
+    _LifecycleConfiguration,
 )
 from .vectors import StorageVectorsClient
 from .version import __version__
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
     from types import TracebackType
 
     from supabase_utils.http.retry import RetryPolicy
@@ -246,6 +248,76 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         response = yield EmptyRequest(
             method="DELETE",
             path=["bucket", id],
+        )
+        return _validate_model(response, MessageResponse)
+
+    @handle_http_io
+    def get_bucket_lifecycle(self, id: str) -> HttpMethod[list[LifecycleRule]]:
+        """Retrieves the rules of the lifecycle policy of a standard bucket.
+
+        Returns an empty list when the bucket has no lifecycle policy. Raises
+        :class:`StorageApiError` when lifecycle policies are not enabled on
+        the storage service, the bucket is not a standard bucket, or the
+        caller is not authorized.
+
+        Parameters
+        ----------
+        id
+            The unique identifier of the bucket.
+        """
+        response = yield EmptyRequest(
+            method="GET",
+            path=["bucket", id, "lifecycle"],
+        )
+        if response.is_success:
+            return _LifecycleConfiguration.model_validate_json(response.content).rules
+        error = parse_api_error(response)
+        if error.code == "NoSuchLifecycleConfiguration":
+            return []
+        raise error
+
+    @handle_http_io
+    def update_bucket_lifecycle(
+        self, id: str, rules: Sequence[LifecycleRule]
+    ) -> HttpMethod[list[LifecycleRule]]:
+        """Replaces the lifecycle policy of a standard bucket with `rules`.
+
+        The rules replace the whole stored policy. Use
+        `delete_bucket_lifecycle` to remove the policy instead.
+
+        Parameters
+        ----------
+        id
+            The unique identifier of the bucket.
+        rules
+            The rules of the policy. Storage accepts between 1 and 1000 rules.
+
+        Returns
+        -------
+        The stored rules, with the identifiers Storage generated for the
+        rules that had none.
+        """
+        response = yield JSONRequest(
+            method="PUT",
+            path=["bucket", id, "lifecycle"],
+            body=_LifecycleConfiguration(rules=list(rules)),
+            exclude_none=True,
+        )
+        return _validate_model(response, _LifecycleConfiguration).rules
+
+    @handle_http_io
+    def delete_bucket_lifecycle(self, id: str) -> HttpMethod[MessageResponse]:
+        """Removes the lifecycle policy of a standard bucket. Succeeds when the
+        bucket has no policy.
+
+        Parameters
+        ----------
+        id
+            The unique identifier of the bucket.
+        """
+        response = yield EmptyRequest(
+            method="DELETE",
+            path=["bucket", id, "lifecycle"],
         )
         return _validate_model(response, MessageResponse)
 
