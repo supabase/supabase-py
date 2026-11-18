@@ -72,9 +72,7 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         id
             The unique identifier of the bucket
         """
-        return StorageFileApiClient(
-            id, self.base_url, self.executor, self.default_headers
-        )
+        return StorageFileApiClient(id, self.base_url, self.executor, self)
 
     def vectors(self) -> StorageVectorsClient[HttpIO]:
         return StorageVectorsClient(

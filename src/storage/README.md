@@ -65,6 +65,27 @@ If no MIME type is given, `text/plain;charset=UTF-8` is used.
 
 A path or an open binary file is streamed from disk, and an iterator over bytes (an async iterator on the async client) is streamed as it is read, so a large file is never held in memory.
 
+### Resumable uploads
+
+`resumable_upload` sends a large file in 6 MiB chunks with the [tus protocol](https://tus.io), so a failed upload continues from the last chunk the server holds instead of starting over:
+
+```python
+import shelve
+
+from storage3 import ResumableUploadPausedError
+
+with shelve.open("uploads") as store:
+    upload = storage_client.from_("bucket").resumable_upload(
+        "videos/intro.mp4", "intro.mp4", content_type="video/mp4", store=store
+    )
+    try:
+        response = await upload.run()
+    except ResumableUploadPausedError:
+        print(f"Paused after {upload.offset} of {upload.size} bytes")
+```
+
+`upload.pause()` stops `run` after the chunk in flight, and calling `run` again continues the upload. `await upload.cancel()` deletes it on the server. A failed request is retried with the `RetryPolicy` of the client. The `store` keeps the URL of the upload, so a later `resumable_upload` of the same file to the same path continues it, even after a restart.
+
 ### Streaming downloads
 
 `download_stream` gives the status and headers once the response head arrives, and the body as it arrives. Write it to a file, which is replaced only once the whole body arrived, or iterate over it chunk by chunk:

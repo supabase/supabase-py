@@ -1098,3 +1098,23 @@ async def test_get_public_url_leaves_out_an_empty_cache_nonce() -> None:
         ),
     )
     assert url == f"{STORAGE_URL}object/public/bucket/file.txt"
+
+
+@use_async
+async def test_a_bucket_sends_the_headers_the_client_has_now(use_async: bool) -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json={"Key": "bucket/file.txt", "Id": "id"})
+
+    def action(client: Any) -> Any:
+        bucket = client.from_("bucket")
+        client.default_headers = client.default_headers.override(
+            "Authorization", "Bearer refreshed"
+        )
+        return bucket.upload("file.txt", b"hello")
+
+    await call_with_client(use_async, handler, action)
+
+    assert requests[0].headers["Authorization"] == "Bearer refreshed"
