@@ -133,7 +133,7 @@ class Table(Generic[Row, Insert, Update]):
         from .partial_row import PartialRow
 
         columns = tuple(Column[Row, Any](name) for name in record)
-        return PartialRow(self, columns, dict(record))
+        return PartialRow(self, columns, dict(record), _only_present=True)
 
 
 def _row_adapter[Row](row_type: type[Row]) -> TypeAdapter[Row]:

@@ -50,6 +50,12 @@ class TestDecodePartial:
         with pytest.raises(KeyError, match="title was not selected"):
             partial[Books.title]
 
+    def test_an_empty_record_holds_no_column(self) -> None:
+        partial = Books.table.decode_partial({})
+
+        with pytest.raises(KeyError, match="id was not selected"):
+            partial[Books.id]
+
     def test_a_held_null_reads_none(self) -> None:
         partial = Books.table.decode_partial({"id": 7, "isbn": None})
 

@@ -66,6 +66,11 @@ class TestTable:
 
         assert options.postgres_changes_bindings[0].schema == "public"
 
+    def test_an_empty_schema_is_sent_as_given(self) -> None:
+        options = RealtimeChannelOptions().postgres_changes(INSERT, "books", schema="")
+
+        assert options.postgres_changes_bindings[0].schema == ""
+
     def test_the_string_overload_is_unchanged(self) -> None:
         options = RealtimeChannelOptions().postgres_changes(
             INSERT, "books", filter="id=eq.1", select=["title"]

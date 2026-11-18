@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from decimal import Decimal
 from functools import cache, cached_property, reduce
 from operator import or_
@@ -100,6 +100,12 @@ class PartialRow[Row]:
     json: Mapping[str, JSON]
     """The row as decoded from the response, keyed by the `response_key` of
     the entries."""
+
+    _: KW_ONLY
+
+    _only_present: bool = False
+    """Whether the row answers only the keys of `json`, even with no
+    `columns`, as a record decoded by `Table.decode_partial()` does."""
 
     @overload
     def __getitem__[Value](self, entry: Column[Row, Value]) -> Value: ...
@@ -219,7 +225,7 @@ class PartialRow[Row]:
         selected without columns."""
         if isinstance(entry, Relation):
             return entry in self._embeds
-        if not self.columns:
+        if not self.columns and not self._only_present:
             return isinstance(entry, _StoredColumn)
         return entry.response_key in self._keys
 

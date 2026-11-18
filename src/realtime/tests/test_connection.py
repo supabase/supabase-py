@@ -403,8 +403,9 @@ async def test_postgres_changes_with_a_typed_filter_and_columns(
         created_id = await create_message(
             token, {"title": title, "message": "this one matches"}
         )
-        first = await message_stream.__anext__()
-        second = await message_stream.__anext__()
+        async with asyncio.timeout(10):
+            first = await message_stream.__anext__()
+            second = await message_stream.__anext__()
 
     assert isinstance(first, PostgresChangesMessage)
     assert isinstance(second, PostgresChangesMessage)

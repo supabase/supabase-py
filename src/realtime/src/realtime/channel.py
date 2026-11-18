@@ -194,20 +194,25 @@ class RealtimeChannelOptions:
             ``Table`` the primary key is always included, so a change can be told
             apart from the others; read the record with ``Table.decode_partial()``.
         """
+        names = None if select is None else _column_names(select)
         if isinstance(table, Table):
             if schema is None:
                 schema = table.schema
-            if select is not None:
-                select = _with_primary_key(select, table)
+            if names is not None:
+                names += [
+                    column.name
+                    for column in table.primary_key
+                    if column.name not in names
+                ]
             table = table.name
         if isinstance(filter, Filter):
             filter = filter._realtime_filter()
         binding = PostgresChangesBinding(
             event=event,
             table=table,
-            schema=schema or "public",
+            schema="public" if schema is None else schema,
             filter=filter,
-            select=_column_names(select) if select is not None else None,
+            select=names,
             id=id,
         )
         return replace(
@@ -246,18 +251,6 @@ def _column_names(
     select: Sequence[Column[Any, Any] | NullableColumn[Any, Any]] | Sequence[str],
 ) -> list[str]:
     return [column if isinstance(column, str) else column.name for column in select]
-
-
-def _with_primary_key(
-    select: Sequence[Column[Any, Any] | NullableColumn[Any, Any]] | Sequence[str],
-    table: Table[Any, Any, Any],
-) -> list[str]:
-    """The names of `select` followed by those of the primary key of `table`
-    that it does not name."""
-    names = _column_names(select)
-    return names + [
-        column.name for column in table.primary_key if column.name not in names
-    ]
 
 
 @dataclass(frozen=True)
