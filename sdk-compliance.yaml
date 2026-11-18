@@ -342,7 +342,13 @@ features:
       - SupabaseAuthAdminMFA.delete_factor
     supporting_symbols:
       - AuthMFAAdminDeleteFactorResponse
-  auth.admin.update_mfa_factor: not_implemented
+  auth.admin.update_mfa_factor:
+    status: implemented
+    note: "Accessible via admin.mfa.update_factor(...)."
+    symbols:
+      - SupabaseAuthAdminMFA.update_factor
+    supporting_symbols:
+      - Factor
 
   auth.admin.create_provider: not_implemented
   auth.admin.delete_provider: not_implemented

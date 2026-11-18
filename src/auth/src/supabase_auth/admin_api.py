@@ -33,6 +33,7 @@ from .types import (
     AuthMFAAdminListFactorsResponse,
     AuthMFAAdminListFactorsResponseParser,
     CreateOAuthClientParams,
+    Factor,
     GenerateLinkParams,
     GenerateLinkResponse,
     OAuthClient,
@@ -82,6 +83,38 @@ class SupabaseAuthAdminMFA[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             path=["admin", "users", user_id, "factors", factor_id],
         )
         return _validate_model(response, AuthMFAAdminDeleteFactorResponse)
+
+    @handle_http_io
+    def update_factor(
+        self,
+        user_id: str,
+        factor_id: str,
+        *,
+        friendly_name: str | None = None,
+        phone: str | None = None,
+    ) -> HttpMethod[Factor]:
+        """
+        Updates a factor on a user and returns the updated factor. Only the
+        given fields change. The server treats an empty string as not given,
+        so a friendly name cannot be cleared, and it ignores `phone` on any
+        factor that is not a phone factor.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        validate_uuid(user_id)
+        validate_uuid(factor_id)
+        body: dict[str, JSON] = {}
+        if friendly_name is not None:
+            body["friendly_name"] = friendly_name
+        if phone is not None:
+            body["phone"] = phone
+        response = yield JSONRequest(
+            method="PUT",
+            path=["admin", "users", user_id, "factors", factor_id],
+            body=body,
+        )
+        return _validate_model(response, Factor)
 
     @handle_http_io
     def list_factors(self, user_id: str) -> HttpMethod[AuthMFAAdminListFactorsResponse]:
