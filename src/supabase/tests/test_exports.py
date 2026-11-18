@@ -118,3 +118,26 @@ def test_every_exported_error_is_a_supabase_error() -> None:
         symbol = getattr(supabase, name)
         if isinstance(symbol, type) and issubclass(symbol, BaseException):
             assert issubclass(symbol, SupabaseError), name
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "AsyncTableExecutor",
+        "Column",
+        "ComputedField",
+        "Filter",
+        "FunctionCall",
+        "NullableColumn",
+        "PartialRow",
+        "Table",
+        "TableExecutor",
+        "TableRequest",
+        "TableResult",
+        "ToManyRelation",
+        "ToOneRelation",
+    ],
+)
+def test_typed_api_is_exported_from_supabase(name: str) -> None:
+    assert name in supabase.__all__
+    assert getattr(supabase, name) is getattr(postgrest, name)

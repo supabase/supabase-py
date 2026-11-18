@@ -4,7 +4,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from functools import cached_property
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Literal, Self, overload, override
+from typing import TYPE_CHECKING, Any, Literal, Never, Self, overload, override
 
 from postgrest import AsyncPostgrestClient, SyncPostgrestClient
 from realtime import RealtimeClient
@@ -54,6 +54,15 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from types import TracebackType
 
+    from postgrest import (
+        AsyncTableExecutor,
+        FunctionCall,
+        Table,
+        TableExecutor,
+        TypedBuilder,
+        TypedFilterBuilder,
+        TypedQueryBuilder,
+    )
     from postgrest.client import PostgrestClient
     from postgrest.request_builder import (
         RequestBuilder,
@@ -259,14 +268,38 @@ class SupabaseClient[
     @abstractmethod
     def functions(self) -> FunctionsClient[HttpIO]: ...
 
-    def table(self, table_name: str) -> RequestBuilder[HttpIO]:
+    @overload
+    def table[Row, Insert, Update](
+        self: SupabaseClient[SyncHttpIO, Any], table: Table[Row, Insert, Update], /
+    ) -> TypedQueryBuilder[TableExecutor, Row, Insert, Update]: ...
+    @overload
+    def table[Row, Insert, Update](
+        self: SupabaseClient[AsyncHttpIO, Any], table: Table[Row, Insert, Update], /
+    ) -> TypedQueryBuilder[AsyncTableExecutor, Row, Insert, Update]: ...
+    @overload
+    def table(self, table_name: str) -> RequestBuilder[HttpIO]: ...
+    def table(
+        self: SupabaseClient[Any, Any], table_name: str | Table[Any, Any, Any]
+    ) -> RequestBuilder[Any] | TypedQueryBuilder[Any, Any, Any, Any]:
         """Perform a table operation.
 
-        Note that the supabase client uses the `from` method, but in Python,
-        this is a reserved keyword, so we have elected to use the name `table`.
+        With a `Table` it returns the typed query builder of the table, whose
+        rows decode into its `Row` type and whose writes take its `Insert`
+        and `Update` types:
+
+            books = client.table(Books.table).select().where(Books.id.eq(1)).execute()
+
+        A `Table` created with `schema=` queries that schema, without a call
+        to `schema()`.
+
+        With the name of a table it returns the string builder. Note that the
+        supabase client uses the `from` method, but in Python, this is a
+        reserved keyword, so we have elected to use the name `table`.
         Alternatively you can use the `.from_()` method.
         """
-        return self.from_(table_name)
+        if isinstance(table_name, str):
+            return self.from_(table_name)
+        return self.postgrest.table(table_name)
 
     def from_(self, table_name: str) -> RequestBuilder[HttpIO]:
         """Perform a table operation.
@@ -275,6 +308,22 @@ class SupabaseClient[
         """
         return self.postgrest.from_(table_name)
 
+    @overload
+    def rpc[Result](
+        self: SupabaseClient[SyncHttpIO, Any], call: FunctionCall[Never, Result], /
+    ) -> TypedBuilder[TableExecutor, Result]: ...
+    @overload
+    def rpc[Result](
+        self: SupabaseClient[AsyncHttpIO, Any], call: FunctionCall[Never, Result], /
+    ) -> TypedBuilder[AsyncTableExecutor, Result]: ...
+    @overload
+    def rpc[Row](
+        self: SupabaseClient[SyncHttpIO, Any], call: FunctionCall[Row, list[Row]], /
+    ) -> TypedFilterBuilder[TableExecutor, Row, list[Row]]: ...
+    @overload
+    def rpc[Row](
+        self: SupabaseClient[AsyncHttpIO, Any], call: FunctionCall[Row, list[Row]], /
+    ) -> TypedFilterBuilder[AsyncTableExecutor, Row, list[Row]]: ...
     @overload
     def rpc(
         self,
@@ -309,20 +358,38 @@ class SupabaseClient[
     ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]: ...
 
     def rpc(
-        self,
-        fn: str,
+        self: SupabaseClient[Any, Any],
+        fn: str | FunctionCall[Any, Any],
         params: Mapping[str, JSON] | None = None,
         *,
         head: bool = False,
         count: CountMethod | None = None,
         get: bool = False,
-    ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]:
+    ) -> (
+        RPCFilterRequestBuilder[Any]
+        | RPCCountRequestBuilder[Any]
+        | TypedFilterBuilder[Any, Any, Any]
+        | TypedBuilder[Any, Any]
+    ):
         """Performs a stored procedure call.
+
+        With a `FunctionCall` it returns a typed builder, whose result
+        decodes into the types of the call. The rows of a call built with
+        `FunctionCall.rows` can be filtered, ordered and paged like the rows
+        of a table:
+
+            books = (
+                client.rpc(FunctionCall.rows("search_books", BooksRow, arguments={"query": "dune"}))
+                .where(Books.pages.gt(300))
+                .execute()
+            )
 
         Parameters
         ----------
-        fn : str
-            The name of the stored procedure to call.
+        fn : str or FunctionCall
+            The name of the stored procedure to call, or a `FunctionCall`,
+            which carries its arguments and takes none of the other
+            parameters.
         params : dict of any
             Parameters passed into the stored procedure call.
         head: When set to `true`, `data` will not be returned. Useful if you only need the count.
@@ -333,9 +400,22 @@ class SupabaseClient[
         -------
         RPCFilterRequestBuilder
             A filter builder that lets you apply filters on the response of
-            the RPC. An RPCCountRequestBuilder when `head` is true.
+            the RPC. An RPCCountRequestBuilder when `head` is true. For a
+            `FunctionCall`, a TypedFilterBuilder for one built with
+            `FunctionCall.rows` and a TypedBuilder for one built with
+            `FunctionCall.value`.
         """
-        return self.postgrest.rpc(fn, params or {}, head=head, count=count, get=get)
+        if isinstance(fn, str):
+            return self.postgrest.rpc(fn, params or {}, head=head, count=count, get=get)
+        if params is not None or head or count is not None or get:
+            raise TypeError(
+                "rpc() of a FunctionCall takes no params, head, count or get; "
+                "the call carries its arguments"
+            )
+        builder: TypedFilterBuilder[Any, Any, Any] | TypedBuilder[Any, Any] = (
+            self.postgrest.rpc(fn)
+        )
+        return builder
 
     def _timeout_for(self, service_options: _ServiceClientOptions) -> float | None:
         if service_options.request_timeout is not None:

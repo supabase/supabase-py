@@ -264,6 +264,93 @@ data = supabase.table("countries").delete().eq("id", 1).execute()
 data = supabase.table("countries").delete().all().execute()
 ```
 
+### Typed queries
+
+`table()` and `rpc()` also take a `Table` and a `FunctionCall`, which describe a table and a database function with their Python types. Filters are then checked by the type checker, and rows decode into the row model:
+
+```python
+from typing import NotRequired, TypedDict
+
+from pydantic import BaseModel
+
+from supabase import Column, FunctionCall, Table
+
+
+class CountriesRow(BaseModel):
+    id: int
+    name: str
+    population: int
+
+
+class CountriesInsert(TypedDict):
+    name: str
+    population: NotRequired[int]
+
+
+class CountriesUpdate(TypedDict, total=False):
+    name: str
+    population: int
+
+
+class Countries:
+    id = Column[CountriesRow, int]("id")
+    name = Column[CountriesRow, str]("name")
+    population = Column[CountriesRow, int]("population")
+    table = Table(
+        "countries",
+        CountriesRow,
+        insert_type=CountriesInsert,
+        update_type=CountriesUpdate,
+    )
+
+
+large: list[CountriesRow] = (
+    supabase.table(Countries.table)
+    .select()
+    .where(Countries.population.gte(100_000_000))
+    .order(Countries.name)
+    .execute()
+)
+supabase.table(Countries.table).insert({"name": "Germany"}).execute()
+
+search = FunctionCall.rows("search_countries", CountriesRow, arguments={"query": "land"})
+found: list[CountriesRow] = supabase.rpc(search).limit(10).execute()
+```
+
+The async client takes the same `Table` and `FunctionCall`:
+
+```python
+import asyncio
+import os
+
+from pydantic import BaseModel
+
+from supabase import Column, Table, create_async_client
+
+
+class CountriesRow(BaseModel):
+    id: int
+    name: str
+
+
+class Countries:
+    id = Column[CountriesRow, int]("id")
+    table = Table("countries", CountriesRow)
+
+
+async def main() -> None:
+    async with create_async_client(
+        os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]
+    ) as client:
+        country: CountriesRow = (
+            await client.table(Countries.table).select().where(Countries.id.eq(1)).single().execute()
+        )
+        print(country.name)
+
+
+asyncio.run(main())
+```
+
 ### Call Edge Functions
 
 ```python
