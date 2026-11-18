@@ -16,7 +16,7 @@ from postgrest import (
     ToOneRelation,
     TypedQueryBuilder,
 )
-from postgrest._projection import _projection
+from postgrest._projection import _declared_projection
 from postgrest.table_executor import _render
 
 
@@ -288,11 +288,21 @@ class TestSelectList:
         class NovelTitle(BaseModel):
             title: str
 
-        _projection.cache_clear()
+        _declared_projection.cache_clear()
         select_list(NovelTitle)
         select_list(NovelTitle)
 
-        assert _projection.cache_info().hits == 1
+        assert _declared_projection.cache_info().hits == 1
+
+    def test_equal_tables_keep_their_own_projection(self) -> None:
+        class NovelTitle(BaseModel):
+            title: str
+
+        _declared_projection.cache_clear()
+        select_list(NovelTitle, Table("novels", NovelsRow))
+        select_list(NovelTitle, Table("novels", NovelsRow))
+
+        assert _declared_projection.cache_info().misses == 2
 
 
 class TestRejections:

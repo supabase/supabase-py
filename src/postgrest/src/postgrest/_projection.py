@@ -64,13 +64,22 @@ class _Projection:
                 return value
 
 
-@cache
 def _projection(table: Table[Any, Any, Any], model: type[BaseModel]) -> _Projection:
     """The projection of `model` on `table`, one entry of the `select` list
-    per field, checked against `table` once per table and model.
+    per field, checked against `table` once per table declaration and model.
 
     Raises `TypeError` listing every field that does not fit the table.
     """
+    return _declared_projection(id(table), table, model)
+
+
+@cache
+def _declared_projection(
+    table_id: int, table: Table[Any, Any, Any], model: type[BaseModel]
+) -> _Projection:
+    """`_projection`, cached by the identity of `table` as well, since two
+    equal tables can name their relations, or reach their targets,
+    differently."""
     problems: list[str] = []
     projection = _project(table, model, model.__name__, problems, (model,))
     if problems:
