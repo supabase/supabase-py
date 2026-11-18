@@ -30,6 +30,10 @@ class Bucket(BaseModel, extra="ignore"):
     file_size_limit: int | None
     allowed_mime_types: list[str] | None
     type: Literal["STANDARD", "ANALYTICS"] | None = None
+    versioning_status: Literal["DISABLED", "ENABLED", "SUSPENDED"] | str | None = None  # noqa: PYI051
+    """Whether writes keep the previous versions of a file. ``None`` on servers
+    without object versioning. A status this client does not know is kept as
+    the string the server sent."""
 
 
 class BucketName(BaseModel, extra="ignore"):
@@ -60,6 +64,7 @@ class CreateSignedUrlBody(BaseModel):
     expiresIn: int
     download: str | bool | None
     transform: TransformOptions | None
+    versionId: str | None = None
 
 
 class CreateSignedUrlsBody(BaseModel):
@@ -78,6 +83,7 @@ class CreateOrUpdateBucketBody(BaseModel):
     public: bool | None
     file_size_limit: int | None
     allowed_mime_types: list[str] | None
+    versioning_status: str | None = None
 
 
 class MessageResponse(BaseModel):
@@ -90,12 +96,30 @@ class FileObject(BaseModel):
     name: str
     bucket_id: str
     created_at: datetime
-    metadata: dict[str, Any]
+    metadata: dict[str, Any] | None
     last_modified: datetime | None = None
     size: int | None = None
     cache_control: str | None = None
     content_type: str | None = None
     etag: str | None = None
+    archived_at: datetime | None = None
+    """When this version stopped being the current one, or ``None`` while it is."""
+    is_delete_marker: bool | None = None
+    """Whether this entry marks a deletion instead of holding file contents."""
+    is_versioned: bool | None = None
+    """Whether the file was written while its bucket had versioning enabled."""
+
+
+@dataclass(frozen=True)
+class FileVersion:
+    """One version of a file, which `remove` deletes whether it is the
+    current version or not."""
+
+    path: str
+    version_id: str
+
+
+ListInclusion = Literal["exclude", "include", "only"]
 
 
 @dataclass(frozen=True)
@@ -110,6 +134,8 @@ class ListBody(BaseModel):
     cursor: str | None = None
     with_delimiter: bool | None = None
     sortBy: SortBy | None = None
+    noncurrentVersions: ListInclusion | None = None
+    deleteMarkers: ListInclusion | None = None
 
 
 class ListObject(BaseModel):
@@ -126,6 +152,13 @@ class ListObject(BaseModel):
     last_accessed_at: datetime | None = None
     metadata: dict[str, Any] | None
     key: str | None = None
+    version: str | None = None
+    archived_at: datetime | None = None
+    """When this version stopped being the current one, or ``None`` while it is."""
+    is_delete_marker: bool | None = None
+    """Whether this entry marks a deletion instead of holding file contents."""
+    is_versioned: bool | None = None
+    """Whether the file was written while its bucket had versioning enabled."""
 
 
 class ListFolder(BaseModel):

@@ -1538,18 +1538,61 @@ features:
       - AsyncStorageDownload.read
       - AsyncStorageDownload.write_to
       - StorageDownloadTooLargeError
-  storage.file_buckets.bucket_versioning_status: not_implemented
-  storage.file_buckets.copy_specific_version: not_implemented
+  storage.file_buckets.bucket_versioning_status:
+    status: implemented
+    note: "create_bucket() takes versioning_status DISABLED or ENABLED, update_bucket() takes ENABLED or SUSPENDED, and the server's default applies when it is omitted. Bucket.versioning_status reads the status, keeps a status the client does not know as the string the server sent, and is None on servers without object versioning."
+    symbols:
+      - StorageClient.create_bucket
+      - StorageClient.update_bucket
+      - StorageClient.get_bucket
+      - StorageClient.list_buckets
+    supporting_symbols:
+      - Bucket
+  storage.file_buckets.copy_specific_version:
+    status: implemented
+    note: "Pass source_version_id to copy()."
+    symbols:
+      - StorageFileApiClient.copy
   storage.file_buckets.delete_bucket_lifecycle: not_implemented
-  storage.file_buckets.download_specific_version: not_implemented
-  storage.file_buckets.file_info_specific_version: not_implemented
+  storage.file_buckets.download_specific_version:
+    status: implemented
+    note: "Pass version_id to download(), download_stream(), create_signed_url() or get_public_url()."
+    symbols:
+      - StorageFileApiClient.download
+      - StorageFileApiClient.download_stream
+      - StorageFileApiClient.create_signed_url
+      - StorageFileApiClient.get_public_url
+  storage.file_buckets.file_info_specific_version:
+    status: implemented
+    note: "Pass version_id to info(). FileObject has version, archived_at, is_delete_marker and is_versioned."
+    symbols:
+      - StorageFileApiClient.info
+    supporting_symbols:
+      - FileObject
   storage.file_buckets.get_bucket_lifecycle: not_implemented
-  storage.file_buckets.list_file_versions: not_implemented
-  storage.file_buckets.move_specific_version: not_implemented
+  storage.file_buckets.list_file_versions:
+    status: implemented
+    note: "Pass noncurrent_versions and delete_markers (exclude, include or only) to list() or pages(). ListObject has version, archived_at, is_delete_marker and is_versioned."
+    symbols:
+      - StorageFileApiClient.list
+      - StorageFileApiClient.pages
+    supporting_symbols:
+      - ListObject
+  storage.file_buckets.move_specific_version:
+    status: implemented
+    note: "Pass source_version_id to move(). Moving a version to its own path makes it the current version again."
+    symbols:
+      - StorageFileApiClient.move
   storage.file_buckets.purge_bucket_cache: not_implemented
   storage.file_buckets.purge_cache: not_implemented
   storage.file_buckets.purge_project_cache: not_implemented
-  storage.file_buckets.remove_specific_version: not_implemented
+  storage.file_buckets.remove_specific_version:
+    status: implemented
+    note: "remove() takes a FileVersion(path, version_id) next to plain paths, and deletes exactly that version, current or not."
+    symbols:
+      - StorageFileApiClient.remove
+    supporting_symbols:
+      - FileVersion
   storage.file_buckets.request_cancellation:
     status: implemented
     note: "Cancellation is handled at the asyncio task level: calling .cancel() on the task running the storage call propagates cancellation through the HTTP client."

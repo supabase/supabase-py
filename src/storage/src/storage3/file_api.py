@@ -52,7 +52,9 @@ from .types import (
     CreateSignedUrlResponse,
     CreateSignedUrlsBody,
     FileObject,
+    FileVersion,
     ListBody,
+    ListInclusion,
     ListResult,
     MessageResponse,
     SignedUploadURL,
@@ -74,6 +76,7 @@ if TYPE_CHECKING:
         Generator,
         Iterator,
         MutableMapping,
+        Sequence,
     )
     from contextlib import AbstractAsyncContextManager, AbstractContextManager
 
@@ -97,6 +100,15 @@ def relative_path_to_parts(path: str) -> tuple[str, ...]:
 
 def _normalize_object_key(path: str) -> str:
     return "/".join(relative_path_to_parts(path))
+
+
+def _delete_entry(path: str | FileVersion) -> JSON:
+    if isinstance(path, FileVersion):
+        return {
+            "path": _normalize_object_key(path.path),
+            "versionId": path.version_id,
+        }
+    return _normalize_object_key(path)
 
 
 def _bool_header(value: bool) -> str:
@@ -178,6 +190,8 @@ class _ListOptions:
     limit: int | None
     with_delimiter: bool | None
     sort_by: SortBy | None
+    noncurrent_versions: ListInclusion | None
+    delete_markers: ListInclusion | None
 
 
 def _sync_pages(
@@ -191,6 +205,8 @@ def _sync_pages(
             cursor=cursor,
             with_delimiter=options.with_delimiter,
             sort_by=options.sort_by,
+            noncurrent_versions=options.noncurrent_versions,
+            delete_markers=options.delete_markers,
         )
         yield page
         cursor = _next_cursor(page, cursor)
@@ -209,6 +225,8 @@ async def _async_pages(
             cursor=cursor,
             with_delimiter=options.with_delimiter,
             sort_by=options.sort_by,
+            noncurrent_versions=options.noncurrent_versions,
+            delete_markers=options.delete_markers,
         )
         yield page
         cursor = _next_cursor(page, cursor)
@@ -372,6 +390,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         transform: TransformOptions | None = None,
         *,
         cache_nonce: str | None = None,
+        version_id: str | None = None,
     ) -> HttpMethod[str]:
         """
         Parameters
@@ -385,6 +404,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce
             Appended to the URL as the `cacheNonce` query parameter. Pass a new
             value, such as the time the file last changed, to bypass a cached copy.
+        version_id
+            Signs that version of the file instead of the current one.
         """
         url_query = _url_query(download, cache_nonce)
 
@@ -393,6 +414,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             expiresIn=expires_in,
             download=download,
             transform=transform,
+            versionId=version_id,
         )
         response = yield JSONRequest(
             method="POST",
@@ -468,6 +490,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         transform: TransformOptions | None = None,
         *,
         cache_nonce: str | None = None,
+        version_id: str | None = None,
     ) -> str:
         """
         Parameters
@@ -477,8 +500,13 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce
             Appended to the URL as the `cacheNonce` query parameter. Pass a new
             value, such as the time the file last changed, to bypass a cached copy.
+        version_id
+            Points the URL at that version of the file instead of the current
+            one.
         """
         url_query = _url_query(download, cache_nonce)
+        if version_id is not None:
+            url_query = url_query.override("versionId", version_id)
 
         render_path = ["render", "image"] if transform else ["object"]
         transformation = transform_to_dict(transform) if transform else {}
@@ -498,6 +526,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         to_path: str,
         *,
         destination_bucket: str | None = None,
+        source_version_id: str | None = None,
     ) -> HttpMethod[MessageResponse]:
         """
         Moves an existing file, optionally renaming it at the same time.
@@ -510,6 +539,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             The new file path, including the new file name. For example `folder/image-copy.png`.
         destination_bucket
             The bucket to move the file to. Defaults to this bucket.
+        source_version_id
+            Moves that version of the file instead of the current one. Moving
+            a version to its own path makes it the current version again.
         """
         response = yield JSONRequest(
             method="POST",
@@ -518,6 +550,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 _normalize_object_key(from_path),
                 _normalize_object_key(to_path),
                 destination_bucket,
+                source_version_id,
             ),
         )
         return _validate_model(response, MessageResponse)
@@ -535,6 +568,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_control: str | None = None,
         content_type: str | None = None,
         content_encoding: str | None = None,
+        source_version_id: str | None = None,
     ) -> HttpMethod[UploadResponse]:
         """
         Copies an existing file to a new path.
@@ -565,6 +599,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             The `Content-Encoding` of the copy. An empty string clears it. It
             changes the metadata only, not the bytes of the file. Requires
             `copy_metadata=False` and Supabase Storage v1.80.0 or newer.
+        source_version_id
+            Copies that version of the file instead of the current one.
         """
         file_metadata = {
             key: value
@@ -584,7 +620,10 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         headers = Headers.empty().set("x-upsert", _bool_header(upsert))
         to_key = _normalize_object_key(to_path)
         body = self._destination_body(
-            _normalize_object_key(from_path), to_key, destination_bucket
+            _normalize_object_key(from_path),
+            to_key,
+            destination_bucket,
+            source_version_id,
         )
         if not copy_metadata:
             body["copyMetadata"] = False
@@ -605,7 +644,11 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         return _parse_upload_response(response, to_key)
 
     def _destination_body(
-        self, from_key: str, to_key: str, destination_bucket: str | None
+        self,
+        from_key: str,
+        to_key: str,
+        destination_bucket: str | None,
+        source_version_id: str | None,
     ) -> dict[str, JSON]:
         body: dict[str, JSON] = {
             "bucketId": self.id,
@@ -614,22 +657,31 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         }
         if destination_bucket is not None:
             body["destinationBucket"] = destination_bucket
+        if source_version_id is not None:
+            body["sourceVersionId"] = source_version_id
         return body
 
     @handle_http_io
-    def remove(self, paths: list[str]) -> HttpMethod[list[FileObject]]:
+    def remove(
+        self, paths: Sequence[str | FileVersion]
+    ) -> HttpMethod[builtins.list[FileObject]]:
         """
         Deletes files within the same bucket
 
         Parameters
         ----------
         paths
-            An array or list of files to be deletes, including the path and file name. For example [`folder/image.png`].
+            The files to delete, including the path and file name. For example
+            `["folder/image.png"]`. A path deletes the current version of the
+            file. A `FileVersion` deletes exactly that version, current or
+            not: `[FileVersion("folder/image.png", version_id)]`.
         """
+        if isinstance(paths, str):
+            raise TypeError("paths must be a list of paths, not a single str")
         response = yield JSONRequest(
             method="DELETE",
             path=["object", self.id],
-            body={"prefixes": [_normalize_object_key(path) for path in paths]},
+            body={"prefixes": [_delete_entry(path) for path in paths]},
         )
         return _validate_adapter(response, FileObjectsAdapter)
 
@@ -637,6 +689,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def info(
         self,
         path: str,
+        *,
+        version_id: str | None = None,
     ) -> HttpMethod[FileObject]:
         """
         Lists info for a particular file.
@@ -645,11 +699,17 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         ----------
         path
             The path to the file.
+        version_id
+            Describes that version of the file instead of the current one.
         """
         path_parts: tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
+        query = URLQuery.empty()
+        if version_id is not None:
+            query = query.set("versionId", version_id)
         response = yield EmptyRequest(
             method="GET",
             path=["object", "info", self.id, *path_parts],
+            query=query,
         )
         return _validate_model(response, FileObject)
 
@@ -689,6 +749,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cursor: str | None = None,
         with_delimiter: bool | None = None,
         sort_by: SortBy | None = None,
+        noncurrent_versions: ListInclusion | None = None,
+        delete_markers: ListInclusion | None = None,
     ) -> HttpMethod[ListResult]:
         """
         Lists one page of the objects in the bucket.
@@ -713,6 +775,13 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             `folders` is empty.
         sort_by
             The column and order to sort by. Defaults to `name` ascending.
+        noncurrent_versions
+            Whether the previous versions of the files are listed alongside
+            the current ones (`include`), instead of them (`only`) or not at
+            all (`exclude`, what the server does when omitted).
+        delete_markers
+            Whether the entries that mark a removed file are listed, with the
+            same choices as `noncurrent_versions`.
         """
         body = ListBody(
             prefix=prefix,
@@ -720,6 +789,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             cursor=cursor,
             with_delimiter=with_delimiter,
             sortBy=sort_by,
+            noncurrentVersions=noncurrent_versions,
+            deleteMarkers=delete_markers,
         )
         response = yield JSONRequest(
             method="POST",
@@ -736,6 +807,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         limit: int | None = None,
         with_delimiter: bool | None = None,
         sort_by: SortBy | None = None,
+        noncurrent_versions: ListInclusion | None = None,
+        delete_markers: ListInclusion | None = None,
     ) -> Iterator[ListResult]: ...
 
     @overload
@@ -746,6 +819,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         limit: int | None = None,
         with_delimiter: bool | None = None,
         sort_by: SortBy | None = None,
+        noncurrent_versions: ListInclusion | None = None,
+        delete_markers: ListInclusion | None = None,
     ) -> AsyncIterator[ListResult]: ...
 
     def pages(
@@ -755,6 +830,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         limit: int | None = None,
         with_delimiter: bool | None = None,
         sort_by: SortBy | None = None,
+        noncurrent_versions: ListInclusion | None = None,
+        delete_markers: ListInclusion | None = None,
     ) -> Iterator[ListResult] | AsyncIterator[ListResult]:
         """
         Lists the objects in the bucket page by page, following the cursor of
@@ -765,7 +842,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         parameters are those of `list`. Raises `StorageException` when a page
         returns the cursor it was fetched with, instead of fetching it forever.
         """
-        options = _ListOptions(prefix, limit, with_delimiter, sort_by)
+        options = _ListOptions(
+            prefix, limit, with_delimiter, sort_by, noncurrent_versions, delete_markers
+        )
         if isinstance(self.executor, AsyncHttpIO):
             return _async_pages(self, options)
         return _sync_pages(self, options)
@@ -778,6 +857,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         byte_range: str | None,
         if_match: str | None,
         cache_nonce: str | None,
+        version_id: str | None,
     ) -> EmptyRequest:
         render_path: list[str] = ["object"]
         params = (
@@ -788,6 +868,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             render_path = ["render", "image", "authenticated"]
         if cache_nonce:
             params = params.override("cacheNonce", cache_nonce)
+        if version_id is not None:
+            params = params.override("versionId", version_id)
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
         headers = Headers.empty()
         if byte_range is not None:
@@ -814,6 +896,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         length: int | None = None,
         if_match: str | None = None,
         cache_nonce: str | None = None,
+        version_id: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> bytes: ...
 
@@ -828,6 +911,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         length: int | None = None,
         if_match: str | None = None,
         cache_nonce: str | None = None,
+        version_id: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> Coroutine[Any, Any, bytes]: ...
 
@@ -841,6 +925,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         length: int | None = None,
         if_match: str | None = None,
         cache_nonce: str | None = None,
+        version_id: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> bytes | Coroutine[Any, Any, bytes]:
         """
@@ -871,6 +956,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce
             Appended to the request URL as the `cacheNonce` query parameter. Pass a new
             value, such as the time the file last changed, to bypass a cached copy.
+        version_id
+            Downloads that version of the file instead of the current one.
         on_progress
             Called with the bytes received so far and the total, or None when
             the total is not known, as the body arrives. It restarts from 0
@@ -878,7 +965,13 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         byte_range = _byte_range(offset, length)
         request = self._download_request(
-            path, transform, query_params, byte_range, if_match, cache_nonce
+            path,
+            transform,
+            query_params,
+            byte_range,
+            if_match,
+            cache_nonce,
+            version_id,
         )
         if isinstance(self.executor, AsyncHttpIO):
             return _async_read(
@@ -909,6 +1002,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         length: int | None = None,
         if_match: str | None = None,
         cache_nonce: str | None = None,
+        version_id: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> AbstractContextManager[StorageDownload]: ...
 
@@ -923,6 +1017,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         length: int | None = None,
         if_match: str | None = None,
         cache_nonce: str | None = None,
+        version_id: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> AbstractAsyncContextManager[AsyncStorageDownload]: ...
 
@@ -936,6 +1031,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         length: int | None = None,
         if_match: str | None = None,
         cache_nonce: str | None = None,
+        version_id: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> (
         AbstractContextManager[StorageDownload]
@@ -992,13 +1088,21 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce
             Appended to the request URL as the `cacheNonce` query parameter. Pass a new
             value, such as the time the file last changed, to bypass a cached copy.
+        version_id
+            Downloads that version of the file instead of the current one.
         on_progress
             Called with the bytes of the body read so far and the total, or
             None when the total is not known, as the body is read.
         """
         byte_range = _byte_range(offset, length)
         request = self._download_request(
-            path, transform, query_params, byte_range, if_match, cache_nonce
+            path,
+            transform,
+            query_params,
+            byte_range,
+            if_match,
+            cache_nonce,
+            version_id,
         )
         if isinstance(self.executor, AsyncHttpIO):
             return _async_download(

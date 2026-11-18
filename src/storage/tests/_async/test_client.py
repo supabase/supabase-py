@@ -10,7 +10,7 @@ from httpx import AsyncClient as HttpxClient
 from supabase_utils.http.request import Response
 
 from storage3.exceptions import StorageApiError
-from storage3.types import TransformOptions
+from storage3.types import FileVersion, TransformOptions
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator, Callable
@@ -994,3 +994,66 @@ async def test_client_pages(
     assert sorted(o.name for page in pages for o in page.objects) == sorted(
         file.bucket_path + suffix for suffix in suffixes
     )
+
+
+async def test_client_reads_and_signs_a_version(
+    storage_file_client_public: StorageFileApiClient[AsyncHttpIO],
+    file: FileForTesting,
+) -> None:
+    await storage_file_client_public.upload(
+        file.bucket_path, file.local_path, content_type=file.mime_type
+    )
+    version = (await storage_file_client_public.info(file.bucket_path)).version
+
+    info = await storage_file_client_public.info(file.bucket_path, version_id=version)
+    assert info.version == version
+    with pytest.raises(StorageApiError):
+        await storage_file_client_public.info(file.bucket_path, version_id=str(uuid4()))
+
+    downloaded = await storage_file_client_public.download(
+        file.bucket_path, version_id=version
+    )
+    assert downloaded == file.file_content
+
+    signed_url = await storage_file_client_public.create_signed_url(
+        file.bucket_path, 60, version_id=version
+    )
+    public_url = storage_file_client_public.get_public_url(
+        file.bucket_path, version_id=version
+    )
+    async with HttpxClient(timeout=None) as client:
+        for url in (signed_url, public_url):
+            response = await client.get(url)
+            response.raise_for_status()
+            assert response.content == file.file_content
+
+
+async def test_client_copies_moves_and_removes_a_version(
+    storage_file_client: StorageFileApiClient[AsyncHttpIO], file: FileForTesting
+) -> None:
+    await storage_file_client.upload(
+        file.bucket_path, file.local_path, content_type=file.mime_type
+    )
+    version = (await storage_file_client.info(file.bucket_path)).version
+
+    copied_path = f"{file.bucket_folder}/copied_{file.name}"
+    await storage_file_client.copy(
+        file.bucket_path, copied_path, source_version_id=version
+    )
+    copied_version = (await storage_file_client.info(copied_path)).version
+    moved_path = f"{file.bucket_folder}/moved_{file.name}"
+    await storage_file_client.move(
+        copied_path, moved_path, source_version_id=copied_version
+    )
+    assert not await storage_file_client.exists(copied_path)
+    assert await storage_file_client.download(moved_path) == file.file_content
+
+    moved_version = (await storage_file_client.info(moved_path)).version
+    removed = await storage_file_client.remove(
+        [file.bucket_path, FileVersion(moved_path, moved_version)]
+    )
+    assert sorted(entry.name for entry in removed) == sorted(
+        [file.bucket_path, moved_path]
+    )
+    assert not await storage_file_client.exists(file.bucket_path)
+    assert not await storage_file_client.exists(moved_path)
