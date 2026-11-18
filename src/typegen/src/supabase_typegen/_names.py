@@ -120,7 +120,9 @@ def unique_names(
 
 
 def _suffix(name: str) -> str:
-    """`name` with every character an identifier cannot hold as `_`."""
+    """`name`, NFKC normalized, with every character an identifier cannot
+    hold as `_`."""
     return "".join(
-        character if f"a{character}".isidentifier() else "_" for character in name
+        character if f"a{character}".isidentifier() else "_"
+        for character in unicodedata.normalize("NFKC", name)
     )

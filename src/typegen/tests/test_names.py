@@ -60,6 +60,13 @@ def test_claim_skips_keywords() -> None:
     assert claim(set(), "NoneRow") == "NoneRow"
 
 
+def test_names_that_normalize_alike_stay_apart() -> None:
+    assert unique_names(["A", "\uff21"], identifier=constant_name) == {
+        "A": "A_A",
+        "\uff21": "A_A_",
+    }
+
+
 def test_reserved_names_are_not_claimed() -> None:
     assert unique_names(["table", "str"], reserved={"table", "str"}) == {
         "table": "table_",

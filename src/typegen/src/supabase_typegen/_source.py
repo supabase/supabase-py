@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import textwrap
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
@@ -13,7 +14,6 @@ LINE_LENGTH: Final = 88
 INDENT: Final = "    "
 
 LINE_TERMINATORS: Final = re.compile("\r\n?|[\n\x0b\x0c\x1c-\x1e\x85\u2028\u2029]")
-_CONTROL_CHARACTERS: Final = re.compile("[\x00-\x09\x0e-\x1f\x7f-\x9f]")
 _ESCAPES: Final = {"\\": "\\\\", "\n": "\\n", "\r": "\\r", "\t": "\\t"}
 
 
@@ -30,10 +30,14 @@ def _escaped(character: str, quote: str) -> str:
         return f"\\{quote}"
     if character in _ESCAPES:
         return _ESCAPES[character]
-    if _CONTROL_CHARACTERS.match(character) or LINE_TERMINATORS.match(character):
+    if _is_control(character) or LINE_TERMINATORS.match(character):
         code = ord(character)
         return f"\\x{code:02x}" if code < 0x100 else f"\\u{code:04x}"
     return character
+
+
+def _is_control(character: str) -> bool:
+    return unicodedata.category(character) == "Cc"
 
 
 def docstring(*parts: str | None, indent: str) -> list[str]:
@@ -74,7 +78,10 @@ def escape_docstring(text: str) -> str:
 
 def _paragraph(text: str) -> str:
     text = LINE_TERMINATORS.sub("\n", text).replace("\t", " ")
-    text = _CONTROL_CHARACTERS.sub(" ", text)
+    text = "".join(
+        " " if _is_control(character) and character != "\n" else character
+        for character in text
+    )
     lines = [line.rstrip() for line in escape_docstring(text).split("\n")]
     while lines and not lines[0].strip():
         lines.pop(0)
