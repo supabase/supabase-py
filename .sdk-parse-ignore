@@ -1,0 +1,5 @@
+# Paths excluded from the SDK capability-matrix public API scan.
+
+# supabase_typegen is a development-time code generator, not SDK client
+# surface, so its public symbols are not capability-matrix symbols.
+src/typegen/

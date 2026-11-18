@@ -60,6 +60,14 @@
         {
           "type": "generic",
           "path": "src/utils/pyproject.toml"
+        },
+        {
+          "type": "generic",
+          "path": "src/typegen/src/supabase_typegen/version.py"
+        },
+        {
+          "type": "generic",
+          "path": "src/typegen/pyproject.toml"
         }
       ]
     }

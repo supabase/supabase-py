@@ -1,0 +1,71 @@
+[project]
+name = "supabase_typegen"
+version = "3.0.0-a1" # {x-release-please-version}
+description = "Generates the typed tables and functions of a Supabase database for supabase-py."
+maintainers = [
+  { name = "Leonardo Santiago", email = "leonardo.santiago@supabase.io" }
+]
+readme = "README.md"
+license = "MIT"
+license-files = [ "LICENSE" ]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
+  "Operating System :: OS Independent",
+]
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic >=2.12,<3",
+]
+
+[project.urls]
+homepage = "https://github.com/supabase/supabase-py/tree/main/src/typegen"
+repository = "https://github.com/supabase/supabase-py"
+changelog = "https://github.com/supabase/supabase-py/tree/main/CHANGELOG.md"
+
+[dependency-groups]
+tests = [
+  "pytest >=9.0.3",
+  "pytest-cov >=6.2.1",
+  "postgrest == 3.0.0-a1", # x-release-please-version
+  "supabase_utils[all] == 3.0.0-a1", # x-release-please-version
+]
+lints = [
+  "ruff >=0.12.1",
+  "python-lsp-server (>=1.12.2,<2.0.0)",
+  "pyrefly >=1.4.0,<2.0.0",
+  "mypy >=2.4.1",
+  "pyright >=1.1.414",
+  "python-lsp-ruff (>=2.2.2,<3.0.0)",
+]
+dev = [{ include-group = "lints" }, { include-group = "tests" }]
+
+[tool.uv]
+default-groups = [ "dev" ]
+
+[tool.uv.sources]
+postgrest = { workspace = true }
+supabase-utils = { workspace = true }
+
+[tool.pytest.ini_options]
+addopts = "tests"
+filterwarnings = [
+    "ignore::DeprecationWarning", # ignore deprecation warnings globally
+]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+# The goldens are generated; test_goldens.py checks them with Ruff's defaults.
+extend-exclude = ["tests/goldens"]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.pyrefly]
+extends = "../../pyrefly.toml"
+project-includes = ["src", "tests"]
+search-path = ["src", "."]

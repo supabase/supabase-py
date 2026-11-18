@@ -10,7 +10,7 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 
 ## Packages
 
-`<pkg>` is the directory under `src/`. Four import names differ from it: `auth` → `supabase_auth`, `storage` → `storage3`, `functions` → `supabase_functions`, `utils` → `supabase_utils`.
+`<pkg>` is the directory under `src/`. Five import names differ from it: `auth` → `supabase_auth`, `storage` → `storage3`, `functions` → `supabase_functions`, `utils` → `supabase_utils`, `typegen` → `supabase_typegen`.
 
 ## Async and sync clients
 
