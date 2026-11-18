@@ -394,14 +394,17 @@ def pre_rpc(
     arguments as query parameters, with a list as a PostgreSQL array literal.
     When PostgREST would read an argument as something else, see
     `_rpc_arguments_fit_query`, `get` sends a `POST` instead, which is
-    neither read-only nor retried.
+    neither read-only nor retried, and `head`, which has no such fallback,
+    raises `ValueError`.
     """
+    fits_query = _rpc_arguments_fit_query(params)
+    if head and not fits_query:
+        raise ValueError(
+            "head sends the arguments as query parameters, where PostgREST "
+            "would read some of them as options or filters, or a None as text"
+        )
     method: HTTPRequestMethod = (
-        "HEAD"
-        if head
-        else "GET"
-        if get and _rpc_arguments_fit_query(params)
-        else "POST"
+        "HEAD" if head else "GET" if get and fits_query else "POST"
     )
     headers = (
         Headers.from_mapping({"Prefer": f"count={count}"}) if count else Headers.empty()

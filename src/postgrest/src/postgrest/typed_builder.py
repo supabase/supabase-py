@@ -708,9 +708,9 @@ class TypedQueryBuilder[
         return TypedCountBuilder(request, self.executor, _count)
 
 
-def _function_call_builder(
-    call: FunctionCall[Any, Any], executor: Any
-) -> TypedFilterBuilder[Any, Any, Any] | TypedBuilder[Any, Any]:
+def _function_call_builder[Executor: (TableExecutor, AsyncTableExecutor)](
+    call: FunctionCall[Any, Any], executor: Executor
+) -> TypedFilterBuilder[Executor, Any, Any] | TypedBuilder[Executor, Any]:
     """The typed builder that runs `call` through `executor`: one that takes
     filters for a call that returns rows, and one that only runs for a call
     that returns a value."""

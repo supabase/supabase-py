@@ -281,3 +281,15 @@ def test_rpc_get_posts_params_postgrest_would_misread(params: dict[str, JSON]) -
         assert builder.request.method == "POST"
         assert builder.request.body == params
         assert not builder.request.query
+
+
+@pytest.mark.parametrize("params", [{"limit": 1}, {"name": None}, {"name": "eq.x"}])
+def test_rpc_head_rejects_params_postgrest_would_misread(
+    params: dict[str, JSON],
+) -> None:
+    with Client() as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        with pytest.raises(ValueError, match="head"):
+            client.rpc("fn", params, head=True, count=CountMethod.exact)

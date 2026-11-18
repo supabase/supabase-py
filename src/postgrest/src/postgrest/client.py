@@ -219,13 +219,21 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 something else, one named like an option such as `limit`, a `None`, or a value
                 that starts like a filter such as `eq.x`, it is called with a `POST` instead.
         Returns:
-            :class:`AsyncRPCFilterRequestBuilder`
+            :class:`RPCFilterRequestBuilder`, or :class:`RPCCountRequestBuilder`
+            with `head`, for a function name; :class:`TypedFilterBuilder` for a
+            call built with `FunctionCall.rows` and :class:`TypedBuilder` for one
+            built with `FunctionCall.value`.
         Example:
             .. code-block:: python
 
                 await client.rpc("foobar", {"arg": "value"}).execute()
         """
         if not isinstance(func, str):
+            if params is not None or head or count is not None or get:
+                raise TypeError(
+                    "rpc() of a FunctionCall takes no params, head, count or get; "
+                    "the call carries its arguments"
+                )
             if isinstance(self.executor, AsyncHttpIO):
                 return _function_call_builder(func, AsyncHttpTableExecutor(self))
             return _function_call_builder(func, HttpTableExecutor(self))

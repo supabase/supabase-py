@@ -14,6 +14,7 @@ from postgrest import (
     AsyncHttpTableExecutor,
     AsyncPostgrestClient,
     CountedResponse,
+    CountMethod,
     FunctionCall,
     HttpTableExecutor,
     ResultShape,
@@ -128,6 +129,27 @@ class TestBuilds:
         client = async_client(Transport())
 
         assert client.rpc(SEARCH).executor == AsyncHttpTableExecutor(client)
+
+    @pytest.mark.parametrize(
+        "options",
+        [{"params": {}}, {"head": True}, {"count": CountMethod.exact}, {"get": True}],
+    )
+    def test_a_call_rejects_the_options_of_a_name(
+        self, options: dict[str, Any]
+    ) -> None:
+        client: Any = sync_client(Transport())
+
+        with pytest.raises(TypeError):
+            client.rpc(SEARCH, **options)
+
+    def test_a_read_only_call_with_misread_arguments_rejects_head(self) -> None:
+        client = sync_client(Transport())
+        call = FunctionCall.rows(
+            "search_books", BooksRow, arguments={"limit": 1}, read_only=True
+        )
+
+        with pytest.raises(ValueError, match="head"):
+            client.rpc(call).head().execute()
 
     def test_a_name_without_params_is_rejected(self) -> None:
         client = sync_client(Transport())
