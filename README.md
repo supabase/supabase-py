@@ -18,6 +18,7 @@ Python monorepo for all [Supabase](https://supabase.com) libraries.
 - [postgrest](src/postgrest/README.md)
 - [supabase_auth](src/auth/README.md)
 - [supabase_utils](src/utils/README.md)
+- [supabase_typegen](src/typegen/README.md)
 
 Relevant links:
 
