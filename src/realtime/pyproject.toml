@@ -22,6 +22,7 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+  "postgrest==3.0.0-a1", # x-release-please-version
   "supabase_utils==3.0.0-a1", # x-release-please-version
   "websockets >=14,<18",
   "pydantic (>=2.11.7,<3.0.0)",

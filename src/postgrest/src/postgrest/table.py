@@ -15,6 +15,8 @@ from .utils import _row_payload, _rows_payload
 if TYPE_CHECKING:
     from supabase_utils.types import JSON
 
+    from .partial_row import PartialRow
+
 Row = TypeVar("Row", default=Any)
 """The row type of the table, the one its columns and filters carry."""
 
@@ -106,6 +108,32 @@ class Table(Generic[Row, Insert, Update]):
     call on the client, so tables from several schemas can be used side by
     side on one client.
     """
+
+    def decode_row(self, record: Mapping[str, Any]) -> Row:
+        """`record`, a row as JSON such as the `record` of a realtime
+        change, decoded into `Row` the way `select()` decodes a row.
+
+        Raises `pydantic.ValidationError` when the record lacks a column
+        `Row` requires, as the record of a change with a column list does.
+        """
+        return _row_adapter(self.row_type).validate_python(record)
+
+    def decode_partial(self, record: Mapping[str, Any]) -> PartialRow[Row]:
+        """`record`, a row as JSON holding some of the columns, read through
+        the columns it holds.
+
+        It suits the `old_record` of a realtime change, which holds the
+        primary key only unless the table has `REPLICA IDENTITY FULL`, and
+        the `record` of a change with a column list. Reading a column the
+        record does not hold raises `KeyError`:
+
+            old = Books.table.decode_partial(change.payload.old_record)
+            book_id: int = old[Books.id]
+        """
+        from .partial_row import PartialRow
+
+        columns = tuple(Column[Row, Any](name) for name in record)
+        return PartialRow(self, columns, dict(record))
 
 
 def _row_adapter[Row](row_type: type[Row]) -> TypeAdapter[Row]:

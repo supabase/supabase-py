@@ -34,7 +34,7 @@ DEPENDENTS = {
     "realtime": {"supabase"},
     "storage": {"supabase"},
     "auth": {"supabase"},
-    "postgrest": {"supabase"},
+    "postgrest": {"realtime", "supabase"},
     "supabase": set(),
 }
 IGNORED_PATTERNS = [

@@ -978,6 +978,18 @@ class Filter(Generic[Row]):
         `(key, value)` pairs."""
         return _query_parameters(self._node)
 
+    def _realtime_filter(self) -> str:
+        """The filter in the grammar of a realtime `postgres_changes`
+        binding: `column=operator.value` conditions joined by commas, which
+        the server applies as an `AND`, each negated with `not.`.
+
+        Raises `ValueError` for what the grammar cannot express, a `|` and a
+        `~` on a group. The server judges the rest, such as the operators
+        and the columns, and refuses the subscription when it cannot apply
+        them.
+        """
+        return ",".join(_realtime_conditions(self._node))
+
     def _embed_references(self) -> frozenset[str]:
         """The keys of the embeds the `is_null()` filters of relations in
         this filter address."""
@@ -994,6 +1006,43 @@ def _embed_references(node: _Node[Any]) -> frozenset[str]:
             return frozenset().union(*map(_embed_references, node.children))
         case _Not():
             return _embed_references(node.inner)
+        case _:
+            assert_never(node)
+
+
+def _realtime_conditions(node: _Node[Any]) -> list[str]:
+    match node:
+        case _And():
+            return [
+                condition
+                for child in node.children
+                for condition in _realtime_conditions(child)
+            ]
+        case _Comparison():
+            return [f"{node.column.expression}={node.token}.{_group_operand(node)}"]
+        case _Raw():
+            return [f"{node.column}={node.operand}"]
+        case _Or():
+            raise ValueError(
+                "Realtime filters cannot use |; join the conditions with &, or "
+                "subscribe once per branch"
+            )
+        case _Not(inner=_Comparison() as inner):
+            operand = _group_operand(inner)
+            return [f"{inner.column.expression}=not.{inner.token}.{operand}"]
+        case _Not(inner=_Raw() as inner):
+            operand = inner.operand
+            negated = (
+                operand.removeprefix("not.")
+                if operand.startswith("not.")
+                else f"not.{operand}"
+            )
+            return [f"{inner.column}={negated}"]
+        case _Not():
+            raise ValueError(
+                "Realtime filters cannot negate a group of conditions; apply ~ "
+                "to one condition"
+            )
         case _:
             assert_never(node)
 

@@ -2153,6 +2153,7 @@ name = "realtime"
 version = "3.0.0a1"
 source = { editable = "src/realtime" }
 dependencies = [
+    { name = "postgrest" },
     { name = "pydantic" },
     { name = "supabase-utils" },
     { name = "websockets" },
@@ -2189,6 +2190,7 @@ tests = [
 
 [package.metadata]
 requires-dist = [
+    { name = "postgrest", editable = "src/postgrest" },
     { name = "pydantic", specifier = ">=2.11.7,<3.0.0" },
     { name = "supabase-utils", editable = "src/utils" },
     { name = "websockets", specifier = ">=14,<18" },
