@@ -288,7 +288,7 @@ class SupabaseAuthHttpClient[
 
     def _sign_in_with_oauth(
         self,
-        provider: Provider,
+        provider: Provider | str,
         redirect_to: str | None = None,
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
@@ -318,7 +318,7 @@ class SupabaseAuthHttpClient[
     def _link_identity(
         self,
         session: Session,
-        provider: Provider,
+        provider: Provider | str,
         redirect_to: str | None = None,
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
@@ -571,7 +571,7 @@ class SupabaseAuthHttpClient[
 
     def _get_url_for_provider(
         self,
-        provider: Provider,
+        provider: Provider | str,
         query: URLQuery,
         pkce_flow: _PKCEFlow | None,
     ) -> URLQuery:
@@ -1014,13 +1014,14 @@ class AsyncSupabaseAuthClient(
 
     async def sign_in_with_oauth(
         self,
-        provider: Provider,
+        provider: Provider | str,
         redirect_to: str | None = None,
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
     ) -> OAuthResponse:
         """
-        Log in an existing user via a third-party provider.
+        Log in an existing user via a third-party provider. A custom OIDC or
+        OAuth provider is named by its identifier, like `custom:mycompany`.
         """
         oauth_response, pkce_flow = self._sign_in_with_oauth(
             provider, redirect_to, scopes, query_params
@@ -1031,7 +1032,7 @@ class AsyncSupabaseAuthClient(
 
     async def link_identity(
         self,
-        provider: Provider,
+        provider: Provider | str,
         redirect_to: str | None = None,
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
@@ -1664,13 +1665,14 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
 
     def sign_in_with_oauth(
         self,
-        provider: Provider,
+        provider: Provider | str,
         redirect_to: str | None = None,
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
     ) -> OAuthResponse:
         """
-        Log in an existing user via a third-party provider.
+        Log in an existing user via a third-party provider. A custom OIDC or
+        OAuth provider is named by its identifier, like `custom:mycompany`.
         """
         oauth_response, pkce_flow = self._sign_in_with_oauth(
             provider, redirect_to, scopes, query_params
@@ -1681,7 +1683,7 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
 
     def link_identity(
         self,
-        provider: Provider,
+        provider: Provider | str,
         redirect_to: str | None = None,
         scopes: str | None = None,
         query_params: dict[str, str] | None = None,
