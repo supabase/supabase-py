@@ -94,13 +94,14 @@ class Token:
 
 
 class TokenFailingAfterFirstCall:
-    def __init__(self) -> None:
+    def __init__(self, error: type[Exception] = RuntimeError) -> None:
         self.calls = 0
+        self.error = error
 
     async def __call__(self) -> str:
         self.calls += 1
         if self.calls > 1:
-            raise RuntimeError("refresh failed for secret-refresh-token")
+            raise self.error("refresh failed for secret-refresh-token")
         return "token-1"
 
 
@@ -321,10 +322,11 @@ async def test_a_failing_token_callback_fails_the_subscribe(
     assert server.joins() == []
 
 
+@pytest.mark.parametrize("error", [RuntimeError, ConnectionError])
 async def test_a_failing_token_callback_keeps_the_heartbeat_running(
-    server: RecordingServer, caplog: pytest.LogCaptureFixture
+    server: RecordingServer, caplog: pytest.LogCaptureFixture, error: type[Exception]
 ) -> None:
-    token = TokenFailingAfterFirstCall()
+    token = TokenFailingAfterFirstCall(error)
 
     with caplog.at_level(logging.WARNING, logger="supabase.realtime"):
         async with connect_once(server.url, token, heartbeat_interval=0.05):
@@ -334,7 +336,7 @@ async def test_a_failing_token_callback_keeps_the_heartbeat_running(
     assert len(server.heartbeats()) >= 3
     assert token.calls >= 3
     assert (
-        "could not refresh the access token after the heartbeat: RuntimeError"
+        f"could not refresh the access token after the heartbeat: {error.__name__}"
         in caplog.text
     )
     assert "secret-refresh-token" not in caplog.text

@@ -282,7 +282,7 @@ async def test_unsubscribe_while_connecting_stops_the_join(server: FakeServer) -
 async def test_unsubscribing_the_last_channel_closes_the_connection(
     server: FakeServer,
 ) -> None:
-    client = RealtimeClient(server.url)
+    client = RealtimeClient(server.url, disconnect_on_empty_channels_after=0)
     channel = client.channel("room")
     await channel.subscribe()
 
@@ -296,7 +296,7 @@ async def test_unsubscribing_the_last_channel_closes_the_connection(
 
 
 async def test_removing_all_channels_closes_the_connection(server: FakeServer) -> None:
-    client = RealtimeClient(server.url)
+    client = RealtimeClient(server.url, disconnect_on_empty_channels_after=0)
     await client.channel("first").subscribe()
     await client.channel("second").subscribe()
 

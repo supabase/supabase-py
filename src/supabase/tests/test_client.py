@@ -178,6 +178,7 @@ async def test_async_client_passes_realtime_options_to_connections() -> None:
                 heartbeat_timeout=10,
                 timeout=4,
                 max_queued_messages=50,
+                disconnect_on_empty_channels_after=3,
             ),
         )
 
@@ -185,6 +186,7 @@ async def test_async_client_passes_realtime_options_to_connections() -> None:
     assert client.realtime.heartbeat_timeout == 10
     assert client.realtime.timeout == 4
     assert client.realtime.max_queued_messages == 50
+    assert client.realtime.disconnect_on_empty_channels_after == 3
 
 
 async def test_async_client_reuses_one_realtime_client() -> None:

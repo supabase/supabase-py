@@ -14,7 +14,7 @@ from supabase_utils._logging import get_logger
 from supabase_utils.http.request import Request, validate_request_timeout
 from supabase_utils.types import JSONParser
 
-from ._redact import describe
+from ._redact import RedactingLoggerAdapter, describe
 from .exceptions import (
     AuthorizationError,
     ChannelClosedError,
@@ -65,7 +65,7 @@ if TYPE_CHECKING:
     from .client import RealtimeClient
     from .message import PostgresRowChange
 
-logger = get_logger("realtime.channel")
+logger = RedactingLoggerAdapter(get_logger("realtime.channel"))
 
 
 @dataclass(frozen=True)
@@ -392,7 +392,7 @@ class RealtimeChannel:
     async def __aexit__(self, *args: object) -> None:
         try:
             await self.unsubscribe()
-        except (websockets.ConnectionClosed, TimeoutError, NotConnectedError) as error:
+        except (websockets.ConnectionClosed, OSError, NotConnectedError) as error:
             logger.warning("could not leave channel %s: %r", self.topic, error)
 
     async def subscribe(self) -> ReplyMessage:
@@ -606,8 +606,9 @@ class RealtimeChannel:
         logged. Presence events are not yielded here: read them from
         `presence_events()`.
 
-        :raises NotConnectedError: If the client is not connected, or is closed
-            while waiting for a message.
+        :raises NotConnectedError: If the client is not connected, is closed
+            while waiting for a message, or the channel was unsubscribed and
+            its queued messages were read.
         :raises Exception: The error that ended the channel, such as an
             `AuthorizationError` when the client could not join it again after
             a reconnect, or the error that dropped the connection of a channel
@@ -615,6 +616,10 @@ class RealtimeChannel:
         """
         while True:
             if self.message_stream.empty():
+                if self.socket.channels.get(self.topic) is not self:
+                    raise NotConnectedError(
+                        "RealtimeChannel.messages", "the channel was unsubscribed"
+                    )
                 message = await self.socket._next_message(self.message_stream)
             else:
                 message = self.message_stream.get_nowait()
@@ -809,7 +814,8 @@ class RealtimeChannel:
             not reply in time.
         :raises ChannelClosedError: With ``broadcast_ack``, if the channel closes
             or errors before the server replies.
-        :raises websockets.ConnectionClosed: If the connection is closed.
+        :raises websockets.ConnectionClosed: If the connection is closed, or the
+            error the `WebSocketConnection` of a custom transport raises.
         :raises Exception: If the connection already failed, the exception that
             failed it, such as a TimeoutError when a heartbeat timed out.
         """

@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 
+from realtime.transport import WebSocketTransport
 from realtime.types import (
     DEFAULT_HEARTBEAT_INTERVAL,
     DEFAULT_HEARTBEAT_TIMEOUT,
     DEFAULT_MAX_QUEUED_MESSAGES,
     DEFAULT_TIMEOUT,
+    validate_disconnect_delay,
     validate_heartbeat,
     validate_push_options,
 )
@@ -30,9 +32,17 @@ class RealtimeClientOptions:
     max_queued_messages: int = DEFAULT_MAX_QUEUED_MESSAGES
     """Messages each channel keeps until they are read from `RealtimeChannel.messages`. When a channel's queue is full, its oldest message is dropped and a warning is logged. Must be positive."""
 
+    transport: WebSocketTransport | None = None
+    """Opens the WebSocket connection, instead of the ``websockets`` library."""
+
+    disconnect_on_empty_channels_after: float | None = None
+    """Seconds to keep the connection open after the last channel is removed. Defaults to twice ``heartbeat_interval``, and ``0`` disconnects at once. Must not be negative."""
+
     def __post_init__(self) -> None:
         validate_heartbeat(self.heartbeat_interval, self.heartbeat_timeout)
         validate_push_options(self.timeout, self.max_queued_messages)
+        if self.disconnect_on_empty_channels_after is not None:
+            validate_disconnect_delay(self.disconnect_on_empty_channels_after)
 
 
 @dataclass(frozen=True, kw_only=True)

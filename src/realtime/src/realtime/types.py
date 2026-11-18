@@ -31,6 +31,14 @@ def validate_heartbeat(interval: float, timeout: float) -> None:
         raise ValueError(f"heartbeat_timeout must be positive, got {timeout}")
 
 
+def validate_disconnect_delay(delay: float) -> None:
+    """Raise `ValueError` unless the delay before disconnecting is zero or more seconds."""
+    if not delay >= 0:
+        raise ValueError(
+            f"disconnect_on_empty_channels_after must not be negative, got {delay}"
+        )
+
+
 def validate_push_options(timeout: float, max_queued_messages: int) -> None:
     """Raise `ValueError` unless the push timeout and the queue size are positive."""
     if not timeout > 0:
