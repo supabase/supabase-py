@@ -44,6 +44,7 @@ def test_writes_the_module_to_standard_output() -> None:
         (json.dumps({**json.loads(FIXTURE), "tables": [{"id": "1"}]}), "shape"),
         (json.dumps({**json.loads(FIXTURE), "version": True}), "version true"),
     ],
+    ids=["not json", "not an object", "version 2", "wrong shape", "version true"],
 )
 def test_rejects_a_document_it_cannot_read(document: str, message: str) -> None:
     result = run(document)
