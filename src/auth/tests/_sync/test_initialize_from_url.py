@@ -1,4 +1,5 @@
 import json
+import time
 
 import pytest
 from httpx import Client, MockTransport, Request, Response
@@ -7,6 +8,7 @@ from supabase_utils.types import JSON
 
 from supabase_auth import SyncSupabaseAuthClient
 from supabase_auth.errors import (
+    AuthApiError,
     AuthImplicitGrantRedirectError,
     AuthPKCECodeVerifierMissingError,
 )
@@ -14,6 +16,7 @@ from supabase_auth.types import (
     AuthChangeEvent,
     AuthFlowType,
     AuthStateChange,
+    Session,
 )
 
 USER: dict[str, JSON] = {
@@ -40,11 +43,17 @@ def mock_client(
     authorizations: list[str],
     token_requests: list[Request] | None = None,
     flow_type: AuthFlowType = "implicit",
+    token_status: int = 200,
 ) -> SyncSupabaseAuthClient:
     def handler(request: Request) -> Response:
         if request.url.path.endswith("/token"):
             assert token_requests is not None
             token_requests.append(request)
+            if token_status != 200:
+                return Response(
+                    token_status,
+                    json={"error_code": "bad_code_verifier", "msg": "Bad code"},
+                )
             return Response(200, json=SESSION)
         assert request.url.path.endswith("/user")
         authorizations.append(request.headers.get("Authorization", ""))
@@ -262,3 +271,24 @@ def test_initialize_recovers_storage_without_callback_parameters(
 
     assert events(changes) == [AuthChangeEvent.INITIAL_SESSION]
     assert client.get_session() is None
+
+
+def test_initialize_recovers_storage_when_code_exchange_fails() -> None:
+    token_requests: list[Request] = []
+    client = mock_client([], token_requests, flow_type="pkce", token_status=400)
+    stored = Session.model_validate(
+        {**SESSION, "access_token": "stored", "expires_at": round(time.time()) + 3600}
+    )
+    client.session_manager.storage.set_item(
+        client.session_manager.storage_key, stored.model_dump_json()
+    )
+    start_oauth_flow(client)
+
+    with pytest.raises(AuthApiError):
+        client.initialize(url="https://app.example/page?code=unrelated")
+
+    assert len(token_requests) == 1
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
+    assert changes[0].session is not None
+    assert changes[0].session.access_token == "stored"

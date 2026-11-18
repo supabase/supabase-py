@@ -737,13 +737,18 @@ class AsyncSupabaseAuthClient(
         """
         Signs in from `url`, as `initialize_from_url` does, when it carries
         implicit grant tokens, an `error_description`, or a PKCE `code` whose
-        flow is pending. Recovers the stored session otherwise.
+        flow is pending. Recovers the stored session otherwise, and also
+        when the code exchange fails, before raising its error.
         """
         parameters = _parse_url_params(url) if url else {}
-        if _is_implicit_grant_callback(parameters) or await self._is_pkce_callback(
-            parameters
-        ):
+        if _is_implicit_grant_callback(parameters):
             await self._initialize_from_parameters(parameters)
+        elif await self._is_pkce_callback(parameters):
+            try:
+                await self._initialize_from_parameters(parameters)
+            except Exception:
+                await self.initialize_from_storage()
+                raise
         else:
             await self.initialize_from_storage()
 
@@ -1399,13 +1404,18 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         """
         Signs in from `url`, as `initialize_from_url` does, when it carries
         implicit grant tokens, an `error_description`, or a PKCE `code` whose
-        flow is pending. Recovers the stored session otherwise.
+        flow is pending. Recovers the stored session otherwise, and also
+        when the code exchange fails, before raising its error.
         """
         parameters = _parse_url_params(url) if url else {}
-        if _is_implicit_grant_callback(parameters) or self._is_pkce_callback(
-            parameters
-        ):
+        if _is_implicit_grant_callback(parameters):
             self._initialize_from_parameters(parameters)
+        elif self._is_pkce_callback(parameters):
+            try:
+                self._initialize_from_parameters(parameters)
+            except Exception:
+                self.initialize_from_storage()
+                raise
         else:
             self.initialize_from_storage()
 
