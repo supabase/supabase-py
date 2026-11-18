@@ -30,6 +30,7 @@ from .download import (
     StorageDownload,
     _async_download,
     _async_read,
+    _byte_range,
     _sync_download,
     _sync_read,
 )
@@ -737,6 +738,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         path: str,
         transform: TransformOptions | None,
         query_params: dict[str, str] | None,
+        byte_range: str | None,
     ) -> EmptyRequest:
         render_path: list[str] = ["object"]
         params = (
@@ -746,10 +748,16 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             params = params.merge(URLQuery.from_mapping(transform_to_dict(transform)))
             render_path = ["render", "image", "authenticated"]
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
+        headers = Headers.empty()
+        if byte_range is not None:
+            headers = headers.set("Range", byte_range).set(
+                "Accept-Encoding", "identity"
+            )
         return EmptyRequest(
             method="GET",
             path=[*render_path, self.id, *path_parts],
             query=params,
+            headers=headers,
         )
 
     @overload
@@ -759,6 +767,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
         *,
+        offset: int = 0,
+        length: int | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> bytes: ...
 
@@ -769,6 +779,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
         *,
+        offset: int = 0,
+        length: int | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> Coroutine[Any, Any, bytes]: ...
 
@@ -778,28 +790,53 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
         *,
+        offset: int = 0,
+        length: int | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> bytes | Coroutine[Any, Any, bytes]:
         """
         Downloads a file into memory. Use :meth:`download_stream` for a file
         too large to hold in memory.
 
+        A byte range, from `offset` or of `length` bytes, raises
+        `StorageRangeIgnoredError` when the server answers with the whole file
+        instead, as a cache that ignores the range does. Use
+        :meth:`download_stream` to accept the whole file in that case.
+
         Parameters
         ----------
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
+        offset
+            The first byte to download, counted from 0. Pass the size of a
+            partial file to resume it.
+        length
+            How many bytes to download from `offset`. Defaults to every byte
+            up to the end of the file. A range that ends past the end of the
+            file stops at its end.
         on_progress
             Called with the bytes received so far and the total, or None when
             the total is not known, as the body arrives. It restarts from 0
             when the download is retried.
         """
-        request = self._download_request(path, transform, query_params)
+        byte_range = _byte_range(offset, length)
+        request = self._download_request(path, transform, query_params, byte_range)
         if isinstance(self.executor, AsyncHttpIO):
             return _async_read(
-                self.executor, self.base_url, self.default_headers, request, on_progress
+                self.executor,
+                self.base_url,
+                self.default_headers,
+                request,
+                byte_range,
+                on_progress,
             )
         return _sync_read(
-            self.executor, self.base_url, self.default_headers, request, on_progress
+            self.executor,
+            self.base_url,
+            self.default_headers,
+            request,
+            byte_range,
+            on_progress,
         )
 
     @overload
@@ -809,6 +846,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
         *,
+        offset: int = 0,
+        length: int | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> AbstractContextManager[StorageDownload]: ...
 
@@ -819,6 +858,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
         *,
+        offset: int = 0,
+        length: int | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> AbstractAsyncContextManager[AsyncStorageDownload]: ...
 
@@ -828,6 +869,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         transform: TransformOptions | None = None,
         query_params: dict[str, str] | None = None,
         *,
+        offset: int = 0,
+        length: int | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> (
         AbstractContextManager[StorageDownload]
@@ -842,6 +885,11 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         An error response raises the same `StorageApiError` as `download`.
         Leaving the context closes the connection.
 
+        A byte range, from `offset` or of `length` bytes, is answered with
+        status 206 and a `Content-Range` header, or with status 200 and the
+        whole file when the server or a cache ignores the range. Pass
+        `resume=True` to `write_to` to continue a partial file:
+
         ```python
         with client.from_("videos").download_stream("intro.mp4") as download:
             download.write_to("intro.mp4")
@@ -849,17 +897,32 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         async with client.from_("videos").download_stream("intro.mp4") as download:
             async for chunk in download:
                 ...
+
+        partial = Path("intro.mp4")
+        offset = partial.stat().st_size if partial.exists() else 0
+        with client.from_("videos").download_stream(
+            "intro.mp4", offset=offset
+        ) as download:
+            download.write_to(partial, resume=True)
         ```
 
         Parameters
         ----------
         path
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
+        offset
+            The first byte to download, counted from 0. Pass the size of a
+            partial file to resume it.
+        length
+            How many bytes to download from `offset`. Defaults to every byte
+            up to the end of the file. A range that ends past the end of the
+            file stops at its end.
         on_progress
             Called with the bytes of the body read so far and the total, or
             None when the total is not known, as the body is read.
         """
-        request = self._download_request(path, transform, query_params)
+        byte_range = _byte_range(offset, length)
+        request = self._download_request(path, transform, query_params, byte_range)
         if isinstance(self.executor, AsyncHttpIO):
             return _async_download(
                 self.executor, self.base_url, self.default_headers, request, on_progress

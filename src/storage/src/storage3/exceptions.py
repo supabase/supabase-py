@@ -28,6 +28,22 @@ class StorageDownloadTooLargeError(StorageException):
         """The cap the body exceeded."""
 
 
+class StorageRangeIgnoredError(StorageException):
+    """Raised when `download` asked for a byte range and the server answered
+    with the whole object instead, as a cache that ignores the `Range` header
+    does. Use `download_stream` to accept the whole object in that case."""
+
+    def __init__(self, byte_range: str, status: int) -> None:
+        super().__init__(
+            f"The server answered the request for {byte_range} with HTTP {status}"
+            " and the whole object instead of HTTP 206 and the range"
+        )
+        self.byte_range = byte_range
+        """The `Range` header that was sent, such as `bytes=0-99`."""
+        self.status = status
+        """The HTTP status the server answered with."""
+
+
 class VectorBucketException(StorageException):
     """Raised when a vector bucket operation is given invalid input."""
 

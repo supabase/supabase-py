@@ -1207,8 +1207,11 @@ features:
       - UploadResponse
   storage.file_buckets.download:
     status: implemented
+    note: "offset and length download a byte range, sent as Range: bytes=<first>-<last>. A 200 to a ranged request raises StorageRangeIgnoredError as soon as the head arrives, with byte_range and status."
     symbols:
       - StorageFileApiClient.download
+    supporting_symbols:
+      - StorageRangeIgnoredError
   storage.file_buckets.list_files:
     status: implemented
     symbols:
@@ -1321,7 +1324,7 @@ features:
       - AsyncHttpIO.receive
   storage.file_buckets.download_as_stream:
     status: implemented
-    note: "download_stream() returns a context manager that sends the request on entry and gives a StorageDownload (AsyncStorageDownload on the async client) once a 2xx head arrived, with status and headers, or raises StorageApiError. Iterate over it, read(max_bytes) it into memory or write_to(path) it atomically. There is no byte range argument yet."
+    note: "download_stream() returns a context manager that sends the request on entry and gives a StorageDownload (AsyncStorageDownload on the async client) once a 2xx head arrived, with status and headers, or raises StorageApiError. Iterate over it, read(max_bytes) it into memory or write_to(path) it atomically. offset and length download a byte range; a 206 or a 200 to a ranged request is returned as it is, and write_to(path, resume=True) appends a 206 body to the partial file and replaces it with a 200 body."
     symbols:
       - StorageFileApiClient.download_stream
     supporting_symbols:

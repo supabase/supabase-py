@@ -8,7 +8,12 @@ from contextlib import asynccontextmanager, contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO
 
-from .exceptions import StorageDownloadTooLargeError, parse_api_error
+from .exceptions import (
+    StorageDownloadTooLargeError,
+    StorageException,
+    StorageRangeIgnoredError,
+    parse_api_error,
+)
 from .progress import _async_downloaded, _downloaded
 
 if TYPE_CHECKING:
@@ -66,6 +71,54 @@ class _DownloadHead:
     @property
     def _total(self) -> int | None:
         return _download_total(self.headers)
+
+
+def _byte_range(offset: int, length: int | None) -> str | None:
+    """The `Range` header for `length` bytes from `offset`, or None for the
+    whole object."""
+    if offset < 0:
+        raise ValueError(f"offset must not be negative, got {offset}")
+    if length is not None and length < 1:
+        raise ValueError(f"length must be at least 1, got {length}")
+    if length is not None:
+        return f"bytes={offset}-{offset + length - 1}"
+    return f"bytes={offset}-" if offset else None
+
+
+def _range_start(headers: Headers) -> int:
+    """The first byte of a partial body, from its `Content-Range` header.
+    Rejects an encoded body, whose byte offsets are not those of the file."""
+    encoding = headers.get("Content-Encoding")
+    if encoding is not None and encoding.strip().lower() != "identity":
+        raise StorageException(
+            f"The partial download is encoded with {encoding}, so its byte"
+            " offsets are not those of the file"
+        )
+    value = headers.get("Content-Range") or ""
+    unit, _, positions = value.partition(" ")
+    span, _, total = positions.partition("/")
+    first, _, last = span.partition("-")
+    if (
+        unit.lower() == "bytes"
+        and first.isdecimal()
+        and last.isdecimal()
+        and int(first) <= int(last)
+        and (total == "*" or (total.isdecimal() and int(last) < int(total)))
+    ):
+        return int(first)
+    raise StorageException(
+        f"The partial download has an invalid Content-Range header: {value!r}"
+    )
+
+
+def _open_to_resume(destination: Path, start: int) -> BinaryIO:
+    """Opens `destination` to append a body that starts at byte `start`."""
+    size = destination.stat().st_size if destination.exists() else 0
+    if start != size:
+        raise StorageException(
+            f"The download starts at byte {start}, but {destination} has {size} bytes"
+        )
+    return destination.open("ab")
 
 
 def _check_size(size: int, max_bytes: int | None) -> None:
@@ -150,15 +203,27 @@ class StorageDownload(_DownloadHead):
             chunks.append(chunk)
         return b"".join(chunks)
 
-    def write_to(self, path: str | os.PathLike[str]) -> None:
+    def write_to(self, path: str | os.PathLike[str], *, resume: bool = False) -> None:
         """Writes the body to the file at `path`, replacing it.
 
         The body goes to a temporary file in the same directory first, which
         replaces `path` once the whole body arrived. On a failure `path` is
         left as it was. The directory must exist. A file that existed keeps
         its permissions, and a symlink keeps pointing to the replaced file.
+
+        With `resume`, a partial body (HTTP 206) is appended to `path`
+        instead. `path` must hold exactly the bytes before the range, so start
+        the download with the size of `path` as `offset`. A failure then
+        leaves the bytes that arrived, and the next resume continues after
+        them. A whole body (HTTP 200), as a server or cache that ignores the
+        range sends, replaces `path` as it does without `resume`.
         """
         destination = _destination(path)
+        if resume and self.status == 206:
+            with _open_to_resume(destination, _range_start(self.headers)) as file:
+                for chunk in self:
+                    file.write(chunk)
+            return
         temporary = _temporary_path(destination)
         try:
             with _open_new(temporary, destination) as file:
@@ -207,7 +272,9 @@ class AsyncStorageDownload(_DownloadHead):
             chunks.append(chunk)
         return b"".join(chunks)
 
-    async def write_to(self, path: str | os.PathLike[str]) -> None:
+    async def write_to(
+        self, path: str | os.PathLike[str], *, resume: bool = False
+    ) -> None:
         """Writes the body to the file at `path`, replacing it.
 
         The body goes to a temporary file in the same directory first, which
@@ -216,8 +283,26 @@ class AsyncStorageDownload(_DownloadHead):
         file that existed keeps its permissions, and a symlink keeps pointing
         to the replaced file. The body is written in worker threads, so it
         does not block the event loop.
+
+        With `resume`, a partial body (HTTP 206) is appended to `path`
+        instead. `path` must hold exactly the bytes before the range, so start
+        the download with the size of `path` as `offset`. A failure or a
+        cancellation then leaves the bytes that arrived, and the next resume
+        continues after them. A whole body (HTTP 200), as a server or cache
+        that ignores the range sends, replaces `path` as it does without
+        `resume`.
         """
         destination = _destination(path)
+        if resume and self.status == 206:
+            file = await asyncio.to_thread(
+                _open_to_resume, destination, _range_start(self.headers)
+            )
+            try:
+                async for chunk in self:
+                    await asyncio.to_thread(file.write, chunk)
+            finally:
+                await asyncio.to_thread(file.close)
+            return
         temporary = _temporary_path(destination)
         try:
             file = _open_new(temporary, destination)
@@ -271,19 +356,38 @@ def _body_of(request: EmptyRequest) -> HttpMethod[bytes]:
     return _content_of((yield request))
 
 
+def _check_range(status: int, headers: Headers, byte_range: str) -> None:
+    if status != 206:
+        raise StorageRangeIgnoredError(byte_range, status)
+    requested = int(byte_range.removeprefix("bytes=").partition("-")[0])
+    start = _range_start(headers)
+    if start != requested:
+        raise StorageException(
+            f"The server answered the request for {byte_range} with a range"
+            f" that starts at byte {start}"
+        )
+
+
 def _sync_read(
     executor: SyncHttpIO,
     base_url: URL,
     headers: Headers,
     request: EmptyRequest,
+    byte_range: str | None,
     on_progress: ProgressCallback | None,
 ) -> bytes:
     """The body of a download, with every chunk of every attempt reported to
-    `on_progress` when it is given."""
-    if on_progress is None:
+    `on_progress` when it is given. A download of `byte_range` that is
+    answered with anything but the range raises once the head arrives,
+    without reading the body."""
+    if byte_range is None and on_progress is None:
         return executor.communicate(base_url, headers, _body_of(request))
 
     def observe(response: StreamedResponse) -> Iterator[bytes]:
+        if byte_range is not None:
+            _check_range(response.status, response.headers, byte_range)
+        if on_progress is None:
+            return response.body
         return _downloaded(
             response.body, on_progress, _download_total(response.headers)
         )
@@ -296,14 +400,21 @@ async def _async_read(
     base_url: URL,
     headers: Headers,
     request: EmptyRequest,
+    byte_range: str | None,
     on_progress: ProgressCallback | None,
 ) -> bytes:
     """The body of a download, with every chunk of every attempt reported to
-    `on_progress` when it is given."""
-    if on_progress is None:
+    `on_progress` when it is given. A download of `byte_range` that is
+    answered with anything but the range raises once the head arrives,
+    without reading the body."""
+    if byte_range is None and on_progress is None:
         return await executor.communicate(base_url, headers, _body_of(request))
 
     def observe(response: AsyncStreamedResponse) -> AsyncIterator[bytes]:
+        if byte_range is not None:
+            _check_range(response.status, response.headers, byte_range)
+        if on_progress is None:
+            return response.body
         return _async_downloaded(
             response.body, on_progress, _download_total(response.headers)
         )

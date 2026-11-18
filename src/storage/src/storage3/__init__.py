@@ -7,6 +7,7 @@ from storage3.exceptions import (
     StorageApiErrorMessage,
     StorageDownloadTooLargeError,
     StorageException,
+    StorageRangeIgnoredError,
     VectorBucketException,
 )
 from storage3.file_api import StorageFileApiClient
@@ -24,6 +25,7 @@ __all__ = [
     "StorageDownloadTooLargeError",
     "StorageException",
     "StorageFileApiClient",
+    "StorageRangeIgnoredError",
     "SyncStorageClient",
     "UploadBody",
     "VectorBucketException",
