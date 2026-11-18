@@ -1307,7 +1307,18 @@ features:
     symbols:
       - StorageFileApiClient.download
   storage.file_buckets.resumable_upload: not_implemented
-  storage.file_buckets.transfer_progress: not_implemented
+  storage.file_buckets.transfer_progress:
+    status: implemented
+    note: "upload(), update(), upload_to_signed_url(), download() and download_stream() take an on_progress(moved, total) callback; total is None when it is not known. A resent upload or a retried download() restarts from 0."
+    symbols:
+      - StorageFileApiClient.upload
+      - StorageFileApiClient.update
+      - StorageFileApiClient.upload_to_signed_url
+      - StorageFileApiClient.download
+      - StorageFileApiClient.download_stream
+    supporting_symbols:
+      - SyncHttpIO.receive
+      - AsyncHttpIO.receive
   storage.file_buckets.download_as_stream:
     status: implemented
     note: "download_stream() returns a context manager that sends the request on entry and gives a StorageDownload (AsyncStorageDownload on the async client) once a 2xx head arrived, with status and headers, or raises StorageApiError. Iterate over it, read(max_bytes) it into memory or write_to(path) it atomically. There is no byte range argument yet."

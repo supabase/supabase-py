@@ -9,20 +9,38 @@ from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO
 
 from .exceptions import StorageDownloadTooLargeError, parse_api_error
+from .progress import _async_downloaded, _downloaded
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterator
 
     from supabase_utils.http.headers import Headers
-    from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
+    from supabase_utils.http.io import AsyncHttpIO, HttpMethod, SyncHttpIO
     from supabase_utils.http.request import (
         AsyncStreamedResponse,
         EmptyRequest,
+        Response,
         StreamedResponse,
     )
     from yarl import URL
 
+    from .progress import ProgressCallback
+
 __all__ = ["AsyncStorageDownload", "StorageDownload"]
+
+
+def _content_length(headers: Headers) -> int | None:
+    value = headers.get("Content-Length")
+    return int(value) if value is not None and value.isdecimal() else None
+
+
+def _download_total(headers: Headers) -> int | None:
+    """The `Content-Length` of a download, unless the HTTP stack decodes a
+    `Content-Encoding`, which makes it count other bytes than the body."""
+    encoding = headers.get("Content-Encoding")
+    if encoding is not None and encoding.strip().lower() != "identity":
+        return None
+    return _content_length(headers)
 
 
 class _DownloadHead:
@@ -38,13 +56,16 @@ class _DownloadHead:
         send one, as for a transformed image. For a body sent with a
         `Content-Encoding` it counts the encoded bytes, not the decoded bytes
         the download yields."""
-        value = self.headers.get("Content-Length")
-        return int(value) if value is not None and value.isdecimal() else None
+        return _content_length(self.headers)
 
     @property
     def content_type(self) -> str | None:
         """The `Content-Type` of the body."""
         return self.headers.get("Content-Type")
+
+    @property
+    def _total(self) -> int | None:
+        return _download_total(self.headers)
 
 
 def _check_size(size: int, max_bytes: int | None) -> None:
@@ -104,9 +125,13 @@ class StorageDownload(_DownloadHead):
     `SupabaseTransportError`.
     """
 
-    def __init__(self, response: StreamedResponse) -> None:
+    def __init__(
+        self, response: StreamedResponse, on_progress: ProgressCallback | None = None
+    ) -> None:
         super().__init__(response.status, response.headers)
         self._body = response.body
+        if on_progress is not None:
+            self._body = _downloaded(self._body, on_progress, self._total)
 
     def __iter__(self) -> Iterator[bytes]:
         return self._body
@@ -155,9 +180,15 @@ class AsyncStorageDownload(_DownloadHead):
     read raises a `SupabaseTransportError`.
     """
 
-    def __init__(self, response: AsyncStreamedResponse) -> None:
+    def __init__(
+        self,
+        response: AsyncStreamedResponse,
+        on_progress: ProgressCallback | None = None,
+    ) -> None:
         super().__init__(response.status, response.headers)
         self._body = response.body
+        if on_progress is not None:
+            self._body = _async_downloaded(self._body, on_progress, self._total)
 
     def __aiter__(self) -> AsyncIterator[bytes]:
         return self._body
@@ -204,19 +235,77 @@ class AsyncStorageDownload(_DownloadHead):
 
 @contextmanager
 def _sync_download(
-    executor: SyncHttpIO, base_url: URL, headers: Headers, request: EmptyRequest
+    executor: SyncHttpIO,
+    base_url: URL,
+    headers: Headers,
+    request: EmptyRequest,
+    on_progress: ProgressCallback | None,
 ) -> Generator[StorageDownload]:
     with executor.stream(base_url, headers, request) as response:
         if not response.is_success:
             raise parse_api_error(response.read())
-        yield StorageDownload(response)
+        yield StorageDownload(response, on_progress)
 
 
 @asynccontextmanager
 async def _async_download(
-    executor: AsyncHttpIO, base_url: URL, headers: Headers, request: EmptyRequest
+    executor: AsyncHttpIO,
+    base_url: URL,
+    headers: Headers,
+    request: EmptyRequest,
+    on_progress: ProgressCallback | None,
 ) -> AsyncGenerator[AsyncStorageDownload]:
     async with executor.stream(base_url, headers, request) as response:
         if not response.is_success:
             raise parse_api_error(await response.read())
-        yield AsyncStorageDownload(response)
+        yield AsyncStorageDownload(response, on_progress)
+
+
+def _content_of(response: Response) -> bytes:
+    if not response.is_success:
+        raise parse_api_error(response)
+    return response.content
+
+
+def _body_of(request: EmptyRequest) -> HttpMethod[bytes]:
+    return _content_of((yield request))
+
+
+def _sync_read(
+    executor: SyncHttpIO,
+    base_url: URL,
+    headers: Headers,
+    request: EmptyRequest,
+    on_progress: ProgressCallback | None,
+) -> bytes:
+    """The body of a download, with every chunk of every attempt reported to
+    `on_progress` when it is given."""
+    if on_progress is None:
+        return executor.communicate(base_url, headers, _body_of(request))
+
+    def observe(response: StreamedResponse) -> Iterator[bytes]:
+        return _downloaded(
+            response.body, on_progress, _download_total(response.headers)
+        )
+
+    return _content_of(executor.receive(base_url, headers, request, observe))
+
+
+async def _async_read(
+    executor: AsyncHttpIO,
+    base_url: URL,
+    headers: Headers,
+    request: EmptyRequest,
+    on_progress: ProgressCallback | None,
+) -> bytes:
+    """The body of a download, with every chunk of every attempt reported to
+    `on_progress` when it is given."""
+    if on_progress is None:
+        return await executor.communicate(base_url, headers, _body_of(request))
+
+    def observe(response: AsyncStreamedResponse) -> AsyncIterator[bytes]:
+        return _async_downloaded(
+            response.body, on_progress, _download_total(response.headers)
+        )
+
+    return _content_of(await executor.receive(base_url, headers, request, observe))

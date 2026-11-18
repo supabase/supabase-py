@@ -76,3 +76,21 @@ async with storage_client.from_("bucket").download_stream("videos/intro.mp4") as
 ```
 
 `read(max_bytes=...)` reads the body into memory and raises `StorageDownloadTooLargeError` once it grows past the cap.
+
+### Transfer progress
+
+`upload`, `update`, `upload_to_signed_url`, `download` and `download_stream` take an `on_progress` callback. It is called with the bytes moved so far and the total, which is `None` when it is not known, as for an iterator or a transformed image:
+
+```python
+from pathlib import Path
+
+
+def on_progress(moved: int, total: int | None) -> None:
+    print(f"{moved} of {total or '?'} bytes")
+
+await storage_client.from_("bucket").upload(
+    "videos/intro.mp4", Path("intro.mp4"), on_progress=on_progress
+)
+```
+
+The count restarts from 0 when an upload or a `download` is retried. The callback can run in a worker thread.
