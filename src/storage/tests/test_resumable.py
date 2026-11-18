@@ -728,3 +728,31 @@ async def test_refuses_a_file_that_changed_before_the_first_run(
         await run(upload)
 
     assert server.requests == []
+
+
+@use_async
+async def test_a_paused_upload_continues_with_the_headers_the_client_has_now(
+    server: TusServer, use_async: bool
+) -> None:
+    def pause(moved: int, total: int | None) -> None:
+        if moved == 4 and len(server.requests) == 2:
+            upload.pause()
+
+    client = server.async_client() if use_async else server.sync_client()
+    bucket = client.from_("videos")
+    upload = bucket.resumable_upload("clip.bin", DATA, chunk_size=4, on_progress=pause)
+    with pytest.raises(ResumableUploadPausedError):
+        await run(upload)
+    client.default_headers = client.default_headers.override(
+        "Authorization", "Bearer refreshed"
+    )
+
+    await run(upload)
+
+    assert [request.headers["Authorization"] for request in server.requests] == [
+        "Bearer key",
+        "Bearer key",
+        "Bearer refreshed",
+        "Bearer refreshed",
+        "Bearer refreshed",
+    ]

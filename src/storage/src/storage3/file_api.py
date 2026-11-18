@@ -4,7 +4,7 @@ import base64
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, BinaryIO, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, Protocol, cast, overload
 
 from pydantic import BaseModel, TypeAdapter
 from supabase_utils.http.body import FileContent
@@ -240,6 +240,11 @@ def _parse_upload_response(response: Response, path: str) -> UploadResponse:
     )
 
 
+class _HeadersSource(Protocol):
+    @property
+    def default_headers(self) -> Headers: ...
+
+
 @dataclass
 class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     """Functions needed to access the file API."""
@@ -247,7 +252,15 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     id: str
     base_url: URL
     executor: HttpIO
-    default_headers: Headers
+    client: _HeadersSource
+    """The storage client this bucket belongs to, whose headers every
+    request sends."""
+
+    @property
+    def default_headers(self) -> Headers:
+        """The headers of the storage client, read for every request, so that
+        a token the client got since this bucket was opened is sent."""
+        return self.client.default_headers
 
     def _parse_signed_url_response(self, response: Response) -> SignedUploadURL:
         if not response.is_success:
@@ -1149,9 +1162,6 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             sent again.
         """
         options: dict[str, Any] = {
-            "base_url": self.base_url,
-            "default_headers": self.default_headers,
-            "bucket_id": self.id,
             "path": _normalize_object_key(path),
             "source": file,
             "content_type": content_type,
@@ -1164,8 +1174,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             "on_progress": on_progress,
         }
         if isinstance(self.executor, AsyncHttpIO):
-            return AsyncResumableUpload(executor=self.executor, **options)
-        return ResumableUpload(executor=self.executor, **options)
+            return AsyncResumableUpload(bucket=self, **options)
+        return ResumableUpload(bucket=self, **options)
 
     @handle_http_io
     def update(

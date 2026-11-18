@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from supabase_utils.http.request import Response
     from supabase_utils.http.retry import RetryPolicy
 
+    from .file_api import StorageFileApiClient
     from .progress import ProgressCallback
 
 __all__ = [
@@ -184,10 +185,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def __init__(
         self,
         *,
-        executor: HttpIO,
-        base_url: URL,
-        default_headers: Headers,
-        bucket_id: str,
+        bucket: StorageFileApiClient[HttpIO],
         path: str,
         source: ResumableUploadSource,
         content_type: str,
@@ -201,16 +199,14 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     ) -> None:
         if chunk_size <= 0:
             raise ValueError(f"chunk_size must be positive, not {chunk_size!r}")
-        self.bucket_id = bucket_id
+        self.bucket_id = bucket.id
         """The bucket the object goes to."""
         self.path = path
         """The path of the object in the bucket."""
         self._start, self.size, self._file_identity = _measure(source)
         """The bytes the upload sends."""
         self._source = source
-        self._executor = executor
-        self._base_url = base_url
-        self._default_headers = default_headers
+        self._bucket = bucket
         self._content_type = content_type
         self._cache_control = cache_control
         self._upsert = upsert
@@ -244,7 +240,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         if identity is None:
             return None
         parts = (
-            str(self._base_url),
+            str(self._bucket.base_url),
             self.bucket_id,
             self.path,
             str(self.size),
@@ -321,7 +317,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def _is_trusted(self, url: URL) -> bool:
         """Whether `url` is on the storage server, so the credentials of the
         client can be sent to it."""
-        return url.is_absolute() and url.origin() == self._base_url.origin()
+        return url.is_absolute() and url.origin() == self._bucket.base_url.origin()
 
     def _forget(self) -> None:
         self._url = None
@@ -355,7 +351,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         if self._metadata is not None:
             metadata.append(f"metadata {b64encode(self._metadata).decode('ascii')}")
         return _TusRequest(
-            url=self._base_url.joinpath("upload", "resumable"),
+            url=self._bucket.base_url.joinpath("upload", "resumable"),
             method="POST",
             headers=self._request_headers()
             .override("Upload-Length", str(self.size))
@@ -426,7 +422,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         the `RetryPolicy` retries a POST, since a failed one may still have
         created an upload. A PATCH or a HEAD is safe to repeat, as
         the offset is read again before the next PATCH."""
-        policy: RetryPolicy = self._executor.retry_policy
+        policy: RetryPolicy = self._bucket.executor.retry_policy
         if method == "POST" and "POST" not in policy.retryable_methods:
             return None
         if isinstance(outcome, SupabaseTransportError):
@@ -535,16 +531,16 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
 
 def _drive_sync(
-    executor: SyncHttpIO,
-    base_url: URL,
-    headers: Headers,
+    bucket: StorageFileApiClient[SyncHttpIO],
     steps: Generator[_TusRequest, Response, UploadResponse],
 ) -> UploadResponse:
     try:
         request = next(steps)
         while True:
             try:
-                response = executor.communicate(base_url, headers, _once(request))
+                response = bucket.executor.communicate(
+                    bucket.base_url, bucket.default_headers, _once(request)
+                )
             except SupabaseTransportError as error:
                 request = steps.throw(error)
             else:
@@ -556,16 +552,16 @@ def _drive_sync(
 
 
 async def _drive_async(
-    executor: AsyncHttpIO,
-    base_url: URL,
-    headers: Headers,
+    bucket: StorageFileApiClient[AsyncHttpIO],
     steps: Generator[_TusRequest, Response, UploadResponse],
 ) -> UploadResponse:
     try:
         request = next(steps)
         while True:
             try:
-                response = await executor.communicate(base_url, headers, _once(request))
+                response = await bucket.executor.communicate(
+                    bucket.base_url, bucket.default_headers, _once(request)
+                )
             except SupabaseTransportError as error:
                 request = steps.throw(error)
             else:
@@ -606,9 +602,7 @@ class ResumableUpload(BaseResumableUpload[SyncHttpIO]):
             file, owned = self._open()
             try:
                 return _drive_sync(
-                    self._executor,
-                    self._base_url,
-                    self._default_headers,
+                    self._bucket,
                     self._steps(file),
                 )
             finally:
@@ -628,8 +622,10 @@ class ResumableUpload(BaseResumableUpload[SyncHttpIO]):
         self._cancelled = True
         url = self._stored_url()
         if url is not None:
-            response = self._executor.communicate(
-                self._base_url, self._default_headers, _once(self._delete_request(url))
+            response = self._bucket.executor.communicate(
+                self._bucket.base_url,
+                self._bucket.default_headers,
+                _once(self._delete_request(url)),
             )
             if not response.is_success and response.status not in (404, 410):
                 raise _tus_error(response)
@@ -668,9 +664,7 @@ class AsyncResumableUpload(BaseResumableUpload[AsyncHttpIO]):
             file, owned = await asyncio.to_thread(self._open)
             try:
                 return await _drive_async(
-                    self._executor,
-                    self._base_url,
-                    self._default_headers,
+                    self._bucket,
                     self._steps(file),
                 )
             finally:
@@ -690,8 +684,10 @@ class AsyncResumableUpload(BaseResumableUpload[AsyncHttpIO]):
         self._cancelled = True
         url = self._stored_url()
         if url is not None:
-            response = await self._executor.communicate(
-                self._base_url, self._default_headers, _once(self._delete_request(url))
+            response = await self._bucket.executor.communicate(
+                self._bucket.base_url,
+                self._bucket.default_headers,
+                _once(self._delete_request(url)),
             )
             if not response.is_success and response.status not in (404, 410):
                 raise _tus_error(response)

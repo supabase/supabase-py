@@ -1368,6 +1368,7 @@ features:
       - StorageClient.from_
     supporting_symbols:
       - StorageFileApiClient
+      - StorageFileApiClient.default_headers
   storage.file_buckets.upload:
     status: implemented
     note: "upload(), update() and upload_to_signed_url() send the raw file body. They take bytes, a path, a binary file or an iterator over bytes (an async iterator on the async client), and stream a file or an iterator instead of reading it into memory."
