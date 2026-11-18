@@ -26,6 +26,10 @@ Setup and commands: [README.md § Local Development](README.md#local-development
 - Code must run on Python 3.12, CI tests 3.12 to 3.15 ([ci.yml](.github/workflows/ci.yml)).
 - `make snippets` type-checks every `python` code block of the Markdown files, apart from the changelogs, against the workspace. A block is the body of an async function and imports what it uses. Names a file's blocks share, like the client its README creates, are declared in `PRELUDES` of [check_markdown_snippets.py](.github/scripts/check_markdown_snippets.py). Fence v2 code shown as "before" as `python skip`.
 
+## SDK engineering principles
+
+This SDK follows the [Supabase SDK engineering principles](https://github.com/supabase/sdk/blob/main/docs/principles.md): thin clients, logic and validation in the service, service-owned defaults, and decoding that accepts new values. Read them before you write or review code. Cite a principle by a link to its heading. The conventions in this repository win for local matters such as commands, layout, and style.
+
 ## Public API
 
 Adding or renaming a public symbol means updating [sdk-compliance.yaml](sdk-compliance.yaml) with both the `Async*` and `Sync*` names. A method defined once on a generic base, like `PostgrestClient.rpc` or `SupabaseClient.rpc`, is listed under the base name, because the check does not see inherited methods on the subclasses. [validate-capabilities.yml](.github/workflows/validate-capabilities.yml) checks it against the [supabase/sdk](https://github.com/supabase/sdk) capability registry.
