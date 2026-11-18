@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import datetime
 import os
 from collections.abc import AsyncIterator
@@ -216,15 +217,31 @@ async def test_persisted_broadcasts_are_replayed(socket: RealtimeClient) -> None
         )
 
     replay = private.broadcast(replay_since=since, replay_limit=10)
-    async with socket.channel(topic, replay) as receiver:
-        replayed = [await anext(receiver.messages) for _ in range(2)]
+    expected = [("websocket", {"i": 1}), ("http", {"i": 3})]
+    replayed: list[tuple[str, object]] = []
+    for _ in range(10):
+        replayed = await _replayed_broadcasts(socket, topic, replay)
+        if replayed == expected:
+            break
+    assert replayed == expected
 
-    assert all(isinstance(message, BroadcastMessage) for message in replayed)
-    assert [
+
+async def _replayed_broadcasts(
+    socket: RealtimeClient, topic: str, options: RealtimeChannelOptions
+) -> list[tuple[str, object]]:
+    """Join `topic` and collect every message that arrives within a second."""
+    received: list[object] = []
+    async with socket.channel(topic, options) as receiver:
+        with contextlib.suppress(TimeoutError):
+            async with asyncio.timeout(1):
+                while True:
+                    received.append(await anext(receiver.messages))
+    return [
         (message.payload.event, message.payload.payload)
-        for message in replayed
         if isinstance(message, BroadcastMessage)
-    ] == [("websocket", {"i": 1}), ("http", {"i": 3})]
+        else ("unexpected", message)
+        for message in received
+    ]
 
 
 async def _token(token: str) -> str:

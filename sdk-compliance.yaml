@@ -995,7 +995,7 @@ features:
       - RealtimeAPIError
   realtime.channel.broadcast_persist:
     status: implemented
-    note: "persist is a BroadcastPersistence with an optional ttl in seconds. A persist on a public channel raises ValueError, and a server error code such as persistence_unauthorized is the code of PushRejectedError."
+    note: "persist is a BroadcastPersistence with an optional ttl in seconds. A persist on a public channel raises ValueError. With broadcast_ack, send_broadcast raises PushRejectedError whose code is the server error code, such as persistence_unauthorized. http_send raises RealtimeAPIError when the server refuses the message, such as a ttl out of range."
     symbols:
       - RealtimeChannel.send_broadcast
       - RealtimeChannel.http_send

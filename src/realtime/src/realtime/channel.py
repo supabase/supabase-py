@@ -867,8 +867,9 @@ class RealtimeChannel:
         :param event: The name of the broadcast event
         :param data: The payload to broadcast, a JSON object. A bytes-like
             object is sent unchanged as ``application/octet-stream``.
-        :param persist: Stores the message on the server so that it can be
-            replayed.
+        :param persist: Asks the server to store the message so that it can be
+            replayed. The server stores it after it answers, so returning does
+            not mean the message was stored.
         :param request_timeout: Seconds the whole call may take. None uses the
             ``timeout`` of the client.
         :raises ValueError: If ``persist`` is set on a channel that is not
