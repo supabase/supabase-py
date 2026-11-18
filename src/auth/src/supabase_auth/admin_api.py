@@ -23,6 +23,7 @@ from .helpers import (
     _validate_adapter,
     _validate_model,
     _validate_paginated_model,
+    _validate_path_segment,
     parse_link_response,
     parse_user_response,
     validate_uuid,
@@ -33,16 +34,20 @@ from .types import (
     AuthMFAAdminListFactorsResponse,
     AuthMFAAdminListFactorsResponseParser,
     CreateOAuthClientParams,
+    CreateSSOProviderParams,
     GenerateLinkParams,
     GenerateLinkResponse,
     OAuthClient,
     OAuthClientListResponse,
     OAuthClientResponse,
     SignOutScope,
+    SSOProvider,
     UpdateOAuthClientParams,
+    UpdateSSOProviderParams,
     User,
     UserList,
     UserResponse,
+    _SSOProviderList,
 )
 from .version import __version__
 
@@ -234,6 +239,117 @@ class SupabaseAuthAdminOAuth[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         return OAuthClientResponse(client=_validate_model(response, OAuthClient))
 
 
+@dataclass
+class SupabaseAuthAdminSSO[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
+    """
+    Contains all single sign-on (SAML 2.0) identity provider administration
+    methods.
+
+    A provider is addressed by its UUID, or by `resource_<resource_id>` when it
+    was registered with a resource ID.
+    """
+
+    executor: HttpIO
+    base_url: URL
+    default_headers: Headers
+
+    @handle_http_io
+    def list_providers(
+        self,
+        resource_id: str | None = None,
+        resource_id_prefix: str | None = None,
+    ) -> HttpMethod[list[SSOProvider]]:
+        """
+        Lists the registered providers, optionally only those whose resource ID
+        is `resource_id` or starts with `resource_id_prefix`. When both are
+        given, the server filters by `resource_id` alone.
+
+        The listed providers leave out `saml.metadata_xml`, use `get_provider`
+        to read it.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        filters = {"resource_id": resource_id, "resource_id_prefix": resource_id_prefix}
+        response = yield EmptyRequest(
+            method="GET",
+            path=["admin", "sso", "providers"],
+            query=URLQuery.from_mapping(
+                {key: value for key, value in filters.items() if value is not None}
+            ),
+        )
+        return _validate_model(response, _SSOProviderList).items
+
+    @handle_http_io
+    def create_provider(
+        self,
+        params: CreateSSOProviderParams,
+    ) -> HttpMethod[SSOProvider]:
+        """
+        Registers a new SAML 2.0 identity provider.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        response = yield JSONRequest(
+            method="POST",
+            path=["admin", "sso", "providers"],
+            body=params,
+        )
+        return _validate_model(response, SSOProvider)
+
+    @handle_http_io
+    def get_provider(self, provider_id: str) -> HttpMethod[SSOProvider]:
+        """
+        Gets a provider, including its metadata XML.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        _validate_path_segment(provider_id, "provider_id")
+        response = yield EmptyRequest(
+            method="GET",
+            path=["admin", "sso", "providers", provider_id],
+        )
+        return _validate_model(response, SSOProvider)
+
+    @handle_http_io
+    def update_provider(
+        self,
+        provider_id: str,
+        params: UpdateSSOProviderParams,
+    ) -> HttpMethod[SSOProvider]:
+        """
+        Applies `params` to a provider.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        _validate_path_segment(provider_id, "provider_id")
+        response = yield JSONRequest(
+            method="PUT",
+            path=["admin", "sso", "providers", provider_id],
+            body=params,
+        )
+        return _validate_model(response, SSOProvider)
+
+    @handle_http_io
+    def delete_provider(self, provider_id: str) -> HttpMethod[None]:
+        """
+        Removes a provider together with its domains.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        _validate_path_segment(provider_id, "provider_id")
+        response = yield EmptyRequest(
+            method="DELETE",
+            path=["admin", "sso", "providers", provider_id],
+        )
+        if not response.is_success:
+            raise _handle_error_response(response)
+
+
 class SupabaseAuthAdmin[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def __init__(
         self, executor: HttpIO, base_url: URL, default_headers: Headers
@@ -248,6 +364,9 @@ class SupabaseAuthAdmin[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             self.executor, self.base_url, default_headers
         )
         self.oauth: SupabaseAuthAdminOAuth[HttpIO] = SupabaseAuthAdminOAuth(
+            self.executor, self.base_url, default_headers
+        )
+        self.sso: SupabaseAuthAdminSSO[HttpIO] = SupabaseAuthAdminSSO(
             self.executor, self.base_url, default_headers
         )
 
