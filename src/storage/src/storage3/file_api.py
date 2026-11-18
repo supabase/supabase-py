@@ -99,6 +99,15 @@ def _cache_control_header(value: str | None) -> str | None:
     return value
 
 
+def _url_query(download: bool | str | None, cache_nonce: str | None) -> URLQuery:
+    query = URLQuery.empty()
+    if download:
+        query = query.set("download", "" if download is True else download)
+    if cache_nonce:
+        query = query.override("cacheNonce", cache_nonce)
+    return query
+
+
 @contextmanager
 def _upload_content(
     file: UploadBody, on_progress: ProgressCallback | None
@@ -318,16 +327,16 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         return _parse_upload_response(response, "/".join(path_parts))
 
-    def _make_signed_url(self, signed_url: str, download_query: URLQuery) -> str:
+    def _make_signed_url(self, signed_url: str, url_query: URLQuery) -> str:
         url = URL(signed_url[1:])  # ignore starting slash
-        signed = self.base_url.join(url).extend_query(download_query.as_query())
+        signed = self.base_url.join(url).extend_query(url_query.as_query())
         return str(signed)
 
-    def _parse_signed_url(self, response: Response, download_query: URLQuery) -> str:
+    def _parse_signed_url(self, response: Response, url_query: URLQuery) -> str:
         if not response.is_success:
             raise parse_api_error(response)
         signed_url_obj = SignedUrlJsonResponse.model_validate_json(response.content)
-        return self._make_signed_url(signed_url_obj.signedURL, download_query)
+        return self._make_signed_url(signed_url_obj.signedURL, url_query)
 
     @handle_http_io
     def create_signed_url(
@@ -336,6 +345,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         expires_in: int,
         download: str | bool | None = None,
         transform: TransformOptions | None = None,
+        *,
+        cache_nonce: str | None = None,
     ) -> HttpMethod[str]:
         """
         Parameters
@@ -346,12 +357,11 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             number of seconds until the signed URL expires.
         options
             options to be passed for downloading or transforming the file.
+        cache_nonce
+            Appended to the URL as the `cacheNonce` query parameter. Pass a new
+            value, such as the time the file last changed, to bypass a cached copy.
         """
-        download_query = URLQuery.empty()
-        if download:
-            download_query = download_query.set(
-                "download", "" if download is True else download
-            )
+        url_query = _url_query(download, cache_nonce)
 
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
         body = CreateSignedUrlBody(
@@ -366,10 +376,10 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             exclude_none=True,
         )
 
-        return self._parse_signed_url(response, download_query)
+        return self._parse_signed_url(response, url_query)
 
     def _parse_signed_urls(
-        self, response: Response, download_query: URLQuery
+        self, response: Response, url_query: URLQuery
     ) -> builtins.list[CreateSignedUrlResponse]:
         if not response.is_success:
             raise parse_api_error(response)
@@ -378,7 +388,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         for item in data:
             # Prepare URL
             url = (
-                self._make_signed_url(item.signedURL, download_query)
+                self._make_signed_url(item.signedURL, url_query)
                 if item.signedURL
                 else None
             )
@@ -396,6 +406,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         paths: builtins.list[str],
         expires_in: int,
         download: bool | str | None = None,
+        *,
+        cache_nonce: str | None = None,
     ) -> HttpMethod[builtins.list[CreateSignedUrlResponse]]:
         """
         Parameters
@@ -406,12 +418,11 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             number of seconds until the signed URL expires.
         options
             options to be passed for downloading the file.
+        cache_nonce
+            Appended to the URL as the `cacheNonce` query parameter. Pass a new
+            value, such as the time the file last changed, to bypass a cached copy.
         """
-        download_query = URLQuery.empty()
-        if download:
-            download_query = download_query.set(
-                "download", "" if download is True else download
-            )
+        url_query = _url_query(download, cache_nonce)
 
         body = CreateSignedUrlsBody(
             download=download,
@@ -423,25 +434,26 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             path=["object", "sign", self.id],
             body=body,
         )
-        return self._parse_signed_urls(response, download_query)
+        return self._parse_signed_urls(response, url_query)
 
     def get_public_url(
         self,
         path: str,
         download: bool | str | None = None,
         transform: TransformOptions | None = None,
+        *,
+        cache_nonce: str | None = None,
     ) -> str:
         """
         Parameters
         ----------
         path
             file path, including the path and file name. For example `folder/image.png`.
+        cache_nonce
+            Appended to the URL as the `cacheNonce` query parameter. Pass a new
+            value, such as the time the file last changed, to bypass a cached copy.
         """
-        download_query = URLQuery.empty()
-        if download:
-            download_query = download_query.set(
-                "download", "" if download is True else download
-            )
+        url_query = _url_query(download, cache_nonce)
 
         render_path = ["render", "image"] if transform else ["object"]
         transformation = transform_to_dict(transform) if transform else {}
@@ -449,7 +461,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         path_parts = relative_path_to_parts(path)
         url = (
             self.base_url.joinpath(*render_path, "public", self.id, *path_parts)
-            .with_query(download_query.as_query())
+            .with_query(url_query.as_query())
             .extend_query(transformation)
         )
         return str(url)
@@ -740,6 +752,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         query_params: dict[str, str] | None,
         byte_range: str | None,
         if_match: str | None,
+        cache_nonce: str | None,
     ) -> EmptyRequest:
         render_path: list[str] = ["object"]
         params = (
@@ -748,6 +761,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         if transform:
             params = params.merge(URLQuery.from_mapping(transform_to_dict(transform)))
             render_path = ["render", "image", "authenticated"]
+        if cache_nonce:
+            params = params.override("cacheNonce", cache_nonce)
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
         headers = Headers.empty()
         if byte_range is not None:
@@ -773,6 +788,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         offset: int = 0,
         length: int | None = None,
         if_match: str | None = None,
+        cache_nonce: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> bytes: ...
 
@@ -786,6 +802,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         offset: int = 0,
         length: int | None = None,
         if_match: str | None = None,
+        cache_nonce: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> Coroutine[Any, Any, bytes]: ...
 
@@ -798,6 +815,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         offset: int = 0,
         length: int | None = None,
         if_match: str | None = None,
+        cache_nonce: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> bytes | Coroutine[Any, Any, bytes]:
         """
@@ -825,6 +843,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             changed since, the server answers with HTTP 412 and the call raises
             `StorageApiError` with the code `PreconditionFailed`, so a resumed
             download never mixes the bytes of two versions.
+        cache_nonce
+            Appended to the request URL as the `cacheNonce` query parameter. Pass a new
+            value, such as the time the file last changed, to bypass a cached copy.
         on_progress
             Called with the bytes received so far and the total, or None when
             the total is not known, as the body arrives. It restarts from 0
@@ -832,7 +853,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         byte_range = _byte_range(offset, length)
         request = self._download_request(
-            path, transform, query_params, byte_range, if_match
+            path, transform, query_params, byte_range, if_match, cache_nonce
         )
         if isinstance(self.executor, AsyncHttpIO):
             return _async_read(
@@ -862,6 +883,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         offset: int = 0,
         length: int | None = None,
         if_match: str | None = None,
+        cache_nonce: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> AbstractContextManager[StorageDownload]: ...
 
@@ -875,6 +897,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         offset: int = 0,
         length: int | None = None,
         if_match: str | None = None,
+        cache_nonce: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> AbstractAsyncContextManager[AsyncStorageDownload]: ...
 
@@ -887,6 +910,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         offset: int = 0,
         length: int | None = None,
         if_match: str | None = None,
+        cache_nonce: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> (
         AbstractContextManager[StorageDownload]
@@ -940,13 +964,16 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             changed since, the server answers with HTTP 412 and the call raises
             `StorageApiError` with the code `PreconditionFailed`, so a resumed
             download never mixes the bytes of two versions.
+        cache_nonce
+            Appended to the request URL as the `cacheNonce` query parameter. Pass a new
+            value, such as the time the file last changed, to bypass a cached copy.
         on_progress
             Called with the bytes of the body read so far and the total, or
             None when the total is not known, as the body is read.
         """
         byte_range = _byte_range(offset, length)
         request = self._download_request(
-            path, transform, query_params, byte_range, if_match
+            path, transform, query_params, byte_range, if_match, cache_nonce
         )
         if isinstance(self.executor, AsyncHttpIO):
             return _async_download(

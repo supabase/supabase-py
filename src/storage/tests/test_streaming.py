@@ -171,6 +171,13 @@ def test_download_stream_gives_the_head_and_then_the_body(storage: Storage) -> N
         assert b"".join(download) == BODY
 
 
+def test_download_stream_sends_the_cache_nonce(storage: Storage) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    with bucket.download_stream("a.txt", cache_nonce="v2") as download:
+        assert download.status == 200
+    assert storage.requests[-1].url.params["cacheNonce"] == "v2"
+
+
 async def test_async_download_stream_gives_the_head_and_then_the_body(
     storage: Storage,
 ) -> None:
