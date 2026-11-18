@@ -1,4 +1,5 @@
 import os
+import zlib
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import override
@@ -13,6 +14,8 @@ from storage3 import (
     AsyncStorageClient,
     StorageApiError,
     StorageDownloadTooLargeError,
+    StorageException,
+    StorageRangeIgnoredError,
     SyncStorageClient,
 )
 
@@ -58,6 +61,14 @@ class Storage:
                 return Response(
                     200, stream=FailingStream(), headers={"Content-Length": "10"}
                 )
+            case "broken-range.txt":
+                return Response(
+                    206,
+                    stream=FailingStream(),
+                    headers={"Content-Range": "bytes 4-9/10"},
+                )
+            case "ranged.txt" if "range" in request.headers:
+                return ranged(request.headers["range"])
             case _:
                 return Response(200, content=BODY, headers={"Content-Type": "text/x"})
 
@@ -74,6 +85,16 @@ class Storage:
             {},
             http_session=AsyncHttpxSession(AsyncClient(transport=MockTransport(self))),
         )
+
+
+def ranged(header: str) -> Response:
+    first, last = header.removeprefix("bytes=").split("-")
+    end = min(int(last), len(BODY) - 1) if last else len(BODY) - 1
+    return Response(
+        206,
+        content=BODY[int(first) : end + 1],
+        headers={"Content-Range": f"bytes {first}-{end}/{len(BODY)}"},
+    )
 
 
 def chunks() -> Iterator[bytes]:
@@ -290,3 +311,296 @@ def test_write_to_gives_a_new_file_the_default_mode(
     finally:
         os.umask(umask)
     assert destination.stat().st_mode & 0o777 == 0o644
+
+
+@pytest.mark.parametrize(
+    ("offset", "length", "header", "body"),
+    [
+        (2, 3, "bytes=2-4", BODY[2:5]),
+        (6, None, "bytes=6-", BODY[6:]),
+        (0, 4, "bytes=0-3", BODY[:4]),
+        (8, 100, "bytes=8-107", BODY[8:]),
+    ],
+)
+def test_download_sends_the_byte_range(
+    storage: Storage, offset: int, length: int | None, header: str, body: bytes
+) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    assert bucket.download("ranged.txt", offset=offset, length=length) == body
+    assert storage.requests[0].headers["range"] == header
+
+
+def test_download_without_a_range_sends_no_range_header(storage: Storage) -> None:
+    assert storage.sync_client().from_("bucket").download("ranged.txt") == BODY
+    assert "range" not in storage.requests[0].headers
+
+
+async def test_async_download_sends_the_byte_range(storage: Storage) -> None:
+    bucket = storage.async_client().from_("bucket")
+    assert await bucket.download("ranged.txt", offset=2, length=3) == BODY[2:5]
+    assert storage.requests[0].headers["range"] == "bytes=2-4"
+
+
+def test_download_raises_when_the_range_is_ignored(storage: Storage) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    with pytest.raises(StorageRangeIgnoredError) as caught:
+        bucket.download("a.txt", offset=2, length=3)
+    assert caught.value.byte_range == "bytes=2-4"
+    assert caught.value.status == 200
+    assert "bytes=2-4" in str(caught.value)
+    assert "200" in str(caught.value)
+    assert not isinstance(caught.value, StorageApiError)
+    assert len(storage.requests) == 1
+
+
+async def test_async_download_raises_when_the_range_is_ignored(
+    storage: Storage,
+) -> None:
+    bucket = storage.async_client().from_("bucket")
+    with pytest.raises(StorageRangeIgnoredError):
+        await bucket.download("a.txt", offset=2)
+
+
+def test_ranged_download_raises_the_storage_error(storage: Storage) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    with pytest.raises(StorageApiError) as caught:
+        bucket.download("missing.txt", offset=2)
+    assert caught.value.code == "NoSuchKey"
+
+
+@pytest.mark.parametrize(("offset", "length"), [(-1, None), (0, 0), (5, -2)])
+def test_an_invalid_range_raises_before_sending(
+    storage: Storage, offset: int, length: int | None
+) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    with pytest.raises(ValueError, match=r"offset|length"):
+        bucket.download("ranged.txt", offset=offset, length=length)
+    with pytest.raises(ValueError, match=r"offset|length"):
+        bucket.download_stream("ranged.txt", offset=offset, length=length)
+    assert storage.requests == []
+
+
+def test_download_stream_sends_the_byte_range(storage: Storage) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    with bucket.download_stream("ranged.txt", offset=4, length=2) as download:
+        assert download.status == 206
+        assert download.headers.get("content-range") == "bytes 4-5/10"
+        assert download.read() == BODY[4:6]
+    assert storage.requests[0].headers["range"] == "bytes=4-5"
+
+
+def test_download_stream_returns_an_ignored_range_as_it_is(storage: Storage) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    with bucket.download_stream("a.txt", offset=4) as download:
+        assert download.status == 200
+        assert download.read() == BODY
+
+
+def test_write_to_resumes_a_partial_file(storage: Storage, tmp_path: Path) -> None:
+    destination = tmp_path / "out.txt"
+    destination.write_bytes(BODY[:4])
+    bucket = storage.sync_client().from_("bucket")
+    with bucket.download_stream("ranged.txt", offset=4) as download:
+        download.write_to(destination, resume=True)
+    assert destination.read_bytes() == BODY
+    assert storage.requests[0].headers["range"] == "bytes=4-"
+    assert list(tmp_path.iterdir()) == [destination]
+
+
+async def test_async_write_to_resumes_a_partial_file(
+    storage: Storage, tmp_path: Path
+) -> None:
+    destination = tmp_path / "out.txt"
+    destination.write_bytes(BODY[:4])
+    bucket = storage.async_client().from_("bucket")
+    async with bucket.download_stream("ranged.txt", offset=4) as download:
+        await download.write_to(destination, resume=True)
+    assert destination.read_bytes() == BODY
+
+
+def test_write_to_resume_replaces_the_file_with_a_whole_body(
+    storage: Storage, tmp_path: Path
+) -> None:
+    destination = tmp_path / "out.txt"
+    destination.write_bytes(b"stale")
+    bucket = storage.sync_client().from_("bucket")
+    with bucket.download_stream("a.txt", offset=5) as download:
+        download.write_to(destination, resume=True)
+    assert destination.read_bytes() == BODY
+    assert list(tmp_path.iterdir()) == [destination]
+
+
+def test_write_to_resume_creates_a_missing_file(
+    storage: Storage, tmp_path: Path
+) -> None:
+    destination = tmp_path / "out.txt"
+    bucket = storage.sync_client().from_("bucket")
+    with bucket.download_stream("ranged.txt") as download:
+        download.write_to(destination, resume=True)
+    assert destination.read_bytes() == BODY
+
+
+def test_write_to_resume_rejects_a_range_that_does_not_continue_the_file(
+    storage: Storage, tmp_path: Path
+) -> None:
+    destination = tmp_path / "out.txt"
+    destination.write_bytes(BODY[:3])
+    bucket = storage.sync_client().from_("bucket")
+    with (
+        bucket.download_stream("ranged.txt", offset=4) as download,
+        pytest.raises(StorageException, match="starts at byte 4"),
+    ):
+        download.write_to(destination, resume=True)
+    assert destination.read_bytes() == BODY[:3]
+
+
+def test_write_to_resume_keeps_what_arrived_on_failure(
+    storage: Storage, tmp_path: Path
+) -> None:
+    destination = tmp_path / "out.txt"
+    destination.write_bytes(b"abcd")
+    bucket = storage.sync_client().from_("bucket")
+    with (
+        bucket.download_stream("broken-range.txt", offset=4) as download,
+        pytest.raises(SupabaseTransportError),
+    ):
+        download.write_to(destination, resume=True)
+    assert destination.read_bytes() == b"abcd01234"
+
+
+def test_write_to_without_resume_replaces_the_file_with_a_range(
+    storage: Storage, tmp_path: Path
+) -> None:
+    destination = tmp_path / "out.txt"
+    destination.write_bytes(BODY[:4])
+    bucket = storage.sync_client().from_("bucket")
+    with bucket.download_stream("ranged.txt", offset=4) as download:
+        download.write_to(destination)
+    assert destination.read_bytes() == BODY[4:]
+
+
+@pytest.mark.parametrize(
+    "content_range",
+    ["bytes 4-3/10", "bytes 4-10/10", "bytes 4-/10", "bytes 4-9", "items 4-9/10", ""],
+)
+def test_write_to_resume_rejects_an_invalid_content_range(
+    tmp_path: Path, content_range: str
+) -> None:
+    def handler(request: Request) -> Response:
+        return Response(206, content=BODY[4:], headers={"Content-Range": content_range})
+
+    client = SyncStorageClient(
+        STORAGE_URL,
+        {},
+        http_session=HttpxSession(Client(transport=MockTransport(handler))),
+    )
+    destination = tmp_path / "out.txt"
+    destination.write_bytes(BODY[:4])
+    with (
+        client.from_("bucket").download_stream("a.txt", offset=4) as download,
+        pytest.raises(StorageException, match="invalid Content-Range"),
+    ):
+        download.write_to(destination, resume=True)
+    assert destination.read_bytes() == BODY[:4]
+
+
+@pytest.mark.parametrize("content_range", ["bytes 4-9/10", "bytes 4-9/*"])
+def test_write_to_resume_accepts_a_valid_content_range(
+    tmp_path: Path, content_range: str
+) -> None:
+    def handler(request: Request) -> Response:
+        return Response(206, content=BODY[4:], headers={"Content-Range": content_range})
+
+    client = SyncStorageClient(
+        STORAGE_URL,
+        {},
+        http_session=HttpxSession(Client(transport=MockTransport(handler))),
+    )
+    destination = tmp_path / "out.txt"
+    destination.write_bytes(BODY[:4])
+    with client.from_("bucket").download_stream("a.txt", offset=4) as download:
+        download.write_to(destination, resume=True)
+    assert destination.read_bytes() == BODY
+
+
+def partial_client(
+    headers: dict[str, str], content: bytes = BODY[4:]
+) -> SyncStorageClient:
+    def handler(request: Request) -> Response:
+        return Response(206, content=content, headers=headers)
+
+    return SyncStorageClient(
+        STORAGE_URL,
+        {},
+        http_session=HttpxSession(Client(transport=MockTransport(handler))),
+    )
+
+
+def test_a_ranged_request_asks_for_the_identity_encoding(storage: Storage) -> None:
+    storage.sync_client().from_("bucket").download("ranged.txt", offset=2)
+    assert storage.requests[0].headers["accept-encoding"] == "identity"
+
+
+def test_write_to_resume_rejects_an_encoded_partial_body(tmp_path: Path) -> None:
+    client = partial_client(
+        {"Content-Range": "bytes 4-9/10", "Content-Encoding": "deflate"},
+        zlib.compress(BODY[4:]),
+    )
+    destination = tmp_path / "out.txt"
+    destination.write_bytes(BODY[:4])
+    with (
+        client.from_("bucket").download_stream("a.txt", offset=4) as download,
+        pytest.raises(StorageException, match="encoded with deflate"),
+    ):
+        download.write_to(destination, resume=True)
+    assert destination.read_bytes() == BODY[:4]
+
+
+def test_download_rejects_a_partial_body_from_another_offset() -> None:
+    client = partial_client({"Content-Range": "bytes 0-5/10"})
+    with pytest.raises(StorageException, match="starts at byte 0"):
+        client.from_("bucket").download("a.txt", offset=4)
+
+
+def test_ranged_download_reports_progress(storage: Storage) -> None:
+    progress: list[tuple[int, int | None]] = []
+    bucket = storage.sync_client().from_("bucket")
+    body = bucket.download(
+        "ranged.txt",
+        offset=4,
+        on_progress=lambda moved, total: progress.append((moved, total)),
+    )
+    assert body == BODY[4:]
+    assert progress[-1] == (6, 6)
+
+
+def test_an_ignored_range_reports_no_progress(storage: Storage) -> None:
+    progress: list[tuple[int, int | None]] = []
+    bucket = storage.sync_client().from_("bucket")
+    with pytest.raises(StorageRangeIgnoredError):
+        bucket.download(
+            "a.txt",
+            offset=4,
+            on_progress=lambda moved, total: progress.append((moved, total)),
+        )
+    assert progress == []
+    assert len(storage.requests) == 1
+
+
+def test_download_sends_if_match(storage: Storage) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    bucket.download("ranged.txt", offset=4, if_match='"abc"')
+    with bucket.download_stream("ranged.txt", offset=4, if_match='"abc"'):
+        pass
+    bucket.download("a.txt")
+    assert [r.headers.get("if-match") for r in storage.requests] == [
+        '"abc"',
+        '"abc"',
+        None,
+    ]
+
+
+def test_download_stream_gives_the_etag() -> None:
+    client = partial_client({"Content-Range": "bytes 4-9/10", "ETag": '"abc"'})
+    with client.from_("bucket").download_stream("a.txt", offset=4) as download:
+        assert download.etag == '"abc"'

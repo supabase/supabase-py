@@ -250,6 +250,41 @@ def test_client_upload(
     assert info.cache_control == "max-age=3600"
 
 
+def test_client_download_byte_range(
+    storage_file_client: StorageFileApiClient[SyncHttpIO],
+    file: FileForTesting,
+    tmp_path: Path,
+) -> None:
+    storage_file_client.upload(
+        file.bucket_path, file.local_path, content_type=file.mime_type
+    )
+
+    part = storage_file_client.download(file.bucket_path, offset=1, length=4)
+    assert part == file.file_content[1:5]
+
+    with storage_file_client.download_stream(file.bucket_path) as first:
+        etag = first.etag
+    assert etag is not None
+
+    partial = tmp_path / "partial"
+    partial.write_bytes(file.file_content[:3])
+    with storage_file_client.download_stream(
+        file.bucket_path, offset=3, if_match=etag
+    ) as download:
+        assert download.status == 206
+        download.write_to(partial, resume=True)
+    assert partial.read_bytes() == file.file_content
+
+    with (
+        pytest.raises(StorageApiError) as caught,
+        storage_file_client.download_stream(
+            file.bucket_path, offset=3, if_match='"stale"'
+        ),
+    ):
+        pytest.fail("a changed file must not be returned")
+    assert caught.value.code == "PreconditionFailed"
+
+
 def test_client_upload_with_query(
     storage_file_client: StorageFileApiClient[SyncHttpIO], file: FileForTesting
 ) -> None:
