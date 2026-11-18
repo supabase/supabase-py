@@ -48,6 +48,7 @@ _TYPE_NAMES: Final = frozenset(
         "Annotated",
         "Any",
         "BaseModel",
+        "Bytea",
         "Column",
         "ComputedField",
         "Field",
@@ -138,11 +139,15 @@ class _PythonType:
     """How the module types a Postgres type."""
 
     annotation: str
-    """The type a present value has, `datetime.date` for `date`."""
+    """The type a present value is read as, `datetime.date` for `date`."""
 
     encode: Callable[[str], str] | None = None
     """The expression that turns a value of the type, given as an expression,
     into JSON, or `None` when the value is JSON already."""
+
+    sent: str | None = None
+    """The type a value is written or filtered by, when it is wider than
+    `annotation`: `bytes` for a `bytea` read as `Bytea`."""
 
     decodes: bool = False
     """Whether a value is decoded from its JSON form into another type."""
@@ -183,7 +188,7 @@ _BUILTIN_TYPES: Final[dict[str, _PythonType]] = {
     "float8": _FLOAT,
     "numeric": _FLOAT,
     "bytea": _PythonType(
-        "bytes", lambda value: f'"\\\\x" + {value}.hex()', decodes=True
+        "Bytea", lambda value: f'"\\\\x" + {value}.hex()', "bytes", decodes=True
     ),
     "bpchar": _STR,
     "varchar": _STR,
@@ -230,6 +235,7 @@ _IMPORTS: Final[dict[str, str]] = {
     "TypedDict": "typing",
     "Mapping": "collections.abc",
     "StrEnum": "enum",
+    "Bytea": "postgrest",
     "BaseModel": "pydantic",
     "Field": "pydantic",
     "JsonValue": "pydantic",
@@ -549,16 +555,17 @@ class _Module:
         self._imports.add(name)
         return name
 
-    def _annotation(self, python_type: _PythonType) -> str:
-        """The annotation of `python_type`, with the names it refers to
-        imported."""
-        for token in _ANNOTATION_TOKEN.findall(python_type.annotation):
+    def _annotation(self, python_type: _PythonType, *, sent: bool = False) -> str:
+        """The annotation of `python_type`, as it is read or, with `sent`, as
+        it is written or filtered by, with the names it refers to imported."""
+        annotation = (sent and python_type.sent) or python_type.annotation
+        for token in _ANNOTATION_TOKEN.findall(annotation):
             module, _, _ = token.partition(".")
             if module in {"datetime", "uuid"}:
                 self._modules.add(module)
             elif token in _IMPORTS:
                 self._imports.add(token)
-        return python_type.annotation
+        return annotation
 
     def _python_type(
         self, format: str, schema: str, *, is_array: bool | None = None
@@ -581,6 +588,7 @@ class _Module:
                 None
                 if encode is None
                 else lambda value: f"[{encode('item')} for item in {value}]",
+                None if element.sent is None else f"list[{element.sent}]",
                 decodes=element.decodes,
                 is_json=element.is_json,
                 fits_query=element.fits_query,
@@ -763,7 +771,7 @@ class _Module:
             lines.append("")
         for column in writable:
             key = table.members[column.name]
-            annotation = self._annotation(self._column_type(column))
+            annotation = self._annotation(self._column_type(column), sent=True)
             if column.is_nullable:
                 annotation = f"{annotation} | None"
             if key != column.name:
@@ -1016,7 +1024,7 @@ class _Module:
                 comment = None
             kind = self._import("NullableColumn" if column.is_nullable else "Column")
             lines += Group(
-                f"{members[column.name]} = {kind}[{row}, {self._annotation(python_type)}]",
+                f"{members[column.name]} = {kind}[{row}, {self._annotation(python_type, sent=True)}]",
                 [string(column.name)],
             ).lines(INDENT)
             lines += docstring(comment, indent=INDENT)
@@ -1156,7 +1164,7 @@ class _Module:
                 body = "body"
                 continue
             name = names[argument.name]
-            annotation = self._annotation(python_type)
+            annotation = self._annotation(python_type, sent=True)
             value = name if python_type.encode is None else python_type.encode(name)
             if argument.has_default:
                 optional.append(f"{name}: {annotation} | None = None")

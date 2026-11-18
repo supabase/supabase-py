@@ -23,7 +23,7 @@ from .goldens.hostile_schema import (
     Geo,
     Status,
 )
-from .goldens.supabase_schema import Books, Functions, Mood
+from .goldens.supabase_schema import Books, BooksRow, Functions, Mood
 
 Query = Callable[[SyncPostgrestClient], object]
 
@@ -182,3 +182,33 @@ def test_read_only_call_is_a_get() -> None:
     assert request.url.params["query"] == "dune"
     assert request.url.params["mood"] == "very happy"
     assert request.url.params["in_print"] == "eq.true"
+
+
+BOOK = {
+    "author_id": 1,
+    "cover_image": "\\xff00",
+    "created_at": "2024-05-01T12:00:00+00:00",
+    "id": 7,
+    "in_print": True,
+    "title": "Dune",
+}
+
+
+def test_select_decodes_bytea_into_bytes() -> None:
+    _, rows = run(lambda client: client.table(Books.table).select().execute(), [BOOK])
+
+    assert rows == [BooksRow.model_validate(BOOK)]
+    assert BooksRow.model_validate(BOOK).cover_image == b"\xff\x00"
+
+
+def test_a_row_argument_sends_bytea_in_the_hex_form() -> None:
+    book = BooksRow.model_validate(BOOK)
+
+    request = send(
+        lambda client: client.rpc(Functions.mood_or_default(book=book)).execute(),
+        "happy",
+    )
+
+    sent = body(request)
+    assert isinstance(sent, dict)
+    assert sent["book"]["cover_image"] == "\\xff00"

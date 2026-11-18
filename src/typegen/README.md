@@ -18,6 +18,8 @@ For every table, view and materialized view it generates:
   `client.table(Books.table)` queries, in its own schema.
 
 Postgres enums become `StrEnum`s and composite types pydantic models. A
+`bytea` column reads as `postgrest.Bytea`, `bytes` decoded from the `\x…`
+hex text PostgREST sends, and takes plain `bytes` on writes and filters. A
 `Functions` class has a static method per function PostgREST exposes, which
 takes the arguments as keyword parameters, optional where the function has a
 default, and returns the `FunctionCall` that `client.rpc()` runs.

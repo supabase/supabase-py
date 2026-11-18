@@ -14,6 +14,7 @@ from typing import Never, assert_type
 from httpx import AsyncClient, Client
 from postgrest import (
     AsyncPostgrestClient,
+    Bytea,
     CountedResponse,
     FunctionCall,
     PartialRow,
@@ -66,6 +67,8 @@ assert_type(
     list[BooksRow],
 )
 assert_type(books.select().where(Books.id.eq(1)).single().execute(), BooksRow)
+assert_type(books.select().single().execute().cover_image, Bytea | None)
+books.select().where(Books.cover_image.eq(b"\x89PNG"))
 assert_type(books.select().maybe_single().execute(), BooksRow | None)
 assert_type(books.select().count().execute(), CountedResponse[list[BooksRow]])
 assert_type(books.count().where(Books.in_print.eq(True)).execute(), int)

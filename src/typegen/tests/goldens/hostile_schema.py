@@ -12,6 +12,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Never, NotRequired, TypedDict
 
 from postgrest import (
+    Bytea,
     Column,
     ComputedField,
     FunctionCall,
@@ -127,7 +128,7 @@ class ClassRow(BaseModel):
     model_config_: str | None = Field(default=None, alias="model_config")
     mystery: Any | None = None
     name: str
-    payload: bytes | None = None
+    payload: Bytea | None = None
     period: str | None = None
     schema_: str = Field(alias="schema")
     """Says \"\"\"hi\"\"\" with a \\ backslash,

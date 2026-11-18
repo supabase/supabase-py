@@ -13,6 +13,7 @@ from enum import StrEnum
 from typing import Never, NotRequired, TypedDict
 
 from postgrest import (
+    Bytea,
     Column,
     ComputedField,
     FunctionCall,
@@ -128,7 +129,7 @@ class BooksRow(BaseModel):
     """
 
     author_id: int
-    cover_image: bytes | None = None
+    cover_image: Bytea | None = None
     cover_uuid: uuid.UUID | None = None
     created_at: datetime.datetime
     """When the row was created"""
