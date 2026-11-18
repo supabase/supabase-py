@@ -212,8 +212,10 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             `allowed_mime_types`.
         versioning_status
             `ENABLED` starts keeping the previous versions of a file, and
-            `SUSPENDED` stops keeping new ones while the existing versions
-            stay. Once enabled, versioning cannot go back to `DISABLED`.
+            `SUSPENDED` stops keeping new ones: a write replaces the null
+            version of the file, written before versioning was enabled or
+            while it was suspended, and the other versions stay. Once
+            enabled, versioning cannot go back to `DISABLED`.
         """
         body = CreateOrUpdateBucketBody(
             id=id,

@@ -171,4 +171,4 @@ await documents.move("reports/q3.pdf", "reports/q3.pdf", source_version_id="<ver
 await documents.remove([FileVersion("reports/q3.pdf", "<version id>")])
 ```
 
-`update_bucket` with `versioning_status="SUSPENDED"` stops keeping new versions while the existing ones stay. A bucket cannot go back to `DISABLED`.
+`update_bucket` with `versioning_status="SUSPENDED"` stops keeping new versions. A write then replaces the null version of the file, which holds what was written before versioning was enabled or while it was suspended, and the other versions stay. A bucket cannot go back to `DISABLED`.
