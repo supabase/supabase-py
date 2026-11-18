@@ -1,7 +1,9 @@
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from types import SimpleNamespace
+from typing import override
 
+import httpx
 import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http import io
@@ -22,6 +24,18 @@ from .utils import STORAGE_URL
 BODY = b"0123456789"
 
 type Reports = list[tuple[int, int | None]]
+
+
+class DroppedStream(httpx.SyncByteStream, httpx.AsyncByteStream):
+    @override
+    def __iter__(self) -> Iterator[bytes]:
+        yield BODY[:5]
+        raise httpx.ReadError("connection dropped")
+
+    @override
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield BODY[:5]
+        raise httpx.ReadError("connection dropped")
 
 
 class Storage:
@@ -50,6 +64,10 @@ class Storage:
                     200,
                     content=BODY,
                     headers={"Content-Length": "10", "Content-Encoding": "custom"},
+                )
+            case "dropped.txt" if len(self.requests) == 1:
+                return Response(
+                    200, stream=DroppedStream(), headers={"Content-Length": "10"}
                 )
             case "unsized.txt":
                 return Response(200, content=iter([BODY]))
@@ -236,3 +254,34 @@ async def test_async_download_reports_bytes_received(
     async with bucket.download_stream("a.txt", on_progress=record(reports)) as d:
         await d.write_to(tmp_path / "out.txt")
     assert reports == [(0, 10), (10, 10)] * 2
+
+
+def test_a_retried_download_counts_again_from_zero(
+    storage: Storage, reports: Reports, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr(io, "time", SimpleNamespace(sleep=sleeps.append))
+    body = (
+        storage.sync_client()
+        .from_("bucket")
+        .download("dropped.txt", on_progress=record(reports))
+    )
+    assert body == BODY
+    assert reports == [(0, 10), (5, 10), (0, 10), (10, 10)]
+    assert len(storage.requests) == 2
+
+
+async def test_a_retried_async_download_counts_again_from_zero(
+    storage: Storage, reports: Reports, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_sleep(delay: float) -> None:
+        pass
+
+    monkeypatch.setattr(io, "asyncio", SimpleNamespace(sleep=fake_sleep))
+    body = (
+        await storage.async_client()
+        .from_("bucket")
+        .download("dropped.txt", on_progress=record(reports))
+    )
+    assert body == BODY
+    assert reports == [(0, 10), (5, 10), (0, 10), (10, 10)]

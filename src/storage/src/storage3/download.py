@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO
 
 from .exceptions import StorageDownloadTooLargeError, parse_api_error
-from .progress import _async_downloaded, _download_total, _downloaded
+from .progress import _async_downloaded, _downloaded
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator, Generator, Iterator
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from supabase_utils.http.request import (
         AsyncStreamedResponse,
         EmptyRequest,
+        Response,
         StreamedResponse,
     )
     from yarl import URL
@@ -26,6 +27,20 @@ if TYPE_CHECKING:
     from .progress import ProgressCallback
 
 __all__ = ["AsyncStorageDownload", "StorageDownload"]
+
+
+def _content_length(headers: Headers) -> int | None:
+    value = headers.get("Content-Length")
+    return int(value) if value is not None and value.isdecimal() else None
+
+
+def _download_total(headers: Headers) -> int | None:
+    """The `Content-Length` of a download, unless the HTTP stack decodes a
+    `Content-Encoding`, which makes it count other bytes than the body."""
+    encoding = headers.get("Content-Encoding")
+    if encoding is not None and encoding.strip().lower() != "identity":
+        return None
+    return _content_length(headers)
 
 
 class _DownloadHead:
@@ -41,8 +56,7 @@ class _DownloadHead:
         send one, as for a transformed image. For a body sent with a
         `Content-Encoding` it counts the encoded bytes, not the decoded bytes
         the download yields."""
-        value = self.headers.get("Content-Length")
-        return int(value) if value is not None and value.isdecimal() else None
+        return _content_length(self.headers)
 
     @property
     def content_type(self) -> str | None:
@@ -51,7 +65,7 @@ class _DownloadHead:
 
     @property
     def _total(self) -> int | None:
-        return _download_total(self.headers, self.content_length)
+        return _download_total(self.headers)
 
 
 def _check_size(size: int, max_bytes: int | None) -> None:
@@ -247,11 +261,14 @@ async def _async_download(
         yield AsyncStorageDownload(response, on_progress)
 
 
-def _body_of(request: EmptyRequest) -> HttpMethod[bytes]:
-    response = yield request
+def _content_of(response: Response) -> bytes:
     if not response.is_success:
         raise parse_api_error(response)
     return response.content
+
+
+def _body_of(request: EmptyRequest) -> HttpMethod[bytes]:
+    return _content_of((yield request))
 
 
 def _sync_read(
@@ -261,12 +278,17 @@ def _sync_read(
     request: EmptyRequest,
     on_progress: ProgressCallback | None,
 ) -> bytes:
-    """The body of a download, streamed to count it when `on_progress` is
-    given."""
+    """The body of a download, with every chunk of every attempt reported to
+    `on_progress` when it is given."""
     if on_progress is None:
         return executor.communicate(base_url, headers, _body_of(request))
-    with _sync_download(executor, base_url, headers, request, on_progress) as download:
-        return download.read()
+
+    def observe(response: StreamedResponse) -> Iterator[bytes]:
+        return _downloaded(
+            response.body, on_progress, _download_total(response.headers)
+        )
+
+    return _content_of(executor.receive(base_url, headers, request, observe))
 
 
 async def _async_read(
@@ -276,11 +298,14 @@ async def _async_read(
     request: EmptyRequest,
     on_progress: ProgressCallback | None,
 ) -> bytes:
-    """The body of a download, streamed to count it when `on_progress` is
-    given."""
+    """The body of a download, with every chunk of every attempt reported to
+    `on_progress` when it is given."""
     if on_progress is None:
         return await executor.communicate(base_url, headers, _body_of(request))
-    async with _async_download(
-        executor, base_url, headers, request, on_progress
-    ) as download:
-        return await download.read()
+
+    def observe(response: AsyncStreamedResponse) -> AsyncIterator[bytes]:
+        return _async_downloaded(
+            response.body, on_progress, _download_total(response.headers)
+        )
+
+    return _content_of(await executor.receive(base_url, headers, request, observe))

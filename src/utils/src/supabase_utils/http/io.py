@@ -4,9 +4,11 @@ import time
 from collections.abc import (
     AsyncGenerator,
     AsyncIterable,
+    AsyncIterator,
     Callable,
     Coroutine,
     Generator,
+    Iterable,
 )
 from contextlib import (
     AbstractAsyncContextManager,
@@ -81,6 +83,17 @@ def _log_transport_error(
             "duration": duration,
             "error_type": error_type,
         },
+    )
+
+
+def _read_response(
+    streamed: StreamedResponse | AsyncStreamedResponse, content: bytes
+) -> Response:
+    return Response(
+        headers=streamed.headers,
+        content=content,
+        status=streamed.status,
+        request=streamed.request,
     )
 
 
@@ -303,6 +316,45 @@ class SyncHttpIO(_HttpIO[HttpSession]):
                     raise
             time.sleep(delay)
 
+    def receive(
+        self,
+        base_url: URL,
+        default_headers: Headers,
+        http_request: ToRequest,
+        observe_body: Callable[[StreamedResponse], Iterable[bytes]],
+    ) -> Response:
+        """Sends `http_request` and reads the whole response, as `communicate`
+        does, with the body of a 2xx attempt read through `observe_body` as
+        it arrives, for example to report progress.
+
+        A transport failure while the body is read is retried like one before
+        the head arrived, and the body of the next attempt goes through
+        `observe_body` again."""
+        request = self._finalize(http_request, base_url, default_headers)
+        if request.delay:
+            time.sleep(request.delay)
+        retries = self._retries(request)
+        while True:
+            attempt = request if retries is None else retries.attempt
+            started = perf_counter()
+            try:
+                with self.session.stream(attempt) as streamed:
+                    body = (
+                        observe_body(streamed) if streamed.is_success else streamed.body
+                    )
+                    response = _read_response(streamed, b"".join(body))
+            except SupabaseTransportError as error:
+                _log_transport_error(attempt, started, error)
+                delay = None if retries is None else retries.delay_after(error)
+                if delay is None:
+                    raise
+            else:
+                _log_response(attempt, started, response)
+                delay = None if retries is None else retries.delay_after(response)
+                if delay is None:
+                    return response
+            time.sleep(delay)
+
     def _send_once(self, request: Request) -> Response:
         started = perf_counter()
         try:
@@ -381,6 +433,46 @@ class AsyncHttpIO(_HttpIO[AsyncHttpSession]):
                 delay = retries.delay_after(error)
                 if delay is None:
                     raise
+            await asyncio.sleep(delay)
+
+    async def receive(
+        self,
+        base_url: URL,
+        default_headers: Headers,
+        http_request: ToRequest,
+        observe_body: Callable[[AsyncStreamedResponse], AsyncIterator[bytes]],
+    ) -> Response:
+        """Sends `http_request` and reads the whole response, as `communicate`
+        does, with the body of a 2xx attempt read through `observe_body` as
+        it arrives, for example to report progress.
+
+        A transport failure while the body is read is retried like one before
+        the head arrived, and the body of the next attempt goes through
+        `observe_body` again."""
+        request = self._finalize(http_request, base_url, default_headers)
+        if request.delay:
+            await asyncio.sleep(request.delay)
+        retries = self._retries(request)
+        while True:
+            attempt = request if retries is None else retries.attempt
+            started = perf_counter()
+            try:
+                async with self.session.stream(attempt) as streamed:
+                    body = (
+                        observe_body(streamed) if streamed.is_success else streamed.body
+                    )
+                    content = b"".join([chunk async for chunk in body])
+                    response = _read_response(streamed, content)
+            except SupabaseTransportError as error:
+                _log_transport_error(attempt, started, error)
+                delay = None if retries is None else retries.delay_after(error)
+                if delay is None:
+                    raise
+            else:
+                _log_response(attempt, started, response)
+                delay = None if retries is None else retries.delay_after(response)
+                if delay is None:
+                    return response
             await asyncio.sleep(delay)
 
     async def _send_once(self, request: Request) -> Response:

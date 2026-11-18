@@ -790,9 +790,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             The file path to be downloaded, including the path and file name. For example `folder/image.png`.
         on_progress
             Called with the bytes received so far and the total, or None when
-            the total is not known, as the body arrives. The body is then
-            streamed, so the request is retried only until the response head
-            arrived, as with :meth:`download_stream`.
+            the total is not known, as the body arrives. It restarts from 0
+            when the download is retried.
         """
         request = self._download_request(path, transform, query_params)
         if isinstance(self.executor, AsyncHttpIO):

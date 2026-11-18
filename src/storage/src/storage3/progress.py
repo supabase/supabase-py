@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Iterable, Iterator
 
     from supabase_utils.http.body import RequestContent
-    from supabase_utils.http.headers import Headers
 
 __all__ = ["ProgressCallback"]
 
@@ -20,8 +19,9 @@ type ProgressCallback = Callable[[int, int | None], None]
 the total bytes, or None when the total is not known.
 
 It is called after every chunk, from any thread. The bytes moved restart from
-0 when an upload is sent again, for a retry or a redirect. No call says that
-the transfer is complete: the operation returning or the body ending does.
+0 when an upload or a `download` is sent again, for a retry or a redirect.
+No call says that the transfer is complete: the operation returning or the
+body ending does.
 """
 
 
@@ -136,12 +136,3 @@ async def _async_downloaded(
         moved += len(chunk)
         callback(moved, total)
         yield chunk
-
-
-def _download_total(headers: Headers, content_length: int | None) -> int | None:
-    """The `Content-Length` of a download, unless the HTTP stack decodes a
-    `Content-Encoding`, which makes it count other bytes than the body."""
-    encoding = headers.get("Content-Encoding")
-    if encoding is not None and encoding.strip().lower() != "identity":
-        return None
-    return content_length

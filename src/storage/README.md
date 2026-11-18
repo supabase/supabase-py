@@ -93,4 +93,4 @@ await storage_client.from_("bucket").upload(
 )
 ```
 
-The count restarts from 0 when an upload is sent again for a retry. The callback can run in a worker thread.
+The count restarts from 0 when an upload or a `download` is retried. The callback can run in a worker thread.

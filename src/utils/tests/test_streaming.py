@@ -20,7 +20,13 @@ from supabase_utils.http.body import (
 from supabase_utils.http.errors import SupabaseTransportError
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpIO, HttpMethod, SyncHttpIO
-from supabase_utils.http.request import BytesRequest, EmptyRequest, Response
+from supabase_utils.http.request import (
+    AsyncStreamedResponse,
+    BytesRequest,
+    EmptyRequest,
+    Response,
+    StreamedResponse,
+)
 from supabase_utils.http.retry import RetryPolicy
 from yarl import URL
 
@@ -222,6 +228,80 @@ async def test_async_stream_failure_in_the_body_is_a_transport_error() -> None:
     with pytest.raises(SupabaseTransportError):
         await read_all(async_io(recorder), BASE_URL, "broken")
     assert len(recorder.requests) == 1
+
+
+class DropsFirstBody:
+    """Serves a body that drops halfway the first time, then a whole one."""
+
+    def __init__(self) -> None:
+        self.requests: list[httpx.Request] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        if len(self.requests) == 1:
+            return httpx.Response(200, stream=FailingStream())
+        return httpx.Response(200, content=b"0123456789")
+
+
+def test_sync_receive_retries_a_failure_in_the_body(sleeps: list[float]) -> None:
+    server = DropsFirstBody()
+    client = httpx.Client(transport=httpx.MockTransport(server))
+    seen: list[bytes] = []
+
+    def observe(response: StreamedResponse) -> Iterator[bytes]:
+        for chunk in response.body:
+            seen.append(chunk)
+            yield chunk
+
+    response = SyncHttpIO(HttpxSession(client), retry=NO_JITTER).receive(
+        BASE_URL, Headers.empty(), EmptyRequest(path=["file"], method="GET"), observe
+    )
+    assert response.content == b"0123456789"
+    assert seen == [b"part", b"0123456789"]
+    assert [r.headers.get("x-retry-count") for r in server.requests] == [None, "1"]
+    assert sleeps == [0.5]
+
+
+def test_sync_receive_reads_an_error_body_without_observing_it(
+    sleeps: list[float],
+) -> None:
+    recorder = Recorder([503, 404])
+
+    def observe(response: StreamedResponse) -> Iterator[bytes]:
+        pytest.fail("an error body must not be observed")
+
+    response = sync_io(recorder).receive(
+        BASE_URL, Headers.empty(), EmptyRequest(path=["file"], method="GET"), observe
+    )
+    assert response.status == 404
+    assert response.content == b"0123456789"
+    assert len(recorder.requests) == 2
+
+
+async def test_async_receive_retries_a_failure_in_the_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(io, "asyncio", SimpleNamespace(sleep=fake_sleep))
+    server = DropsFirstBody()
+    client = httpx.AsyncClient(transport=httpx.MockTransport(server))
+    seen: list[bytes] = []
+
+    async def observe(response: AsyncStreamedResponse) -> AsyncIterator[bytes]:
+        async for chunk in response.body:
+            seen.append(chunk)
+            yield chunk
+
+    response = await AsyncHttpIO(AsyncHttpxSession(client), retry=NO_JITTER).receive(
+        BASE_URL, Headers.empty(), EmptyRequest(path=["file"], method="GET"), observe
+    )
+    assert response.content == b"0123456789"
+    assert seen == [b"part", b"0123456789"]
+    assert sleeps == [0.5]
 
 
 async def echo(request: web.Request) -> web.Response:
