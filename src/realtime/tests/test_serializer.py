@@ -103,6 +103,32 @@ def test_encode_writes_a_binary_broadcast_as_user_broadcast_push() -> None:
     )
 
 
+def test_encode_writes_a_broadcast_with_metadata_as_user_broadcast_push() -> None:
+    message = Message(
+        topic="t",
+        event=ChannelEvents.broadcast,
+        payload={
+            "type": "broadcast",
+            "event": "e",
+            "payload": {"a": "b"},
+            "meta": {"persist": {"ttl": 3600}},
+        },
+        ref="2",
+        join_ref="1",
+    )
+
+    metadata = b'{"persist":{"ttl":3600}}'
+    assert encode(message) == (
+        bytes([3, 1, 1, 1, 1, len(metadata), 1])
+        + b"1"
+        + b"2"
+        + b"t"
+        + b"e"
+        + metadata
+        + b'{"a":"b"}'
+    )
+
+
 def test_encode_writes_empty_refs_of_an_unjoined_binary_broadcast() -> None:
     message = Message(
         topic="t",

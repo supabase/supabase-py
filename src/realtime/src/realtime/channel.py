@@ -43,6 +43,7 @@ from .message import (
 )
 from .presence import PresenceEvent, RealtimePresence
 from .types import (
+    BroadcastPersistence,
     ChannelEvents,
     ChannelStates,
     PostgresChangesBinding,
@@ -789,7 +790,11 @@ class RealtimeChannel:
 
     # Broadcast methods
     async def send_broadcast(
-        self, event: str, data: JSON | Buffer
+        self,
+        event: str,
+        data: JSON | Buffer,
+        *,
+        persist: BroadcastPersistence | None = None,
     ) -> ReplyMessage | None:
         """
         Send a broadcast message through this channel.
@@ -805,11 +810,17 @@ class RealtimeChannel:
             ``bytes``, ``bytearray`` or ``memoryview``, is sent as a binary frame,
             and receivers get it as ``bytes`` in ``BroadcastPayload.payload``.
             Anything else is sent as JSON.
+        :param persist: Stores the message on the server so that it can be
+            replayed. Only ``broadcast_ack`` tells whether it was stored.
+        :raises ValueError: If ``persist`` is set on a channel that is not
+            private, or if the message is sent as a binary frame and the
+            topic or the event is longer than 255 bytes in UTF-8.
         :raises ChannelNotJoinedError: If the channel is not joined.
-        :raises ValueError: If ``data`` is bytes-like and the topic or the event
-            is longer than 255 bytes in UTF-8.
         :raises PushRejectedError: With ``broadcast_ack``, if the server replies
-            with an error.
+            with an error. Its ``code`` is ``persistence_unauthorized`` or
+            ``persistence_failed`` when the message was delivered but not
+            stored, and ``persistence_invalid_ttl`` when the server refused
+            the ``ttl`` and neither delivered nor stored it.
         :raises RealtimeTimeoutError: With ``broadcast_ack``, if the server does
             not reply in time.
         :raises ChannelClosedError: With ``broadcast_ack``, if the channel closes
@@ -819,11 +830,18 @@ class RealtimeChannel:
         :raises Exception: If the connection already failed, the exception that
             failed it, such as a TimeoutError when a heartbeat timed out.
         """
+        self._check_persist("send_broadcast", persist)
         if not self.joined:
             raise ChannelNotJoinedError("RealtimeChannel.send_broadcast", self.topic)
         if isinstance(data, Buffer):
             data = bytes(data)
-        payload = {"type": "broadcast", "event": event, "payload": data}
+        payload: dict[str, JSON | bytes] = {
+            "type": "broadcast",
+            "event": event,
+            "payload": data,
+        }
+        if persist is not None:
+            payload["meta"] = {"persist": persist._metadata()}
         if not self.options.broadcast_ack:
             await self._send_event_no_wait(ChannelEvents.broadcast, payload)
             return None
@@ -834,6 +852,7 @@ class RealtimeChannel:
         event: str,
         data: Mapping[str, JSON] | Buffer,
         *,
+        persist: BroadcastPersistence | None = None,
         request_timeout: float | None = None,
     ) -> None:
         """
@@ -848,8 +867,12 @@ class RealtimeChannel:
         :param event: The name of the broadcast event
         :param data: The payload to broadcast, a JSON object. A bytes-like
             object is sent unchanged as ``application/octet-stream``.
+        :param persist: Stores the message on the server so that it can be
+            replayed.
         :param request_timeout: Seconds the whole call may take. None uses the
             ``timeout`` of the client.
+        :raises ValueError: If ``persist`` is set on a channel that is not
+            private.
         :raises RealtimeError: If the client has no ``http_session``.
         :raises RealtimeAPIError: If the server answers with a status other
             than 202.
@@ -858,6 +881,7 @@ class RealtimeChannel:
             is read.
         """
         validate_request_timeout(request_timeout)
+        self._check_persist("http_send", persist)
         session = self.socket.http_session
         if session is None:
             raise RealtimeError(
@@ -868,7 +892,7 @@ class RealtimeChannel:
         try:
             async with deadline:
                 response = await session.send(
-                    await self._http_send_request(event, data)
+                    await self._http_send_request(event, data, persist)
                 )
         except TimeoutError:
             if deadline.expired():
@@ -882,7 +906,10 @@ class RealtimeChannel:
             )
 
     async def _http_send_request(
-        self, event: str, data: Mapping[str, JSON] | Buffer
+        self,
+        event: str,
+        data: Mapping[str, JSON] | Buffer,
+        persist: BroadcastPersistence | None,
     ) -> Request:
         if isinstance(data, Buffer):
             content, content_type = bytes(data), "application/octet-stream"
@@ -899,6 +926,8 @@ class RealtimeChannel:
         )
         if self.options.is_private:
             url = url.update_query(private="true")
+        if persist is not None:
+            url = url.update_query(persist._query())
         return Request(
             url=url,
             method="POST",
@@ -909,6 +938,15 @@ class RealtimeChannel:
         )
 
     # Internal methods
+
+    def _check_persist(
+        self, func_name: str, persist: BroadcastPersistence | None
+    ) -> None:
+        if persist is not None and not self.options.is_private:
+            raise ValueError(
+                f"RealtimeChannel.{func_name}() can only persist a message on a "
+                f"private channel, and {self.topic!r} is public; nothing was sent"
+            )
 
     def _broadcast_endpoint_url(self) -> URL:
         return self.socket.http_endpoint.joinpath("api", "broadcast")
@@ -944,8 +982,12 @@ class RealtimeChannel:
         reply = await self.socket._send(message, channel_closed=self._closed)
         if isinstance(reply.payload, ErrorReplyMessage):
             reason = reply.payload.response.get("reason")
+            code = reply.payload.response.get("error")
             raise PushRejectedError(
-                label, self.topic, reason if isinstance(reason, str) else None
+                label,
+                self.topic,
+                reason if isinstance(reason, str) else None,
+                code=code if isinstance(code, str) else None,
             )
         return reply
 

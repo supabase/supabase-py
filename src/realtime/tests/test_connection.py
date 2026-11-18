@@ -13,6 +13,7 @@ from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from yarl import URL
 
 from realtime import (
+    BroadcastPersistence,
     ChannelNotJoinedError,
     ChannelStates,
     ConnectionState,
@@ -185,6 +186,48 @@ async def test_http_send_reaches_subscribers_without_subscribing(
         assert isinstance(message, BroadcastMessage)
         assert message.payload.event == "binary-event"
         assert message.payload.payload == bytes(range(256))
+
+
+@pytest.mark.asyncio
+async def test_persisted_broadcasts_are_replayed(socket: RealtimeClient) -> None:
+    token = await access_token()
+    await socket.set_auth(token)
+    topic = f"test-persist-{datetime.datetime.now(datetime.UTC).timestamp()}"
+    since = int(datetime.datetime.now(datetime.UTC).timestamp() * 1000)
+    private = RealtimeChannelOptions().private(True)
+
+    async with (
+        socket.channel(topic, private.broadcast(ack=True)) as sender,
+        AsyncAiohttpSession(aiohttp.ClientSession()) as session,
+    ):
+        await sender.send_broadcast(
+            "websocket", {"i": 1}, persist=BroadcastPersistence()
+        )
+        await sender.send_broadcast("not-stored", {"i": 2})
+        http_sender = RealtimeClient(
+            f"{SUPABASE_URL}/realtime/v1",
+            lambda: _token(token),
+            http_session=session,
+            headers={"apikey": PUBLISHABLE_KEY},
+        )
+        await http_sender.channel(topic, private).http_send(
+            "http", {"i": 3}, persist=BroadcastPersistence(ttl=3600)
+        )
+
+    replay = private.broadcast(replay_since=since, replay_limit=10)
+    async with socket.channel(topic, replay) as receiver:
+        replayed = [await anext(receiver.messages) for _ in range(2)]
+
+    assert all(isinstance(message, BroadcastMessage) for message in replayed)
+    assert [
+        (message.payload.event, message.payload.payload)
+        for message in replayed
+        if isinstance(message, BroadcastMessage)
+    ] == [("websocket", {"i": 1}), ("http", {"i": 3})]
+
+
+async def _token(token: str) -> str:
+    return token
 
 
 @pytest.mark.asyncio

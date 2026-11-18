@@ -73,12 +73,23 @@ class PushRejectedError(RealtimeError):
     Raised when the server replies to a push with an error.
 
     `reason` is the reason the server gave, or ``None`` when it gave none.
+    `code` is the error code the server gave, such as
+    ``persistence_unauthorized``, or ``None`` when it gave none.
     """
 
-    def __init__(self, event: str, topic: str, reason: str | None) -> None:
+    def __init__(
+        self,
+        event: str,
+        topic: str,
+        reason: str | None,
+        *,
+        code: str | None = None,
+    ) -> None:
+        detail = reason or code
         super().__init__(
             f"the server rejected {event} on {topic!r}"
-            + (f": {reason}" if reason else "")
+            + (f": {detail}" if detail else ""),
+            code=code,
         )
         self.event = event
         self.topic = topic

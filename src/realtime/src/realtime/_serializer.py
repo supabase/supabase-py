@@ -1,21 +1,21 @@
 """Encode and decode the frames of the Realtime protocol 2.0.0.
 
 Text frames hold the JSON array ``[join_ref, ref, topic, event, payload]``.
-A broadcast whose payload is ``bytes`` is sent as a binary ``user broadcast
-push`` frame, and the server sends broadcasts to the client as binary
-``user broadcast`` frames, with either a JSON or a binary payload.
+A broadcast whose payload is ``bytes``, or that has metadata such as
+``persist``, is sent as a binary ``user broadcast push`` frame, since the
+server reads metadata only from that frame. The server sends broadcasts to
+the client as binary ``user broadcast`` frames, with either a JSON or a
+binary payload.
 """
 
 import json
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import TypeAdapter
+from supabase_utils.types import JSON
 
 from .message import Message
 from .types import ChannelEvents
-
-if TYPE_CHECKING:
-    from supabase_utils.types import JSON
 
 _USER_BROADCAST_PUSH = 3
 _USER_BROADCAST = 4
@@ -26,18 +26,25 @@ _MAX_FIELD_LENGTH = 255
 
 type _TextFrame = tuple[str | None, str | None, str, str, Any]
 _TextFrameAdapter: TypeAdapter[_TextFrame] = TypeAdapter(_TextFrame)
+_JSONAdapter: TypeAdapter[Any] = TypeAdapter(Any)
 
 
 def encode(message: Message) -> str | bytes:
     payload = message.payload
     user_event = payload.get("event")
     user_payload = payload.get("payload")
+    metadata = payload.get("meta")
     if (
         message.event == ChannelEvents.broadcast
         and isinstance(user_event, str)
-        and isinstance(user_payload, bytes)
+        and (isinstance(user_payload, bytes) or isinstance(metadata, dict))
     ):
-        return _encode_user_broadcast_push(message, user_event, user_payload)
+        return _encode_user_broadcast_push(
+            message,
+            user_event,
+            user_payload,
+            metadata if isinstance(metadata, dict) else None,
+        )
     frame = (message.join_ref, message.ref, message.topic, message.event, payload)
     return _TextFrameAdapter.dump_json(frame).decode()
 
@@ -57,13 +64,21 @@ def decode(frame: str | bytes) -> Message:
 
 
 def _encode_user_broadcast_push(
-    message: Message, user_event: str, user_payload: bytes
+    message: Message,
+    user_event: str,
+    user_payload: JSON | bytes,
+    metadata: dict[str, JSON] | None,
 ) -> bytes:
+    if isinstance(user_payload, bytes):
+        body, encoding = user_payload, _BINARY_ENCODING
+    else:
+        body, encoding = _JSONAdapter.dump_json(user_payload), _JSON_ENCODING
     fields = {
         "join_ref": (message.join_ref or "").encode(),
         "ref": (message.ref or "").encode(),
         "topic": message.topic.encode(),
         "user_event": user_event.encode(),
+        "metadata": _JSONAdapter.dump_json(metadata) if metadata else b"",
     }
     for name, value in fields.items():
         if len(value) > _MAX_FIELD_LENGTH:
@@ -71,14 +86,9 @@ def _encode_user_broadcast_push(
                 f"{name} is {len(value)} bytes long, the maximum is {_MAX_FIELD_LENGTH}"
             )
     header = bytes(
-        [
-            _USER_BROADCAST_PUSH,
-            *(len(value) for value in fields.values()),
-            0,
-            _BINARY_ENCODING,
-        ]
+        [_USER_BROADCAST_PUSH, *(len(value) for value in fields.values()), encoding]
     )
-    return b"".join([header, *fields.values(), user_payload])
+    return b"".join([header, *fields.values(), body])
 
 
 def _decode_user_broadcast(frame: bytes) -> Message:
