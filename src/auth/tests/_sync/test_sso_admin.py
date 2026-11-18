@@ -6,10 +6,13 @@ from httpx import Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import HttpxSession
 
 from supabase_auth import (
+    AuthApiError,
     CreateSSOProviderParams,
+    ErrorCode,
     SAMLAttribute,
     SAMLAttributeMapping,
     SAMLNameIDFormat,
+    SSOProvider,
     SyncSupabaseAuthAdmin,
     UpdateSSOProviderParams,
 )
@@ -157,3 +160,35 @@ def test_provider_decodes_an_unknown_name_id_format() -> None:
 
     assert provider.saml is not None
     assert provider.saml.name_id_format == "urn:new"
+
+
+def test_delete_provider_raises_when_the_provider_is_missing() -> None:
+    requests: list[Request] = []
+    body = {
+        "code": 404,
+        "error_code": "sso_provider_not_found",
+        "msg": "SSO Identity Provider not found",
+    }
+
+    with pytest.raises(AuthApiError) as error:
+        admin_client(requests, status=404, body=body).sso.delete_provider(
+            PROVIDER["id"]
+        )
+
+    assert error.value.code == ErrorCode.SSO_PROVIDER_NOT_FOUND
+
+
+def test_update_provider_keeps_an_unknown_name_id_format() -> None:
+    requests: list[Request] = []
+
+    admin_client(requests).sso.update_provider(
+        PROVIDER["id"], UpdateSSOProviderParams(name_id_format="urn:new")
+    )
+
+    assert json.loads(requests[0].content) == {"name_id_format": "urn:new"}
+
+
+def test_provider_survives_a_json_round_trip() -> None:
+    provider = SSOProvider.model_validate(PROVIDER)
+
+    assert SSOProvider.model_validate_json(provider.model_dump_json()) == provider

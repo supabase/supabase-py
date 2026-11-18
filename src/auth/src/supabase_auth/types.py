@@ -1282,8 +1282,8 @@ class _SSODomain(BaseModel):
     domain: str
 
 
-_SSODomainsParser: TypeAdapter[list[_SSODomain] | None] = TypeAdapter(
-    list[_SSODomain] | None
+_SSODomainsParser: TypeAdapter[list[_SSODomain | str] | None] = TypeAdapter(
+    list[_SSODomain | str] | None
 )
 
 
@@ -1314,7 +1314,8 @@ class SSOProvider(BaseModel):
     @classmethod
     def _domain_names(cls, value: object) -> list[str]:
         return [
-            domain.domain for domain in _SSODomainsParser.validate_python(value) or []
+            domain if isinstance(domain, str) else domain.domain
+            for domain in _SSODomainsParser.validate_python(value) or []
         ]
 
 
@@ -1339,7 +1340,9 @@ class CreateSSOProviderParams(BaseModel):
     """The email domains whose users sign in through this provider."""
     attribute_mapping: SAMLAttributeMapping | None = None
     """How assertion attributes map to user metadata."""
-    name_id_format: SAMLNameIDFormat | None = None
+    name_id_format: SAMLNameIDFormat | str | None = Field(
+        default=None, union_mode="left_to_right"
+    )
     """The `NameID` format to request from the identity provider."""
     resource_id: str | None = None
     """An identifier of your choosing to address the provider by."""
@@ -1355,7 +1358,7 @@ class UpdateSSOProviderParams(BaseModel):
     the server clears when it is not sent.
     """
 
-    name_id_format: SAMLNameIDFormat | None
+    name_id_format: SAMLNameIDFormat | str | None = Field(union_mode="left_to_right")
     """
     The `NameID` format to request from the identity provider. Required
     because `None` clears the stored format. Pass the provider's current
