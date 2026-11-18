@@ -297,8 +297,6 @@ class SupabaseClient[
         reserved keyword, so we have elected to use the name `table`.
         Alternatively you can use the `.from_()` method.
         """
-        if isinstance(table_name, str):
-            return self.from_(table_name)
         return self.postgrest.table(table_name)
 
     def from_(self, table_name: str) -> RequestBuilder[HttpIO]:
@@ -386,8 +384,10 @@ class SupabaseClient[
 
         Parameters
         ----------
-        fn : str
-            The name of the stored procedure to call.
+        fn : str or FunctionCall
+            The name of the stored procedure to call, or a `FunctionCall`,
+            which carries its arguments and takes none of the other
+            parameters.
         params : dict of any
             Parameters passed into the stored procedure call.
         head: When set to `true`, `data` will not be returned. Useful if you only need the count.

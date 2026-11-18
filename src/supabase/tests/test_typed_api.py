@@ -11,6 +11,7 @@ from supabase import (
     AsyncTableExecutor,
     Column,
     FunctionCall,
+    PostgrestClientOptions,
     Table,
     TableExecutor,
 )
@@ -111,6 +112,25 @@ def test_table_with_a_schema_queries_that_schema() -> None:
     assert request.headers["Accept-Profile"] == "library"
 
 
+def test_table_with_a_schema_overrides_the_schema_of_the_client() -> None:
+    requests: list[httpx.Request] = []
+    with SyncHttpxClient(transport=transport(requests)) as http_client:
+        client = create_client(
+            URL,
+            KEY,
+            http_client=http_client,
+            postgrest=PostgrestClientOptions(schema="private"),
+        )
+        client.table(Books.table).select().execute()
+        client.table(LIBRARY_BOOKS).select().execute()
+        client.schema("private").table(LIBRARY_BOOKS).select().execute()
+    assert [request.headers["Accept-Profile"] for request in requests] == [
+        "private",
+        "library",
+        "library",
+    ]
+
+
 def test_table_of_a_name_returns_the_string_builder() -> None:
     requests: list[httpx.Request] = []
     with SyncHttpxClient(transport=transport(requests)) as http_client:
@@ -150,6 +170,34 @@ async def test_async_rpc_calls_a_typed_function() -> None:
     assert count == 3
     (request,) = requests
     assert request.url.path == "/rest/v1/rpc/count_books"
+
+
+def test_sync_rpc_calls_a_function_with_a_value() -> None:
+    requests: list[httpx.Request] = []
+    with SyncHttpxClient(transport=transport(requests, 3)) as http_client:
+        client = create_client(URL, KEY, http_client=http_client)
+        builder = client.rpc(COUNT_BOOKS)
+        assert_type(builder, TypedBuilder[TableExecutor, int | None])
+        count = builder.execute()
+    assert_type(count, int | None)
+    assert count == 3
+
+
+async def test_async_rpc_calls_a_function_with_rows() -> None:
+    requests: list[httpx.Request] = []
+    async with (
+        AsyncHttpxClient(transport=transport(requests)) as http_client,
+        create_async_client(URL, KEY, http_client=http_client) as client,
+    ):
+        builder = client.rpc(SEARCH_BOOKS)
+        assert_type(
+            builder, TypedFilterBuilder[AsyncTableExecutor, BooksRow, list[BooksRow]]
+        )
+        books = await builder.where(Books.id.eq(1)).execute()
+    assert_type(books, list[BooksRow])
+    assert books == [BooksRow(id=1, title="Dune")]
+    (request,) = requests
+    assert request.url.path == "/rest/v1/rpc/search_books"
 
 
 @pytest.mark.parametrize(
