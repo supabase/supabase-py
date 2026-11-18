@@ -1467,9 +1467,13 @@ features:
       - StorageFileApiClient.upload
   storage.file_buckets.url_cache_nonce:
     status: implemented
-    note: "Pass a nonce (e.g. {\"t\": \"<timestamp>\"}) via the query_params argument of download() to bypass CDN caching."
+    note: "Pass cache_nonce to create_signed_url(), create_signed_urls(), get_public_url(), download() or download_stream(); it is appended as the cacheNonce query parameter to bypass CDN caching."
     symbols:
+      - StorageFileApiClient.create_signed_url
+      - StorageFileApiClient.create_signed_urls
+      - StorageFileApiClient.get_public_url
       - StorageFileApiClient.download
+      - StorageFileApiClient.download_stream
   storage.file_buckets.resumable_upload: not_implemented
   storage.file_buckets.transfer_progress:
     status: implemented

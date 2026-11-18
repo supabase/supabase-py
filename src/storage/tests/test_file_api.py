@@ -949,3 +949,109 @@ async def test_pages_raises_when_the_cursor_does_not_advance(
 
     with pytest.raises(StorageException, match="did not advance"):
         await call_with_client(use_async, handler, collect_pages(use_async))
+
+
+@use_async
+async def test_create_signed_url_appends_the_cache_nonce(use_async: bool) -> None:
+    def handler(request: Request) -> Response:
+        assert b"cacheNonce" not in request.content
+        return Response(200, content=SIGNED_URL_RESPONSE)
+
+    url = await call_with_client(
+        use_async,
+        handler,
+        lambda client: client.from_("bucket").create_signed_url(
+            "file.txt", 60, download=True, cache_nonce="v2"
+        ),
+    )
+    assert (
+        url
+        == f"{STORAGE_URL}object/sign/bucket/file.txt?token=t&download=&cacheNonce=v2"
+    )
+
+
+@use_async
+async def test_create_signed_urls_appends_the_cache_nonce(use_async: bool) -> None:
+    def handler(request: Request) -> Response:
+        return Response(
+            200,
+            json=[
+                {
+                    "path": "file.txt",
+                    "signedURL": "/object/sign/bucket/file.txt?token=t",
+                    "error": None,
+                }
+            ],
+        )
+
+    [item] = await call_with_client(
+        use_async,
+        handler,
+        lambda client: client.from_("bucket").create_signed_urls(
+            ["file.txt"], 60, cache_nonce="v2"
+        ),
+    )
+    assert (
+        item.signed_url
+        == f"{STORAGE_URL}object/sign/bucket/file.txt?token=t&cacheNonce=v2"
+    )
+
+
+@pytest.mark.parametrize(
+    ("transform", "expected"),
+    [
+        (None, "object/public/bucket/file.txt?cacheNonce=v2"),
+        (
+            TransformOptions(width=100),
+            "render/image/public/bucket/file.txt?cacheNonce=v2&width=100",
+        ),
+    ],
+)
+async def test_get_public_url_appends_the_cache_nonce(
+    transform: TransformOptions | None, expected: str
+) -> None:
+    def handler(request: Request) -> Response:
+        raise AssertionError("get_public_url must not send a request")
+
+    url = await call_with_client(
+        False,
+        handler,
+        lambda client: client.from_("bucket").get_public_url(
+            "file.txt", transform=transform, cache_nonce="v2"
+        ),
+    )
+    assert url == f"{STORAGE_URL}{expected}"
+
+
+@use_async
+async def test_download_sends_the_cache_nonce_with_other_query_params(
+    use_async: bool,
+) -> None:
+    request = await run(
+        use_async,
+        lambda b: b.download(
+            "file.txt",
+            transform=TransformOptions(width=100),
+            query_params={"cacheNonce": "old", "other": "x"},
+            cache_nonce="v2",
+        ),
+        content=b"hello",
+    )
+    assert request.url.path == "/storage/v1/render/image/authenticated/bucket/file.txt"
+    assert dict(request.url.params) == {
+        "cacheNonce": "v2",
+        "other": "x",
+        "width": "100",
+    }
+
+
+@use_async
+async def test_url_methods_leave_out_an_empty_cache_nonce(use_async: bool) -> None:
+    url = await call_with_client(
+        use_async,
+        lambda request: Response(200, content=SIGNED_URL_RESPONSE),
+        lambda client: client.from_("bucket").create_signed_url(
+            "file.txt", 60, cache_nonce=""
+        ),
+    )
+    assert "cacheNonce" not in url
