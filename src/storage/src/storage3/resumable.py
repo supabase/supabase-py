@@ -226,6 +226,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self._paused = False
         self._cancelled = False
         self._lock = threading.Lock()
+        self._read_lock = threading.Lock()
         self._running = False
         self._attempt = 0
 
@@ -337,18 +338,25 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             .override("Upload-Metadata", ",".join(metadata)),
         )
 
-    def _chunk(self, file: BinaryIO, start: int, end: int) -> Iterator[bytes]:
-        """Reads the bytes from `start` to `end`. The async client reads it in
-        a worker thread, which can outlive the run that started it, so a read
-        of a run that ended reads and reports nothing."""
-        attempt = self._attempt
+    def _chunk(
+        self, file: BinaryIO, start: int, end: int, attempt: int
+    ) -> Iterator[bytes]:
+        """Reads the bytes from `start` to `end` for the run `attempt`. The
+        async client reads it in a worker thread, which can outlive that run,
+        so a read of a run that ended reads and reports nothing. The read lock
+        is never taken by the event loop, so a slow read cannot block it."""
         position = start
         while position < end:
-            with self._lock:
+            with self._read_lock:
                 if attempt != self._attempt:
                     return
-                file.seek(self._start + position)
-                data = file.read(min(CHUNK_SIZE, end - position))
+                try:
+                    file.seek(self._start + position)
+                    data = file.read(min(CHUNK_SIZE, end - position))
+                except ValueError:
+                    if attempt != self._attempt:
+                        return
+                    raise
             if not data:
                 raise StorageException("The file of the resumable upload got shorter")
             yield data
@@ -365,7 +373,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             .override("Upload-Offset", str(offset))
             .override("Content-Type", "application/offset+octet-stream")
             .override("Content-Length", str(end - offset)),
-            body=self._chunk(file, offset, end),
+            body=self._chunk(file, offset, end, self._attempt),
         )
 
     def _delete_request(self, url: str) -> _TusRequest:
@@ -480,7 +488,9 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             if request.method == "POST":
                 url = self._created(request, response)
                 if self._cancelled:
-                    yield self._delete_request(url)
+                    deleted = yield self._delete_request(url)
+                    if not deleted.is_success and deleted.status not in (404, 410):
+                        raise _tus_error(deleted)
                     self._forget()
                 offset = 0
             else:
@@ -490,10 +500,11 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 if offset >= self.size:
                     if response.headers.get("supabase-object-id") is not None:
                         return self._complete(response)
-                    self._forget()
                     raise StorageException(
                         "Storage received every byte of the resumable upload "
-                        "but did not store the object"
+                        "but did not confirm that it stored the object, which "
+                        "it cannot when the policies let the user insert but "
+                        "not select objects. Check whether the object exists."
                     )
             self._offset = offset
             self._report(offset)

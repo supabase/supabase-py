@@ -474,13 +474,18 @@ async def test_completes_when_the_response_of_the_last_chunk_is_lost(
 
 
 @use_async
-async def test_fails_when_the_last_chunk_is_not_confirmed(
+async def test_keeps_the_upload_when_the_last_chunk_is_not_confirmed(
     server: TusServer, use_async: bool
 ) -> None:
     server.fail[3] = Response(204, headers={"Upload-Offset": "10"})
+    store: dict[str, str] = {}
 
-    with pytest.raises(StorageException, match="did not store the object"):
-        await run(upload_of(server, use_async))
+    upload = upload_of(server, use_async, store=store)
+    with pytest.raises(StorageException, match="did not confirm"):
+        await run(upload)
+
+    assert upload.url == f"{UPLOADS}/u0"
+    assert store == {upload.fingerprint: f"{UPLOADS}/u0"}
 
 
 def test_cancel_while_creating_deletes_the_new_upload() -> None:
@@ -503,6 +508,34 @@ def test_cancel_while_creating_deletes_the_new_upload() -> None:
         upload.run()
 
     assert cancelling.methods == ["POST", "DELETE"]
+    assert cancelling.uploads == {}
+    assert store == {}
+
+
+def test_keeps_the_new_upload_when_the_delete_after_a_cancel_fails() -> None:
+    store: dict[str, str] = {}
+
+    class CancellingServer(TusServer):
+        @override
+        def __call__(self, request: Request) -> Response:
+            if request.method == "POST":
+                upload.cancel()
+            return super().__call__(request)
+
+    cancelling = CancellingServer()
+    cancelling.fail[1] = Response(503, text="Service Unavailable")
+    upload = (
+        cancelling.sync_client()
+        .from_("videos")
+        .resumable_upload("clip.bin", DATA, chunk_size=4, store=store)
+    )
+    with pytest.raises(StorageApiError):
+        upload.run()
+    assert upload.url == f"{UPLOADS}/u0"
+
+    upload.cancel()
+
+    assert cancelling.methods == ["POST", "DELETE", "DELETE"]
     assert cancelling.uploads == {}
     assert store == {}
 
