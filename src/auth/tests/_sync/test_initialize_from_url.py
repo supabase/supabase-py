@@ -1,11 +1,23 @@
+import json
+import time
+
 import pytest
 from httpx import Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import HttpxSession
 from supabase_utils.types import JSON
 
 from supabase_auth import SyncSupabaseAuthClient
-from supabase_auth.errors import AuthImplicitGrantRedirectError
-from supabase_auth.types import AuthChangeEvent, AuthStateChange
+from supabase_auth.errors import (
+    AuthApiError,
+    AuthImplicitGrantRedirectError,
+    AuthPKCECodeVerifierMissingError,
+)
+from supabase_auth.types import (
+    AuthChangeEvent,
+    AuthFlowType,
+    AuthStateChange,
+    Session,
+)
 
 USER: dict[str, JSON] = {
     "id": "11111111-1111-1111-1111-111111111111",
@@ -18,9 +30,31 @@ USER: dict[str, JSON] = {
 
 TOKENS = "access_token=a&expires_in=3600&refresh_token=r&token_type=bearer"
 
+SESSION: dict[str, JSON] = {
+    "access_token": "exchanged",
+    "refresh_token": "r",
+    "expires_in": 3600,
+    "token_type": "bearer",
+    "user": USER,
+}
 
-def mock_client(authorizations: list[str]) -> SyncSupabaseAuthClient:
+
+def mock_client(
+    authorizations: list[str],
+    token_requests: list[Request] | None = None,
+    flow_type: AuthFlowType = "implicit",
+    token_status: int = 200,
+) -> SyncSupabaseAuthClient:
     def handler(request: Request) -> Response:
+        if request.url.path.endswith("/token"):
+            assert token_requests is not None
+            token_requests.append(request)
+            if token_status != 200:
+                return Response(
+                    token_status,
+                    json={"error_code": "bad_code_verifier", "msg": "Bad code"},
+                )
+            return Response(200, json=SESSION)
         assert request.url.path.endswith("/user")
         authorizations.append(request.headers.get("Authorization", ""))
         return Response(200, json=USER)
@@ -29,7 +63,14 @@ def mock_client(authorizations: list[str]) -> SyncSupabaseAuthClient:
         url="https://example.supabase.co/auth/v1",
         http_session=HttpxSession(client=Client(transport=MockTransport(handler))),
         auto_refresh_token=False,
+        flow_type=flow_type,
     )
+
+
+def start_oauth_flow(client: SyncSupabaseAuthClient) -> str:
+    response = client.sign_in_with_oauth("github")
+    assert response.flow_id is not None
+    return response.flow_id
 
 
 def events(changes: list[AuthStateChange]) -> list[AuthChangeEvent]:
@@ -130,3 +171,140 @@ def test_initialize_does_not_treat_pkce_callback_as_implicit_grant() -> None:
     assert authorizations == []
     assert events(changes) == [AuthChangeEvent.INITIAL_SESSION]
     assert client.get_session() is None
+
+
+@pytest.mark.parametrize(
+    ("query", "message", "error", "code"),
+    [
+        ("error=access_denied", "access_denied", "access_denied", None),
+        ("error_code=otp_expired", "otp_expired", None, "otp_expired"),
+        (
+            "error=server_error&error_description=Unable+to+exchange+code",
+            "Unable to exchange code",
+            "server_error",
+            None,
+        ),
+    ],
+)
+def test_initialize_from_url_raises_incomplete_error_redirect(
+    query: str, message: str, error: str | None, code: str | None
+) -> None:
+    client = mock_client([])
+
+    with pytest.raises(AuthImplicitGrantRedirectError) as raised:
+        client.initialize_from_url(f"https://app.example/callback?{query}")
+
+    assert raised.value.message == message
+    assert raised.value.detail_error == error
+    assert raised.value.detail_code == code
+    assert client.get_session() is None
+
+
+def test_initialize_exchanges_pkce_code_of_flow() -> None:
+    token_requests: list[Request] = []
+    client = mock_client([], token_requests, flow_type="pkce")
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
+    flow_id = start_oauth_flow(client)
+    start_oauth_flow(client)
+
+    client.initialize(url=f"https://app.example/callback?code=abc&sb_flow_id={flow_id}")
+
+    session = client.get_session()
+    assert session is not None
+    assert session.access_token == "exchanged"
+    assert len(token_requests) == 1
+    assert token_requests[0].url.params["grant_type"] == "pkce"
+    assert json.loads(token_requests[0].content)["auth_code"] == "abc"
+    assert events(changes) == [
+        AuthChangeEvent.INITIAL_SESSION,
+        AuthChangeEvent.SIGNED_IN,
+    ]
+    with pytest.raises(AuthPKCECodeVerifierMissingError):
+        client.initialize_from_url(
+            f"https://app.example/callback?code=abc&sb_flow_id={flow_id}"
+        )
+    assert len(token_requests) == 1
+    assert client.get_session() == session
+
+
+def test_initialize_from_url_raises_without_pkce_code_verifier() -> None:
+    token_requests: list[Request] = []
+    client = mock_client([], token_requests, flow_type="pkce")
+
+    with pytest.raises(AuthPKCECodeVerifierMissingError):
+        client.initialize_from_url("https://app.example/callback?code=abc")
+
+    assert token_requests == []
+    assert client.get_session() is None
+
+
+def test_initialize_from_url_raises_pkce_error_before_exchange() -> None:
+    token_requests: list[Request] = []
+    client = mock_client([], token_requests, flow_type="pkce")
+    start_oauth_flow(client)
+
+    with pytest.raises(AuthImplicitGrantRedirectError) as raised:
+        client.initialize_from_url(
+            "https://app.example/callback?code=abc&error=access_denied"
+            "&error_description=User+denied+access"
+        )
+
+    assert raised.value.message == "User denied access"
+    assert token_requests == []
+
+
+@pytest.mark.parametrize(
+    "query", ["page=2", "code=SUMMER24", "error=invalid_email", "error_code=e"]
+)
+def test_initialize_recovers_storage_without_callback_parameters(
+    query: str,
+) -> None:
+    token_requests: list[Request] = []
+    client = mock_client([], token_requests, flow_type="pkce")
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
+
+    client.initialize(url=f"https://app.example/page?{query}")
+
+    assert token_requests == []
+
+    assert events(changes) == [AuthChangeEvent.INITIAL_SESSION]
+    assert client.get_session() is None
+
+
+def test_initialize_recovers_storage_when_code_exchange_fails() -> None:
+    token_requests: list[Request] = []
+    client = mock_client([], token_requests, flow_type="pkce", token_status=400)
+    stored = Session.model_validate(
+        {**SESSION, "access_token": "stored", "expires_at": round(time.time()) + 3600}
+    )
+    client.session_manager.storage.set_item(
+        client.session_manager.storage_key, stored.model_dump_json()
+    )
+    start_oauth_flow(client)
+
+    with pytest.raises(AuthApiError):
+        client.initialize(url="https://app.example/page?code=unrelated")
+
+    assert len(token_requests) == 1
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
+    assert changes[0].session is not None
+    assert changes[0].session.access_token == "stored"
+
+
+def test_initialize_from_url_error_redirect_keeps_stored_session() -> None:
+    client = mock_client([])
+    stored = Session.model_validate(
+        {**SESSION, "access_token": "stored", "expires_at": round(time.time()) + 3600}
+    )
+    client.session_manager.save_session(stored)
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
+
+    with pytest.raises(AuthImplicitGrantRedirectError):
+        client.initialize_from_url("https://app.example/callback?error=denied")
+
+    assert client.get_session() == stored
+    assert events(changes) == [AuthChangeEvent.INITIAL_SESSION]
