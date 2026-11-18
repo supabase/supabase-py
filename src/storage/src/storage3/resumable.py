@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import os
 import stat
 import threading
 from base64 import b64encode
 from collections.abc import Iterator
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from functools import cached_property
 from http import HTTPStatus
@@ -134,16 +135,14 @@ def _upload_offset(response: Response) -> int:
     return int(value)
 
 
-@contextmanager
-def _opened(source: ResumableUploadSource) -> Generator[BinaryIO]:
+def _open(source: ResumableUploadSource) -> tuple[BinaryIO, bool]:
+    """The file to read `source` from, and whether the upload opened it and
+    so closes it."""
     if isinstance(source, bytes):
-        yield BytesIO(source)
-    elif isinstance(source, (str, os.PathLike)):
-        with open(source, "rb") as file:
-            yield file
-    else:
-        with nullcontext(source) as file:
-            yield file
+        return BytesIO(source), False
+    if isinstance(source, (str, os.PathLike)):
+        return open(source, "rb"), True
+    return source, False
 
 
 def _measure(source: ResumableUploadSource) -> tuple[int, int]:
@@ -209,6 +208,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self._start, self.size = _measure(source)
         """The bytes the upload sends."""
         self._source = source
+        self._file_identity = None if isinstance(source, bytes) else _identity(source)
         self._executor = executor
         self._base_url = base_url
         self._default_headers = default_headers
@@ -237,7 +237,11 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         fingerprint. None when the
         file cannot be told apart from another one, like a file object
         without a path, which the store then does not keep."""
-        identity = _identity(self._source)
+        identity = (
+            hashlib.sha256(self._source).hexdigest()
+            if isinstance(self._source, bytes)
+            else self._file_identity
+        )
         if identity is None:
             return None
         parts = (
@@ -274,18 +278,36 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self._paused = True
 
     @contextmanager
-    def _run(self) -> Generator[BinaryIO]:
+    def _running_state(self) -> Generator[None]:
         with self._lock:
             if self._running:
                 raise RuntimeError("The resumable upload is already running")
             self._running = True
         try:
-            with _opened(self._source) as file:
-                yield file
+            yield
         finally:
             with self._lock:
                 self._attempt += 1
                 self._running = False
+
+    def _retire(self) -> None:
+        """Ends the reads of the current run before its file is closed."""
+        with self._lock:
+            self._attempt += 1
+
+    def _open(self) -> tuple[BinaryIO, bool]:
+        """Opens the source, refusing a file that changed since the upload
+        was prepared, since its bytes would be appended to those of the old
+        one on the server."""
+        file, owned = _open(self._source)
+        if self._file_identity is not None and _identity(file) != self._file_identity:
+            if owned:
+                file.close()
+            raise StorageException(
+                "The file of the resumable upload changed since the upload was "
+                "prepared. Cancel it and start a new one."
+            )
+        return file, owned
 
     def _stored_url(self) -> str | None:
         if self._url is None and self._store is not None and self.fingerprint:
@@ -398,14 +420,14 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         method: HTTPRequestMethod,
     ) -> float | None:
         """Seconds to wait before trying again after `outcome`, or None when
-        the upload fails with it. The creating POST is retried after a
-        transport error only when the `RetryPolicy` retries a POST, since it
-        may have created an upload. A PATCH or a HEAD is safe to repeat, as
+        the upload fails with it. The creating POST is retried only when
+        the `RetryPolicy` retries a POST, since a failed one may still have
+        created an upload. A PATCH or a HEAD is safe to repeat, as
         the offset is read again before the next PATCH."""
         policy: RetryPolicy = self._executor.retry_policy
+        if method == "POST" and "POST" not in policy.retryable_methods:
+            return None
         if isinstance(outcome, SupabaseTransportError):
-            if method == "POST" and "POST" not in policy.retryable_methods:
-                return None
             return policy.delay(outcome, retries)
         if outcome.status == HTTPStatus.CONFLICT and method == "PATCH":
             if (
@@ -576,19 +598,27 @@ class ResumableUpload(BaseResumableUpload[SyncHttpIO]):
         """
         if self._response is not None:
             return self._response
-        with self._run() as file:
-            return _drive_sync(
-                self._executor,
-                self._base_url,
-                self._default_headers,
-                self._steps(file),
-            )
+        with self._running_state():
+            file, owned = self._open()
+            try:
+                return _drive_sync(
+                    self._executor,
+                    self._base_url,
+                    self._default_headers,
+                    self._steps(file),
+                )
+            finally:
+                self._retire()
+                if owned:
+                    file.close()
 
     def cancel(self) -> None:
         """Stops the upload, deletes what the server holds of it, and removes
         it from the store. A `run` in progress raises
         `ResumableUploadCancelledError` once the chunk in flight is sent.
-        Does nothing once the upload completed."""
+        Does nothing once the upload completed. A cancel that comes while the
+        last chunk is in flight can be too late: the server then stores the
+        object, and `run` returns it."""
         if self._response is not None:
             return
         self._cancelled = True
@@ -628,19 +658,27 @@ class AsyncResumableUpload(BaseResumableUpload[AsyncHttpIO]):
         """
         if self._response is not None:
             return self._response
-        with self._run() as file:
-            return await _drive_async(
-                self._executor,
-                self._base_url,
-                self._default_headers,
-                self._steps(file),
-            )
+        with self._running_state():
+            file, owned = await asyncio.to_thread(self._open)
+            try:
+                return await _drive_async(
+                    self._executor,
+                    self._base_url,
+                    self._default_headers,
+                    self._steps(file),
+                )
+            finally:
+                self._retire()
+                if owned:
+                    await asyncio.to_thread(file.close)
 
     async def cancel(self) -> None:
         """Stops the upload, deletes what the server holds of it, and removes
         it from the store. A `run` in progress raises
         `ResumableUploadCancelledError` once the chunk in flight is sent.
-        Does nothing once the upload completed."""
+        Does nothing once the upload completed. A cancel that comes while the
+        last chunk is in flight can be too late: the server then stores the
+        object, and `run` returns it."""
         if self._response is not None:
             return
         self._cancelled = True

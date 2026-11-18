@@ -674,3 +674,40 @@ def test_the_fingerprint_follows_the_open_file_when_its_path_is_replaced(
             bucket.resumable_upload("clip.bin", old).fingerprint
             != bucket.resumable_upload("clip.bin", path).fingerprint
         )
+
+
+@use_async
+async def test_does_not_resend_the_creating_post_after_an_error_status(
+    server: TusServer, use_async: bool
+) -> None:
+    server.fail[0] = Response(503, text="Service Unavailable")
+
+    with pytest.raises(StorageApiError):
+        await run(upload_of(server, use_async))
+
+    assert server.methods == ["POST"]
+
+
+@use_async
+async def test_refuses_to_continue_with_a_file_that_was_replaced(
+    server: TusServer, use_async: bool, tmp_path: Path
+) -> None:
+    path = tmp_path / "clip.bin"
+    path.write_bytes(DATA)
+
+    def pause(moved: int, total: int | None) -> None:
+        if moved == 4:
+            upload.pause()
+
+    upload = upload_of(server, use_async, path, on_progress=pause)
+    with pytest.raises(ResumableUploadPausedError):
+        await run(upload)
+    replacement = tmp_path / "replacement.bin"
+    replacement.write_bytes(DATA[::-1])
+    replacement.replace(path)
+
+    with pytest.raises(StorageException, match="changed"):
+        await run(upload)
+
+    assert server.methods == ["POST", "PATCH"]
+    assert server.uploads["u0"] == DATA[:4]
