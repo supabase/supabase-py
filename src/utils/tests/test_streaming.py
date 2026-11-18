@@ -24,6 +24,7 @@ from supabase_utils.http.request import (
     AsyncStreamedResponse,
     BytesRequest,
     EmptyRequest,
+    Request,
     Response,
     StreamedResponse,
 )
@@ -276,6 +277,30 @@ def test_sync_receive_reads_an_error_body_without_observing_it(
     assert response.status == 404
     assert response.content == b"0123456789"
     assert len(recorder.requests) == 2
+
+
+def test_sync_receive_does_not_retry_an_error_of_the_observer(
+    sleeps: list[float],
+) -> None:
+    recorder = Recorder()
+    raised = SupabaseTransportError(
+        Request(URL("https://other.example"), "GET", Headers.empty(), None, None)
+    )
+
+    def observe(response: StreamedResponse) -> Iterator[bytes]:
+        yield from response.body
+        raise raised
+
+    with pytest.raises(SupabaseTransportError) as caught:
+        sync_io(recorder).receive(
+            BASE_URL,
+            Headers.empty(),
+            EmptyRequest(path=["file"], method="GET"),
+            observe,
+        )
+    assert caught.value is raised
+    assert len(recorder.requests) == 1
+    assert sleeps == []
 
 
 async def test_async_receive_retries_a_failure_in_the_body(
