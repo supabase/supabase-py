@@ -30,8 +30,9 @@ class Bytea(bytes):
     ) -> core_schema.CoreSchema:
         return core_schema.no_info_plain_validator_function(
             cls._validated,
+            json_schema_input_schema=core_schema.str_schema(),
             serialization=core_schema.plain_serializer_function_ser_schema(
-                _hex, when_used="json"
+                _hex, when_used="json", return_schema=core_schema.str_schema()
             ),
         )
 

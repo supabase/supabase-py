@@ -52,3 +52,11 @@ def test_filters_send_bytes_in_the_hex_form() -> None:
 
     assert payload.eq(Bytea(b"Hi"))._query_parameters() == [("payload", "eq.\\x4869")]
     assert _rpc_query_param(b"Hi") == "\\x4869"
+
+
+def test_a_model_has_a_json_schema() -> None:
+    validation = FilesRow.model_json_schema()
+    serialization = FilesRow.model_json_schema(mode="serialization")
+
+    for schema in (validation, serialization):
+        assert schema["properties"]["payload"]["anyOf"][0] == {"type": "string"}
