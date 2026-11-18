@@ -274,6 +274,8 @@ class TestDecodes:
         {"name": "not.in.(1)"},
         {"name": "like(any).x"},
         {"name": "fts(english).x"},
+        {"name": "not.available"},
+        {"matrix": [[1, 2], [3, 4]]},
     ],
 )
 def test_a_read_only_call_postgrest_would_misread_is_posted(
@@ -294,7 +296,13 @@ def test_a_read_only_call_postgrest_would_misread_is_posted(
 
 @pytest.mark.parametrize(
     "arguments",
-    [{"name": "equal.x"}, {"name": "eq"}, {"name": 1}, {"ids": [1, None]}],
+    [
+        {"name": "equal.x"},
+        {"name": "eq"},
+        {"name": "notable"},
+        {"name": 1},
+        {"ids": [1, None]},
+    ],
 )
 def test_a_read_only_call_postgrest_reads_as_arguments_is_a_get(
     arguments: dict[str, JSON],

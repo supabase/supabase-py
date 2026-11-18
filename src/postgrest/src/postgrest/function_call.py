@@ -98,6 +98,12 @@ class FunctionCall[Row, Result]:
         row or an array, decodes into `result_type`, or into `None` when the
         function returns `NULL`.
 
+        PostgREST answers a function that returns one row, not a set, and
+        finds none with a row whose columns are all `null`, which only
+        decodes into a `result_type` that allows it. Declare such a function
+        `returns setof` and read it with `rows()` and `maybe_single()` to
+        get `None` instead.
+
         See `rows()` for `arguments` and `read_only`.
         """
         return FunctionCall(
