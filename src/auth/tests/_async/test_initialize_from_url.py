@@ -298,3 +298,19 @@ async def test_initialize_recovers_storage_when_code_exchange_fails() -> None:
     client.on_auth_state_change(changes.append)
     assert changes[0].session is not None
     assert changes[0].session.access_token == "stored"
+
+
+async def test_initialize_from_url_error_redirect_keeps_stored_session() -> None:
+    client = mock_client([])
+    stored = Session.model_validate(
+        {**SESSION, "access_token": "stored", "expires_at": round(time.time()) + 3600}
+    )
+    await client.session_manager.save_session(stored)
+    changes: list[AuthStateChange] = []
+    client.on_auth_state_change(changes.append)
+
+    with pytest.raises(AuthImplicitGrantRedirectError):
+        await client.initialize_from_url("https://app.example/callback?error=denied")
+
+    assert await client.get_session() == stored
+    assert events(changes) == [AuthChangeEvent.INITIAL_SESSION]

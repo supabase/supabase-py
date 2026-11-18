@@ -762,16 +762,15 @@ class AsyncSupabaseAuthClient(
         both the query string and the fragment.
 
         - `error`, `error_code` or `error_description` raise
-          `AuthImplicitGrantRedirectError` and remove the stored session.
+          `AuthImplicitGrantRedirectError`.
         - `access_token` and the other implicit grant tokens are saved as the
-          session. When that fails, the stored session is removed and the
-          error is raised.
+          session.
         - With the `pkce` flow type, `code` is exchanged for a session as
           `exchange_code_for_session` does, for the flow named by the
-          `sb_flow_id` parameter when it is present. A failed exchange keeps
-          the stored session.
+          `sb_flow_id` parameter when it is present.
 
-        A URL with none of these parameters is ignored.
+        A failed sign-in keeps the stored session. A URL with none of these
+        parameters is ignored.
         """
         await self._initialize_from_parameters(_parse_url_params(url))
 
@@ -785,22 +784,18 @@ class AsyncSupabaseAuthClient(
         return True
 
     async def _initialize_from_parameters(self, parameters: dict[str, str]) -> None:
-        try:
-            _raise_for_redirect_error(parameters)
-            if "access_token" in parameters:
-                session, redirect_type = await self._get_session_from_url(parameters)
-                await self.session_manager.save_session(session)
+        _raise_for_redirect_error(parameters)
+        if "access_token" in parameters:
+            session, redirect_type = await self._get_session_from_url(parameters)
+            await self.session_manager.save_session(session)
+            self.session_manager.notify_all_subscribers(
+                AuthStateChange(AuthChangeEvent.SIGNED_IN, session)
+            )
+            if redirect_type == "recovery":
                 self.session_manager.notify_all_subscribers(
-                    AuthStateChange(AuthChangeEvent.SIGNED_IN, session)
+                    AuthStateChange(AuthChangeEvent.PASSWORD_RECOVERY, session)
                 )
-                if redirect_type == "recovery":
-                    self.session_manager.notify_all_subscribers(
-                        AuthStateChange(AuthChangeEvent.PASSWORD_RECOVERY, session)
-                    )
-                return
-        except Exception:
-            await self.session_manager.remove_session()
-            raise
+            return
         code = parameters.get("code")
         if code and self.flow_type == "pkce":
             await self.exchange_code_for_session(
@@ -1429,16 +1424,15 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         both the query string and the fragment.
 
         - `error`, `error_code` or `error_description` raise
-          `AuthImplicitGrantRedirectError` and remove the stored session.
+          `AuthImplicitGrantRedirectError`.
         - `access_token` and the other implicit grant tokens are saved as the
-          session. When that fails, the stored session is removed and the
-          error is raised.
+          session.
         - With the `pkce` flow type, `code` is exchanged for a session as
           `exchange_code_for_session` does, for the flow named by the
-          `sb_flow_id` parameter when it is present. A failed exchange keeps
-          the stored session.
+          `sb_flow_id` parameter when it is present.
 
-        A URL with none of these parameters is ignored.
+        A failed sign-in keeps the stored session. A URL with none of these
+        parameters is ignored.
         """
         self._initialize_from_parameters(_parse_url_params(url))
 
@@ -1452,22 +1446,18 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         return True
 
     def _initialize_from_parameters(self, parameters: dict[str, str]) -> None:
-        try:
-            _raise_for_redirect_error(parameters)
-            if "access_token" in parameters:
-                session, redirect_type = self._get_session_from_url(parameters)
-                self.session_manager.save_session(session)
+        _raise_for_redirect_error(parameters)
+        if "access_token" in parameters:
+            session, redirect_type = self._get_session_from_url(parameters)
+            self.session_manager.save_session(session)
+            self.session_manager.notify_all_subscribers(
+                AuthStateChange(AuthChangeEvent.SIGNED_IN, session)
+            )
+            if redirect_type == "recovery":
                 self.session_manager.notify_all_subscribers(
-                    AuthStateChange(AuthChangeEvent.SIGNED_IN, session)
+                    AuthStateChange(AuthChangeEvent.PASSWORD_RECOVERY, session)
                 )
-                if redirect_type == "recovery":
-                    self.session_manager.notify_all_subscribers(
-                        AuthStateChange(AuthChangeEvent.PASSWORD_RECOVERY, session)
-                    )
-                return
-        except Exception:
-            self.session_manager.remove_session()
-            raise
+            return
         code = parameters.get("code")
         if code and self.flow_type == "pkce":
             self.exchange_code_for_session(
