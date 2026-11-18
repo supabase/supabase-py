@@ -67,6 +67,7 @@ features:
       - SSOResponse
   auth.sign_in.sign_in_with_id_token:
     status: implemented
+    note: "provider also accepts the identifier of a custom OIDC provider, like custom:mycompany."
     symbols:
       - AsyncSupabaseAuthClient.sign_in_with_id_token
       - SyncSupabaseAuthClient.sign_in_with_id_token

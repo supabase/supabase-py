@@ -1247,26 +1247,14 @@ class OIDCDiscoveryDocument(BaseModel):
     id_token_signing_alg_values_supported: list[str] | None = None
 
 
-class CustomOAuthProvider(BaseModel):
-    """
-    A custom OIDC or OAuth provider. Pass its `identifier` as the provider
-    of `sign_in_with_oauth` to sign in with it.
-    """
-
-    id: str
-    provider_type: CustomProviderType | str
-    identifier: str
-    """Provider identifier, with the `custom:` prefix, e.g. `custom:mycompany`"""
-    name: str
-    """Human-readable name"""
-    client_id: str
+class _CustomProviderSettings(BaseModel):
     acceptable_client_ids: list[str] | None = None
     """Additional client IDs accepted during token validation"""
     scopes: list[str] | None = None
     """OAuth scopes requested during authorization"""
     custom_claims_allowlist: list[str] | None = None
     """Raw identity provider claim keys copied verbatim into the
-    `custom_claims` of the user, e.g. `["groups", "org_id"]`"""
+    `custom_claims` of the user, like `["groups", "org_id"]`"""
     pkce_enabled: bool | None = None
     attribute_mapping: Mapping[str, JSON] | None = None
     """Mapping of provider attributes to Supabase user attributes"""
@@ -1288,6 +1276,21 @@ class CustomOAuthProvider(BaseModel):
     """OAuth2 userinfo URL"""
     jwks_uri: str | None = None
     """JWKS URI for token verification"""
+
+
+class CustomOAuthProvider(_CustomProviderSettings):
+    """
+    A custom OIDC or OAuth provider. Pass its `identifier` as the provider
+    of `sign_in_with_oauth` to sign in with it.
+    """
+
+    id: str
+    provider_type: CustomProviderType | str
+    identifier: str
+    """Provider identifier with the `custom:` prefix, like `custom:mycompany`"""
+    name: str
+    """Human-readable name"""
+    client_id: str
     discovery_document: OIDCDiscoveryDocument | None = None
     """The discovery document of an OIDC provider"""
     created_at: datetime
@@ -1298,54 +1301,26 @@ class _CustomOAuthProviderList(BaseModel):
     providers: list[CustomOAuthProvider] = Field(default_factory=list)
 
 
-class CreateCustomProviderParams(BaseModel):
+class CreateCustomProviderParams(_CustomProviderSettings):
     """
     Parameters for creating a custom OIDC or OAuth provider.
     """
 
     provider_type: CustomProviderType
     identifier: str
-    """Provider identifier, with the `custom:` prefix, e.g. `custom:mycompany`"""
+    """Provider identifier with the `custom:` prefix, like `custom:mycompany`"""
     name: str
     """Human-readable name"""
     client_id: str
     client_secret: str
     """OAuth client secret, never returned by the server"""
-    acceptable_client_ids: list[str] | None = None
-    """Additional client IDs accepted during token validation"""
-    scopes: list[str] | None = None
-    """OAuth scopes requested during authorization"""
-    custom_claims_allowlist: list[str] | None = None
-    """Raw identity provider claim keys copied verbatim into the
-    `custom_claims` of the user, e.g. `["groups", "org_id"]`"""
-    pkce_enabled: bool | None = None
-    attribute_mapping: Mapping[str, JSON] | None = None
-    """Mapping of provider attributes to Supabase user attributes"""
-    authorization_params: Mapping[str, str] | None = None
-    """Additional parameters sent with the authorization request"""
-    enabled: bool | None = None
-    email_optional: bool | None = None
-    issuer: str | None = None
-    """OIDC issuer URL"""
-    discovery_url: str | None = None
-    """OIDC discovery URL"""
-    skip_nonce_check: bool | None = None
-    """Whether to skip the OIDC nonce check"""
-    authorization_url: str | None = None
-    """OAuth2 authorization URL"""
-    token_url: str | None = None
-    """OAuth2 token URL"""
-    userinfo_url: str | None = None
-    """OAuth2 userinfo URL"""
-    jwks_uri: str | None = None
-    """JWKS URI for token verification"""
 
 
-class UpdateCustomProviderParams(BaseModel):
+class UpdateCustomProviderParams(_CustomProviderSettings):
     """
-    Parameters for updating a custom OIDC or OAuth provider. Only the fields
-    that are set are updated. The type and identifier of a provider cannot
-    change.
+    Parameters for updating a custom OIDC or OAuth provider. Fields left as
+    `None` keep their current value. The type and identifier of a provider
+    cannot change.
     """
 
     name: str | None = None
@@ -1353,31 +1328,3 @@ class UpdateCustomProviderParams(BaseModel):
     client_id: str | None = None
     client_secret: str | None = None
     """OAuth client secret, never returned by the server"""
-    acceptable_client_ids: list[str] | None = None
-    """Additional client IDs accepted during token validation"""
-    scopes: list[str] | None = None
-    """OAuth scopes requested during authorization"""
-    custom_claims_allowlist: list[str] | None = None
-    """Raw identity provider claim keys copied verbatim into the
-    `custom_claims` of the user, e.g. `["groups", "org_id"]`"""
-    pkce_enabled: bool | None = None
-    attribute_mapping: Mapping[str, JSON] | None = None
-    """Mapping of provider attributes to Supabase user attributes"""
-    authorization_params: Mapping[str, str] | None = None
-    """Additional parameters sent with the authorization request"""
-    enabled: bool | None = None
-    email_optional: bool | None = None
-    issuer: str | None = None
-    """OIDC issuer URL"""
-    discovery_url: str | None = None
-    """OIDC discovery URL"""
-    skip_nonce_check: bool | None = None
-    """Whether to skip the OIDC nonce check"""
-    authorization_url: str | None = None
-    """OAuth2 authorization URL"""
-    token_url: str | None = None
-    """OAuth2 token URL"""
-    userinfo_url: str | None = None
-    """OAuth2 userinfo URL"""
-    jwks_uri: str | None = None
-    """JWKS URI for token verification"""

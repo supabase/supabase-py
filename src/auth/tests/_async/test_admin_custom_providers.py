@@ -210,3 +210,39 @@ async def test_sign_in_with_oauth_accepts_a_custom_provider() -> None:
 
     assert response.provider == "custom:mycompany"
     assert URL(response.url).query["provider"] == "custom:mycompany"
+
+
+async def test_sign_in_with_id_token_accepts_a_custom_provider() -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(
+            200,
+            json={
+                "access_token": "access-token",
+                "refresh_token": "refresh-token",
+                "expires_in": 3600,
+                "token_type": "bearer",
+                "user": {
+                    "id": "11111111-1111-1111-1111-111111111111",
+                    "aud": "authenticated",
+                    "app_metadata": {},
+                    "user_metadata": {},
+                    "created_at": "2020-01-01T00:00:00Z",
+                },
+            },
+        )
+
+    client = AsyncSupabaseAuthClient(
+        url=AUTH_URL,
+        auto_refresh_token=False,
+        http_session=AsyncHttpxSession(
+            client=AsyncClient(transport=MockTransport(handler))
+        ),
+    )
+
+    await client.sign_in_with_id_token("custom:mycompany", "id-token")
+
+    assert requests[0].url.params["grant_type"] == "id_token"
+    assert json.loads(requests[0].content)["provider"] == "custom:mycompany"
