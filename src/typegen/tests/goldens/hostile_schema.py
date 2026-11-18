@@ -120,6 +120,7 @@ class ClassRow(BaseModel):
     created_at: datetime.datetime = Field(alias="createdAt")
     datetime_: datetime.date | None = Field(default=None, alias="datetime")
     embedding: str | None = None
+    ends: str | None = None
     from_: int = Field(alias="from")
     id: uuid.UUID
     json_: JsonValue | None = Field(default=None, alias="json")
@@ -154,6 +155,7 @@ class ClassInsert(TypedDict):
     created_at: Annotated[datetime.datetime, Field(alias="createdAt")]
     datetime_: NotRequired[Annotated[datetime.date | None, Field(alias="datetime")]]
     embedding: NotRequired[str | None]
+    ends: NotRequired[str | None]
     id: NotRequired[uuid.UUID]
     json_: NotRequired[Annotated[JsonValue | None, Field(alias="json")]]
     model_config_: NotRequired[Annotated[str | None, Field(alias="model_config")]]
@@ -181,6 +183,7 @@ class ClassUpdate(TypedDict, total=False):
     created_at: Annotated[datetime.datetime, Field(alias="createdAt")]
     datetime_: Annotated[datetime.date | None, Field(alias="datetime")]
     embedding: str | None
+    ends: str | None
     id: uuid.UUID
     json_: Annotated[JsonValue | None, Field(alias="json")]
     model_config_: Annotated[str | None, Field(alias="model_config")]
@@ -483,6 +486,7 @@ class Class:
     created_at = Column[ClassRow, datetime.datetime]("createdAt")
     datetime_ = NullableColumn[ClassRow, datetime.date]("datetime")
     embedding = NullableColumn[ClassRow, str]("embedding")
+    ends = NullableColumn[ClassRow, str]("ends")
     from_ = Column[ClassRow, int]("from")
     id = Column[ClassRow, uuid.UUID]("id")
     json_ = NullableColumn[ClassRow, JsonValue]("json")

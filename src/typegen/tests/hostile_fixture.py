@@ -19,6 +19,7 @@ BUILTINS = {
     "_text": 1009,
     "date": 1082,
     "time": 1083,
+    "timetz": 1266,
     "timestamptz": 1184,
     "interval": 1186,
     "numeric": 1700,
@@ -344,6 +345,7 @@ def hostile_metadata() -> JsonObject:
                 type_schema="extensions",
                 nullable=True,
             ),
+            column(CLASS_TABLE, "public", "class", "ends", "timetz", nullable=True),
             column(CLASS_TABLE, "public", "class", "from", "int4", identity="ALWAYS"),
             column(
                 CLASS_TABLE,
