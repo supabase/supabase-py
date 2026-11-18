@@ -993,7 +993,15 @@ features:
       - RealtimeChannel.http_send
     supporting_symbols:
       - RealtimeAPIError
-  realtime.channel.broadcast_persist: not_implemented
+  realtime.channel.broadcast_persist:
+    status: implemented
+    note: "persist is a BroadcastPersistence with an optional ttl in seconds. A persist on a public channel raises ValueError. With broadcast_ack, send_broadcast raises PushRejectedError whose code is the server error code, such as persistence_unauthorized. http_send raises RealtimeAPIError when the server refuses the message, such as a ttl out of range."
+    symbols:
+      - RealtimeChannel.send_broadcast
+      - RealtimeChannel.http_send
+    supporting_symbols:
+      - BroadcastPersistence
+      - PushRejectedError
 
   realtime.subscriptions.broadcast:
     status: implemented
