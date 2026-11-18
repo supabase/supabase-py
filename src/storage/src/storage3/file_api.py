@@ -102,7 +102,7 @@ def _normalize_object_key(path: str) -> str:
     return "/".join(relative_path_to_parts(path))
 
 
-def _remove_prefix(path: str | FileVersion) -> JSON:
+def _delete_entry(path: str | FileVersion) -> JSON:
     if isinstance(path, FileVersion):
         return {
             "path": _normalize_object_key(path.path),
@@ -676,10 +676,12 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             file. A `FileVersion` deletes exactly that version, current or
             not: `[FileVersion("folder/image.png", version_id)]`.
         """
+        if isinstance(paths, str):
+            raise TypeError("paths must be a list of paths, not a single str")
         response = yield JSONRequest(
             method="DELETE",
             path=["object", self.id],
-            body={"prefixes": [_remove_prefix(path) for path in paths]},
+            body={"prefixes": [_delete_entry(path) for path in paths]},
         )
         return _validate_adapter(response, FileObjectsAdapter)
 

@@ -279,3 +279,16 @@ async def test_pages_forwards_the_version_options(use_async: bool) -> None:
         "noncurrentVersions": "only",
         "deleteMarkers": "exclude",
     }
+
+
+@use_async
+async def test_remove_rejects_a_single_path(use_async: bool) -> None:
+    def handler(request: Request) -> Response:
+        raise AssertionError("remove must not send a request")
+
+    with pytest.raises(TypeError, match="not a single str"):
+        await call_with_client(
+            use_async,
+            handler,
+            lambda client: client.from_("bucket").remove("a.txt"),
+        )
