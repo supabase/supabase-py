@@ -33,6 +33,7 @@ features:
       - SignInWithPhoneAndPasswordCredentials
   auth.sign_in.sign_in_with_oauth:
     status: implemented
+    note: "provider also accepts the identifier of a custom OIDC or OAuth provider, like custom:mycompany."
     symbols:
       - AsyncSupabaseAuthClient.sign_in_with_oauth
       - SyncSupabaseAuthClient.sign_in_with_oauth
@@ -66,6 +67,7 @@ features:
       - SSOResponse
   auth.sign_in.sign_in_with_id_token:
     status: implemented
+    note: "provider also accepts the identifier of a custom OIDC provider, like custom:mycompany."
     symbols:
       - AsyncSupabaseAuthClient.sign_in_with_id_token
       - SyncSupabaseAuthClient.sign_in_with_id_token
@@ -350,11 +352,37 @@ features:
     supporting_symbols:
       - Factor
 
-  auth.admin.create_provider: not_implemented
-  auth.admin.delete_provider: not_implemented
-  auth.admin.update_provider: not_implemented
-  auth.admin.get_provider: not_implemented
-  auth.admin.list_providers: not_implemented
+  auth.admin.create_provider:
+    status: implemented
+    note: "Accessible via admin.custom_providers.create_provider(params)."
+    symbols:
+      - SupabaseAuthAdminCustomProviders.create_provider
+    supporting_symbols:
+      - CreateCustomProviderParams
+      - CustomOAuthProvider
+      - OIDCDiscoveryDocument
+  auth.admin.delete_provider:
+    status: implemented
+    note: "Accessible via admin.custom_providers.delete_provider(identifier)."
+    symbols:
+      - SupabaseAuthAdminCustomProviders.delete_provider
+  auth.admin.update_provider:
+    status: implemented
+    note: "Accessible via admin.custom_providers.update_provider(identifier, params)."
+    symbols:
+      - SupabaseAuthAdminCustomProviders.update_provider
+    supporting_symbols:
+      - UpdateCustomProviderParams
+  auth.admin.get_provider:
+    status: implemented
+    note: "Accessible via admin.custom_providers.get_provider(identifier)."
+    symbols:
+      - SupabaseAuthAdminCustomProviders.get_provider
+  auth.admin.list_providers:
+    status: implemented
+    note: "Accessible via admin.custom_providers.list_providers(provider_type), which returns a list of providers."
+    symbols:
+      - SupabaseAuthAdminCustomProviders.list_providers
 
   auth.sso_admin.create_provider: not_implemented
   auth.sso_admin.delete_provider: not_implemented
@@ -1813,6 +1841,7 @@ supporting_symbols:
   - SupabaseAuthAdmin
   - AsyncSupabaseAuthAdmin
   - SyncSupabaseAuthAdmin
+  - SupabaseAuthAdminCustomProviders
   - SupabaseAuthAdminMFA
   - SupabaseAuthAdminOAuth
   - AuthResponse
