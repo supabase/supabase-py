@@ -221,6 +221,7 @@ async def test_persisted_broadcasts_are_replayed(socket: RealtimeClient) -> None
     replayed: list[tuple[str, object]] = []
     for _ in range(10):
         replayed = await _replayed_broadcasts(socket, topic, replay)
+        assert replayed == expected[: len(replayed)]
         if replayed == expected:
             break
     assert replayed == expected
