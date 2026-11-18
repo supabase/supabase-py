@@ -394,6 +394,15 @@ def hostile_metadata() -> JsonObject:
             ),
             column(CLASS_TABLE, "public", "class", "str", "text", nullable=True),
             column(CLASS_TABLE, "public", "class", "table", "text", nullable=True),
+            column(
+                CLASS_TABLE,
+                "public",
+                "class",
+                "table_",
+                "text",
+                nullable=True,
+                comment='Ends in """',
+            ),
             column(CLASS_TABLE, "public", "class", "took", "interval", nullable=True),
             column(
                 CLASS_TABLE, "public", "class", "victory road", "text", nullable=True

@@ -138,7 +138,9 @@ class ClassRow(BaseModel):
     starts: datetime.time | None = None
     statuses: list[Status] | None = None
     str_: str | None = Field(default=None, alias="str")
-    table_: str | None = Field(default=None, alias="table")
+    table__: str | None = Field(default=None, alias="table")
+    table_: str | None = None
+    """Ends in \"\"\""""
     took: str | None = None
     victory_road: str | None = Field(default=None, alias="victory road")
     статус: Status | None = None
@@ -166,7 +168,8 @@ class ClassInsert(TypedDict):
     starts: NotRequired[datetime.time | None]
     statuses: NotRequired[list[Status] | None]
     str_: NotRequired[Annotated[str | None, Field(alias="str")]]
-    table_: NotRequired[Annotated[str | None, Field(alias="table")]]
+    table__: NotRequired[Annotated[str | None, Field(alias="table")]]
+    table_: NotRequired[str | None]
     took: NotRequired[str | None]
     victory_road: NotRequired[Annotated[str | None, Field(alias="victory road")]]
     статус: NotRequired[Status | None]
@@ -194,7 +197,8 @@ class ClassUpdate(TypedDict, total=False):
     starts: datetime.time | None
     statuses: list[Status] | None
     str_: Annotated[str | None, Field(alias="str")]
-    table_: Annotated[str | None, Field(alias="table")]
+    table__: Annotated[str | None, Field(alias="table")]
+    table_: str | None
     took: str | None
     victory_road: Annotated[str | None, Field(alias="victory road")]
     статус: Status | None
@@ -504,7 +508,9 @@ class Class:
     starts = NullableColumn[ClassRow, datetime.time]("starts")
     statuses = NullableColumn[ClassRow, list[Status]]("statuses")
     str_ = NullableColumn[ClassRow, str]("str")
-    table_ = NullableColumn[ClassRow, str]("table")
+    table__ = NullableColumn[ClassRow, str]("table")
+    table_ = NullableColumn[ClassRow, str]("table_")
+    """Ends in \"\"\""""
     took = NullableColumn[ClassRow, str]("took")
     victory_road = NullableColumn[ClassRow, str]("victory road")
     статус = NullableColumn[ClassRow, Status]("статус")
@@ -828,13 +834,13 @@ class Functions_:
     def addresses(
         *,
         read_only: bool = False,
-    ) -> FunctionCall[Never, list[Address] | None]:
+    ) -> FunctionCall[Never, list[Address | None] | None]:
         """Calls the `addresses` function. With `read_only`, it is called with a `GET`
         request in a read-only transaction, and retried like a select.
         """
         return FunctionCall.value(
             "addresses",
-            list[Address],
+            list[Address | None],
             schema="public",
             read_only=read_only,
         )

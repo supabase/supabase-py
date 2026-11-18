@@ -466,7 +466,9 @@ class _Module:
                 table.update = self._claim_class(f"{base}Update")
             table.namespace = self._claim_class(base)
             table.members = unique_names(
-                (column.name for column in table.columns), reserved=_FIELD_RESERVED
+                (column.name for column in table.columns),
+                reserved=_FIELD_RESERVED,
+                aliased=True,
             )
 
     def emitted_enums(self) -> list[tuple[str, str]]:
@@ -686,6 +688,7 @@ class _Module:
         names = unique_names(
             (attribute.name for attribute in type_.attributes),
             reserved=_FIELD_RESERVED,
+            aliased=True,
         )
         lines = [
             f"class {name}({self._import('BaseModel')}):",
@@ -1102,7 +1105,7 @@ class _Module:
     ) -> list[str]:
         display = _display_name(method.function.schema, method.function.name)
         members = unique_names(
-            (column.name for column in columns), reserved=_FIELD_RESERVED
+            (column.name for column in columns), reserved=_FIELD_RESERVED, aliased=True
         )
         lines = [
             f"class {row}({self._import('BaseModel')}):",
@@ -1284,7 +1287,7 @@ class _Module:
             return value(annotation, annotation)
         annotation = self._annotation(python_type)
         if overload.is_set_returning:
-            annotation = f"list[{annotation}]"
+            annotation = f"list[{annotation} | None]"
         return value(annotation, annotation)
 
 

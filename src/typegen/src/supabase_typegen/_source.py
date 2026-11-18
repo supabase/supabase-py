@@ -48,7 +48,8 @@ def docstring(*parts: str | None, indent: str) -> list[str]:
     text = "\n\n".join(paragraph for paragraph in paragraphs if paragraph)
     if not text:
         return []
-    if text.endswith('"'):
+    backslashes = len(text) - 1 - len(text[:-1].rstrip("\\"))
+    if text.endswith('"') and backslashes % 2 == 0:
         text = f'{text[:-1]}\\"'
     if "\n" not in text and len(f'{indent}"""{text}"""') <= LINE_LENGTH:
         return [f'{indent}"""{text}"""']

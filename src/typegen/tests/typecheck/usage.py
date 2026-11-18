@@ -140,7 +140,7 @@ assert_type(client.rpc(Functions.book_by_id(book_id=1)).execute(), BooksRow | No
 assert_type(client.rpc(Functions.count_books()).execute(), int | None)
 assert_type(
     client.rpc(Functions.publication_dates(author_id=1)).execute(),
-    list[datetime.date] | None,
+    list[datetime.date | None] | None,
 )
 assert_type(client.rpc(Functions.touch_book(book_id=1)).execute(), None)
 assert_type(client.rpc(Functions.echo({"hello": ["world"]})).execute(), object)

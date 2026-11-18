@@ -950,13 +950,13 @@ class Functions:
         *,
         author_id: int,
         read_only: bool = False,
-    ) -> FunctionCall[Never, list[datetime.date] | None]:
+    ) -> FunctionCall[Never, list[datetime.date | None] | None]:
         """Calls the `publication_dates` function. With `read_only`, it is called with a
         `GET` request in a read-only transaction, and retried like a select.
         """
         return FunctionCall.value(
             "publication_dates",
-            list[datetime.date],
+            list[datetime.date | None],
             arguments={"author_id": author_id},
             schema="public",
             read_only=read_only,

@@ -51,7 +51,7 @@ postgrest = { workspace = true }
 supabase-utils = { workspace = true }
 
 [tool.pytest.ini_options]
-addopts = "tests"
+testpaths = ["tests"]
 filterwarnings = [
     "ignore::DeprecationWarning", # ignore deprecation warnings globally
 ]

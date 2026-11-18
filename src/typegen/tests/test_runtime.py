@@ -28,7 +28,8 @@ from .goldens.supabase_schema import Books, Functions, Mood
 Query = Callable[[SyncPostgrestClient], object]
 
 
-def send(query: Query, response: object = None) -> Request:
+def run(query: Query, response: object = None) -> tuple[Request, object]:
+    """The request `query` sends, answered with `response`, and its result."""
     sent: list[Request] = []
 
     def handler(request: Request) -> Response:
@@ -36,12 +37,16 @@ def send(query: Query, response: object = None) -> Request:
         return Response(200, json=response)
 
     with Client(transport=MockTransport(handler)) as http:
-        query(
+        result = query(
             SyncPostgrestClient(
                 "https://example.com", http_session=HttpxSession(client=http)
             )
         )
-    return sent[0]
+    return sent[0], result
+
+
+def send(query: Query, response: object = None) -> Request:
+    return run(query, response)[0]
 
 
 def body(request: Request) -> object:
@@ -72,7 +77,7 @@ def test_insert_sends_aliased_columns_under_their_names() -> None:
 
 
 def test_update_sends_aliased_columns_under_their_names() -> None:
-    changes: ClassUpdate = {"datetime_": datetime.date(2024, 5, 1), "table_": None}
+    changes: ClassUpdate = {"datetime_": datetime.date(2024, 5, 1), "table__": None}
 
     request = send(
         lambda client: client.table(Class.table)
@@ -98,16 +103,27 @@ def test_select_decodes_columns_into_the_row_model() -> None:
         "statuses": ["2nd"],
     }
 
-    request = send(
+    request, rows = run(
         lambda client: client.table(Class.table).select().execute(), [record]
     )
-    rows = ClassRow.model_validate(record)
 
+    row = ClassRow.model_validate(record)
     assert request.url.params["select"] == "*"
-    assert rows.from_ == 7
-    assert rows.id == uuid.UUID("6f1b6c1e-1d2f-4e8b-9a43-6b3c2f0a7d11")
-    assert rows.статус is Status.VERY_HAPPY
-    assert rows.statuses == [Status.N_2ND]
+    assert rows == [row]
+    assert row.from_ == 7
+    assert row.id == uuid.UUID("6f1b6c1e-1d2f-4e8b-9a43-6b3c2f0a7d11")
+    assert row.статус is Status.VERY_HAPPY
+    assert row.statuses == [Status.N_2ND]
+
+
+def test_a_key_is_never_the_name_of_another_column() -> None:
+    changes: ClassUpdate = {"table_": "kept"}
+
+    request = send(
+        lambda client: client.table(Class.table).update(changes).all().execute()
+    )
+
+    assert body(request) == {"table_": "kept"}
 
 
 def test_function_arguments_are_sent_as_json() -> None:

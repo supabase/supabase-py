@@ -90,9 +90,11 @@ def unique_names(
     *,
     reserved: Iterable[str] = (),
     identifier: Callable[[str], str] = member_name,
+    aliased: bool = False,
 ) -> dict[str, str]:
     """The identifier of each of `names`, apart from each other and from
-    `reserved`.
+    `reserved`. With `aliased`, a name is also sent as an alias of its
+    identifier, so no identifier equals another one of `names`.
 
     Of several names converting to the same identifier, one in lowercase
     keeps it and every other one gets its own spelling as a suffix, `name`
@@ -104,15 +106,16 @@ def unique_names(
     identifiers = {name: identifier(name) for name in distinct}
     counts = Counter(identifiers.values())
     used = set(reserved)
-    claimed = {
-        name: claim(
-            used,
+    claimed: dict[str, str] = {}
+    for name in sorted(distinct):
+        candidate = (
             f"{identifiers[name]}_{_suffix(name)}"
             if counts[identifiers[name]] > 1 and not _LOWERCASE_NAME.match(name)
-            else identifiers[name],
+            else identifiers[name]
         )
-        for name in sorted(distinct)
-    }
+        others = set(distinct) - {name} if aliased else set[str]()
+        claimed[name] = claim(used | others, candidate)
+        used.add(claimed[name])
     return {name: claimed[name] for name in distinct}
 
 
