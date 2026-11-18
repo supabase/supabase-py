@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 import aiohttp
 import pytest
 from dotenv import load_dotenv
+from postgrest import Column, NullableColumn, Table
 from pydantic import BaseModel
 from supabase_utils.http.adapters.aiohttp import AsyncAiohttpSession
 from yarl import URL
@@ -360,6 +361,64 @@ async def test_postgrest_changes_on_different_tables(socket: RealtimeClient) -> 
     assert insert_message_record["id"] == created_message_id
     assert insert_message_record["title"] == "Test message"
     assert insert_message_record["message"] == "This is a test message"
+
+
+class MessagesRow(BaseModel):
+    id: int
+    title: str | None = None
+    message: str | None = None
+    inserted_at: datetime.datetime
+
+
+class Messages:
+    id = Column[MessagesRow, int]("id")
+    title = NullableColumn[MessagesRow, str]("title")
+    message = NullableColumn[MessagesRow, str]("message")
+    inserted_at = Column[MessagesRow, datetime.datetime]("inserted_at")
+    table = Table("messages", MessagesRow, primary_key=(id,), schema="public")
+
+
+@pytest.mark.asyncio
+async def test_postgres_changes_with_a_typed_filter_and_columns(
+    socket: RealtimeClient,
+) -> None:
+    token = await access_token()
+    await socket.set_auth(token)
+    title = f"typed, {datetime.datetime.now(datetime.UTC).isoformat()}"
+
+    channel_options = RealtimeChannelOptions().postgres_changes(
+        RealtimePostgresChangesListenEvent.Insert,
+        Messages.table,
+        filter=Messages.title.eq(title) & ~Messages.message.is_null(),
+        select=[Messages.title],
+    )
+
+    async with socket.channel("test-typed-postgres-changes", channel_options) as chan:
+        message_stream = chan.messages
+        system_msg = await message_stream.__anext__()
+        assert isinstance(system_msg, SystemMessage)
+        assert system_msg.payload.status == "ok"
+        await create_message(token, {"title": "other", "message": "not this one"})
+        await create_message(token, {"title": title, "message": None})
+        first_id = await create_message(
+            token, {"title": title, "message": "this one, too"}
+        )
+        created_id = await create_message(
+            token, {"title": title, "message": "this one matches"}
+        )
+        async with asyncio.timeout(10):
+            first = await message_stream.__anext__()
+            second = await message_stream.__anext__()
+
+    assert isinstance(first, PostgresChangesMessage)
+    assert isinstance(second, PostgresChangesMessage)
+    assert first.payload.record is not None
+    assert first.payload.record.keys() == {"id", "title"}
+    assert first.payload.record["id"] == first_id
+    assert second.payload.record is not None
+    row = Messages.table.decode_partial(second.payload.record)
+    assert row[Messages.id] == created_id
+    assert row[Messages.title] == title
 
 
 class CreateTodoResponse(BaseModel):

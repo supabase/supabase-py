@@ -5,10 +5,11 @@ import contextlib
 import weakref
 from collections.abc import Buffer, Sequence
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, Self, overload
 from urllib.parse import quote
 
 import websockets
+from postgrest import Column, Filter, NullableColumn, Table
 from pydantic import ValidationError
 from supabase_utils._logging import get_logger
 from supabase_utils.http.request import Request, validate_request_timeout
@@ -128,6 +129,7 @@ class RealtimeChannelOptions:
     def private(self, private: bool = False) -> RealtimeChannelOptions:
         return replace(self, is_private=private)
 
+    @overload
     def postgres_changes(
         self,
         event: RealtimePostgresChangesListenEvent,
@@ -136,14 +138,42 @@ class RealtimeChannelOptions:
         filter: str | None = None,
         id: int | None = None,
         select: Sequence[str] | None = None,
+    ) -> RealtimeChannelOptions: ...
+
+    @overload
+    def postgres_changes[Row](
+        self,
+        event: RealtimePostgresChangesListenEvent,
+        table: Table[Row, Any, Any],
+        schema: str | None = None,
+        filter: Filter[Row] | str | None = None,
+        id: int | None = None,
+        select: Sequence[Column[Row, Any] | NullableColumn[Row, Any]]
+        | Sequence[str]
+        | None = None,
+    ) -> RealtimeChannelOptions: ...
+
+    def postgres_changes(
+        self,
+        event: RealtimePostgresChangesListenEvent,
+        table: Table[Any, Any, Any] | str | None = None,
+        schema: str | None = None,
+        filter: Filter[Any] | str | None = None,
+        id: int | None = None,
+        select: Sequence[Column[Any, Any] | NullableColumn[Any, Any]]
+        | Sequence[str]
+        | None = None,
     ) -> RealtimeChannelOptions:
         """
         Listen for Postgres database changes.
 
         :param event: The change event to listen for (``INSERT``, ``UPDATE``, ``DELETE`` or ``*``)
-        :param table: The table name to monitor. Defaults to all tables
-        :param schema: The database schema to monitor. Defaults to ``public``
-        :param filter: Optional filter string, evaluated server-side, in the form
+        :param table: The table to monitor, by name or as a typed ``Table``.
+            Defaults to all tables
+        :param schema: The database schema to monitor. Defaults to the schema of
+            a typed ``Table``, and to ``public``
+        :param filter: Optional filter, evaluated server-side, as a typed
+            ``Filter`` of the table or as a string in the form
             ``column=operator.value`` (e.g. ``"id=eq.1"`` or ``"title=like.%foo%"``).
             Supported operators: ``eq``, ``neq``, ``lt``, ``lte``, ``gt``, ``gte``,
             ``in`` (``"status=in.(active,pending)"``), ``like``, ``ilike``, ``is``
@@ -152,16 +182,37 @@ class RealtimeChannelOptions:
             the ``not.`` prefix (e.g. ``"status=not.in.(draft,archived)"``). Combine
             multiple conditions with commas to apply them as an ``AND``
             (e.g. ``"amount=gt.100,status=in.(open,pending)"``).
+            A typed filter joins its ``&`` conditions with commas and sends ``~``
+            on one condition as ``not.``; it raises ``ValueError`` for a ``|`` and
+            for a ``~`` on a group, which the filter string cannot express:
+
+                Messages.room_id.eq(200) & ~Messages.status.in_(["draft"])
+
         :param select: Optional list of columns to receive instead of the full row.
             Reduces payload size (helpful for large ``bytea``/``jsonb`` columns). The
-            listed columns must be selectable by the subscribing role.
+            listed columns must be selectable by the subscribing role. With a typed
+            ``Table`` the primary key is always included, so a change can be told
+            apart from the others; read the record with ``Table.decode_partial()``.
         """
+        names = None if select is None else _column_names(select)
+        if isinstance(table, Table):
+            if schema is None:
+                schema = table.schema
+            if names is not None:
+                names += [
+                    column.name
+                    for column in table.primary_key
+                    if column.name not in names
+                ]
+            table = table.name
+        if isinstance(filter, Filter):
+            filter = filter._realtime_filter()
         binding = PostgresChangesBinding(
             event=event,
             table=table,
-            schema=schema,
+            schema="public" if schema is None else schema,
             filter=filter,
-            select=select,
+            select=names,
             id=id,
         )
         return replace(
@@ -194,6 +245,12 @@ class RealtimeChannelOptions:
                 postgres_changes=list(self.postgres_changes_bindings),
             ),
         )
+
+
+def _column_names(
+    select: Sequence[Column[Any, Any] | NullableColumn[Any, Any]] | Sequence[str],
+) -> list[str]:
+    return [column if isinstance(column, str) else column.name for column in select]
 
 
 @dataclass(frozen=True)

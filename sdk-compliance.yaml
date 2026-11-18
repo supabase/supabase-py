@@ -1221,9 +1221,14 @@ features:
       - RealtimePresenceLeavePayload
   realtime.subscriptions.postgres_changes_filter:
     status: implemented
-    note: "filter parameter on RealtimeChannelOptions.postgres_changes()."
+    note: "filter parameter on RealtimeChannelOptions.postgres_changes(), as a string or as a typed Filter of the Table given as table. A typed filter raises ValueError for a | and for a ~ on a group, which the filter string cannot express; the server judges the operators and the columns. With a typed Table, select takes its columns and always sends the primary key; Table.decode_row() and Table.decode_partial() read a change's record and old_record."
     symbols:
       - RealtimeChannelOptions.postgres_changes
+      - Table.decode_row
+      - Table.decode_partial
+    supporting_symbols:
+      - Filter
+      - Table
   realtime.subscriptions.private_channel:
     status: implemented
     symbols:
@@ -1250,9 +1255,11 @@ features:
       - ReplayOption
   realtime.subscriptions.postgres_changes_multiple_filters:
     status: implemented
-    note: "The filter string is passed through to the server unchanged; combine conditions with commas (AND)."
+    note: "The filter string is passed through to the server unchanged; combine conditions with commas (AND). A typed Filter sends the conditions of a top-level & as that comma-separated list."
     symbols:
       - RealtimeChannelOptions.postgres_changes
+    supporting_symbols:
+      - Filter
 
   realtime.presence.track:
     status: implemented
