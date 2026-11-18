@@ -229,5 +229,37 @@ def _rpc_query_param(value: Any) -> Any:
     return _serialize_filter_value(value)
 
 
+_RESERVED_QUERY_PARAMETERS = frozenset(
+    {"select", "columns", "on_conflict", "order", "limit", "offset", "and", "or"}
+)
+"""The query parameters PostgREST reads as options of the request rather
+than as arguments of a function."""
+
+_FILTER_SYNTAX = re.compile(
+    r"^(not\.)?(eq|gte?|lte?|neq|i?like|i?match|cs|cd|ov|sl|sr|nx[lr]|adj|"
+    r"in|is|isdistinct|(pl|ph|w)?fts)(\([^)]*\))?\."
+)
+"""The start of a query parameter value PostgREST reads as a filter, such as
+`eq.x` or `not.in.(1)`."""
+
+
+def _rpc_arguments_fit_query(params: Mapping[str, Any]) -> bool:
+    """Whether PostgREST passes every one of `params` to the function when
+    they are sent as query parameters.
+
+    It does not when a name is an option of the request, such as `limit`, or
+    an embed path, when a value is `None`, which a query parameter can only
+    carry as text, or when a value starts like a filter, such as `eq.x`,
+    which it applies to the result instead.
+    """
+    return all(
+        name not in _RESERVED_QUERY_PARAMETERS
+        and "." not in name
+        and value is not None
+        and not _FILTER_SYNTAX.match(str(_rpc_query_param(value)))
+        for name, value in params.items()
+    )
+
+
 def is_http_url(url: URL) -> bool:
     return url.scheme in {"https", "http"} and bool(url.host)

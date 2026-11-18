@@ -110,12 +110,11 @@ def test_rpc_query_params_serialize_scalars_like_postgrest_expects() -> None:
             "https://example.com", http_session=HttpxSession(client=http)
         )
         builder = client.rpc(
-            "fn", {"flag": True, "off": False, "x": None, "obj": {"a": 1}}, get=True
+            "fn", {"flag": True, "off": False, "obj": {"a": 1}}, get=True
         )
 
         assert builder.request.query["flag"] == "true"
         assert builder.request.query["off"] == "false"
-        assert builder.request.query.get_list("x") == [""]
         assert builder.request.query["obj"] == '{"a":1}'
 
 
@@ -269,3 +268,16 @@ def test_rpc_csv_returns_the_text() -> None:
         result = client.rpc("fn", {}).csv().execute()
 
     assert result == TextAPIResponse(data="id,name\n1,a\n", count=None)
+
+
+@pytest.mark.parametrize("params", [{"limit": 1}, {"name": None}, {"name": "eq.x"}])
+def test_rpc_get_posts_params_postgrest_would_misread(params: dict[str, JSON]) -> None:
+    with Client() as http:
+        client = SyncPostgrestClient(
+            "https://example.com", http_session=HttpxSession(client=http)
+        )
+        builder = client.rpc("fn", params, get=True)
+
+        assert builder.request.method == "POST"
+        assert builder.request.body == params
+        assert not builder.request.query

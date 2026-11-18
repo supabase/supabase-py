@@ -10,7 +10,13 @@ from supabase_utils.types import JSON
 from .partial_row import _ROWS, PartialRow
 from .relation import EmbeddedScope, _requiring
 from .relation import _selected as _distinct_embeds
-from .table import Table, _insert_payload, _rows_adapter, _update_payload
+from .table import (
+    Table,
+    _insert_payload,
+    _row_adapter,
+    _rows_adapter,
+    _update_payload,
+)
 from .table_executor import _WRITES, AsyncTableExecutor, TableExecutor
 from .table_request import (
     ExplainOptions,
@@ -26,6 +32,7 @@ if TYPE_CHECKING:
 
     from .column_expression import Column, NullableColumn
     from .filter import Filter, Ordering, Selectable
+    from .function_call import FunctionCall
     from .relation import Relation
 
 
@@ -699,6 +706,32 @@ class TypedQueryBuilder[
             self._request(TableOperation.COUNT), count=method, shape=ResultShape.NONE
         )
         return TypedCountBuilder(request, self.executor, _count)
+
+
+def _function_call_builder(
+    call: FunctionCall[Any, Any], executor: Any
+) -> TypedFilterBuilder[Any, Any, Any] | TypedBuilder[Any, Any]:
+    """The typed builder that runs `call` through `executor`: one that takes
+    filters for a call that returns rows, and one that only runs for a call
+    that returns a value."""
+    table = Table[Any, Never, Never](call.name, call.return_type, schema=call.schema)
+    request = TableRequest(
+        table=table,
+        operation=TableOperation.RPC,
+        payload=dict(call.arguments),
+        read_only=call.read_only,
+        shape=call.shape,
+    )
+    if call.shape is ResultShape.ROWS:
+        return TypedFilterBuilder(request, executor, _rows(table))
+    return TypedBuilder(request, executor, _decoded_value(call.return_type))
+
+
+def _decoded_value(result_type: type[Any]) -> Callable[[TableResult], Any]:
+    adapter = _row_adapter(result_type)
+    return lambda result: (
+        None if result.data is None else adapter.validate_python(result.data)
+    )
 
 
 _TEXT = TypeAdapter(str)

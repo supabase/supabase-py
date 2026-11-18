@@ -1675,6 +1675,9 @@ supporting_symbols:
   - Ordering.nulls_last
   - Range
   - Table
+  - FunctionCall
+  - FunctionCall.rows
+  - FunctionCall.value
   - TableRequest
   - TableResult
   - TableOperation

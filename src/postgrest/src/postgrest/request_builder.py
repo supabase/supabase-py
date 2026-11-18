@@ -58,6 +58,7 @@ from .utils import (
     _quote,
     _row_payload,
     _rows_payload,
+    _rpc_arguments_fit_query,
     _rpc_query_param,
     _sanitize_array_param,
     _sanitize_column,
@@ -391,8 +392,17 @@ def pre_rpc(
 
     A `GET` or `HEAD` request has no body, so `get` and `head` send the
     arguments as query parameters, with a list as a PostgreSQL array literal.
+    When PostgREST would read an argument as something else, see
+    `_rpc_arguments_fit_query`, `get` sends a `POST` instead, which is
+    neither read-only nor retried.
     """
-    method: HTTPRequestMethod = "HEAD" if head else "GET" if get else "POST"
+    method: HTTPRequestMethod = (
+        "HEAD"
+        if head
+        else "GET"
+        if get and _rpc_arguments_fit_query(params)
+        else "POST"
+    )
     headers = (
         Headers.from_mapping({"Prefer": f"count={count}"}) if count else Headers.empty()
     )

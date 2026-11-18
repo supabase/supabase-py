@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from base64 import b64encode
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Never, Self, overload
 
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import (
@@ -19,7 +19,7 @@ from .request_builder import (
     pre_rpc,
 )
 from .table_executor import AsyncHttpTableExecutor, HttpTableExecutor
-from .typed_builder import TypedQueryBuilder
+from .typed_builder import TypedQueryBuilder, _function_call_builder
 from .utils import is_http_url
 from .version import __version__
 
@@ -30,8 +30,10 @@ if TYPE_CHECKING:
     from supabase_utils.http.retry import RetryPolicy
     from supabase_utils.types import JSON
 
+    from .function_call import FunctionCall
     from .table import Table
     from .table_executor import AsyncTableExecutor, TableExecutor
+    from .typed_builder import TypedBuilder, TypedFilterBuilder
     from .types import CountMethod
 
 
@@ -132,6 +134,22 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         return TypedQueryBuilder(table, HttpTableExecutor(self))
 
     @overload
+    def rpc[Result](
+        self: PostgrestClient[SyncHttpIO], call: FunctionCall[Never, Result], /
+    ) -> TypedBuilder[TableExecutor, Result]: ...
+    @overload
+    def rpc[Result](
+        self: PostgrestClient[AsyncHttpIO], call: FunctionCall[Never, Result], /
+    ) -> TypedBuilder[AsyncTableExecutor, Result]: ...
+    @overload
+    def rpc[Row](
+        self: PostgrestClient[SyncHttpIO], call: FunctionCall[Row, list[Row]], /
+    ) -> TypedFilterBuilder[TableExecutor, Row, list[Row]]: ...
+    @overload
+    def rpc[Row](
+        self: PostgrestClient[AsyncHttpIO], call: FunctionCall[Row, list[Row]], /
+    ) -> TypedFilterBuilder[AsyncTableExecutor, Row, list[Row]]: ...
+    @overload
     def rpc(
         self,
         func: str,
@@ -165,22 +183,41 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]: ...
 
     def rpc(
-        self,
-        func: str,
-        params: Mapping[str, JSON],
+        self: PostgrestClient[Any],
+        func: str | FunctionCall[Any, Any],
+        params: Mapping[str, JSON] | None = None,
         *,
         head: bool = False,
         count: CountMethod | None = None,
         get: bool = False,
-    ) -> RPCFilterRequestBuilder[HttpIO] | RPCCountRequestBuilder[HttpIO]:
+    ) -> (
+        RPCFilterRequestBuilder[Any]
+        | RPCCountRequestBuilder[Any]
+        | TypedFilterBuilder[Any, Any, Any]
+        | TypedBuilder[Any, Any]
+    ):
         """Perform a stored procedure call.
+
+        With a `FunctionCall` it returns a typed builder, whose result
+        decodes into the types of the call. The rows of a call built with
+        `FunctionCall.rows` can be filtered, ordered and paged like the rows
+        of a table:
+
+            books = (
+                client.rpc(FunctionCall.rows("search_books", BooksRow, arguments={"query": "dune"}))
+                .where(Books.pages.gt(300))
+                .execute()
+            )
 
         Args:
             func: The name of the remote procedure to run.
             params: The parameters to be passed to the remote procedure.
             count: The method to use to get the count of rows returned.
             head: When set to `true`, `data` will not be returned. Useful if you only need the count.
-            get: When set to `true`, the function will be called with read-only access mode.
+            get: When set to `true`, the function will be called with read-only access mode,
+                with `params` as query parameters. When PostgREST would read a parameter as
+                something else, one named like an option such as `limit`, a `None`, or a value
+                that starts like a filter such as `eq.x`, it is called with a `POST` instead.
         Returns:
             :class:`AsyncRPCFilterRequestBuilder`
         Example:
@@ -188,6 +225,12 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
                 await client.rpc("foobar", {"arg": "value"}).execute()
         """
+        if not isinstance(func, str):
+            if isinstance(self.executor, AsyncHttpIO):
+                return _function_call_builder(func, AsyncHttpTableExecutor(self))
+            return _function_call_builder(func, HttpTableExecutor(self))
+        if params is None:
+            raise TypeError("rpc() of a function name needs its params")
         request = pre_rpc(func, params, head=head, count=count, get=get)
         if not head:
             return RPCFilterRequestBuilder(
