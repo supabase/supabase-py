@@ -1483,7 +1483,24 @@ features:
       - StorageFileApiClient.get_public_url
       - StorageFileApiClient.download
       - StorageFileApiClient.download_stream
-  storage.file_buckets.resumable_upload: not_implemented
+  storage.file_buckets.resumable_upload:
+    status: implemented
+    note: "resumable_upload() returns an upload sent with the tus protocol once run() is called. pause() makes run() raise ResumableUploadPausedError and a later run() continues from the server offset; cancel() deletes it on the server. Pass a MutableMapping as store, such as a shelve.Shelf, to continue the same file to the same path from another process."
+    symbols:
+      - StorageFileApiClient.resumable_upload
+      - ResumableUpload.run
+      - ResumableUpload.cancel
+      - AsyncResumableUpload.run
+      - AsyncResumableUpload.cancel
+      - BaseResumableUpload.pause
+    supporting_symbols:
+      - ResumableUpload
+      - AsyncResumableUpload
+      - BaseResumableUpload
+      - BaseResumableUpload.offset
+      - BaseResumableUpload.url
+      - ResumableUploadPausedError
+      - ResumableUploadCancelledError
   storage.file_buckets.transfer_progress:
     status: implemented
     note: "upload(), update(), upload_to_signed_url(), download() and download_stream() take an on_progress(moved, total) callback; total is None when it is not known. A resent upload or a retried download() restarts from 0."

@@ -44,6 +44,16 @@ class StorageRangeIgnoredError(StorageException):
         """The HTTP status the server answered with."""
 
 
+class ResumableUploadPausedError(StorageException):
+    """Raised by `run` of a resumable upload that `pause` stopped before it
+    completed. Call `run` again to continue it."""
+
+
+class ResumableUploadCancelledError(StorageException):
+    """Raised by `run` of a resumable upload that `cancel` stopped. The upload
+    cannot continue."""
+
+
 class VectorBucketException(StorageException):
     """Raised when a vector bucket operation is given invalid input."""
 

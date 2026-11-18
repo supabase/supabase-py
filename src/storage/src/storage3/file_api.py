@@ -41,6 +41,12 @@ from .exceptions import (
     parse_api_error,
 )
 from .progress import _counted_upload
+from .resumable import (
+    DEFAULT_CHUNK_SIZE,
+    AsyncResumableUpload,
+    ResumableUpload,
+    ResumableUploadSource,
+)
 from .types import (
     CreateSignedUrlBody,
     CreateSignedUrlResponse,
@@ -62,7 +68,13 @@ from .types import (
 
 if TYPE_CHECKING:
     import builtins
-    from collections.abc import AsyncIterator, Coroutine, Generator, Iterator
+    from collections.abc import (
+        AsyncIterator,
+        Coroutine,
+        Generator,
+        Iterator,
+        MutableMapping,
+    )
     from contextlib import AbstractAsyncContextManager, AbstractContextManager
 
     from supabase_utils.http.body import RequestContent
@@ -1053,6 +1065,107 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             headers=headers,
             on_progress=on_progress,
         )
+
+    @overload
+    def resumable_upload(
+        self: StorageFileApiClient[SyncHttpIO],
+        path: str,
+        file: ResumableUploadSource,
+        *,
+        content_type: str = "text/plain;charset=UTF-8",
+        cache_control: str = "3600",
+        upsert: bool = False,
+        metadata: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        store: MutableMapping[str, str] | None = None,
+        on_progress: ProgressCallback | None = None,
+    ) -> ResumableUpload: ...
+
+    @overload
+    def resumable_upload(
+        self: StorageFileApiClient[AsyncHttpIO],
+        path: str,
+        file: ResumableUploadSource,
+        *,
+        content_type: str = "text/plain;charset=UTF-8",
+        cache_control: str = "3600",
+        upsert: bool = False,
+        metadata: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        store: MutableMapping[str, str] | None = None,
+        on_progress: ProgressCallback | None = None,
+    ) -> AsyncResumableUpload: ...
+
+    def resumable_upload(
+        self: StorageFileApiClient[Any],
+        path: str,
+        file: ResumableUploadSource,
+        *,
+        content_type: str = "text/plain;charset=UTF-8",
+        cache_control: str = "3600",
+        upsert: bool = False,
+        metadata: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        store: MutableMapping[str, str] | None = None,
+        on_progress: ProgressCallback | None = None,
+    ) -> ResumableUpload | AsyncResumableUpload:
+        """
+        Prepares an upload sent in chunks with the tus protocol, which can be
+        paused, continued after a failure, and continued by another process.
+        Nothing is sent until `run` is called on the returned upload.
+
+        ```python
+        upload = client.from_("videos").resumable_upload(
+            "holiday.mp4", "holiday.mp4", content_type="video/mp4"
+        )
+        response = upload.run()
+        ```
+
+        Parameters
+        ----------
+        path
+            The file path, including the file name. For example `folder/video.mp4`.
+        file
+            What to upload: the bytes, the path of a file, or a binary file
+            that can seek. A file is read one chunk at a time.
+        upsert
+            Whether to overwrite the file if it already exists.
+        chunk_size
+            The bytes sent per request. Hosted Supabase only accepts the
+            default, 6 MiB. Change it to match a self-hosted server configured
+            with another `TUS_PART_SIZE`.
+        store
+            Where the URL of the upload is kept under its fingerprint, so that
+            a later `resumable_upload` of the same file to the same path
+            continues it instead of starting over. Pass a `dict` to share it
+            within the process, or a `shelve.Shelf` to continue after a
+            restart. Without one, only the returned upload can continue.
+        on_progress
+            Called with the bytes the server holds, plus those of the chunk in
+            flight, and the size of the file. It can go down when a chunk is
+            sent again.
+        """
+        options: dict[str, Any] = {
+            "base_url": self.base_url,
+            "default_headers": self.default_headers,
+            "bucket_id": self.id,
+            "path": _normalize_object_key(path),
+            "source": file,
+            "content_type": content_type,
+            "cache_control": cache_control,
+            "upsert": upsert,
+            "metadata": metadata,
+            "headers": headers,
+            "chunk_size": chunk_size,
+            "store": store,
+            "on_progress": on_progress,
+        }
+        if isinstance(self.executor, AsyncHttpIO):
+            return AsyncResumableUpload(executor=self.executor, **options)
+        return ResumableUpload(executor=self.executor, **options)
 
     @handle_http_io
     def update(
