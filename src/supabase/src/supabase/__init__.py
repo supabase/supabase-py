@@ -1,5 +1,20 @@
 from postgrest import APIError as PostgrestAPIError
 from postgrest import APIResponse as PostgrestAPIResponse
+from postgrest import (
+    AsyncTableExecutor,
+    Column,
+    ComputedField,
+    Filter,
+    FunctionCall,
+    NullableColumn,
+    PartialRow,
+    Table,
+    TableExecutor,
+    TableRequest,
+    TableResult,
+    ToManyRelation,
+    ToOneRelation,
+)
 from postgrest import RPCResponse as PostgrestRPCResponse
 from realtime import (
     AuthorizationError,
@@ -51,6 +66,7 @@ from .version import __version__
 
 __all__ = [
     "AsyncClient",
+    "AsyncTableExecutor",
     "AuthApiError",
     "AuthClientOptions",
     "AuthError",
@@ -65,11 +81,17 @@ __all__ = [
     "AuthorizationError",
     "ChannelJoinError",
     "Client",
+    "Column",
+    "ComputedField",
+    "Filter",
+    "FunctionCall",
     "FunctionsClientOptions",
     "FunctionsError",
     "FunctionsHttpError",
     "FunctionsRelayError",
     "NotConnectedError",
+    "NullableColumn",
+    "PartialRow",
     "PostgrestAPIError",
     "PostgrestAPIResponse",
     "PostgrestClientOptions",
@@ -86,6 +108,12 @@ __all__ = [
     "SupabaseError",
     "SupabaseException",
     "SupabaseTransportError",
+    "Table",
+    "TableExecutor",
+    "TableRequest",
+    "TableResult",
+    "ToManyRelation",
+    "ToOneRelation",
     "UserDoesNotExistError",
     "VectorBucketException",
     "__version__",
