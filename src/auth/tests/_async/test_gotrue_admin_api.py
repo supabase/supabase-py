@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 
 from supabase_auth import AsyncSupabaseAuthAdmin, AsyncSupabaseAuthClient
@@ -5,12 +7,17 @@ from supabase_auth.errors import AuthApiError, ErrorCode
 from supabase_auth.types import (
     AdminUserAttributes,
     CreateOAuthClientParams,
+    CreateSSOProviderParams,
     GenerateLinkParams,
     MFAEnroll,
     Resend,
+    SAMLAttribute,
+    SAMLAttributeMapping,
+    SAMLNameIDFormat,
     SignInWithPassword,
     SignUpWithPassword,
     UpdateOAuthClientParams,
+    UpdateSSOProviderParams,
     User,
     UserAttributes,
 )
@@ -518,3 +525,82 @@ async def test_regenerate_oauth_client_secret(
         response = await secret_key_api_client.oauth.regenerate_client_secret(client_id)
         assert response.client is not None
         assert response.client.client_secret is not None
+
+
+def saml_metadata(entity_id: str) -> str:
+    return (
+        '<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"'
+        f' entityID="{entity_id}">'
+        '<IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">'
+        '<SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"'
+        ' Location="https://idp.example.com/sso"/>'
+        "</IDPSSODescriptor>"
+        "</EntityDescriptor>"
+    )
+
+
+async def test_sso_provider_lifecycle(
+    secret_key_api_client: AsyncSupabaseAuthAdmin,
+) -> None:
+    sso = secret_key_api_client.sso
+    resource_id = f"py-{uuid4()}"
+    domain = f"{uuid4()}.example.com"
+    entity_id = f"https://idp.example.com/{uuid4()}"
+
+    created = await sso.create_provider(
+        CreateSSOProviderParams(
+            metadata_xml=saml_metadata(entity_id),
+            domains=[domain],
+            attribute_mapping=SAMLAttributeMapping(
+                keys={"email": SAMLAttribute(name="mail")}
+            ),
+            name_id_format=SAMLNameIDFormat.PERSISTENT,
+            resource_id=resource_id,
+        )
+    )
+    assert created.resource_id == resource_id
+    assert created.domains == [domain]
+    assert created.disabled is False
+    assert created.saml is not None
+    assert created.saml.entity_id == entity_id
+    assert created.saml.name_id_format is SAMLNameIDFormat.PERSISTENT
+
+    fetched = await sso.get_provider(f"resource_{resource_id}")
+    assert fetched.id == created.id
+    assert fetched.saml is not None
+    assert fetched.saml.metadata_xml == saml_metadata(entity_id)
+
+    listed = await sso.list_providers(resource_id=resource_id)
+    assert [provider.id for provider in listed] == [created.id]
+    assert listed[0].saml is not None
+    assert listed[0].saml.metadata_xml is None
+
+    updated = await sso.update_provider(
+        created.id,
+        UpdateSSOProviderParams(
+            name_id_format=created.saml.name_id_format, disabled=True
+        ),
+    )
+    assert updated.disabled is True
+    assert updated.domains == [domain]
+    assert updated.saml is not None
+    assert updated.saml.name_id_format is SAMLNameIDFormat.PERSISTENT
+    assert updated.saml.attribute_mapping == created.saml.attribute_mapping
+
+    cleared = await sso.update_provider(
+        created.id,
+        UpdateSSOProviderParams(
+            name_id_format=None,
+            domains=[],
+            attribute_mapping=SAMLAttributeMapping(),
+        ),
+    )
+    assert cleared.domains == []
+    assert cleared.saml is not None
+    assert cleared.saml.name_id_format is None
+    assert cleared.saml.attribute_mapping == SAMLAttributeMapping()
+
+    await sso.delete_provider(created.id)
+    with pytest.raises(AuthApiError) as error:
+        await sso.get_provider(created.id)
+    assert error.value.code == ErrorCode.SSO_PROVIDER_NOT_FOUND

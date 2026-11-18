@@ -350,11 +350,40 @@ features:
   auth.admin.get_provider: not_implemented
   auth.admin.list_providers: not_implemented
 
-  auth.sso_admin.create_provider: not_implemented
-  auth.sso_admin.delete_provider: not_implemented
-  auth.sso_admin.get_provider: not_implemented
-  auth.sso_admin.list_providers: not_implemented
-  auth.sso_admin.update_provider: not_implemented
+  auth.sso_admin.create_provider:
+    status: implemented
+    note: "Accessible via admin.sso.create_provider(params). Give exactly one of metadata_url and metadata_xml; the server validates them. Any 2xx, including the 201 the server sends, is success."
+    symbols:
+      - SupabaseAuthAdminSSO.create_provider
+    supporting_symbols:
+      - CreateSSOProviderParams
+      - SAMLAttribute
+      - SAMLAttributeMapping
+      - SAMLNameIDFormat
+      - SAMLProvider
+      - SSOProvider
+  auth.sso_admin.delete_provider:
+    status: implemented
+    note: "Accessible via admin.sso.delete_provider(provider_id). Provider ids are not validated as UUIDs, since resource_<resource_id> also addresses a provider, but must be a single path segment."
+    symbols:
+      - SupabaseAuthAdminSSO.delete_provider
+  auth.sso_admin.get_provider:
+    status: implemented
+    note: "Accessible via admin.sso.get_provider(provider_id), by UUID or resource_<resource_id>."
+    symbols:
+      - SupabaseAuthAdminSSO.get_provider
+  auth.sso_admin.list_providers:
+    status: implemented
+    note: "Accessible via admin.sso.list_providers(resource_id=..., resource_id_prefix=...), returning a list of SSOProvider. Listed providers have saml.metadata_xml set to None."
+    symbols:
+      - SupabaseAuthAdminSSO.list_providers
+  auth.sso_admin.update_provider:
+    status: implemented
+    note: "Accessible via admin.sso.update_provider(provider_id, params). None fields are not sent and keep the stored value, while an empty domains list or an attribute mapping without keys clears it. name_id_format is required because leaving it out clears the stored format."
+    symbols:
+      - SupabaseAuthAdminSSO.update_provider
+    supporting_symbols:
+      - UpdateSSOProviderParams
 
   auth.passkey.register_passkey: not_implemented
   auth.passkey.sign_in_with_passkey: not_implemented
@@ -1795,6 +1824,7 @@ supporting_symbols:
   - SyncSupabaseAuthAdmin
   - SupabaseAuthAdminMFA
   - SupabaseAuthAdminOAuth
+  - SupabaseAuthAdminSSO
   - AuthResponse
   - CaptchaToken
   - WithCaptchaToken

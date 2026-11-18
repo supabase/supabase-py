@@ -12,6 +12,7 @@ from pydantic import (
     ConfigDict,
     Field,
     TypeAdapter,
+    field_validator,
     model_validator,
 )
 from pydantic.dataclasses import dataclass
@@ -1216,3 +1217,162 @@ class OAuthClientListResponse(Pagination):
 
     clients: list[OAuthClient] = Field(default_factory=list)
     aud: str | None = None
+
+
+class SAMLNameIDFormat(StrEnum):
+    """
+    Format of the SAML `NameID` a single sign-on identity provider asserts to
+    identify the user.
+    """
+
+    PERSISTENT = "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"
+    """A stable, opaque identifier that stays the same across sign-ins."""
+    EMAIL_ADDRESS = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+    """The user's email address."""
+    TRANSIENT = "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"
+    """A one-time identifier that changes on every sign-in."""
+    UNSPECIFIED = "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+    """Leaves the format up to the identity provider."""
+
+
+class SAMLAttribute(BaseModel):
+    """
+    How one user attribute is read from the SAML assertion.
+    """
+
+    name: str | None = None
+    """The name of the assertion attribute to read."""
+    names: list[str] | None = None
+    """Assertion attribute names to try in order, the first one present wins."""
+    default: JSON | None = None
+    """The value used when the assertion carries none of the attributes."""
+    array: bool = False
+    """Whether to keep every value of a multi-valued attribute instead of only the first one."""
+
+
+class SAMLAttributeMapping(BaseModel):
+    """
+    Maps SAML assertion attributes to user metadata keys.
+    """
+
+    keys: dict[str, SAMLAttribute] = Field(default_factory=dict)
+    """The attribute to read for each user metadata key."""
+
+
+class SAMLProvider(BaseModel):
+    """
+    The SAML 2.0 configuration of a single sign-on identity provider.
+    """
+
+    entity_id: str
+    """The entity ID from the identity provider's metadata."""
+    metadata_xml: str | None = None
+    """The identity provider's metadata XML. `None` on listed providers, which leave it out."""
+    metadata_url: str | None = None
+    """The URL the metadata was fetched from, when it was registered by URL."""
+    attribute_mapping: SAMLAttributeMapping | None = None
+    """How assertion attributes map to user metadata."""
+    name_id_format: SAMLNameIDFormat | str | None = Field(
+        default=None, union_mode="left_to_right"
+    )
+    """The `NameID` format requested from the identity provider."""
+
+
+class _SSODomain(BaseModel):
+    domain: str
+
+
+_SSODomainsParser: TypeAdapter[list[_SSODomain | str] | None] = TypeAdapter(
+    list[_SSODomain | str] | None
+)
+
+
+class SSOProvider(BaseModel):
+    """
+    A single sign-on identity provider registered with Supabase Auth.
+    """
+
+    id: str
+    """The provider's UUID."""
+    resource_id: str | None = None
+    """An identifier of your choosing that also addresses the provider, as `resource_<resource_id>` in place of its id."""
+    disabled: bool = False
+    """Whether sign-in through this provider is turned off."""
+    saml: SAMLProvider | None = None
+    """The provider's SAML 2.0 configuration."""
+    domains: list[str] = Field(default_factory=list)
+    """The email domains whose users sign in through this provider."""
+    created_at: datetime
+    updated_at: datetime
+
+    @field_validator("disabled", mode="before")
+    @classmethod
+    def _disabled_when_set(cls, value: object) -> object:
+        return False if value is None else value
+
+    @field_validator("domains", mode="before")
+    @classmethod
+    def _domain_names(cls, value: object) -> list[str]:
+        return [
+            domain if isinstance(domain, str) else domain.domain
+            for domain in _SSODomainsParser.validate_python(value) or []
+        ]
+
+
+class _SSOProviderList(BaseModel):
+    items: list[SSOProvider] = Field(default_factory=list)
+
+
+class CreateSSOProviderParams(BaseModel):
+    """
+    The options to register a SAML 2.0 single sign-on identity provider with.
+
+    Give exactly one of `metadata_url` and `metadata_xml`.
+    """
+
+    type: Literal["saml"] = "saml"
+    """The provider type. Supabase Auth only supports SAML 2.0."""
+    metadata_url: str | None = None
+    """An HTTPS URL the server fetches the metadata from before it answers."""
+    metadata_xml: str | None = None
+    """The metadata XML document."""
+    domains: list[str] | None = None
+    """The email domains whose users sign in through this provider."""
+    attribute_mapping: SAMLAttributeMapping | None = None
+    """How assertion attributes map to user metadata."""
+    name_id_format: SAMLNameIDFormat | str | None = Field(
+        default=None, union_mode="left_to_right"
+    )
+    """The `NameID` format to request from the identity provider."""
+    resource_id: str | None = None
+    """An identifier of your choosing to address the provider by."""
+    disabled: bool | None = None
+    """Whether to register the provider with sign-in turned off."""
+
+
+class UpdateSSOProviderParams(BaseModel):
+    """
+    The changes to apply to a registered single sign-on identity provider.
+
+    A `None` field keeps the stored value, except for `name_id_format`, which
+    the server clears when it is not sent.
+    """
+
+    name_id_format: SAMLNameIDFormat | str | None = Field(union_mode="left_to_right")
+    """
+    The `NameID` format to request from the identity provider. Required
+    because `None` clears the stored format. Pass the provider's current
+    `saml.name_id_format` to keep it.
+    """
+    metadata_url: str | None = None
+    """New metadata to fetch from this HTTPS URL. It must carry the provider's current entity ID."""
+    metadata_xml: str | None = None
+    """New metadata XML. It must carry the provider's current entity ID."""
+    domains: list[str] | None = None
+    """Replaces the provider's email domains. An empty list removes them all."""
+    attribute_mapping: SAMLAttributeMapping | None = None
+    """Replaces the attribute mapping. A mapping with no keys clears it."""
+    resource_id: str | None = None
+    """A new resource ID. An empty string removes the stored one."""
+    disabled: bool | None = None
+    """Turns sign-in through the provider off or back on."""

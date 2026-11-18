@@ -379,6 +379,11 @@ def validate_uuid(id: str | None) -> None:
         raise ValueError(f"Invalid id, '{id}' is not a valid uuid")
 
 
+def _validate_path_segment(value: str, name: str) -> None:
+    if value in ("", ".", "..") or "/" in value:
+        raise ValueError(f"Invalid {name}, '{value}' is not a single path segment")
+
+
 def _redirect_to_as_query(redirect_to: str | None) -> URLQuery:
     if redirect_to:
         return URLQuery.from_mapping({"redirect_to": redirect_to})
