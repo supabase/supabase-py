@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
-from httpx import Request, Response
+from httpx import URL, Request, Response
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 from supabase_utils.types import JSON
 
@@ -964,10 +964,11 @@ async def test_create_signed_url_appends_the_cache_nonce(use_async: bool) -> Non
             "file.txt", 60, download=True, cache_nonce="v2"
         ),
     )
+    signed = URL(url)
     assert (
-        url
-        == f"{STORAGE_URL}object/sign/bucket/file.txt?token=t&download=&cacheNonce=v2"
+        str(signed.copy_with(query=None)) == f"{STORAGE_URL}object/sign/bucket/file.txt"
     )
+    assert dict(signed.params) == {"token": "t", "download": "", "cacheNonce": "v2"}
 
 
 @use_async
