@@ -468,6 +468,25 @@ class TestRejections:
             "author; name the field after the attribute of one of them"
         ]
 
+    def test_an_unaliased_field_takes_the_relation_declared_under_its_name(
+        self,
+    ) -> None:
+        class Card(BaseModel):
+            author: AuthorName
+
+        assert select_list(Card, Shadowed.table) == (
+            "authors!novels_author_id_fkey(name)"
+        )
+
+    def test_a_name_only_model_ignores_its_validation_alias_when_selecting(
+        self,
+    ) -> None:
+        class Card(BaseModel):
+            model_config = ConfigDict(validate_by_alias=False, validate_by_name=True)
+            key: int | None = Field(alias="id", validation_alias="author_id")
+
+        assert select_list(Card) == "id"
+
     def test_a_relation_embedded_twice(self) -> None:
         class Twice(BaseModel):
             author: AuthorName

@@ -147,6 +147,8 @@ def _field_entry(
     from, with the keys it moves between, or `None` after adding to
     `problems` what does not fit the table."""
     match field.validation_alias:
+        case _ if not by_alias:
+            source = field.alias or name
         case str(alias):
             source = alias
         case None:
@@ -172,8 +174,7 @@ def _field_entry(
                 value_type = computed_field.value_type | None
                 problems.extend(_type_problems(path, annotation, column, value_type))
             return computed_field, _Field(candidate, key)
-        if candidate in members.relations:
-            relations = members.relations[candidate]
+        if relations := members.relations_named(candidate, candidate != name):
             relation_name = f"{members.table}.{candidate}"
             if len(relations) > 1:
                 problems.append(
@@ -260,28 +261,41 @@ class _Members:
     table: str
     columns: dict[str, Any]
     computed_fields: dict[str, ComputedField[Any, Any]]
-    relations: dict[str, list[Relation[Any, Any]]]
+    response_keys: dict[str, list[Relation[Any, Any]]]
+    attributes: dict[str, Relation[Any, Any]]
 
     @classmethod
     def of(cls, table: Table[Any, Any, Any]) -> _Members:
         """The stored columns of `table` by name, with the type the row type
         declares for them, its computed fields by name, and its relations by
-        the attribute they are declared as and by their response key."""
-        relations: dict[str, list[Relation[Any, Any]]] = {}
+        their response key and by the attribute they are declared as."""
+        response_keys: dict[str, list[Relation[Any, Any]]] = {}
         for relation in table.relations:
-            relations.setdefault(relation.response_key, []).append(relation)
-        for relation in table.relations:
-            if relation._attribute is None:
-                continue
-            named = relations.setdefault(relation._attribute, [])
-            if relation not in named:
-                named.append(relation)
+            response_keys.setdefault(relation.response_key, []).append(relation)
         return cls(
             table=table.name,
             columns=dict(_field_annotations(table.row_type)),
             computed_fields={field.name: field for field in table.computed_fields},
-            relations=relations,
+            response_keys=response_keys,
+            attributes={
+                relation._attribute: relation
+                for relation in table.relations
+                if relation._attribute is not None
+            },
         )
+
+    def relations_named(self, key: str, aliased: bool) -> list[Relation[Any, Any]]:
+        """The relations a field reading `key` can embed. The field name of
+        an unaliased field picks the relation declared under it; an alias
+        can name the attribute of one relation and the response key of
+        another, which makes it ambiguous."""
+        attribute = self.attributes.get(key)
+        if attribute is not None and not aliased:
+            return [attribute]
+        named = [*self.response_keys.get(key, [])]
+        if attribute is not None and attribute not in named:
+            named.append(attribute)
+        return named
 
 
 def _type_problems(
