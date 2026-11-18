@@ -430,7 +430,16 @@ features:
     note: "flow_type of AuthClientOptions, passed as the auth argument of the supabase client, and of the auth client constructor."
     symbols:
       - AuthClientOptions
-  client.authentication_integration.session_url_detection: not_implemented
+  client.authentication_integration.session_url_detection:
+    status: implemented
+    note: "initialize_from_url(url), and initialize(url=...) for a URL with callback parameters, read the query string and the fragment. They save the session of an implicit grant redirect, exchange the code of a PKCE redirect for the flow named by sb_flow_id, and raise AuthImplicitGrantRedirectError for error, error_code or error_description."
+    symbols:
+      - AsyncSupabaseAuthClient.initialize_from_url
+      - SyncSupabaseAuthClient.initialize_from_url
+    supporting_symbols:
+      - AsyncSupabaseAuthClient.initialize
+      - SyncSupabaseAuthClient.initialize
+      - AuthImplicitGrantRedirectError
 
   client.session_management.custom_storage:
     status: implemented
@@ -1579,12 +1588,8 @@ supporting_symbols:
   - AsyncSupabaseAuthClient
   - SyncSupabaseAuthClient
   - SupabaseAuthHttpClient
-  - AsyncSupabaseAuthClient.initialize
   - AsyncSupabaseAuthClient.initialize_from_storage
-  - AsyncSupabaseAuthClient.initialize_from_url
-  - SyncSupabaseAuthClient.initialize
   - SyncSupabaseAuthClient.initialize_from_storage
-  - SyncSupabaseAuthClient.initialize_from_url
   - AsyncSupabaseAuthMFAClient
   - SyncSupabaseAuthMFAClient
   - SupabaseAuthMFAHttpClient
@@ -1598,7 +1603,6 @@ supporting_symbols:
   - WithCaptchaToken
   - AuthError
   - AuthApiError
-  - AuthImplicitGrantRedirectError
   - AuthInvalidCredentialsError
   - AuthInvalidJwtError
   - AuthPKCECodeVerifierMissingError

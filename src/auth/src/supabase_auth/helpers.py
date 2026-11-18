@@ -20,6 +20,7 @@ from supabase_utils.http.query import URLQuery
 from .errors import (
     AuthApiError,
     AuthError,
+    AuthImplicitGrantRedirectError,
     AuthInvalidJwtError,
     AuthRetryableError,
     AuthUnknownError,
@@ -393,9 +394,24 @@ def _parse_url_params(url: str) -> dict[str, str]:
     return params
 
 
-def _is_implicit_grant_flow(url: str) -> bool:
-    params = _parse_url_params(url)
-    return "access_token" in params or "error_description" in params
+_REDIRECT_ERROR_PARAMS = ("error", "error_code", "error_description")
+
+
+def _is_callback_url(params: dict[str, str], *, pkce: bool) -> bool:
+    return (
+        "access_token" in params
+        or any(name in params for name in _REDIRECT_ERROR_PARAMS)
+        or (pkce and "code" in params)
+    )
+
+
+def _raise_for_redirect_error(params: dict[str, str]) -> None:
+    error = params.get("error")
+    code = params.get("error_code")
+    description = params.get("error_description")
+    message = description or error or code
+    if message:
+        raise AuthImplicitGrantRedirectError(message, error=error, code=code)
 
 
 _JWKS_REFETCH_MIN_WAIT = 1.0
