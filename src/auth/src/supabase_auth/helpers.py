@@ -394,21 +394,14 @@ def _parse_url_params(url: str) -> dict[str, str]:
     return params
 
 
-_REDIRECT_ERROR_PARAMS = ("error", "error_code", "error_description")
+def _is_implicit_grant_callback(parameters: dict[str, str]) -> bool:
+    return "access_token" in parameters or "error_description" in parameters
 
 
-def _is_callback_url(params: dict[str, str], *, pkce: bool) -> bool:
-    return (
-        "access_token" in params
-        or any(name in params for name in _REDIRECT_ERROR_PARAMS)
-        or (pkce and "code" in params)
-    )
-
-
-def _raise_for_redirect_error(params: dict[str, str]) -> None:
-    error = params.get("error")
-    code = params.get("error_code")
-    description = params.get("error_description")
+def _raise_for_redirect_error(parameters: dict[str, str]) -> None:
+    error = parameters.get("error")
+    code = parameters.get("error_code")
+    description = parameters.get("error_description")
     message = description or error or code
     if message:
         raise AuthImplicitGrantRedirectError(message, error=error, code=code)

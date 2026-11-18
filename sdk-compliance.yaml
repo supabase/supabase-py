@@ -432,7 +432,7 @@ features:
       - AuthClientOptions
   client.authentication_integration.session_url_detection:
     status: implemented
-    note: "initialize_from_url(url), and initialize(url=...) for a URL with callback parameters, read the query string and the fragment. They save the session of an implicit grant redirect, exchange the code of a PKCE redirect for the flow named by sb_flow_id, and raise AuthImplicitGrantRedirectError for error, error_code or error_description."
+    note: "initialize_from_url(url) reads the query string and the fragment. It saves the session of an implicit grant redirect, exchanges the code of a PKCE redirect for the flow named by sb_flow_id, and raises AuthImplicitGrantRedirectError for error, error_code or error_description. initialize(url=...) does the same for a URL with implicit grant tokens, an error_description or the code of a pending PKCE flow, and recovers the stored session otherwise."
     symbols:
       - AsyncSupabaseAuthClient.initialize_from_url
       - SyncSupabaseAuthClient.initialize_from_url

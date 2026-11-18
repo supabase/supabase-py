@@ -181,13 +181,13 @@ async def test_initialize_does_not_treat_pkce_callback_as_implicit_grant() -> No
         ),
     ],
 )
-async def test_initialize_raises_incomplete_error_redirect(
+async def test_initialize_from_url_raises_incomplete_error_redirect(
     query: str, message: str, error: str | None, code: str | None
 ) -> None:
     client = mock_client([])
 
     with pytest.raises(AuthImplicitGrantRedirectError) as raised:
-        await client.initialize(url=f"https://app.example/callback?{query}")
+        await client.initialize_from_url(f"https://app.example/callback?{query}")
 
     assert raised.value.message == message
     assert raised.value.detail_error == error
@@ -218,7 +218,11 @@ async def test_initialize_exchanges_pkce_code_of_flow() -> None:
         AuthChangeEvent.SIGNED_IN,
     ]
     with pytest.raises(AuthPKCECodeVerifierMissingError):
-        await client.exchange_code_for_session("abc", flow_id=flow_id)
+        await client.initialize_from_url(
+            f"https://app.example/callback?code=abc&sb_flow_id={flow_id}"
+        )
+    assert len(token_requests) == 1
+    assert await client.get_session() == session
 
 
 async def test_initialize_from_url_raises_without_pkce_code_verifier() -> None:
@@ -247,12 +251,20 @@ async def test_initialize_from_url_raises_pkce_error_before_exchange() -> None:
     assert token_requests == []
 
 
-async def test_initialize_ignores_url_without_callback_parameters() -> None:
-    client = mock_client([], flow_type="pkce")
+@pytest.mark.parametrize(
+    "query", ["page=2", "code=SUMMER24", "error=invalid_email", "error_code=e"]
+)
+async def test_initialize_recovers_storage_without_callback_parameters(
+    query: str,
+) -> None:
+    token_requests: list[Request] = []
+    client = mock_client([], token_requests, flow_type="pkce")
     changes: list[AuthStateChange] = []
     client.on_auth_state_change(changes.append)
 
-    await client.initialize(url="https://app.example/home?page=2")
+    await client.initialize(url=f"https://app.example/page?{query}")
+
+    assert token_requests == []
 
     assert events(changes) == [AuthChangeEvent.INITIAL_SESSION]
     assert await client.get_session() is None

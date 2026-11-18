@@ -61,7 +61,7 @@ from .helpers import (
     _bind_algorithm,
     _handle_error_response,
     _header_names_algorithm,
-    _is_callback_url,
+    _is_implicit_grant_callback,
     _is_locally_verifiable,
     _jwk_by_kid,
     _parse_url_params,
@@ -532,9 +532,6 @@ class SupabaseAuthHttpClient[
         if not response.is_success:
             raise _handle_error_response(response)
 
-    def _is_callback(self, params: dict[str, str]) -> bool:
-        return _is_callback_url(params, pkce=self.flow_type == "pkce")
-
     @handle_http_io
     def _get_session_from_url(
         self,
@@ -738,11 +735,15 @@ class AsyncSupabaseAuthClient(
 
     async def initialize(self, *, url: str | None = None) -> None:
         """
-        Signs in from `url` when it is an auth callback URL, as
-        `initialize_from_url` does, and recovers the stored session otherwise.
+        Signs in from `url`, as `initialize_from_url` does, when it carries
+        implicit grant tokens, an `error_description`, or a PKCE `code` whose
+        flow is pending. Recovers the stored session otherwise.
         """
-        if url and self._is_callback(_parse_url_params(url)):
-            await self.initialize_from_url(url)
+        parameters = _parse_url_params(url) if url else {}
+        if _is_implicit_grant_callback(parameters) or await self._is_pkce_callback(
+            parameters
+        ):
+            await self._initialize_from_parameters(parameters)
         else:
             await self.initialize_from_storage()
 
@@ -755,26 +756,34 @@ class AsyncSupabaseAuthClient(
         magic link or password recovery callback. Parameters are read from
         both the query string and the fragment.
 
+        - `error`, `error_code` or `error_description` raise
+          `AuthImplicitGrantRedirectError` and remove the stored session.
         - `access_token` and the other implicit grant tokens are saved as the
-          session.
+          session. When that fails, the stored session is removed and the
+          error is raised.
         - With the `pkce` flow type, `code` is exchanged for a session as
           `exchange_code_for_session` does, for the flow named by the
-          `sb_flow_id` parameter when it is present.
-        - `error`, `error_code` or `error_description` raise
-          `AuthImplicitGrantRedirectError`.
+          `sb_flow_id` parameter when it is present. A failed exchange keeps
+          the stored session.
 
-        A URL with none of these parameters is ignored. When the sign-in
-        fails, the stored session is removed and the error is raised.
+        A URL with none of these parameters is ignored.
         """
-        params = _parse_url_params(url)
+        await self._initialize_from_parameters(_parse_url_params(url))
+
+    async def _is_pkce_callback(self, parameters: dict[str, str]) -> bool:
+        if self.flow_type != "pkce" or "code" not in parameters:
+            return False
         try:
-            _raise_for_redirect_error(params)
-            if self.flow_type == "pkce" and (code := params.get("code")):
-                await self.exchange_code_for_session(
-                    code, flow_id=params.get(_FLOW_ID_PARAMETER)
-                )
-            elif "access_token" in params:
-                session, redirect_type = await self._get_session_from_url(params)
+            await self._pending_code_verifier(parameters.get(_FLOW_ID_PARAMETER))
+        except AuthPKCECodeVerifierMissingError:
+            return False
+        return True
+
+    async def _initialize_from_parameters(self, parameters: dict[str, str]) -> None:
+        try:
+            _raise_for_redirect_error(parameters)
+            if "access_token" in parameters:
+                session, redirect_type = await self._get_session_from_url(parameters)
                 await self.session_manager.save_session(session)
                 self.session_manager.notify_all_subscribers(
                     AuthStateChange(AuthChangeEvent.SIGNED_IN, session)
@@ -783,9 +792,15 @@ class AsyncSupabaseAuthClient(
                     self.session_manager.notify_all_subscribers(
                         AuthStateChange(AuthChangeEvent.PASSWORD_RECOVERY, session)
                     )
-        except Exception as e:
+                return
+        except Exception:
             await self.session_manager.remove_session()
-            raise e
+            raise
+        code = parameters.get("code")
+        if code and self.flow_type == "pkce":
+            await self.exchange_code_for_session(
+                code, flow_id=parameters.get(_FLOW_ID_PARAMETER)
+            )
 
     async def _save_session_and_notify(
         self,
@@ -1382,11 +1397,15 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
 
     def initialize(self, *, url: str | None = None) -> None:
         """
-        Signs in from `url` when it is an auth callback URL, as
-        `initialize_from_url` does, and recovers the stored session otherwise.
+        Signs in from `url`, as `initialize_from_url` does, when it carries
+        implicit grant tokens, an `error_description`, or a PKCE `code` whose
+        flow is pending. Recovers the stored session otherwise.
         """
-        if url and self._is_callback(_parse_url_params(url)):
-            self.initialize_from_url(url)
+        parameters = _parse_url_params(url) if url else {}
+        if _is_implicit_grant_callback(parameters) or self._is_pkce_callback(
+            parameters
+        ):
+            self._initialize_from_parameters(parameters)
         else:
             self.initialize_from_storage()
 
@@ -1399,26 +1418,34 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
         magic link or password recovery callback. Parameters are read from
         both the query string and the fragment.
 
+        - `error`, `error_code` or `error_description` raise
+          `AuthImplicitGrantRedirectError` and remove the stored session.
         - `access_token` and the other implicit grant tokens are saved as the
-          session.
+          session. When that fails, the stored session is removed and the
+          error is raised.
         - With the `pkce` flow type, `code` is exchanged for a session as
           `exchange_code_for_session` does, for the flow named by the
-          `sb_flow_id` parameter when it is present.
-        - `error`, `error_code` or `error_description` raise
-          `AuthImplicitGrantRedirectError`.
+          `sb_flow_id` parameter when it is present. A failed exchange keeps
+          the stored session.
 
-        A URL with none of these parameters is ignored. When the sign-in
-        fails, the stored session is removed and the error is raised.
+        A URL with none of these parameters is ignored.
         """
-        params = _parse_url_params(url)
+        self._initialize_from_parameters(_parse_url_params(url))
+
+    def _is_pkce_callback(self, parameters: dict[str, str]) -> bool:
+        if self.flow_type != "pkce" or "code" not in parameters:
+            return False
         try:
-            _raise_for_redirect_error(params)
-            if self.flow_type == "pkce" and (code := params.get("code")):
-                self.exchange_code_for_session(
-                    code, flow_id=params.get(_FLOW_ID_PARAMETER)
-                )
-            elif "access_token" in params:
-                session, redirect_type = self._get_session_from_url(params)
+            self._pending_code_verifier(parameters.get(_FLOW_ID_PARAMETER))
+        except AuthPKCECodeVerifierMissingError:
+            return False
+        return True
+
+    def _initialize_from_parameters(self, parameters: dict[str, str]) -> None:
+        try:
+            _raise_for_redirect_error(parameters)
+            if "access_token" in parameters:
+                session, redirect_type = self._get_session_from_url(parameters)
                 self.session_manager.save_session(session)
                 self.session_manager.notify_all_subscribers(
                     AuthStateChange(AuthChangeEvent.SIGNED_IN, session)
@@ -1427,9 +1454,15 @@ class SyncSupabaseAuthClient(SupabaseAuthHttpClient[SyncHttpIO, _SyncSessionMana
                     self.session_manager.notify_all_subscribers(
                         AuthStateChange(AuthChangeEvent.PASSWORD_RECOVERY, session)
                     )
-        except Exception as e:
+                return
+        except Exception:
             self.session_manager.remove_session()
-            raise e
+            raise
+        code = parameters.get("code")
+        if code and self.flow_type == "pkce":
+            self.exchange_code_for_session(
+                code, flow_id=parameters.get(_FLOW_ID_PARAMETER)
+            )
 
     def _save_session_and_notify(
         self,
