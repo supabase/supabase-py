@@ -158,6 +158,28 @@ class TestToRow:
             row(Books.id, Books.title, json={"id": 1, "title": "Dune"}).to_row()
 
 
+class TestToDict:
+    def test_holds_the_decoded_values_as_json(self) -> None:
+        partial = row(
+            Books.id,
+            Books.published_on,
+            Books.title_upper,
+            json={"id": "1", "published_on": "1965-08-01", "title_upper": None},
+        )
+
+        assert partial.to_dict() == {
+            "id": 1,
+            "published_on": "1965-08-01",
+            "title_upper": None,
+        }
+
+    def test_an_expression_is_keyed_by_its_alias(self) -> None:
+        pages = Books.pages.sum()
+        partial = row(Books.id, pages, json={"id": 1, pages.response_key: 412})
+
+        assert partial.to_dict() == {"id": 1, pages.response_key: 412}
+
+
 class TestValue:
     def test_repr_shows_the_decoded_row(self) -> None:
         assert repr(row(Books.id, json={"id": 1})) == "PartialRow({'id': 1})"

@@ -1,6 +1,7 @@
 from datetime import date
 
 import pytest
+from pydantic import BaseModel
 
 from postgrest import SyncPostgrestClient
 from tests.typed_schema import Authors, AuthorsRow, Novels
@@ -187,3 +188,64 @@ def test_a_relation_filter_on_a_delete_is_rejected(
 
     with pytest.raises(ValueError, match="applies to a read only"):
         delete.execute()
+
+
+class AuthorCard(BaseModel):
+    name: str
+    born_on: date | None
+
+
+class NovelCard(BaseModel):
+    id: int
+    title: str
+    author: AuthorCard | None
+
+
+class AuthorWithNovels(BaseModel):
+    name: str
+    novels: list[NovelCard]
+
+
+def test_a_projection_decodes_into_a_nested_model(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
+    card = (
+        postgrest_client.table(Novels.table)
+        .select_as(NovelCard)
+        .where(Novels.id.eq(1))
+        .single()
+        .execute()
+    )
+
+    assert card == NovelCard(
+        id=1,
+        title="Dune",
+        author=AuthorCard(name="Frank Herbert", born_on=date(1920, 10, 8)),
+    )
+    assert card.model_dump_json() == (
+        '{"id":1,"title":"Dune","author":'
+        '{"name":"Frank Herbert","born_on":"1920-10-08"}}'
+    )
+
+
+def test_a_projection_embeds_through_a_to_many_relation(
+    postgrest_client: SyncPostgrestClient,
+) -> None:
+    authors = (
+        postgrest_client.table(Authors.table)
+        .select_as(AuthorWithNovels)
+        .order(Authors.id)
+        .embedded(Authors.novels, lambda novels: novels.order(Novels.id))
+        .execute()
+    )
+
+    assert [
+        (author.name, [novel.title for novel in author.novels]) for author in authors
+    ] == [
+        ("Frank Herbert", ["Dune", "Dune Messiah"]),
+        ("William Gibson", ["Neuromancer"]),
+        ("Nobody", []),
+    ]
+    assert authors[0].novels[0].author == AuthorCard(
+        name="Frank Herbert", born_on=date(1920, 10, 8)
+    )

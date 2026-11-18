@@ -556,3 +556,49 @@ class TestReads:
         author = row[Novels.author]
         assert author is not None
         assert author[Authors.name] == "Frank"
+
+
+class TestToDict:
+    def test_a_to_one_embed_is_a_nested_dict(self) -> None:
+        row = PartialRow(
+            Novels.table,
+            (Novels.title, Novels.author.select([Authors.born_on])),
+            {"title": "Dune", "authors": {"born_on": "1920-10-08"}},
+        )
+
+        assert row.to_dict() == {
+            "title": "Dune",
+            "authors": {"born_on": "1920-10-08"},
+        }
+
+    def test_a_missing_to_one_embed_is_none(self) -> None:
+        row = PartialRow(Novels.table, (Novels.author.select(),), {"authors": None})
+
+        assert row.to_dict() == {"authors": None}
+
+    def test_a_to_many_embed_and_its_count(self) -> None:
+        embed = Authors.novels.select([Novels.reviews.select([Reviews.rating])])
+        row = PartialRow(
+            Authors.table,
+            (embed, Authors.novels.count()),
+            {
+                "novels": [{"reviews": [{"rating": "5"}]}, {"reviews": []}],
+                "novels(count)": [{"count": 2}],
+            },
+        )
+
+        assert row.to_dict() == {
+            "novels": [{"reviews": [{"rating": 5}]}, {"reviews": []}],
+            "novels(count)": 2,
+        }
+
+    def test_an_embed_of_every_column_holds_every_column(self) -> None:
+        row = PartialRow(
+            Novels.table,
+            (Novels.author.select(),),
+            {"authors": {"id": 1, "name": "Frank", "born_on": "1920-10-08"}},
+        )
+
+        assert row.to_dict() == {
+            "authors": {"id": 1, "name": "Frank", "born_on": "1920-10-08"}
+        }

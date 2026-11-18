@@ -858,6 +858,7 @@ features:
       - TypedQueryBuilder
       - TypedQueryBuilder.select
       - TypedQueryBuilder.select_only
+      - TypedQueryBuilder.select_as
       - TypedQueryBuilder.insert
       - TypedQueryBuilder.upsert
       - TypedQueryBuilder.update
@@ -959,6 +960,7 @@ features:
       - TypedTransformBuilder
       - TypedTransformBuilder.select
       - TypedTransformBuilder.select_only
+      - TypedTransformBuilder.select_as
       - TypedTransformBuilder.order
       - TypedTransformBuilder.limit
       - TypedTransformBuilder.range
@@ -981,6 +983,7 @@ features:
       - TypedMutationBuilder.all
       - PartialRow
       - PartialRow.to_row
+      - PartialRow.to_dict
       - CountedResponse
       - Selectable
       - Selectable.response_key
