@@ -12,7 +12,7 @@ import json
 from typing import Any
 
 from pydantic import TypeAdapter
-from supabase_utils.types import JSON
+from supabase_utils.types import JSON, JSONParser
 
 from .message import Message
 from .types import ChannelEvents
@@ -26,7 +26,6 @@ _MAX_FIELD_LENGTH = 255
 
 type _TextFrame = tuple[str | None, str | None, str, str, Any]
 _TextFrameAdapter: TypeAdapter[_TextFrame] = TypeAdapter(_TextFrame)
-_JSONAdapter: TypeAdapter[Any] = TypeAdapter(Any)
 
 
 def encode(message: Message) -> str | bytes:
@@ -34,17 +33,14 @@ def encode(message: Message) -> str | bytes:
     user_event = payload.get("event")
     user_payload = payload.get("payload")
     metadata = payload.get("meta")
+    if not isinstance(metadata, dict):
+        metadata = None
     if (
         message.event == ChannelEvents.broadcast
         and isinstance(user_event, str)
-        and (isinstance(user_payload, bytes) or isinstance(metadata, dict))
+        and (isinstance(user_payload, bytes) or metadata is not None)
     ):
-        return _encode_user_broadcast_push(
-            message,
-            user_event,
-            user_payload,
-            metadata if isinstance(metadata, dict) else None,
-        )
+        return _encode_user_broadcast_push(message, user_event, user_payload, metadata)
     frame = (message.join_ref, message.ref, message.topic, message.event, payload)
     return _TextFrameAdapter.dump_json(frame).decode()
 
@@ -72,13 +68,13 @@ def _encode_user_broadcast_push(
     if isinstance(user_payload, bytes):
         body, encoding = user_payload, _BINARY_ENCODING
     else:
-        body, encoding = _JSONAdapter.dump_json(user_payload), _JSON_ENCODING
+        body, encoding = JSONParser.dump_json(user_payload), _JSON_ENCODING
     fields = {
         "join_ref": (message.join_ref or "").encode(),
         "ref": (message.ref or "").encode(),
         "topic": message.topic.encode(),
         "user_event": user_event.encode(),
-        "metadata": _JSONAdapter.dump_json(metadata) if metadata else b"",
+        "metadata": JSONParser.dump_json(metadata) if metadata else b"",
     }
     for name, value in fields.items():
         if len(value) > _MAX_FIELD_LENGTH:

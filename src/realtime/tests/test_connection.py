@@ -193,7 +193,8 @@ async def test_persisted_broadcasts_are_replayed(socket: RealtimeClient) -> None
     token = await access_token()
     await socket.set_auth(token)
     topic = f"test-persist-{datetime.datetime.now(datetime.UTC).timestamp()}"
-    since = int(datetime.datetime.now(datetime.UTC).timestamp() * 1000)
+    a_minute_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=1)
+    since = int(a_minute_ago.timestamp() * 1000)
     private = RealtimeChannelOptions().private(True)
 
     async with (
