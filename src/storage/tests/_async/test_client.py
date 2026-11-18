@@ -262,14 +262,25 @@ async def test_client_download_byte_range(
     part = await storage_file_client.download(file.bucket_path, offset=1, length=4)
     assert part == file.file_content[1:5]
 
+    async with storage_file_client.download_stream(file.bucket_path) as first:
+        etag = first.etag
+    assert etag is not None
+
     partial = tmp_path / "partial"
     partial.write_bytes(file.file_content[:3])
     async with storage_file_client.download_stream(
-        file.bucket_path, offset=3
+        file.bucket_path, offset=3, if_match=etag
     ) as download:
         assert download.status == 206
         await download.write_to(partial, resume=True)
     assert partial.read_bytes() == file.file_content
+
+    with pytest.raises(StorageApiError) as caught:
+        async with storage_file_client.download_stream(
+            file.bucket_path, offset=3, if_match='"stale"'
+        ):
+            pytest.fail("a changed file must not be returned")
+    assert caught.value.code == "PreconditionFailed"
 
 
 async def test_client_upload_with_query(

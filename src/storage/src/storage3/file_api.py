@@ -739,6 +739,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         transform: TransformOptions | None,
         query_params: dict[str, str] | None,
         byte_range: str | None,
+        if_match: str | None,
     ) -> EmptyRequest:
         render_path: list[str] = ["object"]
         params = (
@@ -753,6 +754,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             headers = headers.set("Range", byte_range).set(
                 "Accept-Encoding", "identity"
             )
+        if if_match is not None:
+            headers = headers.set("If-Match", if_match)
         return EmptyRequest(
             method="GET",
             path=[*render_path, self.id, *path_parts],
@@ -769,6 +772,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         offset: int = 0,
         length: int | None = None,
+        if_match: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> bytes: ...
 
@@ -781,6 +785,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         offset: int = 0,
         length: int | None = None,
+        if_match: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> Coroutine[Any, Any, bytes]: ...
 
@@ -792,6 +797,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         offset: int = 0,
         length: int | None = None,
+        if_match: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> bytes | Coroutine[Any, Any, bytes]:
         """
@@ -814,13 +820,20 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             How many bytes to download from `offset`. Defaults to every byte
             up to the end of the file. A range that ends past the end of the
             file stops at its end.
+        if_match
+            The `etag` of an earlier download of the file. When the file
+            changed since, the server answers with HTTP 412 and the call raises
+            `StorageApiError` with the code `PreconditionFailed`, so a resumed
+            download never mixes the bytes of two versions.
         on_progress
             Called with the bytes received so far and the total, or None when
             the total is not known, as the body arrives. It restarts from 0
             when the download is retried.
         """
         byte_range = _byte_range(offset, length)
-        request = self._download_request(path, transform, query_params, byte_range)
+        request = self._download_request(
+            path, transform, query_params, byte_range, if_match
+        )
         if isinstance(self.executor, AsyncHttpIO):
             return _async_read(
                 self.executor,
@@ -848,6 +861,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         offset: int = 0,
         length: int | None = None,
+        if_match: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> AbstractContextManager[StorageDownload]: ...
 
@@ -860,6 +874,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         offset: int = 0,
         length: int | None = None,
+        if_match: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> AbstractAsyncContextManager[AsyncStorageDownload]: ...
 
@@ -871,6 +886,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         *,
         offset: int = 0,
         length: int | None = None,
+        if_match: str | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> (
         AbstractContextManager[StorageDownload]
@@ -888,7 +904,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         A byte range, from `offset` or of `length` bytes, is answered with
         status 206 and a `Content-Range` header, or with status 200 and the
         whole file when the server or a cache ignores the range. Pass
-        `resume=True` to `write_to` to continue a partial file:
+        `resume=True` to `write_to` to continue a partial file, and the
+        `etag` of the first download as `if_match`, so a file that changed
+        since raises instead of being appended to:
 
         ```python
         with client.from_("videos").download_stream("intro.mp4") as download:
@@ -901,7 +919,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         partial = Path("intro.mp4")
         offset = partial.stat().st_size if partial.exists() else 0
         with client.from_("videos").download_stream(
-            "intro.mp4", offset=offset
+            "intro.mp4", offset=offset, if_match=saved_etag
         ) as download:
             download.write_to(partial, resume=True)
         ```
@@ -917,12 +935,19 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             How many bytes to download from `offset`. Defaults to every byte
             up to the end of the file. A range that ends past the end of the
             file stops at its end.
+        if_match
+            The `etag` of an earlier download of the file. When the file
+            changed since, the server answers with HTTP 412 and the call raises
+            `StorageApiError` with the code `PreconditionFailed`, so a resumed
+            download never mixes the bytes of two versions.
         on_progress
             Called with the bytes of the body read so far and the total, or
             None when the total is not known, as the body is read.
         """
         byte_range = _byte_range(offset, length)
-        request = self._download_request(path, transform, query_params, byte_range)
+        request = self._download_request(
+            path, transform, query_params, byte_range, if_match
+        )
         if isinstance(self.executor, AsyncHttpIO):
             return _async_download(
                 self.executor, self.base_url, self.default_headers, request, on_progress

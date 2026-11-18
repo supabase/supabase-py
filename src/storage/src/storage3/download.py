@@ -69,6 +69,12 @@ class _DownloadHead:
         return self.headers.get("Content-Type")
 
     @property
+    def etag(self) -> str | None:
+        """The `ETag` of the file, quotes included, to pass as `if_match`
+        when the download is resumed."""
+        return self.headers.get("ETag")
+
+    @property
     def _total(self) -> int | None:
         return _download_total(self.headers)
 

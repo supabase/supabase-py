@@ -107,15 +107,21 @@ first_bytes = await storage_client.from_("bucket").download(
 
 A server or cache that ignores the range answers with status 200 and the whole file. `download` then raises `StorageRangeIgnoredError`, while `download_stream` returns the response as it is.
 
-To resume a partial download, pass the size of the partial file as `offset` and `resume=True` to `write_to`. It appends a 206 body to the file and replaces the file with a 200 body. An `offset` at or past the end of the file, as for a file that is already complete, raises `StorageApiError` with the code `InvalidRange`:
+To resume a partial download, pass the size of the partial file as `offset` and `resume=True` to `write_to`. It appends a 206 body to the file and replaces the file with a 200 body. Keep the `etag` of the first download and pass it as `if_match`: when the file changed since, the server answers with HTTP 412 and `StorageApiError` with the code `PreconditionFailed` is raised before anything is written, so the partial file never mixes two versions. An `offset` at or past the end of the file, as for a file that is already complete, raises `StorageApiError` with the code `InvalidRange`:
 
 ```python
 from pathlib import Path
 
 partial = Path("intro.mp4")
-offset = partial.stat().st_size if partial.exists() else 0
+etag_file = Path("intro.mp4.etag")
+resuming = partial.exists() and etag_file.exists()
 async with storage_client.from_("bucket").download_stream(
-    "videos/intro.mp4", offset=offset
+    "videos/intro.mp4",
+    offset=partial.stat().st_size if resuming else 0,
+    if_match=etag_file.read_text() if resuming else None,
 ) as download:
+    if download.etag is not None:
+        etag_file.write_text(download.etag)
     await download.write_to(partial, resume=True)
+etag_file.unlink()
 ```

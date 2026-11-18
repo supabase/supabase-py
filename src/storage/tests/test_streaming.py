@@ -585,3 +585,22 @@ def test_an_ignored_range_reports_no_progress(storage: Storage) -> None:
         )
     assert progress == []
     assert len(storage.requests) == 1
+
+
+def test_download_sends_if_match(storage: Storage) -> None:
+    bucket = storage.sync_client().from_("bucket")
+    bucket.download("ranged.txt", offset=4, if_match='"abc"')
+    with bucket.download_stream("ranged.txt", offset=4, if_match='"abc"'):
+        pass
+    bucket.download("a.txt")
+    assert [r.headers.get("if-match") for r in storage.requests] == [
+        '"abc"',
+        '"abc"',
+        None,
+    ]
+
+
+def test_download_stream_gives_the_etag() -> None:
+    client = partial_client({"Content-Range": "bytes 4-9/10", "ETag": '"abc"'})
+    with client.from_("bucket").download_stream("a.txt", offset=4) as download:
+        assert download.etag == '"abc"'
