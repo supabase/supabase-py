@@ -423,7 +423,35 @@ class TestRejections:
             writer: AuthorName = Field(alias="author")
 
         assert self.problems(Twice) == [
-            "Twice.writer embeds authors a second time; read it through one field"
+            "Twice.writer reads authors, which another field reads as well; read "
+            "it through one field"
+        ]
+
+    def test_a_column_and_an_embed_under_one_key(self) -> None:
+        class Clash(BaseModel):
+            author: AuthorName
+            authors: str = Field(alias="authors")
+
+        class AuthorsColumnRow(BaseModel):
+            authors: str
+
+        clash_table = Table[Any, Any, Any](
+            "novels", AuthorsColumnRow, relations=(Novels.author,)
+        )
+
+        assert self.problems(Clash, clash_table) == [
+            "Clash.authors reads authors, which another field reads as well; "
+            "read it through one field"
+        ]
+
+    def test_two_fields_from_different_columns_under_one_key(self) -> None:
+        class Clash(BaseModel):
+            title: str = Field(alias="heading")
+            id: int = Field(alias="heading")
+
+        assert self.problems(Clash) == [
+            "Clash.id is read from heading, as another field reading a different "
+            "column is"
         ]
 
     def test_a_nested_type_that_differs(self) -> None:

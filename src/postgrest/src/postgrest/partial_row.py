@@ -176,7 +176,8 @@ class PartialRow[Row]:
             books[0].to_dict()  # {"title": "Dune", "authors": {"name": "Frank Herbert"}}
 
         Each value is decoded as reading its entry decodes it and serialized
-        the way pydantic serializes it, so a `date` becomes ISO 8601 text. An
+        through the same type, so a `date` becomes ISO 8601 text and a
+        serializer on the field of the row type applies. An
         embed is a nested dict, or a list of them, and the count of a
         relation an `int`.
         """
@@ -193,9 +194,17 @@ class PartialRow[Row]:
                 if isinstance(embedded, list):
                     return [row.to_dict() for row in embedded]
                 return None if embedded is None else embedded.to_dict()
-            case Expression() | EmbeddedCount():
-                jsonable: JSON = to_jsonable_python(self._value(column))
-                return jsonable
+            case EmbeddedCount():
+                count: int = self._value(column)
+                return count
+            case Expression():
+                value: object = self._value(column)
+                adapter = _adapter(column, self.table.row_type)
+                if value is None or adapter is None:
+                    jsonable: JSON = to_jsonable_python(value)
+                    return jsonable
+                dumped: JSON = adapter.dump_python(value, mode="json")
+                return dumped
             case _:
                 raise TypeError(f"{column!r} cannot be read from a row")
 

@@ -101,10 +101,21 @@ def _project(
         if mapped is None:
             continue
         entry, mapped_field = mapped
-        if isinstance(entry, Embed) and entry.response_key in columns:
+        known = columns.get(entry.response_key)
+        if known is not None and (isinstance(entry, Embed) or isinstance(known, Embed)):
             problems.append(
-                f"{path}.{name} embeds {entry.response_key} a second time; "
-                "read it through one field"
+                f"{path}.{name} reads {entry.response_key}, which another field "
+                "reads as well; read it through one field"
+            )
+            continue
+        if any(
+            other.model_key == mapped_field.model_key
+            and other.response_key != mapped_field.response_key
+            for other in fields
+        ):
+            problems.append(
+                f"{path}.{name} is read from {mapped_field.model_key}, as "
+                "another field reading a different column is"
             )
             continue
         columns.setdefault(entry.response_key, entry)

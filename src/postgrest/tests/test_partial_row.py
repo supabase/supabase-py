@@ -3,7 +3,7 @@ from datetime import date
 from typing import Annotated, Any
 
 import pytest
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, PlainSerializer, ValidationError
 
 from postgrest import Column, ComputedField, NullableColumn, PartialRow, Table
 from tests.typed_schema import Books, BooksRow
@@ -178,6 +178,17 @@ class TestToDict:
         partial = row(Books.id, pages, json={"id": 1, pages.response_key: 412})
 
         assert partial.to_dict() == {"id": 1, pages.response_key: 412}
+
+
+class TestToDictSerializers:
+    def test_a_serializer_of_the_row_type_applies(self) -> None:
+        class PricedRow(BaseModel):
+            cents: Annotated[int, PlainSerializer(lambda cents: f"{cents / 100:.2f}")]
+
+        cents = Column[PricedRow, int]("cents")
+        partial = PartialRow(Table("priced", PricedRow), (cents,), {"cents": 125})
+
+        assert partial.to_dict() == {"cents": "1.25"}
 
 
 class TestValue:

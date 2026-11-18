@@ -88,7 +88,7 @@ class Relation(Generic[Row, Target]):
     """
 
     target_table: Callable[[], Table[Target, Any, Any]] | None = field(
-        default=None, compare=False, repr=False
+        default=None, repr=False
     )
     """A function returning the `Table` the relation points at, or `None`.
 
