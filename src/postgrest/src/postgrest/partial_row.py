@@ -18,9 +18,10 @@ from typing import (
 )
 
 from pydantic import BaseModel, TypeAdapter
+from pydantic_core import to_jsonable_python
 from supabase_utils.types import JSON
 
-from .column_expression import ComputedField, _StoredColumn
+from .column_expression import Column, ComputedField, _StoredColumn
 from .filter import DerivedExpression, Expression, JsonPath, Selectable
 from .relation import (
     Embed,
@@ -32,7 +33,7 @@ from .relation import (
 from .table import Table, _row_adapter
 
 if TYPE_CHECKING:
-    from .column_expression import Column, NullableColumn
+    from .column_expression import NullableColumn
     from .filter import ColumnExpression
 
 _COUNT = TypeAdapter(int)
@@ -126,6 +127,11 @@ class PartialRow[Row]:
         self, entry: Expression[Row, Any] | Relation[Row, Any] | EmbeddedCount[Row]
     ) -> Any:
         """The value of `entry` in this row, see the class."""
+        return self._value(entry)
+
+    def _value(
+        self, entry: Expression[Row, Any] | Relation[Row, Any] | EmbeddedCount[Row]
+    ) -> Any:
         key = entry.response_key
         if not self._selects(entry):
             selected = ", ".join(column.response_key for column in self.columns)
@@ -156,6 +162,51 @@ class PartialRow[Row]:
         }
         row = {key: value for key, value in self.json.items() if key not in derived}
         return _row_adapter(self.table.row_type).validate_python(row)
+
+    def to_dict(self) -> dict[str, JSON]:
+        """The values of the row as JSON-ready values, keyed by the key each
+        comes back under: the name of a column, computed field or relation,
+        or the alias of an aliased expression.
+
+            books = (
+                client.table(Books.table)
+                .select_only([Books.title, Books.author.select([Authors.name])])
+                .execute()
+            )
+            books[0].to_dict()  # {"title": "Dune", "authors": {"name": "Frank Herbert"}}
+
+        Each value is decoded as reading its entry decodes it and serialized
+        through the same type, so a `date` becomes ISO 8601 text and a
+        serializer on the field of the row type applies. An
+        embed is a nested dict, or a list of them, and the count of a
+        relation an `int`.
+        """
+        if not self.columns:
+            return {key: self._jsonable(Column[Row, Any](key)) for key in self.json}
+        return {column.response_key: self._jsonable(column) for column in self.columns}
+
+    def _jsonable(self, column: Selectable[Row]) -> JSON:
+        match column:
+            case Embed():
+                embedded: PartialRow[Any] | list[PartialRow[Any]] | None = self._value(
+                    column.relation
+                )
+                if isinstance(embedded, list):
+                    return [row.to_dict() for row in embedded]
+                return None if embedded is None else embedded.to_dict()
+            case EmbeddedCount():
+                count: int = self._value(column)
+                return count
+            case Expression():
+                value: object = self._value(column)
+                adapter = _adapter(column, self.table.row_type)
+                if value is None or adapter is None:
+                    jsonable: JSON = to_jsonable_python(value)
+                    return jsonable
+                dumped: JSON = adapter.dump_python(value, mode="json")
+                return dumped
+            case _:
+                raise TypeError(f"{column!r} cannot be read from a row")
 
     def __repr__(self) -> str:
         return f"PartialRow({dict(self.json)!r})"

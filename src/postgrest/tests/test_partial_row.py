@@ -3,7 +3,7 @@ from datetime import date
 from typing import Annotated, Any
 
 import pytest
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, PlainSerializer, ValidationError
 
 from postgrest import Column, ComputedField, NullableColumn, PartialRow, Table
 from tests.typed_schema import Books, BooksRow
@@ -156,6 +156,39 @@ class TestToRow:
     def test_raises_for_a_row_that_misses_a_column(self) -> None:
         with pytest.raises(ValidationError):
             row(Books.id, Books.title, json={"id": 1, "title": "Dune"}).to_row()
+
+
+class TestToDict:
+    def test_holds_the_decoded_values_as_json(self) -> None:
+        partial = row(
+            Books.id,
+            Books.published_on,
+            Books.title_upper,
+            json={"id": "1", "published_on": "1965-08-01", "title_upper": None},
+        )
+
+        assert partial.to_dict() == {
+            "id": 1,
+            "published_on": "1965-08-01",
+            "title_upper": None,
+        }
+
+    def test_an_expression_is_keyed_by_its_alias(self) -> None:
+        pages = Books.pages.sum()
+        partial = row(Books.id, pages, json={"id": 1, pages.response_key: 412})
+
+        assert partial.to_dict() == {"id": 1, pages.response_key: 412}
+
+
+class TestToDictSerializers:
+    def test_a_serializer_of_the_row_type_applies(self) -> None:
+        class PricedRow(BaseModel):
+            cents: Annotated[int, PlainSerializer(lambda cents: f"{cents / 100:.2f}")]
+
+        cents = Column[PricedRow, int]("cents")
+        partial = PartialRow(Table("priced", PricedRow), (cents,), {"cents": 125})
+
+        assert partial.to_dict() == {"cents": "1.25"}
 
 
 class TestValue:

@@ -110,8 +110,12 @@ class Authors:
     id = Column[AuthorsRow, int]("id")
     name = Column[AuthorsRow, str]("name")
     born_on = NullableColumn[AuthorsRow, date]("born_on")
-    novels = ToManyRelation[AuthorsRow, NovelsRow]("novels", NovelsRow)
-    table = Table[AuthorsRow, Never, Never]("authors", AuthorsRow, primary_key=(id,))
+    novels = ToManyRelation[AuthorsRow, NovelsRow](
+        "novels", NovelsRow, target_table=lambda: Novels.table
+    )
+    table = Table[AuthorsRow, Never, Never](
+        "authors", AuthorsRow, primary_key=(id,), relations=(novels,)
+    )
 
 
 class Novels:
@@ -119,8 +123,11 @@ class Novels:
     title = Column[NovelsRow, str]("title")
     author_id = NullableColumn[NovelsRow, int]("author_id")
     author = ToOneRelation[NovelsRow, AuthorsRow](
-        "authors", AuthorsRow, constraint="novels_author_id_fkey"
+        "authors",
+        AuthorsRow,
+        constraint="novels_author_id_fkey",
+        target_table=lambda: Authors.table,
     )
     table = Table[NovelsRow, Never, dict[str, Any]](
-        "novels", NovelsRow, primary_key=(id,)
+        "novels", NovelsRow, primary_key=(id,), relations=(author,)
     )
