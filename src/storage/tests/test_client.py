@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 import pytest
 from httpx import Request, Response
@@ -229,3 +230,36 @@ async def test_delete_bucket_lifecycle_sends_delete(use_async: bool) -> None:
     (request,) = requests
     assert request.method == "DELETE"
     assert request.url.path == "/storage/v1/bucket/docs/lifecycle"
+
+
+@use_async
+async def test_update_bucket_lifecycle_sends_back_fields_it_does_not_know(
+    use_async: bool,
+) -> None:
+    stored_rule = {
+        "id": "r1",
+        "status": "Enabled",
+        "filter": {"prefix": "logs/"},
+        "expiredObjectDeleteMarker": True,
+        "noncurrentVersionExpiration": {"noncurrentDays": 7, "unit": "days"},
+    }
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, json={"rules": [stored_rule]})
+
+    def write_back(client: Any) -> Any:
+        return client.update_bucket_lifecycle(
+            "docs", client.get_bucket_lifecycle("docs")
+        )
+
+    async def write_back_async(client: Any) -> Any:
+        rules = await client.get_bucket_lifecycle("docs")
+        return await client.update_bucket_lifecycle("docs", rules)
+
+    await call_with_client(
+        use_async, handler, write_back_async if use_async else write_back
+    )
+
+    assert json.loads(requests[1].content) == {"rules": [stored_rule]}

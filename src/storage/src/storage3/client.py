@@ -18,7 +18,7 @@ from supabase_utils.http.request import EmptyRequest, JSONRequest
 from yarl import URL
 
 from .analytics import StorageAnalyticsClient
-from .exceptions import _validate_adapter, _validate_model, parse_api_error
+from .exceptions import StorageApiError, _validate_adapter, _validate_model
 from .file_api import StorageFileApiClient
 from .types import (
     Bucket,
@@ -269,12 +269,12 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             method="GET",
             path=["bucket", id, "lifecycle"],
         )
-        if response.is_success:
-            return _LifecycleConfiguration.model_validate_json(response.content).rules
-        error = parse_api_error(response)
-        if error.code == "NoSuchLifecycleConfiguration":
-            return []
-        raise error
+        try:
+            return _validate_model(response, _LifecycleConfiguration).rules
+        except StorageApiError as error:
+            if error.code == "NoSuchLifecycleConfiguration":
+                return []
+            raise
 
     @handle_http_io
     def update_bucket_lifecycle(
@@ -301,7 +301,6 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             method="PUT",
             path=["bucket", id, "lifecycle"],
             body=_LifecycleConfiguration(rules=list(rules)),
-            exclude_none=True,
         )
         return _validate_model(response, _LifecycleConfiguration).rules
 
