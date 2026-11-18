@@ -297,6 +297,8 @@ class SupabaseClient[
         reserved keyword, so we have elected to use the name `table`.
         Alternatively you can use the `.from_()` method.
         """
+        if isinstance(table_name, str):
+            return self.from_(table_name)
         return self.postgrest.table(table_name)
 
     def from_(self, table_name: str) -> RequestBuilder[HttpIO]:

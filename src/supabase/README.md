@@ -320,6 +320,7 @@ found: list[CountriesRow] = supabase.rpc(search).limit(10).execute()
 The async client takes the same `Table` and `FunctionCall`:
 
 ```python
+import asyncio
 import os
 
 from pydantic import BaseModel
@@ -337,12 +338,17 @@ class Countries:
     table = Table("countries", CountriesRow)
 
 
-async with create_async_client(
-    os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]
-) as client:
-    country: CountriesRow = (
-        await client.table(Countries.table).select().where(Countries.id.eq(1)).single().execute()
-    )
+async def main() -> None:
+    async with create_async_client(
+        os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"]
+    ) as client:
+        country: CountriesRow = (
+            await client.table(Countries.table).select().where(Countries.id.eq(1)).single().execute()
+        )
+        print(country.name)
+
+
+asyncio.run(main())
 ```
 
 ### Call Edge Functions
