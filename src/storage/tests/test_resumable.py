@@ -711,3 +711,20 @@ async def test_refuses_to_continue_with_a_file_that_was_replaced(
 
     assert server.methods == ["POST", "PATCH"]
     assert server.uploads["u0"] == DATA[:4]
+
+
+@use_async
+async def test_refuses_a_file_that_changed_before_the_first_run(
+    server: TusServer, use_async: bool, tmp_path: Path
+) -> None:
+    path = tmp_path / "clip.bin"
+    path.write_bytes(DATA[:4])
+    upload = upload_of(server, use_async, path)
+    replacement = tmp_path / "replacement.bin"
+    replacement.write_bytes(DATA)
+    replacement.replace(path)
+
+    with pytest.raises(StorageException, match="changed"):
+        await run(upload)
+
+    assert server.requests == []

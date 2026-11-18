@@ -145,12 +145,29 @@ def _open(source: ResumableUploadSource) -> tuple[BinaryIO, bool]:
     return source, False
 
 
-def _measure(source: ResumableUploadSource) -> tuple[int, int]:
-    """The position the upload starts at in `source` and the bytes it sends."""
+def _stat_identity(status: os.stat_result) -> str | None:
+    if not stat.S_ISREG(status.st_mode):
+        return None
+    return f"{status.st_dev}:{status.st_ino}:{status.st_mtime_ns}"
+
+
+def _file_identity(file: BinaryIO) -> str | None:
+    """What tells the file `file` reads apart from another one of the same
+    size, or None when it is not a regular file."""
+    try:
+        return _stat_identity(os.fstat(file.fileno()))
+    except (AttributeError, OSError, ValueError):
+        return None
+
+
+def _measure(source: ResumableUploadSource) -> tuple[int, int, str | None]:
+    """The position the upload starts at in `source`, the bytes it sends, and
+    the identity of the file it reads, from a single look at the file."""
     if isinstance(source, bytes):
-        return 0, len(source)
+        return 0, len(source), None
     if isinstance(source, (str, os.PathLike)):
-        return 0, os.stat(source).st_size
+        status = os.stat(source)
+        return 0, status.st_size, _stat_identity(status)
     if not (hasattr(source, "seekable") and source.seekable()):
         raise TypeError(
             "A resumable upload needs bytes, a path or a binary file that can seek"
@@ -158,24 +175,7 @@ def _measure(source: ResumableUploadSource) -> tuple[int, int]:
     start = source.tell()
     end = source.seek(0, SEEK_END)
     source.seek(start)
-    return start, end - start
-
-
-def _identity(source: ResumableUploadSource) -> str | None:
-    """What tells `source` apart from another one of the same size, or None
-    when nothing does without reading it."""
-    if isinstance(source, bytes):
-        return hashlib.sha256(source).hexdigest()
-    if isinstance(source, (str, os.PathLike)):
-        status = os.stat(source)
-    else:
-        try:
-            status = os.fstat(source.fileno())
-        except (AttributeError, OSError, ValueError):
-            return None
-    if not stat.S_ISREG(status.st_mode):
-        return None
-    return f"{status.st_dev}:{status.st_ino}:{status.st_mtime_ns}"
+    return start, end - start, _file_identity(source)
 
 
 class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
@@ -205,10 +205,9 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """The bucket the object goes to."""
         self.path = path
         """The path of the object in the bucket."""
-        self._start, self.size = _measure(source)
+        self._start, self.size, self._file_identity = _measure(source)
         """The bytes the upload sends."""
         self._source = source
-        self._file_identity = None if isinstance(source, bytes) else _identity(source)
         self._executor = executor
         self._base_url = base_url
         self._default_headers = default_headers
@@ -300,7 +299,10 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         was prepared, since its bytes would be appended to those of the old
         one on the server."""
         file, owned = _open(self._source)
-        if self._file_identity is not None and _identity(file) != self._file_identity:
+        if (
+            self._file_identity is not None
+            and _file_identity(file) != self._file_identity
+        ):
             if owned:
                 file.close()
             raise StorageException(
@@ -599,6 +601,8 @@ class ResumableUpload(BaseResumableUpload[SyncHttpIO]):
         if self._response is not None:
             return self._response
         with self._running_state():
+            if self._response is not None:
+                return self._response
             file, owned = self._open()
             try:
                 return _drive_sync(
@@ -659,6 +663,8 @@ class AsyncResumableUpload(BaseResumableUpload[AsyncHttpIO]):
         if self._response is not None:
             return self._response
         with self._running_state():
+            if self._response is not None:
+                return self._response
             file, owned = await asyncio.to_thread(self._open)
             try:
                 return await _drive_async(
