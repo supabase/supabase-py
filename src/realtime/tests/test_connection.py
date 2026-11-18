@@ -399,7 +399,10 @@ async def test_postgres_changes_with_a_typed_filter_and_columns(
         assert isinstance(system_msg, SystemMessage)
         assert system_msg.payload.status == "ok"
         await create_message(token, {"title": "other", "message": "not this one"})
-        await create_message(token, {"title": title, "message": "this one, too"})
+        await create_message(token, {"title": title, "message": None})
+        first_id = await create_message(
+            token, {"title": title, "message": "this one, too"}
+        )
         created_id = await create_message(
             token, {"title": title, "message": "this one matches"}
         )
@@ -411,6 +414,7 @@ async def test_postgres_changes_with_a_typed_filter_and_columns(
     assert isinstance(second, PostgresChangesMessage)
     assert first.payload.record is not None
     assert first.payload.record.keys() == {"id", "title"}
+    assert first.payload.record["id"] == first_id
     assert second.payload.record is not None
     row = Messages.table.decode_partial(second.payload.record)
     assert row[Messages.id] == created_id

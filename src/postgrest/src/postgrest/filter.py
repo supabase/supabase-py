@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from functools import lru_cache
@@ -24,6 +24,7 @@ from .types import _TEXT_SEARCH_OPERATORS, Filters, TextSearchType
 from .utils import (
     _in_members,
     _quote,
+    _sanitize_array_element,
     _sanitize_array_param,
     _sanitize_column,
     _serialize_filter_value,
@@ -1019,7 +1020,7 @@ def _realtime_conditions(node: _Node[Any]) -> list[str]:
                 for condition in _realtime_conditions(child)
             ]
         case _Comparison():
-            return [f"{node.column.expression}={node.token}.{_group_operand(node)}"]
+            return [f"{node.column.expression}={node.token}.{_realtime_operand(node)}"]
         case _Raw():
             return [f"{node.column}={node.operand}"]
         case _Or():
@@ -1028,7 +1029,7 @@ def _realtime_conditions(node: _Node[Any]) -> list[str]:
                 "subscribe once per branch"
             )
         case _Not(inner=_Comparison() as inner):
-            operand = _group_operand(inner)
+            operand = _realtime_operand(inner)
             return [f"{inner.column.expression}=not.{inner.token}.{operand}"]
         case _Not(inner=_Raw() as inner):
             operand = inner.operand
@@ -1069,17 +1070,45 @@ def _operand(node: _Comparison[Any]) -> str:
     array operator is sent as the array literal `{a,b}`, with its members
     escaped as that literal requires. The operand of a JSON path read with
     `->` is sent as JSON, apart from the `null` of `is_null()`."""
-    serialize = (
-        _serialize_json_filter_value
-        if node.column._encodes_json and node.operator is not FilterOperator.IS
-        else _serialize_filter_value
-    )
+    serialize = _serializer(node)
     if node.operator is FilterOperator.IN:
         members = ",".join(sanitize_param(serialize(member)) for member in node.value)
         return f"({members})"
     if node.operator in _ARRAY_OPERATORS and isinstance(node.value, tuple):
         return _sanitize_array_param(node.value)
     return serialize(node.value)
+
+
+def _serializer(node: _Comparison[Any]) -> Callable[[Any], str]:
+    return (
+        _serialize_json_filter_value
+        if node.column._encodes_json and node.operator is not FilterOperator.IS
+        else _serialize_filter_value
+    )
+
+
+def _realtime_operand(node: _Comparison[Any]) -> str:
+    """The operand as a realtime filter takes it, which the server trims and
+    unquotes. A value with surrounding whitespace is quoted, so the trim
+    keeps it, and an `in` list becomes a Postgres array literal on the
+    server, so its members are quoted as array elements, and when they hold
+    a parenthesis, which the server counts to find the end of the list."""
+    if node.operator is FilterOperator.IN:
+        serialize = _serializer(node)
+        members = ",".join(
+            _realtime_in_member(serialize(member)) for member in node.value
+        )
+        return f"({members})"
+    operand = _group_operand(node)
+    if operand != operand.strip():
+        return _quote(operand)
+    return operand
+
+
+def _realtime_in_member(member: str) -> str:
+    if any(char in member for char in "()"):
+        return _quote(member)
+    return _sanitize_array_element(member)
 
 
 def _group_operand(node: _Comparison[Any]) -> str:

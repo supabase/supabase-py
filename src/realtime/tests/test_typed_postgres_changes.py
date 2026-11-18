@@ -130,6 +130,38 @@ class TestFilter:
     def test_an_in_member_with_reserved_characters_is_quoted(self) -> None:
         assert rendered(Books.title.in_(["a,b", "c"])) == 'title=in.("a,b",c)'
 
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [(" Dune", 'title=eq." Dune"'), ("Dune ", 'title=eq."Dune "')],
+    )
+    def test_a_value_with_surrounding_whitespace_is_quoted(
+        self, value: str, expected: str
+    ) -> None:
+        assert rendered(Books.title.eq(value)) == expected
+
+    def test_a_negated_value_with_surrounding_whitespace_is_quoted(self) -> None:
+        assert rendered(~Books.title.eq("Dune ")) == 'title=not.eq."Dune "'
+
+    @pytest.mark.parametrize(
+        ("members", "expected"),
+        [
+            ([""], 'title=in.("")'),
+            (["NULL"], 'title=in.("NULL")'),
+            (["null"], 'title=in.("null")'),
+            (["a b"], 'title=in.("a b")'),
+            (["{a}"], 'title=in.("{a}")'),
+            (["a)b", "c"], 'title=in.("a)b",c)'),
+            (['a"b'], r'title=in.("a\"b")'),
+        ],
+    )
+    def test_an_in_member_is_quoted_as_an_array_element(
+        self, members: list[str], expected: str
+    ) -> None:
+        assert rendered(Books.title.in_(members)) == expected
+
+    def test_a_negated_in_member_is_quoted_as_an_array_element(self) -> None:
+        assert rendered(~Books.title.in_(["NULL"])) == 'title=not.in.("NULL")'
+
     def test_a_datetime_is_sent_with_its_offset(self) -> None:
         moment = datetime(2026, 11, 18, 12, 30, tzinfo=UTC)
 
