@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Protocol, assert_never
 from supabase_utils.http.io import AsyncHttpIO, SyncHttpIO
 
 from ._parsing import InvalidResponseBodyError, parse_json, parse_object, parse_rows
+from .relation import _check_embedded, _scope_parameters, _select_entries
 from .request_builder import (
     APIResponse,
     PostgrestRequest,
@@ -274,8 +275,9 @@ def _operation(request: TableRequest) -> PostgrestRequest:
 
 def _select_list(request: TableRequest) -> tuple[str, ...]:
     """The entries of the `select` list, which `pre_select` cleans and
-    replaces with `*` when there are none."""
-    return tuple(column._selected_as for column in request.columns)
+    replaces with `*` when there are none, with the embeds the scopes of
+    `request` require a match in joined as `!inner`."""
+    return _select_entries(request.columns, request.embedded_scopes)
 
 
 def _return_method(request: TableRequest) -> ReturnMethod:
@@ -332,6 +334,13 @@ def _filtered(rendered: PostgrestRequest, request: TableRequest) -> PostgrestReq
         return rendered
     if request.operation in (TableOperation.INSERT, TableOperation.UPSERT):
         raise ValueError(f"An {request.operation} takes no filter")
+    if request.filter._embed_references():
+        if request.operation in _ROW_FILTERED:
+            raise ValueError(
+                f"The filter of the {request.operation} tests a relation for "
+                "null, which applies to a read only"
+            )
+        _check_embedded(request.filter, request.columns, "the select list")
     parameters = request.filter._query_parameters()
     if request.operation in _ROW_FILTERED and not any(
         _names_rows(key) for key, _ in parameters
@@ -364,7 +373,19 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
     if (request.operation in _WRITES and request.returning) or (
         request.operation is TableOperation.RPC and request.columns
     ):
+        if request.operation in _WRITES and any(
+            scope.requires_match for scope in request.embedded_scopes
+        ):
+            raise ValueError(
+                f"requiring() cannot narrow the rows the {request.operation} "
+                "affects, only the ones it returns; filter them with where()"
+            )
         rendered = _select_returned(rendered, *_select_list(request))
+    elif request.operation is not TableOperation.SELECT and request.embedded_scopes:
+        raise ValueError(
+            f"The {request.operation} returns no rows to embed into, so its "
+            "embeds cannot be scoped"
+        )
     query = rendered.query
     if request.orderings:
         order = ",".join(ordering.order_key for ordering in request.orderings)
@@ -373,6 +394,8 @@ def _transformed(rendered: PostgrestRequest, request: TableRequest) -> Postgrest
         query = query.set("offset", request.offset)
     if request.limit is not None:
         query = query.set("limit", request.limit)
+    for key, value in _scope_parameters(request.embedded_scopes):
+        query = query.set(key, value)
     rendered = replace(rendered, query=query)
     if request.max_affected is not None:
         rendered = _max_affected(rendered, request.max_affected)

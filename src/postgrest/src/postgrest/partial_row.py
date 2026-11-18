@@ -20,13 +20,22 @@ from typing import (
 from pydantic import BaseModel, TypeAdapter
 from supabase_utils.types import JSON
 
-from .column_expression import ComputedField
-from .filter import DerivedExpression, Expression, JsonPath
+from .column_expression import ComputedField, _StoredColumn
+from .filter import DerivedExpression, Expression, JsonPath, Selectable
+from .relation import (
+    Embed,
+    EmbeddedCount,
+    Relation,
+    ToManyRelation,
+    ToOneRelation,
+)
 from .table import Table, _row_adapter
 
 if TYPE_CHECKING:
     from .column_expression import Column, NullableColumn
     from .filter import ColumnExpression
+
+_COUNT = TypeAdapter(int)
 
 
 @dataclass(frozen=True, repr=False)
@@ -65,6 +74,17 @@ class PartialRow[Row]:
         )
         pages: int | None = total[Books.pages.sum()]
 
+    A relation reads as the rows embedded through it, a `PartialRow` of the
+    related table or `None` for a to-one relation and a list of them for a
+    to-many one, and the count of a relation as an `int`:
+
+        books = (
+            client.table(Books.table)
+            .select_only([Books.title, Books.author.select([Authors.name])])
+            .execute()
+        )
+        author: PartialRow[AuthorsRow] | None = books[0][Books.author]
+
     Reading an entry the list did not ask for raises `KeyError`, instead of
     returning `None` as a missing key would.
     """
@@ -72,8 +92,9 @@ class PartialRow[Row]:
     table: Table[Row, Any, Any]
     """The table the row belongs to, whose `Row` type decodes the values."""
 
-    columns: tuple[Expression[Row, Any], ...]
-    """The entries of the `select` list this row answers."""
+    columns: tuple[Selectable[Row], ...]
+    """The entries of the `select` list this row answers. An embed selected
+    without columns has none, and its rows answer every stored column."""
 
     json: Mapping[str, JSON]
     """The row as decoded from the response, keyed by the `response_key` of
@@ -91,17 +112,35 @@ class PartialRow[Row]:
     ) -> Value | None: ...
     @overload
     def __getitem__[Value](self, entry: Expression[Row, Value]) -> Value | None: ...
-    def __getitem__(self, entry: Expression[Row, Any]) -> Any:
+    @overload
+    def __getitem__[Target](
+        self, entry: ToOneRelation[Row, Target]
+    ) -> PartialRow[Target] | None: ...
+    @overload
+    def __getitem__[Target](
+        self, entry: ToManyRelation[Row, Target]
+    ) -> list[PartialRow[Target]]: ...
+    @overload
+    def __getitem__(self, entry: EmbeddedCount[Row]) -> int: ...
+    def __getitem__(
+        self, entry: Expression[Row, Any] | Relation[Row, Any] | EmbeddedCount[Row]
+    ) -> Any:
         """The value of `entry` in this row, see the class."""
         key = entry.response_key
-        if key not in self._keys:
+        if not self._selects(entry):
             selected = ", ".join(column.response_key for column in self.columns)
             raise KeyError(f"{key} was not selected; the row holds {selected}")
         value = self.json.get(key)
-        if value is None:
-            return None
-        adapter = _adapter(entry, self.table.row_type)
-        return value if adapter is None else adapter.validate_python(value)
+        match entry:
+            case Relation():
+                return self._embedded(entry, value)
+            case EmbeddedCount():
+                return _embedded_count(key, value)
+            case _ if value is None:
+                return None
+            case _:
+                adapter = _adapter(entry, self.table.row_type)
+                return value if adapter is None else adapter.validate_python(value)
 
     def to_row(self) -> Row:
         """The row as the full `Row` of its table.
@@ -113,7 +152,7 @@ class PartialRow[Row]:
         derived = {
             column.response_key
             for column in self.columns
-            if isinstance(column, (JsonPath, DerivedExpression))
+            if isinstance(column, (JsonPath, DerivedExpression, Embed, EmbeddedCount))
         }
         row = {key: value for key, value in self.json.items() if key not in derived}
         return _row_adapter(self.table.row_type).validate_python(row)
@@ -121,9 +160,65 @@ class PartialRow[Row]:
     def __repr__(self) -> str:
         return f"PartialRow({dict(self.json)!r})"
 
+    def _selects(
+        self, entry: Expression[Row, Any] | Relation[Row, Any] | EmbeddedCount[Row]
+    ) -> bool:
+        """Whether the list asked for `entry`: an embed of it for a relation,
+        the entry itself otherwise, and any stored column for an embed
+        selected without columns."""
+        if isinstance(entry, Relation):
+            return entry in self._embeds
+        if not self.columns:
+            return isinstance(entry, _StoredColumn)
+        return entry.response_key in self._keys
+
+    def _embedded(self, relation: Relation[Row, Any], value: JSON) -> Any:
+        """The rows embedded through `relation`, as `value` holds them."""
+        table = Table(relation.name, relation.target_type)
+        columns = self._embeds[relation].columns
+        match relation, value:
+            case ToOneRelation(), None:
+                return None
+            case ToOneRelation(), Mapping():
+                return PartialRow(table, columns, value)
+            case ToManyRelation(), list():
+                return [
+                    PartialRow(table, columns, row)
+                    for row in _ROWS.validate_python(value)
+                ]
+            case _:
+                shape = (
+                    "a row or null"
+                    if isinstance(relation, ToOneRelation)
+                    else "a list of rows"
+                )
+                raise ValueError(
+                    f"{relation.response_key} holds {type(value).__name__}, not {shape}"
+                )
+
     @cached_property
     def _keys(self) -> frozenset[str]:
         return frozenset(column.response_key for column in self.columns)
+
+    @cached_property
+    def _embeds(self) -> Mapping[Relation[Row, Any], Embed[Row, Any]]:
+        return {
+            column.relation: column
+            for column in self.columns
+            if isinstance(column, Embed)
+        }
+
+
+_ROWS = TypeAdapter(list[dict[str, JSON]])
+
+
+def _embedded_count(key: str, value: JSON) -> int:
+    """The count `books(count)` comes back as, `[{"count": 3}]`."""
+    match value:
+        case [Mapping() as row]:
+            return _COUNT.validate_python(row.get("count"))
+        case _:
+            raise ValueError(f"{key} holds {value!r}, not one row with a count")
 
 
 @cache

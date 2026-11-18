@@ -1727,6 +1727,28 @@ supporting_symbols:
   - PartialRow
   - PartialRow.to_row
   - CountedResponse
+  - Selectable
+  - Selectable.response_key
+  - Relation
+  - Relation.response_key
+  - Relation.select
+  - Relation.is_null
+  - ToOneRelation
+  - ToManyRelation
+  - ToManyRelation.count
+  - Embed
+  - Embed.response_key
+  - EmbeddedCount
+  - EmbeddedCount.response_key
+  - EmbeddedScope
+  - EmbeddedScope.where
+  - EmbeddedScope.order
+  - EmbeddedScope.limit
+  - EmbeddedScope.range
+  - EmbeddedScope.embedded
+  - EmbeddedScope.requiring
+  - TypedTransformBuilder.embedded
+  - TypedTransformBuilder.requiring
   - pre_rpc
   - Headers.with_client_info_features
   - FileContent

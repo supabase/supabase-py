@@ -1,15 +1,23 @@
 """The tables of the typed query builder tests, declared by hand the way the
 generator will declare them, over the schema of
-`infra/supabase/migrations/20240102000000_typed_api.sql`."""
+`infra/supabase/migrations/20240102000000_typed_api.sql` and
+`20240106000000_relations.sql`."""
 
 from __future__ import annotations
 
 from datetime import date
-from typing import Never, NotRequired, TypedDict
+from typing import Any, Never, NotRequired, TypedDict
 
 from pydantic import BaseModel, JsonValue
 
-from postgrest import Column, ComputedField, NullableColumn, Table
+from postgrest import (
+    Column,
+    ComputedField,
+    NullableColumn,
+    Table,
+    ToManyRelation,
+    ToOneRelation,
+)
 
 
 class BooksRow(BaseModel):
@@ -84,3 +92,35 @@ class Places:
     id = Column[PlacesRow, int]("id")
     name = Column[PlacesRow, str]("name")
     table = Table[PlacesRow, Never, Never]("places", PlacesRow, primary_key=(id,))
+
+
+class AuthorsRow(BaseModel):
+    id: int
+    name: str
+    born_on: date | None = None
+
+
+class NovelsRow(BaseModel):
+    id: int
+    title: str
+    author_id: int | None = None
+
+
+class Authors:
+    id = Column[AuthorsRow, int]("id")
+    name = Column[AuthorsRow, str]("name")
+    born_on = NullableColumn[AuthorsRow, date]("born_on")
+    novels = ToManyRelation[AuthorsRow, NovelsRow]("novels", NovelsRow)
+    table = Table[AuthorsRow, Never, Never]("authors", AuthorsRow, primary_key=(id,))
+
+
+class Novels:
+    id = Column[NovelsRow, int]("id")
+    title = Column[NovelsRow, str]("title")
+    author_id = NullableColumn[NovelsRow, int]("author_id")
+    author = ToOneRelation[NovelsRow, AuthorsRow](
+        "authors", AuthorsRow, constraint="novels_author_id_fkey"
+    )
+    table = Table[NovelsRow, Never, dict[str, Any]](
+        "novels", NovelsRow, primary_key=(id,)
+    )

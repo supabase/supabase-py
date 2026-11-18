@@ -170,7 +170,25 @@ class _Ordering(Ordering[Row]):
         return replace(self, nulls="nullslast")
 
 
-class Expression(ABC, Generic[Row, Value]):
+class Selectable(ABC, Generic[Row]):
+    """An entry of a `select_only()` list: an `Expression` of the table, an
+    `Embed` of a related table, or the `EmbeddedCount` of one.
+
+    `Row` is the row type of the table the entry belongs to.
+    """
+
+    @property
+    @abstractmethod
+    def response_key(self) -> str:
+        """The key the entry comes back under in a response row."""
+
+    @property
+    @abstractmethod
+    def _selected_as(self) -> str:
+        """The entry as sent in a `select` list."""
+
+
+class Expression(Selectable[Row], ABC, Generic[Row, Value]):
     """A single value of a row that a `select_only()` list reads: a
     `ColumnExpression`, which filters and orders too, or a
     `DerivedExpression`, a cast or an aggregate, which is select-only.
@@ -186,6 +204,7 @@ class Expression(ABC, Generic[Row, Value]):
         `metadata->>"name"` or `pages.sum()`."""
 
     @property
+    @override
     def response_key(self) -> str:
         """The key the value comes back under in a response row.
 
@@ -199,8 +218,8 @@ class Expression(ABC, Generic[Row, Value]):
         return self.expression
 
     @property
+    @override
     def _selected_as(self) -> str:
-        """The entry as sent in a `select` list."""
         return self.expression
 
     def cast(
@@ -832,6 +851,13 @@ class _Raw(Generic[Row]):
 
 
 @dataclass(frozen=True)
+class _EmbedIsNull(_Raw[Row]):
+    """The rows without an embedded row, `authors=is.null`, where `column`
+    is the key of the embed. PostgREST takes it on a read whose `select` list
+    holds the embed only."""
+
+
+@dataclass(frozen=True)
 class _And(Generic[Row]):
     children: tuple[_Node[Row], ...]
 
@@ -951,6 +977,25 @@ class Filter(Generic[Row]):
         """The query parameters this filter contributes to a request, as
         `(key, value)` pairs."""
         return _query_parameters(self._node)
+
+    def _embed_references(self) -> frozenset[str]:
+        """The keys of the embeds the `is_null()` filters of relations in
+        this filter address."""
+        return _embed_references(self._node)
+
+
+def _embed_references(node: _Node[Any]) -> frozenset[str]:
+    match node:
+        case _EmbedIsNull():
+            return frozenset({node.column})
+        case _Comparison() | _Raw():
+            return frozenset()
+        case _And() | _Or():
+            return frozenset().union(*map(_embed_references, node.children))
+        case _Not():
+            return _embed_references(node.inner)
+        case _:
+            assert_never(node)
 
 
 def _and_parts(node: _Node[Row]) -> tuple[_Node[Row], ...]:
