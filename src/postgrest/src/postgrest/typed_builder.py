@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal, Never, Self, overload
 from pydantic import BaseModel, TypeAdapter
 from supabase_utils.types import JSON
 
-from ._projection import _projection
+from ._projection import _Projection, _projection
 from .partial_row import _ROWS, PartialRow
 from .relation import EmbeddedScope, _requiring
 from .relation import _selected as _distinct_embeds
@@ -185,11 +185,15 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
 
         See `TypedQueryBuilder.select_as` for `model`.
         """
-        selected = _projection(self.request.table, model)
+        projection = _projection(self.request.table, model)
         request = replace(
-            self.request, columns=selected, shape=ResultShape.ROWS, returning=True
+            self.request,
+            columns=projection.columns,
+            shape=ResultShape.ROWS,
+            returning=True,
         )
-        return TypedTransformBuilder(request, self.executor, _rows(model))
+        convert = _projected_rows(projection, model)
+        return TypedTransformBuilder(request, self.executor, convert)
 
     def order(self, ordering: Ordering[Row]) -> Self:
         """Sort the rows by `ordering`, a column with a direction and a null
@@ -624,7 +628,7 @@ class TypedQueryBuilder[
                 author: AuthorName
 
             cards = client.table(Books.table).select_as(BookCard).execute()
-            # select=id,title,author:authors(name)
+            # select=id,title,authors(name)
 
         Unlike a `PartialRow` of `select_only()`, a model can be serialized,
         returned from a web framework, or passed on to code that expects it.
@@ -635,8 +639,9 @@ class TypedQueryBuilder[
         field of a model type embeds a to-one relation, and a field of a
         `list` of a model type a to-many one; the nested model is mapped
         against the `target_table` of the relation, or the stored columns of
-        its `target_type` without one. A field named after something whose
-        response key differs is renamed in the `select` list.
+        its `target_type` without one. A relation embedded this way can still be
+        scoped with `embedded()` and `requiring()` and filtered with
+        `Relation.is_null()`.
 
         A type checker cannot compare a model with the row type, so the model
         is checked against the table before the request is built, once per
@@ -646,9 +651,12 @@ class TypedQueryBuilder[
         be `NULL`, or that is a single model on a to-many relation or a list
         on a to-one one.
         """
-        selected = _projection(self.table, model)
-        request = replace(self._request(TableOperation.SELECT), columns=selected)
-        return TypedFilterBuilder(request, self.executor, _rows(model))
+        projection = _projection(self.table, model)
+        request = replace(
+            self._request(TableOperation.SELECT), columns=projection.columns
+        )
+        convert = _projected_rows(projection, model)
+        return TypedFilterBuilder(request, self.executor, convert)
 
     def insert(
         self, rows: Insert | Iterable[Insert]
@@ -814,6 +822,15 @@ def _partial_rows[Row](
     return lambda result: [
         PartialRow(table, columns, row) for row in _ROWS.validate_python(result.data)
     ]
+
+
+def _projected_rows[Model: BaseModel](
+    projection: _Projection, model: type[Model]
+) -> Callable[[TableResult], list[Model]]:
+    adapter = _rows_adapter(model)
+    return lambda result: adapter.validate_python(
+        [projection.keyed(row) for row in _ROWS.validate_python(result.data)]
+    )
 
 
 def _one[Element](

@@ -3,7 +3,7 @@ from datetime import date
 from typing import Annotated, Any
 
 import pytest
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, JsonValue
 
 from postgrest import (
     Column,
@@ -61,13 +61,16 @@ class Novels:
     editor = ToOneRelation[NovelsRow, AuthorsRow](
         "authors", AuthorsRow, constraint="novels_editor_id_fkey", alias="editor"
     )
+    translator = ToOneRelation[NovelsRow, AuthorsRow](
+        "authors", AuthorsRow, constraint="novels_translator_id_fkey"
+    )
     reviews = ToManyRelation[NovelsRow, ReviewsRow]("reviews", ReviewsRow)
     table = Table[NovelsRow, dict[str, Any], dict[str, Any]](
         "novels",
         NovelsRow,
         primary_key=(id,),
         computed_fields=(title_upper, word_count),
-        relations=(author, editor, reviews),
+        relations=(author, editor, translator, reviews),
     )
 
 
@@ -118,11 +121,25 @@ class TestSelectList:
 
         assert select_list(NovelTitle) == "id,title"
 
-    def test_a_field_matched_by_name_comes_back_under_its_alias(self) -> None:
+    def test_a_field_matched_by_name_reads_the_column_under_its_alias(
+        self,
+    ) -> None:
         class NovelTitle(BaseModel):
             title: str = Field(alias="heading")
 
-        assert select_list(NovelTitle) == '"heading":title'
+        _, builder = novels(TableResult(data=[{"title": "Dune"}]))
+
+        assert select_list(NovelTitle) == "title"
+        assert builder.select_as(NovelTitle).execute() == [NovelTitle(heading="Dune")]
+
+    def test_a_model_that_validates_by_name_reads_the_field_name(self) -> None:
+        class NovelTitle(BaseModel):
+            model_config = ConfigDict(validate_by_alias=False, validate_by_name=True)
+            title: str = Field(alias="heading")
+
+        _, builder = novels(TableResult(data=[{"title": "Dune"}]))
+
+        assert builder.select_as(NovelTitle).execute() == [NovelTitle(title="Dune")]
 
     def test_a_computed_field_is_selected_by_name(self) -> None:
         class NovelTitle(BaseModel):
@@ -136,9 +153,7 @@ class TestSelectList:
             id: int
             author: AuthorName | None
 
-        assert select_list(NovelCard) == (
-            "id,author:authors!novels_author_id_fkey(name)"
-        )
+        assert select_list(NovelCard) == ("id,authors!novels_author_id_fkey(name)")
 
     def test_a_field_named_after_the_response_key_needs_no_alias(self) -> None:
         class NovelCard(BaseModel):
@@ -165,7 +180,7 @@ class TestSelectList:
             novels: list[NovelTitle]
 
         assert select_list(AuthorCard, Authors.table) == (
-            "name,novels(title,author:authors!novels_author_id_fkey(name))"
+            "name,novels(title,authors!novels_author_id_fkey(name))"
         )
 
     def test_the_rows_decode_into_the_model(self) -> None:
@@ -176,8 +191,8 @@ class TestSelectList:
         _, builder = novels(
             TableResult(
                 data=[
-                    {"id": 1, "author": {"name": "Frank Herbert"}},
-                    {"id": 4, "author": None},
+                    {"id": 1, "authors": {"name": "Frank Herbert"}},
+                    {"id": 4, "authors": None},
                 ]
             )
         )
@@ -186,6 +201,65 @@ class TestSelectList:
             NovelCard(id=1, author=AuthorName(name="Frank Herbert")),
             NovelCard(id=4, author=None),
         ]
+
+    def test_nested_rows_are_keyed_for_their_models(self) -> None:
+        class NovelTitle(BaseModel):
+            heading: str = Field(alias="title")
+            author: AuthorName
+
+        class AuthorCard(BaseModel):
+            novels: list[NovelTitle]
+
+        executor = Recording(
+            TableResult(
+                data=[
+                    {
+                        "novels": [
+                            {"title": "Dune", "authors": {"name": "Frank Herbert"}}
+                        ]
+                    }
+                ]
+            )
+        )
+
+        cards = (
+            TypedQueryBuilder(Authors.table, executor).select_as(AuthorCard).execute()
+        )
+
+        assert cards == [
+            AuthorCard(
+                novels=[
+                    NovelTitle(title="Dune", author=AuthorName(name="Frank Herbert"))
+                ]
+            )
+        ]
+
+    def test_an_embed_can_be_scoped_and_filtered(self) -> None:
+        class NovelCard(BaseModel):
+            id: int
+            author: AuthorName
+
+        executor, builder = novels()
+
+        builder.select_as(NovelCard).requiring(Novels.author).where(
+            ~Novels.author.is_null()
+        ).execute()
+
+        (request,) = executor.requests
+        rendered = _render(request).query
+        assert rendered.get("select") == "id,authors!novels_author_id_fkey!inner(name)"
+        assert rendered.get("authors") == "not.is.null"
+
+    def test_nested_any_matches_any_type(self) -> None:
+        class TaggedRow(BaseModel):
+            tags: list[str] | None
+            metadata: dict[str, JsonValue]
+
+        class Tagged(BaseModel):
+            tags: list[Any] | None
+            metadata: dict[str, Any]
+
+        assert select_list(Tagged, Table("tagged", TaggedRow)) == "tags,metadata"
 
     def test_single_decodes_one_model(self) -> None:
         class NovelTitle(BaseModel):
@@ -332,6 +406,32 @@ class TestRejections:
 
         assert self.problems(Cycle, Authors.table) == [
             "Cycle.novels.author embeds Cycle inside itself, which has no end"
+        ]
+
+    def test_a_response_key_shared_by_two_relations(self) -> None:
+        class Ambiguous(BaseModel):
+            authors: AuthorName
+
+        assert self.problems(Ambiguous) == [
+            "Ambiguous.authors could embed any of 2 relations that come back as "
+            "authors; name the field after the attribute of one of them"
+        ]
+
+    def test_a_relation_embedded_twice(self) -> None:
+        class Twice(BaseModel):
+            author: AuthorName
+            writer: AuthorName = Field(alias="author")
+
+        assert self.problems(Twice) == [
+            "Twice.writer embeds authors a second time; read it through one field"
+        ]
+
+    def test_a_nested_type_that_differs(self) -> None:
+        class Mismatch(BaseModel):
+            title: list[int]
+
+        assert self.problems(Mismatch) == [
+            "Mismatch.title is list[int], but novels.title is str"
         ]
 
     def test_a_model_without_fields(self) -> None:
