@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from functools import cached_property
 from http import HTTPStatus
-from io import SEEK_END, BytesIO
+from io import SEEK_END, BytesIO, FileIO
 from typing import TYPE_CHECKING, Any, BinaryIO, cast
 
 from supabase_utils.http.body import CHUNK_SIZE
@@ -154,7 +154,11 @@ def _stat_identity(status: os.stat_result) -> str | None:
 
 def _file_identity(file: BinaryIO) -> str | None:
     """What tells the file `file` reads apart from another one of the same
-    size, or None when it is not a regular file."""
+    size, or None when it is not a regular file or does not read its bytes as
+    they are, like a `gzip.GzipFile`, whose descriptor is that of the
+    compressed file."""
+    if not isinstance(getattr(file, "raw", file), FileIO):
+        return None
     try:
         return _stat_identity(os.fstat(file.fileno()))
     except (AttributeError, OSError, ValueError):

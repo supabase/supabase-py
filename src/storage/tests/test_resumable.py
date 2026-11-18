@@ -1,7 +1,8 @@
 import base64
+import gzip
 import io as stdlib_io
 from pathlib import Path
-from typing import Any, override
+from typing import Any, BinaryIO, cast, override
 
 import httpx
 import pytest
@@ -756,3 +757,17 @@ async def test_a_paused_upload_continues_with_the_headers_the_client_has_now(
         "Bearer refreshed",
         "Bearer refreshed",
     ]
+
+
+def test_a_transformed_stream_has_no_fingerprint(
+    server: TusServer, tmp_path: Path
+) -> None:
+    path = tmp_path / "clip.gz"
+    with gzip.open(path, "wb") as compressed:
+        compressed.write(DATA)
+    bucket = server.sync_client().from_("videos")
+
+    with gzip.open(path, "rb") as decompressed:
+        upload = bucket.resumable_upload("clip.bin", cast("BinaryIO", decompressed))
+
+        assert upload.fingerprint is None
