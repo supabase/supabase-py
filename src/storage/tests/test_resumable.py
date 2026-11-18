@@ -7,6 +7,7 @@ import httpx
 import pytest
 from httpx import AsyncClient, Client, MockTransport, Request, Response
 from supabase_utils.http.adapters.httpx import AsyncHttpxSession, HttpxSession
+from supabase_utils.http.errors import SupabaseTransportError
 from supabase_utils.http.retry import RetryPolicy
 
 from storage3 import (
@@ -17,6 +18,7 @@ from storage3 import (
     ResumableUploadPausedError,
     ResumableUploadSource,
     StorageApiError,
+    StorageException,
     SyncStorageClient,
 )
 from storage3.types import UploadResponse
@@ -78,6 +80,10 @@ class TusServer:
             del self.uploads[upload_id]
             return Response(204)
         if request.method == "HEAD":
+            if len(held) == self.lengths[upload_id]:
+                response = self.completed(upload_id, 200)
+                del response.headers["Tus-Complete"]
+                return response
             return Response(200, headers={"Upload-Offset": str(len(held))})
         if int(request.headers["Upload-Offset"]) != len(held):
             return Response(409, text="Upload-Offset conflict")
@@ -417,16 +423,129 @@ async def test_parses_a_json_error(server: TusServer, use_async: bool) -> None:
 
 
 @use_async
-async def test_forgets_an_upload_that_cannot_complete(
+async def test_keeps_an_upload_that_failed_with_an_error_it_can_recover_from(
     server: TusServer, use_async: bool
 ) -> None:
     server.fail[1] = Response(403, text="Forbidden")
     store: dict[str, str] = {}
 
+    upload = upload_of(server, use_async, store=store)
     with pytest.raises(StorageApiError):
+        await run(upload)
+    await run(upload)
+
+    assert server.methods == ["POST", "PATCH", "HEAD", "PATCH", "PATCH", "PATCH"]
+    assert server.uploads["u0"] == DATA
+    assert store == {}
+
+
+@use_async
+async def test_forgets_an_upload_that_cannot_complete(
+    server: TusServer, use_async: bool
+) -> None:
+    server.fail[3] = Response(409, text="The resource already exists")
+    store: dict[str, str] = {}
+
+    with pytest.raises(StorageApiError) as caught:
         await run(upload_of(server, use_async, store=store))
 
+    assert caught.value.code == "Duplicate"
+    assert server.methods == ["POST", "PATCH", "PATCH", "PATCH"]
     assert store == {}
+
+
+@use_async
+async def test_completes_when_the_response_of_the_last_chunk_is_lost(
+    use_async: bool,
+) -> None:
+    class LosingServer(TusServer):
+        @override
+        def __call__(self, request: Request) -> Response:
+            response = super().__call__(request)
+            if request.method == "PATCH" and "Tus-Complete" in response.headers:
+                raise httpx.ReadError("connection dropped")
+            return response
+
+    losing = LosingServer()
+    response = await run(upload_of(losing, use_async))
+
+    assert response.id == "object-u0"
+    assert losing.methods == ["POST", "PATCH", "PATCH", "PATCH", "HEAD"]
+
+
+@use_async
+async def test_fails_when_the_last_chunk_is_not_confirmed(
+    server: TusServer, use_async: bool
+) -> None:
+    server.fail[3] = Response(204, headers={"Upload-Offset": "10"})
+
+    with pytest.raises(StorageException, match="did not store the object"):
+        await run(upload_of(server, use_async))
+
+
+def test_cancel_while_creating_deletes_the_new_upload() -> None:
+    store: dict[str, str] = {}
+
+    class CancellingServer(TusServer):
+        @override
+        def __call__(self, request: Request) -> Response:
+            if request.method == "POST":
+                upload.cancel()
+            return super().__call__(request)
+
+    cancelling = CancellingServer()
+    upload = (
+        cancelling.sync_client()
+        .from_("videos")
+        .resumable_upload("clip.bin", DATA, chunk_size=4, store=store)
+    )
+    with pytest.raises(ResumableUploadCancelledError):
+        upload.run()
+
+    assert cancelling.methods == ["POST", "DELETE"]
+    assert cancelling.uploads == {}
+    assert store == {}
+
+
+@use_async
+async def test_does_not_resend_the_creating_post_after_a_network_error(
+    server: TusServer, use_async: bool
+) -> None:
+    server.fail[0] = httpx.ConnectError("connection dropped")
+
+    with pytest.raises(SupabaseTransportError):
+        await run(upload_of(server, use_async))
+
+    assert server.methods == ["POST"]
+
+
+@use_async
+async def test_pause_before_run_stops_it_before_sending(
+    server: TusServer, use_async: bool
+) -> None:
+    upload = upload_of(server, use_async)
+    upload.pause()
+
+    with pytest.raises(ResumableUploadPausedError):
+        await run(upload)
+    await run(upload)
+
+    assert server.methods == ["POST", "PATCH", "PATCH", "PATCH"]
+
+
+@pytest.mark.parametrize("status", [522, 524])
+@use_async
+async def test_raises_an_api_error_for_a_status_python_does_not_name(
+    server: TusServer, use_async: bool, status: int
+) -> None:
+    for index in range(10):
+        server.fail[index] = Response(status)
+
+    with pytest.raises(StorageApiError) as caught:
+        await run(upload_of(server, use_async))
+
+    assert caught.value.status_code == status
+    assert caught.value.message == f"HTTP {status}"
 
 
 def test_the_fingerprint_tells_files_and_objects_apart(

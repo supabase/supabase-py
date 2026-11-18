@@ -7,6 +7,7 @@ from base64 import b64encode
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, replace
+from functools import cached_property
 from http import HTTPStatus
 from io import SEEK_END, BytesIO
 from typing import TYPE_CHECKING, Any, BinaryIO, cast
@@ -89,15 +90,24 @@ def _encode(value: str) -> str:
     return b64encode(value.encode("utf-8")).decode("ascii")
 
 
+_FINAL_CODES = frozenset({"Duplicate", "EntityTooLarge"})
+"""The codes of errors after which the upload can never complete."""
+
+
+def _status_phrase(status: int) -> str | None:
+    try:
+        return HTTPStatus(status).phrase
+    except ValueError:
+        return None
+
+
 def _error_code(response: Response, message: str) -> str:
     if response.status == HTTPStatus.CONFLICT and "already exists" in message:
         return "Duplicate"
     if response.status == HTTPStatus.REQUEST_ENTITY_TOO_LARGE:
         return "EntityTooLarge"
-    try:
-        return "".join(HTTPStatus(response.status).phrase.split())
-    except ValueError:
-        return "InternalError"
+    phrase = _status_phrase(response.status)
+    return "InternalError" if phrase is None else "".join(phrase.split())
 
 
 def _tus_error(response: Response) -> StorageApiError:
@@ -107,7 +117,7 @@ def _tus_error(response: Response) -> StorageApiError:
     if content_type.startswith("application/json"):
         return parse_api_error(response)
     message = response.content.decode("utf-8", errors="replace").strip()
-    message = message or HTTPStatus(response.status).phrase
+    message = message or _status_phrase(response.status) or f"HTTP {response.status}"
     return StorageApiError(
         message,
         status_code=response.status,
@@ -207,20 +217,6 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self._chunk_size = chunk_size
         self._store = store
         self._on_progress = on_progress
-        identity = _identity(source)
-        self.fingerprint = (
-            None
-            if identity is None
-            else hashlib.sha256(
-                "\0".join(
-                    (str(base_url), bucket_id, path, str(self.size), identity)
-                ).encode()
-            ).hexdigest()
-        )
-        """The key the upload URL is kept under in the store: the same file
-        uploaded to the same object has the same fingerprint. None when the
-        file cannot be told apart from another one, like a file object
-        without a path, which the store then does not keep."""
         self._url: str | None = None
         self._offset = 0
         self._response: UploadResponse | None = None
@@ -228,6 +224,25 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self._cancelled = False
         self._lock = threading.Lock()
         self._running = False
+        self._attempt = 0
+
+    @cached_property
+    def fingerprint(self) -> str | None:
+        """The key the upload URL is kept under in the store: the same file
+        uploaded to the same object has the same fingerprint. None when the
+        file cannot be told apart from another one, like a file object
+        without a path, which the store then does not keep."""
+        identity = _identity(self._source)
+        if identity is None:
+            return None
+        parts = (
+            str(self._base_url),
+            self.bucket_id,
+            self.path,
+            str(self.size),
+            identity,
+        )
+        return hashlib.sha256("\0".join(parts).encode()).hexdigest()
 
     @property
     def url(self) -> str | None:
@@ -241,8 +256,9 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
     def pause(self) -> None:
         """Stops `run` once the chunk in flight is sent, making it raise
-        `ResumableUploadPausedError`. Calling `run` again continues from the
-        offset the server confirmed.
+        `ResumableUploadPausedError`, or makes the next `run` raise it before
+        sending anything. Calling `run` again continues from the offset the
+        server confirmed.
 
         It can be called from the `on_progress` callback or from another
         thread or task than the one running the upload."""
@@ -255,11 +271,12 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 raise RuntimeError("The resumable upload is already running")
             self._running = True
         try:
-            self._paused = False
             with _opened(self._source) as file:
                 yield file
         finally:
-            self._running = False
+            with self._lock:
+                self._attempt += 1
+                self._running = False
 
     def _stored_url(self) -> str | None:
         if self._url is None and self._store is not None and self.fingerprint:
@@ -279,6 +296,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         if self._cancelled:
             raise ResumableUploadCancelledError("The resumable upload was cancelled")
         if self._paused:
+            self._paused = False
             raise ResumableUploadPausedError("The resumable upload was paused")
 
     def _request_headers(self) -> Headers:
@@ -305,15 +323,23 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         )
 
     def _chunk(self, file: BinaryIO, start: int, end: int) -> Iterator[bytes]:
+        """Reads the bytes from `start` to `end`. The async client reads it in
+        a worker thread, which can outlive the run that started it, so a read
+        of a run that ended reads and reports nothing."""
+        attempt = self._attempt
         position = start
         while position < end:
-            file.seek(self._start + position)
-            data = file.read(min(CHUNK_SIZE, end - position))
+            with self._lock:
+                if attempt != self._attempt:
+                    return
+                file.seek(self._start + position)
+                data = file.read(min(CHUNK_SIZE, end - position))
             if not data:
                 raise StorageException("The file of the resumable upload got shorter")
             yield data
             position += len(data)
-            self._report(position)
+            if attempt == self._attempt:
+                self._report(position)
 
     def _patch_request(self, url: str, file: BinaryIO, offset: int) -> _TusRequest:
         end = min(offset + self._chunk_size, self.size)
@@ -348,14 +374,36 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         retries: int,
         method: HTTPRequestMethod,
     ) -> float | None:
+        """Seconds to wait before trying again after `outcome`, or None when
+        the upload fails with it. The creating POST is retried after a
+        transport error only when the `RetryPolicy` retries a POST, since it
+        may have created an upload. A PATCH or a HEAD is safe to repeat, as
+        the offset is read again before the next PATCH."""
         policy: RetryPolicy = self._executor.retry_policy
         if isinstance(outcome, SupabaseTransportError):
+            if method == "POST" and "POST" not in policy.retryable_methods:
+                return None
             return policy.delay(outcome, retries)
         if outcome.status == HTTPStatus.CONFLICT and method == "PATCH":
-            if retries >= policy.max_retries:
+            if (
+                retries >= policy.max_retries
+                or _tus_error(outcome).code in _FINAL_CODES
+            ):
                 return None
             return policy.backoff(retries + 1)
         return policy.delay(outcome, retries)
+
+    def _created(self, request: _TusRequest, response: Response) -> str:
+        location = response.headers.get("Location")
+        if location is None:
+            raise StorageException(
+                "Storage created the resumable upload without a location"
+            )
+        url = str(request.url.join(URL(location)))
+        self._url = url
+        if self._store is not None and self.fingerprint:
+            self._store[self.fingerprint] = url
+        return url
 
     def _steps(
         self, file: BinaryIO
@@ -400,10 +448,7 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 delay = self._retry_delay(response, retries, request.method)
                 if delay is None:
                     error = _tus_error(response)
-                    if (
-                        response.status
-                        not in self._executor.retry_policy.retryable_statuses
-                    ):
+                    if error.code in _FINAL_CODES:
                         self._forget()
                     raise error
                 retries += 1
@@ -412,20 +457,18 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             if response.headers.get("Tus-Complete") == "1":
                 return self._complete(response)
             if request.method == "POST":
-                location = response.headers.get("Location")
-                if location is None:
-                    raise StorageException(
-                        "Storage created the resumable upload without a location"
-                    )
-                self._url = str(request.url.join(URL(location)))
-                if self._store is not None and self.fingerprint:
-                    self._store[self.fingerprint] = self._url
+                url = self._created(request, response)
+                if self._cancelled:
+                    yield self._delete_request(url)
+                    self._forget()
                 offset = 0
             else:
                 offset = _upload_offset(response)
                 if request.method == "PATCH":
                     retries = 0
-                elif offset >= self.size:
+                if offset >= self.size:
+                    if response.headers.get("supabase-object-id") is not None:
+                        return self._complete(response)
                     self._forget()
                     raise StorageException(
                         "Storage received every byte of the resumable upload "

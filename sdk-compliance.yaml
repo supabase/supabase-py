@@ -1497,6 +1497,7 @@ features:
       - ResumableUpload
       - AsyncResumableUpload
       - BaseResumableUpload
+      - BaseResumableUpload.fingerprint
       - BaseResumableUpload.offset
       - BaseResumableUpload.url
       - ResumableUploadPausedError
