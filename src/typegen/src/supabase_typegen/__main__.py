@@ -44,16 +44,16 @@ def main(arguments: list[str] | None = None) -> int:
         metadata = parse_generator_metadata(sys.stdin.buffer.read())
     except MetadataError as error:
         return _fail(EXIT_DATA_ERROR, str(error))
+    if metadata.rpc_functions is None and metadata.functions:
+        sys.stderr.write(
+            'The document has no "rpcFunctions" collection, so no function '
+            "calls are generated. Upgrade the Supabase CLI to generate them.\n"
+        )
     if describes_nothing(metadata):
         return _fail(
             EXIT_DATA_ERROR,
             "The document describes no tables, views, enums or functions, so "
             "there is nothing to generate.",
-        )
-    if metadata.rpc_functions is None and metadata.functions:
-        sys.stderr.write(
-            'The document has no "rpcFunctions" collection, so no function '
-            "calls are generated. Upgrade the Supabase CLI to generate them.\n"
         )
     sys.stdout.write(generate(metadata))
     return 0

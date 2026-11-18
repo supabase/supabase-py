@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-_LOWERCASE_NAME = re.compile(r"^[a-z_][a-z0-9_]*$")
+_LOWERCASE_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
 def words(name: str) -> list[str]:
@@ -76,10 +76,10 @@ def constant_name(name: str) -> str:
 
 
 def claim(used: set[str], candidate: str) -> str:
-    """`candidate`, with trailing underscores until no name in `used` has it,
-    added to `used`."""
+    """`candidate`, with trailing underscores until it is no keyword and no
+    name in `used` has it, added to `used`."""
     name = candidate
-    while name in used:
+    while name in used or keyword.iskeyword(name):
         name = f"{name}_"
     used.add(name)
     return name

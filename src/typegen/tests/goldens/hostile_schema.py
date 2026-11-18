@@ -31,6 +31,20 @@ class OtherStatus(StrEnum):
     OFF = "off"
 
 
+class HiddenLevel(StrEnum):
+    """The Postgres enum `hidden.level`."""
+
+    LOW = "low"
+    HIGH = "high"
+
+
+class HiddenFlag(StrEnum):
+    """The Postgres enum `hidden._flag`."""
+
+    UP = "up"
+    DOWN = "down"
+
+
 class Status(StrEnum):
     """The Postgres enum `status`.
 
@@ -63,6 +77,7 @@ class Geo(BaseModel):
 
     lat: float | None = None
     lng: float | None = None
+    level: HiddenLevel | None = None
 
 
 class OtherItemsRow(BaseModel):
@@ -338,9 +353,32 @@ class TableUpdate(TypedDict, total=False):
     id: int
 
 
+class NoneRow(BaseModel):
+    """A row of the `none` table, as `select()` reads it."""
+
+    flag: HiddenFlag
+
+
+class NoneInsert(TypedDict):
+    """A row to insert into `none`. A column left out gets its database default, and
+    `None` inserts `NULL`.
+    """
+
+    flag: HiddenFlag
+
+
+class NoneUpdate(TypedDict, total=False):
+    """The columns to update of `none`. A column left out keeps its value, and `None`
+    writes `NULL`.
+    """
+
+    flag: HiddenFlag
+
+
 class TagsRow(BaseModel):
     """A row of the `tags` table, as `select()` reads it."""
 
+    id__id: int | None = Field(default=None, alias="_id")
     document_tags: str | None = None
     id: int
     label: str
@@ -351,6 +389,7 @@ class TagsInsert(TypedDict):
     `None` inserts `NULL`.
     """
 
+    id__id: NotRequired[Annotated[int | None, Field(alias="_id")]]
     document_tags: NotRequired[str | None]
     id: int
     label: str
@@ -361,6 +400,7 @@ class TagsUpdate(TypedDict, total=False):
     writes `NULL`.
     """
 
+    id__id: Annotated[int | None, Field(alias="_id")]
     document_tags: str | None
     id: int
     label: str
@@ -663,11 +703,27 @@ class Table_:
     )
 
 
+class None_:
+    """The columns and relations of the `none` table, and the table
+    `client.table(None_.table)` queries.
+    """
+
+    flag = Column[NoneRow, HiddenFlag]("flag")
+    table: Table[NoneRow, NoneInsert, NoneUpdate] = Table(
+        "none",
+        NoneRow,
+        insert_type=NoneInsert,
+        update_type=NoneUpdate,
+        schema="public",
+    )
+
+
 class Tags:
     """The columns and relations of the `tags` table, and the table
     `client.table(Tags.table)` queries.
     """
 
+    id__id = NullableColumn[TagsRow, int]("_id")
     document_tags = NullableColumn[TagsRow, str]("document_tags")
     id = Column[TagsRow, int]("id")
     label = Column[TagsRow, str]("label")
@@ -809,6 +865,16 @@ class Functions_:
             KeywordsRow,
             schema="public",
             read_only=read_only,
+        )
+
+    @staticmethod
+    def locate(*, place: Address) -> FunctionCall[Never, str | None]:
+        """Calls the `locate` function."""
+        return FunctionCall.value(
+            "locate",
+            str,
+            arguments={"place": place.model_dump(mode="json", by_alias=True)},
+            schema="public",
         )
 
     @staticmethod

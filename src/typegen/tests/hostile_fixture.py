@@ -102,6 +102,7 @@ def column(
     generated: bool = False,
     updatable: bool = True,
     comment: str | None = None,
+    data_type: str | None = None,
 ) -> JsonObject:
     return {
         "table_id": relation_id,
@@ -111,7 +112,7 @@ def column(
         "ordinal_position": 1,
         "name": name,
         "default_value": default,
-        "data_type": "ARRAY" if format.startswith("_") else format,
+        "data_type": data_type or ("ARRAY" if format.startswith("_") else format),
         "format": format,
         "type_schema": type_schema,
         "is_identity": identity is not None,
@@ -266,6 +267,9 @@ DOCUMENTS_ROW_TYPE = 205
 STATUS_ARRAY = 206
 CLASS_ROW_TYPE = 208
 DOCUMENT_TAGS_ROW_TYPE = 209
+HIDDEN_LEVEL = 210
+HIDDEN_FLAG = 211
+NONE_TABLE = 112
 
 
 def hostile_metadata() -> JsonObject:
@@ -294,6 +298,7 @@ def hostile_metadata() -> JsonObject:
             table(FUNCTIONS_TABLE, "public", "functions"),
             table(PEOPLE, "public", "people"),
             table(TABLE_TABLE, "public", "table"),
+            table(NONE_TABLE, "public", "none"),
             table(TAGS, "public", "tags"),
         ],
         "foreignTables": [
@@ -430,6 +435,16 @@ def hostile_metadata() -> JsonObject:
             ),
             column(REMOTE, "public", "remote", "id", "int8"),
             column(TABLE_TABLE, "public", "table", "id", "int8"),
+            column(
+                NONE_TABLE,
+                "public",
+                "none",
+                "flag",
+                "_flag",
+                type_schema="hidden",
+                data_type="USER-DEFINED",
+            ),
+            column(TAGS, "public", "tags", "_id", "int8", nullable=True),
             column(TAGS, "public", "tags", "document_tags", "text", nullable=True),
             column(TAGS, "public", "tags", "id", "int8"),
             column(TAGS, "public", "tags", "label", "text"),
@@ -545,6 +560,9 @@ def hostile_metadata() -> JsonObject:
             ),
             function(311, "public", "first_person", [], 0, return_relation_id=PEOPLE),
             function(
+                316, "public", "locate", [("in", "place", ADDRESS)], BUILTINS["text"]
+            ),
+            function(
                 315,
                 "public",
                 "tags",
@@ -576,6 +594,8 @@ def hostile_metadata() -> JsonObject:
             builtin_type("jsonb"),
             builtin_type("int4range"),
             user_type(OTHER_STATUS, "other", "status", enums=["on", "off"]),
+            user_type(HIDDEN_LEVEL, "hidden", "level", enums=["low", "high"]),
+            user_type(HIDDEN_FLAG, "hidden", "_flag", enums=["up", "down"]),
             user_type(
                 ADDRESS,
                 "public",
@@ -592,7 +612,11 @@ def hostile_metadata() -> JsonObject:
                 GEO,
                 "public",
                 "geo",
-                attributes=[("lat", BUILTINS["numeric"]), ("lng", BUILTINS["numeric"])],
+                attributes=[
+                    ("lat", BUILTINS["numeric"]),
+                    ("lng", BUILTINS["numeric"]),
+                    ("level", HIDDEN_LEVEL),
+                ],
             ),
             user_type(CLASS_ROW_TYPE, "public", "class", relation_id=CLASS_TABLE),
             user_type(DOCUMENTS_ROW_TYPE, "public", "documents", relation_id=DOCUMENTS),
@@ -690,6 +714,17 @@ def hostile_metadata() -> JsonObject:
                             },
                             {**builtin_reference("text"), "name": "Weird Name"},
                         ],
+                    )
+                ],
+            },
+            {
+                "schema": "public",
+                "name": "locate",
+                "overloads": [
+                    overload(
+                        316,
+                        [argument("place", reference(ADDRESS, "address", "public"))],
+                        builtin_reference("text"),
                     )
                 ],
             },

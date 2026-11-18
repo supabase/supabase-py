@@ -148,12 +148,15 @@ class _PythonType:
     """Whether a value is decoded from its JSON form into another type."""
 
     is_json: bool = False
-    """Whether the value is `json` or of a type the module does not know,
-    which only a request body carries."""
+    """Whether the value is `json` or of a type the module does not know."""
+
+    fits_query: bool = True
+    """Whether a read-only call can send the value as a query parameter,
+    which a JSON value or a composite value cannot be."""
 
 
-_ANY: Final = _PythonType("Any", is_json=True)
-_JSON_VALUE: Final = _PythonType("JsonValue", is_json=True)
+_ANY: Final = _PythonType("Any", is_json=True, fits_query=False)
+_JSON_VALUE: Final = _PythonType("JsonValue", is_json=True, fits_query=False)
 _STR: Final = _PythonType("str")
 _INT: Final = _PythonType("int")
 _FLOAT: Final = _PythonType("float")
@@ -187,7 +190,7 @@ _BUILTIN_TYPES: Final[dict[str, _PythonType]] = {
     "text": _STR,
     "date": _DATE,
     "time": _TIME,
-    "timetz": _TIME,
+    "timetz": _STR,
     "timestamp": _DATETIME,
     "timestamptz": _DATETIME,
     "uuid": _PythonType("uuid.UUID", lambda value: f"str({value})", decodes=True),
@@ -206,7 +209,7 @@ _BUILTIN_TYPES: Final[dict[str, _PythonType]] = {
     "tstzmultirange": _STR,
     "daterange": _STR,
     "datemultirange": _STR,
-    "record": _PythonType("dict[str, Any]", is_json=True),
+    "record": _PythonType("dict[str, Any]", is_json=True, fits_query=False),
 }
 """The Python types of the built-in types of `pg_catalog`."""
 
@@ -446,8 +449,6 @@ class _Module:
         ]
         return [table for table in tables if table.columns]
 
-    # Names
-
     def _claim_class(self, candidate: str) -> str:
         return claim(self._class_names, candidate)
 
@@ -478,27 +479,18 @@ class _Module:
 
     def emitted_composites(self) -> list[tuple[str, str]]:
         """The composite types of the generated schemas, and the composite
-        types of other schemas a generated object refers to."""
+        types of other schemas a generated object refers to, in the order of
+        `types`."""
         referenced = self._referenced_type_keys()
-        pending = [key for key in self._composites if key[0] in self._schemas]
-        pending += [key for key in self._composites if key in referenced]
-        emitted: dict[tuple[str, str], None] = {}
-        while pending:
-            key = pending.pop(0)
-            if key in emitted:
-                continue
-            emitted[key] = None
-            for attribute in self._composites[key].attributes:
-                type_ = self._types_by_id.get(attribute.type_id)
-                if type_ is not None:
-                    element = _element_key(type_.schema, type_.name)
-                    if element in self._composites:
-                        pending.append(element)
-        return [key for key in self._composites if key in emitted]
+        return [
+            key
+            for key in self._composites
+            if key[0] in self._schemas or key in referenced
+        ]
 
     def _referenced_type_keys(self) -> set[tuple[str, str]]:
         keys = {
-            _element_key(column.type_schema, column.format)
+            self._element_key(column.type_schema, column.format)
             for table in self.tables
             for column in table.columns
         }
@@ -507,7 +499,7 @@ class _Module:
                 references: list[TypeReference] = [*overload.args, overload.returns]
                 references += overload.returns.columns or ()
                 keys |= {
-                    _element_key(reference.type_schema, reference.format)
+                    self._element_key(reference.type_schema, reference.format)
                     for reference in references
                     if reference.type_schema is not None
                     and reference.format is not None
@@ -515,8 +507,34 @@ class _Module:
         for function in self._metadata.functions:
             type_ = self._types_by_id.get(function.return_type_id)
             if type_ is not None:
-                keys.add(_element_key(type_.schema, type_.name))
+                keys.add(self._element_key(type_.schema, type_.name))
+        pending = [
+            key for key in self._composites if key[0] in self._schemas or key in keys
+        ]
+        seen: set[tuple[str, str]] = set()
+        while pending:
+            key = pending.pop()
+            if key in seen:
+                continue
+            seen.add(key)
+            keys.add(key)
+            for attribute in self._composites[key].attributes:
+                type_ = self._types_by_id.get(attribute.type_id)
+                if type_ is None:
+                    continue
+                element = self._element_key(type_.schema, type_.name)
+                keys.add(element)
+                if element in self._composites:
+                    pending.append(element)
         return keys
+
+    def _element_key(self, schema: str, name: str) -> tuple[str, str]:
+        """The type of the elements of the array type `name`, or `name` itself
+        when it is no array type."""
+        key = (schema, name)
+        if key in self._enums or key in self._composites or not name.startswith("_"):
+            return key
+        return (schema, name[1:])
 
     def rpc_functions(self) -> list[RpcFunction]:
         return [
@@ -524,8 +542,6 @@ class _Module:
             for function in self._metadata.rpc_functions or ()
             if function.schema in self._schemas
         ]
-
-    # Types
 
     def _import(self, name: str) -> str:
         self._imports.add(name)
@@ -565,12 +581,15 @@ class _Module:
                 else lambda value: f"[{encode('item')} for item in {value}]",
                 decodes=element.decodes,
                 is_json=element.is_json,
+                fits_query=element.fits_query,
             )
         key = (schema, format)
         if key in self._enums:
             return _PythonType(self._type_names[key], decodes=True)
         if key in self._composites:
-            return _PythonType(self._type_names[key], _model_dump, decodes=True)
+            return _PythonType(
+                self._type_names[key], _model_dump, decodes=True, fits_query=False
+            )
         if schema == _CATALOG and format in _BUILTIN_TYPES:
             return _BUILTIN_TYPES[format]
         return _EXTENSION_TYPES.get(format, _ANY)
@@ -589,8 +608,6 @@ class _Module:
         if type_ is None:
             return _ANY
         return self._python_type(type_.name, type_.schema)
-
-    # Rendering
 
     def render(self) -> str:
         self._claim_names()
@@ -1002,8 +1019,6 @@ class _Module:
             lines += docstring(comment, indent=INDENT)
         return lines
 
-    # Functions
-
     def _functions(self) -> list[list[str]]:
         functions = self.rpc_functions()
         methods = self._methods(functions)
@@ -1198,20 +1213,21 @@ class _Module:
         if argument.relation_id is not None:
             table = self.tables_by_id.get(argument.relation_id)
             if table is not None:
-                return _PythonType(table.row, _model_dump, decodes=True)
+                return _PythonType(
+                    table.row, _model_dump, decodes=True, fits_query=False
+                )
         return self._reference_type(argument)
 
     def _is_query_parameter(self, argument: RpcArgument) -> bool:
         """Whether a read-only call can send `argument` as a query parameter:
         it is named, PostgREST does not read the name as an option of the
-        request or an embed path, and it is neither a row nor `json`, which
-        only a request body carries."""
+        request or an embed path, and it is neither a row, a composite value
+        nor `json`, which only a request body carries."""
         return (
             bool(argument.name)
             and "." not in argument.name
             and argument.name not in _RESERVED_QUERY_PARAMETERS
-            and argument.relation_id is None
-            and not self._argument_type(argument).is_json
+            and self._argument_type(argument).fits_query
         )
 
     def _result(
@@ -1392,11 +1408,6 @@ def _relation_aliases(
         used.add(alias)
         aliases.append(alias)
     return aliases
-
-
-def _element_key(schema: str, name: str) -> tuple[str, str]:
-    """The type of the elements of the array type `name`, or `name` itself."""
-    return (schema, name[1:] if name.startswith("_") else name)
 
 
 def _type_base_name(schema: str, name: str) -> str:

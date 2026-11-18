@@ -51,6 +51,15 @@ def test_names_that_collide_keep_the_lowercase_one() -> None:
     }
 
 
+def test_a_leading_underscore_does_not_take_the_name() -> None:
+    assert unique_names(["_id", "id"]) == {"_id": "id__id", "id": "id"}
+
+
+def test_claim_skips_keywords() -> None:
+    assert claim(set(), "None") == "None_"
+    assert claim(set(), "NoneRow") == "NoneRow"
+
+
 def test_reserved_names_are_not_claimed() -> None:
     assert unique_names(["table", "str"], reserved={"table", "str"}) == {
         "table": "table_",
