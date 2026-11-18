@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Annotated, Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeVar
 
 from pydantic import (
     BaseModel,
@@ -13,6 +13,9 @@ from pydantic import (
     Strict,
     field_validator,
 )
+
+if TYPE_CHECKING:
+    from supabase_utils.types import JSON
 
 # Constants
 DEFAULT_TIMEOUT = 10
@@ -29,6 +32,14 @@ def validate_heartbeat(interval: float, timeout: float) -> None:
         raise ValueError(f"heartbeat_interval must be positive, got {interval}")
     if not timeout > 0:
         raise ValueError(f"heartbeat_timeout must be positive, got {timeout}")
+
+
+def validate_disconnect_delay(delay: float) -> None:
+    """Raise `ValueError` unless the delay before disconnecting is zero or more seconds."""
+    if not delay >= 0:
+        raise ValueError(
+            f"disconnect_on_empty_channels_after must not be negative, got {delay}"
+        )
 
 
 def validate_push_options(timeout: float, max_queued_messages: int) -> None:
@@ -208,6 +219,27 @@ class PostgresChangesPayload(BaseModel):
         if isinstance(value, str):
             return (value,)
         return value
+
+
+@dataclass(frozen=True)
+class BroadcastPersistence:
+    """
+    Stores a broadcast on the server so that it can be replayed, which
+    requires a private channel and a ``persistence`` policy.
+
+    :param ttl: Seconds the server keeps the message. None keeps it for the
+        maximum retention of the server, which also checks the range.
+    """
+
+    ttl: int | None = None
+
+    def _metadata(self) -> JSON:
+        return True if self.ttl is None else {"ttl": self.ttl}
+
+    def _query(self) -> dict[str, str]:
+        if self.ttl is None:
+            return {"persist": "true"}
+        return {"persist[ttl]": str(self.ttl)}
 
 
 class BroadcastMeta(BaseModel):

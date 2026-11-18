@@ -90,6 +90,10 @@ class TestClientOptions:
                 heartbeat_timeout=heartbeat_timeout,
             )
 
+    def test_realtime_options_reject_a_negative_disconnect_delay(self) -> None:
+        with pytest.raises(ValueError, match="must not be negative"):
+            RealtimeClientOptions(disconnect_on_empty_channels_after=-1)
+
     @pytest.mark.parametrize("options_class", SERVICE_OPTIONS)
     def test_service_options_are_frozen(
         self, options_class: type[_ServiceClientOptions]

@@ -12,6 +12,7 @@ from supabase_utils.http.request import AsyncStreamedResponse, Request, Response
 from yarl import URL
 
 from realtime import (
+    BroadcastPersistence,
     ConnectionState,
     RealtimeAPIError,
     RealtimeChannelOptions,
@@ -246,6 +247,55 @@ async def test_raises_without_an_http_session() -> None:
 
     with pytest.raises(RealtimeError, match="http_session"):
         await client.channel("room").http_send("event", {})
+
+
+@pytest.mark.parametrize(
+    ("persist", "query"),
+    [
+        (BroadcastPersistence(), {"persist": "true"}),
+        (BroadcastPersistence(ttl=3600), {"persist[ttl]": "3600"}),
+        (BroadcastPersistence(ttl=0), {"persist[ttl]": "0"}),
+    ],
+)
+async def test_http_send_sends_persist_in_the_query(
+    persist: BroadcastPersistence, query: dict[str, str]
+) -> None:
+    session = FakeSession()
+    client = RealtimeClient(REALTIME_URL, get_token, http_session=session)
+
+    await client.channel("room", RealtimeChannelOptions().private(True)).http_send(
+        "event", {"a": 1}, persist=persist
+    )
+
+    [request] = session.requests
+    assert dict(request.url.query) == {"private": "true", **query}
+    assert isinstance(request.content, bytes)
+    assert json.loads(request.content) == {"a": 1}
+
+
+async def test_http_send_sends_no_persist_when_it_is_left_out() -> None:
+    session = FakeSession()
+    client = RealtimeClient(REALTIME_URL, get_token, http_session=session)
+
+    await client.channel("room", RealtimeChannelOptions().private(True)).http_send(
+        "event", {}
+    )
+
+    [request] = session.requests
+    assert "persist" not in request.url.query
+    assert "persist[ttl]" not in request.url.query
+
+
+async def test_http_send_refuses_persist_on_a_public_channel() -> None:
+    session = FakeSession()
+    client = RealtimeClient(REALTIME_URL, get_token, http_session=session)
+
+    with pytest.raises(ValueError, match="private channel"):
+        await client.channel("room").http_send(
+            "event", {}, persist=BroadcastPersistence()
+        )
+
+    assert session.requests == []
 
 
 def _request() -> Request:

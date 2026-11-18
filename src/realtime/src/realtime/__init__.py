@@ -47,6 +47,7 @@ from .presence import (
     PresenceSync,
     RealtimePresence,
 )
+from .transport import WebSocketConnection, WebSocketTransport
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
     DEFAULT_TIMEOUT,
@@ -54,6 +55,7 @@ from .types import (
     PROTOCOL_VERSION,
     BroadcastMeta,
     BroadcastPayload,
+    BroadcastPersistence,
     Callback,
     ChannelEvents,
     ChannelStates,
@@ -96,6 +98,7 @@ __all__ = [
     "BroadcastMessage",
     "BroadcastMeta",
     "BroadcastPayload",
+    "BroadcastPersistence",
     "Callback",
     "ChannelCloseMessage",
     "ChannelClosedError",
@@ -164,6 +167,8 @@ __all__ = [
     "SuccessReplyMessage",
     "SuccessSystemPayload",
     "SystemMessage",
+    "WebSocketConnection",
+    "WebSocketTransport",
     "__version__",
     "connect_once",
 ]

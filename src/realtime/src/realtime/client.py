@@ -9,7 +9,6 @@ from supabase_utils._urls import check_secure_url
 from supabase_utils.http.headers import Headers
 from supabase_utils.http.io import AsyncHttpSession
 from supabase_utils.http.retry import RetryPolicy
-from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import InvalidStatus
 from yarl import URL
 
@@ -22,6 +21,7 @@ from .exceptions import (
     RealtimeTimeoutError,
 )
 from .message import ErrorReplyMessage, Message, ReplyMessage
+from .transport import WebSocketConnection, WebSocketTransport
 from .types import (
     DEFAULT_HEARTBEAT_INTERVAL,
     DEFAULT_HEARTBEAT_TIMEOUT,
@@ -32,6 +32,7 @@ from .types import (
     ChannelEvents,
     ConnectionState,
     HeartbeatStatus,
+    validate_disconnect_delay,
     validate_heartbeat,
     validate_push_options,
 )
@@ -109,6 +110,9 @@ class connect_once:
     :param allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host
     :param http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests
     :param headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey``
+    :param transport: Opens the WebSocket connection, instead of the ``websockets`` library
+    :param disconnect_on_empty_channels_after: Seconds to keep the connection open after the last channel is removed.
+        Defaults to twice ``heartbeat_interval``, and ``0`` disconnects at once. Must not be negative.
     """
 
     def __init__(
@@ -123,6 +127,8 @@ class connect_once:
         *,
         http_session: AsyncHttpSession | None = None,
         headers: Mapping[str, str] | None = None,
+        transport: WebSocketTransport | None = None,
+        disconnect_on_empty_channels_after: float | None = None,
     ) -> None:
         self.client = RealtimeClient(
             url,
@@ -134,6 +140,8 @@ class connect_once:
             allow_insecure_http=allow_insecure_http,
             http_session=http_session,
             headers=headers,
+            transport=transport,
+            disconnect_on_empty_channels_after=disconnect_on_empty_channels_after,
         )
 
     def __await__(self) -> Generator[None, None, "RealtimeClient"]:
@@ -181,7 +189,7 @@ def _refused_with(error: Exception) -> int | None:
 class RealtimeClient:
     """
     A realtime client that connects when the first channel subscribes and
-    disconnects when the last channel is removed.
+    disconnects a while after the last channel is removed.
 
     When the connection drops, it reconnects with full-jitter backoff until it
     is closed, and joins its joined channels again.
@@ -200,6 +208,11 @@ class RealtimeClient:
     :param http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests. It stays open when the client is closed.
         Without it, `RealtimeChannel.http_send()` raises a `RealtimeError`.
     :param headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey`` of the project.
+    :param transport: Opens the WebSocket connection, instead of the ``websockets`` library. Use it to connect with another
+        WebSocket library, or with an in-memory connection in tests.
+    :param disconnect_on_empty_channels_after: Seconds to keep the connection open after the last channel is removed,
+        so a channel joined in the meantime reuses it. Defaults to twice ``heartbeat_interval``, and ``0`` disconnects
+        at once. Must not be negative.
     """
 
     def __init__(
@@ -214,9 +227,14 @@ class RealtimeClient:
         *,
         http_session: AsyncHttpSession | None = None,
         headers: Mapping[str, str] | None = None,
+        transport: WebSocketTransport | None = None,
+        disconnect_on_empty_channels_after: float | None = None,
     ) -> None:
         validate_heartbeat(heartbeat_interval, heartbeat_timeout)
         validate_push_options(timeout, max_queued_messages)
+        if disconnect_on_empty_channels_after is None:
+            disconnect_on_empty_channels_after = 2 * heartbeat_interval
+        validate_disconnect_delay(disconnect_on_empty_channels_after)
         self.url = URL(url)
         check_secure_url(
             self.url,
@@ -234,7 +252,11 @@ class RealtimeClient:
             Headers.from_mapping(headers or {})
         )
 
-        self._ws_connection: ClientConnection | None = None
+        self._transport = transport or self._connect_websockets
+        self.disconnect_on_empty_channels_after = disconnect_on_empty_channels_after
+        self._disconnect_task: asyncio.Task[None] | None = None
+
+        self._ws_connection: WebSocketConnection | None = None
         self._connection_failure: asyncio.Future[Message] | None = None
         self._connected_at = 0.0
         self._session: asyncio.Future[None] | None = None
@@ -266,6 +288,7 @@ class RealtimeClient:
         before the first subscribe. When an open connection drops, the client
         reconnects on its own and joins its joined channels again.
         """
+        self._cancel_pending_disconnect()
         async with self._connect_lock:
             if self._is_connected():
                 return
@@ -277,9 +300,7 @@ class RealtimeClient:
                     if self.get_access_token is not None
                     else None
                 )
-                websocket = await websockets.connect(
-                    str(normalize_url(self.url, token)), logger=websockets_logger
-                )
+                websocket = await self._transport(str(normalize_url(self.url, token)))
             except BaseException:
                 self._set_connection_state(ConnectionState.CLOSED)
                 raise
@@ -297,6 +318,9 @@ class RealtimeClient:
                 self._heartbeat(websocket, failure)
             )
             self._set_connection_state(ConnectionState.CONNECTED)
+
+    async def _connect_websockets(self, url: str) -> WebSocketConnection:
+        return await websockets.connect(url, logger=websockets_logger)
 
     @property
     def connection_state(self) -> ConnectionState:
@@ -362,9 +386,41 @@ class RealtimeClient:
             await self._stop()
 
     async def _close_if_unused(self) -> None:
+        if self.channels:
+            return
+        self._cancel_pending_disconnect()
+        if self.disconnect_on_empty_channels_after == 0 or not self._is_connected():
+            await self._close_if_still_unused()
+            return
+        logger.debug(
+            "no channels left, disconnecting in %.1f seconds",
+            self.disconnect_on_empty_channels_after,
+        )
+        self._disconnect_task = asyncio.create_task(self._disconnect_later())
+
+    async def _disconnect_later(self) -> None:
+        await asyncio.sleep(self.disconnect_on_empty_channels_after)
+        async with self._connect_lock:
+            if self._disconnect_task is not asyncio.current_task():
+                return
+            self._disconnect_task = None
+            if self.channels:
+                return
+            try:
+                await self._stop()
+            except Exception as error:
+                logger.warning("could not close the unused connection: %r", error)
+
+    async def _close_if_still_unused(self) -> None:
         async with self._connect_lock:
             if not self.channels:
                 await self._stop()
+
+    def _cancel_pending_disconnect(self) -> None:
+        task = self._disconnect_task
+        self._disconnect_task = None
+        if task is not None and task is not asyncio.current_task():
+            task.cancel()
 
     def _is_connected(self) -> bool:
         return (
@@ -374,6 +430,7 @@ class RealtimeClient:
         )
 
     async def _stop(self) -> None:
+        self._cancel_pending_disconnect()
         if (
             self._reconnect_task is not None
             and self._reconnect_task is not asyncio.current_task()
@@ -408,13 +465,13 @@ class RealtimeClient:
 
     def _connection(
         self, func_name: str
-    ) -> tuple[ClientConnection, asyncio.Future[Message]]:
+    ) -> tuple[WebSocketConnection, asyncio.Future[Message]]:
         if self._ws_connection is None or self._connection_failure is None:
             raise NotConnectedError(func_name)
         return self._ws_connection, self._connection_failure
 
     async def _listen(
-        self, websocket: ClientConnection, failure: asyncio.Future[Message]
+        self, websocket: WebSocketConnection, failure: asyncio.Future[Message]
     ) -> None:
         try:
             while True:
@@ -531,7 +588,7 @@ class RealtimeClient:
             get.cancel()
 
     async def _heartbeat(
-        self, websocket: ClientConnection, failure: asyncio.Future[Message]
+        self, websocket: WebSocketConnection, failure: asyncio.Future[Message]
     ) -> None:
         try:
             while True:
@@ -564,15 +621,30 @@ class RealtimeClient:
             await websocket.close()
 
     async def _refresh_token_after_heartbeat(self) -> None:
-        try:
-            await self._refresh_token()
-        except websockets.ConnectionClosed:
-            raise
-        except Exception as exception:
-            logger.warning(
-                "could not refresh the access token after the heartbeat: %s",
-                type(exception).__name__,
-            )
+        if self.get_access_token is None:
+            return
+        async with self._auth_lock:
+            if self._token_is_manual:
+                return
+            try:
+                token = await self.get_access_token()
+                if not token:
+                    return
+            except Exception as exception:
+                logger.warning(
+                    "could not refresh the access token after the heartbeat: %s",
+                    type(exception).__name__,
+                )
+                return
+            try:
+                await self._send_token(token)
+            except (websockets.ConnectionClosed, OSError):
+                raise
+            except Exception as exception:
+                logger.warning(
+                    "could not send the access token after the heartbeat: %s",
+                    type(exception).__name__,
+                )
 
     def channel(
         self, topic: str, options: RealtimeChannelOptions | None = None

@@ -10,7 +10,8 @@ from supabase_utils.http.retry import RetryPolicy
 from supabase_utils.types import JSON
 
 from .column_expression import Column, NullableColumn
-from .filter import Expression, Filter, Ordering
+from .filter import Filter, Ordering, Selectable
+from .relation import EmbeddedScope
 from .table import Table
 from .types import CountMethod
 
@@ -160,8 +161,9 @@ class TableRequest:
     """The schema to query `table` in, or `None` for the schema the table
     carries and, when it carries none, the schema of the client."""
 
-    columns: tuple[Expression[Any, Any], ...] = ()
-    """The entries of the `select` list to read back; empty for every column.
+    columns: tuple[Selectable[Any], ...] = ()
+    """The entries of the `select` list to read back, embeds included;
+    empty for every column.
 
     For a write these are the columns of the returned rows, and only apply
     when `returning` is set.
@@ -183,6 +185,10 @@ class TableRequest:
 
     offset: int | None = None
     """The number of rows to skip."""
+
+    embedded_scopes: tuple[EmbeddedScope[Any], ...] = ()
+    """The filters, sort keys and row windows applied to the rows of the
+    embeds in `columns`, and which embeds drop the rows without a match."""
 
     shape: ResultShape = ResultShape.ROWS
     """The form the result is asked back in.
