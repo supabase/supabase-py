@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import stat
 import threading
 from base64 import b64encode
 from collections.abc import Iterator
@@ -166,14 +167,16 @@ def _identity(source: ResumableUploadSource) -> str | None:
     when nothing does without reading it."""
     if isinstance(source, bytes):
         return hashlib.sha256(source).hexdigest()
-    name = (
-        source
-        if isinstance(source, (str, os.PathLike))
-        else getattr(source, "name", None)
-    )
-    if not isinstance(name, (str, os.PathLike)) or not os.path.isfile(name):
+    if isinstance(source, (str, os.PathLike)):
+        status = os.stat(source)
+    else:
+        try:
+            status = os.fstat(source.fileno())
+        except (AttributeError, OSError, ValueError):
+            return None
+    if not stat.S_ISREG(status.st_mode):
         return None
-    return f"{os.path.realpath(name)}:{os.stat(name).st_mtime_ns}"
+    return f"{status.st_dev}:{status.st_ino}:{status.st_mtime_ns}"
 
 
 class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
@@ -229,7 +232,8 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     @cached_property
     def fingerprint(self) -> str | None:
         """The key the upload URL is kept under in the store: the same file
-        uploaded to the same object has the same fingerprint. None when the
+        uploaded to the same object with the same options has the same
+        fingerprint. None when the
         file cannot be told apart from another one, like a file object
         without a path, which the store then does not keep."""
         identity = _identity(self._source)
@@ -241,6 +245,10 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             self.path,
             str(self.size),
             identity,
+            self._content_type,
+            self._cache_control,
+            str(self._upsert),
+            (self._metadata or b"").decode(),
         )
         return hashlib.sha256("\0".join(parts).encode()).hexdigest()
 
@@ -280,8 +288,15 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
     def _stored_url(self) -> str | None:
         if self._url is None and self._store is not None and self.fingerprint:
-            self._url = self._store.get(self.fingerprint)
+            url = self._store.get(self.fingerprint)
+            if url is not None and self._is_trusted(URL(url)):
+                self._url = url
         return self._url
+
+    def _is_trusted(self, url: URL) -> bool:
+        """Whether `url` is on the storage server, so the credentials of the
+        client can be sent to it."""
+        return url.is_absolute() and url.origin() == self._base_url.origin()
 
     def _forget(self) -> None:
         self._url = None
@@ -399,7 +414,13 @@ class BaseResumableUpload[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             raise StorageException(
                 "Storage created the resumable upload without a location"
             )
-        url = str(request.url.join(URL(location)))
+        resolved = request.url.join(URL(location))
+        if not self._is_trusted(resolved):
+            raise StorageException(
+                "Storage returned the location of the resumable upload on "
+                "another origin"
+            )
+        url = str(resolved)
         self._url = url
         if self._store is not None and self.fingerprint:
             self._store[self.fingerprint] = url

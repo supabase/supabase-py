@@ -584,3 +584,60 @@ def test_rejects_a_path_with_dot_segments(server: TusServer) -> None:
     bucket = server.sync_client().from_("videos")
     with pytest.raises(ValueError, match="dot segments"):
         bucket.resumable_upload("../clip.bin", DATA)
+
+
+@use_async
+async def test_refuses_a_location_on_another_origin(
+    server: TusServer, use_async: bool
+) -> None:
+    server.fail[0] = Response(
+        201, headers={"Location": "https://attacker.example/upload/u0"}
+    )
+
+    with pytest.raises(StorageException, match="another origin"):
+        await run(upload_of(server, use_async))
+
+    assert server.methods == ["POST"]
+
+
+@use_async
+async def test_ignores_a_stored_url_on_another_origin(
+    server: TusServer, use_async: bool
+) -> None:
+    fingerprint = upload_of(server, use_async).fingerprint
+    assert fingerprint is not None
+    store = {fingerprint: "https://attacker.example/upload/u0"}
+
+    await run(upload_of(server, use_async, store=store))
+
+    assert server.methods[0] == "POST"
+    assert all(request.url.host == "example.supabase.co" for request in server.requests)
+
+
+def test_the_fingerprint_tells_options_apart(server: TusServer) -> None:
+    bucket = server.sync_client().from_("videos")
+
+    def fingerprint(**options: Any) -> str | None:
+        return bucket.resumable_upload("clip.bin", DATA, **options).fingerprint
+
+    assert fingerprint() != fingerprint(content_type="video/mp4")
+    assert fingerprint() != fingerprint(cache_control="60")
+    assert fingerprint() != fingerprint(upsert=True)
+    assert fingerprint() != fingerprint(metadata={"source": "test"})
+
+
+def test_the_fingerprint_follows_the_open_file_when_its_path_is_replaced(
+    server: TusServer, tmp_path: Path
+) -> None:
+    path = tmp_path / "clip.bin"
+    path.write_bytes(DATA)
+    bucket = server.sync_client().from_("videos")
+    with path.open("rb") as old:
+        replacement = tmp_path / "replacement.bin"
+        replacement.write_bytes(DATA[::-1])
+        replacement.replace(path)
+
+        assert (
+            bucket.resumable_upload("clip.bin", old).fingerprint
+            != bucket.resumable_upload("clip.bin", path).fingerprint
+        )
