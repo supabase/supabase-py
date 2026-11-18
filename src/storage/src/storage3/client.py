@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Literal, Self
 
 from pydantic import TypeAdapter
 from supabase_utils.http.headers import Headers
@@ -155,6 +155,8 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         public: bool | None = None,
         file_size_limit: int | None = None,
         allowed_mime_types: list[str] | None = None,
+        *,
+        versioning_status: Literal["DISABLED", "ENABLED"] | None = None,
     ) -> HttpMethod[BucketName]:
         """Creates a new storage bucket.
 
@@ -167,6 +169,10 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         options
             Extra options to send while creating the bucket. Valid options are `public`, `file_size_limit` and
             `allowed_mime_types`.
+        versioning_status
+            `ENABLED` keeps the previous versions of a file when it is
+            overwritten or removed. The server creates the bucket `DISABLED`
+            when omitted.
         """
         body = CreateOrUpdateBucketBody(
             id=id,
@@ -174,6 +180,7 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             public=public,
             file_size_limit=file_size_limit,
             allowed_mime_types=allowed_mime_types,
+            versioning_status=versioning_status,
         )
         response = yield JSONRequest(
             method="POST",
@@ -191,6 +198,8 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         public: bool | None = None,
         file_size_limit: int | None = None,
         allowed_mime_types: list[str] | None = None,
+        *,
+        versioning_status: Literal["ENABLED", "SUSPENDED"] | None = None,
     ) -> HttpMethod[MessageResponse]:
         """Update a storage bucket.
 
@@ -201,6 +210,10 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         options
             The properties you want to update. Valid options are `public`, `file_size_limit` and
             `allowed_mime_types`.
+        versioning_status
+            `ENABLED` starts keeping the previous versions of a file, and
+            `SUSPENDED` stops keeping new ones while the existing versions
+            stay. Once enabled, versioning cannot go back to `DISABLED`.
         """
         body = CreateOrUpdateBucketBody(
             id=id,
@@ -208,6 +221,7 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             public=public,
             file_size_limit=file_size_limit,
             allowed_mime_types=allowed_mime_types,
+            versioning_status=versioning_status,
         )
         response = yield JSONRequest(
             method="PUT",

@@ -146,3 +146,29 @@ async with storage_client.from_("bucket").download_stream(
     await download.write_to(partial, resume=True)
 etag_file.unlink()
 ```
+
+### File versions
+
+A bucket created or updated with `versioning_status="ENABLED"` keeps the previous versions of a file when it is overwritten or removed. Removing a file then leaves a delete marker in its place. List the versions with `noncurrent_versions` and the delete markers with `delete_markers`, each `"include"` or `"only"`:
+
+```python
+await storage_client.create_bucket("documents", versioning_status="ENABLED")
+documents = storage_client.from_("documents")
+
+page = await documents.list("reports/", noncurrent_versions="include")
+for entry in page.objects:
+    print(entry.name, entry.version, entry.archived_at)
+```
+
+`download`, `download_stream`, `info`, `create_signed_url` and `get_public_url` take a `version_id`, and `copy` and `move` a `source_version_id`, to act on that version instead of the current one. Moving a version to its own path makes it the current version again. `remove` deletes exactly the version of a `FileVersion`:
+
+```python
+from storage3.types import FileVersion
+
+documents = storage_client.from_("documents")
+old = await documents.download("reports/q3.pdf", version_id="<version id>")
+await documents.move("reports/q3.pdf", "reports/q3.pdf", source_version_id="<version id>")
+await documents.remove([FileVersion("reports/q3.pdf", "<version id>")])
+```
+
+`update_bucket` with `versioning_status="SUSPENDED"` stops keeping new versions while the existing ones stay. A bucket cannot go back to `DISABLED`.
