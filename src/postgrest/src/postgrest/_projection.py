@@ -97,6 +97,8 @@ def _project(
     problems: list[str],
     enclosing: tuple[type[BaseModel], ...],
 ) -> _Projection:
+    if not model.__pydantic_complete__:
+        model.model_rebuild(raise_errors=False)
     if not model.model_fields:
         problems.append(f"{path} has no fields to select")
     members = _Members.of(table)
@@ -145,20 +147,19 @@ def _field_entry(
     from, with the keys it moves between, or `None` after adding to
     `problems` what does not fit the table."""
     match field.validation_alias:
-        case _ if not by_alias:
-            key = name
         case str(alias):
-            key = alias
+            source = alias
         case None:
-            key = field.alias or name
+            source = field.alias or name
         case _:
             problems.append(
                 f"{path} is read through an AliasPath or AliasChoices, which "
                 "select_as() cannot select"
             )
             return None
+    key = source if by_alias else name
     annotation: Any = Any if field.annotation is None else field.annotation
-    for candidate in dict.fromkeys((key, name)):
+    for candidate in dict.fromkeys((source, name)):
         if candidate in members.columns:
             column_type = members.columns[candidate]
             column = f"{members.table}.{candidate}"
@@ -270,8 +271,11 @@ class _Members:
         for relation in table.relations:
             relations.setdefault(relation.response_key, []).append(relation)
         for relation in table.relations:
-            if relation._attribute is not None:
-                relations[relation._attribute] = [relation]
+            if relation._attribute is None:
+                continue
+            named = relations.setdefault(relation._attribute, [])
+            if relation not in named:
+                named.append(relation)
         return cls(
             table=table.name,
             columns=dict(_field_annotations(table.row_type)),

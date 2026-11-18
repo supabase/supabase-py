@@ -106,6 +106,25 @@ class AuthorName(BaseModel):
     name: str
 
 
+class EarlyCard(BaseModel):
+    id: int
+    author: "LateAuthor"
+
+
+class LateAuthor(BaseModel):
+    name: str
+
+
+class Shadowed:
+    author = ToOneRelation[NovelsRow, AuthorsRow](
+        "authors", AuthorsRow, constraint="novels_author_id_fkey"
+    )
+    editor = ToOneRelation[NovelsRow, AuthorsRow](
+        "authors", AuthorsRow, constraint="novels_editor_id_fkey", alias="author"
+    )
+    table = Table[Any, Any, Any]("novels", NovelsRow, relations=(author, editor))
+
+
 class TestSelectList:
     def test_a_flat_model_selects_its_fields(self) -> None:
         class NovelTitle(BaseModel):
@@ -140,6 +159,19 @@ class TestSelectList:
         _, builder = novels(TableResult(data=[{"title": "Dune"}]))
 
         assert builder.select_as(NovelTitle).execute() == [NovelTitle(title="Dune")]
+
+    def test_a_model_that_validates_by_name_selects_its_alias_first(self) -> None:
+        class NovelAuthor(BaseModel):
+            model_config = ConfigDict(validate_by_alias=False, validate_by_name=True)
+            id: int | None = Field(alias="author_id")
+
+        _, builder = novels(TableResult(data=[{"author_id": 3}]))
+
+        assert select_list(NovelAuthor) == "author_id"
+        assert builder.select_as(NovelAuthor).execute() == [NovelAuthor(id=3)]
+
+    def test_a_forward_reference_is_resolved_first(self) -> None:
+        assert select_list(EarlyCard) == "id,authors!novels_author_id_fkey(name)"
 
     def test_a_computed_field_is_selected_by_name(self) -> None:
         class NovelTitle(BaseModel):
@@ -425,6 +457,15 @@ class TestRejections:
         assert self.problems(Ambiguous) == [
             "Ambiguous.authors could embed any of 2 relations that come back as "
             "authors; name the field after the attribute of one of them"
+        ]
+
+    def test_an_attribute_named_like_the_alias_of_another_relation(self) -> None:
+        class Ambiguous(BaseModel):
+            editor: AuthorName = Field(alias="author")
+
+        assert self.problems(Ambiguous, Shadowed.table) == [
+            "Ambiguous.editor could embed any of 2 relations that come back as "
+            "author; name the field after the attribute of one of them"
         ]
 
     def test_a_relation_embedded_twice(self) -> None:
