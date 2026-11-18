@@ -1045,13 +1045,55 @@ async def test_download_sends_the_cache_nonce_with_other_query_params(
     }
 
 
+SIGNED_URLS_RESPONSE = (
+    b'[{"path": "file.txt", "signedURL": "/object/sign/bucket/file.txt?token=t",'
+    b' "error": null}]'
+)
+
+EMPTY_CACHE_NONCE_ACTIONS: dict[str, tuple[FileAction, bytes]] = {
+    "create_signed_url": (
+        lambda b: b.create_signed_url("file.txt", 60, cache_nonce=""),
+        SIGNED_URL_RESPONSE,
+    ),
+    "create_signed_urls": (
+        lambda b: b.create_signed_urls(["file.txt"], 60, cache_nonce=""),
+        SIGNED_URLS_RESPONSE,
+    ),
+    "download": (lambda b: b.download("file.txt", cache_nonce=""), b"hello"),
+}
+
+
 @use_async
-async def test_url_methods_leave_out_an_empty_cache_nonce(use_async: bool) -> None:
+@pytest.mark.parametrize(
+    ("action", "content"),
+    EMPTY_CACHE_NONCE_ACTIONS.values(),
+    ids=EMPTY_CACHE_NONCE_ACTIONS.keys(),
+)
+async def test_an_empty_cache_nonce_is_left_out(
+    use_async: bool, action: FileAction, content: bytes
+) -> None:
+    requests: list[Request] = []
+
+    def handler(request: Request) -> Response:
+        requests.append(request)
+        return Response(200, content=content)
+
+    result = await call_with_client(
+        use_async, handler, lambda client: action(client.from_("bucket"))
+    )
+    assert "cacheNonce" not in str(result)
+    assert "cacheNonce" not in requests[0].url.params
+
+
+async def test_get_public_url_leaves_out_an_empty_cache_nonce() -> None:
+    def handler(request: Request) -> Response:
+        raise AssertionError("get_public_url must not send a request")
+
     url = await call_with_client(
-        use_async,
-        lambda request: Response(200, content=SIGNED_URL_RESPONSE),
-        lambda client: client.from_("bucket").create_signed_url(
-            "file.txt", 60, cache_nonce=""
+        False,
+        handler,
+        lambda client: client.from_("bucket").get_public_url(
+            "file.txt", cache_nonce=""
         ),
     )
-    assert "cacheNonce" not in url
+    assert url == f"{STORAGE_URL}object/public/bucket/file.txt"

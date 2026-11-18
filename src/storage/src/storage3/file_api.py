@@ -104,7 +104,7 @@ def _url_query(download: bool | str | None, cache_nonce: str | None) -> URLQuery
     if download:
         query = query.set("download", "" if download is True else download)
     if cache_nonce:
-        query = query.set("cacheNonce", cache_nonce)
+        query = query.override("cacheNonce", cache_nonce)
     return query
 
 
@@ -327,16 +327,16 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         return _parse_upload_response(response, "/".join(path_parts))
 
-    def _make_signed_url(self, signed_url: str, download_query: URLQuery) -> str:
+    def _make_signed_url(self, signed_url: str, url_query: URLQuery) -> str:
         url = URL(signed_url[1:])  # ignore starting slash
-        signed = self.base_url.join(url).extend_query(download_query.as_query())
+        signed = self.base_url.join(url).extend_query(url_query.as_query())
         return str(signed)
 
-    def _parse_signed_url(self, response: Response, download_query: URLQuery) -> str:
+    def _parse_signed_url(self, response: Response, url_query: URLQuery) -> str:
         if not response.is_success:
             raise parse_api_error(response)
         signed_url_obj = SignedUrlJsonResponse.model_validate_json(response.content)
-        return self._make_signed_url(signed_url_obj.signedURL, download_query)
+        return self._make_signed_url(signed_url_obj.signedURL, url_query)
 
     @handle_http_io
     def create_signed_url(
@@ -361,7 +361,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             Appended to the URL as the `cacheNonce` query parameter. Pass a new
             value, such as the time the file last changed, to bypass a cached copy.
         """
-        download_query = _url_query(download, cache_nonce)
+        url_query = _url_query(download, cache_nonce)
 
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
         body = CreateSignedUrlBody(
@@ -376,10 +376,10 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             exclude_none=True,
         )
 
-        return self._parse_signed_url(response, download_query)
+        return self._parse_signed_url(response, url_query)
 
     def _parse_signed_urls(
-        self, response: Response, download_query: URLQuery
+        self, response: Response, url_query: URLQuery
     ) -> builtins.list[CreateSignedUrlResponse]:
         if not response.is_success:
             raise parse_api_error(response)
@@ -388,7 +388,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         for item in data:
             # Prepare URL
             url = (
-                self._make_signed_url(item.signedURL, download_query)
+                self._make_signed_url(item.signedURL, url_query)
                 if item.signedURL
                 else None
             )
@@ -422,7 +422,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             Appended to the URL as the `cacheNonce` query parameter. Pass a new
             value, such as the time the file last changed, to bypass a cached copy.
         """
-        download_query = _url_query(download, cache_nonce)
+        url_query = _url_query(download, cache_nonce)
 
         body = CreateSignedUrlsBody(
             download=download,
@@ -434,7 +434,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             path=["object", "sign", self.id],
             body=body,
         )
-        return self._parse_signed_urls(response, download_query)
+        return self._parse_signed_urls(response, url_query)
 
     def get_public_url(
         self,
@@ -453,7 +453,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             Appended to the URL as the `cacheNonce` query parameter. Pass a new
             value, such as the time the file last changed, to bypass a cached copy.
         """
-        download_query = _url_query(download, cache_nonce)
+        url_query = _url_query(download, cache_nonce)
 
         render_path = ["render", "image"] if transform else ["object"]
         transformation = transform_to_dict(transform) if transform else {}
@@ -461,7 +461,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         path_parts = relative_path_to_parts(path)
         url = (
             self.base_url.joinpath(*render_path, "public", self.id, *path_parts)
-            .with_query(download_query.as_query())
+            .with_query(url_query.as_query())
             .extend_query(transformation)
         )
         return str(url)
