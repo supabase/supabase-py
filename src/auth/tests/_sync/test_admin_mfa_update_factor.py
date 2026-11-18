@@ -42,7 +42,10 @@ def test_update_factor_sends_the_given_fields() -> None:
     client, requests = admin_client(Response(200, json=FACTOR))
 
     factor = client.mfa.update_factor(
-        USER_ID, FACTOR_ID, friendly_name="work phone", phone="+15550001111"
+        user_id=USER_ID,
+        factor_id=FACTOR_ID,
+        friendly_name="work phone",
+        phone="+15550001111",
     )
 
     [request] = requests
@@ -55,12 +58,15 @@ def test_update_factor_sends_the_given_fields() -> None:
     assert factor.id == FACTOR_ID
     assert factor.friendly_name == "work phone"
     assert factor.factor_type == "phone"
+    assert factor.phone == "15550001111"
 
 
 def test_update_factor_leaves_out_fields_that_are_not_given() -> None:
     client, requests = admin_client(Response(200, json=FACTOR))
 
-    client.mfa.update_factor(USER_ID, FACTOR_ID, friendly_name="renamed")
+    client.mfa.update_factor(
+        user_id=USER_ID, factor_id=FACTOR_ID, friendly_name="renamed"
+    )
 
     [request] = requests
     assert json.loads(request.content) == {"friendly_name": "renamed"}
@@ -79,7 +85,9 @@ def test_update_factor_raises_the_api_error() -> None:
     )
 
     with pytest.raises(AuthApiError) as error:
-        client.mfa.update_factor(USER_ID, FACTOR_ID, friendly_name="renamed")
+        client.mfa.update_factor(
+            user_id=USER_ID, factor_id=FACTOR_ID, friendly_name="renamed"
+        )
 
     assert error.value.code == "mfa_factor_not_found"
 
@@ -91,6 +99,8 @@ def test_update_factor_rejects_invalid_ids(user_id: str, factor_id: str) -> None
     client, requests = admin_client(Response(200, json=FACTOR))
 
     with pytest.raises(ValueError, match="Invalid id"):
-        client.mfa.update_factor(user_id, factor_id, friendly_name="renamed")
+        client.mfa.update_factor(
+            user_id=user_id, factor_id=factor_id, friendly_name="renamed"
+        )
 
     assert requests == []

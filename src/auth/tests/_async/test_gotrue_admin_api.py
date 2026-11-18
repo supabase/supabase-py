@@ -406,8 +406,8 @@ async def test_admin_list_factors(
     assert factors[0].factor_type == "totp"
     assert factors[0].status == "verified"
     updated = await secret_key_api_client.mfa.update_factor(
-        res.user.id,
-        factors[0].id,
+        user_id=res.user.id,
+        factor_id=factors[0].id,
         friendly_name="renamed_otp",
     )
     assert updated.id == factors[0].id

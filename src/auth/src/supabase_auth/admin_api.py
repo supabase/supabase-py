@@ -87,17 +87,16 @@ class SupabaseAuthAdminMFA[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     @handle_http_io
     def update_factor(
         self,
+        *,
         user_id: str,
         factor_id: str,
-        *,
         friendly_name: str | None = None,
         phone: str | None = None,
     ) -> HttpMethod[Factor]:
         """
-        Updates a factor on a user and returns the updated factor. Only the
-        given fields change. The server treats an empty string as not given,
-        so a friendly name cannot be cleared, and it ignores `phone` on any
-        factor that is not a phone factor.
+        Updates the friendly name of a factor on a user, or the phone number
+        of a phone factor, and returns the updated factor. Only the given
+        fields change.
 
         This function should only be called on a server.
         Never expose your `service_role` key in the browser.
