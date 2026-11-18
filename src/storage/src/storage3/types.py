@@ -5,7 +5,7 @@ from datetime import datetime
 from os import PathLike
 from typing import Any, BinaryIO, Literal
 
-from pydantic import AliasChoices, BaseModel, Field, TypeAdapter
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, TypeAdapter
 from pydantic.dataclasses import dataclass
 from supabase_utils.types import JSON
 
@@ -82,6 +82,55 @@ class CreateOrUpdateBucketBody(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+LifecycleRuleStatus = Literal["Enabled", "Disabled"]
+
+
+class NoncurrentVersionExpiration(BaseModel):
+    """When a lifecycle rule deletes the previous versions of an object.
+
+    ``noncurrent_days`` is how many days a version is kept after a newer one
+    replaces it. ``newer_noncurrent_versions`` is how many of the newest
+    previous versions are kept regardless of their age; ``None`` leaves it
+    out of the request.
+    """
+
+    model_config = ConfigDict(
+        extra="allow", frozen=True, validate_by_name=True, serialize_by_alias=True
+    )
+
+    noncurrent_days: int = Field(alias="noncurrentDays")
+    newer_noncurrent_versions: int | None = Field(
+        default=None, alias="newerNoncurrentVersions"
+    )
+
+
+class LifecycleRule(BaseModel):
+    """A rule of a bucket's lifecycle policy.
+
+    A rule applies to every object in the bucket. Its only action,
+    ``noncurrent_version_expiration``, has nothing to delete until versioning
+    has kept previous versions. Storage generates an ``id`` for a rule that
+    has none. ``status`` is ``"Enabled"`` or ``"Disabled"``. Fields Storage
+    returns that this model does not declare are kept, so the rules read with
+    ``get_bucket_lifecycle`` can be sent back unchanged.
+    """
+
+    model_config = ConfigDict(
+        extra="allow", frozen=True, validate_by_name=True, serialize_by_alias=True
+    )
+
+    noncurrent_version_expiration: NoncurrentVersionExpiration = Field(
+        alias="noncurrentVersionExpiration"
+    )
+    id: str | None = None
+    status: LifecycleRuleStatus | str = "Enabled"
+    filter: dict[str, Any] = Field(default_factory=dict)
+
+
+class _LifecycleConfiguration(BaseModel, extra="ignore"):
+    rules: list[LifecycleRule]
 
 
 class FileObject(BaseModel):
