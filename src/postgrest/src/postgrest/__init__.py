@@ -14,6 +14,7 @@ from .filter import (
     Ordering,
     Selectable,
 )
+from .function_call import FunctionCall
 from .partial_row import PartialRow
 from .range import Range, RangeBounds
 from .relation import (
@@ -80,6 +81,7 @@ __all__ = [
     "Filter",
     "FilterOperator",
     "Filters",
+    "FunctionCall",
     "HttpTableExecutor",
     "JsonPath",
     "Mutation",
