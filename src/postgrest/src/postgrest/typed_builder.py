@@ -4,9 +4,10 @@ from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Literal, Never, Self, overload
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, TypeAdapter
 from supabase_utils.types import JSON
 
+from ._projection import _Projection, _projection
 from .partial_row import _ROWS, PartialRow
 from .relation import EmbeddedScope, _requiring
 from .relation import _selected as _distinct_embeds
@@ -142,7 +143,9 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
         request = replace(
             self.request, columns=(), shape=ResultShape.ROWS, returning=True
         )
-        return TypedTransformBuilder(request, self.executor, _rows(self.request.table))
+        return TypedTransformBuilder(
+            request, self.executor, _rows(self.request.table.row_type)
+        )
 
     def select_only(
         self, columns: Iterable[Selectable[Row]]
@@ -165,6 +168,31 @@ class TypedTransformBuilder[Executor: (TableExecutor, AsyncTableExecutor), Row, 
             self.request, columns=selected, shape=ResultShape.ROWS, returning=True
         )
         convert = _partial_rows(self.request.table, selected)
+        return TypedTransformBuilder(request, self.executor, convert)
+
+    def select_as[Model: BaseModel](
+        self, model: type[Model]
+    ) -> TypedTransformBuilder[Executor, Row, list[Model]]:
+        """Return the rows a write affected, decoded into `model`, with the
+        columns its fields name:
+
+            cards = (
+                client.table(Books.table)
+                .insert(row)
+                .select_as(BookCard)
+                .execute()
+            )
+
+        See `TypedQueryBuilder.select_as` for `model`.
+        """
+        projection = _projection(self.request.table, model)
+        request = replace(
+            self.request,
+            columns=projection.columns,
+            shape=ResultShape.ROWS,
+            returning=True,
+        )
+        convert = _projected_rows(projection, model)
         return TypedTransformBuilder(request, self.executor, convert)
 
     def order(self, ordering: Ordering[Row]) -> Self:
@@ -555,7 +583,7 @@ class TypedQueryBuilder[
         See `select_only()` to read some columns only.
         """
         request = self._request(TableOperation.SELECT)
-        return TypedFilterBuilder(request, self.executor, _rows(self.table))
+        return TypedFilterBuilder(request, self.executor, _rows(self.table.row_type))
 
     def select_only(
         self, columns: Iterable[Selectable[Row]]
@@ -583,6 +611,51 @@ class TypedQueryBuilder[
         selected = _selected(columns)
         request = replace(self._request(TableOperation.SELECT), columns=selected)
         convert = _partial_rows(self.table, selected)
+        return TypedFilterBuilder(request, self.executor, convert)
+
+    def select_as[Model: BaseModel](
+        self, model: type[Model]
+    ) -> TypedFilterBuilder[Executor, Row, list[Model]]:
+        """Read the columns the fields of `model` name, decoded into `model`,
+        a pydantic model that describes the shape of the result:
+
+            class AuthorName(BaseModel):
+                name: str
+
+            class BookCard(BaseModel):
+                id: int
+                title: str
+                author: AuthorName
+
+            cards = client.table(Books.table).select_as(BookCard).execute()
+            # select=id,title,authors(name)
+
+        Unlike a `PartialRow` of `select_only()`, a model can be serialized,
+        returned from a web framework, or passed on to code that expects it.
+
+        Each field names, by its alias and then by its name, a stored column
+        of the table, a computed field, or a relation in `Table.relations`
+        by the attribute it is declared as or by its `response_key`. A
+        field of a model type embeds a to-one relation, and a field of a
+        `list` of a model type a to-many one; the nested model is mapped
+        against the `target_table` of the relation, or the stored columns of
+        its `target_type` without one. A relation embedded this way can still be
+        scoped with `embedded()` and `requiring()` and filtered with
+        `Relation.is_null()`.
+
+        A type checker cannot compare a model with the row type, so the model
+        is checked against the table before the request is built, once per
+        table and model. Raises `TypeError` listing every field that names
+        nothing on the table, whose type differs from the one the row type
+        declares for its column, that cannot be `None` while its column can
+        be `NULL`, or that is a single model on a to-many relation or a list
+        on a to-one one.
+        """
+        projection = _projection(self.table, model)
+        request = replace(
+            self._request(TableOperation.SELECT), columns=projection.columns
+        )
+        convert = _projected_rows(projection, model)
         return TypedFilterBuilder(request, self.executor, convert)
 
     def insert(
@@ -723,7 +796,7 @@ def _function_call_builder[Executor: (TableExecutor, AsyncTableExecutor)](
         shape=call.shape,
     )
     if call.shape is ResultShape.ROWS:
-        return TypedFilterBuilder(request, executor, _rows(table))
+        return TypedFilterBuilder(request, executor, _rows(table.row_type))
     return TypedBuilder(request, executor, _decoded_value(call.return_type))
 
 
@@ -738,8 +811,8 @@ _TEXT = TypeAdapter(str)
 _OBJECT = TypeAdapter(dict[str, JSON])
 
 
-def _rows[Row](table: Table[Row, Any, Any]) -> Callable[[TableResult], list[Row]]:
-    adapter = _rows_adapter(table.row_type)
+def _rows[Row](row_type: type[Row]) -> Callable[[TableResult], list[Row]]:
+    adapter = _rows_adapter(row_type)
     return lambda result: adapter.validate_python(result.data)
 
 
@@ -749,6 +822,15 @@ def _partial_rows[Row](
     return lambda result: [
         PartialRow(table, columns, row) for row in _ROWS.validate_python(result.data)
     ]
+
+
+def _projected_rows[Model: BaseModel](
+    projection: _Projection, model: type[Model]
+) -> Callable[[TableResult], list[Model]]:
+    adapter = _rows_adapter(model)
+    return lambda result: adapter.validate_python(
+        [projection.keyed(row) for row in _ROWS.validate_python(result.data)]
+    )
 
 
 def _one[Element](

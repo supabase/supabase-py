@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import KW_ONLY, dataclass, replace
+from collections.abc import Callable
+from dataclasses import KW_ONLY, dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Generic, Self, override
 
 from typing_extensions import TypeVar
@@ -9,7 +10,9 @@ from .filter import Filter, Ordering, Selectable, _EmbedIsNull, _expression_key
 from .utils import _quote
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Iterable
+
+    from .table import Table  # noqa: TC004, the table module imports this one
 
 Row = TypeVar("Row", default=Any)
 """The row type of the table a relation starts from."""
@@ -83,6 +86,30 @@ class Relation(Generic[Row, Target]):
                 alias="editor",
             )
     """
+
+    target_table: Callable[[], Table[Target, Any, Any]] | None = field(
+        default=None, compare=False, repr=False
+    )
+    """A function returning the `Table` the relation points at, or `None`.
+
+    `select_as()` maps a model nested in a projection against this table, to
+    reach its computed fields and relations. It is a function, called on
+    first use, since two tables that point at each other cannot both be
+    declared first:
+
+        class Books:
+            author = ToOneRelation[BooksRow, AuthorsRow](
+                "authors", AuthorsRow, target_table=lambda: Authors.table
+            )
+
+    Without it a nested model can only name the stored columns of
+    `target_type`.
+    """
+
+    _attribute: str | None = field(default=None, init=False, compare=False, repr=False)
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        object.__setattr__(self, "_attribute", name)
 
     @property
     def response_key(self) -> str:

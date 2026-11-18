@@ -9,6 +9,7 @@ from pydantic import BaseModel, TypeAdapter
 from typing_extensions import TypeVar
 
 from .column_expression import Column, ComputedField
+from .relation import Relation
 from .utils import _row_payload, _rows_payload
 
 if TYPE_CHECKING:
@@ -38,12 +39,16 @@ class Table(Generic[Row, Insert, Update]):
         class Books:
             id = Column[BooksRow, int]("id")
             title = Column[BooksRow, str]("title")
+            author = ToOneRelation[BooksRow, AuthorsRow](
+                "authors", AuthorsRow, target_table=lambda: Authors.table
+            )
             table = Table(
                 "books",
                 BooksRow,
                 insert_type=BooksInsert,
                 update_type=BooksUpdate,
                 primary_key=(id,),
+                relations=(author,),
                 schema="public",
             )
 
@@ -87,6 +92,11 @@ class Table(Generic[Row, Insert, Update]):
     """The computed fields of the table: functions whose only argument is the
     row type, which PostgREST selects like columns but leaves out of `*`, so
     a `select()` row never carries them."""
+
+    relations: tuple[Relation[Row, Any], ...] = ()
+    """The relations of the table to other tables, which a model passed to
+    `select_as()` can embed through a field named after the attribute the
+    relation is declared as, or after its `response_key`."""
 
     schema: str | None = None
     """The schema the table lives in, or `None` to query it in the schema of
