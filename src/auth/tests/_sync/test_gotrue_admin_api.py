@@ -403,6 +403,15 @@ def test_admin_list_factors(
     assert factors[0].friendly_name == "test_otp"
     assert factors[0].factor_type == "totp"
     assert factors[0].status == "verified"
+    updated = secret_key_api_client.mfa.update_factor(
+        user_id=res.user.id,
+        factor_id=factors[0].id,
+        friendly_name="renamed_otp",
+    )
+    assert updated.id == factors[0].id
+    assert updated.friendly_name == "renamed_otp"
+    factors = secret_key_api_client.mfa.list_factors(user_id=res.user.id)
+    assert factors[0].friendly_name == "renamed_otp"
     secret_key_api_client.mfa.delete_factor(
         factor_id=factors[0].id,
         user_id=res.user.id,
