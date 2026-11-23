@@ -570,6 +570,8 @@ class RealtimeChannel:
         return msg
 
     async def _rejoin(self) -> None:
+        if not self._rejoin_pending:
+            return
         attempt = object()
         self._subscribe_attempt = attempt
         try:

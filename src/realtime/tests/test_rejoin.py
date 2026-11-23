@@ -572,3 +572,21 @@ async def test_aclose_during_a_rejoin_keeps_the_channel_errored(
 
     assert state == ChannelStates.ERRORED
     assert joined == ChannelStateChange(ChannelStates.JOINED)
+
+
+async def test_a_queued_rejoin_skips_a_channel_unsubscribed_before_it_starts(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    await channel.subscribe()
+    await client.aclose()
+    await channel.unsubscribe()
+
+    await client.connect()
+    await channel._rejoin()
+    await client.aclose()
+
+    assert len(server.sent(ChannelEvents.join)) == 1
+    assert client.get_channels() == []
+    assert channel.state == ChannelStates.CLOSED
