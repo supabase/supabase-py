@@ -192,7 +192,8 @@ class RealtimeClient:
     disconnects a while after the last channel is removed.
 
     When the connection drops, it reconnects with full-jitter backoff until it
-    is closed, and joins its joined channels again.
+    is closed, and joins its joined channels again. After `aclose()`, the next
+    connect joins them again.
 
     :param url: The realtime URL of the project
     :param token_callback: Returns the access token, awaited on connect, on every channel join and on every heartbeat.
@@ -286,7 +287,9 @@ class RealtimeClient:
 
         Subscribing to a channel calls this, so it is only needed to connect
         before the first subscribe. When an open connection drops, the client
-        reconnects on its own and joins its joined channels again.
+        reconnects on its own and joins its joined channels again. The
+        channels that were joined when `aclose()` was called are joined again
+        once the connection opens, without waiting for this call to return.
         """
         self._cancel_pending_disconnect()
         async with self._connect_lock:
@@ -318,6 +321,8 @@ class RealtimeClient:
                 self._heartbeat(websocket, failure)
             )
             self._set_connection_state(ConnectionState.CONNECTED)
+            if self._channels_to_rejoin():
+                self._start_reconnect(wait_first=False)
 
     async def _connect_websockets(self, url: str) -> WebSocketConnection:
         return await websockets.connect(url, logger=websockets_logger)
@@ -379,8 +384,15 @@ class RealtimeClient:
         """
         Close the WebSocket connection, if one is open, and stop reconnecting.
 
-        The channels are left unsubscribed. Subscribing to a channel afterwards
-        opens a new connection.
+        Joined channels move to `ChannelStates.ERRORED` and stay registered.
+        `RealtimeChannel.messages` queues a `ChannelStateChange` with that
+        state and no error, and readers waiting for a message get a
+        `NotConnectedError`. Their presence state is kept. The next
+        `connect()`, or the connect of a channel subscribe, joins them again,
+        like the channels that were waiting to be joined again after a dropped
+        connection. Unsubscribe a channel, or call `remove_all_channels()`, so
+        it is not joined again. A `RealtimeChannel.subscribe()` that is still
+        waiting for its reply raises, and that channel is not joined again.
         """
         async with self._connect_lock:
             await self._stop()
@@ -521,25 +533,34 @@ class RealtimeClient:
         rejoin = False
         for channel in list(self.channels.values()):
             rejoin = channel._on_connection_lost(exc) or rejoin
-        if rejoin and (self._reconnect_task is None or self._reconnect_task.done()):
-            self._reconnect_task = asyncio.create_task(self._reconnect())
+        if rejoin:
+            self._start_reconnect(wait_first=True)
+
+    def _start_reconnect(self, *, wait_first: bool) -> None:
+        if self._reconnect_task is None or self._reconnect_task.done():
+            self._reconnect_task = asyncio.create_task(
+                self._reconnect(wait_first=wait_first)
+            )
 
     def _channels_to_rejoin(self) -> list[RealtimeChannel]:
         return [
             channel for channel in self.channels.values() if channel._rejoin_pending
         ]
 
-    async def _reconnect(self) -> None:
+    async def _reconnect(self, *, wait_first: bool) -> None:
         refused = False
+        wait = wait_first
         while self._channels_to_rejoin():
-            self._reconnect_attempt += 1
-            delay = reconnect_delay(self._reconnect_attempt)
-            logger.info(
-                "reconnecting in %.1f seconds (attempt %d)",
-                delay,
-                self._reconnect_attempt,
-            )
-            await asyncio.sleep(delay)
+            if wait:
+                self._reconnect_attempt += 1
+                delay = reconnect_delay(self._reconnect_attempt)
+                logger.info(
+                    "reconnecting in %.1f seconds (attempt %d)",
+                    delay,
+                    self._reconnect_attempt,
+                )
+                await asyncio.sleep(delay)
+            wait = True
             try:
                 await self.connect()
             except asyncio.CancelledError:

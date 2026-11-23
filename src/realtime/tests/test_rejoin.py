@@ -33,6 +33,8 @@ class FakeServer:
         self.received: list[Message] = []
         self.join_errors: list[str] = []
         self.refuse_upgrades = 0
+        self.hold_joins = False
+        self.join_held = asyncio.Event()
 
     async def __aenter__(self) -> "FakeServer":
         self.ws_server = await serve(
@@ -62,6 +64,9 @@ class FakeServer:
             message = decode(raw)
             self.received.append(message)
             if message.ref is None:
+                continue
+            if message.event == ChannelEvents.join and self.hold_joins:
+                self.join_held.set()
                 continue
             payload: dict[str, JSON] = {
                 "status": "ok",
@@ -108,6 +113,10 @@ def after_a_tenth_of_a_second(attempt: int) -> float:
 
 def at_once(attempt: int) -> float:
     return 0.0
+
+
+def after_ten_seconds(attempt: int) -> float:
+    return 10.0
 
 
 @pytest.fixture(autouse=True)
@@ -164,7 +173,6 @@ async def test_the_channel_keeps_receiving_messages_after_the_rejoin(
     message = await next_message(channel)
     await client.aclose()
 
-    assert channel.state == ChannelStates.CLOSED
     assert getattr(message, "event", None) == ChannelEvents.broadcast
 
 
@@ -401,7 +409,7 @@ async def test_aclose_stops_reconnecting(
     await asyncio.sleep(0.2)
 
     assert len(server.connections) == 1
-    assert channel.state == ChannelStates.CLOSED
+    assert channel.state == ChannelStates.ERRORED
 
 
 async def test_channels_that_were_not_joined_are_not_joined_again(
@@ -421,3 +429,146 @@ async def test_channels_that_were_not_joined_are_not_joined_again(
         joined.topic,
         joined.topic,
     ]
+
+
+async def test_connect_after_aclose_joins_the_channels_again(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    await channel.subscribe()
+
+    await client.aclose()
+    await client.connect()
+    errored = await next_message(channel)
+    joined = await next_message(channel)
+    await client.aclose()
+
+    assert errored == ChannelStateChange(ChannelStates.ERRORED)
+    assert joined == ChannelStateChange(ChannelStates.JOINED)
+    assert len(server.connections) == 2
+    assert len(server.sent(ChannelEvents.join)) == 2
+
+
+async def test_subscribing_another_channel_after_aclose_joins_the_others_again(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    await channel.subscribe()
+
+    await client.aclose()
+    other = client.channel("other")
+    await other.subscribe()
+    await next_message(channel)
+    joined = await next_message(channel)
+    await client.aclose()
+
+    assert joined == ChannelStateChange(ChannelStates.JOINED)
+    assert sorted(m.topic for m in server.sent(ChannelEvents.join)) == sorted(
+        [channel.topic, channel.topic, other.topic]
+    )
+
+
+async def test_subscribe_after_aclose_joins_the_channel_once(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    await channel.subscribe()
+
+    await client.aclose()
+    await channel.subscribe()
+    rejoin = client._reconnect_task
+    await client.aclose()
+
+    assert rejoin is None
+    assert len(server.sent(ChannelEvents.join)) == 2
+
+
+async def test_an_unsubscribed_channel_is_not_joined_again_after_aclose(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    left = client.channel("left")
+    kept = client.channel("kept")
+    await left.subscribe()
+    await kept.subscribe()
+
+    await left.unsubscribe()
+    await client.aclose()
+    await client.connect()
+    await next_message(kept)
+    await next_message(kept)
+    await client.aclose()
+
+    assert [m.topic for m in server.sent(ChannelEvents.join)] == [
+        left.topic,
+        kept.topic,
+        kept.topic,
+    ]
+    assert left.state == ChannelStates.CLOSED
+
+
+async def test_unsubscribe_after_aclose_stops_the_rejoin(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    other = client.channel("other")
+    await channel.subscribe()
+    await other.subscribe()
+
+    await client.aclose()
+    await channel.unsubscribe()
+    await client.connect()
+    await next_message(other)
+    await next_message(other)
+    await client.aclose()
+
+    rejoined = [m.topic for m in server.sent(ChannelEvents.join)[2:]]
+    assert rejoined == [other.topic]
+    assert channel.state == ChannelStates.CLOSED
+    assert server.sent(ChannelEvents.leave) == []
+
+
+async def test_a_channel_waiting_to_rejoin_is_joined_after_aclose_and_connect(
+    server: FakeServer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("realtime.client.reconnect_delay", after_ten_seconds)
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    await channel.subscribe()
+
+    await server.drop_connections()
+    await next_message(channel)
+    await client.aclose()
+    await client.connect()
+    joined = await next_message(channel)
+    await client.aclose()
+
+    assert joined == ChannelStateChange(ChannelStates.JOINED)
+    assert len(server.sent(ChannelEvents.join)) == 2
+
+
+async def test_aclose_during_a_rejoin_keeps_the_channel_errored(
+    server: FakeServer,
+) -> None:
+    client = RealtimeClient(server.url)
+    channel = client.channel("room")
+    await channel.subscribe()
+
+    server.hold_joins = True
+    await server.drop_connections()
+    await next_message(channel)
+    async with asyncio.timeout(2):
+        await server.join_held.wait()
+    await client.aclose()
+    state = channel.state
+    server.hold_joins = False
+    await client.connect()
+    joined = await next_message(channel)
+    await client.aclose()
+
+    assert state == ChannelStates.ERRORED
+    assert joined == ChannelStateChange(ChannelStates.JOINED)

@@ -111,16 +111,21 @@ async def test_channels_of_one_client_share_one_connection(
     assert len(server.connections) == 1
 
 
-async def test_close_leaves_channels_unsubscribed(server: FakeServer) -> None:
+async def test_close_keeps_channels_until_they_are_removed(
+    server: FakeServer,
+) -> None:
     client = RealtimeClient(server.url)
     channel = client.channel("room")
     await channel.subscribe()
 
     await client.aclose()
 
-    assert channel.state == ChannelStates.CLOSED
+    assert channel.state == ChannelStates.ERRORED
+    assert client.get_channels() == [channel]
     await client.remove_all_channels()
     assert client.get_channels() == []
+    assert channel.state == ChannelStates.CLOSED
+    assert len(server.connections) == 1
 
 
 async def test_subscribe_after_close_opens_a_new_connection(
