@@ -32,7 +32,10 @@ from .types import (
     AuthMFAAdminDeleteFactorResponse,
     AuthMFAAdminListFactorsResponse,
     AuthMFAAdminListFactorsResponseParser,
+    CreateCustomProviderParams,
     CreateOAuthClientParams,
+    CustomOAuthProvider,
+    CustomProviderType,
     Factor,
     GenerateLinkParams,
     GenerateLinkResponse,
@@ -40,10 +43,12 @@ from .types import (
     OAuthClientListResponse,
     OAuthClientResponse,
     SignOutScope,
+    UpdateCustomProviderParams,
     UpdateOAuthClientParams,
     User,
     UserList,
     UserResponse,
+    _CustomOAuthProviderList,
 )
 from .version import __version__
 
@@ -266,6 +271,120 @@ class SupabaseAuthAdminOAuth[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         return OAuthClientResponse(client=_validate_model(response, OAuthClient))
 
 
+def _validate_provider_identifier(identifier: str) -> None:
+    if identifier in ("", ".", "..") or "/" in identifier:
+        raise ValueError(f"Invalid custom provider identifier: {identifier!r}")
+
+
+@dataclass
+class SupabaseAuthAdminCustomProviders[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
+    """
+    Contains the administration methods of custom OIDC and OAuth providers,
+    the providers named with a `custom:` prefix, like `custom:mycompany`.
+    These are distinct from the clients of the OAuth 2.1 server in `oauth`.
+    """
+
+    executor: HttpIO
+    base_url: URL
+    default_headers: Headers
+
+    @handle_http_io
+    def list_providers(
+        self, provider_type: CustomProviderType | None = None
+    ) -> HttpMethod[list[CustomOAuthProvider]]:
+        """
+        Lists all custom providers, or only those of `provider_type`.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        query = (
+            URLQuery.from_mapping({"type": provider_type})
+            if provider_type
+            else URLQuery.empty()
+        )
+        response = yield EmptyRequest(
+            method="GET",
+            path=["admin", "custom-providers"],
+            query=query,
+        )
+        return _validate_model(response, _CustomOAuthProviderList).providers
+
+    @handle_http_io
+    def create_provider(
+        self, params: CreateCustomProviderParams
+    ) -> HttpMethod[CustomOAuthProvider]:
+        """
+        Creates a custom OIDC or OAuth provider.
+
+        For an OIDC provider, the server fetches and validates the discovery
+        document of the issuer, or the one at `discovery_url`, and raises an
+        `AuthApiError` with the code `validation_failed` when it cannot.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        response = yield JSONRequest(
+            method="POST",
+            path=["admin", "custom-providers"],
+            body=params,
+        )
+        return _validate_model(response, CustomOAuthProvider)
+
+    @handle_http_io
+    def get_provider(self, identifier: str) -> HttpMethod[CustomOAuthProvider]:
+        """
+        Gets a custom provider by its identifier, like `custom:mycompany`.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        _validate_provider_identifier(identifier)
+        response = yield EmptyRequest(
+            method="GET",
+            path=["admin", "custom-providers", identifier],
+        )
+        return _validate_model(response, CustomOAuthProvider)
+
+    @handle_http_io
+    def update_provider(
+        self, identifier: str, params: UpdateCustomProviderParams
+    ) -> HttpMethod[CustomOAuthProvider]:
+        """
+        Updates a custom provider by its identifier, like `custom:mycompany`.
+
+        When the `issuer` or `discovery_url` of an OIDC provider changes, the
+        server fetches and validates the discovery document again, and raises
+        an `AuthApiError` with the code `validation_failed` when it cannot.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        _validate_provider_identifier(identifier)
+        response = yield JSONRequest(
+            method="PUT",
+            path=["admin", "custom-providers", identifier],
+            body=params,
+        )
+        return _validate_model(response, CustomOAuthProvider)
+
+    @handle_http_io
+    def delete_provider(self, identifier: str) -> HttpMethod[None]:
+        """
+        Deletes a custom provider by its identifier, like `custom:mycompany`.
+
+        This function should only be called on a server.
+        Never expose your `service_role` key in the browser.
+        """
+        _validate_provider_identifier(identifier)
+        response = yield EmptyRequest(
+            method="DELETE",
+            path=["admin", "custom-providers", identifier],
+        )
+        if not response.is_success:
+            raise _handle_error_response(response)
+
+
 class SupabaseAuthAdmin[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def __init__(
         self, executor: HttpIO, base_url: URL, default_headers: Headers
@@ -281,6 +400,11 @@ class SupabaseAuthAdmin[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         )
         self.oauth: SupabaseAuthAdminOAuth[HttpIO] = SupabaseAuthAdminOAuth(
             self.executor, self.base_url, default_headers
+        )
+        self.custom_providers: SupabaseAuthAdminCustomProviders[HttpIO] = (
+            SupabaseAuthAdminCustomProviders(
+                self.executor, self.base_url, default_headers
+            )
         )
 
     @handle_http_io
