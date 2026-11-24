@@ -1103,6 +1103,7 @@ features:
       - ChannelStateChange
   realtime.client.disconnect:
     status: implemented
+    note: "RealtimeClient.aclose() closes the connection and stops reconnecting. Joined channels move to ERRORED and stay registered, and the next connect(), or the connect of a channel subscribe, joins them again. RealtimeChannel.messages yields a ChannelStateChange for each move; readers waiting on it get a NotConnectedError when the client is closed. A subscribe() still waiting for its join reply raises a RealtimeError, and that channel is not joined again, since the awaited call cannot report a later join."
     symbols:
       - RealtimeClient.aclose
   realtime.client.get_channels:

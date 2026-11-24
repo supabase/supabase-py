@@ -271,8 +271,10 @@ def _column_names(
 class ChannelStateChange:
     """
     Yielded by `RealtimeChannel.messages` when the connection of a joined
-    channel drops, with the state `ERRORED` and the error that dropped it, and
-    when the client joined the channel again, with the state `JOINED`.
+    channel drops, with the state `ERRORED` and the error that dropped it, or
+    when `RealtimeClient.aclose()` closes it, with the state `ERRORED` and no
+    error, and when the client joined the channel again, with the state
+    `JOINED`.
     """
 
     state: ChannelStates
@@ -424,15 +426,20 @@ class RealtimeChannel:
         self._enqueue(_ChannelFailed(error))
         self._emit_presence([_ChannelFailed(error)])
 
-    def _on_connection_lost(self, error: Exception) -> bool:
+    def _wait_for_rejoin(self, error: Exception | None) -> bool:
         if self._rejoin_pending:
             self.state = ChannelStates.ERRORED
             return True
-        if self.state == ChannelStates.JOINED:
-            logger.info("channel %s lost its connection", self.topic)
-            self.state = ChannelStates.ERRORED
-            self._rejoin_pending = True
-            self._enqueue(ChannelStateChange(ChannelStates.ERRORED, error))
+        if self.state != ChannelStates.JOINED:
+            return False
+        logger.info("channel %s lost its connection", self.topic)
+        self.state = ChannelStates.ERRORED
+        self._rejoin_pending = True
+        self._enqueue(ChannelStateChange(ChannelStates.ERRORED, error))
+        return True
+
+    def _on_connection_lost(self, error: Exception) -> bool:
+        if self._wait_for_rejoin(error):
             return True
         self._on_error()
         self._fail(error)
@@ -441,9 +448,10 @@ class RealtimeChannel:
     def _on_client_stopped(self) -> None:
         if self.state == ChannelStates.JOINING:
             self._subscribe_attempt = None
-        self._rejoin_pending = False
-        self.state = ChannelStates.CLOSED
         self._fail_pending_pushes()
+        if self._wait_for_rejoin(None):
+            return
+        self.state = ChannelStates.CLOSED
         self._emit_presence(self.presence._on_unsubscribe())
 
     def _on_error(self) -> None:
@@ -473,7 +481,8 @@ class RealtimeChannel:
         Join the channel, connecting the client first if it is not connected.
 
         When the connection of the joined channel drops, the client joins it
-        again on its own once it reconnected.
+        again on its own once it reconnected. After `RealtimeClient.aclose()`,
+        it joins it again on the next connect.
 
         Raises:
             AuthorizationError: If the server rejects the access token, or
@@ -535,12 +544,11 @@ class RealtimeChannel:
         try:
             msg = await self.socket._send(message)
         except asyncio.CancelledError:
-            self.state = ChannelStates.CLOSED
             await self._stop_cancelled_join(attempt, join_ref, failure)
             raise
         except Exception as exc:
-            self.state = ChannelStates.CLOSED
             self._raise_if_join_was_stopped(attempt)
+            self.state = ChannelStates.CLOSED
             connection_failed = failure is not None and failure.done()
             if isinstance(exc, RealtimeTimeoutError) and not connection_failed:
                 await self._leave_cancelled_join(join_ref, failure)
@@ -578,6 +586,8 @@ class RealtimeChannel:
         return msg
 
     async def _rejoin(self) -> None:
+        if not self._rejoin_pending:
+            return
         attempt = object()
         self._subscribe_attempt = attempt
         try:
@@ -674,7 +684,8 @@ class RealtimeChannel:
         The messages of the channel, in the order they arrived.
 
         It also yields a `ChannelStateChange` when the connection of the
-        joined channel drops and when the client joined it again. At most
+        joined channel drops or the client is closed, and when the client
+        joined it again. At most
         ``max_queued_messages`` of the client are kept until they are read;
         when the queue is full, the oldest message is dropped and a warning is
         logged. Presence events are not yielded here: read them from

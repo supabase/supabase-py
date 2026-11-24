@@ -17,6 +17,7 @@ from yarl import URL
 from realtime import (
     BroadcastPersistence,
     ChannelNotJoinedError,
+    ChannelStateChange,
     ChannelStates,
     ConnectionState,
     RealtimeClient,
@@ -157,6 +158,31 @@ async def test_binary_broadcast_events(socket: RealtimeClient) -> None:
         assert isinstance(message, BroadcastMessage)
         assert message.payload.event == "binary-event"
         assert message.payload.payload == data
+
+
+@pytest.mark.asyncio
+async def test_connect_after_aclose_joins_the_channel_again(
+    socket: RealtimeClient,
+) -> None:
+    options = RealtimeChannelOptions().broadcast(listen_self=True, ack=True)
+    channel = socket.channel("test-aclose-rejoin", options)
+    await channel.subscribe()
+
+    await socket.aclose()
+    await socket.connect()
+    messages = channel.messages
+    async with asyncio.timeout(10):
+        errored = await anext(messages)
+        joined = await anext(messages)
+        await channel.send_broadcast("after-connect", {"message": "back"})
+        message = await anext(messages)
+    await channel.unsubscribe()
+
+    assert errored == ChannelStateChange(ChannelStates.ERRORED)
+    assert joined == ChannelStateChange(ChannelStates.JOINED)
+    assert isinstance(message, BroadcastMessage)
+    assert message.payload.event == "after-connect"
+    assert message.payload.payload == {"message": "back"}
 
 
 @pytest.mark.asyncio

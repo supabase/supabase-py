@@ -214,10 +214,11 @@ async def test_an_errored_channel_can_subscribe_again(server: FakeServer) -> Non
     await asyncio.wait_for(channel.messages.__anext__(), timeout=1)
 
     await channel.subscribe()
+    joined = channel.joined
     await client.aclose()
 
     assert len(server.joins()) == 2
-    assert channel.state == ChannelStates.CLOSED
+    assert joined
 
 
 async def test_a_dropped_connection_moves_joined_channels_to_errored(
@@ -276,14 +277,14 @@ async def test_a_heartbeat_timeout_moves_joined_channels_to_errored(
     assert channel.message_stream.empty()
 
 
-async def test_aclose_moves_joined_channels_to_closed(server: FakeServer) -> None:
+async def test_aclose_moves_joined_channels_to_errored(server: FakeServer) -> None:
     client = RealtimeClient(server.url)
     channel = client.channel("room")
     await channel.subscribe()
 
     await client.aclose()
 
-    assert channel.state == ChannelStates.CLOSED
+    assert channel.state == ChannelStates.ERRORED
 
 
 async def test_set_auth_skips_the_channels_of_a_dropped_connection(
