@@ -18,6 +18,7 @@ PACKAGES = [
     "postgrest",
     "supabase",
     "utils",
+    "typegen",
 ]
 IMPORT_NAMES = {
     "functions": "supabase_functions",
@@ -27,6 +28,7 @@ IMPORT_NAMES = {
     "postgrest": "postgrest",
     "supabase": "supabase",
     "utils": "supabase_utils",
+    "typegen": "supabase_typegen",
 }
 DEPENDENTS = {
     "utils": set(PACKAGES),
@@ -34,8 +36,9 @@ DEPENDENTS = {
     "realtime": {"supabase"},
     "storage": {"supabase"},
     "auth": {"supabase"},
-    "postgrest": {"realtime", "supabase"},
+    "postgrest": {"realtime", "supabase", "typegen"},
     "supabase": set(),
+    "typegen": set(),
 }
 IGNORED_PATTERNS = [
     "*.md",

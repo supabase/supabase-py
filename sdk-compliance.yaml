@@ -954,6 +954,7 @@ features:
       - Ordering.nulls_first
       - Ordering.nulls_last
       - Range
+      - Bytea
       - TableRequest
       - TableResult
       - TableOperation

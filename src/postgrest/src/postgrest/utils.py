@@ -25,10 +25,12 @@ def _serialize_filter_value(value: Any) -> str:
 
     A ``datetime`` becomes ISO 8601 with its UTC offset, so the server does
     not read it in the database time zone. A naive ``datetime`` is taken as
-    UTC.
+    UTC. ``bytes`` become the ``\\x`` hex text PostgreSQL reads for ``bytea``.
     """
     if value is None:
         return "null"
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return "\\x" + bytes(value).hex()
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, (dict, list)):

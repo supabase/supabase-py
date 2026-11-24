@@ -1,6 +1,6 @@
 .PHONY: ci, default, clean, start-infra, stop-infra
 
-PACKAGES := utils functions realtime storage auth postgrest supabase
+PACKAGES := utils functions realtime storage auth postgrest supabase typegen
 FORALL_PKGS = $(foreach pkg, $(PACKAGES), $(pkg).$(1))
 
 help::
@@ -81,6 +81,9 @@ postgrest.%:
 
 supabase.%:
 	@$(MAKE) -C src/supabase $*
+
+typegen.%:
+	@$(MAKE) -C src/typegen $*
 
 help::
 	@echo

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .bytea import Bytea
 from .client import AsyncPostgrestClient, SyncPostgrestClient
 from .column_expression import Column, ComputedField, NullableColumn
 from .exceptions import APIError
@@ -66,6 +67,7 @@ __all__ = [
     "AsyncHttpTableExecutor",
     "AsyncPostgrestClient",
     "AsyncTableExecutor",
+    "Bytea",
     "Column",
     "ColumnExpression",
     "Comparison",
