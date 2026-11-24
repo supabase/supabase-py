@@ -78,12 +78,24 @@ select = [
   "T20",
   # flake8-fixme
   "FIX",
+  # pydocstyle: the sections of a Google style docstring, see CONTRIBUTING.md.
+  "D214",  # a section is not indented more than the docstring
+  "D405",  # a section name is capitalized: `Args:`, not `args:`
+  "D410",  # a blank line follows each section
+  "D411",  # a blank line comes before each section, or griffe reads it as text
+  "D412",  # no blank line between a section name and its content
+  "D414",  # a section is not empty
+  "D416",  # a section name ends with a colon: `Returns:`, not `Returns`
+  "D417",  # `Args:` describes every parameter, once a docstring has that section
 ]
 ignore = ["E501", "E402"]
 
 [tool.ruff.lint.per-file-ignores]
 ".github/scripts/*" = ["T20"]
 "src/*/scripts/*" = ["T20"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.flake8-type-checking]
 runtime-evaluated-base-classes = ["pydantic.BaseModel"]

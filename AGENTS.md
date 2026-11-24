@@ -34,6 +34,10 @@ This SDK follows the [Supabase SDK engineering principles](https://github.com/su
 
 Adding or renaming a public symbol means updating [sdk-compliance.yaml](sdk-compliance.yaml) with both the `Async*` and `Sync*` names. A method defined once on a generic base, like `PostgrestClient.rpc` or `SupabaseClient.rpc`, is listed under the base name, because the check does not see inherited methods on the subclasses. [validate-capabilities.yml](.github/workflows/validate-capabilities.yml) checks it against the [supabase/sdk](https://github.com/supabase/sdk) capability registry.
 
+## Docstrings
+
+Write Google style docstrings, as [CONTRIBUTING.md](CONTRIBUTING.md#docstrings) describes. 
+
 ## Service compatibility
 
 Update the "Supabase Service Compatibility" section of the READMEs if the supported version of a Supabase service changes. Any change that is not "Latest release" requires integration tests for the minimum supported version.
