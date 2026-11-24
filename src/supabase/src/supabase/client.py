@@ -388,6 +388,10 @@ class SupabaseClient[
             `FunctionCall`, a TypedFilterBuilder for one built with
             `FunctionCall.rows` and a TypedBuilder for one built with
             `FunctionCall.value`.
+
+        Raises:
+            TypeError: If `fn` is a `FunctionCall` and `params`, `head`, `count` or
+                `get` is given, since the call carries its arguments.
         """
         if isinstance(fn, str):
             return self.postgrest.rpc(fn, params or {}, head=head, count=count, get=get)

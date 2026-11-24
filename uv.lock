@@ -628,6 +628,15 @@ wheels = [
 ]
 
 [[package]]
+name = "docstring-parser-fork"
+version = "0.0.16"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/04/ce/48b17c6c24d0af112f73721a90fac245450e548b82b53169260720f60d07/docstring_parser_fork-0.0.16.tar.gz", hash = "sha256:9ecf861ceab8b87d1297a71001c15a1956ad02e87434ee6473643a5988094f7c", size = 36360, upload-time = "2026-07-03T07:27:46.668Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c1/69/427c34e61827818942b48ececd7c892b8f58ba4ce4cfc89ba9fd8dbe8a8d/docstring_parser_fork-0.0.16-py3-none-any.whl", hash = "sha256:c024c97af582d6acf85a14f0b332b3a2ab08626648d251c25e47191f33064386", size = 25253, upload-time = "2026-07-03T07:27:45.591Z" },
+]
+
+[[package]]
 name = "docstring-to-markdown"
 version = "0.17"
 source = { registry = "https://pypi.org/simple" }
@@ -1418,6 +1427,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
+    { name = "pydoclint" },
     { name = "pyrefly" },
     { name = "pyright" },
     { name = "pytest" },
@@ -1432,6 +1442,7 @@ dev = [
 ]
 lints = [
     { name = "mypy" },
+    { name = "pydoclint" },
     { name = "pyrefly" },
     { name = "pyright" },
     { name = "python-lsp-ruff" },
@@ -1458,6 +1469,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "mypy", specifier = ">=2.4.1" },
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pyright", specifier = ">=1.1.414" },
     { name = "pytest", specifier = ">=9.0.3" },
@@ -1472,6 +1484,7 @@ dev = [
 ]
 lints = [
     { name = "mypy", specifier = ">=2.4.1" },
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pyright", specifier = ">=1.1.414" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
@@ -1766,6 +1779,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/06/58/b9ddfaad189143d6568627166a730b6624ca90bd9a9a4af4854df88d444b/pydantic_core-2.50.2-graalpy312-graalpy250_312_native-macosx_11_0_arm64.whl", hash = "sha256:41ed8abeffda6a880207fdc0cd1343a448cec3cc6b38b53f730c0745f745292d", size = 2049162, upload-time = "2026-10-29T16:34:36.186Z" },
     { url = "https://files.pythonhosted.org/packages/8b/20/99d259bf7835b2f13c6d0b3eb7bcf669fb6349986736fa7a8308a9e620b0/pydantic_core-2.50.2-graalpy312-graalpy250_312_native-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:b7abcfaf66c1dc14c5ed928c349614f223c972a8b021b4be9548dbea6c817371", size = 2112135, upload-time = "2026-10-29T16:34:37.777Z" },
     { url = "https://files.pythonhosted.org/packages/9b/ca/652c8fe599abacafd852479059d209e608596ad3de82f1bff22e9f0f02fe/pydantic_core-2.50.2-graalpy312-graalpy250_312_native-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:9e7460abce637f90e37f8c443559fbd687c38884d05cb69ef265e634945f4324", size = 2270339, upload-time = "2026-10-29T16:34:39.039Z" },
+]
+
+[[package]]
+name = "pydoclint"
+version = "0.12.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "docstring-parser-fork" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9b/f7/ae03ad83f47dfee8a468544e4b77b254940299b15f9710e00450a5034729/pydoclint-0.12.0.tar.gz", hash = "sha256:ac061ae24381547e41d5a45044a1f88c87a54541b67ec959bd5160c69256482c", size = 255216, upload-time = "2026-10-28T06:48:34.428Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6e/45/9aea4898fcfbb3ed973eb23f6b83c677bb8bcecb59e9681fae6da82bb3be/pydoclint-0.12.0-py3-none-any.whl", hash = "sha256:28f5763a865cb19b54883dfe68b05b01d2c2fc2e8d59dcf424cc345bc976a689", size = 99545, upload-time = "2026-10-28T06:48:33.34Z" },
 ]
 
 [[package]]
@@ -2164,6 +2190,7 @@ dependencies = [
 dev = [
     { name = "aiohttp" },
     { name = "pudb" },
+    { name = "pydoclint" },
     { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -2174,6 +2201,7 @@ dev = [
     { name = "ruff" },
 ]
 lints = [
+    { name = "pydoclint" },
     { name = "pyrefly" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
@@ -2201,6 +2229,7 @@ requires-dist = [
 dev = [
     { name = "aiohttp", specifier = ">=3.14.4" },
     { name = "pudb", specifier = ">=2025.1.5" },
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
@@ -2211,6 +2240,7 @@ dev = [
     { name = "ruff", specifier = ">=0.12.1" },
 ]
 lints = [
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
@@ -2314,6 +2344,7 @@ iceberg = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pydoclint" },
     { name = "pyiceberg", extra = ["pyarrow"] },
     { name = "pyrefly" },
     { name = "pytest" },
@@ -2327,6 +2358,7 @@ dev = [
     { name = "unasync" },
 ]
 lints = [
+    { name = "pydoclint" },
     { name = "pyrefly" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
@@ -2356,6 +2388,7 @@ provides-extras = ["iceberg"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyiceberg", extras = ["pyarrow"], specifier = ">=0.11.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
@@ -2369,6 +2402,7 @@ dev = [
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 lints = [
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
@@ -2421,6 +2455,7 @@ iceberg = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pydoclint" },
     { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -2432,6 +2467,7 @@ dev = [
     { name = "unasync" },
 ]
 lints = [
+    { name = "pydoclint" },
     { name = "pyrefly" },
     { name = "ruff" },
     { name = "unasync" },
@@ -2461,6 +2497,7 @@ provides-extras = ["aiohttp", "iceberg"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
@@ -2472,6 +2509,7 @@ dev = [
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 lints = [
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "ruff", specifier = ">=0.12.1" },
     { name = "unasync", specifier = ">=0.6.0" },
@@ -2498,6 +2536,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "faker" },
+    { name = "pydoclint" },
     { name = "pyotp" },
     { name = "pyrefly" },
     { name = "pytest" },
@@ -2512,6 +2551,7 @@ dev = [
     { name = "unasync" },
 ]
 lints = [
+    { name = "pydoclint" },
     { name = "pyrefly" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
@@ -2539,6 +2579,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "faker", specifier = ">=37.4.0" },
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyotp", specifier = ">=2.9.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
@@ -2553,6 +2594,7 @@ dev = [
     { name = "unasync", specifier = ">=0.6.0" },
 ]
 lints = [
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },
@@ -2582,6 +2624,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pydoclint" },
     { name = "pyjwt" },
     { name = "pyrefly" },
     { name = "pytest" },
@@ -2593,6 +2636,7 @@ dev = [
     { name = "supabase-utils", extra = ["all"] },
 ]
 lints = [
+    { name = "pydoclint" },
     { name = "pyrefly" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
@@ -2615,6 +2659,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyjwt", specifier = ">=2.15.1" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "pytest", specifier = ">=9.0.3" },
@@ -2626,6 +2671,7 @@ dev = [
     { name = "supabase-utils", extras = ["all"], editable = "src/utils" },
 ]
 lints = [
+    { name = "pydoclint", specifier = ">=0.12.0" },
     { name = "pyrefly", specifier = ">=1.4.0,<2.0.0" },
     { name = "python-lsp-ruff", specifier = ">=2.2.2,<3.0.0" },
     { name = "python-lsp-server", specifier = ">=1.12.2,<2.0.0" },

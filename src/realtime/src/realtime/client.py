@@ -713,7 +713,7 @@ class RealtimeClient:
         in the order of the calls.
 
         Args:
-            token (Optional[str]): The new access token. The token callback no
+            token: The new access token. The token callback no
                 longer replaces it on joins, heartbeats and reconnects, until
                 this method is called without a token. When None, the token
                 callback is awaited for the token and replaces it again from

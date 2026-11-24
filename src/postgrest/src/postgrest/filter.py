@@ -593,6 +593,9 @@ class ColumnExpression(Expression[Row, Value], Ordering[Row], ABC, Generic[Row, 
             type: How PostgreSQL parses `query`. Without it, `query` is
                 parsed by `to_tsquery`
             config: The text search configuration to use, such as `english`
+
+        Returns:
+            The filter, to pass to `where()`.
         """
         token: str = Filters.FTS
         if type is not None:

@@ -71,6 +71,9 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Args:
             id: The unique identifier of the bucket
+
+        Returns:
+            A client for the files in the bucket.
         """
         return StorageFileApiClient(id, self.base_url, self.executor, self)
 
@@ -109,6 +112,9 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             search: Only returns the buckets whose name contains this text, ignoring case.
             sort_column: The column to sort the buckets by.
             sort_order: The direction to sort the buckets in.
+
+        Returns:
+            The buckets.
         """
         params = {
             "limit": limit,
@@ -132,6 +138,9 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Args:
             id: The unique identifier of the bucket you would like to retrieve.
+
+        Returns:
+            The bucket.
         """
         response = yield EmptyRequest(
             method="GET",
@@ -159,6 +168,9 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 file size limit takes precedence. When `None`, the bucket has no limit of its own.
             allowed_mime_types: The MIME types the bucket accepts on upload, each a wildcard such as
                 `image/*` or a type such as `image/png`. When `None`, every MIME type is accepted.
+
+        Returns:
+            The name of the new bucket.
         """
         body = CreateOrUpdateBucketBody(
             id=id,
@@ -194,6 +206,9 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 file size limit takes precedence. When `None`, it is not changed.
             allowed_mime_types: The MIME types the bucket accepts on upload, each a wildcard such as
                 `image/*` or a type such as `image/png`. When `None`, they are not changed.
+
+        Returns:
+            The message the server answers with.
         """
         body = CreateOrUpdateBucketBody(
             id=id,
@@ -216,6 +231,9 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Args:
             id: The unique identifier of the bucket you would like to empty.
+
+        Returns:
+            The message the server answers with.
         """
         response = yield EmptyRequest(
             method="POST",
@@ -231,6 +249,9 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Args:
             id: The unique identifier of the bucket you would like to delete.
+
+        Returns:
+            The message the server answers with.
         """
         response = yield EmptyRequest(
             method="DELETE",
@@ -242,13 +263,18 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def get_bucket_lifecycle(self, id: str) -> HttpMethod[list[LifecycleRule]]:
         """Retrieves the rules of the lifecycle policy of a standard bucket.
 
-        Returns an empty list when the bucket has no lifecycle policy. Raises
-        `StorageApiError` when lifecycle policies are not enabled on
-        the storage service, the bucket is not a standard bucket, or the
-        caller is not authorized.
+        Returns an empty list when the bucket has no lifecycle policy.
 
         Args:
             id: The unique identifier of the bucket.
+
+        Returns:
+            The rules of the policy, or an empty list when the bucket has none.
+
+        Raises:
+            StorageApiError: If lifecycle policies are not enabled on the storage
+                service, the bucket is not a standard bucket, or the caller is not
+                authorized.
         """
         response = yield EmptyRequest(
             method="GET",
@@ -293,6 +319,9 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Args:
             id: The unique identifier of the bucket.
+
+        Returns:
+            The message the server answers with.
         """
         response = yield EmptyRequest(
             method="DELETE",

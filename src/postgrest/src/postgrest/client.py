@@ -63,14 +63,16 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self,
         token: str,
     ) -> Self:
-        """
-        Authenticate the client with either bearer token or basic authentication.
+        """Authenticate the client with a bearer token.
 
-        Raises:
-            ValueError: If neither authentication scheme is provided.
+        Use `set_auth_with_password` for basic authentication.
 
-        Note:
-            Bearer token is preferred if both ones are provided.
+        Args:
+            token: The token sent in the `Authorization` header of the requests
+                built after this call.
+
+        Returns:
+            This client.
         """
         self.default_headers = self.default_headers.override(
             "Authorization", f"Bearer {token}"
@@ -213,8 +215,8 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         Args:
             func: The name of the remote procedure to run.
             params: The parameters to be passed to the remote procedure.
-            count: The method to use to get the count of rows returned.
             head: When set to `true`, `data` will not be returned. Useful if you only need the count.
+            count: The method to use to get the count of rows returned.
             get: When set to `true`, the function will be called with read-only access mode,
                 with `params` as query parameters. When PostgREST would read a parameter as
                 something else, one named like an option such as `limit`, a `None`, or a value
@@ -225,6 +227,10 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             with `head`, for a function name; `TypedFilterBuilder` for a
             call built with `FunctionCall.rows` and `TypedBuilder` for one
             built with `FunctionCall.value`.
+
+        Raises:
+            TypeError: If `func` is a `FunctionCall` and `params`, `head`, `count` or
+                `get` is given, since the call carries its arguments.
 
         Examples:
             Call a function with arguments:

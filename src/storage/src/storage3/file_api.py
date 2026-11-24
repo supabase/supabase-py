@@ -289,6 +289,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             path: The file path, including the file name. For example `folder/image.png`.
             upsert: Whether a later upload with the returned token may overwrite an
                 existing file. The server default applies when omitted.
+
+        Returns:
+            The signed URL, and the token that `upload_to_signed_url` takes.
         """
         headers = Headers.empty()
         if upsert is not None:
@@ -333,6 +336,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             on_progress: Called with the bytes sent so far and the total, or None when the
                 total is not known, as the body is sent. It restarts from 0 when
                 the body is sent again.
+
+        Returns:
+            The uploaded object.
         """
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
         http_headers = _upload_headers(
@@ -371,6 +377,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce: str | None = None,
     ) -> HttpMethod[str]:
         """
+        Creates a signed URL, to share a file for a fixed amount of time.
+
         Args:
             path: file path to be downloaded, including the current file name.
             expires_in: number of seconds until the signed URL expires.
@@ -379,6 +387,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             transform: How to transform an image before it is served.
             cache_nonce: Appended to the URL as the `cacheNonce` query parameter. Pass a new
                 value, such as the time the file last changed, to bypass a cached copy.
+
+        Returns:
+            The signed URL.
         """
         url_query = _url_query(download, cache_nonce)
 
@@ -429,6 +440,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce: str | None = None,
     ) -> HttpMethod[builtins.list[CreateSignedUrlResponse]]:
         """
+        Creates signed URLs for several files, to share them for a fixed amount
+        of time.
+
         Args:
             paths: the file paths to be downloaded, each including the current file name.
             expires_in: number of seconds until the signed URL expires.
@@ -436,6 +450,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 file name does so under that name.
             cache_nonce: Appended to the URL as the `cacheNonce` query parameter. Pass a new
                 value, such as the time the file last changed, to bypass a cached copy.
+
+        Returns:
+            For each path, its signed URL or the error that prevented it.
         """
         url_query = _url_query(download, cache_nonce)
 
@@ -460,6 +477,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce: str | None = None,
     ) -> str:
         """
+        Builds the URL of a file in a public bucket, without sending a request.
+
         Args:
             path: file path, including the path and file name. For example `folder/image.png`.
             download: `True` makes the URL download the file instead of showing it, and a
@@ -467,6 +486,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             transform: How to transform an image before it is served.
             cache_nonce: Appended to the URL as the `cacheNonce` query parameter. Pass a new
                 value, such as the time the file last changed, to bypass a cached copy.
+
+        Returns:
+            The public URL of the file.
         """
         url_query = _url_query(download, cache_nonce)
 
@@ -496,6 +518,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             from_path: The original file path, including the current file name. For example `folder/image.png`.
             to_path: The new file path, including the new file name. For example `folder/image-copy.png`.
             destination_bucket: The bucket to move the file to. Defaults to this bucket.
+
+        Returns:
+            The message the server answers with.
         """
         response = yield JSONRequest(
             method="POST",
@@ -541,6 +566,13 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             content_encoding: The `Content-Encoding` of the copy. An empty string clears it. It
                 changes the metadata only, not the bytes of the file. Requires
                 `copy_metadata=False` and Supabase Storage v1.80.0 or newer.
+
+        Returns:
+            The object written by the copy.
+
+        Raises:
+            ValueError: If `metadata`, `cache_control`, `content_type` or
+                `content_encoding` is given without `copy_metadata=False`.
         """
         file_metadata = {
             key: value
@@ -599,6 +631,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Args:
             paths: An array or list of files to be deletes, including the path and file name. For example [`folder/image.png`].
+
+        Returns:
+            The deleted files.
         """
         response = yield JSONRequest(
             method="DELETE",
@@ -617,6 +652,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Args:
             path: The path to the file.
+
+        Returns:
+            The information of the file.
         """
         path_parts: tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
         response = yield EmptyRequest(
@@ -633,11 +671,15 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         Returns True if the file exists, False if it does not.
 
-        Raises `StorageApiError` for any other error, such as an
-        invalid token or a missing bucket.
-
         Args:
             path: The path to the file.
+
+        Returns:
+            Whether the file exists.
+
+        Raises:
+            StorageApiError: For any other error, such as an invalid token or a
+                missing bucket.
         """
         response = yield EmptyRequest(
             method="GET",
@@ -677,6 +719,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 ending in `/`. Otherwise every key at every depth is listed and
                 `folders` is empty.
             sort_by: The column and order to sort by. Defaults to `name` ascending.
+
+        Returns:
+            One page of the objects and folders, with the cursor of the next page.
         """
         body = ListBody(
             prefix=prefix,
@@ -834,6 +879,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             on_progress: Called with the bytes received so far and the total, or None when
                 the total is not known, as the body arrives. It restarts from 0
                 when the download is retried.
+
+        Returns:
+            The bytes of the file, or of the requested range.
         """
         byte_range = _byte_range(offset, length)
         request = self._download_request(
@@ -949,6 +997,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 value, such as the time the file last changed, to bypass a cached copy.
             on_progress: Called with the bytes of the body read so far and the total, or
                 None when the total is not known, as the body is read.
+
+        Returns:
+            A context manager that sends the request when entered and gives the download.
         """
         byte_range = _byte_range(offset, length)
         request = self._download_request(
@@ -1019,6 +1070,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             on_progress: Called with the bytes sent so far and the total, or None when the
                 total is not known, as the body is sent. It restarts from 0 when
                 the body is sent again.
+
+        Returns:
+            The uploaded object.
         """
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(
@@ -1112,6 +1166,9 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             on_progress: Called with the bytes the server holds, plus those of the chunk in
                 flight, and the size of the file. It can go down when a chunk is
                 sent again.
+
+        Returns:
+            The upload, which sends nothing until `run` is called.
         """
         options: dict[str, Any] = {
             "path": _normalize_object_key(path),
