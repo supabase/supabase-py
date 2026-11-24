@@ -55,3 +55,16 @@ Write docstrings in [Google style](https://google.github.io/styleguide/pyguide.h
 [`check_docstrings.py`](.github/scripts/check_docstrings.py) rejects what ruff reads as plain text: another name for a section, such as `Params:` for `Args:`, NumPy sections, Sphinx fields, reST directives and Sphinx roles. 
 
 [pydoclint](https://jsh9.github.io/pydoclint/) checks that a docstring matches the signature of its function: `Args:` lists the parameters in their order and no others, and a function that returns or yields a value has a `Returns:` or `Yields:` section.
+
+## API docs
+
+The API docs for supabase.com/docs are generated from the docstrings. To see them as the docs site will show them, run 
+the preview with the path to a local checkout of [supabase/supabase](https://github.com/supabase/supabase):
+
+```bash
+make api-docs-preview DOCS=../supabase
+```
+
+It generates the API docs, starts the docs site in that checkout and opens the page in your browser. Ctrl-C stops it.
+
+See [`tools/api-docs/README.md`](tools/api-docs/README.md) for the full details.

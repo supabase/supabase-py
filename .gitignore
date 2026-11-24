@@ -115,3 +115,7 @@ cython_debug/
 
 # Windows
 Thumbs.db
+
+# API docs
+docs/api-docs/definitions
+tools/api-docs/node_modules/

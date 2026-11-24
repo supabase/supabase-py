@@ -1,0 +1,17 @@
+{
+  "name": "supabase-py-api-docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generates and checks the API docs definitions that supabase.com/docs reads. Never published.",
+  "type": "module",
+  "scripts": {
+    "preinstall": "test -f ../../../sdk/packages/doc-generator/dist/cli.js || { echo 'error: there is no built checkout of supabase/sdk next to this repository. See Setup in tools/api-docs/README.md.' >&2; exit 1; }",
+    "generate": "doc-generator",
+    "check": "doc-check ../../docs/api-docs/definitions",
+    "preview": "doc-generator preview"
+  },
+  "devDependencies": {
+    "@supabase/doc-check": "file:../../../sdk/packages/doc-check",
+    "@supabase/doc-generator": "file:../../../sdk/packages/doc-generator"
+  }
+}
