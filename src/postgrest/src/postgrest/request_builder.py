@@ -850,8 +850,9 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
             desc: Whether the rows should be ordered in descending order or not.
             nullsfirst: nullsfirst
             foreign_table: Foreign table name whose results are to be ordered.
-        .. versionchanged:: 0.10.3
-           Allow ordering results for foreign tables with the foreign_table parameter.
+
+        Note:
+            Changed in version 0.10.3: Allow ordering results for foreign tables with the foreign_table parameter.
         """
         key = f"{foreign_table}.order" if foreign_table else "order"
         order = f"{column}.{'desc' if desc else 'asc'}"
@@ -879,8 +880,9 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
         Args:
             size: The number of rows to be returned
             foreign_table: Foreign table name to limit
-        .. versionchanged:: 0.10.3
-           Allow limiting results returned for foreign tables with the foreign_table parameter.
+
+        Note:
+            Changed in version 0.10.3: Allow limiting results returned for foreign tables with the foreign_table parameter.
         """
         query = self.request.query.set(
             f"{foreign_table}.limit" if foreign_table else "limit", size
@@ -889,6 +891,7 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
 
     def offset(self: Self, size: int) -> Self:
         """Set the starting row index returned by a query.
+
         Args:
             size: The number of the row to start at
         """
@@ -914,8 +917,9 @@ class BaseRPCRequestBuilder(BaseSelectRequestBuilder):
 
         Args:
             *columns: The names of the columns to fetch.
+
         Returns:
-            :class:`BaseSelectRequestBuilder`
+            `BaseSelectRequestBuilder`
         """
         _method, params, _headers, _json = pre_select(*columns, count=None)
         request = replace(
@@ -1036,7 +1040,7 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
     def single(self) -> SingleRequestBuilder[HttpIO]:
         """Specify that the query will only return a single row in response.
 
-        .. caution::
+        Caution:
             The API will raise an error if the query returned more than one row.
         """
         return SingleRequestBuilder(
@@ -1142,14 +1146,14 @@ class QueryRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[H
     def execute(self) -> HttpMethod[APIResponse]:
         """Execute the query.
 
-        .. tip::
+        Tip:
             This is the last method called, after the query is built.
 
         Returns:
-            :class:`APIResponse`
+            `APIResponse`
 
         Raises:
-            :class:`APIError` If the API raised an error.
+            APIError: If the API raised an error.
         """
         r = yield self.request
         _raise_for_failure(r, dry_run=self.request.dry_run)
@@ -1167,14 +1171,14 @@ class SingleRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     def execute(self) -> HttpMethod[SingleAPIResponse]:
         """Execute the query.
 
-        .. tip::
+        Tip:
             This is the last method called, after the query is built.
 
         Returns:
-            :class:`SingleAPIResponse`
+            `SingleAPIResponse`
 
         Raises:
-            :class:`APIError` If the API raised an error.
+            APIError: If the API raised an error.
         """
         response = yield self.request
         _raise_for_failure(response, dry_run=self.request.dry_run)
@@ -1190,14 +1194,14 @@ class TextRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](BaseRequestClient[Ht
     def execute(self) -> HttpMethod[TextAPIResponse]:
         """Execute the query.
 
-        .. tip::
+        Tip:
             This is the last method called, after the query is built.
 
         Returns:
-            :class:`TextAPIResponse`
+            `TextAPIResponse`
 
         Raises:
-            :class:`APIError` If the API raised an error.
+            APIError: If the API raised an error.
         """
         response = yield self.request
         _raise_for_failure(response, dry_run=self.request.dry_run)
@@ -1274,7 +1278,7 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     def single(self) -> SingleRequestBuilder[HttpIO]:
         """Specify that the query will only return a single row in response.
 
-        .. caution::
+        Caution:
             The API will raise an error if the query returned more than one row.
         """
         return SingleRequestBuilder(
@@ -1297,14 +1301,14 @@ class RPCFilterRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     def execute(self) -> HttpMethod[RPCResponse]:
         """Execute the query.
 
-        .. tip::
+        Tip:
             This is the last method called, after the query is built.
 
         Returns:
-            :class:`RPCResponse`
+            `RPCResponse`
 
         Raises:
-            :class:`APIError` If the API raised an error.
+            APIError: If the API raised an error.
         """
         r = yield self.request
         _raise_for_failure(r, dry_run=self.request.dry_run)
@@ -1322,14 +1326,14 @@ class RPCCountRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
     def execute(self) -> HttpMethod[int | None]:
         """Execute the query.
 
-        .. tip::
+        Tip:
             This is the last method called, after the query is built.
 
         Returns:
-            :class:`APIResponse`
+            `APIResponse`
 
         Raises:
-            :class:`APIError` If the API raised an error.
+            APIError: If the API raised an error.
         """
         response = yield self.request
         _raise_for_failure(response, dry_run=self.request.dry_run)
@@ -1404,8 +1408,10 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         Args:
             *columns: The names of the columns to fetch.
             count: The method to use to get the count of rows returned.
+            head: When set to `true`, `data` will not be returned. Useful if you only need the count.
+
         Returns:
-            :class:`SelectRequestBuilder`
+            `SelectRequestBuilder`
         """
         method, params, headers, json = pre_select(*columns, count=count, head=head)
         request = PostgrestRequest(
@@ -1447,8 +1453,9 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             default_to_null: Make missing fields default to `null`.
                 Otherwise, use the default value for the column.
                 Only applies for bulk inserts.
+
         Returns:
-            :class:`QueryRequestBuilder`. PostgREST ignores filters, ordering
+            `QueryRequestBuilder`. PostgREST ignores filters, ordering
             and limits on an insert, so only the shape of the returned rows
             can be changed, with `select`, `single`, `maybe_single`, `csv`
             and `explain`.
@@ -1498,8 +1505,9 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 default value for the column. This only applies when inserting new rows,
                 not when merging with existing rows under `ignoreDuplicates: false`.
                 This also only applies when doing bulk upserts.
+
         Returns:
-            :class:`QueryRequestBuilder`. PostgREST ignores filters, ordering
+            `QueryRequestBuilder`. PostgREST ignores filters, ordering
             and limits on an upsert, so only the shape of the returned rows
             can be changed, with `select`, `single`, `maybe_single`, `csv`
             and `explain`.
@@ -1540,8 +1548,9 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 serialized as `insert()` does.
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
+
         Returns:
-            :class:`MutationRequestBuilder`. Executing it without a filter
+            `MutationRequestBuilder`. Executing it without a filter
             raises `ValueError` before anything is sent, since it would
             update every row in the table. Call `all()` to do so on purpose.
         """
@@ -1576,8 +1585,9 @@ class RequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         Args:
             count: The method to use to get the count of rows returned.
             returning: Either 'minimal' or 'representation'
+
         Returns:
-            :class:`MutationRequestBuilder`. Executing it without a filter
+            `MutationRequestBuilder`. Executing it without a filter
             raises `ValueError` before anything is sent, since it would
             delete every row in the table. Call `all()` to do so on purpose.
         """

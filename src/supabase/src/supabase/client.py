@@ -121,47 +121,36 @@ class SupabaseClient[
     ) -> None:
         """Instantiate the client.
 
-        Parameters
-        ----------
-        supabase_url: str
-            The URL to the Supabase instance that should be connected to.
-        supabase_key: str
-            The API key to the Supabase instance that should be connected to.
-            With a secret or `service_role` key, the client keeps sending the
-            key after a sign-in instead of the user's access token. Sign users
-            in on a separate client created with the publishable key.
-        headers
-            Headers sent with every request, on top of the default ones.
-        request_timeout
-            Seconds a request to the database, auth, storage or edge functions
-            may go without progress before it fails with `RequestTimeoutError`.
-            It limits how long the connection may stall, not the whole request,
-            so a large transfer that keeps moving is not cut short. None (the
-            default) leaves the timeout to the HTTP client, which is 60
-            seconds for the one `create_client` or `create_async_client`
-            creates. The `request_timeout` of a service's options overrides it
-            for that service.
-        retry
-            How requests to the database, auth, storage or edge functions
-            that failed in a way worth repeating are retried. None (the
-            default) uses the default `RetryPolicy`, which retries GET and
-            HEAD requests up to three times on a rate limit, a gateway error
-            or a network error. The `retry` of a service's options overrides
-            it for that service.
-        postgrest
-            Options for the database client.
-        auth
-            Options for the auth client.
-        storage
-            Options for the storage client.
-        functions
-            Options for the edge functions client.
-        allow_insecure_http
-            Accept an `http` URL whose host is not a loopback host, such as
-            an emulator, a LAN address or a Docker service name. Without it
-            only `https` URLs, and `http` URLs on `localhost`, `127.0.0.0/8`
-            or `::1`, are accepted, since `http` sends the API key and the
-            session of the user in clear text.
+        Args:
+            supabase_url: The URL to the Supabase instance that should be connected to.
+            supabase_key: The API key to the Supabase instance that should be connected to.
+                With a secret or `service_role` key, the client keeps sending the
+                key after a sign-in instead of the user's access token. Sign users
+                in on a separate client created with the publishable key.
+            headers: Headers sent with every request, on top of the default ones.
+            request_timeout: Seconds a request to the database, auth, storage or edge functions
+                may go without progress before it fails with `RequestTimeoutError`.
+                It limits how long the connection may stall, not the whole request,
+                so a large transfer that keeps moving is not cut short. None (the
+                default) leaves the timeout to the HTTP client, which is 60
+                seconds for the one `create_client` or `create_async_client`
+                creates. The `request_timeout` of a service's options overrides it
+                for that service.
+            retry: How requests to the database, auth, storage or edge functions
+                that failed in a way worth repeating are retried. None (the
+                default) uses the default `RetryPolicy`, which retries GET and
+                HEAD requests up to three times on a rate limit, a gateway error
+                or a network error. The `retry` of a service's options overrides
+                it for that service.
+            postgrest: Options for the database client.
+            auth: Options for the auth client.
+            storage: Options for the storage client.
+            functions: Options for the edge functions client.
+            allow_insecure_http: Accept an `http` URL whose host is not a loopback host, such as
+                an emulator, a LAN address or a Docker service name. Without it
+                only `https` URLs, and `http` URLs on `localhost`, `127.0.0.0/8`
+                or `::1`, are accepted, since `http` sends the API key and the
+                session of the user in clear text.
         """
         _validate_string_argument("supabase_url", supabase_url)
         _validate_string_argument("supabase_key", supabase_key)
@@ -384,21 +373,16 @@ class SupabaseClient[
                 .execute()
             )
 
-        Parameters
-        ----------
-        fn : str or FunctionCall
-            The name of the stored procedure to call, or a `FunctionCall`,
-            which carries its arguments and takes none of the other
-            parameters.
-        params : dict of any
-            Parameters passed into the stored procedure call.
-        head: When set to `true`, `data` will not be returned. Useful if you only need the count.
-        count: The method to use to get the count of rows returned.
-        get: When set to `true`, the function will be called with read-only access mode.
+        Args:
+            fn: The name of the stored procedure to call, or a `FunctionCall`,
+                which carries its arguments and takes none of the other
+                parameters.
+            params: Parameters passed into the stored procedure call.
+            head: When set to `true`, `data` will not be returned. Useful if you only need the count.
+            count: The method to use to get the count of rows returned.
+            get: When set to `true`, the function will be called with read-only access mode.
 
-        Returns
-        -------
-        RPCFilterRequestBuilder
+        Returns:
             A filter builder that lets you apply filters on the response of
             the RPC. An RPCCountRequestBuilder when `head` is true. For a
             `FunctionCall`, a TypedFilterBuilder for one built with

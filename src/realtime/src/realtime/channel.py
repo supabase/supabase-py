@@ -100,10 +100,19 @@ class RealtimeChannelOptions:
         """
         Configure broadcast for the channel.
 
-        :param replication_ready: When True, the server emits a ``system`` message once
-            the Postgres replication connection backing the channel is ready to stream
-            changes. Its payload ``status`` is ``"ok"`` on success or ``"error"`` if the
-            connection is not ready in time.
+        Args:
+            ack: When True, the server acknowledges each broadcast, and
+                `send_broadcast()` waits for its reply and returns it.
+            listen_self: When True, the channel also receives the broadcasts it sends.
+            replay_since: When the channel joins, the server replays the messages it
+                stored since this Unix timestamp in milliseconds. Only a private
+                channel can replay.
+            replay_limit: How many messages to replay at most, counting back from the
+                most recent. It applies only with ``replay_since``.
+            replication_ready: When True, the server emits a ``system`` message once
+                the Postgres replication connection backing the channel is ready to stream
+                changes. Its payload ``status`` is ``"ok"`` on success or ``"error"`` if the
+                connection is not ready in time.
         """
         return replace(
             self,
@@ -118,11 +127,12 @@ class RealtimeChannelOptions:
         """
         Configure presence for the channel.
 
-        :param key: The key this connection's presence goes under. The server
-            picks a new one on each join when it is empty.
-        :param enabled: Turn presence on even when the channel has no
-            listener from `RealtimeChannel.presence_events()` at subscribe,
-            for an app that only reads `RealtimeChannel.presence_state()`.
+        Args:
+            key: The key this connection's presence goes under. The server
+                picks a new one on each join when it is empty.
+            enabled: Turn presence on even when the channel has no
+                listener from `RealtimeChannel.presence_events()` at subscribe,
+                for an app that only reads `RealtimeChannel.presence_state()`.
         """
         return replace(self, presence_key=key, presence_enabled=enabled)
 
@@ -167,32 +177,36 @@ class RealtimeChannelOptions:
         """
         Listen for Postgres database changes.
 
-        :param event: The change event to listen for (``INSERT``, ``UPDATE``, ``DELETE`` or ``*``)
-        :param table: The table to monitor, by name or as a typed ``Table``.
-            Defaults to all tables
-        :param schema: The database schema to monitor. Defaults to the schema of
-            a typed ``Table``, and to ``public``
-        :param filter: Optional filter, evaluated server-side, as a typed
-            ``Filter`` of the table or as a string in the form
-            ``column=operator.value`` (e.g. ``"id=eq.1"`` or ``"title=like.%foo%"``).
-            Supported operators: ``eq``, ``neq``, ``lt``, ``lte``, ``gt``, ``gte``,
-            ``in`` (``"status=in.(active,pending)"``), ``like``, ``ilike``, ``is``
-            (``"deleted_at=is.null"``), ``match``, ``imatch`` (POSIX regex),
-            ``isdistinct`` (NULL-safe inequality). Any operator can be negated with
-            the ``not.`` prefix (e.g. ``"status=not.in.(draft,archived)"``). Combine
-            multiple conditions with commas to apply them as an ``AND``
-            (e.g. ``"amount=gt.100,status=in.(open,pending)"``).
-            A typed filter joins its ``&`` conditions with commas and sends ``~``
-            on one condition as ``not.``; it raises ``ValueError`` for a ``|`` and
-            for a ``~`` on a group, which the filter string cannot express:
+        Args:
+            event: The change event to listen for (``INSERT``, ``UPDATE``, ``DELETE`` or ``*``)
+            table: The table to monitor, by name or as a typed ``Table``.
+                Defaults to all tables
+            schema: The database schema to monitor. Defaults to the schema of
+                a typed ``Table``, and to ``public``
+            filter: Optional filter, evaluated server-side, as a typed
+                ``Filter`` of the table or as a string in the form
+                ``column=operator.value`` (e.g. ``"id=eq.1"`` or ``"title=like.%foo%"``).
+                Supported operators: ``eq``, ``neq``, ``lt``, ``lte``, ``gt``, ``gte``,
+                ``in`` (``"status=in.(active,pending)"``), ``like``, ``ilike``, ``is``
+                (``"deleted_at=is.null"``), ``match``, ``imatch`` (POSIX regex),
+                ``isdistinct`` (NULL-safe inequality). Any operator can be negated with
+                the ``not.`` prefix (e.g. ``"status=not.in.(draft,archived)"``). Combine
+                multiple conditions with commas to apply them as an ``AND``
+                (e.g. ``"amount=gt.100,status=in.(open,pending)"``).
+                A typed filter joins its ``&`` conditions with commas and sends ``~``
+                on one condition as ``not.``; it raises ``ValueError`` for a ``|`` and
+                for a ``~`` on a group, which the filter string cannot express:
 
+                ```python
                 Messages.room_id.eq(200) & ~Messages.status.in_(["draft"])
-
-        :param select: Optional list of columns to receive instead of the full row.
-            Reduces payload size (helpful for large ``bytea``/``jsonb`` columns). The
-            listed columns must be selectable by the subscribing role. With a typed
-            ``Table`` the primary key is always included, so a change can be told
-            apart from the others; read the record with ``Table.decode_partial()``.
+                ```
+            id: Not sent to the server, which gives each binding its own id in its reply
+                to the join.
+            select: Optional list of columns to receive instead of the full row.
+                Reduces payload size (helpful for large ``bytea``/``jsonb`` columns). The
+                listed columns must be selectable by the subscribing role. With a typed
+                ``Table`` the primary key is always included, so a change can be told
+                apart from the others; read the record with ``Table.decode_partial()``.
         """
         names = None if select is None else _column_names(select)
         if isinstance(table, Table):
@@ -300,9 +314,10 @@ class RealtimeChannel:
         """
         Initialize the Channel object.
 
-        :param socket: RealtimeClient object
-        :param topic: Topic that it subscribes to on the realtime server
-        :param options: Optional channel options.
+        Args:
+            socket: RealtimeClient object
+            topic: Topic that it subscribes to on the realtime server
+            options: Optional channel options.
         """
         self.socket = socket
         self.options = options or RealtimeChannelOptions()
@@ -460,18 +475,19 @@ class RealtimeChannel:
         When the connection of the joined channel drops, the client joins it
         again on its own once it reconnected.
 
-        :raises AuthorizationError: If the server rejects the access token, or
-            the row level security policies deny the join of a private channel.
-        :raises ChannelJoinError: If the server rejects the join for another
-            reason, given in its ``reason`` attribute.
-        :raises RealtimeTimeoutError: If the server does not reply within the
-            ``timeout`` of the client.
-        :raises NotConnectedError: If the connection drops before the server
-            replies.
-        :raises RealtimeError: If the ``postgres_changes`` bindings in the
-            server's reply do not match the requested ones (the channel is left
-            first), or if `unsubscribe()` or `RealtimeClient.aclose()` is called
-            before the join completes.
+        Raises:
+            AuthorizationError: If the server rejects the access token, or
+                the row level security policies deny the join of a private channel.
+            ChannelJoinError: If the server rejects the join for another
+                reason, given in its ``reason`` attribute.
+            RealtimeTimeoutError: If the server does not reply within the
+                ``timeout`` of the client.
+            NotConnectedError: If the connection drops before the server
+                replies.
+            RealtimeError: If the ``postgres_changes`` bindings in the
+                server's reply do not match the requested ones (the channel is left
+                first), or if `unsubscribe()` or `RealtimeClient.aclose()` is called
+                before the join completes.
         """
         attempt = object()
         self._subscribe_attempt = attempt
@@ -664,13 +680,14 @@ class RealtimeChannel:
         logged. Presence events are not yielded here: read them from
         `presence_events()`.
 
-        :raises NotConnectedError: If the client is not connected, is closed
-            while waiting for a message, or the channel was unsubscribed and
-            its queued messages were read.
-        :raises Exception: The error that ended the channel, such as an
-            `AuthorizationError` when the client could not join it again after
-            a reconnect, or the error that dropped the connection of a channel
-            that was not joined, like a channel the server closed.
+        Raises:
+            NotConnectedError: If the client is not connected, is closed
+                while waiting for a message, or the channel was unsubscribed and
+                its queued messages were read.
+            Exception: The error that ended the channel, such as an
+                `AuthorizationError` when the client could not join it again after
+                a reconnect, or the error that dropped the connection of a channel
+                that was not joined, like a channel the server closed.
         """
         while True:
             if self.message_stream.empty():
@@ -706,10 +723,11 @@ class RealtimeChannel:
         The listener is removed when the iterator is closed or garbage
         collected.
 
-        :raises RealtimeError: If the channel is joining or joined with
-            presence off, since the listener would never receive an event.
-            Add the listener before `subscribe()`, or turn presence on with
-            `RealtimeChannelOptions.presence(enabled=True)`.
+        Raises:
+            RealtimeError: If the channel is joining or joined with
+                presence off, since the listener would never receive an event.
+                Add the listener before `subscribe()`, or turn presence on with
+                `RealtimeChannelOptions.presence(enabled=True)`.
         """
         joining_or_joined = self.state in (
             ChannelStates.JOINING,
@@ -783,13 +801,16 @@ class RealtimeChannel:
         Wait at most ``timeout`` seconds of the client for the reply, or
         wrap the call in ``asyncio.timeout()`` for a shorter wait.
 
-        :param user_status: The presence payload, a JSON object.
-        :raises ChannelNotJoinedError: If the channel is not joined.
-        :raises PushRejectedError: If the server replies with an error.
-        :raises RealtimeTimeoutError: If the server does not reply in time.
-        :raises ChannelClosedError: If the channel closes or errors before the
-            server replies, for example when the server closes it for going
-            over the presence rate limit.
+        Args:
+            user_status: The presence payload, a JSON object.
+
+        Raises:
+            ChannelNotJoinedError: If the channel is not joined.
+            PushRejectedError: If the server replies with an error.
+            RealtimeTimeoutError: If the server does not reply in time.
+            ChannelClosedError: If the channel closes or errors before the
+                server replies, for example when the server closes it for going
+                over the presence rate limit.
         """
         join_ref = self.join_ref
         await self.send_presence("track", dict(user_status))
@@ -803,11 +824,12 @@ class RealtimeChannel:
         Wait at most ``timeout`` seconds of the client for the reply, or
         wrap the call in ``asyncio.timeout()`` for a shorter wait.
 
-        :raises ChannelNotJoinedError: If the channel is not joined.
-        :raises PushRejectedError: If the server replies with an error.
-        :raises RealtimeTimeoutError: If the server does not reply in time.
-        :raises ChannelClosedError: If the channel closes or errors before the
-            server replies.
+        Raises:
+            ChannelNotJoinedError: If the channel is not joined.
+            PushRejectedError: If the server replies with an error.
+            RealtimeTimeoutError: If the server does not reply in time.
+            ChannelClosedError: If the channel closes or errors before the
+                server replies.
         """
         await self.send_presence("untrack", {})
 
@@ -817,7 +839,8 @@ class RealtimeChannel:
 
         Later presence messages do not change the returned value.
 
-        :return: Dictionary mapping presence keys to lists of presence payloads
+        Returns:
+            Dictionary mapping presence keys to lists of presence payloads
         """
         return {key: list(presences) for key, presences in self.presence.state.items()}
 
@@ -862,30 +885,33 @@ class RealtimeChannel:
         it, the call waits at most ``timeout`` seconds of the client for the
         server's reply and returns it.
 
-        :param event: The name of the broadcast event
-        :param data: The payload to broadcast. A bytes-like object, such as
-            ``bytes``, ``bytearray`` or ``memoryview``, is sent as a binary frame,
-            and receivers get it as ``bytes`` in ``BroadcastPayload.payload``.
-            Anything else is sent as JSON.
-        :param persist: Stores the message on the server so that it can be
-            replayed. Only ``broadcast_ack`` tells whether it was stored.
-        :raises ValueError: If ``persist`` is set on a channel that is not
-            private, or if the message is sent as a binary frame and the
-            topic or the event is longer than 255 bytes in UTF-8.
-        :raises ChannelNotJoinedError: If the channel is not joined.
-        :raises PushRejectedError: With ``broadcast_ack``, if the server replies
-            with an error. Its ``code`` is ``persistence_unauthorized`` or
-            ``persistence_failed`` when the message was delivered but not
-            stored, and ``persistence_invalid_ttl`` when the server refused
-            the ``ttl`` and neither delivered nor stored it.
-        :raises RealtimeTimeoutError: With ``broadcast_ack``, if the server does
-            not reply in time.
-        :raises ChannelClosedError: With ``broadcast_ack``, if the channel closes
-            or errors before the server replies.
-        :raises websockets.ConnectionClosed: If the connection is closed, or the
-            error the `WebSocketConnection` of a custom transport raises.
-        :raises Exception: If the connection already failed, the exception that
-            failed it, such as a TimeoutError when a heartbeat timed out.
+        Args:
+            event: The name of the broadcast event
+            data: The payload to broadcast. A bytes-like object, such as
+                ``bytes``, ``bytearray`` or ``memoryview``, is sent as a binary frame,
+                and receivers get it as ``bytes`` in ``BroadcastPayload.payload``.
+                Anything else is sent as JSON.
+            persist: Stores the message on the server so that it can be
+                replayed. Only ``broadcast_ack`` tells whether it was stored.
+
+        Raises:
+            ValueError: If ``persist`` is set on a channel that is not
+                private, or if the message is sent as a binary frame and the
+                topic or the event is longer than 255 bytes in UTF-8.
+            ChannelNotJoinedError: If the channel is not joined.
+            PushRejectedError: With ``broadcast_ack``, if the server replies
+                with an error. Its ``code`` is ``persistence_unauthorized`` or
+                ``persistence_failed`` when the message was delivered but not
+                stored, and ``persistence_invalid_ttl`` when the server refused
+                the ``ttl`` and neither delivered nor stored it.
+            RealtimeTimeoutError: With ``broadcast_ack``, if the server does
+                not reply in time.
+            ChannelClosedError: With ``broadcast_ack``, if the channel closes
+                or errors before the server replies.
+            websockets.ConnectionClosed: If the connection is closed, or the
+                error the `WebSocketConnection` of a custom transport raises.
+            Exception: If the connection already failed, the exception that
+                failed it, such as a TimeoutError when a heartbeat timed out.
         """
         self._check_persist("send_broadcast", persist)
         if not self.joined:
@@ -921,22 +947,25 @@ class RealtimeChannel:
         deliver the broadcast twice. Returning means the server accepted the
         broadcast.
 
-        :param event: The name of the broadcast event
-        :param data: The payload to broadcast, a JSON object. A bytes-like
-            object is sent unchanged as ``application/octet-stream``.
-        :param persist: Asks the server to store the message so that it can be
-            replayed. The server stores it after it answers, so returning does
-            not mean the message was stored.
-        :param request_timeout: Seconds the whole call may take. None uses the
-            ``timeout`` of the client.
-        :raises ValueError: If ``persist`` is set on a channel that is not
-            private.
-        :raises RealtimeError: If the client has no ``http_session``.
-        :raises RealtimeAPIError: If the server answers with a status other
-            than 202.
-        :raises RealtimeTimeoutError: If the call takes longer than the timeout.
-        :raises SupabaseTransportError: If the request fails before a response
-            is read.
+        Args:
+            event: The name of the broadcast event
+            data: The payload to broadcast, a JSON object. A bytes-like
+                object is sent unchanged as ``application/octet-stream``.
+            persist: Asks the server to store the message so that it can be
+                replayed. The server stores it after it answers, so returning does
+                not mean the message was stored.
+            request_timeout: Seconds the whole call may take. None uses the
+                ``timeout`` of the client.
+
+        Raises:
+            ValueError: If ``persist`` is set on a channel that is not
+                private.
+            RealtimeError: If the client has no ``http_session``.
+            RealtimeAPIError: If the server answers with a status other
+                than 202.
+            RealtimeTimeoutError: If the call takes longer than the timeout.
+            SupabaseTransportError: If the request fails before a response
+                is read.
         """
         validate_request_timeout(request_timeout)
         self._check_persist("http_send", persist)
@@ -1013,11 +1042,12 @@ class RealtimeChannel:
         """
         Send a ``presence`` message and wait for the server's reply.
 
-        :raises ChannelNotJoinedError: If the channel is not joined.
-        :raises PushRejectedError: If the server replies with an error.
-        :raises RealtimeTimeoutError: If the server does not reply in time.
-        :raises ChannelClosedError: If the channel closes or errors before the
-            server replies.
+        Raises:
+            ChannelNotJoinedError: If the channel is not joined.
+            PushRejectedError: If the server replies with an error.
+            RealtimeTimeoutError: If the server does not reply in time.
+            ChannelClosedError: If the channel closes or errors before the
+                server replies.
         """
         if not self.joined:
             raise ChannelNotJoinedError(f"RealtimeChannel.{event}", self.topic)
