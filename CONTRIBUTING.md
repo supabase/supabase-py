@@ -42,3 +42,12 @@ When making pull requests against the `v2` branch, make sure to follow these gui
 - In your PR's description, link to any related issues or pull requests to give reviewers the full context of your change. To link to an existing issue or pull request in your PR, use the # symbol followed by the issue or PR number. For example, to link to issue number 123, you would write #123 in your PR's description. GitHub will automatically create a link to the issue.
 - For commit messages, follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) format.
   - For example, if you update documentation for a specific extension, your commit message might be: `docs(extension-name) updated installation documentation`.
+
+## Docstrings
+
+Write docstrings in [Google style](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings). 
+
+- Describe the parameters under `Args:`, the return value under `Returns:`, the errors under `Raises:` and the examples under `Examples:`. Leave the types out: they are taken from the annotations.
+- Write each example under `Examples:` as a `python` code block or a doctest, with a one-line title above it. 
+
+`make ruff` checks the docstrings, and CI runs the same checks. ruff checks the format of the sections: their names, colons and blank lines, and that `Args:` lists every parameter once a docstring has it. [`check_docstrings.py`](.github/scripts/check_docstrings.py) rejects what ruff reads as plain text: another name for a section, such as `Params:` for `Args:`, NumPy sections, Sphinx fields, reST directives and Sphinx roles.

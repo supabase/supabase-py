@@ -71,7 +71,7 @@ class APIError(SupabaseAPIError):
         """Convert the error into a dictionary.
 
         Returns:
-            :class:`dict`
+            `dict`
         """
         return self._raw_error
 

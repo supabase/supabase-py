@@ -67,9 +67,9 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         Authenticate the client with either bearer token or basic authentication.
 
         Raises:
-            `ValueError`: If neither authentication scheme is provided.
+            ValueError: If neither authentication scheme is provided.
 
-        .. note::
+        Note:
             Bearer token is preferred if both ones are provided.
         """
         self.default_headers = self.default_headers.override(
@@ -94,8 +94,9 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Args:
             table: The name of the table
+
         Returns:
-            :class:`AsyncRequestBuilder`
+            `AsyncRequestBuilder`
         """
         return RequestBuilder(
             executor=self.executor,
@@ -124,7 +125,7 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
             books = client.table(Books.table).select().where(Books.id.eq(1)).execute()
 
-        With the name of a table it is an alias to :meth:`from_`, the string
+        With the name of a table it is an alias to `from_`, the string
         builder.
         """
         if isinstance(table, str):
@@ -218,15 +219,19 @@ class PostgrestClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 with `params` as query parameters. When PostgREST would read a parameter as
                 something else, one named like an option such as `limit`, a `None`, or a value
                 that starts like a filter such as `eq.x`, it is called with a `POST` instead.
-        Returns:
-            :class:`RPCFilterRequestBuilder`, or :class:`RPCCountRequestBuilder`
-            with `head`, for a function name; :class:`TypedFilterBuilder` for a
-            call built with `FunctionCall.rows` and :class:`TypedBuilder` for one
-            built with `FunctionCall.value`.
-        Example:
-            .. code-block:: python
 
-                await client.rpc("foobar", {"arg": "value"}).execute()
+        Returns:
+            `RPCFilterRequestBuilder`, or `RPCCountRequestBuilder`
+            with `head`, for a function name; `TypedFilterBuilder` for a
+            call built with `FunctionCall.rows` and `TypedBuilder` for one
+            built with `FunctionCall.value`.
+
+        Examples:
+            Call a function with arguments:
+
+            ```python
+            await client.rpc("foobar", {"arg": "value"}).execute()
+            ```
         """
         if not isinstance(func, str):
             if params is not None or head or count is not None or get:

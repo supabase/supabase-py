@@ -285,13 +285,10 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         Creates a signed upload URL.
 
-        Parameters
-        ----------
-        path
-            The file path, including the file name. For example `folder/image.png`.
-        upsert
-            Whether a later upload with the returned token may overwrite an
-            existing file. The server default applies when omitted.
+        Args:
+            path: The file path, including the file name. For example `folder/image.png`.
+            upsert: Whether a later upload with the returned token may overwrite an
+                existing file. The server default applies when omitted.
         """
         headers = Headers.empty()
         if upsert is not None:
@@ -320,22 +317,22 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         on_progress: ProgressCallback | None = None,
     ) -> HttpMethod[UploadResponse]:
         """
-        Upload a file with a token generated from :meth:`.create_signed_upload_url`
+        Upload a file with a token generated from `create_signed_upload_url`
 
-        Parameters
-        ----------
-        path
-            The file path, including the file name
-        token
-            The token generated from :meth:`.create_signed_upload_url`
-        file
-            What to upload: the bytes, the path of a file, a binary file or an
-            iterator over the bytes. A file or an iterator is streamed instead
-            of read into memory first.
-        on_progress
-            Called with the bytes sent so far and the total, or None when the
-            total is not known, as the body is sent. It restarts from 0 when
-            the body is sent again.
+        Args:
+            path: The file path, including the file name
+            token: The token generated from `create_signed_upload_url`
+            file: What to upload: the bytes, the path of a file, a binary file or an
+                iterator over the bytes. A file or an iterator is streamed instead
+                of read into memory first.
+            content_type: The `Content-Type` the file is stored with.
+            cache_control: The number of seconds the file is cached in the browser and
+                the Supabase CDN, sent as `Cache-Control: max-age=<seconds>`.
+            metadata: Custom metadata stored with the file, a JSON object.
+            headers: Extra headers sent with the request.
+            on_progress: Called with the bytes sent so far and the total, or None when the
+                total is not known, as the body is sent. It restarts from 0 when
+                the body is sent again.
         """
         path_parts: tuple[str, ...] = relative_path_to_parts(path)
         http_headers = _upload_headers(
@@ -374,17 +371,14 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce: str | None = None,
     ) -> HttpMethod[str]:
         """
-        Parameters
-        ----------
-        path
-            file path to be downloaded, including the current file name.
-        expires_in
-            number of seconds until the signed URL expires.
-        options
-            options to be passed for downloading or transforming the file.
-        cache_nonce
-            Appended to the URL as the `cacheNonce` query parameter. Pass a new
-            value, such as the time the file last changed, to bypass a cached copy.
+        Args:
+            path: file path to be downloaded, including the current file name.
+            expires_in: number of seconds until the signed URL expires.
+            download: `True` makes the URL download the file instead of showing it, and a
+                file name does so under that name.
+            transform: How to transform an image before it is served.
+            cache_nonce: Appended to the URL as the `cacheNonce` query parameter. Pass a new
+                value, such as the time the file last changed, to bypass a cached copy.
         """
         url_query = _url_query(download, cache_nonce)
 
@@ -435,17 +429,13 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce: str | None = None,
     ) -> HttpMethod[builtins.list[CreateSignedUrlResponse]]:
         """
-        Parameters
-        ----------
-        path
-            file path to be downloaded, including the current file name.
-        expires_in
-            number of seconds until the signed URL expires.
-        options
-            options to be passed for downloading the file.
-        cache_nonce
-            Appended to the URL as the `cacheNonce` query parameter. Pass a new
-            value, such as the time the file last changed, to bypass a cached copy.
+        Args:
+            paths: the file paths to be downloaded, each including the current file name.
+            expires_in: number of seconds until the signed URL expires.
+            download: `True` makes the URL download the file instead of showing it, and a
+                file name does so under that name.
+            cache_nonce: Appended to the URL as the `cacheNonce` query parameter. Pass a new
+                value, such as the time the file last changed, to bypass a cached copy.
         """
         url_query = _url_query(download, cache_nonce)
 
@@ -470,13 +460,13 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         cache_nonce: str | None = None,
     ) -> str:
         """
-        Parameters
-        ----------
-        path
-            file path, including the path and file name. For example `folder/image.png`.
-        cache_nonce
-            Appended to the URL as the `cacheNonce` query parameter. Pass a new
-            value, such as the time the file last changed, to bypass a cached copy.
+        Args:
+            path: file path, including the path and file name. For example `folder/image.png`.
+            download: `True` makes the URL download the file instead of showing it, and a
+                file name does so under that name.
+            transform: How to transform an image before it is served.
+            cache_nonce: Appended to the URL as the `cacheNonce` query parameter. Pass a new
+                value, such as the time the file last changed, to bypass a cached copy.
         """
         url_query = _url_query(download, cache_nonce)
 
@@ -502,14 +492,10 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         Moves an existing file, optionally renaming it at the same time.
 
-        Parameters
-        ----------
-        from_path
-            The original file path, including the current file name. For example `folder/image.png`.
-        to_path
-            The new file path, including the new file name. For example `folder/image-copy.png`.
-        destination_bucket
-            The bucket to move the file to. Defaults to this bucket.
+        Args:
+            from_path: The original file path, including the current file name. For example `folder/image.png`.
+            to_path: The new file path, including the new file name. For example `folder/image-copy.png`.
+            destination_bucket: The bucket to move the file to. Defaults to this bucket.
         """
         response = yield JSONRequest(
             method="POST",
@@ -539,32 +525,22 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         Copies an existing file to a new path.
 
-        Parameters
-        ----------
-        from_path
-            The original file path, including the current file name. For example `folder/image.png`.
-        to_path
-            The new file path, including the new file name. For example `folder/image-copy.png`.
-        destination_bucket
-            The bucket to copy the file to. Defaults to this bucket.
-        upsert
-            Whether to overwrite the file at `to_path` if it already exists.
-        copy_metadata
-            Whether the copy keeps the metadata of the original file. Set it to
-            `False` to replace the custom metadata with `metadata` and to
-            override the file metadata given below.
-        metadata
-            The custom metadata of the copy. Requires `copy_metadata=False`.
-        cache_control
-            The `Cache-Control` of the copy. A number of seconds, as in
-            `upload()`, is sent as `max-age=<seconds>`; any other value, like
-            `no-cache`, is sent as given. Requires `copy_metadata=False`.
-        content_type
-            The `Content-Type` of the copy. Requires `copy_metadata=False`.
-        content_encoding
-            The `Content-Encoding` of the copy. An empty string clears it. It
-            changes the metadata only, not the bytes of the file. Requires
-            `copy_metadata=False` and Supabase Storage v1.80.0 or newer.
+        Args:
+            from_path: The original file path, including the current file name. For example `folder/image.png`.
+            to_path: The new file path, including the new file name. For example `folder/image-copy.png`.
+            destination_bucket: The bucket to copy the file to. Defaults to this bucket.
+            upsert: Whether to overwrite the file at `to_path` if it already exists.
+            copy_metadata: Whether the copy keeps the metadata of the original file. Set it to
+                `False` to replace the custom metadata with `metadata` and to
+                override the file metadata given below.
+            metadata: The custom metadata of the copy. Requires `copy_metadata=False`.
+            cache_control: The `Cache-Control` of the copy. A number of seconds, as in
+                `upload()`, is sent as `max-age=<seconds>`; any other value, like
+                `no-cache`, is sent as given. Requires `copy_metadata=False`.
+            content_type: The `Content-Type` of the copy. Requires `copy_metadata=False`.
+            content_encoding: The `Content-Encoding` of the copy. An empty string clears it. It
+                changes the metadata only, not the bytes of the file. Requires
+                `copy_metadata=False` and Supabase Storage v1.80.0 or newer.
         """
         file_metadata = {
             key: value
@@ -621,10 +597,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         Deletes files within the same bucket
 
-        Parameters
-        ----------
-        paths
-            An array or list of files to be deletes, including the path and file name. For example [`folder/image.png`].
+        Args:
+            paths: An array or list of files to be deletes, including the path and file name. For example [`folder/image.png`].
         """
         response = yield JSONRequest(
             method="DELETE",
@@ -641,10 +615,8 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         Lists info for a particular file.
 
-        Parameters
-        ----------
-        path
-            The path to the file.
+        Args:
+            path: The path to the file.
         """
         path_parts: tuple[str, ...] = relative_path_to_parts(path)  # split paths by /
         response = yield EmptyRequest(
@@ -661,13 +633,11 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         Returns True if the file exists, False if it does not.
 
-        Raises :class:`StorageApiError` for any other error, such as an
+        Raises `StorageApiError` for any other error, such as an
         invalid token or a missing bucket.
 
-        Parameters
-        ----------
-        path
-            The path to the file.
+        Args:
+            path: The path to the file.
         """
         response = yield EmptyRequest(
             method="GET",
@@ -695,24 +665,18 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
 
         Needs Supabase Storage v1.19.0 or newer.
 
-        Parameters
-        ----------
-        prefix
-            The start of the object keys to list. It is sent as given: `photos`
-            also selects `photos-old/a.png`, while `photos/` selects the keys
-            under that folder.
-        limit
-            The page size. The server default and maximum are 1000.
-        cursor
-            The `nextCursor` of the previous page. Pass it with the same
-            arguments as the first page.
-        with_delimiter
-            When `True`, lists one level: the keys below the next `/` after
-            `prefix` are collapsed into `folders`, named by their full prefix
-            ending in `/`. Otherwise every key at every depth is listed and
-            `folders` is empty.
-        sort_by
-            The column and order to sort by. Defaults to `name` ascending.
+        Args:
+            prefix: The start of the object keys to list. It is sent as given: `photos`
+                also selects `photos-old/a.png`, while `photos/` selects the keys
+                under that folder.
+            limit: The page size. The server default and maximum are 1000.
+            cursor: The `nextCursor` of the previous page. Pass it with the same
+                arguments as the first page.
+            with_delimiter: When `True`, lists one level: the keys below the next `/` after
+                `prefix` are collapsed into `folders`, named by their full prefix
+                ending in `/`. Otherwise every key at every depth is listed and
+                `folders` is empty.
+            sort_by: The column and order to sort by. Defaults to `name` ascending.
         """
         body = ListBody(
             prefix=prefix,
@@ -844,37 +808,32 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         on_progress: ProgressCallback | None = None,
     ) -> bytes | Coroutine[Any, Any, bytes]:
         """
-        Downloads a file into memory. Use :meth:`download_stream` for a file
+        Downloads a file into memory. Use `download_stream` for a file
         too large to hold in memory.
 
         A byte range, from `offset` or of `length` bytes, raises
         `StorageRangeIgnoredError` when the server answers with the whole file
         instead, as a cache that ignores the range does. Use
-        :meth:`download_stream` to accept the whole file in that case.
+        `download_stream` to accept the whole file in that case.
 
-        Parameters
-        ----------
-        path
-            The file path to be downloaded, including the path and file name. For example `folder/image.png`.
-        offset
-            The first byte to download, counted from 0. Pass the size of a
-            partial file to resume it.
-        length
-            How many bytes to download from `offset`. Defaults to every byte
-            up to the end of the file. A range that ends past the end of the
-            file stops at its end.
-        if_match
-            The `etag` of an earlier download of the file. When the file
-            changed since, the server answers with HTTP 412 and the call raises
-            `StorageApiError` with the code `PreconditionFailed`, so a resumed
-            download never mixes the bytes of two versions.
-        cache_nonce
-            Appended to the request URL as the `cacheNonce` query parameter. Pass a new
-            value, such as the time the file last changed, to bypass a cached copy.
-        on_progress
-            Called with the bytes received so far and the total, or None when
-            the total is not known, as the body arrives. It restarts from 0
-            when the download is retried.
+        Args:
+            path: The file path to be downloaded, including the path and file name. For example `folder/image.png`.
+            transform: How to transform an image before it is downloaded.
+            query_params: Extra query parameters sent with the request.
+            offset: The first byte to download, counted from 0. Pass the size of a
+                partial file to resume it.
+            length: How many bytes to download from `offset`. Defaults to every byte
+                up to the end of the file. A range that ends past the end of the
+                file stops at its end.
+            if_match: The `etag` of an earlier download of the file. When the file
+                changed since, the server answers with HTTP 412 and the call raises
+                `StorageApiError` with the code `PreconditionFailed`, so a resumed
+                download never mixes the bytes of two versions.
+            cache_nonce: Appended to the request URL as the `cacheNonce` query parameter. Pass a new
+                value, such as the time the file last changed, to bypass a cached copy.
+            on_progress: Called with the bytes received so far and the total, or None when
+                the total is not known, as the body arrives. It restarts from 0
+                when the download is retried.
         """
         byte_range = _byte_range(offset, length)
         request = self._download_request(
@@ -973,28 +932,23 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
             download.write_to(partial, resume=True)
         ```
 
-        Parameters
-        ----------
-        path
-            The file path to be downloaded, including the path and file name. For example `folder/image.png`.
-        offset
-            The first byte to download, counted from 0. Pass the size of a
-            partial file to resume it.
-        length
-            How many bytes to download from `offset`. Defaults to every byte
-            up to the end of the file. A range that ends past the end of the
-            file stops at its end.
-        if_match
-            The `etag` of an earlier download of the file. When the file
-            changed since, the server answers with HTTP 412 and the call raises
-            `StorageApiError` with the code `PreconditionFailed`, so a resumed
-            download never mixes the bytes of two versions.
-        cache_nonce
-            Appended to the request URL as the `cacheNonce` query parameter. Pass a new
-            value, such as the time the file last changed, to bypass a cached copy.
-        on_progress
-            Called with the bytes of the body read so far and the total, or
-            None when the total is not known, as the body is read.
+        Args:
+            path: The file path to be downloaded, including the path and file name. For example `folder/image.png`.
+            transform: How to transform an image before it is downloaded.
+            query_params: Extra query parameters sent with the request.
+            offset: The first byte to download, counted from 0. Pass the size of a
+                partial file to resume it.
+            length: How many bytes to download from `offset`. Defaults to every byte
+                up to the end of the file. A range that ends past the end of the
+                file stops at its end.
+            if_match: The `etag` of an earlier download of the file. When the file
+                changed since, the server answers with HTTP 412 and the call raises
+                `StorageApiError` with the code `PreconditionFailed`, so a resumed
+                download never mixes the bytes of two versions.
+            cache_nonce: Appended to the request URL as the `cacheNonce` query parameter. Pass a new
+                value, such as the time the file last changed, to bypass a cached copy.
+            on_progress: Called with the bytes of the body read so far and the total, or
+                None when the total is not known, as the body is read.
         """
         byte_range = _byte_range(offset, length)
         request = self._download_request(
@@ -1049,22 +1003,22 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """
         Uploads a file to an existing bucket.
 
-        Parameters
-        ----------
-        path
-            The relative file path including the bucket ID. Should be of the format `bucket/folder/subfolder/filename.png`.
-            The bucket must already exist before attempting to upload.
-        file
-            What to upload: the bytes, the path of a file, a binary file or an
-            iterator over the bytes. A file or an iterator is streamed instead
-            of read into memory first. A request whose body is an iterator, or
-            a file that cannot seek, is never retried.
-        upsert
-            Whether to overwrite the file if it already exists.
-        on_progress
-            Called with the bytes sent so far and the total, or None when the
-            total is not known, as the body is sent. It restarts from 0 when
-            the body is sent again.
+        Args:
+            path: The relative file path including the bucket ID. Should be of the format `bucket/folder/subfolder/filename.png`.
+                The bucket must already exist before attempting to upload.
+            file: What to upload: the bytes, the path of a file, a binary file or an
+                iterator over the bytes. A file or an iterator is streamed instead
+                of read into memory first. A request whose body is an iterator, or
+                a file that cannot seek, is never retried.
+            cache_control: The number of seconds the file is cached in the browser and
+                the Supabase CDN, sent as `Cache-Control: max-age=<seconds>`.
+            content_type: The `Content-Type` the file is stored with.
+            upsert: Whether to overwrite the file if it already exists.
+            metadata: Custom metadata stored with the file, a JSON object.
+            headers: Extra headers sent with the request.
+            on_progress: Called with the bytes sent so far and the total, or None when the
+                total is not known, as the body is sent. It restarts from 0 when
+                the body is sent again.
         """
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(
@@ -1137,29 +1091,27 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         response = upload.run()
         ```
 
-        Parameters
-        ----------
-        path
-            The file path, including the file name. For example `folder/video.mp4`.
-        file
-            What to upload: the bytes, the path of a file, or a binary file
-            that can seek. A file is read one chunk at a time.
-        upsert
-            Whether to overwrite the file if it already exists.
-        chunk_size
-            The bytes sent per request. Hosted Supabase only accepts the
-            default, 6 MiB. Change it to match a self-hosted server configured
-            with another `TUS_PART_SIZE`.
-        store
-            Where the URL of the upload is kept under its fingerprint, so that
-            a later `resumable_upload` of the same file to the same path
-            continues it instead of starting over. Pass a `dict` to share it
-            within the process, or a `shelve.Shelf` to continue after a
-            restart. Without one, only the returned upload can continue.
-        on_progress
-            Called with the bytes the server holds, plus those of the chunk in
-            flight, and the size of the file. It can go down when a chunk is
-            sent again.
+        Args:
+            path: The file path, including the file name. For example `folder/video.mp4`.
+            file: What to upload: the bytes, the path of a file, or a binary file
+                that can seek. A file is read one chunk at a time.
+            content_type: The `Content-Type` the file is stored with.
+            cache_control: The number of seconds the file is cached in the browser and
+                the Supabase CDN.
+            upsert: Whether to overwrite the file if it already exists.
+            metadata: Custom metadata stored with the file, a JSON object.
+            headers: Extra headers sent with every request of the upload.
+            chunk_size: The bytes sent per request. Hosted Supabase only accepts the
+                default, 6 MiB. Change it to match a self-hosted server configured
+                with another `TUS_PART_SIZE`.
+            store: Where the URL of the upload is kept under its fingerprint, so that
+                a later `resumable_upload` of the same file to the same path
+                continues it instead of starting over. Pass a `dict` to share it
+                within the process, or a `shelve.Shelf` to continue after a
+                restart. Without one, only the returned upload can continue.
+            on_progress: Called with the bytes the server holds, plus those of the chunk in
+                flight, and the size of the file. It can go down when a chunk is
+                sent again.
         """
         options: dict[str, Any] = {
             "path": _normalize_object_key(path),
@@ -1190,7 +1142,7 @@ class StorageFileApiClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         on_progress: ProgressCallback | None = None,
     ) -> HttpMethod[UploadResponse]:
         """
-        Replaces an existing file, taking the same arguments as :meth:`upload`.
+        Replaces an existing file, taking the same arguments as `upload`.
         """
         path_parts = relative_path_to_parts(path)
         return self._upload_or_update(

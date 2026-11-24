@@ -61,6 +61,9 @@ jobs:
       - name: Check formatting
         run: uv run --frozen ruff format --check
 
+      - name: Check docstrings
+        run: uv run --frozen python .github/scripts/check_docstrings.py
+
   import-without-httpx:
     name: Import without httpx
     runs-on: ubuntu-latest

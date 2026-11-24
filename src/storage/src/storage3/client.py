@@ -69,10 +69,8 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def from_(self, id: str) -> StorageFileApiClient[HttpIO]:
         """Run a storage file operation.
 
-        Parameters
-        ----------
-        id
-            The unique identifier of the bucket
+        Args:
+            id: The unique identifier of the bucket
         """
         return StorageFileApiClient(id, self.base_url, self.executor, self)
 
@@ -105,18 +103,12 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         Without arguments, every bucket is returned. The arguments need
         Supabase Storage v1.25.0 or newer; older releases ignore them.
 
-        Parameters
-        ----------
-        limit
-            The maximum number of buckets to return.
-        offset
-            The number of buckets to skip.
-        search
-            Only returns the buckets whose name contains this text, ignoring case.
-        sort_column
-            The column to sort the buckets by.
-        sort_order
-            The direction to sort the buckets in.
+        Args:
+            limit: The maximum number of buckets to return.
+            offset: The number of buckets to skip.
+            search: Only returns the buckets whose name contains this text, ignoring case.
+            sort_column: The column to sort the buckets by.
+            sort_order: The direction to sort the buckets in.
         """
         params = {
             "limit": limit,
@@ -138,10 +130,8 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def get_bucket(self, id: str) -> HttpMethod[Bucket]:
         """Retrieves the details of an existing storage bucket.
 
-        Parameters
-        ----------
-        id
-            The unique identifier of the bucket you would like to retrieve.
+        Args:
+            id: The unique identifier of the bucket you would like to retrieve.
         """
         response = yield EmptyRequest(
             method="GET",
@@ -160,15 +150,15 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     ) -> HttpMethod[BucketName]:
         """Creates a new storage bucket.
 
-        Parameters
-        ----------
-        id
-            A unique identifier for the bucket you are creating.
-        name
-            A name for the bucket you are creating. If not passed, the id is used as the name as well.
-        options
-            Extra options to send while creating the bucket. Valid options are `public`, `file_size_limit` and
-            `allowed_mime_types`.
+        Args:
+            id: A unique identifier for the bucket you are creating.
+            name: A name for the bucket you are creating. If not passed, the id is used as the name as well.
+            public: Whether the bucket is public. Downloading from a public bucket needs no
+                authorization token, but every other operation does. Buckets are private by default.
+            file_size_limit: The maximum size in bytes of a file uploaded to the bucket. The global
+                file size limit takes precedence. When `None`, the bucket has no limit of its own.
+            allowed_mime_types: The MIME types the bucket accepts on upload, each a wildcard such as
+                `image/*` or a type such as `image/png`. When `None`, every MIME type is accepted.
         """
         body = CreateOrUpdateBucketBody(
             id=id,
@@ -196,13 +186,14 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     ) -> HttpMethod[MessageResponse]:
         """Update a storage bucket.
 
-        Parameters
-        ----------
-        id
-            The unique identifier of the bucket you would like to update.
-        options
-            The properties you want to update. Valid options are `public`, `file_size_limit` and
-            `allowed_mime_types`.
+        Args:
+            id: The unique identifier of the bucket you would like to update.
+            public: Whether the bucket is public. Downloading from a public bucket needs no
+                authorization token, but every other operation does. When `None`, it is not changed.
+            file_size_limit: The maximum size in bytes of a file uploaded to the bucket. The global
+                file size limit takes precedence. When `None`, it is not changed.
+            allowed_mime_types: The MIME types the bucket accepts on upload, each a wildcard such as
+                `image/*` or a type such as `image/png`. When `None`, they are not changed.
         """
         body = CreateOrUpdateBucketBody(
             id=id,
@@ -223,10 +214,8 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def empty_bucket(self, id: str) -> HttpMethod[MessageResponse]:
         """Removes all objects inside a single bucket.
 
-        Parameters
-        ----------
-        id
-            The unique identifier of the bucket you would like to empty.
+        Args:
+            id: The unique identifier of the bucket you would like to empty.
         """
         response = yield EmptyRequest(
             method="POST",
@@ -240,10 +229,8 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """Deletes an existing bucket. Note that you cannot delete buckets with existing objects inside. You must first
         `empty()` the bucket.
 
-        Parameters
-        ----------
-        id
-            The unique identifier of the bucket you would like to delete.
+        Args:
+            id: The unique identifier of the bucket you would like to delete.
         """
         response = yield EmptyRequest(
             method="DELETE",
@@ -256,14 +243,12 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """Retrieves the rules of the lifecycle policy of a standard bucket.
 
         Returns an empty list when the bucket has no lifecycle policy. Raises
-        :class:`StorageApiError` when lifecycle policies are not enabled on
+        `StorageApiError` when lifecycle policies are not enabled on
         the storage service, the bucket is not a standard bucket, or the
         caller is not authorized.
 
-        Parameters
-        ----------
-        id
-            The unique identifier of the bucket.
+        Args:
+            id: The unique identifier of the bucket.
         """
         response = yield EmptyRequest(
             method="GET",
@@ -285,17 +270,14 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         The rules replace the whole stored policy. Use
         `delete_bucket_lifecycle` to remove the policy instead.
 
-        Parameters
-        ----------
-        id
-            The unique identifier of the bucket.
-        rules
-            The rules of the policy. Storage accepts between 1 and 1000 rules.
+        Args:
+            id: The unique identifier of the bucket.
+            rules: The rules of the policy. Storage accepts between 1 and 1000
+                rules.
 
-        Returns
-        -------
-        The stored rules, with the identifiers Storage generated for the
-        rules that had none.
+        Returns:
+            The stored rules, with the identifiers Storage generated for the
+            rules that had none.
         """
         response = yield JSONRequest(
             method="PUT",
@@ -309,10 +291,8 @@ class StorageClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         """Removes the lifecycle policy of a standard bucket. Succeeds when the
         bucket has no policy.
 
-        Parameters
-        ----------
-        id
-            The unique identifier of the bucket.
+        Args:
+            id: The unique identifier of the bucket.
         """
         response = yield EmptyRequest(
             method="DELETE",
@@ -333,22 +313,16 @@ class AsyncStorageClient(StorageClient[AsyncHttpIO]):
     ) -> None:
         """Create a storage client.
 
-        Parameters
-        ----------
-        url
-            The URL of the storage service, ending with a slash.
-        headers
-            Headers sent with every request.
-        http_session
-            The HTTP session that sends the requests.
-        request_timeout
-            Seconds a request may go without progress before it fails with
-            `RequestTimeoutError`. None leaves the timeout to the HTTP client.
-        retry
-            How requests that failed in a way worth repeating are retried.
-            None uses the default `RetryPolicy`, which retries GET and HEAD
-            requests only, so an upload is not retried unless the policy
-            lists its method.
+        Args:
+            url: The URL of the storage service, ending with a slash.
+            headers: Headers sent with every request.
+            http_session: The HTTP session that sends the requests.
+            request_timeout: Seconds a request may go without progress before it fails with
+                `RequestTimeoutError`. None leaves the timeout to the HTTP client.
+            retry: How requests that failed in a way worth repeating are retried.
+                None uses the default `RetryPolicy`, which retries GET and HEAD
+                requests only, so an upload is not retried unless the policy
+                lists its method.
         """
         super().__init__(
             url=url,
@@ -383,22 +357,16 @@ class SyncStorageClient(StorageClient[SyncHttpIO]):
     ) -> None:
         """Create a storage client.
 
-        Parameters
-        ----------
-        url
-            The URL of the storage service, ending with a slash.
-        headers
-            Headers sent with every request.
-        http_session
-            The HTTP session that sends the requests.
-        request_timeout
-            Seconds a request may go without progress before it fails with
-            `RequestTimeoutError`. None leaves the timeout to the HTTP client.
-        retry
-            How requests that failed in a way worth repeating are retried.
-            None uses the default `RetryPolicy`, which retries GET and HEAD
-            requests only, so an upload is not retried unless the policy
-            lists its method.
+        Args:
+            url: The URL of the storage service, ending with a slash.
+            headers: Headers sent with every request.
+            http_session: The HTTP session that sends the requests.
+            request_timeout: Seconds a request may go without progress before it fails with
+                `RequestTimeoutError`. None leaves the timeout to the HTTP client.
+            retry: How requests that failed in a way worth repeating are retried.
+                None uses the default `RetryPolicy`, which retries GET and HEAD
+                requests only, so an upload is not retried unless the policy
+                lists its method.
         """
         super().__init__(
             url=url,
