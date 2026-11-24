@@ -113,6 +113,9 @@ class RealtimeChannelOptions:
                 the Postgres replication connection backing the channel is ready to stream
                 changes. Its payload ``status`` is ``"ok"`` on success or ``"error"`` if the
                 connection is not ready in time.
+
+        Returns:
+            A copy of these options with the broadcast settings.
         """
         return replace(
             self,
@@ -133,6 +136,9 @@ class RealtimeChannelOptions:
             enabled: Turn presence on even when the channel has no
                 listener from `RealtimeChannel.presence_events()` at subscribe,
                 for an app that only reads `RealtimeChannel.presence_state()`.
+
+        Returns:
+            A copy of these options with the presence settings.
         """
         return replace(self, presence_key=key, presence_enabled=enabled)
 
@@ -207,6 +213,9 @@ class RealtimeChannelOptions:
                 listed columns must be selectable by the subscribing role. With a typed
                 ``Table`` the primary key is always included, so a change can be told
                 apart from the others; read the record with ``Table.decode_partial()``.
+
+        Returns:
+            A copy of these options with the listener added.
         """
         names = None if select is None else _column_names(select)
         if isinstance(table, Table):
@@ -475,6 +484,9 @@ class RealtimeChannel:
         When the connection of the joined channel drops, the client joins it
         again on its own once it reconnected.
 
+        Returns:
+            The server's reply to the join.
+
         Raises:
             AuthorizationError: If the server rejects the access token, or
                 the row level security policies deny the join of a private channel.
@@ -680,6 +692,9 @@ class RealtimeChannel:
         logged. Presence events are not yielded here: read them from
         `presence_events()`.
 
+        Yields:
+            Each message of the channel, or a `ChannelStateChange`.
+
         Raises:
             NotConnectedError: If the client is not connected, is closed
                 while waiting for a message, or the channel was unsubscribed and
@@ -722,6 +737,9 @@ class RealtimeChannel:
         ``max_queued_messages`` of the client are kept until they are read.
         The listener is removed when the iterator is closed or garbage
         collected.
+
+        Returns:
+            An async iterator over the presence events of the channel.
 
         Raises:
             RealtimeError: If the channel is joining or joined with
@@ -894,6 +912,9 @@ class RealtimeChannel:
             persist: Stores the message on the server so that it can be
                 replayed. Only ``broadcast_ack`` tells whether it was stored.
 
+        Returns:
+            With ``broadcast_ack``, the server's reply. Otherwise None.
+
         Raises:
             ValueError: If ``persist`` is set on a channel that is not
                 private, or if the message is sent as a binary frame and the
@@ -1041,6 +1062,10 @@ class RealtimeChannel:
     async def send_presence(self, event: str, data: JSON) -> None:
         """
         Send a ``presence`` message and wait for the server's reply.
+
+        Args:
+            event: The presence event, ``track`` or ``untrack``.
+            data: The payload of the event.
 
         Raises:
             ChannelNotJoinedError: If the channel is not joined.

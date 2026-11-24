@@ -167,6 +167,16 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
                 invocation with that policy, and a `RetryPolicy` with that policy
                 instead, both whatever its method, for a function that is safe to
                 invoke twice. False never retries it.
+
+        Returns:
+            The response of the function.
+
+        Raises:
+            FunctionsHttpError: If the function answers with an error status.
+            FunctionsRelayError: If the relay in front of the function answers
+                with an error.
+            ValueError: If `function_name` is not a valid name.
+            TypeError: If `body` is of another type.
         """
         response = yield self._invoke_options_to_request(
             function_name, body, region, headers, method, request_timeout, retry

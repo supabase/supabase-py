@@ -548,6 +548,9 @@ class BaseFilterRequestBuilder:
             operator: The operator to use while filtering. A `Filters` member,
                 or a string for an operator it does not list, such as `match`
             criteria: The value to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         if self.negate_next:
             operator = f"{Filters.NOT}.{operator}"
@@ -568,6 +571,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         return self.filter(column, Filters.EQ, value)
 
@@ -577,6 +583,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         return self.filter(column, Filters.NEQ, value)
 
@@ -586,6 +595,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         return self.filter(column, Filters.GT, value)
 
@@ -595,6 +607,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         return self.filter(column, Filters.GTE, value)
 
@@ -604,6 +619,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         return self.filter(column, Filters.LT, value)
 
@@ -613,6 +631,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         return self.filter(column, Filters.LTE, value)
 
@@ -625,6 +646,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         if value is None:
             negated = replace(self, negate_next=not self.negate_next)
@@ -637,6 +661,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             value: The value to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         return self.filter(column, Filters.IS, value)
 
@@ -646,6 +673,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             pattern: The pattern to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         return self.filter(column, Filters.LIKE, pattern)
 
@@ -655,6 +685,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             pattern: The pattern to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
 
         return self.filter(column, Filters.LIKE_ALL, f"{{{pattern}}}")
@@ -665,6 +698,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             pattern: The pattern to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
 
         return self.filter(column, Filters.LIKE_ANY, f"{{{pattern}}}")
@@ -675,6 +711,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             pattern: The pattern to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
 
         return self.filter(column, Filters.ILIKE_ALL, f"{{{pattern}}}")
@@ -685,6 +724,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             pattern: The pattern to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
 
         return self.filter(column, Filters.ILIKE_ANY, f"{{{pattern}}}")
@@ -695,6 +737,9 @@ class BaseFilterRequestBuilder:
         Args:
             column: The name of the column to apply a filter on
             pattern: The pattern to filter by
+
+        Returns:
+            A copy of this query with the filter added.
         """
         return self.filter(column, Filters.ILIKE, pattern)
 
@@ -704,6 +749,9 @@ class BaseFilterRequestBuilder:
         Args:
             filters: The filters to use, following PostgREST syntax
             reference_table: Set this to filter on referenced tables instead of the parent table
+
+        Returns:
+            A copy of this query with the filter added.
         """
         op = "not.or" if self.negate_next else "or"
         key = f"{sanitize_param(reference_table)}.{op}" if reference_table else op
@@ -829,6 +877,9 @@ class BaseFilterRequestBuilder:
 
         Args:
             value: The maximum number of rows that can be affected
+
+        Returns:
+            A copy of this query with the maximum set.
         """
         return replace(self, request=_max_affected(self.request, value))
 
@@ -850,6 +901,9 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
             desc: Whether the rows should be ordered in descending order or not.
             nullsfirst: nullsfirst
             foreign_table: Foreign table name whose results are to be ordered.
+
+        Returns:
+            A copy of this query sorted by `column`.
 
         Note:
             Changed in version 0.10.3: Allow ordering results for foreign tables with the foreign_table parameter.
@@ -881,6 +935,9 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
             size: The number of rows to be returned
             foreign_table: Foreign table name to limit
 
+        Returns:
+            A copy of this query with the limit set.
+
         Note:
             Changed in version 0.10.3: Allow limiting results returned for foreign tables with the foreign_table parameter.
         """
@@ -894,6 +951,9 @@ class BaseSelectRequestBuilder(BaseFilterRequestBuilder):
 
         Args:
             size: The number of the row to start at
+
+        Returns:
+            A copy of this query with the offset set.
         """
         query = self.request.query.set("offset", size)
         return replace(self, request=replace(self.request, query=query))
@@ -1360,6 +1420,9 @@ class SelectRequestBuilder[HttpIO: (SyncHttpIO, AsyncHttpIO)](
             type: How PostgreSQL parses `query`. Without it, `query` is
                 parsed by `to_tsquery`
             config: The text search configuration to use, such as `english`
+
+        Returns:
+            A copy of this query with the filter added.
         """
         operator: str = Filters.FTS
         if type is not None:
