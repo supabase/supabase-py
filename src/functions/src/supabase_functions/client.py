@@ -56,10 +56,8 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     def set_auth(self, token: str) -> None:
         """Updates the authorization header
 
-        Parameters
-        ----------
-        token : str
-            the new jwt token sent in the authorization header
+        Args:
+            token: the new jwt token sent in the authorization header
         """
 
         self.default_headers = self.default_headers.override(
@@ -151,25 +149,24 @@ class FunctionsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
     ) -> HttpMethod[Response]:
         """Invokes a function
 
-        Parameters
-        ----------
-        function_name : the name of the function to invoke. It may carry a
-            query string, as in `hello?name=bob`, whose parameters are sent
-            with the request. A `#fragment` is dropped.
-        body : the request body. A str is sent as text, bytes as binary data,
-            and a dict or list as JSON.
-        region : the region to invoke the function in, a FunctionRegion or
-            any region name as a string
-        headers : extra headers to send with the request
-        method : the HTTP method to use, POST by default
-        request_timeout : seconds the invocation may go without progress,
-            overriding the timeout of the client
-        retry : how the invocation is retried when it fails in a way worth
-            repeating. None leaves it to the `RetryPolicy` of the client,
-            which retries GET and HEAD invocations only. True retries the
-            invocation with that policy, and a `RetryPolicy` with that policy
-            instead, both whatever its method, for a function that is safe to
-            invoke twice. False never retries it.
+        Args:
+            function_name: the name of the function to invoke. It may carry a
+                query string, as in `hello?name=bob`, whose parameters are sent
+                with the request. A `#fragment` is dropped.
+            body: the request body. A str is sent as text, bytes as binary data,
+                and a dict or list as JSON.
+            region: the region to invoke the function in, a FunctionRegion or
+                any region name as a string
+            headers: extra headers to send with the request
+            method: the HTTP method to use, POST by default
+            request_timeout: seconds the invocation may go without progress,
+                overriding the timeout of the client
+            retry: how the invocation is retried when it fails in a way worth
+                repeating. None leaves it to the `RetryPolicy` of the client,
+                which retries GET and HEAD invocations only. True retries the
+                invocation with that policy, and a `RetryPolicy` with that policy
+                instead, both whatever its method, for a function that is safe to
+                invoke twice. False never retries it.
         """
         response = yield self._invoke_options_to_request(
             function_name, body, region, headers, method, request_timeout, retry
@@ -282,18 +279,17 @@ class AsyncFunctionsClient(FunctionsClient[AsyncHttpIO]):
     ) -> None:
         """Create a functions client.
 
-        Parameters
-        ----------
-        url : the URL of the functions service
-        headers : headers sent with every invocation
-        http_session : the HTTP session that sends the requests
-        request_timeout : seconds an invocation may go without progress before
-            it fails with `RequestTimeoutError`. None leaves the timeout to the
-            HTTP client.
-        retry : how GET and HEAD invocations that failed in a way worth
-            repeating are retried. None uses the default `RetryPolicy`. Use
-            the `retry` argument of `invoke()` to override it for one
-            invocation.
+        Args:
+            url: the URL of the functions service
+            headers: headers sent with every invocation
+            http_session: the HTTP session that sends the requests
+            request_timeout: seconds an invocation may go without progress before
+                it fails with `RequestTimeoutError`. None leaves the timeout to the
+                HTTP client.
+            retry: how GET and HEAD invocations that failed in a way worth
+                repeating are retried. None uses the default `RetryPolicy`. Use
+                the `retry` argument of `invoke()` to override it for one
+                invocation.
         """
         super().__init__(
             url=URL(url),
@@ -316,18 +312,17 @@ class SyncFunctionsClient(FunctionsClient[SyncHttpIO]):
     ) -> None:
         """Create a functions client.
 
-        Parameters
-        ----------
-        url : the URL of the functions service
-        headers : headers sent with every invocation
-        http_session : the HTTP session that sends the requests
-        request_timeout : seconds an invocation may go without progress before
-            it fails with `RequestTimeoutError`. None leaves the timeout to the
-            HTTP client.
-        retry : how GET and HEAD invocations that failed in a way worth
-            repeating are retried. None uses the default `RetryPolicy`. Use
-            the `retry` argument of `invoke()` to override it for one
-            invocation.
+        Args:
+            url: the URL of the functions service
+            headers: headers sent with every invocation
+            http_session: the HTTP session that sends the requests
+            request_timeout: seconds an invocation may go without progress before
+                it fails with `RequestTimeoutError`. None leaves the timeout to the
+                HTTP client.
+            retry: how GET and HEAD invocations that failed in a way worth
+                repeating are retried. None uses the default `RetryPolicy`. Use
+                the `retry` argument of `invoke()` to override it for one
+                invocation.
         """
         super().__init__(
             url=URL(url),

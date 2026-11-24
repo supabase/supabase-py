@@ -42,8 +42,9 @@ help::
 ruff:
 	@uv run ruff check --fix
 	@uv run ruff format
+	@uv run python .github/scripts/check_docstrings.py
 help::
-	@echo "  ruff           -- Run ruff checks on all files."
+	@echo "  ruff           -- Run ruff checks on all files, and check that docstrings are in Google style."
 
 define COMMITIZEN_HOOK_CONTENTS
 #!/bin/sh

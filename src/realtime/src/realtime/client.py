@@ -100,19 +100,6 @@ def normalize_url(url: URL, token: str | None) -> URL:
 class connect_once:
     """
     Open a realtime connection when awaited or entered as an async context manager.
-
-    :param url: The realtime URL of the project
-    :param token_callback: Returns the access token, awaited on connect and on every heartbeat
-    :param heartbeat_interval: Seconds between heartbeats, must be positive
-    :param heartbeat_timeout: Seconds to wait for a heartbeat reply before the connection is considered lost, must be positive
-    :param timeout: Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast, must be positive
-    :param max_queued_messages: Messages each channel keeps until they are read from `RealtimeChannel.messages`, must be positive
-    :param allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host
-    :param http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests
-    :param headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey``
-    :param transport: Opens the WebSocket connection, instead of the ``websockets`` library
-    :param disconnect_on_empty_channels_after: Seconds to keep the connection open after the last channel is removed.
-        Defaults to twice ``heartbeat_interval``, and ``0`` disconnects at once. Must not be negative.
     """
 
     def __init__(
@@ -130,6 +117,22 @@ class connect_once:
         transport: WebSocketTransport | None = None,
         disconnect_on_empty_channels_after: float | None = None,
     ) -> None:
+        """Prepare a connection that opens when awaited or entered.
+
+        Args:
+            url: The realtime URL of the project
+            token_callback: Returns the access token, awaited on connect and on every heartbeat
+            heartbeat_interval: Seconds between heartbeats, must be positive
+            heartbeat_timeout: Seconds to wait for a heartbeat reply before the connection is considered lost, must be positive
+            timeout: Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast, must be positive
+            max_queued_messages: Messages each channel keeps until they are read from `RealtimeChannel.messages`, must be positive
+            allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host
+            http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests
+            headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey``
+            transport: Opens the WebSocket connection, instead of the ``websockets`` library
+            disconnect_on_empty_channels_after: Seconds to keep the connection open after the last channel is removed.
+                Defaults to twice ``heartbeat_interval``, and ``0`` disconnects at once. Must not be negative.
+        """
         self.client = RealtimeClient(
             url,
             token_callback,
@@ -194,26 +197,6 @@ class RealtimeClient:
     When the connection drops, it reconnects with full-jitter backoff until it
     is closed, and joins its joined channels again. After `aclose()`, the next
     connect joins them again.
-
-    :param url: The realtime URL of the project
-    :param token_callback: Returns the access token, awaited on connect, on every channel join and on every heartbeat.
-        An error it raises fails the connect or the join. After a heartbeat it is logged and the channels keep their token.
-    :param heartbeat_interval: Seconds between heartbeats, must be positive
-    :param heartbeat_timeout: Seconds to wait for a heartbeat reply before the connection is considered lost, must be positive
-    :param timeout: Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast,
-        and for `RealtimeChannel.http_send()` to complete, must be positive
-    :param max_queued_messages: Messages each channel keeps until they are read from `RealtimeChannel.messages`, must be positive.
-        When a channel's queue is full, its oldest message is dropped and a warning is logged.
-    :param allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host, such as an emulator, a LAN address or a Docker service name.
-        Without it such a URL raises a `ValueError`, since it sends the token in clear text. `wss` and `https` URLs are always accepted.
-    :param http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests. It stays open when the client is closed.
-        Without it, `RealtimeChannel.http_send()` raises a `RealtimeError`.
-    :param headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey`` of the project.
-    :param transport: Opens the WebSocket connection, instead of the ``websockets`` library. Use it to connect with another
-        WebSocket library, or with an in-memory connection in tests.
-    :param disconnect_on_empty_channels_after: Seconds to keep the connection open after the last channel is removed,
-        so a channel joined in the meantime reuses it. Defaults to twice ``heartbeat_interval``, and ``0`` disconnects
-        at once. Must not be negative.
     """
 
     def __init__(
@@ -231,6 +214,29 @@ class RealtimeClient:
         transport: WebSocketTransport | None = None,
         disconnect_on_empty_channels_after: float | None = None,
     ) -> None:
+        """Create a realtime client.
+
+        Args:
+            url: The realtime URL of the project
+            token_callback: Returns the access token, awaited on connect, on every channel join and on every heartbeat.
+                An error it raises fails the connect or the join. After a heartbeat it is logged and the channels keep their token.
+            heartbeat_interval: Seconds between heartbeats, must be positive
+            heartbeat_timeout: Seconds to wait for a heartbeat reply before the connection is considered lost, must be positive
+            timeout: Seconds to wait for the server to reply to a join, a leave, a presence update or an acknowledged broadcast,
+                and for `RealtimeChannel.http_send()` to complete, must be positive
+            max_queued_messages: Messages each channel keeps until they are read from `RealtimeChannel.messages`, must be positive.
+                When a channel's queue is full, its oldest message is dropped and a warning is logged.
+            allow_insecure_http: Accept a `ws` or `http` URL whose host is not a loopback host, such as an emulator, a LAN address or a Docker service name.
+                Without it such a URL raises a `ValueError`, since it sends the token in clear text. `wss` and `https` URLs are always accepted.
+            http_session: The HTTP session that sends `RealtimeChannel.http_send()` requests. It stays open when the client is closed.
+                Without it, `RealtimeChannel.http_send()` raises a `RealtimeError`.
+            headers: Headers sent with every `RealtimeChannel.http_send()` request, such as the ``apikey`` of the project.
+            transport: Opens the WebSocket connection, instead of the ``websockets`` library. Use it to connect with another
+                WebSocket library, or with an in-memory connection in tests.
+            disconnect_on_empty_channels_after: Seconds to keep the connection open after the last channel is removed,
+                so a channel joined in the meantime reuses it. Defaults to twice ``heartbeat_interval``, and ``0`` disconnects
+                at once. Must not be negative.
+        """
         validate_heartbeat(heartbeat_interval, heartbeat_timeout)
         validate_push_options(timeout, max_queued_messages)
         if disconnect_on_empty_channels_after is None:
@@ -678,9 +684,12 @@ class RealtimeClient:
         replacing it would silently stop delivering messages to the existing
         channel.
 
-        :param topic: The topic to subscribe to
-        :param options: Optional channel options
-        :return: RealtimeChannel instance
+        Args:
+            topic: The topic to subscribe to
+            options: Optional channel options
+
+        Returns:
+            RealtimeChannel instance
         """
         topic = f"realtime:{topic}"
         if existing := self.channels.get(topic):
@@ -708,7 +717,6 @@ class RealtimeClient:
     async def remove_all_channels(self) -> None:
         """
         Unsubscribes and removes all channels from the socket
-        :return: None
         """
         results = await asyncio.gather(
             *(channel.unsubscribe() for channel in list(self.channels.values())),

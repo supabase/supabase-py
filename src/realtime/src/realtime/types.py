@@ -226,12 +226,11 @@ class BroadcastPersistence:
     """
     Stores a broadcast on the server so that it can be replayed, which
     requires a private channel and a ``persistence`` policy.
-
-    :param ttl: Seconds the server keeps the message. None keeps it for the
-        maximum retention of the server, which also checks the range.
     """
 
     ttl: int | None = None
+    """Seconds the server keeps the message. None keeps it for the
+    maximum retention of the server, which also checks the range."""
 
     def _metadata(self) -> JSON:
         return True if self.ttl is None else {"ttl": self.ttl}
