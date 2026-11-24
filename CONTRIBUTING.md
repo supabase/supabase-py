@@ -50,4 +50,8 @@ Write docstrings in [Google style](https://google.github.io/styleguide/pyguide.h
 - Describe the parameters under `Args:`, the return value under `Returns:`, the errors under `Raises:` and the examples under `Examples:`. Leave the types out: they are taken from the annotations.
 - Write each example under `Examples:` as a `python` code block or a doctest, with a one-line title above it. 
 
-`make ruff` checks the docstrings, and CI runs the same checks. ruff checks the format of the sections: their names, colons and blank lines, and that `Args:` lists every parameter once a docstring has it. [`check_docstrings.py`](.github/scripts/check_docstrings.py) rejects what ruff reads as plain text: another name for a section, such as `Params:` for `Args:`, NumPy sections, Sphinx fields, reST directives and Sphinx roles.
+`make ruff` checks the docstrings, and CI runs the same checks. ruff checks the format of the sections: their names, colons and blank lines, and that `Args:` lists every parameter once a docstring has it. 
+
+[`check_docstrings.py`](.github/scripts/check_docstrings.py) rejects what ruff reads as plain text: another name for a section, such as `Params:` for `Args:`, NumPy sections, Sphinx fields, reST directives and Sphinx roles. 
+
+[pydoclint](https://jsh9.github.io/pydoclint/) checks that a docstring matches the signature of its function: `Args:` lists the parameters in their order and no others, and a function that returns or yields a value has a `Returns:` or `Yields:` section.

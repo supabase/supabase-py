@@ -97,6 +97,25 @@ ignore = ["E501", "E402"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.pydoclint]
+# Checks that each docstring matches the signature of its function. ruff and
+# .github/scripts/check_docstrings.py check the style.
+style = "google"
+# The types come from the annotations, not from the docstring.
+arg-type-hints-in-docstring = false
+check-return-types = false
+check-yield-types = false
+# A constructor is documented in `__init__`, where the doc generator reads it.
+allow-init-docstring = true
+# A field is described in the string below it. The doc generator does not read
+# an `Attributes:` section.
+check-class-attributes = false
+# Reports a NumPy or Sphinx docstring.
+check-style-mismatch = true
+# pydoclint sees only the `raise` statements in the body of a function, but a
+# docstring also lists the errors that the functions it calls raise.
+skip-checking-raises = true
+
 [tool.ruff.lint.flake8-type-checking]
 runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 runtime-evaluated-decorators = ["dataclasses.dataclass", "pydantic.dataclasses.dataclass"]

@@ -63,6 +63,7 @@ tests = [
 lints = [
   "unasync >=0.6.0",
   "ruff >=0.12.1",
+  "pydoclint >=0.12.0",
   "pyrefly >=1.4.0,<2.0.0",
 ]
 

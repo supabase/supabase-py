@@ -64,6 +64,9 @@ jobs:
       - name: Check docstrings
         run: uv run --frozen python .github/scripts/check_docstrings.py
 
+      - name: Check docstrings against signatures
+        run: uv run --frozen pydoclint --quiet src/*/src
+
   import-without-httpx:
     name: Import without httpx
     runs-on: ubuntu-latest
