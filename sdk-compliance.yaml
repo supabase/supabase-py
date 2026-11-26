@@ -1739,10 +1739,6 @@ features:
     status: implemented
     note: "Via the standard pyiceberg RestCatalog returned by catalog()."
     no_public_symbols: true
-  storage.analytics.update_namespace_properties:
-    status: implemented
-    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
-    no_public_symbols: true
   storage.analytics.create_table:
     status: implemented
     note: "Via the standard pyiceberg RestCatalog returned by catalog()."
