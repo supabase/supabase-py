@@ -133,7 +133,27 @@ def test_analytics_catalog_loads_table() -> None:
     assert table.schema().find_field("id").field_id == 1
 
 
-def test_analytics_catalog_refuses_update_namespace_properties() -> None:
+_UNSERVED_CATALOG_CALLS: list[Callable[[Any], Any]] = [
+    lambda catalog: catalog.update_namespace_properties(
+        "analytics", updates={"owner": "me"}
+    ),
+    lambda catalog: catalog.rename_table(
+        ("analytics", "events"), ("analytics", "events_v2")
+    ),
+    lambda catalog: catalog.register_table(
+        ("analytics", "events"), "s3://warehouse/table/metadata/v1.metadata.json"
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "action",
+    _UNSERVED_CATALOG_CALLS,
+    ids=["update_namespace_properties", "rename_table", "register_table"],
+)
+def test_analytics_catalog_refuses_calls_storage_does_not_serve(
+    action: Callable[[Any], Any],
+) -> None:
     config: dict[str, Any] = {"defaults": {}, "overrides": {"prefix": "warehouse"}}
 
     def get(url: str, **_: Any) -> requests.Response:
@@ -150,8 +170,8 @@ def test_analytics_catalog_refuses_update_namespace_properties() -> None:
         patch("requests.sessions.Session.post") as post,
     ):
         catalog = client.analytics().catalog("warehouse", "access-key", "secret-key")
-        with pytest.raises(NotImplementedError, match="namespace properties"):
-            catalog.update_namespace_properties("analytics", updates={"owner": "me"})
+        with pytest.raises(NotImplementedError, match="Supabase Storage does not"):
+            action(catalog)
 
     post.assert_not_called()
 

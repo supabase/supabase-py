@@ -1755,15 +1755,7 @@ features:
     status: implemented
     note: "Via the standard pyiceberg RestCatalog returned by catalog()."
     no_public_symbols: true
-  storage.analytics.rename_table:
-    status: implemented
-    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
-    no_public_symbols: true
   storage.analytics.delete_table:
-    status: implemented
-    note: "Via the standard pyiceberg RestCatalog returned by catalog()."
-    no_public_symbols: true
-  storage.analytics.register_table:
     status: implemented
     note: "Via the standard pyiceberg RestCatalog returned by catalog()."
     no_public_symbols: true
