@@ -86,7 +86,7 @@ class StorageAnalyticsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         self, catalog_name: str, access_key_id: str, secret_access_key: str
     ) -> RestCatalog:
         try:
-            from pyiceberg.catalog.rest import RestCatalog
+            from ._iceberg import SupabaseRestCatalog
         except ImportError as err:
             raise ImportError(
                 "pyiceberg is required for storage analytics catalog support, "
@@ -98,7 +98,7 @@ class StorageAnalyticsClient[HttpIO: (SyncHttpIO, AsyncHttpIO)]:
         service_key = self.default_headers.get("apiKey")
         if not service_key:
             raise ValueError("apiKey must be passed in the headers.")
-        return RestCatalog(
+        return SupabaseRestCatalog(
             catalog_name,
             warehouse=catalog_name,
             uri=str(catalog_uri),

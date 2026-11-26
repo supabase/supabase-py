@@ -133,6 +133,29 @@ def test_analytics_catalog_loads_table() -> None:
     assert table.schema().find_field("id").field_id == 1
 
 
+def test_analytics_catalog_refuses_update_namespace_properties() -> None:
+    config: dict[str, Any] = {"defaults": {}, "overrides": {"prefix": "warehouse"}}
+
+    def get(url: str, **_: Any) -> requests.Response:
+        response = requests.Response()
+        response.status_code = 200
+        response.raw = BytesIO(json.dumps(config).encode())
+        return response
+
+    client = SyncStorageClient(
+        STORAGE_URL, {"apiKey": "service-key"}, http_session=HttpxSession(Client())
+    )
+    with (
+        patch("requests.sessions.Session.get", side_effect=get),
+        patch("requests.sessions.Session.post") as post,
+    ):
+        catalog = client.analytics().catalog("warehouse", "access-key", "secret-key")
+        with pytest.raises(NotImplementedError, match="namespace properties"):
+            catalog.update_namespace_properties("analytics", updates={"owner": "me"})
+
+    post.assert_not_called()
+
+
 def test_analytics_catalog_without_api_key_raises_value_error() -> None:
     sync_client = SyncStorageClient(
         STORAGE_URL, {}, http_session=HttpxSession(Client())
